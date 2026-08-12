@@ -3,7 +3,6 @@ import {
   button,
   craftComponent,
   CraftRouterOutlet,
-  directive,
   div,
   each,
   ifBlock,
@@ -89,11 +88,6 @@ const VISIBLE_NAV_GROUPS = NAV_GROUPS.map((group) => ({
   links: group.links.filter(([, link]) => demoEnabledRoutePaths.has(link.to)),
 })).filter((group) => group.links.length > 0);
 
-const craftRouterLink = ({ link }: { link: CraftRouterLinkInput }) =>
-  directive(CraftRouterLink, {
-    inputs: { craftRouterLink: link },
-  });
-
 export const App = craftComponent(
   'App',
   {
@@ -160,9 +154,10 @@ export const App = craftComponent(
                         group.links,
                         { track: ([, link]) => link.to },
                         ([label, link]) =>
-                          a({ click: closeNav }, label).pipe(
-                            craftRouterLink({ link }),
-                          ),
+                          a(
+                            { click: closeNav, craftRouterLink: link },
+                            label,
+                          ).pipe(CraftRouterLink),
                       ),
                     ),
                   ]),

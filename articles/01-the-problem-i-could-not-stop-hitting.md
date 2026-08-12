@@ -230,3 +230,7 @@ I have been staring at this problem long enough that I have lost the ability to 
 I am building this in the open, in beta, precisely so that the answer can still change the API. Tell me where I am wrong — in the comments, or in a [discussion](https://github.com/ng-angular-stack/ng-craft/discussions).
 
 Next in this series: **why the primitives are generators**, and what `yield*` actually buys you that a plain function call cannot.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

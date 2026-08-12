@@ -52,6 +52,10 @@ title()().exceptions.list; // typed list of this field's exceptions
 title()().exceptions.byValidator['cRequired'];
 ```
 
+`insertSelectFormTree` is lazy. Calling `selectTitle()` materializes the branch
+and registers its validators. Use the returned selected field for DOM binding;
+reading the raw `form.title` field does not activate the branch insertions.
+
 ::: warning `insertNoopTypingAnchor`
 It adds no behaviour. It is a TypeScript anchor that the inference needs to type
 the field and its exceptions. Every `insertSelectFormTree` needs one — it's a

@@ -19,14 +19,17 @@ type ContentOutput<Value> = Value extends (...args: any[]) => infer Output
   ? Output
   : never;
 
+type RenderableContentOutput<Value> =
+  ContentOutput<Value> extends CraftNodeChildren
+    ? ContentOutput<Value>
+    : CraftNodeChildren;
+
 function contentStylePolicy(value: unknown): ContentStylePolicy {
-  return (
-    (value as Partial<Record<typeof CONTENT_STYLE_POLICY, unknown>>)[
-      CONTENT_STYLE_POLICY
-    ] === 'allow-container-styles'
-      ? 'allow-container-styles'
-      : 'isolated'
-  );
+  return (value as Partial<Record<typeof CONTENT_STYLE_POLICY, unknown>>)[
+    CONTENT_STYLE_POLICY
+  ] === 'allow-container-styles'
+    ? 'allow-container-styles'
+    : 'isolated';
 }
 
 function defineContentPolicy(
@@ -48,9 +51,7 @@ export function content<
 >(
   renderer: () => Output,
   options?: Options,
-): RenderableContent<
-  Output
-> & {
+): RenderableContent<Output> & {
   readonly [CONTENT_RENDERABLE]: true;
   readonly [CONTENT_DECLARATION_CONTEXT]: unknown;
   readonly [CONTENT_STYLE_POLICY]: Options extends {
@@ -93,21 +94,25 @@ function isComponentUnit(value: unknown): value is ProjectionUnit {
 }
 
 /** Renders either deferred DOM content or a component with a projection contract. */
-export function renderContent<
-  Value extends RenderableContent,
->(value: Value): ProjectionNode<
-  CraftNodeChildrenDependencies<ContentOutput<Value>>
+export function renderContent<Value extends RenderableContent>(
+  value: Value,
+): ProjectionNode<
+  CraftNodeChildrenDependencies<RenderableContentOutput<Value>>,
+  RenderableContentOutput<Value>
 >;
-export function renderContent<
-  Value extends ProjectionUnit<any>,
->(value: Value): ProjectionNode<CraftNodeChildrenDependencies<Value>>;
+export function renderContent<Value extends ProjectionUnit<any>>(
+  value: Value,
+): ProjectionNode<CraftNodeChildrenDependencies<Value>, Value>;
 export function renderContent<
   SlotName extends string,
   Value extends RenderableContent,
 >(
   slotName: SlotName,
   value: Value,
-): ProjectionNode<CraftNodeChildrenDependencies<ContentOutput<Value>>>;
+): ProjectionNode<
+  CraftNodeChildrenDependencies<RenderableContentOutput<Value>>,
+  RenderableContentOutput<Value>
+>;
 export function renderContent(
   slotNameOrValue: string | RenderableContent | ProjectionUnit,
   maybeValue?: RenderableContent,
@@ -118,11 +123,11 @@ export function renderContent(
     | RenderableContent
     | ProjectionUnit;
   const declarationContext = isComponentUnit(value)
-    ? value.declarationContext ?? currentCraftRenderContext()
+    ? (value.declarationContext ?? currentCraftRenderContext())
     : typeof value === 'function'
-      ? ((value as Partial<Record<typeof CONTENT_DECLARATION_CONTEXT, unknown>>)[
-          CONTENT_DECLARATION_CONTEXT
-        ] ?? currentCraftRenderContext())
+      ? ((
+          value as Partial<Record<typeof CONTENT_DECLARATION_CONTEXT, unknown>>
+        )[CONTENT_DECLARATION_CONTEXT] ?? currentCraftRenderContext())
       : currentCraftRenderContext();
   const policy =
     typeof value === 'function' ? contentStylePolicy(value) : 'isolated';

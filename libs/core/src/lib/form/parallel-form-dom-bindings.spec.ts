@@ -4,7 +4,7 @@ import { type GetDeps, type GetPublicComponentProperties } from '../../index';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { mutation } from '../mutation';
 import { state } from '../state';
-import { CraftFieldDirective } from './craft-field.directive';
+import { LegacyCraftFieldDirective as CraftFieldDirective } from './craft-field.directive';
 import { insertForm, ValidatedFormValue } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertFormSubmit } from './insert-form-submit';
@@ -26,22 +26,22 @@ type User = { id: string; name: string };
 })
 class ParallelSelectedFieldBindingsComponent {
   protected readonly usersForm = craftUse(
-      state(
-        'usersForm',
-        [
-          {
-            id: '1',
-            name: 'Alpha',
-          },
-        ],
-        insertForm(
-          {
-            identifier: ({ item }) => item.id,
-          },
-          insertSelectFormTree('name', insertNoopTypingAnchor),
-        ),
+    state(
+      'usersForm',
+      [
+        {
+          id: '1',
+          name: 'Alpha',
+        },
+      ],
+      insertForm(
+        {
+          identifier: ({ item }) => item.id,
+        },
+        insertSelectFormTree('name', insertNoopTypingAnchor),
       ),
-    );
+    ),
+  );
 }
 
 @Component({
@@ -72,27 +72,27 @@ class ParallelLazySubFormComponent {
   );
 
   protected readonly usersForm = craftUse(
-      state(
-        'usersForm',
-        [
-          { id: '1', name: 'Alpha' },
-          { id: '2', name: 'Beta' },
-        ] as User[],
-        insertForm(
-          { identifier: ({ item }) => item.id },
-          insertFormSubmit(this.updateUser),
-          insertSelectFormTree('name', (context) =>
-            craftPipe(
-              context,
-              insertNoopTypingAnchor,
-              insertFormAttributes(() => ({
-                validators: [cRequired()],
-              })),
-            ),
+    state(
+      'usersForm',
+      [
+        { id: '1', name: 'Alpha' },
+        { id: '2', name: 'Beta' },
+      ] as User[],
+      insertForm(
+        { identifier: ({ item }) => item.id },
+        insertFormSubmit(this.updateUser),
+        insertSelectFormTree('name', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
           ),
         ),
       ),
-    );
+    ),
+  );
 }
 
 describe('parallel form DOM bindings', () => {

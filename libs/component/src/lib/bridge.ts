@@ -14,17 +14,20 @@ import {
   type ValueProvider,
 } from '@angular/core';
 import { ActivatedRoute, type Route } from '@angular/router';
-import type {
-  ComponentDepsCarrier,
-  ComponentDepsOf,
-  ComponentExceptionsCarrier,
-  CraftRouteLazyLoadHelpers,
+import {
+  CRAFT_ROUTE_TARGET,
+  craftRouteTarget,
+  type ComponentDepsCarrier,
+  type ComponentDepsOf,
+  type ComponentExceptionsCarrier,
+  type CraftRouteLazyLoadHelpers,
 } from '@craft-ng/core';
 import {
   mountInterpretedComponent,
   type MountedCraftComponent,
 } from './render/interpreter';
 import type {
+  ComponentFieldExceptionsOf,
   ComponentInitializationExceptionsOf,
   CraftComponent,
   PropsOf,
@@ -33,8 +36,21 @@ import { combineLatest, type Subscription } from 'rxjs';
 
 export type CraftMountRef<Props extends object> = MountedCraftComponent<Props>;
 
+type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+type RequireHandledMountFieldExceptions<Component> =
+  IsAny<ComponentFieldExceptionsOf<Component>> extends true
+    ? unknown
+    : unknown extends ComponentFieldExceptionsOf<Component>
+      ? unknown
+      : [ComponentFieldExceptionsOf<Component>] extends [never]
+        ? unknown
+        : {
+            'fieldExceptionBlock.exhaustive is required before mounting component field exceptions': ComponentFieldExceptionsOf<Component>;
+          };
+
 export function mountCraftComponent<Component extends CraftComponent<any>>(
-  component: Component,
+  component: Component & RequireHandledMountFieldExceptions<Component>,
   hostElement: Element,
   injector: Injector,
   props: PropsOf<Component> = {} as PropsOf<Component>,
@@ -154,8 +170,20 @@ export function provideCraftComponent(
   };
 }
 
-export function loadCraftComponent<Component extends CraftComponent<any>>(
-  loader: (helpers: CraftRouteLazyLoadHelpers) => Promise<Component>,
+type RequireHandledRouteFieldExceptions<Component> =
+  IsAny<ComponentFieldExceptionsOf<Component>> extends true
+    ? unknown
+    : unknown extends ComponentFieldExceptionsOf<Component>
+      ? unknown
+      : [ComponentFieldExceptionsOf<Component>] extends [never]
+        ? unknown
+        : {
+            'fieldExceptionBlock.exhaustive is required before routing component field exceptions': ComponentFieldExceptionsOf<Component>;
+          };
+
+export function loadCraftComponent<const Component extends CraftComponent<any>>(
+  loader: ((helpers: CraftRouteLazyLoadHelpers) => Promise<Component>) &
+    RequireHandledRouteFieldExceptions<NoInfer<Component>>,
   additionalProviders: NonNullable<Route['providers']> = [],
 ): {
   loadComponent: (
@@ -168,10 +196,21 @@ export function loadCraftComponent<Component extends CraftComponent<any>>(
 
   const fragment = {
     loadComponent: async (helpers: CraftRouteLazyLoadHelpers) => {
-      loadedComponent = await loader(helpers);
+      loadedComponent = (await loader(helpers)) as Component;
       return CraftRoutedComponentHost;
     },
     providers: [
+      {
+        provide: CRAFT_ROUTE_TARGET,
+        useFactory: () => {
+          if (!loadedComponent) {
+            throw new Error(
+              'loadCraftComponent() must finish loading before its route target is resolved.',
+            );
+          }
+          return craftRouteTarget(loadedComponent);
+        },
+      },
       {
         provide: CRAFT_ROUTED_COMPONENT,
         useFactory: () => {

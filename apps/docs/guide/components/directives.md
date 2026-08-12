@@ -263,11 +263,20 @@ The component context is passed to the decorated template. Craft structural
 directives can therefore transform Craft output without introducing an
 intermediate component.
 
-Angular host directives can also be applied with `.pipe(...)`, without placing
-a `directives` property in the props:
+Functional DOM directives can also be applied with `.pipe(...)`. Their declared
+inputs are consumed by the directive instead of becoming DOM attributes:
 
 ```ts
 button({ craftRouterLink: link }).pipe(CraftRouterLink);
+```
+
+A field configured with `insertSelectFormTree` must be selected before it is
+bound, so its lazy insertions (including validators) are registered:
+
+```ts
+input({ type: 'email' }).pipe(
+  CraftFieldDirective(loginForm.form.selectEmail()),
+);
 ```
 
 ## Composition rules

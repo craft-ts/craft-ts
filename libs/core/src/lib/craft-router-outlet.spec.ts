@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { Component, EnvironmentInjector, signal } from '@angular/core';
+import {
+  Component,
+  createEnvironmentInjector,
+  EnvironmentInjector,
+  signal,
+} from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -20,6 +25,7 @@ import { craftException } from './craft-exception';
 import type { RouteChainOutcome } from './craft-guard-runtime';
 import { CRAFT_GLOBAL_ERROR } from './craft-route-exceptions';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
+import { CRAFT_ROUTE_TARGET, craftRouteTarget } from './craft-route-target';
 import {
   CRAFT_ROUTE_CHAIN_RUNNER,
   createCraftRouterOutletController,
@@ -148,6 +154,54 @@ describe('CraftRouterOutlet', () => {
     activate(outlet, undefined);
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {
+    const { outlet } = setup();
+    const component = { name: 'FunctionalRoute' };
+    const routeInjector = createEnvironmentInjector(
+      [{ provide: CRAFT_ROUTE_TARGET, useValue: craftRouteTarget(component) }],
+      TestBed.inject(EnvironmentInjector),
+    );
+
+    outlet.activateWith(makeRoute(undefined), routeInjector);
+
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.displayedComponent()).toBe(TargetCmp);
+    expect(outlet.displayedTarget()).toEqual({ kind: 'craft', component });
+    routeInjector.destroy();
+  });
+
+  it('accepts Craft targets for pending and error surfaces', async () => {
+    const { outlet } = setup();
+    const pending = { name: 'FunctionalPending' };
+    const error = { name: 'FunctionalError' };
+    activate(
+      outlet,
+      makeMeta({
+        stayMs: 0,
+        blankMs: 0,
+        pendingComponent: craftRouteTarget(pending),
+      }),
+    );
+    await flush();
+    vi.advanceTimersByTime(0);
+    expect(outlet.pendingTarget()).toEqual({
+      kind: 'craft',
+      component: pending,
+    });
+
+    deferred.resolve({
+      kind: 'render',
+      component: { component: craftRouteTarget(error) },
+      exception: craftException({ code: 'SPEC_ERROR' }),
+    });
+    await flush();
+    expect(outlet.errorTarget()).toEqual({ kind: 'craft', component: error });
+    expect(outlet.displayedTarget()).toEqual({
+      kind: 'craft',
+      component: error,
+    });
   });
 
   it('starts in the stay phase, then renders the target on data', async () => {
@@ -515,5 +569,10 @@ describe('resolveComponentInput', () => {
 
   it('returns null for no component', async () => {
     expect(await resolveComponentInput(null)).toBeNull();
+  });
+
+  it('passes through an eager Craft target', async () => {
+    const target = craftRouteTarget({ name: 'FunctionalError' });
+    expect(await resolveComponentInput({ component: target })).toBe(target);
   });
 });

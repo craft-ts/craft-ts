@@ -336,14 +336,14 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
     {
       match: {
         module: '@craft-ng/core',
-        symbols: ['CraftFieldDirective'],
+        symbols: ['LegacyCraftFieldDirective'],
         metadata: ['imports'],
       },
       deps: [
         {
-          key: 'CraftFieldDirective',
-          symbol: 'CraftFieldDirective',
-          typeText: 'CraftFieldDirective<unknown>',
+          key: 'LegacyCraftFieldDirective',
+          symbol: 'LegacyCraftFieldDirective',
+          typeText: 'LegacyCraftFieldDirective<unknown>',
           module: '@craft-ng/core',
         },
       ],
@@ -351,13 +351,13 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
     {
       match: {
         module: '@craft-ng/core',
-        symbols: ['CraftRouterLink'],
+        symbols: ['LegacyCraftRouterLink'],
         metadata: ['imports'],
       },
       deps: [
         {
-          key: 'CraftRouterLink',
-          symbol: 'CraftRouterLink',
+          key: 'LegacyCraftRouterLink',
+          symbol: 'LegacyCraftRouterLink',
           module: '@craft-ng/core',
         },
       ],

@@ -24,6 +24,9 @@ import {
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   CRAFT_DOM_EVENT_HOOK,
+  CRAFT_NODE_DIRECTIVE,
+  CRAFT_NODE_EFFECT_FACTORY,
+  CRAFT_FIELD_EXCEPTION_BOUNDARY,
   CRAFT_TEMPORAL_RUNTIME,
   ComponentRegister,
   craftEffect,
@@ -34,6 +37,7 @@ import {
   isCraftException,
   isCraftGenShortCircuit,
   isGeneratorFunction,
+  isCraftField,
   markYieldableValue,
   isYieldableValue,
   isYieldableMethod,
@@ -44,7 +48,11 @@ import {
   type CraftServiceProvider,
   type CraftDomEvent,
   type CraftDomEventHook,
+  type CraftNodeDirectiveContext,
   type AnyCraftException,
+  type CraftFieldExceptionSource,
+  type FieldExceptionBoundaryRegistration,
+  fieldExceptionVisibilityMatches,
   YIELDABLE_VALUE,
   type TemporalTaskHandle,
   type TemplateTraceContext,
@@ -64,6 +72,7 @@ import {
   mergeHostProps,
   type AngularComponentNode,
   type AngularDirectiveNode,
+  type AppliedCraftNodeDirective,
   type CraftDirectiveNode,
   type CraftNode,
   type CraftNodeChildren,
@@ -75,13 +84,19 @@ import {
   type MatchBlockNode,
   type ProjectionNode,
   type TemplateNode,
+  type FieldExceptionBlockNode,
   withCraftRenderContext,
+  CRAFT_NODE_DIRECTIVES,
 } from './vnode';
 import {
   CraftUnhandledExceptionError,
   resolveCatchBlockHandler,
   type CatchBlockPosition,
 } from '../block';
+import type {
+  FieldExceptionHandler,
+  FieldExceptionHandlers,
+} from '../field-exception-block';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
   CraftStyleRegistry,
@@ -116,6 +131,7 @@ interface RenderContext {
   readonly exceptionBoundary?: (exception: AnyCraftException) => boolean;
   readonly exceptionBoundaryResolved?: () => void;
   readonly handledResourceExceptionCodes?: Set<string>;
+  readonly fieldExceptionBoundary?: FieldExceptionBoundaryRegistration;
   /** Lexical context of content declared by the parent component. */
   readonly declarationContext?: RenderContext;
   /** Directives composed around the current component. */
@@ -426,8 +442,16 @@ function createRenderEffect(
   name: string,
   effectFn: () => void,
 ): EffectRef {
+  return createEffectInInjector(context.injector, name, effectFn);
+}
+
+function createEffectInInjector(
+  injector: Injector,
+  name: string,
+  effectFn: () => void,
+): EffectRef {
   return untracked(() =>
-    runInInjectionContext(context.injector, () =>
+    runInInjectionContext(injector, () =>
       craftEffect(name, effectFn, { manualCleanup: true }),
     ),
   );
@@ -461,6 +485,10 @@ function projectYieldableTemplateContext(
   value: unknown,
   seen = new WeakMap<object, unknown>(),
 ): unknown {
+  // Field trees are dynamic proxies: copying their enumerable members would
+  // discard lazily-created child fields such as `form.email`.
+  if (isCraftField(value)) return value;
+
   if (isYieldableValue(value)) {
     const projected = (...args: any[]) => {
       const result = Reflect.apply(
@@ -627,6 +655,85 @@ class AngularMount {
   }
 }
 
+class CraftNodeDirectiveMount {
+  private readonly inputs;
+  private readonly environmentInjector: EnvironmentInjector;
+  private readonly cleanup: (() => void) | undefined;
+  private readonly registrationRelease: () => void;
+
+  constructor(
+    descriptor: AppliedCraftNodeDirective,
+    element: Element,
+    context: RenderContext,
+  ) {
+    this.inputs = signal(descriptor.inputs);
+    const definition = descriptor.directive[CRAFT_NODE_DIRECTIVE];
+    this.environmentInjector = createEnvironmentInjector(
+      [
+        { provide: ElementRef, useValue: new ElementRef(element) },
+        { provide: Renderer2, useValue: context.renderer },
+        {
+          provide: CRAFT_NODE_EFFECT_FACTORY,
+          deps: [Injector],
+          useFactory:
+            (injector: Injector) => (name: string, effectFn: () => void) =>
+              createEffectInInjector(
+                injector,
+                `node-directive-${name}`,
+                effectFn,
+              ),
+        },
+        ...(context.fieldExceptionBoundary
+          ? [
+              {
+                provide: CRAFT_FIELD_EXCEPTION_BOUNDARY,
+                useValue: context.fieldExceptionBoundary,
+              },
+            ]
+          : []),
+      ],
+      context.injector.get(EnvironmentInjector),
+      `CraftNodeDirective(${definition.name})`,
+    );
+    const inputs = this.inputs;
+    const nodeContext = {
+      element,
+      injector: this.environmentInjector,
+      renderer: context.renderer,
+      get props() {
+        return inputs();
+      },
+    } satisfies CraftNodeDirectiveContext;
+    this.registrationRelease = ɵregisterCraftTarget(
+      this.environmentInjector,
+      descriptor.directive,
+      nodeContext,
+      allocateCraftHostName(
+        this.environmentInjector,
+        'directive',
+        definition.name,
+      ),
+      false,
+    );
+    const cleanup = untracked(() =>
+      runInInjectionContext(this.environmentInjector, () =>
+        definition.mount(nodeContext),
+      ),
+    );
+    this.cleanup = typeof cleanup === 'function' ? cleanup : undefined;
+  }
+
+  update(descriptor: AppliedCraftNodeDirective): void {
+    this.inputs.set(descriptor.inputs);
+  }
+
+  destroy(): void {
+    this.registrationRelease();
+    this.cleanup?.();
+    this.environmentInjector.destroy();
+  }
+}
+
 function sameDirectives(
   left: readonly AngularDirectiveNode[],
   right: readonly AngularDirectiveNode[],
@@ -644,6 +751,18 @@ function sameCraftDirectives(
   return (
     left.length === right.length &&
     left.every((directive, index) => directive === right[index])
+  );
+}
+
+function sameCraftNodeDirectives(
+  left: readonly AppliedCraftNodeDirective[],
+  right: readonly AppliedCraftNodeDirective[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (descriptor, index) => descriptor.directive === right[index]?.directive,
+    )
   );
 }
 
@@ -785,7 +904,7 @@ class ReactiveTextRenderedNode implements RenderedNode {
 }
 
 function renderCraftDirectiveNode(
-  node: CraftDirectiveNode,
+  node: CraftDirectiveNode<any, any, any>,
   context: RenderContext,
 ): CraftNodeChildren {
   let template = (_componentContext: any): CraftNodeChildren => [node.node];
@@ -812,7 +931,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   private readonly registrationReleases: (() => void)[];
 
   constructor(
-    private node: CraftDirectiveNode,
+    private node: CraftDirectiveNode<any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
     private readonly context: RenderContext,
@@ -1175,13 +1294,15 @@ class ElementRenderedNode implements RenderedNode {
   >();
   private angularDirectiveMount: AngularMount | undefined;
   private directiveTypes: readonly AngularDirectiveNode[] = [];
+  private craftNodeDirectiveTypes: readonly AppliedCraftNodeDirective[] = [];
+  private craftNodeDirectiveMounts: CraftNodeDirectiveMount[] = [];
   private localName: string | undefined;
 
   constructor(
     private readonly node: Element,
     private tag: string,
     private context: RenderContext,
-    initial: ElementNodeBase,
+    initial: ElementNodeBase<any, any, any, any, any, any, any, any>,
   ) {
     this.patchProperties(initial);
     this.children = patchRenderedChildren(
@@ -1227,7 +1348,9 @@ class ElementRenderedNode implements RenderedNode {
     return true;
   }
 
-  private patchProperties(nextNode: ElementNodeBase): void {
+  private patchProperties(
+    nextNode: ElementNodeBase<any, any, any, any, any, any, any, any>,
+  ): void {
     const next = nextNode.props;
     const renderer = this.context.renderer;
     const previousAttributes = flattenAttributes(this.props);
@@ -1392,6 +1515,25 @@ class ElementRenderedNode implements RenderedNode {
     }
     this.directiveTypes = directives;
 
+    const craftNodeDirectives = nextNode[CRAFT_NODE_DIRECTIVES] ?? [];
+    if (
+      !sameCraftNodeDirectives(
+        this.craftNodeDirectiveTypes,
+        craftNodeDirectives,
+      )
+    ) {
+      this.craftNodeDirectiveMounts.forEach((mount) => mount.destroy());
+      this.craftNodeDirectiveMounts = craftNodeDirectives.map(
+        (descriptor) =>
+          new CraftNodeDirectiveMount(descriptor, this.node, this.context),
+      );
+    } else {
+      this.craftNodeDirectiveMounts.forEach((mount, index) =>
+        mount.update(craftNodeDirectives[index]!),
+      );
+    }
+    this.craftNodeDirectiveTypes = craftNodeDirectives;
+
     if (this.localName !== nextNode.localName) {
       if (nextNode.localName === undefined) {
         renderer.removeAttribute(this.node, 'data-craft-name');
@@ -1458,6 +1600,8 @@ class ElementRenderedNode implements RenderedNode {
     this.listeners.forEach((dispose) => dispose());
     this.listeners.clear();
     this.angularDirectiveMount?.destroy();
+    this.craftNodeDirectiveMounts.forEach((mount) => mount.destroy());
+    this.craftNodeDirectiveMounts = [];
     this.children.forEach((child) => child.destroy());
     removeNode(this.context.renderer, this.node);
   }
@@ -2057,7 +2201,7 @@ class CatchBlockRenderedNode implements RenderedNode {
   private fallbackChildren: CraftNodeChildren = [];
 
   constructor(
-    private node: CatchBlockNode,
+    private node: CatchBlockNode<any, any, any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
     private readonly context: RenderContext,
@@ -2180,6 +2324,329 @@ class CatchBlockRenderedNode implements RenderedNode {
 
   destroy(): void {
     this.view.destroy();
+  }
+}
+
+type RegisteredFieldExceptionSource = {
+  readonly source: CraftFieldExceptionSource;
+  readonly element: Element;
+  readonly messageIds: Map<string, string>;
+};
+
+type FieldExceptionAccessibilityState = {
+  readonly originalAriaInvalid: string | null;
+  readonly originalAriaDescribedBy: string | null;
+  readonly registrations: Set<number>;
+  readonly messagesByBoundary: Map<number, readonly string[]>;
+};
+
+const fieldExceptionAccessibility = new WeakMap<
+  Element,
+  FieldExceptionAccessibilityState
+>();
+
+let nextFieldExceptionBoundaryId = 0;
+
+function fieldExceptionHandler(
+  handlers: FieldExceptionHandlers,
+  path: string,
+  code: string,
+): FieldExceptionHandler | undefined {
+  const grouped = handlers[path];
+  if (typeof grouped === 'object' && grouped !== null) {
+    return grouped[code];
+  }
+  const local = handlers[code];
+  return typeof local === 'function' ? local : undefined;
+}
+
+function fieldExceptionValidatorName(
+  source: CraftFieldExceptionSource,
+  exception: AnyCraftException,
+): string {
+  const branded = (exception as { readonly __brand?: unknown }).__brand;
+  if (typeof branded === 'string') return branded;
+  const byValidator = source.exceptions().byValidator;
+  return (
+    Object.entries(byValidator).find(([, value]) => value === exception)?.[0] ??
+    'unknown'
+  );
+}
+
+function fieldExceptionMessageNode(
+  id: string,
+  children: CraftNodeChildren,
+): ElementNodeBase {
+  return {
+    kind: 'element',
+    tag: 'div',
+    props: {
+      id,
+      role: 'alert',
+      'data-field-exception': '',
+    },
+    children,
+  };
+}
+
+class FieldExceptionBlockRenderedNode implements RenderedNode {
+  readonly kind = 'field-exception-block';
+  private readonly boundaryId = nextFieldExceptionBoundaryId++;
+  private readonly descriptor;
+  private readonly sourcesVersion = signal(0);
+  private readonly sources = new Map<Element, RegisteredFieldExceptionSource>();
+  private readonly view: FragmentRenderedNode;
+  private readonly effectRef: EffectRef;
+
+  constructor(
+    private node: FieldExceptionBlockNode<any, any, any, any>,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.descriptor = signal(node);
+    this.view = createFragment(
+      parent,
+      before,
+      this.boundaryContext(),
+      [node.source],
+      'craft-field-exception-block',
+    );
+    this.effectRef = createRenderEffect(
+      context,
+      'field-exception-block',
+      () => {
+        this.node = this.descriptor();
+        this.sourcesVersion();
+        const fallbacks = this.renderFallbacks();
+        this.view.patchChildren(
+          this.node.options.position === 'before'
+            ? [fallbacks, this.node.source]
+            : [this.node.source, fallbacks],
+        );
+      },
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'field-exception-block') return false;
+    this.descriptor.set(node);
+    return true;
+  }
+
+  private boundaryContext(): RenderContext {
+    return childContext(this.context, {
+      fieldExceptionBoundary: {
+        register: (source, element) => this.register(source, element),
+      },
+    });
+  }
+
+  private register(
+    source: CraftFieldExceptionSource,
+    element: Element,
+  ): () => void {
+    const unregisterParent = this.context.fieldExceptionBoundary?.register(
+      source,
+      element,
+    );
+    const registered: RegisteredFieldExceptionSource = {
+      source,
+      element,
+      messageIds: new Map(),
+    };
+    this.accessibilityState(element).registrations.add(this.boundaryId);
+    this.sources.set(element, registered);
+    untracked(() => this.sourcesVersion.update((value) => value + 1));
+    return () => {
+      this.releaseAccessibility(registered);
+      this.sources.delete(element);
+      untracked(() => this.sourcesVersion.update((value) => value + 1));
+      unregisterParent?.();
+    };
+  }
+
+  private orderedSources(): RegisteredFieldExceptionSource[] {
+    return [...this.sources.values()].sort((left, right) => {
+      if (left.element === right.element) return 0;
+      const relation = left.element.compareDocumentPosition(right.element);
+      return relation & 4 /* Node.DOCUMENT_POSITION_FOLLOWING */ ? -1 : 1;
+    });
+  }
+
+  private activeExceptions(
+    source: CraftFieldExceptionSource,
+  ): readonly AnyCraftException[] {
+    const visibility = this.node.options.visibility ?? 'visibleExceptions';
+    if (visibility === 'visibleExceptions') {
+      if (this.node.options.mode === 'first') {
+        const first = source.visibleFirstLeftFailedValidation();
+        if (first && this.handles(source, first)) return [first];
+        return source
+          .visibleExceptions()
+          .list.filter((exception) => this.handles(source, exception))
+          .slice(0, 1);
+      }
+      return source.visibleExceptions().list;
+    }
+
+    if (
+      !fieldExceptionVisibilityMatches(visibility, {
+        field: source.field,
+        hasAttemptedSubmit: source.hasAttemptedSubmit,
+      })
+    ) {
+      return [];
+    }
+    if (this.node.options.mode === 'first') {
+      const first = source.firstLeftFailedValidation();
+      if (first && this.handles(source, first)) return [first];
+      return source
+        .exceptions()
+        .list.filter((exception) => this.handles(source, exception))
+        .slice(0, 1);
+    }
+    return source.exceptions().list;
+  }
+
+  private handles(
+    source: CraftFieldExceptionSource,
+    exception: AnyCraftException,
+  ): boolean {
+    return Boolean(
+      fieldExceptionHandler(this.node.handlers, source.path, exception.code),
+    );
+  }
+
+  private renderFallbacks(): CraftNodeChildren {
+    const children: CraftNodeChildren[] = [];
+    for (const registered of this.orderedSources()) {
+      const { source } = registered;
+      const activeMessageIds: string[] = [];
+      const exceptions = this.activeExceptions(source);
+      exceptions.forEach((exception, index) => {
+        const handler = fieldExceptionHandler(
+          this.node.handlers,
+          source.path,
+          exception.code,
+        );
+        if (!handler) return;
+        const validatorName = fieldExceptionValidatorName(source, exception);
+        const messageKey = `${validatorName}:${exception.code}:${index}`;
+        let id = registered.messageIds.get(messageKey);
+        if (!id) {
+          id = `craft-field-exception-${this.boundaryId}-${registered.messageIds.size}`;
+          registered.messageIds.set(messageKey, id);
+        }
+        activeMessageIds.push(id);
+        children.push(
+          fieldExceptionMessageNode(
+            id,
+            handler({
+              field: source.field,
+              path: source.path,
+              runtimePath: source.runtimePath,
+              validatorName,
+              exception,
+            }),
+          ),
+        );
+      });
+      this.applyAccessibility(registered, activeMessageIds);
+    }
+    return children;
+  }
+
+  private applyAccessibility(
+    registered: RegisteredFieldExceptionSource,
+    messageIds: readonly string[],
+  ): void {
+    if (messageIds.length) {
+      this.accessibilityState(registered.element).messagesByBoundary.set(
+        this.boundaryId,
+        messageIds,
+      );
+    } else {
+      this.accessibilityState(registered.element).messagesByBoundary.delete(
+        this.boundaryId,
+      );
+    }
+    this.reconcileAccessibility(registered.element);
+  }
+
+  private accessibilityState(
+    element: Element,
+  ): FieldExceptionAccessibilityState {
+    const existing = fieldExceptionAccessibility.get(element);
+    if (existing) return existing;
+    const created: FieldExceptionAccessibilityState = {
+      originalAriaInvalid: element.getAttribute('aria-invalid'),
+      originalAriaDescribedBy: element.getAttribute('aria-describedby'),
+      registrations: new Set(),
+      messagesByBoundary: new Map(),
+    };
+    fieldExceptionAccessibility.set(element, created);
+    return created;
+  }
+
+  private reconcileAccessibility(element: Element): void {
+    const state = this.accessibilityState(element);
+    const renderer = this.context.renderer;
+    const messageIds = [...state.messagesByBoundary.values()].flat();
+    if (messageIds.length) {
+      renderer.setAttribute(element, 'aria-invalid', 'true');
+    } else {
+      if (state.originalAriaInvalid === null) {
+        renderer.removeAttribute(element, 'aria-invalid');
+      } else {
+        renderer.setAttribute(
+          element,
+          'aria-invalid',
+          state.originalAriaInvalid,
+        );
+      }
+    }
+
+    const describedBy = [
+      ...(state.originalAriaDescribedBy?.split(/\s+/).filter(Boolean) ?? []),
+      ...messageIds,
+    ];
+    if (describedBy.length) {
+      renderer.setAttribute(
+        element,
+        'aria-describedby',
+        [...new Set(describedBy)].join(' '),
+      );
+    } else {
+      renderer.removeAttribute(element, 'aria-describedby');
+    }
+  }
+
+  private releaseAccessibility(
+    registered: RegisteredFieldExceptionSource,
+  ): void {
+    const state = this.accessibilityState(registered.element);
+    state.messagesByBoundary.delete(this.boundaryId);
+    state.registrations.delete(this.boundaryId);
+    this.reconcileAccessibility(registered.element);
+    if (!state.registrations.size) {
+      fieldExceptionAccessibility.delete(registered.element);
+    }
+  }
+
+  destroy(): void {
+    this.effectRef.destroy();
+    this.view.destroy();
+    this.sources.forEach((source) => this.releaseAccessibility(source));
+    this.sources.clear();
   }
 }
 
@@ -2919,8 +3386,12 @@ class ComponentRenderedNode implements RenderedNode {
         factoryContext,
         renderContext,
       );
-      this.latestTemplate = rendered.children;
-      this.view.patchChildren(rendered.children);
+      const children = this.withComponentFieldExceptionBlock(
+        definition,
+        rendered.children,
+      );
+      this.latestTemplate = children;
+      this.view.patchChildren(children);
       this.hostBindings?.patch(rendered.hostProps);
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) throw error;
@@ -2971,6 +3442,21 @@ class ComponentRenderedNode implements RenderedNode {
       ),
       hostProps,
     };
+  }
+
+  private withComponentFieldExceptionBlock(
+    definition: (typeof this.component)[typeof CRAFT_COMPONENT],
+    children: CraftNodeChildren,
+  ): CraftNodeChildren {
+    const handlers = definition.composition?.fieldExceptionHandlers;
+    const options = definition.composition?.fieldExceptionOptions;
+    if (!handlers || !options) return children;
+    return {
+      kind: 'field-exception-block',
+      source: children,
+      handlers,
+      options,
+    } as FieldExceptionBlockNode<any, any, any, any>;
   }
 
   private renderComposedException(
@@ -3036,8 +3522,20 @@ class ComponentRenderedNode implements RenderedNode {
           );
           const children =
             resolved.position === 'before'
-              ? [resolved.children, source.children]
-              : [source.children, resolved.children];
+              ? [
+                  resolved.children,
+                  this.withComponentFieldExceptionBlock(
+                    definition,
+                    source.children,
+                  ),
+                ]
+              : [
+                  this.withComponentFieldExceptionBlock(
+                    definition,
+                    source.children,
+                  ),
+                  resolved.children,
+                ];
           this.view.patchChildren(children);
           this.hostBindings?.patch(source.hostProps);
         } catch (error) {
@@ -3056,7 +3554,11 @@ class ComponentRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'component' || node.component !== this.component) {
+    if (
+      node.kind !== 'component' ||
+      node.component !== this.component ||
+      (node.injector !== undefined && node.injector !== this.context.injector)
+    ) {
       return false;
     }
 
@@ -3415,7 +3917,9 @@ function mountNode(
         node.props,
         parent,
         before,
-        context,
+        node.injector
+          ? childContext(context, { injector: node.injector })
+          : context,
         undefined,
         undefined,
         [],
@@ -3439,6 +3943,9 @@ function mountNode(
     }
     case 'catch-block': {
       return new CatchBlockRenderedNode(node, parent, before, context);
+    }
+    case 'field-exception-block': {
+      return new FieldExceptionBlockRenderedNode(node, parent, before, context);
     }
     case 'match-block': {
       return new MatchBlockRenderedNode(node, parent, before, context);

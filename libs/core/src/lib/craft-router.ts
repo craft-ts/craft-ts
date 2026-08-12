@@ -36,6 +36,10 @@ import {
   type CraftViewTransitionInput,
   type ViewTransitionPayloadDef,
 } from './craft-view-transition';
+import {
+  CRAFT_NODE_EFFECT_FACTORY,
+  craftNodeDirective,
+} from './craft-node-directive';
 
 export interface CraftRouterRoutesRegistry {}
 
@@ -457,6 +461,7 @@ export function provideCraftRouter(
  */
 export const CraftRouter = CraftRouterInternal as unknown as CraftRouterHelper;
 
+/** @deprecated Use the functional `CraftRouterLink` on Craft nodes. */
 @Directive({
   selector: '[craftRouterLink]',
   standalone: true,
@@ -467,7 +472,7 @@ export const CraftRouter = CraftRouterInternal as unknown as CraftRouterHelper;
     },
   ],
 })
-export class CraftRouterLink {
+export class LegacyCraftRouterLink {
   private readonly routerLink = inject(RouterLink, { self: true });
 
   readonly craftRouterLink = input<CraftRouterLinkInput | null | undefined>(
@@ -511,6 +516,104 @@ export class CraftRouterLink {
   }
 }
 
+type CraftRouterLinkProps = {
+  readonly craftRouterLink: CraftRouterLinkInput | null | undefined;
+};
+
+/**
+ * Functional Craft directive for type-safe router links.
+ *
+ * @example
+ * a({ craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink)
+ */
+export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
+  'CraftRouterLink',
+  ['craftRouterLink'],
+  (context) => {
+    const router = context.injector.get(Router);
+    let currentInput: CraftRouterLinkInput | null | undefined;
+    let currentUrlTree: UrlTree | undefined;
+
+    const hrefEffect = context.injector.get(CRAFT_NODE_EFFECT_FACTORY)(
+      'router-link-href',
+      () => {
+        const candidate = context.props.craftRouterLink;
+        currentInput =
+          typeof candidate === 'function'
+            ? (candidate as () => CraftRouterLinkInput | null | undefined)()
+            : candidate;
+
+        if (!currentInput) {
+          currentUrlTree = undefined;
+          context.renderer.removeAttribute(context.element, 'href');
+          return;
+        }
+
+        currentUrlTree = router.createUrlTree(
+          createCraftRouterCommands(currentInput),
+          getUrlCreationOptions(currentInput),
+        );
+        context.renderer.setAttribute(
+          context.element,
+          'href',
+          router.serializeUrl(currentUrlTree),
+        );
+      },
+    );
+
+    const removeClickListener = context.renderer.listen(
+      context.element,
+      'click',
+      (event: MouseEvent) => {
+        if (
+          !currentInput ||
+          !currentUrlTree ||
+          !shouldHandleCraftRouterLinkClick(event, context.element)
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        void router.navigateByUrl(
+          currentUrlTree,
+          getNavigationBehaviorOptions(currentInput),
+        );
+      },
+    );
+    return () => {
+      removeClickListener();
+      hrefEffect.destroy();
+    };
+  },
+);
+
+export function shouldHandleCraftRouterLinkClick(
+  event: MouseEvent,
+  element: Element,
+): boolean {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.metaKey
+  ) {
+    return false;
+  }
+
+  const target = element.getAttribute('target');
+  if (target && target.toLowerCase() !== '_self') return false;
+  if (element.hasAttribute('download')) return false;
+  if (
+    element.hasAttribute('disabled') ||
+    element.getAttribute('aria-disabled') === 'true'
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function createCraftRouter(router: Router): Router {
   const createUrlTree = (input: CraftRouterUrlTreeInput) =>
     router.createUrlTree(
@@ -544,7 +647,7 @@ function createCraftRouter(router: Router): Router {
   }) as unknown as Router;
 }
 
-function createCraftRouterCommands(
+export function createCraftRouterCommands(
   input: CraftRouterInputWithOptionalQueryParams,
 ): readonly unknown[] {
   if (input.to === '') {
@@ -639,14 +742,17 @@ function withViewTransitionState(
   };
 }
 
-export type GenDeps_CraftRouterLink = GetDeps<{
+export type GenDeps_LegacyCraftRouterLink = GetDeps<{
   deps: {
     RouterLink: RouterLink;
     Router: Router;
   };
-  provided: {};
+  provided: Record<never, never>;
   missingProvider: {
     RouterLink: RouterLink;
     Router: Router;
   };
 }>;
+
+/** @deprecated DI metadata belongs to `LegacyCraftRouterLink` only. */
+export type GenDeps_CraftRouterLink = GenDeps_LegacyCraftRouterLink;

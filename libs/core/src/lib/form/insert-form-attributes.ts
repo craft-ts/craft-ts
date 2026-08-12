@@ -1,35 +1,53 @@
-import { computed, inject, Injector, type Signal, untracked } from '@angular/core';
+import {
+  computed,
+  inject,
+  Injector,
+  type Signal,
+  untracked,
+} from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
-import { CraftExceptionResult } from '../craft-exception';
+import {
+  CraftExceptionResult,
+  type AnyCraftException,
+} from '../craft-exception';
 import { executeGeneratorCompatibleFactory } from '../craft-generator-runtime';
 import type { MergeObject, Prettify, UnionToTuple } from '../util/util.type';
 import { CraftField, CraftValidator } from './craft-field';
+import {
+  CRAFT_FIELD_EXCEPTION_SOURCE,
+  DEFAULT_FIELD_EXCEPTION_VISIBILITY,
+  fieldExceptionVisibilityMatches,
+  staticFieldPath,
+  type CraftFieldExceptionSource,
+  type CraftFieldValidatorsCarrier,
+  type FieldExceptionCollection,
+  type FieldExceptionVisibility,
+} from './field-exception';
 import type {
   InsertionFormFactoryContext,
   InsertionsFormFactory,
 } from './insert-form-internals';
-import {
-  VALIDATOR_OUTPUT_SYMBOL,
-  type ValidatorOutput,
-} from './validator';
+import { VALIDATOR_OUTPUT_SYMBOL, type ValidatorOutput } from './validator';
 
 type FormAttributeInput<T> = Signal<T> | (() => T);
 
 type AnyValidatorOutput = ValidatorOutput<any, string, any, any, any, any>;
 
 export type FormNodeExceptions = {
-  list: unknown[];
-  byValidator: Record<string, unknown>;
+  list: FieldExceptionCollection['list'];
+  byValidator: FieldExceptionCollection['byValidator'];
 };
 
 export type InsertFormAttributesConfig<
-  S,
+  _S,
   Validators extends AnyValidatorOutput = never,
 > = {
   disable?: FormAttributeInput<boolean>;
   hidden?: FormAttributeInput<boolean>;
   readonly?: FormAttributeInput<boolean>;
   validators?: Validators[];
+  /** Controls when `visibleExceptions` and the visible first/last helpers emit. */
+  exceptionVisibility?: Exclude<FieldExceptionVisibility, 'visibleExceptions'>;
 };
 
 export type InsertFormAttributesContext<
@@ -59,9 +77,9 @@ function attributeInputToSignal<T>(
 
 function getValidatorBrand(validator: unknown): string | undefined {
   if (typeof validator !== 'function') return undefined;
-  const runtime = (validator as { [VALIDATOR_OUTPUT_SYMBOL]?: { name?: string } })[
-    VALIDATOR_OUTPUT_SYMBOL
-  ];
+  const runtime = (
+    validator as { [VALIDATOR_OUTPUT_SYMBOL]?: { name?: string } }
+  )[VALIDATOR_OUTPUT_SYMBOL];
   return runtime?.name;
 }
 
@@ -87,7 +105,7 @@ type ExceptionsByValidatorFromTuple<
 > = ExceptionsTuple extends [infer Head, ...infer Tail]
   ? ExceptionsByValidatorFromTuple<
       Tail,
-      Head extends CraftExceptionResult<infer M, infer P>
+      Head extends CraftExceptionResult<infer M, infer _P>
         ? MergeObject<
             Acc,
             {
@@ -110,47 +128,48 @@ type ExceptionUnion<Validators> = ExtractValidatorMetadata<
   NonNullable<Validators>
 >;
 
-type FormAttributesOutputs<Validators> = {
-  exceptions: Signal<{
-    list: ExceptionsList<Validators>;
-    byValidator: ExceptionsByValidator<NonNullable<Validators>>;
-  }>;
-  /**
-   * Exceptions that should be visible to the user. By default, all exceptions are
-   * hidden until the field is dirty or the form has been attempted to be submitted at least once.
-   */
-  visibleExceptions: Signal<{
-    list: ExceptionsList<Validators>;
-    byValidator: ExceptionsByValidator<NonNullable<Validators>>;
-  }>;
-  hasExceptions: Signal<boolean>;
-  /**
-   * The first failing validator's exception, scanning the `validators` array
-   * left-to-right. Useful in templates to display a single error without a `@for` loop.
-   * Returns `undefined` when the field is valid.
-   */
-  firstLeftFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
-  /**
-   * The last failing validator's exception, scanning the `validators` array
-   * right-to-left. Useful when the rightmost validator is the most specific.
-   * Returns `undefined` when the field is valid.
-   */
-  lastRightFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
-  /**
-   * Same as `firstLeftFailedValidation` but only emits once the field is dirty
-   * or the form has been submitted at least once.
-   */
-  visibleFirstLeftFailedValidation: Signal<
-    ExceptionUnion<Validators> | undefined
-  >;
-  /**
-   * Same as `lastRightFailedValidation` but only emits once the field is dirty
-   * or the form has been submitted at least once.
-   */
-  visibleLastRightFailedValidation: Signal<
-    ExceptionUnion<Validators> | undefined
-  >;
-};
+type FormAttributesOutputs<Validators> =
+  CraftFieldValidatorsCarrier<Validators> & {
+    exceptions: Signal<{
+      list: ExceptionsList<Validators>;
+      byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+    }>;
+    /**
+     * Exceptions that should be visible to the user. By default, all exceptions are
+     * hidden until the field is dirty or the form has been attempted to be submitted at least once.
+     */
+    visibleExceptions: Signal<{
+      list: ExceptionsList<Validators>;
+      byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+    }>;
+    hasExceptions: Signal<boolean>;
+    /**
+     * The first failing validator's exception, scanning the `validators` array
+     * left-to-right. Useful in templates to display a single error without a `@for` loop.
+     * Returns `undefined` when the field is valid.
+     */
+    firstLeftFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
+    /**
+     * The last failing validator's exception, scanning the `validators` array
+     * right-to-left. Useful when the rightmost validator is the most specific.
+     * Returns `undefined` when the field is valid.
+     */
+    lastRightFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
+    /**
+     * Same as `firstLeftFailedValidation` but only emits once the field is dirty
+     * or the form has been submitted at least once.
+     */
+    visibleFirstLeftFailedValidation: Signal<
+      ExceptionUnion<Validators> | undefined
+    >;
+    /**
+     * Same as `lastRightFailedValidation` but only emits once the field is dirty
+     * or the form has been submitted at least once.
+     */
+    visibleLastRightFailedValidation: Signal<
+      ExceptionUnion<Validators> | undefined
+    >;
+  };
 
 function applyFormAttributes<
   StateType,
@@ -212,8 +231,8 @@ function applyFormAttributes<
 
   const exceptions = computed<FormNodeExceptions>(() => {
     if (shouldSkip()) return EMPTY_EXCEPTIONS;
-    const list: unknown[] = [];
-    const byValidator: Record<string, unknown> = {};
+    const list: AnyCraftException[] = [];
+    const byValidator: Record<string, AnyCraftException> = {};
     for (const error of field.errors()) {
       if (!validatorBrands.length || matchesBrand(error, validatorBrands)) {
         list.push(error);
@@ -227,7 +246,14 @@ function applyFormAttributes<
   });
 
   const visibleExceptions = computed<FormNodeExceptions>(() => {
-    if (!field.dirty() && !context.hasAttemptedSubmit()) {
+    const visible = fieldExceptionVisibilityMatches(
+      config.exceptionVisibility ?? DEFAULT_FIELD_EXCEPTION_VISIBILITY,
+      {
+        field: field as CraftField<unknown>,
+        hasAttemptedSubmit: context.hasAttemptedSubmit,
+      },
+    );
+    if (!visible) {
       return EMPTY_EXCEPTIONS;
     }
     return exceptions();
@@ -252,13 +278,41 @@ function applyFormAttributes<
   });
 
   const visibleFirstLeftFailedValidation = computed<unknown>(() => {
-    if (!field.dirty() && !context.hasAttemptedSubmit()) return undefined;
-    return firstLeftFailedValidation();
+    const visible = visibleExceptions();
+    for (const brand of validatorBrands) {
+      const error = visible.byValidator[brand];
+      if (error !== undefined) return error;
+    }
+    return undefined;
   });
 
   const visibleLastRightFailedValidation = computed<unknown>(() => {
-    if (!field.dirty() && !context.hasAttemptedSubmit()) return undefined;
-    return lastRightFailedValidation();
+    const visible = visibleExceptions();
+    for (let i = validatorBrands.length - 1; i >= 0; i--) {
+      const error = visible.byValidator[validatorBrands[i]];
+      if (error !== undefined) return error;
+    }
+    return undefined;
+  });
+
+  const source: CraftFieldExceptionSource = {
+    field: field as CraftField<unknown>,
+    path: staticFieldPath(field.ɵpath),
+    runtimePath: field.ɵpath,
+    validatorNames: validatorBrands,
+    exceptions: exceptions as CraftFieldExceptionSource['exceptions'],
+    visibleExceptions:
+      visibleExceptions as CraftFieldExceptionSource['visibleExceptions'],
+    firstLeftFailedValidation:
+      firstLeftFailedValidation as CraftFieldExceptionSource['firstLeftFailedValidation'],
+    visibleFirstLeftFailedValidation:
+      visibleFirstLeftFailedValidation as CraftFieldExceptionSource['visibleFirstLeftFailedValidation'],
+    hasAttemptedSubmit: context.hasAttemptedSubmit,
+  };
+  Object.defineProperty(context.field, CRAFT_FIELD_EXCEPTION_SOURCE, {
+    value: source,
+    configurable: true,
+    enumerable: false,
   });
 
   return {
@@ -310,10 +364,7 @@ export function formAttributes<
   return applyFormAttributes(context, config);
 }
 
-function matchesBrand(
-  error: unknown,
-  brands: ReadonlyArray<string>,
-): boolean {
+function matchesBrand(error: unknown, brands: ReadonlyArray<string>): boolean {
   if (!isObjectRecord(error)) return false;
   const brand = error['__brand'];
   if (typeof brand !== 'string') return false;

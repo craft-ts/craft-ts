@@ -7,6 +7,7 @@ export * from './lib/bridge';
 export * from './lib/component';
 export * from './lib/composition';
 export * from './lib/block';
+export * from './lib/field-exception-block';
 export * from './lib/match-block';
 export * from './lib/directive';
 export * from './lib/craft-router-outlet';
@@ -52,6 +53,7 @@ export type {
   YieldableTemplateContext,
   TemplateMethodUse,
   ComponentInitializationExceptionsOf,
+  ComponentFieldExceptionsOf,
   ComponentInitializationExceptionCodes,
   ContentOptions,
   ContentSlot,

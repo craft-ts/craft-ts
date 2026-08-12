@@ -181,3 +181,7 @@ I think that trade is worth it. I also think it is genuinely arguable, and that 
 **So: is an invisible dependency graph a real problem in your projects, or one you stopped noticing?** I am curious whether the `NullInjectorError` loop reads as "annoying but fine" or as "yes, that, every week" — the answer changes how hard I should push this idea.
 
 Next in this series: **typed dependency injection end to end** — `craftService`, adapting the Angular services you already have, and what the route-level check actually verifies.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

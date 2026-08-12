@@ -10,6 +10,10 @@ import type { Router, UrlTree } from '@angular/router';
 import type { AnyCraftException, CraftException } from './craft-exception';
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import type { ComponentExceptionsOf } from './branded-component/branded-component';
+import type {
+  CraftRouteTarget,
+  CraftRouteTargetInput,
+} from './craft-route-target';
 import {
   CraftRouter,
   type CraftRouterUrlTreeInput,
@@ -52,7 +56,7 @@ import {
 /** A DI-checked component rendered on an exception branch. */
 export type CraftExceptionComponentDescriptor<ComponentDeps = object> =
   | {
-      readonly component: Type<unknown>;
+      readonly component: CraftRouteTargetInput;
       readonly loadComponent?: never;
       /** @deprecated Functional components carry this metadata themselves. */
       readonly componentDeps?: ComponentDeps;
@@ -60,7 +64,7 @@ export type CraftExceptionComponentDescriptor<ComponentDeps = object> =
   | {
       readonly component?: never;
       readonly loadComponent: () => Promise<
-        Type<unknown> | { default: Type<unknown> }
+        CraftRouteTargetInput | { default: Type<unknown> | CraftRouteTarget }
       >;
       /** @deprecated Functional components carry this metadata themselves. */
       readonly componentDeps?: ComponentDeps;
@@ -70,8 +74,8 @@ export type CraftExceptionComponentInput = CraftExceptionComponentDescriptor;
 
 /** Existing pending-component input; pending DI has its own check. */
 export type CraftPendingComponentInput =
-  | Type<unknown>
-  | (() => Promise<{ default: Type<unknown> }>);
+  | CraftRouteTargetInput
+  | (() => Promise<{ default: CraftRouteTargetInput }>);
 
 /**
  * What a route exception handler resolves an exception to:

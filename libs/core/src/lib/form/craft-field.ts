@@ -135,6 +135,17 @@ export type CraftFieldTree<T> = CraftField<T> &
       ? { [K in keyof T]-?: CraftFieldTree<T[K]> }
       : object);
 
+/** Returns whether a value exposes the public Craft field contract. */
+export function isCraftField(value: unknown): value is CraftField<unknown> {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<CraftField<unknown>>;
+  return (
+    typeof candidate.value === 'function' &&
+    typeof candidate.set === 'function' &&
+    typeof candidate.ɵregisterControl === 'function'
+  );
+}
+
 const FIELD_INTERNALS_TOKEN = Symbol('CraftFieldInternals');
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

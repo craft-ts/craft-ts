@@ -86,6 +86,30 @@ describe('docs sidebar', () => {
   });
 });
 
+describe('forms overview', () => {
+  const content = readFileSync(
+    new URL('../guide/forms/index.md', import.meta.url),
+    'utf8',
+  );
+
+  it('renders the insertFormSubmit section with a link to its guide', () => {
+    expect(content).toContain(
+      '### insertFormSubmit\n\n`insertFormSubmit` connects the form to a mutation.',
+    );
+    expect(content).toContain('[Submitting a form](/guide/forms/submit)');
+  });
+
+  it('documents that selected form branches must be materialized before DOM binding', () => {
+    expect(content).toContain(
+      'CraftFieldDirective(loginForm.form.selectEmail())',
+    );
+    expect(content).toContain(
+      '`insertSelectFormTree` materializes its branch lazily',
+    );
+    expect(content).not.toContain('CraftFieldDirective(loginForm.form.email)');
+  });
+});
+
 describe('fine-grained reactivity docs', () => {
   const home = readFileSync(new URL('../index.md', import.meta.url), 'utf8');
   const guide = readFileSync(

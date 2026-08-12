@@ -81,6 +81,7 @@ export * from './lib/component-register';
 export * from './lib/craft-register-for';
 export * from './lib/craft-register-for-runtime';
 export * from './lib/craft-target-runtime';
+export * from './lib/craft-node-directive';
 export * from './lib/fn-wrapper';
 export {
   executeGeneratorCompatibleFactory,
@@ -102,6 +103,7 @@ export * from './lib/source$';
 export * from './lib/from-event-to-source$';
 export * from './lib/on$';
 export * from './lib/form/craft-field';
+export * from './lib/form/field-exception';
 export * from './lib/form/craft-field.directive';
 export * from './lib/form/insert-form';
 export * from './lib/form/insert-form-schema';
@@ -123,6 +125,7 @@ export * from './lib/craft-routes';
 export * from './lib/craft-resolve';
 export * from './lib/craft-route-exceptions';
 export * from './lib/craft-route-meta';
+export * from './lib/craft-route-target';
 export * from './lib/craft-pending';
 export * from './lib/craft-load-retry';
 export * from './lib/craft-route-load-error';

@@ -146,3 +146,7 @@ I am aware that is a bet, and that there is a serious counter-argument: mocks ar
 **So — when a test of yours has failed for a real reason, what kind of test was it?** The isolated fast one, or the one that ran something closer to the real thing? I have a strong hunch about the answer, and a strong hunch is exactly the kind of thing that should be checked against people who did not build the library.
 
 Next in this series: **observability** — correlation ids, exception capture, and being able to ask a running app what its state actually is.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

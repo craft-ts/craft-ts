@@ -7,13 +7,13 @@ import {
   signal,
   type Provider,
   type Signal,
-  type Type,
 } from '@angular/core';
 import type {
   GetDeps,
   GetPublicComponentProperties,
 } from './branded-component/branded-component';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
+import type { CraftRouteTargetInput } from './craft-route-target';
 
 /**
  * The non-blocking router outlet ({@link CraftRouterOutletController}) commits
@@ -100,10 +100,11 @@ export class DefaultCraftPendingComponent {
  * guard/resolve chain is still in flight. Defaults to
  * {@link DefaultCraftPendingComponent}.
  */
-export const CRAFT_PENDING_COMPONENT = new InjectionToken<Type<unknown>>(
-  'CRAFT_PENDING_COMPONENT',
-  { providedIn: 'root', factory: () => DefaultCraftPendingComponent },
-);
+export const CRAFT_PENDING_COMPONENT =
+  new InjectionToken<CraftRouteTargetInput>('CRAFT_PENDING_COMPONENT', {
+    providedIn: 'root',
+    factory: () => DefaultCraftPendingComponent,
+  });
 
 /**
  * Phase 1 duration (ms): how long the outlet keeps the **previous page** on
@@ -193,7 +194,7 @@ export function isCraftLoadingFeature(
 
 /** Override the pending component shown while a route chain is in flight. */
 export function withPendingComponent(
-  component: Type<unknown>,
+  component: CraftRouteTargetInput,
 ): CraftLoadingFeature {
   return craftLoadingFeature([
     { provide: CRAFT_PENDING_COMPONENT, useValue: component },

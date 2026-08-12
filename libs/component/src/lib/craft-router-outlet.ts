@@ -5,6 +5,7 @@ import {
 import { angular } from './angular';
 import { craftComponent } from './component';
 import type { CraftComponent } from './types';
+import type { ComponentNode } from './render/vnode';
 
 /**
  * Functional non-blocking router outlet.
@@ -22,12 +23,18 @@ export const CraftRouterOutlet = craftComponent(
   {},
   () => ({ outlet: createCraftRouterOutletController() }),
   ({ outlet }) => {
-    const displayedComponent = outlet.displayedComponent();
-    return displayedComponent
-      ? angular(displayedComponent, {
-          injector: outlet.displayedInjector(),
-        })
-      : [];
+    const target = outlet.displayedTarget();
+    if (!target) return [];
+    if (target.kind === 'angular') {
+      return angular(target.component, {
+        injector: outlet.displayedInjector(),
+      });
+    }
+
+    const node = (target.component as CraftComponent<any>)(
+      outlet.displayedProps() as never,
+    ) as ComponentNode;
+    return Object.assign(node, { injector: outlet.displayedInjector() });
   },
 ) as CraftComponent<
   Record<never, never>,

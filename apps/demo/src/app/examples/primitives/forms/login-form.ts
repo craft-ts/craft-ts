@@ -1,8 +1,8 @@
-import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
   div,
+  fieldExceptionBlock,
   form,
   h2,
   ifBlock,
@@ -14,6 +14,8 @@ import {
   cEmail,
   cMinLength,
   cRequired,
+  craftComputed,
+  CraftFieldDirective,
   insertForm,
   insertFormAttributes,
   insertFormSubmit,
@@ -41,7 +43,7 @@ const LoginFormComponent = craftComponent(
   function* () {
     const submitted = yield* mutation('submitted', {
       method: (value: NonNullable<ValidatedFormValue<LoginData>>) => value,
-      loader: async ({ params }) => params,
+      loader: ({ params }) => params,
     });
     const loginForm = yield* state(
       'loginForm',
@@ -62,19 +64,17 @@ const LoginFormComponent = craftComponent(
             validators: [cRequired(), cMinLength({ minLength: 6 })],
           })),
         ),
-        ({ field, hasAttemptedSubmit }) => ({
-          showError: computed(
-            () => hasAttemptedSubmit() && !field.valid(),
-          ),
-          showSuccess: computed(
+        ({ field }) => ({
+          showSuccess: craftComputed(
+            'showSuccess',
             () => submitted.hasValue() && field.valid(),
           ),
         }),
       ),
     );
-    return { loginForm };
+    return loginForm;
   },
-  ({ loginForm }) =>
+  (loginForm) =>
     form(
       {
         *submit(event) {
@@ -89,41 +89,41 @@ const LoginFormComponent = craftComponent(
           input({
             id: 'email',
             type: 'email',
-            value: () => loginForm.form.email.value(),
-            *input(event) {
-              loginForm.form.email.set(
-                (event.target as HTMLInputElement).value,
-              );
-            },
-          }),
+          }).pipe(CraftFieldDirective(loginForm.form.selectEmail())),
         ]),
         div({ class: 'login-field' }, [
           label({ htmlFor: 'password' }, 'Password'),
           input({
             id: 'password',
             type: 'password',
-            value: () => loginForm.form.password.value(),
-            *input(event) {
-              loginForm.form.password.set(
-                (event.target as HTMLInputElement).value,
-              );
-            },
-          }),
-        ]),
-        ifBlock(
-          loginForm.form.showError,
-          () =>
-            p(
-              { class: 'login-error' },
-              'Enter a valid email and a password of at least 6 characters.',
+          })
+            .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
+            .pipe(
+              fieldExceptionBlock.partial({
+                required: () =>
+                  p({ class: 'login-error' }, 'Password is required.'),
+              }),
             ),
-        ),
-        ifBlock(
-          loginForm.form.showSuccess,
-          () => p('✅ Login form submitted.'),
+        ]),
+        ifBlock(loginForm.form.showSuccess, () =>
+          p('✅ Login form submitted.'),
         ),
         button({ type: 'submit' }, 'Sign in'),
       ],
+    ).pipe(
+      fieldExceptionBlock.exhaustive({
+        email: {
+          required: () => p({ class: 'login-error' }, 'Email is required.'),
+          email: () => p({ class: 'login-error' }, 'Enter a valid email.'),
+        },
+        password: {
+          minLength: ({ exception }) =>
+            p(
+              { class: 'login-error' },
+              `Use at least ${exception.payload} characters.`,
+            ),
+        },
+      }),
     ),
 );
 

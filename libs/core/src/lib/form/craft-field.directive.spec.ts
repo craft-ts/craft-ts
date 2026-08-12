@@ -1,9 +1,15 @@
 import { Component, forwardRef, model, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { craftField, CraftValueControl, FieldAttributeMeta } from './craft-field';
+import type { CraftNodeDirective } from '../craft-node-directive';
+import {
+  craftField,
+  CraftValueControl,
+  FieldAttributeMeta,
+} from './craft-field';
 import {
   CRAFT_FIELD_VALUE_CONTROL,
-  CraftFieldDirective,
+  CraftFieldDirective as functionalCraftFieldDirective,
+  LegacyCraftFieldDirective as CraftFieldDirective,
 } from './craft-field.directive';
 
 @Component({
@@ -87,31 +93,50 @@ class CustomTextControl implements CraftValueControl<string> {
 @Component({
   standalone: true,
   imports: [CraftFieldDirective, CustomTextControl],
-  template: `<custom-text-control [craftField]="form.label"></custom-text-control>`,
+  template: `<custom-text-control
+    [craftField]="form.label"
+  ></custom-text-control>`,
 })
 class CustomControlHost {
   protected readonly form = craftField({ label: 'initial' });
 }
 
 describe('CraftFieldDirective', () => {
+  it('requires a field before it can be applied as a functional directive', () => {
+    const field = craftField('');
+    const acceptsPipeableDirective = (_: CraftNodeDirective) => true;
+
+    // @ts-expect-error The unbound factory must not itself be pipeable.
+    acceptsPipeableDirective(functionalCraftFieldDirective);
+    expect(acceptsPipeableDirective(functionalCraftFieldDirective(field))).toBe(
+      true,
+    );
+  });
+
   it('binds a text input bidirectionally', () => {
     const fixture = TestBed.createComponent(TextInputHost);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
     expect(input.value).toBe('');
 
     input.value = 'hello@example.com';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
 
-    const inst = fixture.componentInstance as unknown as { form: { email: { value: () => string } } };
+    const inst = fixture.componentInstance as unknown as {
+      form: { email: { value: () => string } };
+    };
     expect(inst.form.email.value()).toBe('hello@example.com');
   });
 
   it('marks the field touched on blur', () => {
     const fixture = TestBed.createComponent(TextInputHost);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
     const inst = fixture.componentInstance as unknown as {
       form: { email: { touched: () => boolean } };
     };
@@ -125,20 +150,26 @@ describe('CraftFieldDirective', () => {
   it('parses number inputs as numeric values', () => {
     const fixture = TestBed.createComponent(NumberInputHost);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
 
     input.value = '42';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
 
-    const inst = fixture.componentInstance as unknown as { form: { age: { value: () => number } } };
+    const inst = fixture.componentInstance as unknown as {
+      form: { age: { value: () => number } };
+    };
     expect(inst.form.age.value()).toBe(42);
   });
 
   it('binds a checkbox to a boolean field', () => {
     const fixture = TestBed.createComponent(CheckboxInputHost);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
 
     input.checked = true;
     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -179,7 +210,9 @@ describe('CraftFieldDirective', () => {
   it('binds a select element to its value', () => {
     const fixture = TestBed.createComponent(SelectInputHost);
     fixture.detectChanges();
-    const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    const select = fixture.nativeElement.querySelector(
+      'select',
+    ) as HTMLSelectElement;
 
     expect(select.value).toBe('fr');
 
@@ -196,7 +229,9 @@ describe('CraftFieldDirective', () => {
   it('binds a textarea like a text input', () => {
     const fixture = TestBed.createComponent(TextareaHost);
     fixture.detectChanges();
-    const ta = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+    const ta = fixture.nativeElement.querySelector(
+      'textarea',
+    ) as HTMLTextAreaElement;
 
     ta.value = 'a long bio';
     ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -262,7 +297,9 @@ describe('CraftFieldDirective', () => {
 
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
 
     expect(input.required).toBe(true);
     expect(input.minLength).toBe(5);
@@ -272,7 +309,9 @@ describe('CraftFieldDirective', () => {
   it('toggles craft-* status classes', () => {
     const fixture = TestBed.createComponent(TextInputHost);
     fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
 
     expect(input.classList.contains('craft-pristine')).toBe(true);
     expect(input.classList.contains('craft-untouched')).toBe(true);

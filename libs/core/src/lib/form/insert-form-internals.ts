@@ -18,14 +18,20 @@ import { CraftField, CraftFieldTree } from './craft-field';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
+  type NonYieldableInsertionMethod,
   type YieldableInsertionMethods,
 } from '../yieldable';
+import {
+  type CraftFieldExceptionSourceCarrier,
+  type CraftFieldValidationCasesCarrier,
+  type FieldValidationCasesFromInsertions,
+} from './field-exception';
 
 type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => Generator<never, void, unknown>
   : (value: SourceType) => Generator<never, void, unknown>;
 
-type ExposedFormInsertions<Insertions> = YieldableInsertionMethods<
+type RawExposedFormInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
     IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
     {
@@ -39,6 +45,36 @@ type ExposedFormInsertions<Insertions> = YieldableInsertionMethods<
     }
   >
 >;
+
+type JoinFieldPath<
+  Prefix extends string,
+  Path extends string,
+> = Prefix extends ''
+  ? Path
+  : Path extends '[]'
+    ? `${Prefix}[]`
+    : `${Prefix}.${Path}`;
+
+type PrefixSelectedFormPath<Result, Prefix extends string> =
+  Result extends FormWithInsertions<
+    infer Model,
+    infer Insertions,
+    infer Path extends string
+  >
+    ? FormWithInsertions<Model, Insertions, JoinFieldPath<Prefix, Path>>
+    : Result;
+
+type PrefixSelectedFormMethod<Value, Prefix extends string> =
+  Value extends NonYieldableInsertionMethod<infer Args, infer Result>
+    ? NonYieldableInsertionMethod<Args, PrefixSelectedFormPath<Result, Prefix>>
+    : Value;
+
+type ExposedFormInsertions<Insertions, Path extends string = ''> = {
+  [Key in keyof RawExposedFormInsertions<Insertions>]: PrefixSelectedFormMethod<
+    RawExposedFormInsertions<Insertions>[Key],
+    Path
+  >;
+};
 
 type FormExceptionSignal<
   Insertions,
@@ -90,8 +126,16 @@ type FormExceptionsInsertion<Insertions> =
  * It is a `CraftFieldTree<Model>` (with sub-field navigation) merged with all the
  * insertion outputs (e.g. submit, exceptions, validators) and aggregated exception signals.
  */
-export type FormWithInsertions<Model, Insertions> = CraftFieldTree<Model> &
-  ExposedFormInsertions<Insertions> & {
+export type FormWithInsertions<
+  Model,
+  Insertions,
+  Path extends string = '',
+> = CraftFieldTree<Model> &
+  ExposedFormInsertions<Insertions, Path> &
+  CraftFieldValidationCasesCarrier<
+    FieldValidationCasesFromInsertions<Insertions, Path>
+  > &
+  CraftFieldExceptionSourceCarrier & {
     hasAttemptedSubmit: Signal<boolean>;
     submitting: Signal<boolean>;
     validatedFormValue: Signal<ValidatedFormValue<Model>>;
@@ -180,7 +224,10 @@ function createExposedInsertions(
         !isSignal(value) &&
         !isNonYieldableInsertionMethod(value)
       ) {
-        const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
+        const methodInjector = ɵcreateHostTaggedInjector(
+          injector,
+          `method:${key}`,
+        );
         const wrappedFn = runInInjectionContext(injector, () =>
           injectFnWrapper()(value as (...args: unknown[]) => unknown),
         );
@@ -206,7 +253,6 @@ function toExceptionInsertionName(name: string) {
   return `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
 }
 
-
 function toExceptionRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null
     ? (value as Record<string, unknown>)
@@ -217,9 +263,7 @@ export function createFormExceptions(
   rawInsertionsOutput: Record<string, unknown>,
   exposedInsertionsOutput: Record<string, unknown>,
 ) {
-  const directHasExceptions = isSignal(
-    exposedInsertionsOutput['hasExceptions'],
-  )
+  const directHasExceptions = isSignal(exposedInsertionsOutput['hasExceptions'])
     ? (exposedInsertionsOutput['hasExceptions'] as Signal<boolean>)
     : undefined;
   const directExceptions = isSignal(exposedInsertionsOutput['exceptions'])
@@ -387,9 +431,8 @@ export function buildSubForm<Sub>(options: {
     insertions: (options.parentContext.insertions ?? {}) as never,
   };
 
-  const { rawInsertionsOutput, exposedInsertionsOutput } = executeFormInsertions(
-    options.insertions,
-    {
+  const { rawInsertionsOutput, exposedInsertionsOutput } =
+    executeFormInsertions(options.insertions, {
       field: options.subField,
       state: stateSignal,
       submission: {
@@ -407,8 +450,7 @@ export function buildSubForm<Sub>(options: {
       inheritedInsertions: subContext.insertions as Record<string, unknown>,
       injector: options.injector,
       formIdentifier: options.parentContext.formIdentifier,
-    },
-  );
+    });
 
   const formExceptions = createFormExceptions(
     rawInsertionsOutput,
@@ -454,10 +496,10 @@ export function executeFormInsertions<Model>(
     return value as ValidatedFormValue<Model>;
   });
 
-const FORM_INSERTION_INVALID_YIELD_ERROR_MESSAGE =
-  'insertSelectFormTree generators can only yield craftService dependencies or exposed dependency helpers.';
-const FORM_INSERTION_APP_START_ERROR_MESSAGE =
-  'insertSelectFormTree generators do not support onAppStart(...).';
+  const FORM_INSERTION_INVALID_YIELD_ERROR_MESSAGE =
+    'insertSelectFormTree generators can only yield craftService dependencies or exposed dependency helpers.';
+  const FORM_INSERTION_APP_START_ERROR_MESSAGE =
+    'insertSelectFormTree generators do not support onAppStart(...).';
 
   return formInsertions.reduce(
     (acc, insertion) => {
@@ -485,19 +527,27 @@ const FORM_INSERTION_APP_START_ERROR_MESSAGE =
       );
       const nextRawInsertions = (
         isGenerator(insertionCallResult)
-          ? runInInjectionContext(options.injector, () =>
-              runCraftGenerator({
-                iterator: insertionCallResult,
-                injector: options.injector,
-                hostScope: 'function',
-                invalidYieldErrorMessage: FORM_INSERTION_INVALID_YIELD_ERROR_MESSAGE,
-                multipleAppStartErrorMessage: FORM_INSERTION_APP_START_ERROR_MESSAGE,
-                onAppStartNotSupportedErrorMessage: FORM_INSERTION_APP_START_ERROR_MESSAGE,
-              }).value,
+          ? runInInjectionContext(
+              options.injector,
+              () =>
+                runCraftGenerator({
+                  iterator: insertionCallResult,
+                  injector: options.injector,
+                  hostScope: 'function',
+                  invalidYieldErrorMessage:
+                    FORM_INSERTION_INVALID_YIELD_ERROR_MESSAGE,
+                  multipleAppStartErrorMessage:
+                    FORM_INSERTION_APP_START_ERROR_MESSAGE,
+                  onAppStartNotSupportedErrorMessage:
+                    FORM_INSERTION_APP_START_ERROR_MESSAGE,
+                }).value,
             )
           : insertionCallResult
       ) as Record<string, unknown>;
-      const nextExposedInsertions = createExposedInsertions(nextRawInsertions, options.injector);
+      const nextExposedInsertions = createExposedInsertions(
+        nextRawInsertions,
+        options.injector,
+      );
 
       return {
         rawInsertionsOutput: {

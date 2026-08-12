@@ -452,15 +452,15 @@ describe('angular-brand-codemod', () => {
     expect(output).not.toContain('type FormField');
   });
 
-  it('emits CraftFieldDirective<unknown> and suppresses GenDeps_CraftFieldDirective when CraftFieldDirective is imported in metadata imports', async () => {
+  it('emits LegacyCraftFieldDirective<unknown> for the Angular compatibility directive', async () => {
     const project = await createCraftFieldDirectiveMetadataProjectFixture({
       'src/app/demo.ts': `
         import { Component } from '@angular/core';
-        import { CraftFieldDirective } from '@craft-ng/core';
+        import { LegacyCraftFieldDirective } from '@craft-ng/core';
 
         @Component({
           standalone: true,
-          imports: [CraftFieldDirective],
+          imports: [LegacyCraftFieldDirective],
           template: '',
         })
         export class DemoComponent {}
@@ -473,10 +473,10 @@ describe('angular-brand-codemod', () => {
     const depsSection = extractGeneratedSection(output, 'deps');
 
     expect(depsSection).toContain(
-      'CraftFieldDirective: CraftFieldDirective<unknown>;',
+      'LegacyCraftFieldDirective: LegacyCraftFieldDirective<unknown>;',
     );
-    expect(depsSection).not.toContain('GenDeps_CraftFieldDirective');
-    expect(output).not.toContain('type CraftFieldDirective');
+    expect(depsSection).not.toContain('GenDeps_LegacyCraftFieldDirective');
+    expect(output).not.toContain('type LegacyCraftFieldDirective');
   });
 
   it('applies inline project config rules for metadata imports', async () => {
@@ -1053,7 +1053,7 @@ async function createCraftFieldDirectiveMetadataProjectFixture(
         selector: '[craftField]',
         standalone: true,
       })
-      export class CraftFieldDirective<T> {}
+      export class LegacyCraftFieldDirective<T> {}
     `,
     ...files,
   });

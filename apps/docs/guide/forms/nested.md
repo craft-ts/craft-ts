@@ -6,6 +6,7 @@ declares a sub-form inside it — for state that is not flat.
 **Use them when** the state has nested objects or arrays of objects.
 **Not when** the form is one level deep — attach
 [`insertFormAttributes`](/guide/forms/) directly.
+
 ## insertSelectFormTree
 
 Selects and composes nested sub-forms.
@@ -38,6 +39,11 @@ const form = productFormState.form();
 const variant0 = form.selectVariant(0);
 const allVariants = form.items();
 ```
+
+Selection is lazy: calling `selectVariant(...)`, `items()`, or an object
+selector such as `selectEmail()` materializes the selected branch and registers
+its insertions. Pass that selected field to DOM bindings; accessing the raw
+field tree alone does not run the branch insertions.
 
 ## insertSubFormField
 

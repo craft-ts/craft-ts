@@ -30,11 +30,13 @@ type SelectedFormTreeTarget<
       : never
     : never;
 
-type MaybeFormWithInsertions<Model, Insertions> = [Model] extends [never]
+type MaybeFormWithInsertions<Model, Insertions, Path extends string> = [
+  Model,
+] extends [never]
   ? never
   : undefined extends Model
-    ? FormWithInsertions<NonNullable<Model>, Insertions> | undefined
-    : FormWithInsertions<Model, Insertions>;
+    ? FormWithInsertions<NonNullable<Model>, Insertions, Path> | undefined
+    : FormWithInsertions<Model, Insertions, Path>;
 
 type SelectFormTreeMethodName<Name extends string> =
   `select${Capitalize<Name>}`;
@@ -48,7 +50,8 @@ type ArrayInsertSelectFormTreeOutput<
     [id: number],
     | FormWithInsertions<
         ExtractItemType<StateType>,
-        MergeInsertions<Insertions>
+        MergeInsertions<Insertions>,
+        '[]'
       >
     | undefined
   >;
@@ -58,7 +61,8 @@ type ArrayInsertSelectFormTreeOutput<
     Array<
       FormWithInsertions<
         ExtractItemType<StateType>,
-        MergeInsertions<Insertions>
+        MergeInsertions<Insertions>,
+        '[]'
       >
     >
   >;
@@ -77,7 +81,8 @@ type ObjectInsertSelectFormTreeOutput<
           ? StateType[Name]
           : never
         : never,
-      MergeInsertions<Insertions>
+      MergeInsertions<Insertions>,
+      Name
     >
   >;
 };
@@ -118,7 +123,9 @@ function createObjectRuntime(
     );
     const methodName = `select${propertyKey.charAt(0).toUpperCase()}${propertyKey.slice(1)}`;
 
-    let cachedForm: FormWithInsertions<unknown, Record<string, unknown>> | undefined;
+    let cachedForm:
+      | FormWithInsertions<unknown, Record<string, unknown>>
+      | undefined;
     let cachedSubFieldKey: object | undefined;
 
     const buildIfNeeded = () => {
@@ -126,7 +133,8 @@ function createObjectRuntime(
         propertyKey
       ] as CraftFieldTree<unknown> | undefined;
       if (!subField) return undefined;
-      if (cachedSubFieldKey === (subField as unknown as object)) return cachedForm;
+      if (cachedSubFieldKey === (subField as unknown as object))
+        return cachedForm;
 
       const subState = () => {
         const curr = context.state();
@@ -173,7 +181,10 @@ function createArrayItemRuntime(
       `selectEntity:${entityName}`,
     );
     const methodName = `select${entityName.charAt(0).toUpperCase()}${entityName.slice(1)}`;
-    const cache = new Map<number, FormWithInsertions<unknown, Record<string, unknown>>>();
+    const cache = new Map<
+      number,
+      FormWithInsertions<unknown, Record<string, unknown>>
+    >();
 
     const buildItemForm = (id: number) => {
       const tree = context.field as unknown as {
@@ -221,7 +232,9 @@ function createArrayItemRuntime(
       if (!Array.isArray(curr)) return [];
       return curr
         .map((_unused, index) => buildItemForm(index))
-        .filter((f): f is FormWithInsertions<unknown, Record<string, unknown>> => !!f);
+        .filter(
+          (f): f is FormWithInsertions<unknown, Record<string, unknown>> => !!f,
+        );
     };
 
     return {
@@ -354,11 +367,7 @@ export function selectFormTree<
     Insertion1,
     PreviousInsertionsOutputs
   >,
-): SelectFormTreeOutput<
-  StateType,
-  Name,
-  [Insertion1]
->;
+): SelectFormTreeOutput<StateType, Name, [Insertion1]>;
 
 // =====================================================================
 //  Implementation

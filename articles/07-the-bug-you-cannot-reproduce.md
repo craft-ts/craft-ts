@@ -138,3 +138,7 @@ The counter-argument is decentralisation: an app-wide wrapper is a single point 
 **When you last chased a bug you could not reproduce, what would actually have saved you?** The full state dump, the causal chain back to the click, the render trace — or something none of this captures? I built the greedy version because greedy is cheap at the moment of an impossible failure. I would like to know whether that is the right instinct or just mine.
 
 Next in this series: **craft programs** — `.pipe`, `catchTag`, `retry`, and error handling whose exhaustiveness is checked at compile time.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

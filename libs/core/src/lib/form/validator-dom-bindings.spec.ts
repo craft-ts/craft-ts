@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
-import { CraftFieldDirective } from './craft-field.directive';
+import { LegacyCraftFieldDirective as CraftFieldDirective } from './craft-field.directive';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertSelectFormTree } from './insert-select-form-tree';
@@ -21,7 +21,7 @@ import { craftUse } from '../craft-use';
 @Component({
   standalone: true,
   imports: [CraftFieldDirective],
-  template: `<input [craftField]="loginForm.form.email" />`,
+  template: `<input [craftField]="emailField" />`,
 })
 class EmailFieldValidatorBindingsComponent {
   protected readonly loginForm = craftUse(
@@ -47,12 +47,13 @@ class EmailFieldValidatorBindingsComponent {
       ),
     ),
   );
+  protected readonly emailField = this.loginForm.form.selectEmail()!;
 }
 
 @Component({
   standalone: true,
   imports: [CraftFieldDirective],
-  template: `<input type="number" [craftField]="numberForm.form.age" />`,
+  template: `<input type="number" [craftField]="ageField" />`,
 })
 class NumberFieldValidatorBindingsComponent {
   protected readonly numberForm = craftUse(
@@ -72,6 +73,7 @@ class NumberFieldValidatorBindingsComponent {
       ),
     ),
   );
+  protected readonly ageField = this.numberForm.form.selectAge()!;
 }
 
 describe('validator DOM bindings', () => {
@@ -90,10 +92,12 @@ describe('validator DOM bindings', () => {
       'input',
     ) as HTMLInputElement;
 
-    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input.required).toBe(true);
+    expect(input.minLength).toBe(5);
+    expect(input.maxLength).toBe(10);
   });
 
-  it('does not infer type=email or pattern from validators alone', () => {
+  it('does not infer type=email from validators alone', () => {
     TestBed.configureTestingModule({
       imports: [EmailFieldValidatorBindingsComponent],
     });
@@ -109,6 +113,7 @@ describe('validator DOM bindings', () => {
 
     expect(input.getAttribute('type')).toBeNull();
     expect(input.type).toBe('text');
+    expect(input.pattern).toBe('');
   });
 
   it('propagates min and max to numeric inputs', () => {
@@ -126,6 +131,8 @@ describe('validator DOM bindings', () => {
       'input',
     ) as HTMLInputElement;
 
-    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input.required).toBe(true);
+    expect(input.min).toBe('2');
+    expect(input.max).toBe('10');
   });
 });

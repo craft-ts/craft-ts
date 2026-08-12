@@ -19,7 +19,10 @@ import {
   type TemplateDependencies,
 } from './types';
 import type { HostProps } from './hyperscript';
-import type { ComponentNode } from './render/vnode';
+import type {
+  ComponentNode,
+  CraftNodeChildrenFieldExceptions,
+} from './render/vnode';
 import {
   applyHostPropsToChildren,
   currentCraftRenderContext,
@@ -92,7 +95,8 @@ export function craftComponent<
     ProvidersFromMeta<Meta>,
     Template
   >,
-  ContentRequirementsOfContext<FactoryContext<Factory>>
+  ContentRequirementsOfContext<FactoryContext<Factory>>,
+  CraftNodeChildrenFieldExceptions<ReturnType<Template>>
 > {
   return createCraftComponent<Name, Meta, Factory, Template>({
     name,
@@ -137,7 +141,8 @@ function createCraftComponent<
     ProvidersFromMeta<Meta>,
     Template
   >,
-  ContentRequirementsOfContext<FactoryContext<Factory>>
+  ContentRequirementsOfContext<FactoryContext<Factory>>,
+  CraftNodeChildrenFieldExceptions<ReturnType<Template>>
 > {
   type Props = PropsFromFactory<Factory>;
   type ComponentDeps = CraftComponentDependencies<
@@ -202,7 +207,9 @@ function createCraftComponent<
       Factory,
       ProvidersFromMeta<Meta>,
       Template
-    >
+    >,
+    ContentRequirementsOfContext<FactoryContext<Factory>>,
+    CraftNodeChildrenFieldExceptions<ReturnType<Template>>
   >;
 
   const scopeDefinition = definition.scopeDefinition ?? {};
@@ -314,11 +321,17 @@ function mergeComponentComposition(
   const catchTagHandlers = next?.catchTagHandlers ?? existing?.catchTagHandlers;
   const catchBlockPosition =
     next?.catchBlockPosition ?? existing?.catchBlockPosition;
+  const fieldExceptionHandlers =
+    next?.fieldExceptionHandlers ?? existing?.fieldExceptionHandlers;
+  const fieldExceptionOptions =
+    next?.fieldExceptionOptions ?? existing?.fieldExceptionOptions;
 
   return {
     ...(providers.length ? { providers } : {}),
     ...(catchHandlers ? { catchHandlers } : {}),
     ...(catchTagHandlers ? { catchTagHandlers } : {}),
     ...(catchBlockPosition ? { catchBlockPosition } : {}),
+    ...(fieldExceptionHandlers ? { fieldExceptionHandlers } : {}),
+    ...(fieldExceptionOptions ? { fieldExceptionOptions } : {}),
   };
 }

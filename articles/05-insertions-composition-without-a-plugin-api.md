@@ -204,3 +204,7 @@ The design bet is that **one uniform mechanism beats a set of well-chosen extens
 **Which do you actually want from a state library?** A small number of curated extension points, where the library's opinions do the thinking — or a single primitive mechanism that makes you responsible for your own conventions? I have met good engineers who firmly want the first, and their argument is not one I can dismiss: an open mechanism means every team invents its own vocabulary, and reading someone else's code becomes archaeology.
 
 Next in this series: **testing** — what it looks like when a test describes the real dependency graph instead of mocking whatever the constructor happened to ask for.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

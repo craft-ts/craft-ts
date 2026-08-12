@@ -173,3 +173,7 @@ The design bet here is that **staleness belongs to the read**. I think it is rig
 **Where do you currently put that knowledge?** In the call site, in an effect, in a store's reducer, in a manual `refetch()` chain? And more usefully: **has that placement survived contact with your app's growth**, or is it the thing you keep going back to fix?
 
 Next in this series: **insertions** — the composition model behind `insertReactOnMutation`, `insertEntities`, persistence and pagination, and why they are one argument rather than a plugin system.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

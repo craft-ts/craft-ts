@@ -50,6 +50,16 @@ import {
   CRAFT_TEMPORAL_RUNTIME,
   type TemporalTaskHandle,
 } from './temporal-runtime';
+import {
+  angularRouteTarget,
+  angularComponentFromRouteTarget,
+  CRAFT_ROUTE_TARGET,
+  isCraftRouteTarget,
+  normalizeCraftRouteTarget,
+  type CraftRouteTarget,
+  type CraftRouteTargetInput,
+} from './craft-route-target';
+import { combineLatest, type Subscription } from 'rxjs';
 
 /**
  * Outlet lifecycle for one navigation. While a route's chain is in flight the
@@ -130,13 +140,17 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
   // --- What the template actually renders (single, stable outlet) ---
   readonly displayedComponent = signal<Type<unknown> | null>(null);
+  readonly displayedTarget = signal<CraftRouteTarget | null>(null);
   readonly displayedInjector = signal<Injector | undefined>(undefined);
+  readonly displayedProps = signal<Readonly<Record<string, unknown>>>({});
 
   // --- Phase / bookkeeping state (read by tests & the contract) ---
   readonly state = signal<CraftOutletState>('idle');
   readonly targetComponent = signal<Type<unknown> | null>(null);
   readonly pendingComponent = signal<Type<unknown> | null>(null);
   readonly errorComponent = signal<Type<unknown> | null>(null);
+  readonly pendingTarget = signal<CraftRouteTarget | null>(null);
+  readonly errorTarget = signal<CraftRouteTarget | null>(null);
 
   // --- Activation bookkeeping ---
   private _activatedRoute: ActivatedRoute | null = null;
@@ -150,6 +164,7 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private _previousUrl = this.router.url;
   private _pendingDeactivation = false;
   private _reactiveEffect: EffectRef | null = null;
+  private _routePropsSubscription: Subscription | null = null;
   private _frozen = false;
 
   // --------------------------------------------------------------------------
@@ -220,6 +235,7 @@ export class CraftRouterOutletController implements RouterOutletContract {
         this._pendingDeactivation = false;
         this.state.set('idle');
         this.displayedComponent.set(null);
+        this.displayedTarget.set(null);
         this.targetComponent.set(null);
         this.errorComponent.set(null);
       }
@@ -246,6 +262,19 @@ export class CraftRouterOutletController implements RouterOutletContract {
       parent: environmentInjector ?? this.rootInjector,
       name: 'CraftRouterOutlet',
     });
+    if (
+      activatedRoute.params &&
+      activatedRoute.queryParams &&
+      activatedRoute.data
+    ) {
+      this._routePropsSubscription = combineLatest([
+        activatedRoute.params,
+        activatedRoute.queryParams,
+        activatedRoute.data,
+      ]).subscribe(([params, queryParams, data]) => {
+        this.displayedProps.set({ ...params, ...queryParams, ...data });
+      });
+    }
 
     // Republish this navigation's view-transition payload before mounting
     // anything, so the pending skeleton and the target both read it.
@@ -260,7 +289,11 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
     // Plain route (no craft chain) → behave like <router-outlet>.
     if (!meta || (!meta.match && !meta.guard && !meta.resolve)) {
-      this.showComponent(component, this._activeRouteInjector);
+      this.showComponent(
+        component,
+        this._activeRouteInjector,
+        this.resolveRouteTarget(component),
+      );
       this.targetComponent.set(component);
       this.state.set('loaded');
       return;
@@ -302,6 +335,7 @@ export class CraftRouterOutletController implements RouterOutletContract {
           if (this._navId === navId && this.state() === 'stay') {
             this.state.set('blank');
             this.displayedComponent.set(null);
+            this.displayedTarget.set(null);
           }
         },
         stayMs,
@@ -322,7 +356,11 @@ export class CraftRouterOutletController implements RouterOutletContract {
         ) {
           this._pendingShownAt = this.temporalRuntime.now();
           this.state.set('pending');
-          this.showComponent(this.pendingComponent(), injector);
+          this.showComponent(
+            this.pendingComponent(),
+            injector,
+            this.pendingTarget(),
+          );
         }
       },
       stayMs + blankMs,
@@ -424,10 +462,15 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private showComponent(
     component: Type<unknown> | null,
     injector: Injector | null,
+    target: CraftRouteTarget | null = component
+      ? angularRouteTarget(component)
+      : null,
   ): void {
     const commit = () => {
       this.displayedInjector.set(injector ?? undefined);
+      this.displayedProps.set(this.routeProps());
       this.displayedComponent.set(component);
+      this.displayedTarget.set(target);
     };
 
     if (!this.viewTransitionsEnabled) {
@@ -452,7 +495,11 @@ export class CraftRouterOutletController implements RouterOutletContract {
   ): void {
     const injector = this._activeRouteInjector ?? this.rootInjector;
     const commit = () => {
-      this.showComponent(component, injector);
+      this.showComponent(
+        component,
+        injector,
+        this.resolveRouteTarget(component),
+      );
       this.targetComponent.set(component);
       this.state.set('loaded');
     };
@@ -463,11 +510,15 @@ export class CraftRouterOutletController implements RouterOutletContract {
     input: CraftExceptionComponentInput | null,
     _exception: AnyCraftException | null,
   ): Promise<void> {
-    const component = await resolveComponentInput(input);
+    const resolved = await resolveComponentInput(input);
+    const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
+    const component = angularComponentFromRouteTarget(target);
     this.errorComponent.set(component);
+    this.errorTarget.set(target);
     this.showComponent(
       component,
       this._activeRouteInjector ?? this.rootInjector,
+      target,
     );
     this.state.set('error');
     // An error outcome that stays on the URL freezes reactive re-evaluation.
@@ -604,10 +655,13 @@ export class CraftRouterOutletController implements RouterOutletContract {
   }
 
   private async resolvePendingComponent(meta: CraftRouteMeta): Promise<void> {
-    const component = await resolvePendingComponentInput(
+    const resolved = await resolvePendingComponentInput(
       meta.pendingComponent ?? this.defaultPendingComponent,
     );
+    const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
+    const component = angularComponentFromRouteTarget(target);
     this.pendingComponent.set(component);
+    this.pendingTarget.set(target);
   }
 
   private resolveRouteComponent(route: ActivatedRoute): Type<unknown> | null {
@@ -617,6 +671,26 @@ export class CraftRouterOutletController implements RouterOutletContract {
         snapshot.component ??
         snapshot.routeConfig?.component) as Type<unknown> | undefined) ?? null
     );
+  }
+
+  private resolveRouteTarget(
+    component: Type<unknown> | null,
+  ): CraftRouteTarget | null {
+    return (
+      this._activeRouteInjector?.get(CRAFT_ROUTE_TARGET, null) ??
+      (component ? angularRouteTarget(component) : null)
+    );
+  }
+
+  private routeProps(): Readonly<Record<string, unknown>> {
+    const snapshot = this._activatedRoute?.snapshot;
+    return snapshot
+      ? {
+          ...snapshot.params,
+          ...snapshot.queryParams,
+          ...snapshot.data,
+        }
+      : {};
   }
 
   private clearTimers(): void {
@@ -638,6 +712,8 @@ export class CraftRouterOutletController implements RouterOutletContract {
     this.clearTimers();
     this._reactiveEffect?.destroy();
     this._reactiveEffect = null;
+    this._routePropsSubscription?.unsubscribe();
+    this._routePropsSubscription = null;
     this._frozen = false;
     this.clearExceptionSinks(this._meta);
   }
@@ -661,7 +737,7 @@ export function createCraftRouterOutletController(): CraftRouterOutletController
 /** Resolves an eager or lazy exception component descriptor. */
 export async function resolveComponentInput(
   input: CraftExceptionComponentInput | null | undefined,
-): Promise<Type<unknown> | null> {
+): Promise<CraftRouteTargetInput | null> {
   if (!input) {
     return null;
   }
@@ -676,7 +752,7 @@ export async function resolveComponentInput(
 
 async function resolvePendingComponentInput(
   input: CraftPendingComponentInput | null | undefined,
-): Promise<Type<unknown> | null> {
+): Promise<CraftRouteTargetInput | null> {
   if (!input) return null;
   if (isLazyPendingComponent(input)) {
     return (await input()).default;
@@ -686,8 +762,12 @@ async function resolvePendingComponentInput(
 
 function isLazyPendingComponent(
   input: CraftPendingComponentInput,
-): input is () => Promise<{ default: Type<unknown> }> {
-  return typeof input === 'function' && input.prototype === undefined;
+): input is () => Promise<{ default: CraftRouteTargetInput }> {
+  return (
+    typeof input === 'function' &&
+    !isCraftRouteTarget(input) &&
+    input.prototype === undefined
+  );
 }
 
 /** Reads the current outlet render state (used by tooling/tests). */

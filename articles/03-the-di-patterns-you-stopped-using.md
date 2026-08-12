@@ -146,3 +146,7 @@ I am fairly confident about the mechanics. I am much less confident about what p
 If your answer is "no, I use root singletons because they are simply simpler and I have never regretted it", that is genuinely useful to me, and I would rather read it now than infer it from silence later.
 
 Next in this series: **`query` and `mutation` in full** — reactive parameters, typed exceptions, and how a write invalidates a read without a global event bus.
+
+---
+
+*This article was co-written with Claude. The library, the design decisions and the opinions are mine.*

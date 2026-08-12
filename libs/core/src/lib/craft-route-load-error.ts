@@ -40,6 +40,7 @@ import {
 } from './craft-load-retry';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
+import { normalizeCraftRouteTarget } from './craft-route-target';
 import {
   toCraftService,
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
@@ -376,7 +377,13 @@ function resolveEagerComponent(
   descriptor: CraftExceptionComponentDescriptor | null,
 ): Type<unknown> | null {
   if (!descriptor) return null;
-  if (descriptor.component) return descriptor.component;
+  if (descriptor.component) {
+    const target = normalizeCraftRouteTarget(descriptor.component);
+    if (target.kind === 'angular') return target.component;
+    throw new Error(
+      'The Angular route-load recovery host cannot render a Craft target directly. Configure the @craft-ng/component compatibility host for chunk recovery.',
+    );
+  }
   throw new Error(
     'withRouteLoadError requires an eager error component because lazy loading is unavailable after a route chunk failure.',
   );

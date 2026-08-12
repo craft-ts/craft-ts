@@ -8,6 +8,7 @@ import {
   type TemplateDecorator,
 } from './types';
 import { CRAFT_REGISTRATION_TARGET } from '@craft-ng/core';
+import { CRAFT_NODE_DIRECTIVE } from '@craft-ng/core';
 
 type DirectiveTemplateDependencies<Template> = Template extends (
   ...args: any[]
@@ -47,6 +48,17 @@ export function craftDirective<
     value: { kind: 'directive', name },
     enumerable: false,
   });
+
+  if (meta.node) {
+    Object.defineProperty(directive, CRAFT_NODE_DIRECTIVE, {
+      value: {
+        name,
+        inputs: meta.node.inputs ?? [],
+        mount: meta.node.mount,
+      },
+      enumerable: false,
+    });
+  }
 
   return directive;
 }

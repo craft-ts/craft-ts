@@ -2,7 +2,9 @@
 import '@angular/compiler';
 import {
   Component,
+  DestroyRef,
   Directive,
+  ElementRef,
   EventEmitter,
   EnvironmentInjector,
   HostBinding,
@@ -11,6 +13,7 @@ import {
   Injector,
   Input as AngularInput,
   Output as AngularOutput,
+  Renderer2,
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -27,6 +30,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BehaviorSubject } from 'rxjs';
 import {
   craftComputed,
+  CRAFT_NODE_EFFECT_FACTORY,
+  craftNodeDirective,
   craftException,
   craftMethod,
   craftService,
@@ -1674,6 +1679,76 @@ describe('functional component interpreter', () => {
     expect(element.textContent).toBe('');
 
     mounted.destroy();
+  });
+
+  it('mounts a Craft node directive with an isolated injector and destroys it with its element', () => {
+    const label = signal('first');
+    const showSecond = signal(true);
+    const mountedElements: Element[] = [];
+    const returnedCleanups = vi.fn();
+    const destroyRefCleanups = vi.fn();
+    const marker = craftNodeDirective<{ marker: string }>(
+      'marker',
+      ['marker'],
+      (context) => {
+        mountedElements.push(context.element);
+        expect(inject(ElementRef).nativeElement).toBe(context.element);
+        expect(inject(Renderer2)).toBe(context.renderer);
+        inject(DestroyRef).onDestroy(destroyRefCleanups);
+        context.injector.get(CRAFT_NODE_EFFECT_FACTORY)('marker', () => {
+          context.renderer.setAttribute(
+            context.element,
+            'data-marker',
+            context.props.marker,
+          );
+        });
+        return returnedCleanups;
+      },
+    );
+    const component = craftComponent(
+      'nodeDirectiveLifecycle',
+      {},
+      () => ({}),
+      () =>
+        div([
+          span({ marker: label() }, 'one').pipe(marker),
+          ...(showSecond()
+            ? [span({ marker: `second-${label()}` }, 'two').pipe(marker)]
+            : []),
+        ]),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const spans = Array.from(element.querySelectorAll('span'));
+    expect(mountedElements).toEqual(spans);
+    expect(spans.map((node) => node.getAttribute('data-marker'))).toEqual([
+      'first',
+      'second-first',
+    ]);
+
+    label.set('updated');
+    TestBed.tick();
+    expect(mountedElements).toHaveLength(2);
+    expect(
+      Array.from(element.querySelectorAll('span')).map((node) =>
+        node.getAttribute('data-marker'),
+      ),
+    ).toEqual(['updated', 'second-updated']);
+
+    showSecond.set(false);
+    TestBed.tick();
+    expect(returnedCleanups).toHaveBeenCalledTimes(1);
+    expect(destroyRefCleanups).toHaveBeenCalledTimes(1);
+
+    mounted.destroy();
+    expect(returnedCleanups).toHaveBeenCalledTimes(2);
+    expect(destroyRefCleanups).toHaveBeenCalledTimes(2);
   });
 
   it('resolves yield* craftService dependencies in the child injector', () => {

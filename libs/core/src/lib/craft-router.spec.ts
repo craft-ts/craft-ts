@@ -15,9 +15,10 @@ import type { ExtractDeps } from './branded-component/branded-component';
 import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
 import {
-  CraftRouterLink,
+  LegacyCraftRouterLink,
   CraftRouter,
   provideCraftRouter,
+  shouldHandleCraftRouterLinkClick,
 } from './craft-router';
 import { craftRoutes } from './craft-routes';
 import type { GetServiceDependencies } from './craft-service';
@@ -125,7 +126,7 @@ declare module './craft-router' {
 
 @Component({
   standalone: true,
-  imports: [CraftRouterLink, RouterLinkActive],
+  imports: [LegacyCraftRouterLink, RouterLinkActive],
   template: `
     <a
       [craftRouterLink]="{
@@ -317,6 +318,26 @@ describe('CraftRouter', () => {
     expect(TestBed.inject(Router).url).toBe('/users/42');
   }, 30_000);
 
+  it('only intercepts unmodified primary clicks targeting the current context', () => {
+    const anchor = document.createElement('a');
+    const click = (init: MouseEventInit = {}) =>
+      new MouseEvent('click', { button: 0, ...init });
+
+    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(true);
+    expect(shouldHandleCraftRouterLinkClick(click({ button: 1 }), anchor)).toBe(
+      false,
+    );
+    expect(
+      shouldHandleCraftRouterLinkClick(click({ ctrlKey: true }), anchor),
+    ).toBe(false);
+
+    anchor.target = '_blank';
+    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(false);
+    anchor.target = '_self';
+    anchor.setAttribute('aria-disabled', 'true');
+    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(false);
+  });
+
   it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouter', () => {
     // Regression test for a bug where `CraftRouterYieldRequest` was extracted
     // via `ReturnType<typeof CraftRouterInternal>` — `ReturnType` picks
@@ -347,7 +368,7 @@ describe('CraftRouter', () => {
     // NavigableRoutePath" even though the route was registered.
     @Component({
       standalone: true,
-      imports: [CraftRouterLink],
+      imports: [LegacyCraftRouterLink],
       template: `
         <a
           [craftRouterLink]="{
@@ -440,9 +461,9 @@ describe('CraftRouter', () => {
     // of preserving each service's literal name.
     class MultiYield {
       readonly run = craftMethod('run', this, function* () {
-              yield* Console.log('navigating');
-              yield* CraftRouter();
-            });
+        yield* Console.log('navigating');
+        yield* CraftRouter();
+      });
     }
 
     type ExpectedDeps = {

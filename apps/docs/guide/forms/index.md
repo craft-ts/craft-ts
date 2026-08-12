@@ -104,6 +104,132 @@ const errors = emailField()().exceptions.list; // fully typed list of exceptions
 const emailError = emailField()().exceptions.byValidator['cEmail'];
 ```
 
+### Bind a field to the DOM
+
+`CraftFieldDirective` is the DOM adapter for a `CraftField`. It binds the field
+in both directions, marks it touched on blur, and reflects field state through
+native attributes and `craft-*` CSS classes.
+
+In a Craft template, apply the functional directive to the concrete node:
+
+```ts
+import { CraftFieldDirective } from '@craft-ng/core';
+
+input({
+  type: 'email',
+}).pipe(CraftFieldDirective(loginForm.form.selectEmail()));
+```
+
+`insertSelectFormTree` materializes its branch lazily. When validators or other
+insertions are attached through it, bind the field returned by `selectEmail()`
+(or the corresponding `selectXxx()` method). Binding the raw
+`loginForm.form.email` field bypasses that materialization, so those insertions
+are not registered.
+
+The directive supports text inputs and textareas, numeric and temporal inputs,
+checkboxes, radio groups and selects. Validators also project native constraints
+such as `required`, `min`, `max`, `minlength` and `maxlength`.
+
+Angular templates can keep using the deprecated compatibility wrapper during
+the migration:
+
+```ts
+import { LegacyCraftFieldDirective } from '@craft-ng/core';
+
+@Component({
+  imports: [LegacyCraftFieldDirective],
+  template: ` <input type="email" [craftField]="emailField" /> `,
+})
+export class LoginComponent {
+  protected readonly emailField = this.loginForm.form.selectEmail();
+}
+```
+
+For a custom Angular control, provide `CRAFT_FIELD_VALUE_CONTROL` or
+`CRAFT_FIELD_CHECKBOX_CONTROL` on the host component and use the compatibility
+wrapper. Native Craft nodes use the functional directive directly.
+
+### Render validation exceptions exhaustively
+
+`fieldExceptionBlock.exhaustive` turns the validators carried by
+`CraftFieldDirective` into a compile-time UI obligation. Every reachable code
+must have one handler, and an unreachable handler is also rejected.
+
+```ts
+import { fieldExceptionBlock, input, p } from '@craft-ng/component';
+
+input({ id: 'email', type: 'email' })
+  .pipe(CraftFieldDirective(loginForm.form.selectEmail()))
+  .pipe(
+    fieldExceptionBlock.exhaustive({
+      required: () => p('Email is required.'),
+      email: () => p('Enter a valid email.'),
+    }),
+  );
+```
+
+The field stays mounted and invalid while a message is visible. The block adds
+and merges `aria-invalid` and `aria-describedby`; it does not throw an
+exception or feed route `handleExceptions`.
+
+Use `fieldExceptionBlock.partial` when only some codes belong near the field.
+Handled codes are removed from its contract and the remaining codes continue
+to the next field-exception boundary:
+
+```ts
+input({ id: 'password', type: 'password' })
+  .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
+  .pipe(
+    fieldExceptionBlock.partial({
+      required: () => p('Password is required.'),
+    }),
+  );
+```
+
+Here `password.required` is handled locally, while `password.minLength` must
+still be handled by an enclosing `partial` or `exhaustive` block. A partial
+block may omit reachable codes, but an unreachable handler remains a TypeScript
+error.
+
+At a component boundary, group handlers by static field path. Identical codes
+on different fields remain separate obligations:
+
+```ts
+const SafeLoginForm = BaseLoginForm.pipe(
+  fieldExceptionBlock.exhaustive({
+    email: {
+      required: () => p('Email is required.'),
+      email: () => p('Enter a valid email.'),
+    },
+    password: {
+      required: () => p('Password is required.'),
+      minLength: ({ exception }) =>
+        p(`Use at least ${exception.payload} characters.`),
+    },
+  }),
+);
+```
+
+By default the block reads the field's `visibleExceptions` directly. The form
+owns that visibility policy; the default remains dirty or submitted:
+
+```ts
+insertFormAttributes(() => ({
+  validators: [cRequired(), cEmail()],
+  exceptionVisibility: { anyOf: ['touched', 'submitted'] },
+}));
+```
+
+Available states are `dirty`, `touched`, and `submitted`. A block can override
+the inherited policy with `visibility: 'always'`, another `anyOf` combination,
+or a predicate. `mode` is `first` (validator order) or `all`, and `position` is
+`before` or `after`. Resetting the form clears dirty, touched, and submitted,
+so inherited messages are hidden again.
+
+Custom and async validators participate through their declared exception
+union exactly like built-ins: their codes must be handled even when the current
+visibility policy hides them.
+
 ### insertFormSchema
 
 Adds a form-level `StandardSchemaV1` validator. Issues are projected onto the
@@ -115,10 +241,7 @@ const formState = craftUse(
   state(
     'formState',
     { email: '' },
-    insertForm(
-      insertFormSchema(userSchema),
-      insertFormSubmit(saveUser),
-    ),
+    insertForm(insertFormSchema(userSchema), insertFormSubmit(saveUser)),
   ),
 );
 const form = formState.form;
@@ -132,6 +255,13 @@ The form keeps the schema input value. Schema transformations belong at the
 submit boundary, for example through the mutation's `methodSchema`.
 
 ### insertFormSubmit
+
+`insertFormSubmit` connects the form to a mutation. It submits only validated
+form values and exposes the mutation's loading and typed exception state on the
+form.
+
+See [Submitting a form](/guide/forms/submit) for the complete submission
+workflow, including success handling and exception transformations.
 
 ## The pages
 

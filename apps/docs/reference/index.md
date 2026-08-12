@@ -7,7 +7,7 @@ For an explanation rather than a lookup, start from the [Guide](/guide/).
 ## Primitives
 
 | Symbol         | What it does                                             | Page                                       |
-| ------------------ | ------------------------------------------------------- | ------------------------------------------- |
+| -------------- | -------------------------------------------------------- | ------------------------------------------ |
 | `state`        | Signal-based state you own                               | [Local state](/guide/state/local-state)    |
 | `query`        | Server data, re-fetched from reactive `params`           | [query](/guide/state/server-state)         |
 | `mutation`     | Server write, triggered explicitly                       | [Mutations](/guide/state/mutations)        |
@@ -20,7 +20,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 ## Composition
 
 | Symbol                   | What it does                               | Page                                                     |
-| -------------- | ----------------------------------------------- | --------------------------------------------- |
+| ------------------------ | ------------------------------------------ | -------------------------------------------------------- |
 | `craftPipe`              | Composes several insertions into one       | [Insertions](/guide/concepts/insertions)                 |
 | `craftYieldRecord`       | Resolves a record of primitive generators  | [craftService](/guide/app/craft-service)                 |
 | `insertStatePipe`        | Composes several `state` insertions        | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
@@ -35,31 +35,33 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 
 ## Insertions
 
-| Symbol                            | What it does                                   | Page                                                          |
-| --------------------------------- | --------------------------------------------- | ---------------------------------------------------------- |
-| `insertSelect`                    | Derives a slice of a primitive                 | [Selecting](/guide/state/select)                              |
-| `insertEntities`                  | Entity collection storage and updates          | [Collections](/guide/state/collections)                       |
+| Symbol                            | What it does                                    | Page                                                          |
+| --------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| `insertSelect`                    | Derives a slice of a primitive                  | [Selecting](/guide/state/select)                              |
+| `insertEntities`                  | Entity collection storage and updates           | [Collections](/guide/state/collections)                       |
 | `insertStoragePersister`          | Persists through the configured storage backend | [Persistence](/guide/state/persistence)                       |
-| `insertReactOnMutation`           | Reloads / optimistically patches on a mutation | [React on mutation](/guide/state/react-on-mutation)           |
-| `insertPaginationPlaceholderData` | Placeholder rows while a page loads            | [Pagination placeholder](/guide/state/pagination-placeholder) |
+| `insertReactOnMutation`           | Reloads / optimistically patches on a mutation  | [React on mutation](/guide/state/react-on-mutation)           |
+| `insertPaginationPlaceholderData` | Placeholder rows while a page loads             | [Pagination placeholder](/guide/state/pagination-placeholder) |
 
 ## Forms
 
-| Symbol                                                                      | What it does                        | Page                                  |
-| ----------------------------------------------- | ------------------------------------- | ------------------------------------------ |
-| `insertForm`                                                                | Derives a form from a `state`       | [Forms](/guide/forms/)                |
-| `insertFormAttributes`                                                      | Validators, `disable`, `hidden`     | [Forms](/guide/forms/)                |
-| `insertSelectFormTree`                                                      | Targets a field sub-tree            | [Nested forms](/guide/forms/nested)   |
-| `insertSubFormField`                                                        | A nested sub-form                   | [Nested forms](/guide/forms/nested)   |
-| `insertFormSubmit`                                                          | Wires submission to a mutation      | [Submitting](/guide/forms/submit)     |
-| `insertNoopTypingAnchor`                                                    | Type anchor required per field tree | [Forms](/guide/forms/)                |
-| `cRequired`, `cEmail`, `cMin`/`cMax`, `cMinLength`/`cMaxLength`, `cPattern` | Built-in validators                 | [Validators](/guide/forms/validation) |
-| `cValidate`, `cAsyncValidate`                                               | Custom and async validators         | [Validators](/guide/forms/validation) |
+| Symbol                                                                      | What it does                               | Page                                  |
+| --------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------- |
+| `insertForm`                                                                | Derives a form from a `state`              | [Forms](/guide/forms/)                |
+| `insertFormAttributes`                                                      | Validators, `disable`, `hidden`            | [Forms](/guide/forms/)                |
+| `insertSelectFormTree`                                                      | Targets a field sub-tree                   | [Nested forms](/guide/forms/nested)   |
+| `insertSubFormField`                                                        | A nested sub-form                          | [Nested forms](/guide/forms/nested)   |
+| `insertFormSubmit`                                                          | Wires submission to a mutation             | [Submitting](/guide/forms/submit)     |
+| `insertNoopTypingAnchor`                                                    | Type anchor required per field tree        | [Forms](/guide/forms/)                |
+| `CraftFieldDirective`                                                       | Binds a typed field to a Craft DOM node    | [Forms](/guide/forms/)                |
+| `fieldExceptionBlock.exhaustive` / `.partial`                               | Exhaustive or partial validation rendering | [Forms](/guide/forms/)                |
+| `cRequired`, `cEmail`, `cMin`/`cMax`, `cMinLength`/`cMaxLength`, `cPattern` | Built-in validators                        | [Validators](/guide/forms/validation) |
+| `cValidate`, `cAsyncValidate`                                               | Custom and async validators                | [Validators](/guide/forms/validation) |
 
 ## Services and DI
 
 | Symbol                      | What it does                               | Page                                              |
-| ------------------------------------- | ------------------------------------------- | ------------------------------------------------- |
+| --------------------------- | ------------------------------------------ | ------------------------------------------------- |
 | `craftService`              | Declares a named, scoped service           | [craftService](/guide/app/craft-service)          |
 | `toCraftService`            | Adapts an existing Angular dependency      | [Integrating](/guide/app/integrate-existing)      |
 | `abstract`                  | Declares a contract with no implementation | [Abstract services](/guide/app/abstract-services) |
@@ -76,7 +78,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 ## Routing
 
 | Symbol                                                              | What it does                                    | Page                                                  |
-| -------------------------------------------- | --------------------------------------------- | ----------------------------------------------------- |
+| ------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
 | `craftRoute`, `craftRoutes`                                         | Declares typed routes and collections           | [Setup](/guide/routing/setup)                         |
 | `ValidateCascadeRoutesFile`, `CanRun`                               | Compile-time DI check for a routes file         | [Setup](/guide/routing/setup)                         |
 | `RouteCheckedDI`                                                    | Per-route `O(1)` variant of the check           | [Scaling routes](/guide/routing/scaling)              |
@@ -91,7 +93,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 ## Exceptions
 
 | Symbol                             | What it does                             | Page                                                            |
-| ----------------------------- | ----------------------------------------- | ------------------------------------------- |
+| ---------------------------------- | ---------------------------------------- | --------------------------------------------------------------- |
 | `craftException`                   | Creates a declared, typed exception      | [Exceptions](/guide/concepts/exceptions)                        |
 | `craftExceptionHandler`            | Handles route exceptions                 | [Exceptions](/guide/concepts/exceptions)                        |
 | `.exceptions()`, `.hasException()` | Reads a primitive's exceptions by origin | [query](/guide/state/server-state)                              |
@@ -100,7 +102,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 ## Reactivity
 
 | Symbol               | What it does                       | Page                                                         |
-| ------------------------ | ------------------------------------------------ | --------------------------------------------------------------- |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------ |
 | `craftComputed`      | Tracked `computed`                 | [craftComputed](/guide/reactivity/craft-computed)            |
 | `craftEffect`        | Tracked `effect`                   | [craftEffect](/guide/reactivity/craft-effect)                |
 | `craftMethod`        | A tracked method on a primitive    | [craftMethod](/guide/reactivity/craft-method)                |
@@ -113,15 +115,15 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 ## HTTP and boundaries
 
 | Symbol            | What it does                               | Page                                                    |
-| ------------------ | ----------------------------------------------- | ------------------------------------------------------- |
+| ----------------- | ------------------------------------------ | ------------------------------------------------------- |
 | `CraftHttpClient` | Tracked HTTP client with typed exceptions  | [query](/guide/state/server-state)                      |
 | `browserBoundary` | Marks a service as a browser boundary      | [Browser boundaries](/guide/testing/browser-boundaries) |
 | `Console`         | Yieldable console, overridable for tracing | [Observability](/guide/advanced/observability)          |
 
 ## Testing
 
-| Symbol                                    | What it does                              | Page                                        |
-| ----------------------------------------- | ----------------------------------------- | ------------------------------------------- |
+| Symbol                                                                                                                                                                         | What it does                                                      | Page                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------- |
 | `setupCraftServiceTestingByRegister`                                                                                                                                           | Sets up a service from a full register                            | [Testing services](/guide/testing/services)             |
 | `setupCraftComponentTestingByRegister`                                                                                                                                         | Same, for a component + its `GenDeps_*`                           | [Testing components](/guide/testing/components)         |
 | `boundaryOnly`                                                                                                                                                                 | Keeps the graph real, mocks boundaries                            | [Browser boundaries](/guide/testing/browser-boundaries) |
@@ -133,7 +135,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 ## Tooling
 
 | Command / rule                     | What it does                                | Page                                                                     |
-| --------------------------------------- | ------------------------------------------- | ------------------------------------------- |
+| ---------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
 | `npx craft route add`              | Scaffolds a typed route                     | [Automation](/guide/routing/automation)                                  |
 | `npx craft route split`            | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)                                 |
 | `npx craft route verify`           | Verifies route DI, templates and exceptions | [Automation](/guide/routing/automation#verify-the-route-safety-contract) |

@@ -10,6 +10,8 @@ import type {
   NamedYieldableValue,
   CatchTagExhaustiveCodesCheck,
   CraftRegistrationTarget,
+  CraftNodeDirectiveMount,
+  CRAFT_FIELD_VALIDATION_CASES,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type { YIELDABLE_VALUE } from '@craft-ng/core';
@@ -20,18 +22,30 @@ import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
   CraftNodeChildrenExceptions,
+  CraftNodeChildrenFieldExceptions,
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeDepsCarrier,
   ComponentNode,
   ContentDependenciesFromProps,
   ElementNodeBase,
 } from './render/vnode';
+import type {
+  FieldExceptionBlockDirective,
+  FieldExceptionBlockExhaustiveCheck,
+  FieldExceptionBlockPartialCheck,
+  FieldExceptionBlockOptions,
+  FieldExceptionHandlerFieldExceptions,
+  FieldExceptionHandlerChildren,
+  FieldExceptionHandlers,
+  ResidualFieldValidationCases,
+} from './field-exception-block';
 
 declare const INPUT_BRAND: unique symbol;
 declare const OUTPUT_BRAND: unique symbol;
 declare const TEMPLATE_METHOD_USE: unique symbol;
 declare const COMPONENT_TEMPLATE_NAME: unique symbol;
 declare const COMPONENT_INITIALIZATION_EXCEPTIONS: unique symbol;
+declare const COMPONENT_FIELD_EXCEPTIONS: unique symbol;
 declare const COMPONENT_LOGIC_OUTPUT: unique symbol;
 declare const COMPONENT_OPERATOR_PROVIDERS: unique symbol;
 declare const COMPONENT_OPERATOR_CODES: unique symbol;
@@ -93,10 +107,9 @@ type ProjectTemplateObject<
 > = {
   [Key in keyof Value as Key extends typeof YIELDABLE_VALUE
     ? never
-    : Key]: ProjectTemplateValue<
-    Value[Key],
-    ContextPathKey<ContextMethod, Key>
-  >;
+    : Key]: Key extends typeof CRAFT_FIELD_VALIDATION_CASES
+    ? Value[Key]
+    : ProjectTemplateValue<Value[Key], ContextPathKey<ContextMethod, Key>>;
 };
 
 type ProjectTemplateSignalProperties<
@@ -402,6 +415,11 @@ export interface DirectiveMeta {
   readonly styles?: string | readonly string[];
   /** CSS text imported from an external stylesheet with the build text loader. */
   readonly stylesUrl?: string | readonly string[];
+  /** Optional behavior mounted against the concrete DOM node being decorated. */
+  readonly node?: {
+    readonly inputs?: readonly string[];
+    readonly mount: CraftNodeDirectiveMount<any>;
+  };
 }
 
 export interface StyleOwner {
@@ -462,6 +480,11 @@ export type ComponentCompositionDefinition = {
     Record<string, ComponentExceptionGenerator>
   >;
   readonly catchBlockPosition?: 'before' | 'after';
+  readonly fieldExceptionHandlers?: FieldExceptionHandlers;
+  readonly fieldExceptionOptions?: Required<
+    Pick<FieldExceptionBlockOptions, 'mode' | 'position'>
+  > &
+    Pick<FieldExceptionBlockOptions, 'visibility'>;
 };
 
 export type ComponentOperatorDefinition = ComponentCompositionDefinition;
@@ -469,6 +492,12 @@ export type ComponentOperatorDefinition = ComponentCompositionDefinition;
 /** Internal marker carried by operators that alter component composition. */
 export const COMPONENT_OPERATOR = Symbol('craft-component-operator');
 export const COMPONENT_CATCH_BLOCK = Symbol('craft-component-catch-block');
+export const COMPONENT_FIELD_EXCEPTION_BLOCK = Symbol(
+  'craft-component-field-exception-block',
+);
+export const FIELD_EXCEPTION_BLOCK_DIRECTIVE = Symbol(
+  'craft-field-exception-block-directive',
+);
 
 export type ComponentOperator<
   Providers extends
@@ -886,8 +915,9 @@ type ComponentCallNode<
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
   Directive extends CraftDirective,
-> =
-  Directive extends ComponentOperator<any, any>
+> = Directive extends { readonly [COMPONENT_FIELD_EXCEPTION_BLOCK]: true }
+  ? Factory
+  : Directive extends ComponentOperator<any, any>
     ? Factory
     : Directive extends CraftDirective<infer Logic, any>
       ? ReturnType<Logic> extends ComponentFactory
@@ -912,6 +942,36 @@ type MergePipedComponentDependencies<
   }
 >;
 
+type ComponentFieldExceptionsAfterOperator<ExistingFieldExceptions, Directive> =
+  Directive extends FieldExceptionBlockDirective<
+    infer Handlers extends FieldExceptionHandlers,
+    boolean
+  >
+    ?
+        | ResidualFieldValidationCases<ExistingFieldExceptions, Handlers>
+        | FieldExceptionHandlerFieldExceptions<Handlers>
+    : ExistingFieldExceptions;
+
+type ComponentFieldExceptionOperatorCheck<ExistingFieldExceptions, Directive> =
+  Directive extends FieldExceptionBlockDirective<
+    infer Handlers extends FieldExceptionHandlers,
+    infer Exhaustive extends boolean
+  >
+    ? Exhaustive extends true
+      ? FieldExceptionBlockExhaustiveCheck<ExistingFieldExceptions, Handlers>
+      : FieldExceptionBlockPartialCheck<ExistingFieldExceptions, Handlers>
+    : unknown;
+
+type ComponentFieldExceptionFallbackExceptionCodes<Directive> =
+  Directive extends FieldExceptionBlockDirective<
+    infer Handlers extends FieldExceptionHandlers,
+    boolean
+  >
+    ? CraftNodeChildrenExceptions<
+        FieldExceptionHandlerChildren<Handlers[keyof Handlers]>
+      >
+    : never;
+
 type PipedComponent<
   Factory extends ComponentFactory,
   Meta extends ComponentMeta,
@@ -919,6 +979,7 @@ type PipedComponent<
   RootFactory extends ComponentFactory,
   ExistingComponentDeps extends object,
   ExistingExceptions extends string,
+  ExistingFieldExceptions,
   TemplateDependencies extends object,
   Template extends ComponentTemplate<
     FactoryContext<Factory>
@@ -946,19 +1007,26 @@ type PipedComponent<
         Template &
           ComponentTemplate<FactoryContext<NextFactory>, ReturnType<Template>>,
         Name,
-        ComponentExceptionsAfterOperator<
-          Factory,
-          Meta,
-          Directive,
-          ExistingExceptions
-        > &
+        (
+          | ComponentExceptionsAfterOperator<
+              Factory,
+              Meta,
+              Directive,
+              ExistingExceptions
+            >
+          | ComponentFieldExceptionFallbackExceptionCodes<Directive>
+        ) &
           ComponentOperatorExhaustiveCheck<
             Factory,
             Meta,
             Directive,
             ExistingExceptions
           >,
-        ContentRequirementsOfFactory<NextFactory>
+        ContentRequirementsOfFactory<NextFactory>,
+        ComponentFieldExceptionsAfterOperator<
+          ExistingFieldExceptions,
+          Directive
+        >
       >
     : never;
 
@@ -975,6 +1043,7 @@ export interface CraftComponent<
   Name extends string = string,
   InitializationExceptions extends string = string,
   ContentRequirements extends object = {},
+  FieldExceptions = any,
 > extends ComponentDepsCarrier<ComponentDeps>,
     CraftRegistrationTarget<Name, 'component', FactoryContext<Factory>> {
   <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
@@ -1000,7 +1069,8 @@ export interface CraftComponent<
       Template,
       Name,
       InitializationExceptions,
-      ContentRequirements
+      ContentRequirements,
+      FieldExceptions
     >,
     Factory,
     Props
@@ -1010,6 +1080,7 @@ export interface CraftComponent<
     readonly factory: Factory;
   };
   readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: InitializationExceptions;
+  readonly [COMPONENT_FIELD_EXCEPTIONS]: FieldExceptions;
   readonly [COMPONENT_LOGIC_OUTPUT]: FactoryContext<Factory>;
   readonly pipe: {
     <Directive extends CraftDirective>(
@@ -1023,7 +1094,9 @@ export interface CraftComponent<
           TemplateDependencies,
           Template,
           Name,
-          InitializationExceptions
+          InitializationExceptions,
+          ContentRequirements,
+          FieldExceptions
         >,
       ) => Directive &
         ComponentOperatorExhaustiveCheck<
@@ -1032,7 +1105,8 @@ export interface CraftComponent<
           Directive,
           InitializationExceptions,
           ComponentTemplateHandledExceptionCodes<Template>
-        >,
+        > &
+        ComponentFieldExceptionOperatorCheck<FieldExceptions, Directive>,
     ): PipedComponent<
       Factory,
       Meta,
@@ -1040,6 +1114,7 @@ export interface CraftComponent<
       RootFactory,
       ComponentDeps,
       InitializationExceptions,
+      FieldExceptions,
       TemplateDependencies,
       Template,
       Name
@@ -1052,7 +1127,8 @@ export interface CraftComponent<
           Directive,
           InitializationExceptions,
           ComponentTemplateHandledExceptionCodes<Template>
-        >,
+        > &
+        ComponentFieldExceptionOperatorCheck<FieldExceptions, Directive>,
     ): PipedComponent<
       Factory,
       Meta,
@@ -1060,6 +1136,7 @@ export interface CraftComponent<
       RootFactory,
       ComponentDeps,
       InitializationExceptions,
+      FieldExceptions,
       TemplateDependencies,
       Template,
       Name
@@ -1075,6 +1152,12 @@ export type ComponentInitializationExceptionsOf<Component> = Component extends {
     string;
 }
   ? Exceptions
+  : never;
+
+export type ComponentFieldExceptionsOf<Component> = Component extends {
+  readonly [COMPONENT_FIELD_EXCEPTIONS]: infer FieldExceptions;
+}
+  ? Exclude<FieldExceptions, undefined>
   : never;
 
 /** The value returned by a component's logic factory. */
