@@ -8,6 +8,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createRouteVerificationFixtures,
@@ -16,6 +17,9 @@ import {
 } from './verify-routes';
 
 const temporaryDirectories: string[] = [];
+const coreIndexPath = fileURLToPath(
+  new URL('../../../../core/src/index.ts', import.meta.url),
+);
 
 afterEach(async () => {
   await Promise.all(
@@ -204,7 +208,7 @@ exit 1
           module: 'preserve',
           moduleResolution: 'bundler',
           paths: {
-            '@craft-ng/core': [join(process.cwd(), 'libs/core/src/index.ts')],
+            '@craft-ng/core': [coreIndexPath],
           },
           skipLibCheck: true,
           strict: true,

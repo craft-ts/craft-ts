@@ -5,10 +5,7 @@ import type {
   IfBlockNode,
 } from './render/vnode';
 
-type Condition<Name extends string> = NamedYieldableValue<
-  Name,
-  (() => boolean) | (() => Generator<unknown, boolean, unknown>)
->;
+type Condition<Name extends string> = NamedYieldableValue<Name, () => unknown>;
 
 type BranchDependencies<Branch> = Branch extends (
   ...args: any[]

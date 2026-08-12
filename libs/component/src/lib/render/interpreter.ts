@@ -3319,79 +3319,96 @@ class ComponentRenderedNode implements RenderedNode {
             context,
             hostTarget,
           );
+          if (
+            composition.catchBlockPosition &&
+            !this.componentExceptionEffect
+          ) {
+            this.installComponentExceptionEffect(
+              definition,
+              factoryContext,
+              renderInjector,
+              renderContext,
+              context,
+              hostTarget,
+            );
+          }
         }),
       ),
     );
+  }
 
-    if (composition.catchBlockPosition) {
-      const trackedFactoryContext = factoryContext;
-      this.componentExceptionEffect = untracked(() =>
-        runInInjectionContext(renderInjector, () =>
-          craftEffect(
-            'component-catch-block-resource-exceptions',
-            () => {
-              const exception = findResourceException(trackedFactoryContext);
-              if (exception) {
-                if (
-                  renderContext.handledResourceExceptionCodes?.has(
-                    exception.code,
-                  )
-                ) {
-                  if (this.componentFallbackVisible) {
-                    this.componentFallbackVisible = false;
-                    this.componentFallbackException = undefined;
-                    untracked(() =>
-                      this.renderComposedTemplate(
-                        definition,
-                        trackedFactoryContext,
-                        renderInjector,
-                        renderContext,
-                        context,
-                        hostTarget,
-                      ),
-                    );
-                  }
-                  return;
+  private installComponentExceptionEffect(
+    definition: (typeof this.component)[typeof CRAFT_COMPONENT],
+    factoryContext: unknown,
+    renderInjector: EnvironmentInjector,
+    renderContext: RenderContext,
+    context: RenderContext,
+    hostTarget: Element | undefined,
+  ): void {
+    this.componentExceptionEffect = untracked(() =>
+      runInInjectionContext(renderInjector, () =>
+        craftEffect(
+          'component-catch-block-resource-exceptions',
+          () => {
+            const exception = findResourceException(factoryContext);
+            if (exception) {
+              if (
+                renderContext.handledResourceExceptionCodes?.has(exception.code)
+              ) {
+                if (this.componentFallbackVisible) {
+                  this.componentFallbackVisible = false;
+                  this.componentFallbackException = undefined;
+                  untracked(() =>
+                    this.renderComposedTemplate(
+                      definition,
+                      factoryContext,
+                      renderInjector,
+                      renderContext,
+                      context,
+                      hostTarget,
+                    ),
+                  );
                 }
-                if (
-                  this.componentFallbackVisible &&
-                  this.componentFallbackException === exception
-                ) {
-                  return;
-                }
-                this.componentFallbackVisible = true;
-                this.componentFallbackException = exception;
-                untracked(() =>
-                  this.renderComposedException(
-                    definition,
-                    exception,
-                    renderInjector,
-                    renderContext,
-                    context,
-                    hostTarget,
-                    true,
-                  ),
-                );
-              } else if (this.componentFallbackVisible) {
-                this.componentFallbackVisible = false;
-                this.componentFallbackException = undefined;
-                untracked(() =>
-                  this.renderComposedTemplate(
-                    definition,
-                    trackedFactoryContext,
-                    renderInjector,
-                    renderContext,
-                    context,
-                    hostTarget,
-                  ),
-                );
+                return;
               }
-            },
-            { manualCleanup: true },
-          ),
+              if (
+                this.componentFallbackVisible &&
+                this.componentFallbackException === exception
+              ) {
+                return;
+              }
+              this.componentFallbackVisible = true;
+              this.componentFallbackException = exception;
+              untracked(() =>
+                this.renderComposedException(
+                  definition,
+                  exception,
+                  renderInjector,
+                  renderContext,
+                  context,
+                  hostTarget,
+                  true,
+                ),
+              );
+            } else if (this.componentFallbackVisible) {
+              this.componentFallbackVisible = false;
+              this.componentFallbackException = undefined;
+              untracked(() =>
+                this.renderComposedTemplate(
+                  definition,
+                  factoryContext,
+                  renderInjector,
+                  renderContext,
+                  context,
+                  hostTarget,
+                ),
+              );
+            }
+          },
+          { manualCleanup: true },
         ),
-      );
-    }
+      ),
+    );
   }
 
   private registerRuntimeTargets(

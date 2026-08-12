@@ -571,6 +571,7 @@ describe('functional component interpreter', () => {
       kind: string;
       phase: string;
       componentName?: string;
+      name?: string;
       renderCount: number;
     }> = [];
     const counter = craftComponent(
@@ -609,12 +610,14 @@ describe('functional component interpreter', () => {
         kind: 'component',
         phase: 'initialRender',
         componentName: 'templateTraceCounter',
+        name: 'templateTraceCounter',
         renderCount: 1,
       },
       {
         kind: 'component',
         phase: 'update',
         componentName: 'templateTraceCounter',
+        name: 'templateTraceCounter',
         renderCount: 2,
       },
       {
@@ -1165,7 +1168,7 @@ describe('functional component interpreter', () => {
         count,
         increment: craftMethod('increment', function* () {
           count.update((value) => value + 1);
-        }).increment,
+        }),
       }),
       ({ count, increment }) =>
         div([
@@ -1202,7 +1205,7 @@ describe('functional component interpreter', () => {
       () => ({
         disabled: craftMethod('disabled', function* () {
           return true;
-        }).disabled,
+        }),
       }),
       ({ disabled }) =>
         button(
@@ -1240,7 +1243,7 @@ describe('functional component interpreter', () => {
       () => ({
         increment: craftMethod('increment', function* () {
           count.update((value) => value + 1);
-        }).increment,
+        }),
       }),
       ({ increment }) =>
         button({ click: () => void increment() }, String(count())),
@@ -1266,7 +1269,7 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         const counter = yield* state('counter', 0, ({ state }) => ({
-          disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
+          disabled: craftComputed('disabled', () => state() % 2 === 0),
         }));
         return { counter };
       },
@@ -1301,7 +1304,7 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         return {
-          enabled: craftComputed('enabled', () => true).enabled,
+          enabled: craftComputed('enabled', () => true),
         };
       },
       ({ enabled }) =>
@@ -2104,7 +2107,11 @@ describe('functional component interpreter', () => {
       providers: [provideRouter([]), provideCraftComponent(paramsRouted)],
     });
     const element = host();
-    mountCraftComponent(CraftRouterOutlet, element, TestBed.inject(Injector));
+    const mounted = mountCraftComponent(
+      CraftRouterOutlet,
+      element,
+      TestBed.inject(Injector),
+    );
     TestBed.tick();
     const params = new BehaviorSubject({ userId: '42' });
     const queryParams = new BehaviorSubject({});
@@ -2136,6 +2143,7 @@ describe('functional component interpreter', () => {
     TestBed.tick();
 
     expect(element.querySelector('.route-user-id')?.textContent).toBe('43');
+    mounted.destroy();
   });
 
   it('activates a functional outlet from an inherited child route context', () => {
@@ -2174,12 +2182,17 @@ describe('functional component interpreter', () => {
     });
     const element = host();
 
-    mountCraftComponent(CraftRouterOutlet, element, nestedRouteInjector);
+    const mounted = mountCraftComponent(
+      CraftRouterOutlet,
+      element,
+      nestedRouteInjector,
+    );
     TestBed.tick();
 
     expect(element.querySelector('.nested-route-user-id')?.textContent).toBe(
       '84',
     );
+    mounted.destroy();
   });
 
   it('mounts a lazily loaded functional component without an eager provider', async () => {

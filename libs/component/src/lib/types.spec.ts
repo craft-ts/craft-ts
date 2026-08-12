@@ -710,10 +710,10 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     () => ({
       disabled: craftMethod('disabled', function* () {
         return true;
-      }).disabled,
+      }),
       enabled: craftMethod('enabled', function* () {
         return true;
-      }).enabled,
+      }),
     }),
     ({ disabled }) =>
       button(
@@ -747,7 +747,7 @@ it('keeps yieldable primitive properties in template VNodes', () => {
       counter: {
         disabled: craftMethod('disabled', function* () {
           return true;
-        }).disabled,
+        }),
       },
     }),
     ({ counter }) =>
@@ -1166,7 +1166,7 @@ it('tracks available actions through conditional template branches', () => {
         isAuth,
         increment: craftMethod('increment', function* () {
           return undefined;
-        }).increment,
+        }),
       };
     },
     ({ isAuth, increment }) =>
@@ -1227,9 +1227,5 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
 it('accepts nullable each sources', () => {
   let items!: readonly { key: string }[] | null | undefined;
 
-  each(
-    items,
-    { track: (item) => item.key },
-    (item) => p(item.key),
-  );
+  each(items, { track: (item) => item.key }, (item) => p(item.key));
 });
