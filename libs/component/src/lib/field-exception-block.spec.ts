@@ -19,6 +19,8 @@ import {
   cEmail,
   cMinLength,
   cRequired,
+  cValidate,
+  craftException,
   craftUse,
   insertForm,
   insertFormAttributes,
@@ -407,6 +409,113 @@ describe('fieldExceptionBlock', () => {
     expect(element.textContent).toContain('Password required');
     expect(element.querySelector('#email')).toBe(email);
     expect(element.querySelector('#password')).toBe(password);
+    mounted.destroy();
+  });
+
+  it('carries and renders group validation cases declared by component logic without a group DOM binding', () => {
+    function* registrationFactory() {
+      const registration = yield* state(
+        'registration',
+        {
+          credentials: {
+            password: 'secret',
+            confirmation: 'different',
+          },
+        },
+        insertForm(
+          insertSelectFormTree(
+            'credentials',
+            insertNoopTypingAnchor,
+            insertFormAttributes(({ field }) => ({
+              validators: [
+                cValidate({
+                  name: 'passwordsMatch',
+                  validWhen: () =>
+                    field.value().password === field.value().confirmation,
+                  exception: () =>
+                    craftException({ code: 'passwordMismatch' }, undefined),
+                }),
+              ],
+            })),
+          ),
+        ),
+      );
+      const credentials = registration.form.selectCredentials();
+      return { registration, credentials };
+    }
+
+    const unsafe = craftComponent(
+      'groupFieldExceptionFromLogic',
+      {},
+      registrationFactory,
+      ({ credentials }) =>
+        div([
+          input({ id: 'group-password' }).pipe(
+            CraftFieldDirective(credentials.password),
+          ),
+          input({ id: 'group-confirmation' }).pipe(
+            CraftFieldDirective(credentials.confirmation),
+          ),
+        ]),
+    );
+
+    expectTypeOf<
+      ComponentFieldExceptionsOf<typeof unsafe>
+    >().not.toEqualTypeOf<never>();
+    // @ts-expect-error the group exception declared by logic is still unhandled
+    loadCraftComponent(async () => unsafe);
+
+    const safeAtComponentBoundary = unsafe.pipe(
+      fieldExceptionBlock.exhaustive({
+        credentials: {
+          passwordMismatch: () => p('Passwords do not match.'),
+        },
+      }),
+    );
+    expectTypeOf<
+      ComponentFieldExceptionsOf<typeof safeAtComponentBoundary>
+    >().toEqualTypeOf<never>();
+
+    const safeInTemplate = craftComponent(
+      'groupFieldExceptionHandledInTemplate',
+      {},
+      registrationFactory,
+      ({ credentials }) =>
+        div([
+          input({ id: 'group-password' }).pipe(
+            CraftFieldDirective(credentials.password),
+          ),
+          input({ id: 'group-confirmation' }).pipe(
+            CraftFieldDirective(credentials.confirmation),
+          ),
+        ]).pipe(
+          fieldExceptionBlock.exhaustive({
+            credentials: {
+              passwordMismatch: () => p('Passwords do not match.'),
+            },
+          }),
+        ),
+    );
+    expectTypeOf<
+      ComponentFieldExceptionsOf<typeof safeInTemplate>
+    >().toEqualTypeOf<never>();
+
+    const element = host();
+    const mounted = mountCraftComponent(
+      safeInTemplate,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.textContent).not.toContain('Passwords do not match.');
+    const password = element.querySelector(
+      '#group-password',
+    ) as HTMLInputElement;
+    password.dispatchEvent(new Event('blur', { bubbles: true }));
+    TestBed.tick();
+
+    expect(element.textContent).toContain('Passwords do not match.');
     mounted.destroy();
   });
 });

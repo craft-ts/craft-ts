@@ -1,43 +1,207 @@
 # Form exception handling
 
-Form errors are typed and grouped by where they came from — a field's
-validators, or submission. Nothing is a loose string.
+Form validation exceptions are typed UI obligations. A component must handle
+every reachable exception in its template or forward the remaining cases to a
+component boundary before it can be rendered, mounted, or used by a route.
 
-**Read this when** you render errors, or when you need to know which codes a
-field can produce.
+**Read this when** you render validation messages, split them between several
+locations, or validate a group of fields.
 
-@craft-ng forms use a structured exception system:
+## Reading exceptions as values
+
+Validators do not throw. They keep the field and form invalid and expose their
+exceptions as signals:
 
 ```ts
-const form = userFormState.form();
+const email = loginForm.form.selectEmail();
 
-// All exceptions
-const allErrors = form.exceptions().list;
+email.errors();
+email.exceptions().list;
+email.exceptions().byValidator.cRequired;
+email.firstLeftFailedValidation();
+email.lastRightFailedValidation();
+```
 
-// get first or last validation exception according to the order of validators
-const first = fieldForm.form.firstLeftFailedValidation();
-const last = fieldForm.form.lastRightFailedValidation();
+Handling an exception only renders its message. It does not remove the
+exception or make the field valid.
 
-// Exception by validator
-const requiredError = form().selectEmail()().exceptions()?.byValidator[
-  'cRequired'
-];
-const emailError = form().selectEmail()().exceptions()?.byValidator.cEmail;
+## Case 1: handle every exception beside one field
 
-// Each exception has a code and payload
-if (emailError) {
-  console.log(emailError.code); // 'email'
-  console.log(emailError.payload); // undefined
-}
+`CraftFieldDirective` carries the field's exact validator cases onto the VNode.
+An exhaustive block must provide exactly one handler for every reachable code:
 
-if (form.exceptions()?.byValidator?.cMin) {
-  const minError = form.exceptions()?.byValidator?.['cMin'];
-  console.log(minError.code); // 'min'
-  console.log(minError.payload); // 18 (the minimum value)
+```ts
+input({ id: 'email', type: 'email' })
+  .pipe(CraftFieldDirective(loginForm.form.selectEmail()))
+  .pipe(
+    fieldExceptionBlock.exhaustive({
+      required: () => p('Email is required.'),
+      email: () => p('Enter a valid email.'),
+    }),
+  );
+```
+
+A missing handler and an unreachable extra handler are both TypeScript errors.
+
+## Case 2: handle only some exceptions locally
+
+Use `partial` when an exception belongs beside the control while the remaining
+cases should continue to an enclosing boundary:
+
+```ts
+input({ id: 'password', type: 'password' })
+  .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
+  .pipe(
+    fieldExceptionBlock.partial({
+      required: () => p('Password is required.'),
+    }),
+  );
+```
+
+If the field also declares `minLength`, that case remains in the component's
+contract until another `partial` or `exhaustive` block handles it.
+
+## Case 3: handle several fields at a component boundary
+
+At a boundary that receives more than one field path, group handlers by their
+static path. Identical codes on different fields remain separate obligations:
+
+```ts
+const SafeLoginForm = BaseLoginForm.pipe(
+  fieldExceptionBlock.exhaustive({
+    email: {
+      required: () => p('Email is required.'),
+      email: () => p('Enter a valid email.'),
+    },
+    password: {
+      required: () => p('Password is required.'),
+      minLength: ({ exception }) =>
+        p(`Use at least ${exception.payload} characters.`),
+    },
+  }),
+);
+```
+
+## Case 4: handle a group or cross-field validator
+
+A group validator is declared on an object branch rather than on one leaf
+control. Materialize that branch in the component logic and return it from the
+factory:
+
+```ts
+function* registrationLogic() {
+  const registration = yield* state(
+    'registration',
+    {
+      credentials: {
+        password: '',
+        confirmation: '',
+      },
+    },
+    insertForm(
+      insertSelectFormTree(
+        'credentials',
+        insertNoopTypingAnchor,
+        insertFormAttributes(({ field }) => ({
+          validators: [
+            cValidate({
+              name: 'passwordsMatch',
+              validWhen: () =>
+                field.value().password === field.value().confirmation,
+              exception: () =>
+                craftException({ code: 'passwordMismatch' }, undefined),
+            }),
+          ],
+        })),
+      ),
+    ),
+  );
+
+  const credentials = registration.form.selectCredentials();
+  return { registration, credentials };
 }
 ```
 
-## See Also
+The component logic now declares the typed obligation
+`credentials.passwordMismatch`. The group itself does not need a
+`CraftFieldDirective`; only its leaf controls need their usual DOM bindings.
 
+### Handle the group in the template
+
+A grouped handler on an enclosing VNode consumes the logic-level obligation:
+
+```ts
+({ credentials }) =>
+  div([
+    input({ type: 'password' }).pipe(CraftFieldDirective(credentials.password)),
+    input({ type: 'password' }).pipe(
+      CraftFieldDirective(credentials.confirmation),
+    ),
+  ]).pipe(
+    fieldExceptionBlock.exhaustive({
+      credentials: {
+        passwordMismatch: () => p('Passwords do not match.'),
+      },
+    }),
+  );
+```
+
+The exception source is registered from the component logic, independently of
+a DOM binding for the group.
+
+### Forward the group to the component boundary
+
+The template may leave the group case unresolved and let the component
+boundary handle it:
+
+```ts
+const SafeRegistrationForm = BaseRegistrationForm.pipe(
+  fieldExceptionBlock.exhaustive({
+    credentials: {
+      passwordMismatch: () => p('Passwords do not match.'),
+    },
+  }),
+);
+```
+
+If neither location handles it, using the component is a compile-time error:
+
+```ts
+// TypeScript error: credentials.passwordMismatch remains unhandled.
+loadCraftComponent(async () => BaseRegistrationForm);
+```
+
+## Visibility: blur and submit
+
+By default, a block consumes `visibleExceptions`. A validation exception is
+visible when its field or group is touched, or after a submit attempt:
+
+```ts
+insertFormAttributes(() => ({
+  validators: [cRequired()],
+  exceptionVisibility: { anyOf: ['touched', 'submitted'] },
+}));
+```
+
+After a blur, only the touched field and its parent groups reveal their
+remaining exceptions. A submit attempt reveals every remaining exception in
+the form. Resetting the form clears `dirty`, `touched`, and `submitted`, so the
+messages become hidden again.
+
+Use `visibility: 'always'`, another `anyOf` combination, or a predicate to
+override this policy on one block. `mode` controls whether the first or all
+matching exceptions render, and `position` selects `before` or `after`.
+
+## Submission and schema exceptions
+
+`insertFormSubmit` exposes submission exceptions separately from field
+validation cases. `insertFormSchema` projects issues with paths onto matching
+fields and leaves pathless issues on the form root through
+`schemaExceptions()`.
+
+## See also
+
+- [Validation](/guide/forms/validation)
+- [Nested forms](/guide/forms/nested)
 - [Submitting a form](/guide/forms/submit)
 - [Exceptions as values](/guide/concepts/exceptions)

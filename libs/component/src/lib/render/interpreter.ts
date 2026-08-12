@@ -27,6 +27,7 @@ import {
   CRAFT_NODE_DIRECTIVE,
   CRAFT_NODE_EFFECT_FACTORY,
   CRAFT_FIELD_EXCEPTION_BOUNDARY,
+  CRAFT_FIELD_EXCEPTION_SOURCE,
   CRAFT_TEMPORAL_RUNTIME,
   ComponentRegister,
   craftEffect,
@@ -2329,7 +2330,7 @@ class CatchBlockRenderedNode implements RenderedNode {
 
 type RegisteredFieldExceptionSource = {
   readonly source: CraftFieldExceptionSource;
-  readonly element: Element;
+  readonly element?: Element;
   readonly messageIds: Map<string, string>;
 };
 
@@ -2346,6 +2347,40 @@ const fieldExceptionAccessibility = new WeakMap<
 >();
 
 let nextFieldExceptionBoundaryId = 0;
+
+function componentFieldExceptionSources(
+  value: unknown,
+  seen = new WeakSet<object>(),
+  depth = 0,
+): readonly CraftFieldExceptionSource[] {
+  if (
+    (typeof value !== 'object' || value === null) &&
+    typeof value !== 'function'
+  ) {
+    return [];
+  }
+  const objectValue = value as object;
+  if (seen.has(objectValue)) return [];
+  seen.add(objectValue);
+
+  const source = (
+    value as Partial<Record<typeof CRAFT_FIELD_EXCEPTION_SOURCE, unknown>>
+  )[CRAFT_FIELD_EXCEPTION_SOURCE];
+  if (source) return [source as CraftFieldExceptionSource];
+  const sources: CraftFieldExceptionSource[] = [];
+  if (depth >= 4) return sources;
+
+  for (const key of Object.keys(value)) {
+    sources.push(
+      ...componentFieldExceptionSources(
+        (value as Record<string, unknown>)[key],
+        seen,
+        depth + 1,
+      ),
+    );
+  }
+  return sources;
+}
 
 function fieldExceptionHandler(
   handlers: FieldExceptionHandlers,
@@ -2394,7 +2429,8 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
   private readonly boundaryId = nextFieldExceptionBoundaryId++;
   private readonly descriptor;
   private readonly sourcesVersion = signal(0);
-  private readonly sources = new Map<Element, RegisteredFieldExceptionSource>();
+  private readonly sources = new Set<RegisteredFieldExceptionSource>();
+  private readonly componentSourceCleanups: Array<() => void>;
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
 
@@ -2412,6 +2448,9 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
       [node.source],
       'craft-field-exception-block',
     );
+    this.componentSourceCleanups = componentFieldExceptionSources(
+      context.componentContext,
+    ).map((source) => this.register(source));
     this.effectRef = createRenderEffect(
       context,
       'field-exception-block',
@@ -2452,7 +2491,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
 
   private register(
     source: CraftFieldExceptionSource,
-    element: Element,
+    element?: Element,
   ): () => void {
     const unregisterParent = this.context.fieldExceptionBoundary?.register(
       source,
@@ -2463,22 +2502,32 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
       element,
       messageIds: new Map(),
     };
-    this.accessibilityState(element).registrations.add(this.boundaryId);
-    this.sources.set(element, registered);
+    if (element) {
+      this.accessibilityState(element).registrations.add(this.boundaryId);
+    }
+    this.sources.add(registered);
     untracked(() => this.sourcesVersion.update((value) => value + 1));
     return () => {
       this.releaseAccessibility(registered);
-      this.sources.delete(element);
+      this.sources.delete(registered);
       untracked(() => this.sourcesVersion.update((value) => value + 1));
       unregisterParent?.();
     };
   }
 
   private orderedSources(): RegisteredFieldExceptionSource[] {
-    return [...this.sources.values()].sort((left, right) => {
+    const ordered = [...this.sources].sort((left, right) => {
+      if (!left.element) return 1;
+      if (!right.element) return -1;
       if (left.element === right.element) return 0;
       const relation = left.element.compareDocumentPosition(right.element);
       return relation & 4 /* Node.DOCUMENT_POSITION_FOLLOWING */ ? -1 : 1;
+    });
+    const seen = new Set<CraftFieldExceptionSource>();
+    return ordered.filter(({ source }) => {
+      if (seen.has(source)) return false;
+      seen.add(source);
+      return true;
     });
   }
 
@@ -2569,6 +2618,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
     registered: RegisteredFieldExceptionSource,
     messageIds: readonly string[],
   ): void {
+    if (!registered.element) return;
     if (messageIds.length) {
       this.accessibilityState(registered.element).messagesByBoundary.set(
         this.boundaryId,
@@ -2633,6 +2683,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
   private releaseAccessibility(
     registered: RegisteredFieldExceptionSource,
   ): void {
+    if (!registered.element) return;
     const state = this.accessibilityState(registered.element);
     state.messagesByBoundary.delete(this.boundaryId);
     state.registrations.delete(this.boundaryId);
@@ -2644,6 +2695,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
 
   destroy(): void {
     this.effectRef.destroy();
+    this.componentSourceCleanups.forEach((cleanup) => cleanup());
     this.view.destroy();
     this.sources.forEach((source) => this.releaseAccessibility(source));
     this.sources.clear();

@@ -32,7 +32,10 @@ import {
   type FieldExceptionHandlerFieldExceptions,
   type FieldExceptionHandlerChildren,
   type FieldExceptionHandlers,
+  type FieldValidationHandledIdentities,
+  type FieldValidationHandledIdentitiesCarrier,
   type ResidualFieldValidationCases,
+  type UnhandledFieldValidationCases,
 } from '../field-exception-block';
 
 export declare const CRAFT_NODE_DEPS: unique symbol;
@@ -127,7 +130,7 @@ export interface ElementNodeBase<
     >,
     CraftNodeHandledExceptionsCarrier<HandledExceptions>,
     CraftNodeFieldExceptionsCarrier<
-      FieldExceptions | CraftNodeChildrenFieldExceptions<Children>
+      FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>
     > {
   readonly kind: 'element';
   readonly tag: Tag;
@@ -159,11 +162,11 @@ export interface ElementNode<
   readonly [CRAFT_NODE_EXCEPTIONS]: CraftNodeChildrenExceptions<Children>;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]:
     | FieldExceptions
-    | CraftNodeChildrenFieldExceptions<Children>;
+    | CraftNodeChildrenRawFieldExceptions<Children>;
   readonly pipe: CraftNodePipe<
     Dependencies,
     CraftNodeChildrenExceptions<Children>,
-    FieldExceptions | CraftNodeChildrenFieldExceptions<Children>
+    FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>
   >;
 }
 
@@ -183,8 +186,15 @@ type PipedNode<
         | CraftNodeChildrenExceptions<
             FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
           >,
-        | ResidualFieldValidationCases<FieldExceptions, FieldHandlers>
-        | FieldExceptionHandlerFieldExceptions<FieldHandlers>,
+        | ResidualFieldValidationCases<
+            UnhandledFieldValidationCases<FieldExceptions>,
+            FieldHandlers
+          >
+        | FieldExceptionHandlerFieldExceptions<FieldHandlers>
+        | Extract<FieldExceptions, FieldValidationHandledIdentitiesCarrier<any>>
+        | FieldValidationHandledIdentitiesCarrier<
+            FieldValidationHandledIdentities<FieldExceptions, FieldHandlers>
+          >,
         FieldHandlers
       >
     : Directive extends CatchBlockDirective<
@@ -241,8 +251,18 @@ export type CraftNodePipe<
               infer Exhaustive extends boolean
             >
           ? Exhaustive extends true
-            ? FieldExceptionBlockExhaustiveCheck<FieldExceptions, FieldHandlers>
-            : FieldExceptionBlockPartialCheck<FieldExceptions, FieldHandlers>
+            ? [UnhandledFieldValidationCases<FieldExceptions>] extends [never]
+              ? unknown
+              : FieldExceptionBlockExhaustiveCheck<
+                  UnhandledFieldValidationCases<FieldExceptions>,
+                  FieldHandlers
+                >
+            : [UnhandledFieldValidationCases<FieldExceptions>] extends [never]
+              ? unknown
+              : FieldExceptionBlockPartialCheck<
+                  UnhandledFieldValidationCases<FieldExceptions>,
+                  FieldHandlers
+                >
           : unknown),
   ): PipedNode<Dependencies, Exceptions, FieldExceptions, Directive>;
   (directive: AngularDirectiveNode): CraftNode;
@@ -408,8 +428,8 @@ export interface EachNode<
   EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeFieldExceptionsCarrier<
-      | CraftNodeChildrenFieldExceptions<ItemChildren>
-      | CraftNodeChildrenFieldExceptions<EmptyChildren>
+      | CraftNodeChildrenRawFieldExceptions<ItemChildren>
+      | CraftNodeChildrenRawFieldExceptions<EmptyChildren>
     > {
   readonly kind: 'each';
   readonly source:
@@ -431,8 +451,8 @@ export interface IfBlockNode<
   FalseChildren extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeFieldExceptionsCarrier<
-      | CraftNodeChildrenFieldExceptions<TrueChildren>
-      | CraftNodeChildrenFieldExceptions<FalseChildren>
+      | CraftNodeChildrenRawFieldExceptions<TrueChildren>
+      | CraftNodeChildrenRawFieldExceptions<FalseChildren>
     > {
   readonly kind: 'if';
   readonly condition: () => boolean;
@@ -449,7 +469,7 @@ export interface DeferNode<
   Children extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeFieldExceptionsCarrier<
-      CraftNodeChildrenFieldExceptions<Children>
+      CraftNodeChildrenRawFieldExceptions<Children>
     > {
   readonly kind: 'defer';
   readonly loader: (helpers: CraftLazyLoadHelpers) => Promise<Loaded>;
@@ -501,13 +521,15 @@ export type ContentDependenciesFromProps<Props extends object> =
   CraftNodeChildrenDependencies<ContentChildrenFromProps<Props>>;
 
 export type ContentFieldExceptionsFromProps<Props extends object> =
-  CraftNodeChildrenFieldExceptions<ContentChildrenFromProps<Props>>;
+  CraftNodeChildrenRawFieldExceptions<ContentChildrenFromProps<Props>>;
 
 export interface ProjectionNode<
   Dependencies extends object = {},
   Output extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeFieldExceptionsCarrier<CraftNodeChildrenFieldExceptions<Output>> {
+    CraftNodeFieldExceptionsCarrier<
+      CraftNodeChildrenRawFieldExceptions<Output>
+    > {
   readonly kind: 'projection';
   readonly render: () => Output;
   readonly slotName?: string;
@@ -520,7 +542,7 @@ export interface TemplateNode<
   Output extends CraftNodeChildren = CraftNodeChildren,
   Dependencies extends object = CraftNodeChildrenDependencies<Output>,
 > extends CraftNodeDepsCarrier<Dependencies> {
-  readonly [CRAFT_NODE_FIELD_EXCEPTIONS]?: CraftNodeChildrenFieldExceptions<Output>;
+  readonly [CRAFT_NODE_FIELD_EXCEPTIONS]?: CraftNodeChildrenRawFieldExceptions<Output>;
   readonly kind: 'template';
   readonly template: CraftTemplate<Context, Output>;
   readonly context: Context;
@@ -553,11 +575,14 @@ type CraftNodeDirectFieldExceptions<Value> =
           : Exclude<Cases, undefined>
       : never;
 
-export type CraftNodeChildrenFieldExceptions<Value> = Value extends unknown
+export type CraftNodeChildrenRawFieldExceptions<Value> = Value extends unknown
   ? Value extends readonly (infer Child)[]
     ? CraftNodeDirectFieldExceptions<Child>
     : CraftNodeDirectFieldExceptions<Value>
   : never;
+
+export type CraftNodeChildrenFieldExceptions<Value> =
+  UnhandledFieldValidationCases<CraftNodeChildrenRawFieldExceptions<Value>>;
 
 type CraftNodeDirectHandledExceptionCodes<Value> =
   IsAny<Value> extends true

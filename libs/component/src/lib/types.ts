@@ -12,6 +12,7 @@ import type {
   CraftRegistrationTarget,
   CraftNodeDirectiveMount,
   CRAFT_FIELD_VALIDATION_CASES,
+  CraftFieldValidationCasesCarrier,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type { YIELDABLE_VALUE } from '@craft-ng/core';
@@ -23,6 +24,7 @@ import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildrenExceptions,
   CraftNodeChildrenFieldExceptions,
+  CraftNodeChildrenRawFieldExceptions,
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeDepsCarrier,
   ComponentNode,
@@ -38,6 +40,9 @@ import type {
   FieldExceptionHandlerChildren,
   FieldExceptionHandlers,
   ResidualFieldValidationCases,
+  ResidualFieldValidationCasesByIdentity,
+  FieldValidationHandledIdentitiesOf,
+  UnhandledFieldValidationCases,
 } from './field-exception-block';
 
 declare const INPUT_BRAND: unique symbol;
@@ -292,6 +297,53 @@ export type ComponentFactory = (...args: any[]) => any;
 export type FactoryContext<Factory extends ComponentFactory> = Awaited<
   ResolveGeneratorResult<ReturnType<Factory>>
 >;
+
+type DirectComponentLogicFieldExceptions<Value> = 0 extends 1 & Value
+  ? never
+  : Value extends CraftFieldValidationCasesCarrier<infer Cases>
+    ? unknown extends Cases
+      ? never
+      : Cases
+    : never;
+
+/** Typed field-validation cases exposed by a component logic factory. */
+export type ComponentLogicFieldExceptions<Context> =
+  | DirectComponentLogicFieldExceptions<Context>
+  | (Context extends (...args: any[]) => any
+      ? never
+      : Context extends object
+        ? {
+            [Key in keyof Context]: DirectComponentLogicFieldExceptions<
+              Context[Key]
+            >;
+          }[keyof Context]
+        : never);
+
+type ComponentTemplateFieldExceptions<Template> = Template extends (
+  ...args: any[]
+) => any
+  ? CraftNodeChildrenRawFieldExceptions<ReturnType<Template>>
+  : never;
+
+export type ComponentResidualFieldExceptions<Factory, Template> = 0 extends 1 &
+  Factory
+  ? any
+  : 0 extends 1 & Template
+    ? any
+    : Factory extends ComponentFactory
+      ? Template extends (...args: any[]) => any
+        ?
+            | ResidualFieldValidationCasesByIdentity<
+                ComponentLogicFieldExceptions<FactoryContext<Factory>>,
+                FieldValidationHandledIdentitiesOf<
+                  ComponentTemplateFieldExceptions<Template>
+                >
+              >
+            | UnhandledFieldValidationCases<
+                ComponentTemplateFieldExceptions<Template>
+              >
+        : never
+      : never;
 
 export type FactoryYielded<Factory extends ComponentFactory> =
   ReturnType<Factory> extends Generator<infer Yielded, any, any>

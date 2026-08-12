@@ -10,6 +10,7 @@ import {
   type ComponentCompositionDefinition,
   type ComponentInitializationExceptionCodesForTemplate,
   type ComponentTemplate,
+  type ComponentResidualFieldExceptions,
   type ContentRequirementsOfContext,
   type CraftComponent,
   type FactoryContext,
@@ -19,10 +20,7 @@ import {
   type TemplateDependencies,
 } from './types';
 import type { HostProps } from './hyperscript';
-import type {
-  ComponentNode,
-  CraftNodeChildrenFieldExceptions,
-} from './render/vnode';
+import type { ComponentNode } from './render/vnode';
 import {
   applyHostPropsToChildren,
   currentCraftRenderContext,
@@ -96,7 +94,7 @@ export function craftComponent<
     Template
   >,
   ContentRequirementsOfContext<FactoryContext<Factory>>,
-  CraftNodeChildrenFieldExceptions<ReturnType<Template>>
+  ComponentResidualFieldExceptions<Factory, Template>
 > {
   return createCraftComponent<Name, Meta, Factory, Template>({
     name,
@@ -142,7 +140,7 @@ function createCraftComponent<
     Template
   >,
   ContentRequirementsOfContext<FactoryContext<Factory>>,
-  CraftNodeChildrenFieldExceptions<ReturnType<Template>>
+  ComponentResidualFieldExceptions<Factory, Template>
 > {
   type Props = PropsFromFactory<Factory>;
   type ComponentDeps = CraftComponentDependencies<
@@ -209,7 +207,7 @@ function createCraftComponent<
       Template
     >,
     ContentRequirementsOfContext<FactoryContext<Factory>>,
-    CraftNodeChildrenFieldExceptions<ReturnType<Template>>
+    ComponentResidualFieldExceptions<Factory, Template>
   >;
 
   const scopeDefinition = definition.scopeDefinition ?? {};

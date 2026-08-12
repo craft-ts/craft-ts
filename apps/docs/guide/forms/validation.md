@@ -17,12 +17,7 @@ Effect Schema.
 
 ```ts
 import { z } from 'zod';
-import {
-  craftUse,
-  insertForm,
-  insertFormSchema,
-  state,
-} from '@craft-ng/core';
+import { craftUse, insertForm, insertFormSchema, state } from '@craft-ng/core';
 
 const userSchema = z.object({
   name: z.string().min(1),
@@ -177,6 +172,57 @@ insertFormAttributes(() => ({
   ],
 }));
 ```
+
+### Group and cross-field validation
+
+`insertFormAttributes` can target an object branch as well as a leaf field. Use
+that branch when one rule depends on several values, such as password and
+confirmation:
+
+```ts
+function* registrationLogic() {
+  const registration = yield* state(
+    'registration',
+    {
+      credentials: {
+        password: '',
+        confirmation: '',
+      },
+    },
+    insertForm(
+      insertSelectFormTree(
+        'credentials',
+        insertNoopTypingAnchor,
+        insertFormAttributes(({ field }) => ({
+          validators: [
+            cValidate({
+              name: 'passwordsMatch',
+              validWhen: () =>
+                field.value().password === field.value().confirmation,
+              exception: () =>
+                craftException({ code: 'passwordMismatch' }, undefined),
+            }),
+          ],
+        })),
+      ),
+    ),
+  );
+
+  const credentials = registration.form.selectCredentials();
+  return { registration, credentials };
+}
+```
+
+Calling `selectCredentials()` materializes the branch insertion. Returning the
+selected group from component logic exposes the typed case
+`credentials.passwordMismatch` to the component contract. It must then be
+handled in the template or at a component boundary before the component can be
+rendered, mounted, or loaded by a route.
+
+The group does not need its own DOM control or `CraftFieldDirective`. Bind its
+leaf fields normally and render the group message on an enclosing boundary.
+See [Form exception handling](/guide/forms/exceptions#case-4-handle-a-group-or-cross-field-validator)
+for both rendering options.
 
 ### cAsyncValidate
 

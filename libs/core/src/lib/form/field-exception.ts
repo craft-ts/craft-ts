@@ -76,7 +76,7 @@ export type CraftFieldExceptionSourceCarrier = {
 export type FieldExceptionBoundaryRegistration = {
   readonly register: (
     source: CraftFieldExceptionSource,
-    element: Element,
+    element?: Element,
   ) => () => void;
 };
 

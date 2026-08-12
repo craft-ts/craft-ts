@@ -45,6 +45,20 @@ selector such as `selectEmail()` materializes the selected branch and registers
 its insertions. Pass that selected field to DOM bindings; accessing the raw
 field tree alone does not run the branch insertions.
 
+When an object branch has a group validator but no matching DOM control,
+materialize it in the component logic and return the selected group from the
+factory instead:
+
+```ts
+const credentials = registration.form.selectCredentials();
+return { registration, credentials };
+```
+
+Its typed validation cases then belong to the component contract without
+requiring `CraftFieldDirective(credentials)`. Bind the leaf controls and handle
+the group path on an enclosing `fieldExceptionBlock`. See
+[Form exception handling](/guide/forms/exceptions#case-4-handle-a-group-or-cross-field-validator).
+
 ## insertSubFormField
 
 Exposes a derived sub-form from a parent value through a lens. This is useful when the form field is not stored as a nested object in the state, but can still be read and written from the parent value.

@@ -130,6 +130,23 @@ type HandlerIdentity<Handlers> = {
       : never;
 }[keyof Handlers & string];
 
+/** Type-only coverage emitted by a field-exception block in a template. */
+export declare const FIELD_VALIDATION_HANDLED_IDENTITIES: unique symbol;
+
+export type FieldValidationHandledIdentitiesCarrier<Identities> = {
+  readonly [FIELD_VALIDATION_HANDLED_IDENTITIES]?: Identities;
+};
+
+export type FieldValidationHandledIdentitiesOf<Cases> =
+  Cases extends FieldValidationHandledIdentitiesCarrier<infer Identities>
+    ? Identities
+    : never;
+
+export type UnhandledFieldValidationCases<Cases> = Exclude<
+  Cases,
+  FieldValidationHandledIdentitiesCarrier<any>
+>;
+
 type CaseCode<Case> =
   Case extends FieldValidationCase<any, any, infer Exception>
     ? Exception['code']
@@ -208,9 +225,22 @@ type HandledIdentity<Cases, Handlers> =
       : never
     : HandlerIdentity<Handlers>;
 
+export type FieldValidationHandledIdentities<Cases, Handlers> =
+  | HandledIdentity<UnhandledFieldValidationCases<Cases>, Handlers>
+  | ([UnhandledFieldValidationCases<Cases>] extends [never]
+      ? HandlerIdentity<Handlers>
+      : never);
+
 export type ResidualFieldValidationCases<Cases, Handlers> =
   Cases extends unknown
     ? CaseIdentity<Cases> extends HandledIdentity<Cases, Handlers>
+      ? never
+      : Cases
+    : never;
+
+export type ResidualFieldValidationCasesByIdentity<Cases, Identities> =
+  Cases extends unknown
+    ? CaseIdentity<Cases> extends Identities
       ? never
       : Cases
     : never;

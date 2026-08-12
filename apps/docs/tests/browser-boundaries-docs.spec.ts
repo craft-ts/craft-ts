@@ -91,6 +91,10 @@ describe('forms overview', () => {
     new URL('../guide/forms/index.md', import.meta.url),
     'utf8',
   );
+  const exceptions = readFileSync(
+    new URL('../guide/forms/exceptions.md', import.meta.url),
+    'utf8',
+  );
 
   it('renders the insertFormSubmit section with a link to its guide', () => {
     expect(content).toContain(
@@ -107,6 +111,18 @@ describe('forms overview', () => {
       '`insertSelectFormTree` materializes its branch lazily',
     );
     expect(content).not.toContain('CraftFieldDirective(loginForm.form.email)');
+  });
+
+  it('documents group-validator obligations without a group DOM binding', () => {
+    expect(exceptions).toContain(
+      'The group itself does not need a\n`CraftFieldDirective`',
+    );
+    expect(exceptions).toContain('`credentials.passwordMismatch`');
+    expect(exceptions).toContain('fieldExceptionBlock.partial');
+    expect(exceptions).toContain('fieldExceptionBlock.exhaustive');
+    expect(exceptions).toContain(
+      'loadCraftComponent(async () => BaseRegistrationForm)',
+    );
   });
 });
 

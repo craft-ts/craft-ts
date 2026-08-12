@@ -151,9 +151,10 @@ wrapper. Native Craft nodes use the functional directive directly.
 
 ### Render validation exceptions exhaustively
 
-`fieldExceptionBlock.exhaustive` turns the validators carried by
-`CraftFieldDirective` into a compile-time UI obligation. Every reachable code
-must have one handler, and an unreachable handler is also rejected.
+`fieldExceptionBlock.exhaustive` turns validation cases carried by
+`CraftFieldDirective` or exposed by the component logic into compile-time UI
+obligations. Every reachable code must have one handler, and an unreachable
+handler is also rejected.
 
 ```ts
 import { fieldExceptionBlock, input, p } from '@craft-ng/component';
@@ -209,6 +210,22 @@ const SafeLoginForm = BaseLoginForm.pipe(
   }),
 );
 ```
+
+Object branches may also carry group or cross-field validators. Materialize the
+branch in the component logic and return it from the factory:
+
+```ts
+const credentials = registration.form.selectCredentials();
+return { registration, credentials };
+```
+
+Its cases, for example `credentials.passwordMismatch`, are part of the
+component contract even when the group itself is not passed to
+`CraftFieldDirective`. Handle the grouped path on an enclosing template VNode
+or with `BaseComponent.pipe(fieldExceptionBlock.exhaustive(...))`. If it remains
+unhandled, rendering, mounting, and `loadCraftComponent` reject the component
+at compile time. See [Form exception handling](/guide/forms/exceptions) for the
+complete group example.
 
 By default the block reads the field's `visibleExceptions` directly. The form
 owns that visibility policy; the default is touched or submitted:
