@@ -1,3 +1,14 @@
+## 0.7.0-beta.6 (2026-08-12)
+
+### 🚀 Features
+
+- **forms:** support composed field insertions ([9dff8d8](https://github.com/ng-angular-stack/ng-craft/commit/9dff8d8))
+- **forms:** enforce grouped exception handling ([d807b88](https://github.com/ng-angular-stack/ng-craft/commit/d807b88))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.5 (2026-08-11)
 
 This was a version bump only, there were no code changes.
