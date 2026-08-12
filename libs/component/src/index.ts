@@ -5,8 +5,16 @@ export * from './lib/angular';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
 export * from './lib/component';
+export * from './lib/css-vars';
+export type {
+  CssVarContract,
+  CssVarsOf,
+  CssVarsContractOfMeta,
+  CssVarsAfterCall,
+} from './lib/css-vars.type';
 export * from './lib/composition';
 export * from './lib/block';
+export * from './lib/pending-block';
 export * from './lib/field-exception-block';
 export * from './lib/match-block';
 export * from './lib/directive';
@@ -52,6 +60,10 @@ export type {
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,
+  TemplateCssVars,
+  ComponentCssVars,
+  ComponentCssVarsOf,
+  ComponentNameOf,
   ComponentInitializationExceptionsOf,
   ComponentFieldExceptionsOf,
   ComponentInitializationExceptionCodes,
@@ -89,4 +101,6 @@ export type {
   CatchBlockNode,
   MatchBlockNode,
   TemplateNode,
+  CraftNodeCssVarsCarrier,
 } from './lib/render/vnode';
+export { CRAFT_NODE_CSS_VARS } from './lib/render/vnode';

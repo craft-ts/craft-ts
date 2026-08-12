@@ -28,6 +28,13 @@ const NAV_GROUPS = [
       ['Functional Components', { to: '' }],
       ['Reactive Composition', { to: 'component-composition' }],
       ['Content Projection', { to: 'content-projection' }],
+      ['Pending Block', { to: 'pending-block' }],
+      ['Pending Block — Exception', { to: 'pending-block/exception' }],
+      ['CSS Variables — Overview', { to: 'css-vars' }],
+      ['CSS Variables — Required', { to: 'css-vars/required' }],
+      ['CSS Variables — Inheritance', { to: 'css-vars/inheritance' }],
+      ['CSS Variables — Forwarding', { to: 'css-vars/forwarding' }],
+      ['CSS Variables — @property', { to: 'css-vars/property' }],
     ],
   },
   {

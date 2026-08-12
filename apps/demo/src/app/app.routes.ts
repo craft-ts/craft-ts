@@ -1,4 +1,7 @@
-import { loadCraftComponent } from '@craft-ng/component';
+import {
+  assertCssVarsSatisfied,
+  loadCraftComponent,
+} from '@craft-ng/component';
 import {
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
@@ -88,6 +91,76 @@ export const { demoRoutes } = craftRoutes('demo', [
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/component/content-projection-demo')).then(
         ({ contentProjectionDemo }) => contentProjectionDemo,
+      ),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: pending-block */
+  {
+    path: 'pending-block',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/pending-block-demo')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: pending-block-exception */
+  {
+    path: 'pending-block/exception',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/component/pending-block-exception-demo'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: css-vars */
+  {
+    path: 'css-vars',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/css-vars-demo')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: css-vars-required */
+  {
+    path: 'css-vars/required',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/css-vars-required-demo')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: css-vars-inheritance */
+  {
+    path: 'css-vars/inheritance',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/css-vars-inheritance-demo')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: css-vars-forwarding */
+  {
+    path: 'css-vars/forwarding',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/css-vars-forwarding-demo')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: css-vars-property */
+  {
+    path: 'css-vars/property',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/css-vars-property-demo')).then(
+        ({ default: component }) => component,
       ),
     ),
   },
@@ -378,6 +451,13 @@ type DemoRoutePath =
   | 'view-transitions/:photoId'
   | 'component-composition'
   | 'content-projection'
+  | 'pending-block'
+  | 'pending-block/exception'
+  | 'css-vars'
+  | 'css-vars/required'
+  | 'css-vars/inheritance'
+  | 'css-vars/forwarding'
+  | 'css-vars/property'
   | 'mutation/:userId'
   | 'list-with-pagination'
   | 'granular-mutation'
@@ -419,6 +499,7 @@ declare module '@craft-ng/core' {
 }
 
 assertExhaustiveRouteExceptions(demoRoutes);
+assertCssVarsSatisfied(demoRoutes);
 
 /* demo-check: guard-registry */
 declare module '@craft-ng/core' {

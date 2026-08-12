@@ -11,6 +11,7 @@ import {
   Console,
   craftAppConfig,
   isCraftGenShortCircuit,
+  isCraftNotSettled,
   provideCorrelationIdTracking,
   provideCraftRouter,
   provideGlobalPersisterHandlerService,
@@ -95,9 +96,14 @@ export const appConfig = craftAppConfig({
         try {
           return yield* factory.apply(thisArg, args);
         } catch (error) {
-          if (!isCraftGenShortCircuit(error)) {
-            yield* Console.error(error);
+          // Control flow, not failure: a short-circuit is on its way to a
+          // `catchBlock`, a `CraftNotSettled` to a `pendingBlock`. Converting
+          // them to an `UNEXPECTED_ERROR` strands them — the boundary never
+          // sees them and the fabricated exception renders in their place.
+          if (isCraftGenShortCircuit(error) || isCraftNotSettled(error)) {
+            throw error;
           }
+          yield* Console.error(error);
           return craftException({ code: 'UNEXPECTED_ERROR' }, { error: error });
         }
       },

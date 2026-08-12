@@ -18,6 +18,11 @@ import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
+import type { ExtractCraftGenExceptions } from './craft-gen';
+import type {
+  CraftSettledBrand,
+  ExtractCraftPendingSources,
+} from './craft-settled';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import { markYieldableMethod, markYieldableValue } from './yieldable';
 import type { NamedYieldableValue, YieldableMethod } from './yieldable';
@@ -26,10 +31,29 @@ type CraftComputedGenerator<This, Yielded, T> = (
   this: This,
 ) => Generator<Yielded, () => T, unknown>;
 
+/**
+ * A computation that read a `settledValue` through `yield* settled(...)` inherits
+ * its source's two obligations: the async source must be covered by a
+ * `pendingBlock`, and its exceptions by a `catchBlock`. Both travel as the
+ * {@link CraftSettledBrand} of the resulting signal, so a template rendering it
+ * is checked exactly as if it rendered the `settledValue` itself.
+ *
+ * Computations with no async dependency keep their previous exact type.
+ */
+type SettledBrandFromYielded<Yielded> = [
+  ExtractCraftPendingSources<Yielded>,
+] extends [never]
+  ? {}
+  : CraftSettledBrand<
+      ExtractCraftPendingSources<Yielded>,
+      ExtractCraftGenExceptions<Yielded>
+    >;
+
 type TrackedCraftComputed<Name extends string, T, Yielded> = Signal<T> &
   YieldableMethod<[], T, Yielded> & {
     readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
-  } & NamedYieldableValue<Name, Signal<T>>;
+  } & NamedYieldableValue<Name, Signal<T>> &
+  SettledBrandFromYielded<Yielded>;
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,

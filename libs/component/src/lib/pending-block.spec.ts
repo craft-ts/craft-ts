@@ -1,0 +1,376 @@
+// @vitest-environment jsdom
+import '@angular/compiler';
+import { Injector, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from 'vitest';
+import {
+  craftComputed,
+  craftException,
+  query,
+  settled,
+  type CraftExceptionResult,
+  type CraftSettledSignal,
+} from '@craft-ng/core';
+import {
+  catchBlock,
+  craftComponent,
+  div,
+  mountCraftComponent,
+  p,
+  pendingBlock,
+  section,
+  span,
+} from '../index';
+import type {
+  CraftNodeChildrenPendingSources,
+  CraftNodeChildrenSettledExceptions,
+} from './render/vnode';
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
+
+function host(): HTMLElement {
+  const element = document.createElement('div');
+  document.body.append(element);
+  return element;
+}
+
+interface User {
+  readonly id: string;
+  readonly name: string;
+}
+
+describe('pendingBlock', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows the fallback until the source settles, then the subtree', async () => {
+    const root = craftComponent(
+      'pendingRoot',
+      {},
+      function* () {
+        const users = yield* query('users', {
+          params: () => true,
+          loader: async (): Promise<User[]> => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return [{ id: '1', name: 'Ada' }];
+          },
+        });
+        const firstName = craftComputed('firstName', function* () {
+          const list = yield* settled(users);
+          return () => list()[0].name;
+        });
+        return { firstName };
+      },
+      ({ firstName }) =>
+        section([
+          div([span(firstName)]).pipe(
+            pendingBlock({ fallback: () => p('chargement') }),
+          ),
+        ]),
+    );
+
+    const element = host();
+    const mounted = mountCraftComponent(
+      root,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toContain('chargement');
+    expect(element.textContent).not.toContain('Ada');
+
+    await vi.runAllTimersAsync();
+    TestBed.tick();
+
+    expect(element.textContent).toContain('Ada');
+    expect(element.textContent).not.toContain('chargement');
+
+    mounted.destroy();
+  });
+
+  it('renders a settledValue bound directly in the template', async () => {
+    const root = craftComponent(
+      'pendingDirect',
+      {},
+      function* () {
+        const label = yield* query('label', {
+          params: () => true,
+          loader: async (): Promise<{ text: string }> => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { text: 'prêt' };
+          },
+        });
+        const text = craftComputed('text', function* () {
+          const settledLabel = yield* settled(label);
+          return () => settledLabel().text;
+        });
+        return { label, text };
+      },
+      ({ text }) =>
+        div([span(text)]).pipe(pendingBlock({ fallback: () => p('attente') })),
+    );
+
+    const element = host();
+    const mounted = mountCraftComponent(
+      root,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    expect(element.textContent).toContain('attente');
+
+    await vi.runAllTimersAsync();
+    TestBed.tick();
+    expect(element.textContent).toContain('prêt');
+
+    mounted.destroy();
+  });
+
+  it('routes a source exception to the catchBlock, not to the fallback', async () => {
+    const shouldFail = signal(true);
+    const root = craftComponent(
+      'pendingWithException',
+      {},
+      function* () {
+        const users = yield* query('users', {
+          params: () =>
+            shouldFail() ? craftException({ code: 'MISSING_USER_ID' }) : true,
+          loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
+        });
+        const firstName = craftComputed('firstName', function* () {
+          const list = yield* settled(users);
+          return () => list()[0].name;
+        });
+        return { firstName };
+      },
+      ({ firstName }) =>
+        section([
+          div([span(firstName)])
+            .pipe(pendingBlock({ fallback: () => p('chargement') }))
+            .pipe(
+              catchBlock.exhaustive({
+                MISSING_USER_ID: () => p('identifiant manquant'),
+              }),
+            ),
+        ]),
+    );
+
+    const element = host();
+    const mounted = mountCraftComponent(
+      root,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    await vi.runAllTimersAsync();
+    TestBed.tick();
+
+    expect(element.textContent).toContain('identifiant manquant');
+    expect(element.textContent).not.toContain('chargement');
+
+    mounted.destroy();
+  });
+
+  it('picks the fallback of the pending source with the exhaustive form', async () => {
+    const root = craftComponent(
+      'pendingExhaustive',
+      {},
+      function* () {
+        const users = yield* query('users', {
+          params: () => true,
+          loader: async (): Promise<User[]> => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return [{ id: '1', name: 'Ada' }];
+          },
+        });
+        // The boundary is keyed on the QUERY name, even when the template only
+        // ever sees the computed derived from it.
+        const firstName = craftComputed('firstName', function* () {
+          const list = yield* settled(users);
+          return () => list()[0].name;
+        });
+        return { firstName };
+      },
+      ({ firstName }) =>
+        div([span(firstName)]).pipe(
+          pendingBlock.exhaustive({ users: () => p('squelette utilisateurs') }),
+        ),
+    );
+
+    const element = host();
+    const mounted = mountCraftComponent(
+      root,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    expect(element.textContent).toContain('squelette utilisateurs');
+
+    await vi.runAllTimersAsync();
+    TestBed.tick();
+    expect(element.textContent).toContain('Ada');
+
+    mounted.destroy();
+  });
+});
+
+describe('pendingBlock type-level contract', () => {
+  // A type-only stand-in for `yield* query('users', ...)`: the contract under
+  // test is the brand on `settledValue`, not how the ref is built.
+  // Same fixture, with a source whose settled read can raise MISSING_USER_ID.
+  const _asyncFailingTemplate = (): {
+    readonly users: {
+      readonly settledValue: CraftSettledSignal<
+        string,
+        'users',
+        CraftExceptionResult<{ code: 'MISSING_USER_ID' }, undefined>
+      >;
+    };
+  } => ({ users: { settledValue: (() => '') as never } });
+
+  const _asyncTemplate = (): {
+    readonly users: {
+      readonly settledValue: CraftSettledSignal<string, 'users', never>;
+    };
+  } => ({ users: { settledValue: (() => '') as never } });
+
+  it('bubbles the async source up through the node tree', () => {
+    const { users } = _asyncTemplate();
+    const _tree = section([div([span(users.settledValue)])]);
+
+    expectTypeOf<
+      CraftNodeChildrenPendingSources<typeof _tree>
+    >().toEqualTypeOf<'users'>();
+  });
+
+  it('clears the source once a pendingBlock covers it', () => {
+    const { users } = _asyncTemplate();
+    const _covered = div([span(users.settledValue)]).pipe(
+      pendingBlock({ fallback: () => p('…') }),
+    );
+
+    expectTypeOf<
+      CraftNodeChildrenPendingSources<typeof _covered>
+    >().toBeNever();
+  });
+
+  it('clears only the sources the exhaustive form lists', () => {
+    const { users } = _asyncTemplate();
+    const _covered = div([span(users.settledValue)]).pipe(
+      pendingBlock.exhaustive({ users: () => p('…') }),
+    );
+
+    expectTypeOf<
+      CraftNodeChildrenPendingSources<typeof _covered>
+    >().toBeNever();
+  });
+
+  it('rejects an exhaustive block that misses a source', () => {
+    const { users } = _asyncTemplate();
+
+    div([span(users.settledValue)]).pipe(
+      // @ts-expect-error 'users' has no fallback in this boundary
+      pendingBlock.exhaustive({ orders: () => p('…') }),
+    );
+  });
+
+  it('bubbles a settled read exception up until a catchBlock clears it', () => {
+    const _uncaught = () => {
+      const users = _asyncFailingTemplate().users;
+      return div([span(users.settledValue)]).pipe(
+        pendingBlock({ fallback: () => p('…') }),
+      );
+    };
+    const _caught = () =>
+      _uncaught().pipe(
+        catchBlock.exhaustive({ MISSING_USER_ID: () => p('…') }),
+      );
+
+    // A pending boundary is not an exception boundary.
+    expectTypeOf<
+      CraftNodeChildrenSettledExceptions<ReturnType<typeof _uncaught>>
+    >().toEqualTypeOf<'MISSING_USER_ID'>();
+    expectTypeOf<
+      CraftNodeChildrenSettledExceptions<ReturnType<typeof _caught>>
+    >().toBeNever();
+  });
+
+  it('rejects a template whose settled read exception has no catchBlock', () => {
+    craftComponent(
+      'uncaughtSettledException',
+      {},
+      () => ({ users: _asyncFailingTemplate().users }),
+      // @ts-expect-error MISSING_USER_ID can be raised by the settled read and
+      // is not handled by any catchBlock
+      ({ users }) =>
+        div([span(users.settledValue)]).pipe(
+          pendingBlock({ fallback: () => p('…') }),
+        ),
+    );
+  });
+
+  it('rejects a template that renders an async craftComputed with no boundary', () => {
+    craftComponent(
+      'uncoveredComputed',
+      {},
+      function* () {
+        const users = yield* query('users', {
+          params: () => true,
+          loader: async (): Promise<{ text: string }> => ({ text: '' }),
+        });
+        const label = craftComputed('label', function* () {
+          const settledUsers = yield* settled(users);
+          return () => settledUsers().text;
+        });
+        return { label };
+      },
+      // @ts-expect-error the 'users' source reached through the computed has no
+      // pendingBlock to show its loading state
+      ({ label }) => div([span(label)]),
+    );
+  });
+
+  it('rejects a template that renders an async source with no boundary', () => {
+    craftComponent(
+      'uncovered',
+      {},
+      () => ({ users: _asyncTemplate().users }),
+      // @ts-expect-error the 'users' source has no pendingBlock to show it
+      ({ users }) => div([span(users.settledValue)]),
+    );
+  });
+});

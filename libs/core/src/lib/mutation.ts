@@ -29,6 +29,10 @@ import {
   runCraftGenerator,
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
+import {
+  attachCraftSettledValue,
+  type CraftSettledSignal,
+} from './craft-settled';
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
@@ -509,6 +513,20 @@ export type ResourceByIdLikeMutationExceptions<
     (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
+/**
+ * The `craftException`s a resource-like mutation may surface, read back from the
+ * `exception` signal built by {@link ResourceLikeMutationExceptions} — which is
+ * absent altogether when the mutation declares none.
+ */
+export type ResourceLikeMutationExceptionUnion<
+  MutationException extends ResourceExceptionConstraints,
+> =
+  ResourceLikeMutationExceptions<MutationException> extends {
+    exception: Signal<infer Exception>;
+  }
+    ? Exclude<Exception, undefined>
+    : never;
+
 export type ResourceLikeMutationRef<
   Value,
   Params,
@@ -520,6 +538,7 @@ export type ResourceLikeMutationRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceLike';
   kind: 'mutation';
@@ -530,6 +549,15 @@ export type ResourceLikeMutationRef<
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
+        /**
+         * The settled read: never `undefined`, never a value while an exception
+         * is carried — it suspends instead, to the nearest `pendingBlock`.
+         */
+        readonly settledValue: CraftSettledSignal<
+          Exclude<Value, undefined>,
+          Name,
+          ResourceLikeMutationExceptionUnion<MutationException>
+        >;
       },
       {
         readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
@@ -628,6 +656,7 @@ export type MutationRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeMutationRef<
       Value,
@@ -639,7 +668,8 @@ export type MutationRef<
       MutationExceptions,
       Dependencies,
       HasSchema,
-      MethodYielded
+      MethodYielded,
+      Name
     >
   : ResourceByIdLikeMutationRef<
       Value,
@@ -684,6 +714,7 @@ export type MutationOutput<
   HasSchema extends boolean = false,
   MethodYielded = never,
   IsMethod extends boolean | undefined = undefined,
+  Name extends string = string,
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
@@ -699,7 +730,8 @@ export type MutationOutput<
   MutationExceptions,
   Dependencies,
   HasSchema,
-  MethodYielded
+  MethodYielded,
+  Name
 >;
 
 type SchemaMutationConfig<
@@ -740,7 +772,10 @@ export function mutation<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    undefined,
+    Name
   >
 >;
 
@@ -769,7 +804,10 @@ export function mutation<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    undefined,
+    Name
   >
 >;
 
@@ -798,7 +836,10 @@ export function mutation<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    undefined,
+    Name
   >
 >;
 
@@ -826,7 +867,10 @@ export function mutation<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    undefined,
+    Name
   >
 >;
 
@@ -893,7 +937,8 @@ export function mutation<
     >,
     false,
     MethodYielded,
-    MutationIsMethod<Config, MutationArgsParams>
+    MutationIsMethod<Config, MutationArgsParams>,
+    Name
   >
 >;
 export function mutation<
@@ -971,7 +1016,8 @@ export function mutation<
     >,
     false,
     MethodYielded,
-    MutationIsMethod<Config, MutationArgsParams>
+    MutationIsMethod<Config, MutationArgsParams>,
+    Name
   >
 >;
 
@@ -2133,6 +2179,10 @@ function createMutationRef<
           state: stateSnapshot,
         });
       });
+  }
+
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, output);
   }
 
   return output;

@@ -28,6 +28,10 @@ import {
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import type { ExtractCraftGenExceptions } from './craft-gen';
+import {
+  attachCraftSettledValue,
+  type CraftSettledSignal,
+} from './craft-settled';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import {
@@ -423,6 +427,21 @@ export type ResourceByIdLikeExceptions<
     (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
+/**
+ * The `craftException`s a resource-like ref may surface, read back from the
+ * `exception` signal built by {@link ResourceLikeExceptions} rather than
+ * rebuilt — the meta-insertion rules stay in one place.
+ */
+export type ResourceLikeExceptionUnion<
+  QueryException extends ResourceExceptionConstraints,
+  GroupIdentifier = unknown,
+> =
+  ResourceLikeExceptions<QueryException, GroupIdentifier>['exception'] extends Signal<
+    infer Exception
+  >
+    ? Exclude<Exception, undefined>
+    : never;
+
 export type ResourceLikeQueryRef<
   Value,
   Params,
@@ -434,6 +453,7 @@ export type ResourceLikeQueryRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceLike';
   kind: 'query';
@@ -450,6 +470,16 @@ export type ResourceLikeQueryRef<
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
+        /**
+         * The settled read: never `undefined`, never a value while an exception
+         * is carried — it suspends instead, to the nearest `pendingBlock`. The
+         * primitive's declared name is the source a boundary handles.
+         */
+        readonly settledValue: CraftSettledSignal<
+          Exclude<Value, undefined>,
+          Name,
+          ResourceLikeExceptionUnion<QueryException>
+        >;
       },
       {
         readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
@@ -547,6 +577,7 @@ export type QueryRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeQueryRef<
       Value,
@@ -558,7 +589,8 @@ export type QueryRef<
       QueryExceptions,
       Dependencies,
       HasSchema,
-      MethodYielded
+      MethodYielded,
+      Name
     >
   : ResourceByIdLikeQueryRef<
       Value,
@@ -585,6 +617,7 @@ export type QueryOutput<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = QueryRef<
   State,
   Params,
@@ -596,7 +629,8 @@ export type QueryOutput<
   QueryExceptions,
   Dependencies,
   HasSchema,
-  MethodYielded
+  MethodYielded,
+  Name
 >;
 
 type SchemaQueryConfig<
@@ -633,7 +667,9 @@ export function query<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -662,7 +698,9 @@ export function query<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -691,7 +729,9 @@ export function query<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -721,7 +761,9 @@ export function query<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -749,7 +791,9 @@ export function query<
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -815,7 +859,8 @@ export function query<
       Providers
     >,
     false,
-    MethodYielded
+    MethodYielded,
+    Name
   >
 >;
 export function query<
@@ -892,7 +937,8 @@ export function query<
       Insertion1
     >,
     false,
-    MethodYielded
+    MethodYielded,
+    Name
   >
 >;
 /**
@@ -2071,6 +2117,10 @@ function createQueryRef<
       });
   }
 
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, queryOutputWithoutInsertions);
+  }
+
   return Object.assign(
     queryOutputWithoutInsertions,
     insertionsResult,
@@ -2084,3 +2134,4 @@ function createQueryRef<
     ResourceExceptionConstraints
   >;
 }
+

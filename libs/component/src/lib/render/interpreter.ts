@@ -11,6 +11,7 @@ import {
   reflectComponentType,
   Renderer2,
   RendererFactory2,
+  RendererStyleFlags2,
   runInInjectionContext,
   signal,
   untracked,
@@ -37,6 +38,7 @@ import {
   executeTemplateTrace,
   isCraftException,
   isCraftGenShortCircuit,
+  isCraftNotSettled,
   isGeneratorFunction,
   isCraftField,
   markYieldableValue,
@@ -68,6 +70,7 @@ import {
   CONTENT_DECLARATION_CONTEXT,
   type CraftComponent,
 } from '../types';
+import { cssVarStyles, type CssVarDisposition } from '../css-vars';
 import {
   normalizeChildren,
   mergeHostProps,
@@ -77,6 +80,7 @@ import {
   type CraftDirectiveNode,
   type CraftNode,
   type CraftNodeChildren,
+  type CraftTextBinding,
   type DeferNode,
   type EachNode,
   type IfBlockNode,
@@ -86,9 +90,14 @@ import {
   type ProjectionNode,
   type TemplateNode,
   type FieldExceptionBlockNode,
+  type PendingBlockNode,
   withCraftRenderContext,
   CRAFT_NODE_DIRECTIVES,
 } from './vnode';
+import {
+  CraftUnhandledPendingError,
+  type PendingBlockPosition,
+} from '../pending-block';
 import {
   CraftUnhandledExceptionError,
   resolveCatchBlockHandler,
@@ -103,7 +112,7 @@ import {
   CraftStyleRegistry,
   ɵfallbackCraftStyleRegistry,
 } from './style-registry';
-import { scopeCss, scopeIdFor } from './style-scope';
+import { scopeCss, scopeIdFor, validateStyleScope } from './style-scope';
 import {
   CRAFT_LOCATOR_CONTENT_NAMES,
   directCraftContentNames,
@@ -131,6 +140,8 @@ interface RenderContext {
   readonly contentScope?: string;
   readonly exceptionBoundary?: (exception: AnyCraftException) => boolean;
   readonly exceptionBoundaryResolved?: () => void;
+  /** Nearest `pendingBlock` boundary, notified by any binding that suspends. */
+  readonly pendingBoundary?: PendingBoundaryRegistration;
   readonly handledResourceExceptionCodes?: Set<string>;
   readonly fieldExceptionBoundary?: FieldExceptionBoundaryRegistration;
   /** Lexical context of content declared by the parent component. */
@@ -143,6 +154,17 @@ interface RenderContext {
 
 interface TemplateTraceState {
   renderCount: number;
+}
+
+/**
+ * How a suspended binding talks to its boundary. Every reactive binding owns a
+ * token: it suspends with it when its settled read throws, and releases it as
+ * soon as the same binding runs to completion (or is destroyed). The boundary
+ * shows its fallback while at least one token is held.
+ */
+interface PendingBoundaryRegistration {
+  suspend(token: object, source: string): void;
+  resume(token: object): void;
 }
 
 let templateGeneratorDepth = 0;
@@ -384,6 +406,8 @@ function acquireStyles(
     const css = styleValues(owner.styles);
     if (!css.length) return;
     const scope = scopeIdFor(owner.definition ?? {}, owner.name);
+    const dev = typeof ngDevMode === 'undefined' || ngDevMode;
+    if (dev) validateStyleScope(scope, css.join('\n'));
     releases.push(
       registry.acquire(
         context.styleRoot!,
@@ -443,7 +467,51 @@ function createRenderEffect(
   name: string,
   effectFn: () => void,
 ): EffectRef {
-  return createEffectInInjector(context.injector, name, effectFn);
+  // One token per binding: a binding that suspends holds it until it next runs
+  // to completion. The effect stays subscribed across the suspension — the
+  // settled read registered its source's `status` before throwing — so the
+  // boundary is released without any polling.
+  const token = {};
+  // A binding that short-circuited must tell its boundary when it recovers —
+  // but only that binding, so a sibling still in exception keeps its fallback.
+  let shortCircuited = false;
+  const ref = createEffectInInjector(context.injector, name, () => {
+    try {
+      effectFn();
+    } catch (error) {
+      if (isCraftNotSettled(error)) {
+        if (!context.pendingBoundary) {
+          throw new CraftUnhandledPendingError(error.source);
+        }
+        context.pendingBoundary.suspend(token, error.source);
+        return;
+      }
+
+      if (!isCraftGenShortCircuit(error)) throw error;
+
+      // A settled read whose source carries a business exception: route it to
+      // the nearest catchBlock, exactly like a component initialization one.
+      context.pendingBoundary?.resume(token);
+      if (!context.exceptionBoundary?.(error.exception)) {
+        throw new CraftUnhandledExceptionError(error.exception);
+      }
+      shortCircuited = true;
+      return;
+    }
+
+    context.pendingBoundary?.resume(token);
+    if (shortCircuited) {
+      shortCircuited = false;
+      context.exceptionBoundaryResolved?.();
+    }
+  });
+
+  return {
+    destroy: () => {
+      context.pendingBoundary?.resume(token);
+      ref.destroy();
+    },
+  } as EffectRef;
 }
 
 function createEffectInInjector(
@@ -851,13 +919,13 @@ class TextRenderedNode implements RenderedNode {
 
 class ReactiveTextRenderedNode implements RenderedNode {
   readonly kind = 'reactive-text';
-  private binding: () => string | number | bigint | boolean | null | undefined;
+  private binding: CraftTextBinding;
   private effectRef: EffectRef;
   private value = '';
 
   constructor(
     private readonly node: Text,
-    binding: () => string | number | bigint | boolean | null | undefined,
+    binding: CraftTextBinding,
     private readonly context: RenderContext,
   ) {
     this.binding = binding;
@@ -1104,6 +1172,7 @@ const HOST_PROPERTY_NAMES = new Set([
 
 function isHostProperty(key: string): boolean {
   return (
+    key === 'cssVars' ||
     HOST_PROPERTY_NAMES.has(key) ||
     key.startsWith('data-') ||
     key.startsWith('aria-') ||
@@ -1116,9 +1185,19 @@ function isHostProperty(key: string): boolean {
 function hostPropsFromComponentProps(
   props: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
-  return Object.fromEntries(
-    Object.entries(props).filter(([key]) => isHostProperty(key)),
+  const hostProps = Object.fromEntries(
+    Object.entries(props).filter(
+      ([key]) => key !== 'cssVars' && isHostProperty(key),
+    ),
   );
+  const vars = cssVarStyles(
+    props['cssVars'] as
+      | Readonly<Record<`--${string}`, CssVarDisposition>>
+      | undefined,
+  );
+  return Object.keys(vars).length
+    ? mergeHostProps({ style: vars }, hostProps)
+    : hostProps;
 }
 
 function className(value: unknown, context: RenderContext): string {
@@ -1198,7 +1277,12 @@ function setStyleValue(
   if (value === null || value === undefined || value === false) {
     renderer.removeStyle(element, key);
   } else {
-    renderer.setStyle(element, key, String(value));
+    renderer.setStyle(
+      element,
+      key,
+      String(value),
+      key.startsWith('--') ? RendererStyleFlags2.DashCase : undefined,
+    );
   }
 }
 
@@ -2422,6 +2506,187 @@ function fieldExceptionMessageNode(
     },
     children,
   };
+}
+
+/**
+ * The `pendingBlock` boundary.
+ *
+ * Layout is fixed at construction — a fallback fragment and a source fragment,
+ * ordered by `position` — so showing or hiding the fallback never reconciles
+ * the source subtree.
+ *
+ * While at least one descendant binding holds a pending token, the fallback is
+ * rendered and the source's DOM range is detached (its nodes are kept, not
+ * destroyed). Keeping the subtree alive is what makes resumption work at all:
+ * the suspended bindings stay subscribed to their source's `status`, so they
+ * re-run — and release their token — the moment the data arrives.
+ */
+class PendingBlockRenderedNode implements RenderedNode {
+  readonly kind = 'pending-block';
+  private readonly start: Comment;
+  private readonly end: Comment;
+  private readonly sourceView: FragmentRenderedNode;
+  private readonly fallbackView: FragmentRenderedNode;
+  private readonly position: PendingBlockPosition;
+  /** Held tokens, by the binding that suspended, in suspension order. */
+  private readonly held = new Map<object, string>();
+  private detached: NativeNode[] = [];
+
+  constructor(
+    private node: PendingBlockNode<any, any, any, any>,
+    private readonly parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.position = node.position;
+    this.start = context.renderer.createComment('craft-pending:start') as Comment;
+    this.end = context.renderer.createComment('craft-pending:end') as Comment;
+    insertBefore(context.renderer, parent, this.start, before);
+    insertBefore(context.renderer, parent, this.end, before);
+
+    // The fallback renders in the OUTER context: a fallback that suspends in
+    // turn belongs to the next boundary up, never to this one.
+    const createFallback = () =>
+      createFragment(parent, this.end, this.context, [], 'craft-pending-fallback');
+    const createSource = () =>
+      createFragment(
+        parent,
+        this.end,
+        this.boundaryContext(),
+        [node.source],
+        'craft-pending-source',
+      );
+
+    if (this.position === 'before') {
+      this.fallbackView = createFallback();
+      this.sourceView = createSource();
+    } else {
+      this.sourceView = createSource();
+      this.fallbackView = createFallback();
+    }
+  }
+
+  firstNode(): NativeNode {
+    return this.start;
+  }
+
+  lastNode(): NativeNode {
+    return this.end;
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'pending-block') {
+      return false;
+    }
+    const next = node as PendingBlockNode<any, any, any, any>;
+    if (next.position !== this.position) {
+      return false;
+    }
+    this.node = next;
+    this.sourceView.patchChildren([next.source]);
+    if (this.held.size > 0) {
+      // A re-render re-materialises the source range: hide it again.
+      this.detached = [];
+      this.showFallback();
+    }
+    return true;
+  }
+
+  destroy(): void {
+    this.restoreSource();
+    this.fallbackView.destroy();
+    this.sourceView.destroy();
+    removeNode(this.context.renderer, this.start);
+    removeNode(this.context.renderer, this.end);
+  }
+
+  private boundaryContext(): RenderContext {
+    return childContext(this.context, {
+      pendingBoundary: {
+        suspend: (token, source) => this.suspend(token, source),
+        resume: (token) => this.resume(token),
+      },
+    });
+  }
+
+  private suspend(token: object, source: string): void {
+    if (this.handles(source)) {
+      const wasIdle = this.held.size === 0;
+      this.held.set(token, source);
+      if (wasIdle) this.showFallback();
+      return;
+    }
+
+    // Not ours to handle (an `.exhaustive` boundary that does not list this
+    // source): delegate outwards.
+    if (!this.context.pendingBoundary) {
+      throw new CraftUnhandledPendingError(source);
+    }
+    this.context.pendingBoundary.suspend(token, source);
+  }
+
+  private resume(token: object): void {
+    if (!this.held.delete(token)) {
+      this.context.pendingBoundary?.resume(token);
+      return;
+    }
+    if (this.held.size === 0) this.hideFallback();
+  }
+
+  /** The catch-all form handles every source; `.exhaustive` only what it lists. */
+  private handles(source: string): boolean {
+    return !this.node.handlers || source in this.node.handlers;
+  }
+
+  private fallbackChildren(): CraftNodeChildren {
+    const handlers = this.node.handlers;
+    if (!handlers) return this.node.fallback?.() ?? [];
+
+    // Several listed sources may be pending at once — the first to suspend wins.
+    const [firstSource] = this.held.values();
+    const handler = firstSource ? handlers[firstSource] : undefined;
+    return handler?.() ?? [];
+  }
+
+  private showFallback(): void {
+    this.detachSource();
+    this.fallbackView.patchChildren(this.fallbackChildren());
+  }
+
+  private hideFallback(): void {
+    this.fallbackView.patchChildren([]);
+    this.restoreSource();
+  }
+
+  private detachSource(): void {
+    if (this.detached.length > 0) return;
+
+    const first = this.sourceView.firstNode();
+    const last = this.sourceView.lastNode();
+    let current: NativeNode | null = first;
+    const nodes: NativeNode[] = [];
+    while (current) {
+      nodes.push(current);
+      if (current === last) break;
+      current = current.nextSibling;
+    }
+
+    nodes.forEach((node) => removeNode(this.context.renderer, node));
+    this.detached = nodes;
+  }
+
+  private restoreSource(): void {
+    if (this.detached.length === 0) return;
+
+    // Back before the marker that follows the source range, so the original
+    // order (fallback / source) is preserved.
+    const anchor =
+      this.position === 'before' ? this.end : this.fallbackView.firstNode();
+    this.detached.forEach((node) =>
+      insertBefore(this.context.renderer, this.parent, node, anchor),
+    );
+    this.detached = [];
+  }
 }
 
 class FieldExceptionBlockRenderedNode implements RenderedNode {
@@ -4009,6 +4274,9 @@ function mountNode(
     }
     case 'if': {
       return new IfBlockRenderedNode(node, parent, before, context);
+    }
+    case 'pending-block': {
+      return new PendingBlockRenderedNode(node, parent, before, context);
     }
     case 'catch-block': {
       return new CatchBlockRenderedNode(node, parent, before, context);

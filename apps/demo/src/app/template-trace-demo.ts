@@ -9,6 +9,8 @@ import {
   Console,
   craftException,
   executeGeneratorCompatibleFactory,
+  isCraftGenShortCircuit,
+  isCraftNotSettled,
   provideCraftHttpTrace,
   provideCraftRouterTrace,
   provideCraftDomEventHook,
@@ -51,6 +53,16 @@ function logTemplateTrace(context: TemplateTraceContext): void {
   logTrace('[trace:template]', context);
 }
 
+/**
+ * Control-flow signals, not failures: a `CraftGenShortCircuit` is on its way to
+ * a `catchBlock`, a `CraftNotSettled` to a `pendingBlock`. Turning them into an
+ * `UNEXPECTED_ERROR` here would strand them — the boundary never sees them and
+ * the fabricated exception renders in their place.
+ */
+function isCraftControlFlow(error: unknown): boolean {
+  return isCraftGenShortCircuit(error) || isCraftNotSettled(error);
+}
+
 const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {
   const name = factory.name || '<anonymous>';
   if (logging) {
@@ -66,6 +78,9 @@ const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {
     logTrace('[trace:function:end]', { name, result });
     return result;
   } catch (error) {
+    if (isCraftControlFlow(error)) {
+      throw error;
+    }
     logTrace('[trace:function:error]', { name, error });
     return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
   }
@@ -87,6 +102,9 @@ function traceAsync<T>(label: string, context: unknown, next: () => T): T {
           return value;
         },
         (error) => {
+          if (isCraftControlFlow(error)) {
+            throw error;
+          }
           logTrace(`${label}:error`, { context, error }, injector);
           return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
         },
@@ -95,6 +113,9 @@ function traceAsync<T>(label: string, context: unknown, next: () => T): T {
     logTrace(`${label}:end`, { context, result }, injector);
     return result;
   } catch (error) {
+    if (isCraftControlFlow(error)) {
+      throw error;
+    }
     logTrace(`${label}:error`, { context, error }, injector);
     return craftException({ code: 'UNEXPECTED_ERROR' }, { error }) as T;
   }

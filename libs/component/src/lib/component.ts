@@ -18,7 +18,12 @@ import {
   type PropsFromFactory,
   type StyleOwner,
   type TemplateDependencies,
+  type TemplateCssVars,
+  type TemplatePendingSources,
+  type TemplateSettledExceptions,
 } from './types';
+import type { CssVarsContractOfMeta } from './css-vars.type';
+import { forwardedCssVarStyles } from './css-vars';
 import type { HostProps } from './hyperscript';
 import type { ComponentNode } from './render/vnode';
 import {
@@ -63,6 +68,57 @@ type ValidContentStyles<
     : never
   : unknown;
 
+type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+/**
+ * A template may only render an async source (`settledValue`, or a
+ * `craftComputed` that consumed one with `yield* settled(...)`) from inside a
+ * `pendingBlock` boundary. Anything left uncovered fails here, on the template
+ * argument, naming the sources that have nowhere to show their loading state.
+ */
+type ValidPendingSources<Template> =
+  IsAny<TemplatePendingSources<Template>> extends true
+    ? unknown
+    : // `string` means the template's children were not narrowed at all (a
+      // broadly typed template): there is no source to point at.
+      string extends TemplatePendingSources<Template>
+      ? unknown
+      : [TemplatePendingSources<Template>] extends [never]
+        ? unknown
+        : {
+            readonly ERROR_async_source_rendered_outside_a_pendingBlock: TemplatePendingSources<Template>;
+          };
+
+/**
+ * A template may only render a value whose settled read can raise an exception
+ * from inside a `catchBlock`. Anything left uncovered fails here, on the
+ * template argument, naming the codes with nowhere to be handled.
+ */
+type ValidSettledExceptions<Template> =
+  IsAny<TemplateSettledExceptions<Template>> extends true
+    ? unknown
+    : string extends TemplateSettledExceptions<Template>
+      ? unknown
+      : [TemplateSettledExceptions<Template>] extends [never]
+        ? unknown
+        : {
+            readonly ERROR_settled_read_exception_not_caught_by_a_catchBlock: TemplateSettledExceptions<Template>;
+          };
+
+type ValidInheritedCssVars<Meta extends ComponentMeta, Template> =
+  IsAny<TemplateCssVars<Template>['inherited']> extends true
+    ? unknown
+    : Exclude<
+          TemplateCssVars<Template>['inherited'],
+          CssVarsContractOfMeta<Meta>['declared']
+        > extends infer Missing
+      ? [Missing] extends [never]
+        ? unknown
+        : {
+            readonly ERROR_css_var_marked_inherit_is_not_declared_here: Missing;
+          }
+      : never;
+
 export function craftComponent<
   const Name extends string,
   const Meta extends ComponentMeta,
@@ -72,7 +128,10 @@ export function craftComponent<
   name: Name,
   meta: Meta & ValidContentStyles<Meta, Factory>,
   factory: Factory,
-  template: Template,
+  template: Template &
+    ValidInheritedCssVars<Meta, NoInfer<Template>> &
+    ValidPendingSources<NoInfer<Template>> &
+    ValidSettledExceptions<NoInfer<Template>>,
 ): CraftComponent<
   PropsFromFactory<Factory>,
   CraftComponentDependencies<
@@ -158,14 +217,16 @@ function createCraftComponent<
     context,
     hostProps,
   ) => {
+    const children = definition.template(context, hostProps);
+    const forwardedStyles = forwardedCssVarStyles(children);
+    const withForwardedDefaults = mergeHostProps(definition.meta.host ?? {}, {
+      style: forwardedStyles,
+    });
     const effectiveHostProps = mergeHostProps(
-      definition.meta.host ?? {},
+      withForwardedDefaults,
       hostProps ?? {},
     );
-    return applyHostPropsToChildren(
-      definition.template(context, effectiveHostProps),
-      effectiveHostProps,
-    );
+    return applyHostPropsToChildren(children, effectiveHostProps);
   };
 
   const craftComponent = ((

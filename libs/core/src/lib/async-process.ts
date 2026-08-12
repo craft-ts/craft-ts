@@ -24,6 +24,10 @@ import {
   runCraftGenerator,
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
+import {
+  attachCraftSettledValue,
+  type CraftSettledSignal,
+} from './craft-settled';
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import { ReadonlySource } from './util/source.type';
 import {
@@ -153,6 +157,16 @@ const ASYNC_PROCESS_APP_START_ERROR_MESSAGE =
   'asyncProcess generators do not support onAppStart(...).';
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
+/** The `craftException`s a resource-like async process may surface. */
+export type ResourceLikeAsyncProcessExceptionUnion<
+  AsyncProcessException extends AsyncProcessExceptionConstraints,
+> =
+  ResourceLikeAsyncProcessExceptions<AsyncProcessException> extends {
+    exception: Signal<infer Exception>;
+  }
+    ? Exclude<Exception, undefined>
+    : never;
+
 export type AsyncProcessRef<
   Value,
   ArgParams,
@@ -166,6 +180,7 @@ export type AsyncProcessRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = MergeObjects<
   [
     HasSchema extends true ? { readonly hasSchema: Signal<true> } : {},
@@ -175,6 +190,16 @@ export type AsyncProcessRef<
           readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue(): boolean;
+          /**
+           * The settled read: never `undefined`, never a value while an
+           * exception is carried — it suspends instead, to the nearest
+           * `pendingBlock`.
+           */
+          readonly settledValue: CraftSettledSignal<
+            Exclude<Value, undefined>,
+            Name,
+            ResourceLikeAsyncProcessExceptionUnion<AsyncProcessExceptions>
+          >;
         } & ResourceLikeAsyncProcessExceptions<AsyncProcessExceptions>
       : {},
     YieldableInsertionMethods<Insertions>,
@@ -450,6 +475,7 @@ export type AsyncProcessOutput<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = AsyncProcessRef<
   StripCraftException<State>,
   ArgParams,
@@ -465,7 +491,8 @@ export type AsyncProcessOutput<
   AsyncProcessExceptions,
   Dependencies,
   HasSchema,
-  MethodYielded
+  MethodYielded,
+  Name
 >;
 
 type SchemaAsyncProcessConfig<
@@ -502,7 +529,9 @@ export function asyncProcess<
     {},
     AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -530,7 +559,9 @@ export function asyncProcess<
     {},
     AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -559,7 +590,9 @@ export function asyncProcess<
     {},
     AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -588,7 +621,9 @@ export function asyncProcess<
     {},
     AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
     {},
-    true
+    true,
+    never,
+    Name
   >
 >;
 
@@ -837,7 +872,8 @@ export function asyncProcess<
       Providers
     >,
     false,
-    MethodYielded
+    MethodYielded,
+    Name
   >
 >;
 export function asyncProcess<
@@ -908,7 +944,8 @@ export function asyncProcess<
       Insertion1
     >,
     false,
-    MethodYielded
+    MethodYielded,
+    Name
   >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1838,6 +1875,10 @@ function createAsyncProcessRef<
           state: stateSnapshot,
         });
       });
+  }
+
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, asyncOutput as object);
   }
 
   return asyncOutput;

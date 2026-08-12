@@ -140,6 +140,10 @@ const guideSidebar = [
         text: 'Directives and .pipe(...)',
         link: '/guide/components/directives',
       },
+      {
+        text: 'settledValue & pendingBlock',
+        link: '/guide/components/pending-block',
+      },
       { text: 'Customization', link: '/guide/components/customization' },
       {
         text: 'Content projection',
@@ -223,7 +227,7 @@ const resourcesSidebar = [
 export default defineConfig({
   title: '@craft-ng/core',
   base: '/craft/',
-  description: '@craft-ng/core is a reactive state management tool for Angular',
+  description: 'Type-safe Angular, by construction',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/assets/favicon.png',

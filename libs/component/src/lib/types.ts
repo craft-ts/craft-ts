@@ -22,6 +22,9 @@ import type { StaticLocatorCriteria } from './locator';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
+  CraftNodeChildrenCssVars,
+  CraftNodeChildrenPendingSources,
+  CraftNodeChildrenSettledExceptions,
   CraftNodeChildrenExceptions,
   CraftNodeChildrenFieldExceptions,
   CraftNodeChildrenRawFieldExceptions,
@@ -31,6 +34,14 @@ import type {
   ContentDependenciesFromProps,
   ElementNodeBase,
 } from './render/vnode';
+import type {
+  CssVarContract,
+  CssVarsAfterCall,
+  CssVarsCallProps,
+  CssVarsContractOfMeta,
+  CssVarsMetaDeclaration,
+  MergeCssVarContracts,
+} from './css-vars.type';
 import type {
   FieldExceptionBlockDirective,
   FieldExceptionBlockExhaustiveCheck,
@@ -374,6 +385,29 @@ export type TemplateDependencies<Template> = Template extends (
   ? CraftNodeChildrenDependencies<Output>
   : {};
 
+export type TemplateCssVars<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenCssVars<Output>
+  : import('./css-vars.type').EmptyCssVarContract;
+
+/** Async sources a template renders without covering them with a `pendingBlock`. */
+export type TemplatePendingSources<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenPendingSources<Output>
+  : never;
+
+/**
+ * Exception codes a template can reach through a settled read without covering
+ * them with a `catchBlock`.
+ */
+export type TemplateSettledExceptions<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenSettledExceptions<Output>
+  : never;
+
 export type HostRequiredLogic<Context extends object> = (
   ...args: any[]
 ) => Context;
@@ -459,6 +493,8 @@ export interface ComponentMeta<
   readonly styles?: string | readonly string[];
   /** CSS text imported from an external stylesheet with the build text loader. */
   readonly stylesUrl?: string | readonly string[];
+  /** Explicit contract for opaque external styles. */
+  readonly cssVars?: CssVarsMetaDeclaration;
   /** Styles exposed explicitly to opted-in projected fragments, by slot. */
   readonly contentStyles?: ContentStyles<SlotName>;
 }
@@ -585,8 +621,15 @@ type PublicComponentProps<Props extends object> = {
     : Props[Key];
 };
 
-type ComponentCallProps<Props extends object> = PublicComponentProps<Props> &
-  HostProps;
+type ComponentCallProps<
+  Props extends object,
+  Contract extends CssVarContract,
+> = PublicComponentProps<Props> & HostProps & CssVarsCallProps<Contract>;
+
+export type ComponentCssVars<Meta, Template> = MergeCssVarContracts<
+  CssVarsContractOfMeta<Meta>,
+  TemplateCssVars<Template>
+>;
 
 type CraftInputExceptionsOf<Value> =
   Value extends CraftInputExceptionsCarrier<infer Exceptions extends string>
@@ -939,6 +982,8 @@ type ComponentCallNode<
   Component extends CraftComponent<any, ComponentDeps>,
   Factory extends ComponentFactory,
   InputProps extends object = {},
+  CssVars extends
+    CssVarContract = import('./css-vars.type').EmptyCssVarContract,
 > =
   ComponentInputExceptionsOf<
     Pick<CallProps, keyof InputProps & keyof CallProps>
@@ -952,7 +997,8 @@ type ComponentCallNode<
           ComponentDeps,
           Component,
           ContentDependenciesFromProps<CallProps>,
-          InputExceptions
+          InputExceptions,
+          CssVars
         > &
           ProjectionUnit<Contract, Key>
       : ComponentNode<
@@ -960,7 +1006,8 @@ type ComponentCallNode<
           ComponentDeps,
           Component,
           ContentDependenciesFromProps<CallProps>,
-          InputExceptions
+          InputExceptions,
+          CssVars
         >
     : never;
 
@@ -1098,7 +1145,12 @@ export interface CraftComponent<
   FieldExceptions = any,
 > extends ComponentDepsCarrier<ComponentDeps>,
     CraftRegistrationTarget<Name, 'component', FactoryContext<Factory>> {
-  <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
+  <
+    CallProps extends ComponentCallProps<
+      Props,
+      ComponentCssVars<Meta, Template>
+    > = ComponentCallProps<Props, ComponentCssVars<Meta, Template>>,
+  >(
     ...args: keyof Props extends never
       ? [
           props?: CallProps &
@@ -1125,7 +1177,8 @@ export interface CraftComponent<
       FieldExceptions
     >,
     Factory,
-    Props
+    Props,
+    CssVarsAfterCall<ComponentCssVars<Meta, Template>, CallProps>
   >;
   readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {
     readonly name: Name;
@@ -1198,6 +1251,40 @@ export interface CraftComponent<
     ): CraftComponent<any, any>;
   };
 }
+
+export type ComponentCssVarsOf<Component> =
+  Component extends CraftComponent<
+    any,
+    any,
+    any,
+    infer Meta,
+    any,
+    any,
+    infer Template,
+    any,
+    any,
+    any,
+    any
+  >
+    ? ComponentCssVars<Meta, Template>
+    : import('./css-vars.type').EmptyCssVarContract;
+
+export type ComponentNameOf<Component> =
+  Component extends CraftComponent<
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    infer Name,
+    any,
+    any,
+    any
+  >
+    ? Name
+    : string;
 
 export type ComponentInitializationExceptionsOf<Component> = Component extends {
   readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: infer Exceptions extends
