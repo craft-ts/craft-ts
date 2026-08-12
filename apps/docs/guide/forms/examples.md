@@ -58,6 +58,10 @@ const { userFormState } = state(
 
 ## Complex Nested Form
 
+When a selected branch needs more than two insertions, compose them with
+`craftPipe`. The common two-insertion case (`insertNoopTypingAnchor` followed by
+`insertFormAttributes`) can be passed directly as the second argument.
+
 ```ts
 interface Address {
   street: string;
@@ -95,28 +99,32 @@ const { userFormState } = state(
     ),
     insertSelectFormTree(
       'addresses',
-      insertNoopTypingAnchor,
-      insertSelectFormTree(
-        'street',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired()],
-        })),
-      ),
-      insertSelectFormTree(
-        'city',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired()],
-        })),
-      ),
-      insertSelectFormTree(
-        'zipCode',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired(), cPattern({ pattern: /^\d{5}$/ })],
-        })),
-      ),
+      (context) =>
+        craftPipe(
+          context,
+          insertNoopTypingAnchor,
+          insertSelectFormTree(
+            'street',
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
+          insertSelectFormTree(
+            'city',
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
+          insertSelectFormTree(
+            'zipCode',
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired(), cPattern({ pattern: /^\d{5}$/ })],
+            })),
+          ),
+        ),
     ),
     insertSelectFormTree(
       'address',

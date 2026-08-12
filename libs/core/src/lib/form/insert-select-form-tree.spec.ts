@@ -34,6 +34,34 @@ type AddressBookFormValue = {
 };
 
 describe('insertSelectFormTree', () => {
+  it('composes two insertions directly and passes the first output to the second', () => {
+    TestBed.runInInjectionContext(() => {
+      type LoginData = { email: string };
+
+      const loginForm = craftUse(state(
+          'loginForm',
+          { email: '' } satisfies LoginData,
+          insertForm(
+            insertSelectFormTree(
+              'email',
+              insertNoopTypingAnchor,
+              insertFormAttributes(() => ({
+                validators: [cRequired(), cEmail()],
+              })),
+            ),
+          ),
+        ),
+      );
+
+      const email = loginForm.form.selectEmail();
+      expect(email?.valid()).toBe(false);
+
+      email?.set('user@example.com');
+
+      expect(email?.valid()).toBe(true);
+    });
+  });
+
   it('selects a nested object form tree and exposes nested insertions', () => {
     TestBed.runInInjectionContext(() => {
       const profileForm = craftUse(state(

@@ -106,7 +106,7 @@ type SelectFormTreeOutput<
 function createObjectRuntime(
   propertyKey: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  insertion: InsertionsFormFactory<any, any, any, any>,
+  insertions: InsertionsFormFactory<any, any, any, any>[],
 ) {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,7 +146,7 @@ function createObjectRuntime(
         subField,
         subState,
         setSub,
-        insertions: [insertion],
+        insertions,
         injector,
       });
       cachedSubFieldKey = subField as unknown as object;
@@ -162,7 +162,7 @@ function createObjectRuntime(
 function createArrayItemRuntime(
   entityName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  itemInsertion: InsertionsFormFactory<any, any, any, any>,
+  insertions: InsertionsFormFactory<any, any, any, any>[],
 ) {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -209,7 +209,7 @@ function createArrayItemRuntime(
         subField,
         subState,
         setSub,
-        insertions: [itemInsertion],
+        insertions,
         injector: itemInjector,
       });
       cache.set(id, form);
@@ -235,8 +235,8 @@ function createArrayItemRuntime(
 //  Public API
 // =====================================================================
 //
-// Single insertion slot only — to compose several insertions, use `craftPipe`
-// inside that slot: `insertSelectFormTree('name', (context) => craftPipe(context, m1, m2))`.
+// Supports one or two insertion slots. The second slot receives the output of
+// the first, just like consecutive insertions passed to `insertForm`.
 
 export function insertSelectFormTree<
   StateType,
@@ -265,6 +265,42 @@ export function insertSelectFormTree<
   PreviousInsertionsOutputs
 >;
 
+export function insertSelectFormTree<
+  StateType,
+  const Name extends AutoCompleteName & string,
+  FormIdentifier extends string | number | unknown = unknown,
+  Insertion1 = {},
+  Insertion2 = {},
+  PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  AutoCompleteName = NoInfer<StateType> extends readonly object[]
+    ? string
+    : keyof NoInfer<StateType>,
+>(
+  name: Name,
+  insertion1: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
+  >,
+  insertion2: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
+  >,
+): InsertSelectFormTreeReturn<
+  StateType,
+  Name,
+  FormIdentifier,
+  [Insertion1, Insertion2],
+  PreviousInsertionsOutputs
+>;
+
 // =====================================================================
 //  Implementation
 // =====================================================================
@@ -273,16 +309,19 @@ export function insertSelectFormTree(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   insertion1: InsertionsFormFactory<any, any, any, any>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  insertion2?: InsertionsFormFactory<any, any, any, any>,
 ): InsertionsFormFactory<any, any, any, any> {
+  const insertions = insertion2 ? [insertion1, insertion2] : [insertion1];
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
     const currentState = context.state();
     if (Array.isArray(currentState)) {
-      return createArrayItemRuntime(name, insertion1)(context);
+      return createArrayItemRuntime(name, insertions)(context);
     }
-    return createObjectRuntime(name, insertion1)(context);
+    return createObjectRuntime(name, insertions)(context);
   };
 }
 
@@ -335,7 +374,7 @@ export function selectFormTree(
 ): any {
   const currentState = context.state();
   if (Array.isArray(currentState)) {
-    return createArrayItemRuntime(name, insertion1)(context);
+    return createArrayItemRuntime(name, [insertion1])(context);
   }
-  return createObjectRuntime(name, insertion1)(context);
+  return createObjectRuntime(name, [insertion1])(context);
 }
