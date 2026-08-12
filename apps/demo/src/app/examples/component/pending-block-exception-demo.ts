@@ -18,7 +18,6 @@ import {
   craftSleep,
   mutation,
   settled,
-  state,
 } from '@craft-ng/core';
 
 /**
@@ -64,29 +63,37 @@ export const pendingBlockExceptionDemo = craftComponent(
         color: #b91c1c;
         font-weight: 650;
       }
+      .pending-exception__reloading {
+        padding: .35rem .75rem;
+        border-radius: .6rem;
+        background: #fef9c3;
+        color: #854d0e;
+        font-size: .85rem;
+        font-weight: 650;
+      }
       .pending-exception__list { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
     `,
   },
   function* () {
-    const shouldFail = yield* state('shouldFail', false, ({ set }) => ({
-      succeed: () => set(false),
-      fail: () => set(true),
-    }));
-
     const issue = yield* mutation('issue', {
-      method: (reference: string) => reference,
+      // The outcome is an argument of the call, not ambient state.
+      method: (input: { reference: string; reject: boolean }) => input,
+      // Keep the previous invoice on screen while a new one is issued: the
+      // settled read then serves the stale value instead of suspending, which
+      // is what the boundary's `reloading` slot reports.
+      preservePreviousValue: () => true,
       loader: craftGen(function* ({ params }) {
         yield* craftSleep(900);
 
         // A business failure is a value the loader returns, not a throw.
-        if (shouldFail()) {
+        if (params.reject) {
           return craftException(
             { code: 'INVOICE_REJECTED' },
-            { reference: params },
+            { reference: params.reference },
           );
         }
 
-        return { reference: params, amount: 4200 };
+        return { reference: params.reference, amount: 4200 };
       }),
     });
 
@@ -98,9 +105,9 @@ export const pendingBlockExceptionDemo = craftComponent(
         `${invoice().reference} — ${(invoice().amount / 100).toFixed(2)} €`;
     });
 
-    return { issue, summary, shouldFail };
+    return { issue, summary };
   },
-  ({ issue, summary, shouldFail }) =>
+  ({ issue, summary }) =>
     section({ class: 'pending-exception' }, [
       h2('settledValue — the failing path'),
       p('The same read suspends to the pendingBlock, then fails to the catchBlock.'),
@@ -109,8 +116,10 @@ export const pendingBlockExceptionDemo = craftComponent(
           {
             class: 'pending-exception__action',
             *click() {
-              yield* shouldFail.succeed();
-              yield* issue.mutate('INV-2026-014');
+              yield* issue.mutate({
+                reference: 'INV-2026-014',
+                reject: false,
+              });
             },
           },
           'Issue (success)',
@@ -119,8 +128,10 @@ export const pendingBlockExceptionDemo = craftComponent(
           {
             class: 'pending-exception__action',
             *click() {
-              yield* shouldFail.fail();
-              yield* issue.mutate('INV-2026-015');
+              yield* issue.mutate({
+                reference: 'INV-2026-015',
+                reject: true,
+              });
             },
           },
           'Issue (rejected)',
@@ -134,13 +145,22 @@ export const pendingBlockExceptionDemo = craftComponent(
         // The wait belongs to the pendingBlock…
         .pipe(
           pendingBlock.exhaustive({
-            // A mutation that has never run has no value either, so the same
-            // boundary covers "not issued yet" and "issuing".
-            issue: () =>
-              p(
-                { class: 'pending-exception__skeleton' },
-                'Waiting for an invoice…',
-              ),
+            issue: {
+              // A mutation that has never run has no value either, so the same
+              // slot covers "not issued yet" and "issuing".
+              pending: () =>
+                p(
+                  { class: 'pending-exception__skeleton' },
+                  'Waiting for an invoice…',
+                ),
+              // Re-issuing keeps the previous invoice on screen: nothing
+              // suspends, so this indicator is rendered next to it.
+              reloading: () =>
+                p(
+                  { class: 'pending-exception__reloading' },
+                  'Re-issuing…',
+                ),
+            },
           }),
         )
         // …and the business failure to the catchBlock. Without it, the code

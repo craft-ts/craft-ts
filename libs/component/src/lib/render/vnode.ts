@@ -811,6 +811,7 @@ export interface PendingBlockNode<
   readonly source: CraftNode;
   readonly handlers: PendingBlockHandlers | undefined;
   readonly fallback: PendingFallback | undefined;
+  readonly reloading: PendingFallback | undefined;
   readonly position: PendingBlockPosition;
   readonly pipe: CraftNodePipe<
     Dependencies,
@@ -1225,6 +1226,7 @@ export function pipeCraftNode(
     const definition = pendingBlockDefinition as {
       readonly handlers: PendingBlockHandlers | undefined;
       readonly fallback: PendingFallback | undefined;
+      readonly reloading: PendingFallback | undefined;
       readonly position: PendingBlockPosition;
     };
     return withPipe({
@@ -1232,6 +1234,7 @@ export function pipeCraftNode(
       source: node,
       handlers: definition.handlers,
       fallback: definition.fallback,
+      reloading: definition.reloading,
       position: definition.position,
     } as PendingBlockNode);
   }

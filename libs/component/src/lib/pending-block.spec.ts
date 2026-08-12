@@ -21,10 +21,12 @@ import {
   craftException,
   query,
   settled,
+  state,
   type CraftExceptionResult,
   type CraftSettledSignal,
 } from '@craft-ng/core';
 import {
+  button,
   catchBlock,
   craftComponent,
   div,
@@ -156,6 +158,71 @@ describe('pendingBlock', () => {
     await vi.runAllTimersAsync();
     TestBed.tick();
     expect(element.textContent).toContain('prêt');
+
+    mounted.destroy();
+  });
+
+  it('shows the reloading slot while a settled source refetches', async () => {
+    const root = craftComponent(
+      'pendingReloading',
+      {},
+      function* () {
+        const reload = yield* state('reload', 0, ({ update }) => ({
+          again: () => update((current) => current + 1),
+        }));
+        const users = yield* query('users', {
+          params: () => reload(),
+          loader: async ({ params }): Promise<User[]> => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return [{ id: String(params), name: `Ada ${params}` }];
+          },
+        });
+        const firstName = craftComputed('firstName', function* () {
+          const list = yield* settled(users);
+          return () => list()[0].name;
+        });
+        return { firstName, reload };
+      },
+      ({ firstName, reload }) =>
+        section([
+          button({ click: reload.again }, 'recharger'),
+          div([span(firstName)]).pipe(
+            pendingBlock.exhaustive({
+              users: {
+                pending: () => p('vide'),
+                reloading: () => p('rafraichissement'),
+              },
+            }),
+          ),
+        ]),
+    );
+
+    const element = host();
+    const mounted = mountCraftComponent(
+      root,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    expect(element.textContent).toContain('vide');
+
+    await vi.runAllTimersAsync();
+    TestBed.tick();
+    expect(element.textContent).toContain('Ada 0');
+
+    (element.querySelector('button') as HTMLButtonElement).click();
+    TestBed.tick();
+
+    // A refetch keeps the stale value on screen and adds the indicator next
+    // to it — it does not suspend.
+    expect(element.textContent).toContain('rafraichissement');
+    expect(element.textContent).toContain('Ada 0');
+    expect(element.textContent).not.toContain('vide');
+
+    await vi.runAllTimersAsync();
+    TestBed.tick();
+    expect(element.textContent).toContain('Ada 1');
+    expect(element.textContent).not.toContain('rafraichissement');
 
     mounted.destroy();
   });

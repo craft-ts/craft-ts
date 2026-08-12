@@ -39,6 +39,9 @@ import {
   isCraftException,
   isCraftGenShortCircuit,
   isCraftNotSettled,
+  ɵwithSettledReadObserver,
+  type CraftSettledReadNotice,
+  type CraftSettledReadObserver,
   isGeneratorFunction,
   isCraftField,
   markYieldableValue,
@@ -96,6 +99,8 @@ import {
 } from './vnode';
 import {
   CraftUnhandledPendingError,
+  resolvePendingBlockHandler,
+  type PendingBlockHandler,
   type PendingBlockPosition,
 } from '../pending-block';
 import {
@@ -138,10 +143,21 @@ interface RenderContext {
   readonly contentStyles?: Readonly<Partial<Record<string, string>>>;
   /** Marker applied to ordinary nodes in an opted-in projection. */
   readonly contentScope?: string;
-  readonly exceptionBoundary?: (exception: AnyCraftException) => boolean;
-  readonly exceptionBoundaryResolved?: () => void;
+  /**
+   * Reports an exception to the nearest `catchBlock`. `token` identifies the
+   * reporter: the boundary keeps its fallback up until every reporter has
+   * either recovered or been destroyed, so a re-render between the failure and
+   * the recovery cannot strand it.
+   */
+  readonly exceptionBoundary?: (
+    exception: AnyCraftException,
+    token?: object,
+  ) => boolean;
+  readonly exceptionBoundaryResolved?: (token?: object) => void;
   /** Nearest `pendingBlock` boundary, notified by any binding that suspends. */
   readonly pendingBoundary?: PendingBoundaryRegistration;
+  /** Nearest `pendingBlock` boundary, notified by every settled read below it. */
+  readonly settledReadObserver?: CraftSettledReadObserver;
   readonly handledResourceExceptionCodes?: Set<string>;
   readonly fieldExceptionBoundary?: FieldExceptionBoundaryRegistration;
   /** Lexical context of content declared by the parent component. */
@@ -477,7 +493,10 @@ function createRenderEffect(
   let shortCircuited = false;
   const ref = createEffectInInjector(context.injector, name, () => {
     try {
-      effectFn();
+      // A settled read reports its source while it evaluates — that is how the
+      // boundary learns about a source that is refetching rather than
+      // suspending, since a refetch throws nothing.
+      ɵwithSettledReadObserver(context.settledReadObserver, effectFn);
     } catch (error) {
       if (isCraftNotSettled(error)) {
         if (!context.pendingBoundary) {
@@ -492,7 +511,7 @@ function createRenderEffect(
       // A settled read whose source carries a business exception: route it to
       // the nearest catchBlock, exactly like a component initialization one.
       context.pendingBoundary?.resume(token);
-      if (!context.exceptionBoundary?.(error.exception)) {
+      if (!context.exceptionBoundary?.(error.exception, token)) {
         throw new CraftUnhandledExceptionError(error.exception);
       }
       shortCircuited = true;
@@ -502,13 +521,14 @@ function createRenderEffect(
     context.pendingBoundary?.resume(token);
     if (shortCircuited) {
       shortCircuited = false;
-      context.exceptionBoundaryResolved?.();
+      context.exceptionBoundaryResolved?.(token);
     }
   });
 
   return {
     destroy: () => {
       context.pendingBoundary?.resume(token);
+      if (shortCircuited) context.exceptionBoundaryResolved?.(token);
       ref.destroy();
     },
   } as EffectRef;
@@ -1696,6 +1716,16 @@ class FragmentRenderedNode implements RenderedNode {
   readonly kind = 'fragment';
   private children: RenderedNode[] = [];
 
+  /**
+   * Where this fragment currently lives. A boundary can detach a range into a
+   * holder fragment to hide it without destroying it, and the range keeps being
+   * reconciled while detached — so every insertion has to follow the markers
+   * rather than the parent captured at construction time.
+   */
+  private get liveParent(): NativeParent {
+    return this.start.parentNode ?? this.parent;
+  }
+
   constructor(
     private readonly parent: NativeParent,
     private readonly start: Comment,
@@ -1726,7 +1756,7 @@ class FragmentRenderedNode implements RenderedNode {
 
   patchChildren(children: CraftNodeChildren): void {
     this.children = patchRenderedChildren(
-      this.parent,
+      this.liveParent,
       this.children,
       children,
       this.end,
@@ -1741,7 +1771,9 @@ class FragmentRenderedNode implements RenderedNode {
   appendChildren(children: CraftNodeChildren): void {
     const nextNodes = normalizeChildren(children);
     nextNodes.forEach((child) => {
-      this.children.push(mountNode(child, this.parent, this.end, this.context));
+      this.children.push(
+        mountNode(child, this.liveParent, this.end, this.context),
+      );
     });
   }
 
@@ -1751,7 +1783,7 @@ class FragmentRenderedNode implements RenderedNode {
     const mounted: RenderedNode[] = [];
     for (let index = nextNodes.length - 1; index >= 0; index -= 1) {
       mounted.unshift(
-        mountNode(nextNodes[index], this.parent, before, this.context),
+        mountNode(nextNodes[index], this.liveParent, before, this.context),
       );
     }
     this.children.unshift(...mounted);
@@ -1772,7 +1804,7 @@ class FragmentRenderedNode implements RenderedNode {
       current = current.nextSibling;
     }
     nodes.forEach((node) =>
-      insertBefore(this.context.renderer, this.parent, node, before),
+      insertBefore(this.context.renderer, this.liveParent, node, before),
     );
   }
 
@@ -2276,31 +2308,106 @@ class MatchBlockRenderedNode implements RenderedNode {
   }
 }
 
+
+/**
+ * Detaches a mounted DOM range into a holder fragment, keeping every node (and
+ * therefore every binding) alive. Both boundaries hide their subtree this way:
+ * destroying it would take with it the bindings that report recovery.
+ *
+ * The nodes go into a real `DocumentFragment` rather than a plain array so that
+ * a NESTED boundary can still insert relative to its own markers while an outer
+ * boundary holds them detached — the markers keep a parent to insert into.
+ */
+function detachRange(
+  renderer: Renderer2,
+  first: NativeNode,
+  last: NativeNode,
+): DocumentFragment {
+  const holder = (first.ownerDocument ?? document).createDocumentFragment();
+  let current: NativeNode | null = first;
+  const nodes: NativeNode[] = [];
+  while (current) {
+    nodes.push(current);
+    if (current === last) break;
+    current = current.nextSibling;
+  }
+  nodes.forEach((node) => {
+    removeNode(renderer, node);
+    renderer.appendChild(holder, node);
+  });
+  return holder;
+}
+
+/** Re-inserts a detached range before `anchor`, in whatever parent it now has. */
+function reattachRange(
+  renderer: Renderer2,
+  holder: DocumentFragment,
+  anchor: NativeNode,
+  fallbackParent: NativeParent,
+): void {
+  const parent = anchor.parentNode ?? fallbackParent;
+  while (holder.firstChild) {
+    const node = holder.firstChild;
+    removeNode(renderer, node);
+    insertBefore(renderer, parent, node, anchor);
+  }
+}
+
+/** Stands in for reporters that do not identify themselves (component renders). */
+const ANONYMOUS_EXCEPTION_REPORTER: object = {};
+
 class CatchBlockRenderedNode implements RenderedNode {
   readonly kind = 'catch-block';
-  private readonly view: FragmentRenderedNode;
+  private readonly start: Comment;
+  private readonly end: Comment;
+  private readonly sourceView: FragmentRenderedNode;
+  private readonly fallbackView: FragmentRenderedNode;
   private handling = false;
   private fallbackVisible = false;
-  private sourceVisible = true;
   private fallbackPosition: CatchBlockPosition;
-  private fallbackChildren: CraftNodeChildren = [];
+  private detached: DocumentFragment | undefined;
+  /** Reporters still failing. The fallback stays up until this empties. */
+  private readonly failing = new Set<object>();
 
   constructor(
     private node: CatchBlockNode<any, any, any, any, any>,
-    parent: NativeParent,
+    private readonly parent: NativeParent,
     before: NativeNode | null,
     private readonly context: RenderContext,
   ) {
     this.fallbackPosition = node.position;
-    this.view = createFragment(
-      parent,
-      before,
-      this.boundaryContext(),
-      [],
-      'craft-catch-block',
-    );
+    this.start = context.renderer.createComment(
+      'craft-catch-block:start',
+    ) as Comment;
+    this.end = context.renderer.createComment(
+      'craft-catch-block:end',
+    ) as Comment;
+    insertBefore(context.renderer, parent, this.start, before);
+    insertBefore(context.renderer, parent, this.end, before);
+
+    // The fallback renders in the OUTER context: an exception thrown by a
+    // fallback belongs to the next boundary up, never to this one.
+    const createFallback = () =>
+      createFragment(parent, this.end, this.context, [], 'craft-catch-fallback');
+    const createSource = () =>
+      createFragment(
+        parent,
+        this.end,
+        this.boundaryContext(),
+        [],
+        'craft-catch-source',
+      );
+
+    if (this.fallbackPosition === 'before') {
+      this.fallbackView = createFallback();
+      this.sourceView = createSource();
+    } else {
+      this.sourceView = createSource();
+      this.fallbackView = createFallback();
+    }
+
     try {
-      this.view.patchChildren(this.layout(this.node.source));
+      this.sourceView.patchChildren([this.node.source]);
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) throw error;
       this.handle(error.exception);
@@ -2308,11 +2415,11 @@ class CatchBlockRenderedNode implements RenderedNode {
   }
 
   firstNode(): NativeNode {
-    return this.view.firstNode();
+    return this.start;
   }
 
   lastNode(): NativeNode {
-    return this.view.lastNode();
+    return this.end;
   }
 
   patch(node: CraftNode): boolean {
@@ -2321,7 +2428,12 @@ class CatchBlockRenderedNode implements RenderedNode {
     }
     this.node = node;
     try {
-      this.view.patchChildren(this.layout(node.source));
+      this.sourceView.patchChildren([node.source]);
+      if (this.detached) {
+        // A re-render re-materialises the source range: hide it again.
+        this.detached = undefined;
+        this.hideSource();
+      }
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) throw error;
       this.handle(error.exception);
@@ -2331,37 +2443,28 @@ class CatchBlockRenderedNode implements RenderedNode {
 
   private boundaryContext(): RenderContext {
     return childContext(this.context, {
-      exceptionBoundary: (exception) => this.handle(exception),
-      exceptionBoundaryResolved: () => this.resolved(),
+      exceptionBoundary: (exception, token) => this.handle(exception, token),
+      exceptionBoundaryResolved: (token) => this.resolved(token),
     });
   }
 
-  private layout(source: CraftNode): CraftNodeChildren {
-    if (!this.fallbackVisible) return [source];
-    if (!this.sourceVisible) return this.fallback();
-    return this.fallbackPosition === 'before'
-      ? [this.fallback(), source]
-      : [source, this.fallback()];
-  }
-
-  private fallback(): CraftNodeChildren {
-    return this.fallbackChildren;
-  }
-
-  private handle(exception: AnyCraftException): boolean {
+  private handle(exception: AnyCraftException, token?: object): boolean {
     if (this.handling) {
       return (
-        this.context.exceptionBoundary?.(exception) ?? this.unhandled(exception)
+        this.context.exceptionBoundary?.(exception, token) ??
+        this.unhandled(exception)
       );
     }
 
     const handler = this.node.handlers[exception.code];
     if (!handler) {
       return (
-        this.context.exceptionBoundary?.(exception) ?? this.unhandled(exception)
+        this.context.exceptionBoundary?.(exception, token) ??
+        this.unhandled(exception)
       );
     }
 
+    this.failing.add(token ?? ANONYMOUS_EXCEPTION_REPORTER);
     this.handling = true;
     this.fallbackVisible = true;
     try {
@@ -2371,22 +2474,12 @@ class CatchBlockRenderedNode implements RenderedNode {
         true,
         this.node.position,
       );
-      this.sourceVisible = resolved.showSource;
-      this.fallbackPosition = resolved.position;
-      this.fallbackChildren = resolved.children;
-      try {
-        if (this.sourceVisible && this.view.hasChildren()) {
-          if (this.fallbackPosition === 'before') {
-            this.view.prependChildren(this.fallbackChildren);
-          } else {
-            this.view.appendChildren(this.fallbackChildren);
-          }
-        } else {
-          this.view.patchChildren(this.layout(this.node.source));
-        }
-      } catch (error) {
-        if (!isCraftGenShortCircuit(error)) throw error;
-        this.view.patchChildren(this.fallbackChildren);
+      this.applyPosition(resolved.position);
+      this.fallbackView.patchChildren(resolved.children);
+      if (resolved.showSource) {
+        this.restoreSource();
+      } else {
+        this.hideSource();
       }
     } finally {
       this.handling = false;
@@ -2394,13 +2487,50 @@ class CatchBlockRenderedNode implements RenderedNode {
     return true;
   }
 
-  private resolved(): void {
-    if (this.handling || !this.fallbackVisible) return;
+  private resolved(token?: object): void {
+    this.failing.delete(token ?? ANONYMOUS_EXCEPTION_REPORTER);
+    if (this.handling || !this.fallbackVisible || this.failing.size > 0) return;
     this.fallbackVisible = false;
-    this.sourceVisible = true;
-    this.fallbackPosition = this.node.position;
-    this.fallbackChildren = [];
-    this.view.patchChildren([this.node.source]);
+    this.applyPosition(this.node.position);
+    this.fallbackView.patchChildren([]);
+    this.restoreSource();
+  }
+
+  private applyPosition(position: CatchBlockPosition): void {
+    if (position === this.fallbackPosition) return;
+    this.fallbackPosition = position;
+    this.fallbackView.moveBefore(
+      position === 'before' ? this.sourceFirstNode() : this.end,
+    );
+  }
+
+  private sourceFirstNode(): NativeNode {
+    return this.detached ? this.end : this.sourceView.firstNode();
+  }
+
+  /**
+   * A hidden source is detached from the DOM but stays mounted. Destroying it
+   * would take its bindings with it — and those bindings are the only channel
+   * that reports the exception is gone, so the fallback could never be removed.
+   */
+  private hideSource(): void {
+    if (this.detached) return;
+    this.detached = detachRange(
+      this.context.renderer,
+      this.sourceView.firstNode(),
+      this.sourceView.lastNode(),
+    );
+  }
+
+  private restoreSource(): void {
+    if (!this.detached) return;
+
+    const anchor =
+      this.fallbackPosition === 'before'
+        ? this.end
+        : this.fallbackView.firstNode();
+    reattachRange(this.context.renderer, this.detached, anchor, this.parent);
+    this.detached = undefined;
   }
 
   private unhandled(exception: AnyCraftException): never {
@@ -2408,7 +2538,11 @@ class CatchBlockRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.view.destroy();
+    this.restoreSource();
+    this.fallbackView.destroy();
+    this.sourceView.destroy();
+    removeNode(this.context.renderer, this.start);
+    removeNode(this.context.renderer, this.end);
   }
 }
 
@@ -2530,7 +2664,11 @@ class PendingBlockRenderedNode implements RenderedNode {
   private readonly position: PendingBlockPosition;
   /** Held tokens, by the binding that suspended, in suspension order. */
   private readonly held = new Map<object, string>();
-  private detached: NativeNode[] = [];
+  /** Sources seen below this boundary, by name — the reload watch reads them. */
+  private readonly watched = new Map<string, CraftSettledReadNotice>();
+  private reloadWatch: EffectRef | undefined;
+  private reloadingSource: string | undefined;
+  private detached: DocumentFragment | undefined;
 
   constructor(
     private node: PendingBlockNode<any, any, any, any>,
@@ -2586,13 +2724,14 @@ class PendingBlockRenderedNode implements RenderedNode {
     this.sourceView.patchChildren([next.source]);
     if (this.held.size > 0) {
       // A re-render re-materialises the source range: hide it again.
-      this.detached = [];
+      this.detached = undefined;
       this.showFallback();
     }
     return true;
   }
 
   destroy(): void {
+    this.reloadWatch?.destroy();
     this.restoreSource();
     this.fallbackView.destroy();
     this.sourceView.destroy();
@@ -2606,7 +2745,51 @@ class PendingBlockRenderedNode implements RenderedNode {
         suspend: (token, source) => this.suspend(token, source),
         resume: (token) => this.resume(token),
       },
+      settledReadObserver: (notice) => this.watch(notice),
     });
+  }
+
+  /**
+   * Records a source read below this boundary. A refetch throws nothing, so the
+   * boundary cannot learn about it from the suspension channel: it watches the
+   * source's own status instead, on its own effect, which keeps working even
+   * when the binding that first reported it never re-runs.
+   */
+  private watch(notice: CraftSettledReadNotice): void {
+    if (!this.handles(notice.source)) {
+      this.context.settledReadObserver?.(notice);
+      return;
+    }
+    if (this.watched.has(notice.source)) return;
+
+    this.watched.set(notice.source, notice);
+    this.reloadWatch?.destroy();
+    this.reloadWatch = createEffectInInjector(
+      this.context.injector,
+      'pending-reload-watch',
+      () => this.onReloadStateChange(),
+    );
+  }
+
+  private onReloadStateChange(): void {
+    let reloading: string | undefined;
+    for (const [source, notice] of this.watched) {
+      const status = notice.status();
+      // Refetching with something already on screen — the settled read returns
+      // the stale value, so the subtree stays visible.
+      if (
+        notice.value() !== undefined &&
+        (status === 'loading' || status === 'reloading')
+      ) {
+        reloading = source;
+        break;
+      }
+    }
+
+    if (reloading === this.reloadingSource) return;
+    this.reloadingSource = reloading;
+    // A suspension outranks a reload: it already owns the fallback slot.
+    if (this.held.size === 0) this.renderFallback();
   }
 
   private suspend(token: object, source: string): void {
@@ -2640,52 +2823,62 @@ class PendingBlockRenderedNode implements RenderedNode {
 
   private fallbackChildren(): CraftNodeChildren {
     const handlers = this.node.handlers;
-    if (!handlers) return this.node.fallback?.() ?? [];
-
+    const suspended = this.held.size > 0;
     // Several listed sources may be pending at once — the first to suspend wins.
-    const [firstSource] = this.held.values();
-    const handler = firstSource ? handlers[firstSource] : undefined;
-    return handler?.() ?? [];
+    const [firstSuspended] = this.held.values();
+    const source = suspended ? firstSuspended : this.reloadingSource;
+
+    if (!source) return [];
+
+    if (!handlers) {
+      return suspended
+        ? (this.node.fallback?.() ?? [])
+        : (this.node.reloading?.() ?? []);
+    }
+
+    const handler: PendingBlockHandler | undefined = handlers[source];
+    return handler
+      ? resolvePendingBlockHandler(handler, suspended ? 'pending' : 'reloading')
+      : [];
   }
 
-  private showFallback(): void {
-    this.detachSource();
+  /** Renders whatever the current state calls for: a suspension, a reload, or nothing. */
+  private renderFallback(): void {
+    if (this.held.size > 0) {
+      this.detachSource();
+    } else {
+      // A reload keeps the stale subtree on screen next to the indicator.
+      this.restoreSource();
+    }
     this.fallbackView.patchChildren(this.fallbackChildren());
   }
 
+  private showFallback(): void {
+    this.renderFallback();
+  }
+
   private hideFallback(): void {
-    this.fallbackView.patchChildren([]);
-    this.restoreSource();
+    this.renderFallback();
   }
 
   private detachSource(): void {
-    if (this.detached.length > 0) return;
-
-    const first = this.sourceView.firstNode();
-    const last = this.sourceView.lastNode();
-    let current: NativeNode | null = first;
-    const nodes: NativeNode[] = [];
-    while (current) {
-      nodes.push(current);
-      if (current === last) break;
-      current = current.nextSibling;
-    }
-
-    nodes.forEach((node) => removeNode(this.context.renderer, node));
-    this.detached = nodes;
+    if (this.detached) return;
+    this.detached = detachRange(
+      this.context.renderer,
+      this.sourceView.firstNode(),
+      this.sourceView.lastNode(),
+    );
   }
 
   private restoreSource(): void {
-    if (this.detached.length === 0) return;
+    if (!this.detached) return;
 
     // Back before the marker that follows the source range, so the original
     // order (fallback / source) is preserved.
     const anchor =
       this.position === 'before' ? this.end : this.fallbackView.firstNode();
-    this.detached.forEach((node) =>
-      insertBefore(this.context.renderer, this.parent, node, anchor),
-    );
-    this.detached = [];
+    reattachRange(this.context.renderer, this.detached, anchor, this.parent);
+    this.detached = undefined;
   }
 }
 

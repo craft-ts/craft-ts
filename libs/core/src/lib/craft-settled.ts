@@ -121,6 +121,43 @@ export type ExtractCraftPendingSources<Yielded> = [
     ? Source
     : never;
 
+/**
+ * What a settled read reports about its source to whoever is listening — today
+ * a `pendingBlock` boundary, which needs a handle on the source's liveness to
+ * render a reload indicator.
+ *
+ * A suspension is announced by a `throw`, but a **reload** is not: the stale
+ * value is returned and nothing is thrown. Without this channel a boundary
+ * would never learn that a source it covers is refetching.
+ */
+export interface CraftSettledReadNotice {
+  readonly source: string;
+  readonly status: Signal<CraftResourceStatus | string>;
+  readonly value: Signal<unknown>;
+}
+
+export type CraftSettledReadObserver = (notice: CraftSettledReadNotice) => void;
+
+let activeSettledReadObserver: CraftSettledReadObserver | undefined;
+
+/**
+ * Runs `work` with `observer` notified of every settled read it performs. The
+ * observer is registered for the synchronous extent of the call — settled reads
+ * are computations, so they evaluate inside the reader's own effect.
+ */
+export function ɵwithSettledReadObserver<T>(
+  observer: CraftSettledReadObserver | undefined,
+  work: () => T,
+): T {
+  const previous = activeSettledReadObserver;
+  activeSettledReadObserver = observer ?? previous;
+  try {
+    return work();
+  } finally {
+    activeSettledReadObserver = previous;
+  }
+}
+
 /** The minimal shape {@link craftSettledValue} needs to build a settled read. */
 export type SettleableResource = ResourceLike & {
   status: Signal<CraftResourceStatus | string>;
@@ -150,6 +187,12 @@ export function craftSettledValue<Value>(
 ): CraftSettledSignal<Value> {
   return computed(() => {
     const status = resource.status();
+
+    activeSettledReadObserver?.({
+      source,
+      status: resource.status,
+      value: resource.value,
+    });
 
     if (resource.hasException()) {
       throw new CraftGenShortCircuit(

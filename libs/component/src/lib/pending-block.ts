@@ -12,12 +12,47 @@ export type PendingBlockPosition = 'before' | 'after';
 
 export type PendingFallback = () => CraftNodeChildren;
 
-/** One fallback per async source name, for the `.exhaustive` form. */
-export type PendingBlockHandlers = Readonly<Record<string, PendingFallback>>;
+/**
+ * What to render for one source. A bare function covers the suspended case; the
+ * object form adds `reloading`, rendered **next to the still-visible subtree**
+ * when the source already has a value and is refetching.
+ */
+export type PendingBlockHandler =
+  | PendingFallback
+  | {
+      readonly pending: PendingFallback;
+      readonly reloading?: PendingFallback;
+    };
 
-export type PendingBlockHandlerChildren<Handler> = Handler extends () => infer Children
+/** One handler per async source name, for the `.exhaustive` form. */
+export type PendingBlockHandlers = Readonly<
+  Record<string, PendingBlockHandler>
+>;
+
+type HandlerChildrenOf<Handler> = Handler extends () => infer Children
   ? Children
-  : never;
+  : Handler extends {
+        readonly pending: () => infer Pending;
+        readonly reloading?: () => infer Reloading;
+      }
+    ? Pending | Reloading
+    : never;
+
+export type PendingBlockHandlerChildren<Handler> = HandlerChildrenOf<Handler>;
+
+/** Resolves the children a handler renders for one of its two states. */
+export function resolvePendingBlockHandler(
+  handler: PendingBlockHandler,
+  state: 'pending' | 'reloading',
+): CraftNodeChildren {
+  if (typeof handler === 'function') {
+    return state === 'pending' ? handler() : [];
+  }
+
+  return state === 'pending'
+    ? handler.pending()
+    : (handler.reloading?.() ?? []);
+}
 
 /**
  * Thrown when a `CraftNotSettled` escapes every `pendingBlock` boundary — the
@@ -44,6 +79,7 @@ export type PendingBlockDirective<
     /** `undefined` for the catch-all form: every source below is covered. */
     readonly handlers: Handlers;
     readonly fallback: PendingFallback | undefined;
+    readonly reloading: PendingFallback | undefined;
     readonly position: PendingBlockPosition;
     /** Phantom carrier — the fallback's own nodes, never read at runtime. */
     readonly fallbackChildren?: FallbackChildren;
@@ -86,6 +122,7 @@ function createPendingBlockDirective<
 >(
   handlers: Handlers,
   fallback: PendingFallback | undefined,
+  reloading: PendingFallback | undefined,
   position: PendingBlockPosition,
 ): PendingBlockDirective<Handlers> {
   const directive = (() =>
@@ -101,7 +138,7 @@ function createPendingBlockDirective<
     enumerable: false,
   });
   Object.defineProperty(directive, PENDING_BLOCK_DIRECTIVE, {
-    value: { handlers, fallback, position },
+    value: { handlers, fallback, reloading, position },
     enumerable: false,
   });
 
@@ -113,6 +150,12 @@ export interface PendingBlockOptions<
 > {
   /** Rendered while the subtree below has an async source with no value yet. */
   readonly fallback?: Fallback;
+  /**
+   * Rendered next to the still-visible subtree while a source that already has
+   * a value is refetching. A refetch does not suspend — the stale value stays
+   * on screen — so this is how the boundary reports it.
+   */
+  readonly reloading?: Fallback;
   /** Where the fallback goes relative to the (hidden) subtree. Defaults to `'before'`. */
   readonly position?: PendingBlockPosition;
 }
@@ -159,7 +202,7 @@ interface PendingBlockFactory {
    */
   exhaustive<const Handlers extends PendingBlockHandlers>(
     handlers: Handlers,
-    options?: Omit<PendingBlockOptions, 'fallback'>,
+    options?: Omit<PendingBlockOptions, 'fallback' | 'reloading'>,
   ): PendingBlockDirective<
     Handlers,
     PendingBlockHandlerChildren<Handlers[keyof Handlers]> extends CraftNodeChildren
@@ -173,15 +216,17 @@ export const pendingBlock: PendingBlockFactory = Object.assign(
     createPendingBlockDirective(
       undefined,
       options.fallback,
+      options.reloading,
       options.position ?? 'before',
     ),
   {
     exhaustive: (
       handlers: PendingBlockHandlers,
-      options: Omit<PendingBlockOptions, 'fallback'> = {},
+      options: Omit<PendingBlockOptions, 'fallback' | 'reloading'> = {},
     ) =>
       createPendingBlockDirective(
         handlers,
+        undefined,
         undefined,
         options.position ?? 'before',
       ),

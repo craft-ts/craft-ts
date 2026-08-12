@@ -112,6 +112,23 @@ served while the new one is in flight, so a refetch never blanks a screen that
 already has data. Only a source with nothing to show suspends. To make a reload
 suspend again, clear the value with `preservePreviousValue: () => false`.
 
+A refetch throws nothing, so the boundary cannot learn about it from the
+suspension channel — it watches the source's own status instead. Give a handler
+its `reloading` slot to report it, rendered **next to the still-visible
+subtree**:
+
+```typescript
+pendingBlock.exhaustive({
+  issue: {
+    pending: () => p('Waiting for an invoice…'),
+    reloading: () => p('Re-issuing…'),
+  },
+});
+
+// or, for the catch-all form
+pendingBlock({ fallback: () => Skeleton(), reloading: () => Spinner() });
+```
+
 ## Runtime behaviour
 
 While a source is pending, the boundary renders its fallback and detaches the
