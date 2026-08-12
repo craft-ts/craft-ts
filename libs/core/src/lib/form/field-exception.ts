@@ -87,7 +87,7 @@ export const CRAFT_FIELD_EXCEPTION_BOUNDARY =
   );
 
 export const DEFAULT_FIELD_EXCEPTION_VISIBILITY = {
-  anyOf: ['dirty', 'submitted'],
+  anyOf: ['touched', 'submitted'],
 } as const satisfies FieldExceptionVisibility;
 
 export function fieldExceptionVisibilityMatches(

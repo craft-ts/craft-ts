@@ -171,6 +171,10 @@ describe('fieldExceptionBlock', () => {
     control.dispatchEvent(new Event('input', { bubbles: true }));
     TestBed.tick();
 
+    expect(element.textContent).not.toContain('Parent minimum 6');
+    control.dispatchEvent(new Event('blur', { bubbles: true }));
+    TestBed.tick();
+
     expect(field.textContent).not.toContain('Local required');
     expect(field.textContent).not.toContain('Parent minimum 6');
     expect(element.textContent).toContain('Parent minimum 6');
@@ -231,6 +235,9 @@ describe('fieldExceptionBlock', () => {
     TestBed.tick();
 
     expect(element.querySelector('input')).toBe(control);
+    expect(element.textContent).not.toContain('Email is required.');
+    control.dispatchEvent(new Event('blur', { bubbles: true }));
+    TestBed.tick();
     expect(element.textContent).toContain('Email is required.');
     expect(control.getAttribute('aria-invalid')).toBe('true');
     const messageId = control.getAttribute('aria-describedby');
@@ -385,7 +392,18 @@ describe('fieldExceptionBlock', () => {
     password.dispatchEvent(new Event('input', { bubbles: true }));
     TestBed.tick();
 
+    expect(element.textContent).not.toContain('Email required');
+    expect(element.textContent).not.toContain('Password required');
+
+    email.dispatchEvent(new Event('blur', { bubbles: true }));
+    TestBed.tick();
+
     expect(element.textContent).toContain('Email required');
+    expect(element.textContent).not.toContain('Password required');
+
+    password.dispatchEvent(new Event('blur', { bubbles: true }));
+    TestBed.tick();
+
     expect(element.textContent).toContain('Password required');
     expect(element.querySelector('#email')).toBe(email);
     expect(element.querySelector('#password')).toBe(password);

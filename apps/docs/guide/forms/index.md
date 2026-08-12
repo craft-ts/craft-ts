@@ -211,7 +211,7 @@ const SafeLoginForm = BaseLoginForm.pipe(
 ```
 
 By default the block reads the field's `visibleExceptions` directly. The form
-owns that visibility policy; the default remains dirty or submitted:
+owns that visibility policy; the default is touched or submitted:
 
 ```ts
 insertFormAttributes(() => ({
@@ -220,7 +220,9 @@ insertFormAttributes(() => ({
 }));
 ```
 
-Available states are `dirty`, `touched`, and `submitted`. A block can override
+After a blur, only that field's visible exceptions are rendered. A submit
+attempt reveals the remaining exceptions for every field. Available states are
+`dirty`, `touched`, and `submitted`; a block can override
 the inherited policy with `visibility: 'always'`, another `anyOf` combination,
 or a predicate. `mode` is `first` (validator order) or `all`, and `position` is
 `before` or `after`. Resetting the form clears dirty, touched, and submitted,

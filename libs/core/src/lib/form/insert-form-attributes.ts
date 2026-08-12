@@ -136,7 +136,7 @@ type FormAttributesOutputs<Validators> =
     }>;
     /**
      * Exceptions that should be visible to the user. By default, all exceptions are
-     * hidden until the field is dirty or the form has been attempted to be submitted at least once.
+     * hidden until the field is touched or the form has been attempted to be submitted at least once.
      */
     visibleExceptions: Signal<{
       list: ExceptionsList<Validators>;
@@ -156,14 +156,14 @@ type FormAttributesOutputs<Validators> =
      */
     lastRightFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
     /**
-     * Same as `firstLeftFailedValidation` but only emits once the field is dirty
+     * Same as `firstLeftFailedValidation` but only emits once the field is touched
      * or the form has been submitted at least once.
      */
     visibleFirstLeftFailedValidation: Signal<
       ExceptionUnion<Validators> | undefined
     >;
     /**
-     * Same as `lastRightFailedValidation` but only emits once the field is dirty
+     * Same as `lastRightFailedValidation` but only emits once the field is touched
      * or the form has been submitted at least once.
      */
     visibleLastRightFailedValidation: Signal<

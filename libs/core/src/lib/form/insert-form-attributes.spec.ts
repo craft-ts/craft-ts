@@ -171,7 +171,7 @@ describe('insertFormAttributes', () => {
     });
   });
 
-  it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
+  it('keeps exceptions hidden until the field is touched or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
       const fieldForm = craftUse(
         state(
@@ -189,6 +189,10 @@ describe('insertFormAttributes', () => {
       expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
 
       fieldForm.form.ɵmarkDirty();
+      TestBed.tick();
+      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+
+      fieldForm.form.ɵmarkTouched();
       TestBed.tick();
       expect(fieldForm.form.visibleExceptions().list.length).toBe(1);
     });
@@ -287,7 +291,7 @@ describe('insertFormAttributes', () => {
       });
     });
 
-    it('visible variants stay undefined until dirty or submit attempted', () => {
+    it('visible variants stay undefined until touched or submit attempted', () => {
       TestBed.runInInjectionContext(() => {
         const fieldForm = craftUse(
           state(
@@ -310,6 +314,15 @@ describe('insertFormAttributes', () => {
         ).toBeUndefined();
 
         fieldForm.form.ɵmarkDirty();
+        TestBed.tick();
+        expect(
+          fieldForm.form.visibleFirstLeftFailedValidation(),
+        ).toBeUndefined();
+        expect(
+          fieldForm.form.visibleLastRightFailedValidation(),
+        ).toBeUndefined();
+
+        fieldForm.form.ɵmarkTouched();
         TestBed.tick();
         expect(fieldForm.form.visibleFirstLeftFailedValidation()).toBeDefined();
         expect(fieldForm.form.visibleLastRightFailedValidation()).toBeDefined();
@@ -657,7 +670,7 @@ describe('formAttributes', () => {
     });
   });
 
-  it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
+  it('keeps formAttributes exceptions hidden until touched or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
       const fieldForm = craftUse(
         state(
@@ -673,6 +686,10 @@ describe('formAttributes', () => {
       expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
 
       fieldForm.form.ɵmarkDirty();
+      TestBed.tick();
+      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+
+      fieldForm.form.ɵmarkTouched();
       TestBed.tick();
       expect(fieldForm.form.visibleExceptions().list.length).toBe(1);
     });

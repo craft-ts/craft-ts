@@ -49,7 +49,7 @@ notamment :
 La visibilité actuelle est codée comme suit :
 
 ```ts
-field.dirty() || hasAttemptedSubmit()
+field.dirty() || hasAttemptedSubmit();
 ```
 
 L'état `touched` est disponible sur `CraftField`, mais n'est pas utilisé par la
@@ -133,11 +133,7 @@ const LoginFormComponent = BaseLoginFormComponent.pipe(
 ### Contexte d'un handler
 
 ```ts
-type FieldExceptionHandlerContext<
-  Field,
-  Path extends string,
-  Exception,
-> = {
+type FieldExceptionHandlerContext<Field, Path extends string, Exception> = {
   readonly field: Field;
   readonly path: Path;
   readonly runtimePath: ReadonlyArray<string | number>;
@@ -154,10 +150,7 @@ Le type de `exception` doit être réduit au code du handler. Un handler
 ### Contrat partagé
 
 ```ts
-type FieldExceptionVisibilityState =
-  | 'dirty'
-  | 'touched'
-  | 'submitted';
+type FieldExceptionVisibilityState = 'dirty' | 'touched' | 'submitted';
 
 type FieldExceptionVisibility =
   | 'visibleExceptions'
@@ -183,11 +176,11 @@ Cette règle garantit qu'un message rendu par `fieldExceptionBlock` apparaît et
 disparaît au même moment que la même exception lue via les helpers
 `visibleExceptions` du formulaire.
 
-La configuration actuelle est préservée comme valeur par défaut :
+La valeur par défaut attend le blur du champ ou une tentative de soumission :
 
 ```ts
 {
-  anyOf: ['dirty', 'submitted'];
+  anyOf: ['touched', 'submitted'];
 }
 ```
 
@@ -437,7 +430,7 @@ La boundary locale doit pouvoir relier les messages au contrôle :
 
 1. Extraire le calcul actuel de visibilité depuis `insertFormAttributes`.
 2. Ajouter `exceptionVisibility` avec la valeur par défaut
-   `dirty || submitted`.
+   `touched || submitted`.
 3. Faire utiliser la policy par tous les helpers `visible*`.
 4. Faire de `visibleExceptions` la source runtime de la boundary lorsque
    `visibility` est omis ou vaut `'visibleExceptions'`.
@@ -526,7 +519,8 @@ La matrice négative doit aussi couvrir :
 ## Tests runtime
 
 - aucun message sur un champ pristine avec la policy par défaut ;
-- affichage dès que le champ devient dirty ;
+- aucune apparition au changement de valeur tant que le champ n'a pas reçu de blur ;
+- affichage après blur uniquement pour le champ touché ;
 - affichage après blur avec une policy `touched` ;
 - affichage après tentative de soumission ;
 - égalité de comportement entre un block sans option et `visibleExceptions` ;
@@ -547,16 +541,16 @@ La matrice négative doit aussi couvrir :
 
 ## Risques
 
-| Risque | Réponse |
-| --- | --- |
-| Profondeur excessive des types | Transporter une union plate de cas et construire les maps uniquement à la boundary. |
-| Collision de codes entre champs | Inclure le chemin dans l'identité du cas. |
-| Confusion avec `catchBlock` | Maintenir des carriers et un runtime distincts. |
-| Divergence de visibilité | Consommer directement `visibleExceptions` par défaut et centraliser sa policy dans le formulaire. |
-| Effets de bord depuis les handlers | Documenter et tester un contrat de rendu pur. |
-| Fuite de sources ou de messages | Lier l'enregistrement au lifecycle du nœud et tester le cleanup. |
-| Pollution des routes | Exclure explicitement les carriers de champs de `RouteExceptionUnion`. |
-| Handlers trop génériques | Réduire exception, payload, chemin et champ pour chaque entrée. |
+| Risque                             | Réponse                                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Profondeur excessive des types     | Transporter une union plate de cas et construire les maps uniquement à la boundary.               |
+| Collision de codes entre champs    | Inclure le chemin dans l'identité du cas.                                                         |
+| Confusion avec `catchBlock`        | Maintenir des carriers et un runtime distincts.                                                   |
+| Divergence de visibilité           | Consommer directement `visibleExceptions` par défaut et centraliser sa policy dans le formulaire. |
+| Effets de bord depuis les handlers | Documenter et tester un contrat de rendu pur.                                                     |
+| Fuite de sources ou de messages    | Lier l'enregistrement au lifecycle du nœud et tester le cleanup.                                  |
+| Pollution des routes               | Exclure explicitement les carriers de champs de `RouteExceptionUnion`.                            |
+| Handlers trop génériques           | Réduire exception, payload, chemin et champ pour chaque entrée.                                   |
 
 ## Critères de réussite
 

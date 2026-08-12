@@ -75,6 +75,7 @@ const LoginFormComponent = craftComponent(
     return loginForm;
   },
   (loginForm) =>
+    // exceptions are volontary handled at different place for demo reasons
     form(
       {
         *submit(event) {

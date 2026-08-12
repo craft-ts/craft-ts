@@ -31,6 +31,12 @@ describe('LoginFormComponent', () => {
     expect(password?.minLength).toBe(6);
     expect(password?.classList.contains('craft-invalid')).toBe(true);
 
+    email?.dispatchEvent(new Event('blur', { bubbles: true }));
+    TestBed.tick();
+
+    expect(element.textContent).toContain('Email is required.');
+    expect(element.textContent).not.toContain('Password is required.');
+
     element
       .querySelector<HTMLFormElement>('form')
       ?.dispatchEvent(
