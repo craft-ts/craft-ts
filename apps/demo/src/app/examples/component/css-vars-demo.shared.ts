@@ -2,9 +2,9 @@ import { a, craftComponent, nav } from '@craft-ng/component';
 import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ng/core';
 
 const CSS_VARS_LINKS = [
-  ['Vue d’ensemble', { to: 'css-vars' }],
-  ['Requis et optionnels', { to: 'css-vars/required' }],
-  ['Héritage', { to: 'css-vars/inheritance' }],
+  ['Overview', { to: 'css-vars' }],
+  ['Required and optional', { to: 'css-vars/required' }],
+  ['Inheritance', { to: 'css-vars/inheritance' }],
   ['Forwarding', { to: 'css-vars/forwarding' }],
   ['@property', { to: 'css-vars/property' }],
 ] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
@@ -30,7 +30,7 @@ export const CssVarsPageNav = craftComponent(
   () => ({}),
   () =>
     nav(
-      { 'aria-label': 'Exemples de variables CSS' },
+      { 'aria-label': 'CSS variable examples' },
       CSS_VARS_LINKS.map(([label, link]) =>
         a({ craftRouterLink: link }, label).pipe(CraftRouterLink),
       ),

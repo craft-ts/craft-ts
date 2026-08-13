@@ -12,8 +12,7 @@ import {
   craftComputed,
   craftRegisterFor,
   craftService,
-  state,
-} from '@craft-ng/core';
+  state, craftUse } from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -44,7 +43,7 @@ const CounterChild = craftComponent(
   },
   ({ counter }) =>
     div([
-      span({ class: 'value' }, () => counter()),
+      span({ class: 'value' }, () => craftUse(counter())),
       div({ class: 'actions' }, [
         button({ click: counter.decrement }, '-'),
         button({ click: counter.increment }, '+'),
@@ -97,13 +96,11 @@ const RegisterForDemo = craftComponent(
 
     const childComponents = yield* RegisterForCounterChild();
     const counterTotal = yield* RegisterForCounter.total();
-    const childTotal = craftComputed(
-      'childTotal',
-      () => childComponents.total(),
+    const childTotal = craftComputed('childTotal', function* () {
+        const _childComponentstotal = yield* childComponents.total(); return _childComponentstotal; },
     );
-    const serviceTotal = craftComputed(
-      'serviceTotal',
-      () => counterTotal(),
+    const serviceTotal = craftComputed('serviceTotal', function* () {
+        const _counterTotal = yield* counterTotal(); return _counterTotal; },
     );
 
     return {
@@ -135,7 +132,8 @@ const RegisterForDemo = craftComponent(
           // These signals are also yieldable Craft values, but this template
           // only reads their synchronous signal value for display.
           // eslint-disable-next-line craft-ng/require-yieldable-template-method
-          () => `services: ${serviceTotal()} · components: ${childTotal()}`,
+          () =>
+            `services: ${craftUse(serviceTotal())} · components: ${craftUse(childTotal())}`,
         ),
       ]),
       div(

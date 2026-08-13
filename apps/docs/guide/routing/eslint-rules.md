@@ -36,6 +36,9 @@ export default [
       'craft-ng/prefer-craft-template-blocks': 'error',
       'craft-ng/no-render-writes': 'error',
       'craft-ng/require-reactive-template-bindings': 'error',
+      'craft-ng/no-craft-use-in-template': 'error',
+      'craft-ng/no-craft-computed-side-effects': 'error',
+      'craft-ng/require-craft-method-for-yieldable-callback': 'error',
       'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -68,6 +71,8 @@ What each rule does:
 - `craft-ng/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
 - `craft-ng/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ng/require-reactive-template-bindings`: requires Angular Signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
+- `craft-ng/no-craft-use-in-template`: forbids the synchronous `craftUse(...)` escape hatch in Craft templates; pass the reactive reader directly, such as `status: usersQuery.currentPageStatus`
+- `craft-ng/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed
 - `craft-ng/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
@@ -78,6 +83,7 @@ What each rule does:
 - `craft-ng/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ code: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ng/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`
 - `craft-ng/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
+- `craft-ng/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
 - `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
 - `craft-ng/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
 - `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
@@ -143,6 +149,22 @@ from DOM events and `onXxx` output callbacks. Because the rule is type-aware,
 the ESLint parser must use `projectService: true` or a TypeScript `project`.
 
 If your project is adopting this progressively, enable both `craft-ng/brand-angular-gen-deps-required` and `craft-ng/brand-angular-deps-match` so the same Quick Fix can generate missing aliases and refresh existing ones. `craft-ng/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
+
+### Yield insertion writes from generator methods
+
+`require-yieldable-insertion-write` requires `set(...)`, `patch(...)`, and
+`update(...)` calls to be delegated with `yield*` when they are used inside a
+generator method:
+
+```ts
+nextPage: function* () {
+  const current = yield* state();
+  return yield* patch({ page: current.page + 1 });
+},
+```
+
+Insertion callbacks that are not generators may return a write directly; the
+insertion wrapper consumes that result for them.
 
 ## What generates what
 

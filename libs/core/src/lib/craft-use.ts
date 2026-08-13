@@ -33,13 +33,21 @@ export function craftUse<Yielded, Output>(
   invocation: Generator<Yielded, Output, unknown>,
 ): Output;
 export function craftUse<Yielded, Output>(
+  invocation: Generator<Yielded, Output, unknown> | undefined,
+): Output | undefined;
+export function craftUse<Yielded, Output>(
   factory: () => Generator<Yielded, Output, unknown>,
 ): Output;
+export function craftUse<Value>(value: Value): Value;
 export function craftUse(
   input:
     | Generator<unknown, unknown, unknown>
-    | (() => Generator<unknown, unknown, unknown>),
+    | undefined
+    | (() => Generator<unknown, unknown, unknown>)
+    | unknown,
 ): unknown {
+  if (input === undefined) return undefined;
+  if (!isGenerator(input) && typeof input !== 'function') return input;
   const iterator = isGenerator(input) ? input : input();
 
   // Capture the ambient injector when available. Driving a trivial primitive

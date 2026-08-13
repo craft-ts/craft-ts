@@ -11,7 +11,10 @@ import {
   span,
   ul,
 } from '@craft-ng/component';
-import { mutation, query, state } from '@craft-ng/core';
+import {
+  mutation,
+  query,
+  state, craftUse } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };
@@ -23,11 +26,12 @@ const FullDemo = craftComponent(
   },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
-      take: () => {
-        const id = state();
-        update((value) => value + 1);
-        return id;
-      },
+      take: function* () {
+            const _state = yield* state();
+                const id = _state;
+                update((value) => value + 1);
+                return id;
+              },
     }));
     const records = yield* state(
       'records',
@@ -47,7 +51,8 @@ const FullDemo = craftComponent(
     const todos = yield* query('todos', {
       params: refresh,
       loader: function* () {
-        return [...records()];
+          const _records = yield* records();
+        return [..._records];
       },
     });
     const addTodo = yield* mutation('addTodo', {
@@ -82,14 +87,14 @@ const FullDemo = craftComponent(
     return div([
       h2([
         'Full primitives demo ',
-        StatusComponent({ status: () => todos.status() }),
+        StatusComponent({ status: () => craftUse(todos.status()) }),
       ]),
       p('Query, mutations, optimistic interaction and functional rendering.'),
       div([
         input('TodoNameToAddInput', {
           type: 'text',
           placeholder: 'New todo',
-          value: () => titleInput(),
+          value: () => craftUse(titleInput()),
           *input(event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
@@ -97,9 +102,9 @@ const FullDemo = craftComponent(
         button(
           'AddTodoButton',
           {
-            disabled: () => addTodo.isLoading(),
+            disabled: () => craftUse(addTodo.isLoading()),
             *click() {
-              const trimmedTitle = titleInput().trim() ?? ''; // todo handle that in the state
+              const trimmedTitle = (yield* titleInput()).trim() ?? ''; // todo handle that in the state
               if (trimmedTitle) {
                 yield* addTodo.mutate(trimmedTitle);
               }
@@ -118,7 +123,7 @@ const FullDemo = craftComponent(
               button(
                 'RemoveTodoButton',
                 {
-                  disabled: () => removeTodo.isLoading(),
+                  disabled: () => craftUse(removeTodo.isLoading()),
                   *click() {
                     yield* removeTodo.mutate(todo.id);
                   },

@@ -13,26 +13,26 @@ import { CssVarsPageNav } from './css-vars-demo.shared';
 const CASES = [
   {
     path: 'css-vars/required',
-    title: 'Valeurs requises et optionnelles',
+    title: 'Required and optional values',
     description:
-      'Comparer plusieurs instances, les fallbacks et le marqueur omit.',
+      'Compare multiple instances, fallbacks, and the omit marker.',
   },
   {
     path: 'css-vars/inheritance',
-    title: 'Héritage natif',
+    title: 'Native inheritance',
     description:
-      'Observer inherit et la résolution de la variable depuis un parent.',
+      'Observe inherit and how the variable resolves from a parent.',
   },
   {
     path: 'css-vars/forwarding',
-    title: 'Forwarding et surcharge',
+    title: 'Forwarding and overrides',
     description:
-      'Transformer les tokens d’un enfant en API optionnelle du parent.',
+      "Turn a child's tokens into an optional parent API.",
   },
   {
     path: 'css-vars/property',
     title: '@property',
-    description: 'Enregistrer un token numérique possédé par le composant.',
+    description: 'Register a numeric token owned by the component.',
   },
 ] as const;
 
@@ -76,13 +76,13 @@ export const CssVarsDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-demo__intro' }, [
-        h1('Variables CSS typées'),
+        h1('Typed CSS variables'),
         p(
-          'Chaque mécanisme dispose maintenant de sa propre page pour isoler son comportement et son contrat.',
+          'Each mechanism now has its own page to isolate its behavior and contract.',
         ),
       ]),
       section(
-        { class: 'css-vars-demo__grid', 'aria-label': 'Cas illustrés' },
+        { class: 'css-vars-demo__grid', 'aria-label': 'Examples' },
         CASES.map(({ path, title, description }) =>
           a(
             {

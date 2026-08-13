@@ -20,8 +20,7 @@ import {
   insertReactOnMutation,
   mutation,
   query,
-  state,
-} from '@craft-ng/core';
+  state, craftUse } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 export type Todo = { readonly id: number; readonly title: string };
@@ -30,11 +29,12 @@ export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
-      take: () => {
-        const id = state();
-        update((value) => value + 1);
-        return id;
-      },
+      take: function* () {
+            const _state = yield* state();
+                const id = _state;
+                update((value) => value + 1);
+                return id;
+              },
     }));
     const records = yield* state(
       'records',
@@ -76,7 +76,8 @@ export const { provideTodoStore, TodoStore } = craftService(
             // add an exception to the query signature, it will force this component or his host to handle this exception
             return craftException({ code: 'FAILED_TO_LOAD' });
           }
-          return [...records()];
+          const _records = yield* records();
+          return [..._records];
         }),
       },
       insertQueryPipe(
@@ -119,13 +120,13 @@ const FullDemoCraft = craftComponent(
     return div([
       h2([
         'Full craftService demo ',
-        StatusComponent({ status: () => store.todos.status() }),
+        StatusComponent({ status: () => craftUse(store.todos.status()) }),
       ]),
       p('A toProvide service composed from a query and two mutations.'),
       div([
         input('TodoNameToAddInput', {
           placeholder: 'New todo',
-          value: () => titleInput(),
+          value: () => craftUse(titleInput()),
           *input(event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
@@ -133,7 +134,7 @@ const FullDemoCraft = craftComponent(
         button(
           'AddTodoButton',
           {
-            disabled: () => store.add.isLoading(),
+            disabled: () => craftUse(store.add.isLoading()),
             *click() {
               const title = yield* titleInput();
               yield* store.add.mutate((title ?? '').trim());
@@ -152,7 +153,7 @@ const FullDemoCraft = craftComponent(
               button(
                 'RemoveTodoButton',
                 {
-                  disabled: () => store.remove.isLoading(),
+                  disabled: () => craftUse(store.remove.isLoading()),
                   *click() {
                     yield* store.remove.mutate(todo.id);
                   },

@@ -15,8 +15,7 @@ import {
   craftGen,
   craftSleep,
   query,
-  state,
-} from '@craft-ng/core';
+  state, craftUse } from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
@@ -88,16 +87,23 @@ const ExceptionsComponent = craftComponent(
       },
       ({ resource }) => ({
         hasUser: computed(() => resource.hasValue()),
-        isLoading: computed(() => resource.isLoading()),
+        isLoading: computed(() => craftUse(resource.isLoading())),
       }),
     );
     return { scenario, userQuery };
   },
   ({ scenario, userQuery }) => {
     const currentUser = () =>
-      userQuery.value() as { id: string; name: string; email: string };
+      craftUse(userQuery.value()) as {
+        id: string;
+        name: string;
+        email: string;
+      };
     return div([
-      h3(() => `Query user with business exceptions (${userQuery.status()})`),
+      h3(
+        () =>
+          `Query user with business exceptions (${craftUse(userQuery.status())})`,
+      ),
       div({ class: 'exception-actions' }, [
         button(
           {
@@ -141,16 +147,20 @@ const ExceptionsComponent = craftComponent(
             p([strong('Email: '), () => currentUser().email]),
           ]),
         () => [
-          matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
-            UserNotFoundException: () =>
-              p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
-            UserConsentMissingException: () =>
-              p(
-                '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
-              ),
-            UserAccessForbiddenException: () =>
-              p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
-          }),
+          matchBlock.exhaustive(
+            () => craftUse(userQuery.exceptions()).loader,
+            'code',
+            {
+              UserNotFoundException: () =>
+                p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
+              UserConsentMissingException: () =>
+                p(
+                  '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
+                ),
+              UserAccessForbiddenException: () =>
+                p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
+            },
+          ),
           ifBlock(userQuery.isLoading, () => p('Loading user…')),
         ],
       ),

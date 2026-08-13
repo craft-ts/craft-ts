@@ -81,7 +81,8 @@ describe('insertForm compatibility with queryParams', () => {
 
   it('exposes a working form at runtime over the query param state', () => {
     TestBed.runInInjectionContext(() => {
-      const params = craftUse(queryParams(
+      const params = craftUse(
+        queryParams(
           'params',
           {
             state: {
@@ -106,15 +107,16 @@ describe('insertForm compatibility with queryParams', () => {
       );
 
       expect(params.form).toBeDefined();
-      expect(params.form.name.value()).toBe('romain');
-      expect(params.form.page.value()).toBe(1);
-      expect(params.form.value()).toEqual({ name: 'romain', page: 1 });
+      expect(craftUse(params.form.name.value())).toBe('romain');
+      expect(craftUse(params.form.page.value())).toBe(1);
+      expect(craftUse(params.form.value())).toEqual({ name: 'romain', page: 1 });
     });
   });
 
   it('runs chained insertions inside a queryParams context', () => {
     TestBed.runInInjectionContext(() => {
-      const params = craftUse(queryParams(
+      const params = craftUse(
+        queryParams(
           'params',
           {
             state: {
@@ -132,8 +134,7 @@ describe('insertForm compatibility with queryParams', () => {
               getName: () => field.name.value(),
             }),
             ({ insertions }) => ({
-              upperName: () =>
-                craftUse(insertions.getName()).toUpperCase(),
+              upperName: () => craftUse(insertions.getName()).toUpperCase(),
             }),
           ),
         ),
@@ -156,23 +157,23 @@ describe('insertForm compatibility with query', () => {
   it('infers the field tree type from the resource state (not unknown)', () => {
     craftService({ name: 'UserStoreTyping', scope: 'global' }, function* () {
       return {
-        user: (yield* query(
-                    'user',
-                    {
-                      params: () => '5',
-                      loader: async ({ params }): Promise<User> => ({
-                        id: params,
-                        name: 'John Doe',
-                        email: 'john@doe.com',
-                      }),
-                    },
-                    insertForm(({ field }) => {
-                      expectTypeOf(field.name.value()).toEqualTypeOf<string>();
-                      expectTypeOf(field.email.value()).toEqualTypeOf<string>();
-                      expectTypeOf(field.id.value()).toEqualTypeOf<string>();
-                      return {};
-                    }),
-                  )),
+        user: yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }): Promise<User> => ({
+              id: params,
+              name: 'John Doe',
+              email: 'john@doe.com',
+            }),
+          },
+          insertForm(({ field }) => {
+            expectTypeOf(field.name.value()).toEqualTypeOf<string>();
+            expectTypeOf(field.email.value()).toEqualTypeOf<string>();
+            expectTypeOf(field.id.value()).toEqualTypeOf<string>();
+            return {};
+          }),
+        ),
       };
     });
   });
@@ -182,18 +183,18 @@ describe('insertForm compatibility with query', () => {
       { name: 'UserStore', scope: 'global' },
       function* () {
         return {
-          user: (yield* query(
-                        'user',
-                        {
-                          params: () => '5',
-                          loader: async ({ params }): Promise<User> => ({
-                            id: params,
-                            name: 'John Doe',
-                            email: 'john@doe.com',
-                          }),
-                        },
-                        insertForm(),
-                      )),
+          user: yield* query(
+            'user',
+            {
+              params: () => '5',
+              loader: async ({ params }): Promise<User> => ({
+                id: params,
+                name: 'John Doe',
+                email: 'john@doe.com',
+              }),
+            },
+            insertForm(),
+          ),
         };
       },
     );
@@ -204,8 +205,8 @@ describe('insertForm compatibility with query', () => {
 
       await vi.runAllTimersAsync();
 
-      expect(store.user.form.name.value()).toBe('John Doe');
-      expect(store.user.form.email.value()).toBe('john@doe.com');
+      expect(craftUse(store.user.form.name.value())).toBe('John Doe');
+      expect(craftUse(store.user.form.email.value())).toBe('john@doe.com');
     });
   });
 });
@@ -213,7 +214,8 @@ describe('insertForm compatibility with query', () => {
 describe('insertForm regression with state primitive', () => {
   it('still infers the field tree type and works over a plain state', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ field }) => {
@@ -226,7 +228,7 @@ describe('insertForm regression with state primitive', () => {
         ),
       );
 
-      expect(loginForm.form.name.value()).toBe('romain');
+      expect(craftUse(loginForm.form.name.value())).toBe('romain');
       expect(craftUse(loginForm.form.getName())).toBe('romain');
     });
   });

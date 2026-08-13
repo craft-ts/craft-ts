@@ -34,7 +34,8 @@ describe('insertFormSubmit', () => {
 
   it('submits without config (no second argument) — stays clean of exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) => {
             expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
             return validatedLogin;
@@ -45,7 +46,8 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           {
             id: '1',
@@ -56,24 +58,25 @@ describe('insertFormSubmit', () => {
         ),
       );
 
-      expect(loginForm.form.submitting()).toBe(false);
-      expect(loginForm.form.hasSubmitExceptions()).toBe(false);
-      expect(loginForm.form.submitExceptions()).toEqual([]);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
+      expect(craftUse(loginForm.form.hasSubmitExceptions())).toBe(false);
+      expect(craftUse(loginForm.form.submitExceptions())).toEqual([]);
 
       loginForm.form.submit();
       await vi.advanceTimersByTimeAsync(5000);
-      expect(loginForm.form.submitting()).toBe(true);
+      expect(craftUse(loginForm.form.submitting())).toBe(true);
       await vi.advanceTimersByTimeAsync(6000);
-      expect(loginForm.form.submitting()).toBe(false);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
       // No config, no resource exception → submit ends clean.
-      expect(loginForm.form.hasSubmitExceptions()).toBe(false);
-      expect(loginForm.form.submitExceptions()).toEqual([]);
+      expect(craftUse(loginForm.form.hasSubmitExceptions())).toBe(false);
+      expect(craftUse(loginForm.form.submitExceptions())).toEqual([]);
     });
   });
 
   it('reflects mutation exceptions on the form', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (login: ValidatedFormValue<LoginData>) => login,
           loader: async () => {
             await wait(10000);
@@ -84,7 +87,8 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { id: '1', name: 'John', password: '1234' } satisfies LoginData,
           insertForm(insertFormSubmit(submitRef)),
@@ -94,8 +98,8 @@ describe('insertFormSubmit', () => {
       loginForm.form.submit();
       await vi.advanceTimersByTimeAsync(11000);
 
-      expect(loginForm.form.hasSubmitExceptions()).toBe(true);
-      const exceptions = loginForm.form.submitExceptions();
+      expect(craftUse(loginForm.form.hasSubmitExceptions())).toBe(true);
+      const exceptions = craftUse(loginForm.form.submitExceptions());
       expectTypeOf(
         exceptions[0]?.code,
       ).toEqualTypeOf<'NameAlreadyExistsException'>();
@@ -106,28 +110,31 @@ describe('insertFormSubmit', () => {
 
   it('marks hasAttemptedSubmit on submit()', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (login: ValidatedFormValue<LoginData>) => login,
           loader: async ({ params }) => params,
         }),
       );
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { id: '1', name: 'John', password: '1234' } satisfies LoginData,
           insertForm(insertFormSubmit(submitRef)),
         ),
       );
 
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(false);
       loginForm.form.submit();
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
     });
   });
 
   it('does not call the loader when the form is invalid', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (validatedValue: ValidatedFormValue<string>) =>
             validatedValue,
           loader: async ({ params }) => {
@@ -136,7 +143,8 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           '' as string,
           insertForm(
@@ -148,12 +156,12 @@ describe('insertFormSubmit', () => {
         ),
       );
 
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(false);
       loginForm.form.submit();
 
       expect(loaderSpy).not.toHaveBeenCalled();
-      expect(loginForm.form.submitting()).toBe(false);
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
     });
   });
 
@@ -163,7 +171,8 @@ describe('insertFormSubmit', () => {
   it('does not call the loader when a sub-field validator fails', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (
             validatedValue: ValidatedFormValue<{ name: string; age: number }>,
           ) => validatedValue,
@@ -173,7 +182,8 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const userForm = craftUse(state(
+      const userForm = craftUse(
+        state(
           'userForm',
           { name: '', age: 0 },
           insertForm(
@@ -197,20 +207,21 @@ describe('insertFormSubmit', () => {
       // Yield a microtask so the registration revision bumps propagate.
       await Promise.resolve();
 
-      expect(userForm.form.invalid()).toBe(true);
-      expect(userForm.form.valid()).toBe(false);
+      expect(craftUse(userForm.form.invalid())).toBe(true);
+      expect(craftUse(userForm.form.valid())).toBe(false);
 
       userForm.form.submit();
 
       expect(loaderSpy).not.toHaveBeenCalled();
-      expect(userForm.form.hasAttemptedSubmit()).toBe(true);
+      expect(craftUse(userForm.form.hasAttemptedSubmit())).toBe(true);
     });
   });
 
   describe('config callbacks', () => {
     it('success callback adds exceptions on resolved (no mutation exception)', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = craftUse(mutation('submitRef', {
+        const submitRef = craftUse(
+          mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async ({ params }) => {
               await wait(10);
@@ -218,18 +229,20 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const loginForm = craftUse(state(
+        const loginForm = craftUse(
+          state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(
               insertFormSubmit(submitRef, {
-                success: ({ submitCraftResource }) =>
-                  submitCraftResource.value()?.name === 'John'
+                success: function* ({ submitCraftResource }) {
+                  return (yield* submitCraftResource.value())?.name === 'John'
                     ? craftException(
                         { code: 'NameAlreadyExistsExceptionFromSuccess' },
                         undefined,
                       )
-                    : undefined,
+                    : undefined;
+                },
               }),
             ),
           ),
@@ -238,7 +251,7 @@ describe('insertFormSubmit', () => {
         loginForm.form.submit();
         await vi.advanceTimersByTimeAsync(20);
 
-        const exceptions = loginForm.form.submitExceptions();
+        const exceptions = craftUse(loginForm.form.submitExceptions());
         expectTypeOf(
           exceptions[0]?.code,
         ).toEqualTypeOf<'NameAlreadyExistsExceptionFromSuccess'>();
@@ -251,7 +264,8 @@ describe('insertFormSubmit', () => {
 
     it('exceptions rules can omit mutation exceptions and add typed form submit exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = craftUse(mutation('submitRef', {
+        const submitRef = craftUse(
+          mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
@@ -262,7 +276,8 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const loginForm = craftUse(state(
+        const loginForm = craftUse(
+          state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(
@@ -270,7 +285,8 @@ describe('insertFormSubmit', () => {
                 exceptions: [
                   ({ omit }) => omit(['NameAlreadyExistsException']),
                   ({ submitCraftResource }) => {
-                    const list = submitCraftResource.exceptions()?.list ?? [];
+                    const list =
+                      craftUse(submitCraftResource.exceptions())?.list ?? [];
                     expectTypeOf(
                       list[0]?.code,
                     ).toEqualTypeOf<'NameAlreadyExistsException'>();
@@ -293,7 +309,7 @@ describe('insertFormSubmit', () => {
         loginForm.form.submit();
         await vi.advanceTimersByTimeAsync(20);
 
-        const exceptions = loginForm.form.submitExceptions();
+        const exceptions = craftUse(loginForm.form.submitExceptions());
         expectTypeOf(
           exceptions[0]?.code,
         ).toEqualTypeOf<'NameAlreadyExistsExceptionFromException'>();
@@ -306,7 +322,8 @@ describe('insertFormSubmit', () => {
 
     it('exceptions rules can omit specific mutation exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = craftUse(mutation('submitRef', {
+        const submitRef = craftUse(
+          mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
@@ -317,7 +334,8 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const loginForm = craftUse(state(
+        const loginForm = craftUse(
+          state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(
@@ -333,17 +351,18 @@ describe('insertFormSubmit', () => {
         loginForm.form.submit();
         await vi.advanceTimersByTimeAsync(20);
 
-        const exceptions = loginForm.form.submitExceptions();
+        const exceptions = craftUse(loginForm.form.submitExceptions());
         expectTypeOf(exceptions).toEqualTypeOf<never[]>();
         expect(exceptions).toEqual([]);
-        expect(loginForm.form.hasSubmitExceptions()).toBe(true);
+        expect(craftUse(loginForm.form.hasSubmitExceptions())).toBe(true);
       });
     });
 
     it('success callback does NOT fire when the mutation returned an exception', async () => {
       await TestBed.runInInjectionContext(async () => {
         const successSpy = vi.fn(() => undefined);
-        const submitRef = craftUse(mutation('submitRef', {
+        const submitRef = craftUse(
+          mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
@@ -351,7 +370,8 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const loginForm = craftUse(state(
+        const loginForm = craftUse(
+          state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(insertFormSubmit(submitRef, { success: successSpy })),
@@ -367,7 +387,8 @@ describe('insertFormSubmit', () => {
 
     it('resets the form after a successful resolved mutation', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = craftUse(mutation('submitRef', {
+        const submitRef = craftUse(
+          mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async ({ params }) => {
               await wait(10);
@@ -375,7 +396,8 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const loginForm = craftUse(state(
+        const loginForm = craftUse(
+          state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(insertFormSubmit(submitRef)),
@@ -383,12 +405,12 @@ describe('insertFormSubmit', () => {
         );
 
         loginForm.form.name.set('Jane');
-        expect(loginForm.form.dirty()).toBe(true);
+        expect(craftUse(loginForm.form.dirty())).toBe(true);
 
         loginForm.form.submit();
         await vi.advanceTimersByTimeAsync(20);
 
-        expect(loginForm.form.dirty()).toBe(false);
+        expect(craftUse(loginForm.form.dirty())).toBe(false);
       });
     });
   });
@@ -404,7 +426,8 @@ describe('insertFormSubmit — parallel forms', () => {
 
   it('each parallel form has its own submitting state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) => {
             expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
             return validatedLogin;
@@ -417,7 +440,8 @@ describe('insertFormSubmit — parallel forms', () => {
         }),
       );
 
-      const loginForms = craftUse(state(
+      const loginForms = craftUse(
+        state(
           'loginForms',
           [
             { id: '1', name: '1', password: '' },
@@ -438,29 +462,30 @@ describe('insertFormSubmit — parallel forms', () => {
       expect(form1).toBeDefined();
       expect(form2).toBeDefined();
 
-      expect(form1!.submitExceptions()).toEqual([]);
-      expect(form2!.submitExceptions()).toEqual([]);
+      expect(craftUse(form1!.submitExceptions())).toEqual([]);
+      expect(craftUse(form2!.submitExceptions())).toEqual([]);
 
       form1!.setName('John');
       form1!.submit();
 
       await vi.advanceTimersByTimeAsync(5000);
       // Only form 1 is in flight
-      expect(form1!.submitting()).toBe(true);
-      expect(form2!.submitting()).toBe(false);
+      expect(craftUse(form1!.submitting())).toBe(true);
+      expect(craftUse(form2!.submitting())).toBe(false);
 
       await vi.advanceTimersByTimeAsync(6000);
-      expect(form1!.submitting()).toBe(false);
-      expect(form2!.submitting()).toBe(false);
+      expect(craftUse(form1!.submitting())).toBe(false);
+      expect(craftUse(form2!.submitting())).toBe(false);
 
-      expect(form1!.value().name).toBe('John');
-      expect(form2!.value().name).toBe('2');
+      expect(craftUse(form1!.value()).name).toBe('John');
+      expect(craftUse(form2!.value()).name).toBe('2');
     });
   });
 
   it('each parallel form has its own exceptions and override callbacks', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = craftUse(mutation('submitRef', {
+      const submitRef = craftUse(
+        mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) =>
             validatedLogin,
           identifier: ({ id }: { id: string }) => id,
@@ -474,7 +499,8 @@ describe('insertFormSubmit — parallel forms', () => {
         }),
       );
 
-      const loginForms = craftUse(state(
+      const loginForms = craftUse(
+        state(
           'loginForms',
           [
             { id: '1', name: '1', password: '' },
@@ -485,8 +511,8 @@ describe('insertFormSubmit — parallel forms', () => {
             insertFormSubmit(submitRef, {
               exceptions: [
                 ({ omit }) => omit(['NameAlreadyExistsException']),
-                ({ submitCraftResource }) => {
-                  const list = submitCraftResource.exceptions()?.list ?? [];
+                function* ({ submitCraftResource }) {
+                  const list = (yield* submitCraftResource.exceptions()).list;
                   if (
                     list.some((e) => e.code === 'NameAlreadyExistsException')
                   ) {
@@ -510,8 +536,8 @@ describe('insertFormSubmit — parallel forms', () => {
       form1!.submit();
       await vi.advanceTimersByTimeAsync(20);
 
-      expect(form1!.hasSubmitExceptions()).toBe(true);
-      const f1Exceptions = form1!.submitExceptions();
+      expect(craftUse(form1!.hasSubmitExceptions())).toBe(true);
+      const f1Exceptions = craftUse(form1!.submitExceptions());
       expectTypeOf(
         f1Exceptions[0]?.code,
       ).toEqualTypeOf<'NameAlreadyExistsExceptionFromException'>();
@@ -520,8 +546,8 @@ describe('insertFormSubmit — parallel forms', () => {
         'NameAlreadyExistsExceptionFromException',
       );
 
-      expect(form2!.hasSubmitExceptions()).toBe(false);
-      expect(form2!.submitExceptions()).toEqual([]);
+      expect(craftUse(form2!.hasSubmitExceptions())).toBe(false);
+      expect(craftUse(form2!.submitExceptions())).toEqual([]);
     });
   });
 });

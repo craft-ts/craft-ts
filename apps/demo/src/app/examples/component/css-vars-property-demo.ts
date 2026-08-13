@@ -36,7 +36,7 @@ const RegisteredMeter = craftComponent(
   () => ({}),
   () =>
     div([
-      span('Token enregistré et validé par le navigateur'),
+      span('Token registered and validated by the browser'),
       div(
         { class: 'registered-meter__track' },
         div({ class: 'registered-meter__fill' }),
@@ -60,9 +60,9 @@ export const CssVarsPropertyDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-property__intro' }, [
-        h1('@property possédé par le composant'),
+        h1('Component-owned @property'),
         p(
-          'Le premier compteur utilise initial-value: 35. Le second reçoit une valeur numérique de 78.',
+          'The first meter uses initial-value: 35. The second receives a numeric value of 78.',
         ),
       ]),
       div({ class: 'css-vars-property__grid' }, [

@@ -20,8 +20,7 @@ import {
   insertReactOnMutation,
   mutation,
   query,
-  queryParams,
-} from '@craft-ng/core';
+  queryParams, craftUse } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -33,8 +32,10 @@ export const { provideGranularMutation, GranularMutation } = craftService(
       'pagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
+        nextPage: function* () {
+              const _state = yield* state(); return patch({ page: _state.page + 1 }); },
+        previousPage: function* () {
+            const _state = yield* state(); return patch({ page: Math.max(1, _state.page - 1) }); },
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -106,7 +107,7 @@ const GranularMutationCraft = craftComponent(
             h2({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
-                status: () => users.currentPageStatus(),
+                status: () => craftUse(users.currentPageStatus()),
               }),
             ]),
             div({ class: 'table-container' }, [
@@ -141,9 +142,11 @@ const GranularMutationCraft = craftComponent(
                               'Update Name',
                               StatusComponent({
                                 status: () =>
-                                  updateUserName
-                                    .selectOrCreate(user.id)
-                                    .status(),
+                                  craftUse(
+                                    updateUserName
+                                      .selectOrCreate(user.id)
+                                      .status(),
+                                  ),
                               }),
                             ],
                           ),
@@ -157,7 +160,7 @@ const GranularMutationCraft = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: () => String(pagination().pageSize),
+                  value: () => String(craftUse(pagination()).pageSize),
                   style: { marginRight: '8px' },
                   *change(event) {
                     yield* updatePageSize(event);
@@ -167,7 +170,8 @@ const GranularMutationCraft = craftComponent(
                   option(
                     {
                       value: String(size),
-                      selected: () => size === pagination().pageSize,
+                      selected: () =>
+                        size === craftUse(pagination()).pageSize,
                     },
                     size,
                   ),
@@ -181,7 +185,7 @@ const GranularMutationCraft = craftComponent(
               span(
                 'CurrentPage',
                 { class: 'current-page' },
-                () => pagination().page,
+                () => craftUse(pagination()).page,
               ),
               button(
                 'NextPage',

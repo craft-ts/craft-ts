@@ -15,8 +15,10 @@ import {
   insertStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
+  craftMethod,
   query,
   queryParams,
+  craftUse,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -33,8 +35,14 @@ const ListWithPagination = craftComponent(
       'pagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
+        nextPage: function* () {
+          const _state = yield* state();
+          return patch({ page: _state.page + 1 });
+        },
+        previousPage: function* () {
+          const _state = yield* state();
+          return patch({ page: Math.max(1, _state.page - 1) });
+        },
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -56,17 +64,21 @@ const ListWithPagination = craftComponent(
           { initialValue: [] as User[] },
           ({ currentPageStatus }) => ({
             isCurrentPageResolved: computed(
-              () => currentPageStatus() === 'resolved',
+              () => craftUse(currentPageStatus()) === 'resolved',
             ),
           }),
         ),
       ),
     );
 
-    const updatePageSize = (event: Event) =>
-      pagination.updatePageSize(
-        Number((event.target as HTMLSelectElement).value),
-      );
+    const updatePageSize = craftMethod(
+      'updatePageSize',
+      function* (event: Event) {
+        yield* pagination.updatePageSize(
+          Number((event.target as HTMLSelectElement).value),
+        );
+      },
+    );
     return { pagination, usersQuery, updatePageSize };
   },
   ({ pagination, usersQuery, updatePageSize }) => {
@@ -74,7 +86,7 @@ const ListWithPagination = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => usersQuery.currentPageStatus(),
+          status: () => craftUse(usersQuery.currentPageStatus()),
         }),
       ]),
       h(
@@ -107,21 +119,25 @@ const ListWithPagination = craftComponent(
         select(
           'PageSize',
           {
-            value: () => String(pagination().pageSize),
+            value: () => String(craftUse(pagination()).pageSize),
             change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) =>
             option(
               {
                 value: String(size),
-                selected: () => size === pagination().pageSize,
+                selected: () => size === craftUse(pagination()).pageSize,
               },
               size,
             ),
           ),
         ),
         button('PreviousPage', { click: pagination.previousPage }, 'Previous'),
-        span('CurrentPage', { class: 'current-page' }, () => pagination().page),
+        span(
+          'CurrentPage',
+          { class: 'current-page' },
+          () => craftUse(pagination()).page,
+        ),
         button('NextPage', { click: pagination.nextPage }, 'Next'),
       ]),
     ]);

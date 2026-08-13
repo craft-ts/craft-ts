@@ -38,7 +38,8 @@ describe('typed insertion pipes', () => {
   it('composes state insertions, exposes previous outputs, and supports generators', () => {
     TestBed.runInInjectionContext(() => {
       const executionOrder: string[] = [];
-      const counter = craftUse(state(
+      const counter = craftUse(
+        state(
           'counter',
           0,
           insertStatePipe(
@@ -50,7 +51,7 @@ describe('typed insertion pipes', () => {
               executionOrder.push('second');
               expectTypeOf(insertions.first).toEqualTypeOf<number>();
               return {
-                second: computed(() => value() + insertions.first),
+                second: computed(() => craftUse(value()) + insertions.first),
               };
             },
           ),
@@ -61,13 +62,14 @@ describe('typed insertion pipes', () => {
       expectTypeOf(counter.first).toEqualTypeOf<number>();
       expectTypeOf(counter.second).toMatchTypeOf<Signal<number>>();
       expect(counter.first).toBe(1);
-      expect(counter.second()).toBe(1);
+      expect(craftUse(counter.second())).toBe(1);
     });
   });
 
   it('composes query insertions without an explicit context', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const users = craftUse(query(
+      const users = craftUse(
+        query(
           'users',
           {
             params: () => 'user-1',
@@ -90,7 +92,8 @@ describe('typed insertion pipes', () => {
 
   it('composes mutation insertions without an explicit context', () => {
     TestBed.runInInjectionContext(() => {
-      const save = craftUse(mutation(
+      const save = craftUse(
+        mutation(
           'save',
           {
             method: (value: string) => ({ value }),
@@ -113,7 +116,8 @@ describe('typed insertion pipes', () => {
   it('composes queryParams insertions without an explicit context', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     TestBed.runInInjectionContext(() => {
-      const pagination = craftUse(queryParams(
+      const pagination = craftUse(
+        queryParams(
           'pagination',
           {
             state: {
@@ -127,7 +131,9 @@ describe('typed insertion pipes', () => {
             },
           },
           insertQueryParamsPipe(
-            ({ state }) => ({ currentPage: computed(() => state().page) }),
+            ({ state }) => ({
+              currentPage: computed(() => craftUse(state()).page),
+            }),
             ({ insertions }) => ({
               nextPage: () => insertions.currentPage() + 1,
             }),
@@ -137,14 +143,15 @@ describe('typed insertion pipes', () => {
 
       expectTypeOf(pagination.currentPage).toMatchTypeOf<Signal<number>>();
       expectTypeOf(pagination.nextPage).toBeFunction();
-      expect(pagination.currentPage()).toBe(1);
+      expect(craftUse(pagination.currentPage())).toBe(1);
       expect(craftUse(pagination.nextPage())).toBe(2);
     });
   });
 
   it('composes asyncProcess insertions without an explicit context', () => {
     TestBed.runInInjectionContext(() => {
-      const process = craftUse(asyncProcess(
+      const process = craftUse(
+        asyncProcess(
           'process',
           {
             method: (value: string) => value,

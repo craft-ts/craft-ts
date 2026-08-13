@@ -9,6 +9,7 @@ import {
 } from './query.core';
 import { ResourceByIdRef } from './resource-by-id';
 import type { QueriesPersister } from './util/persister.type';
+import { rawReactiveFacade } from './reactive-read';
 
 type StoragePersisterServiceYield = ReturnType<
   typeof StoragePersister
@@ -65,6 +66,7 @@ export function insertStoragePersister<
           PreviousInsertionsOutputs
         >
       | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>;
+    const rawContext = rawReactiveFacade(context) as typeof context;
     const persister = yield* StoragePersister();
     const hasResourceById = 'resourceById' in context;
     const hasState = 'state' in context && !('resource' in context);
@@ -74,23 +76,23 @@ export function insertStoragePersister<
         typeof (context as unknown as ResourceByIdContext).identifier ===
           'function');
     const stateContext = hasState
-      ? (context as InsertionStateFactoryContext<
+      ? (rawContext as InsertionStateFactoryContext<
           StateType,
           PreviousInsertionsOutputs
         >)
       : undefined;
     const resourceTarget = hasResourceById
-      ? context.resourceById
+      ? (rawContext as unknown as ResourceByIdContext).resourceById
       : hasState
         ? ({
             status: () => 'local',
             value: () => stateContext!.state(),
             set: (value: unknown) => stateContext!.set(value as StateType),
           } as unknown as ResourceRef<unknown>)
-        : (context as unknown as ResourceContext).resource;
+        : (rawContext as unknown as ResourceContext).resource;
     const resourceParamsSrc: () => unknown = hasState
       ? () => undefined
-      : (context as unknown as ResourceByIdContext | ResourceContext)
+      : (rawContext as unknown as ResourceByIdContext | ResourceContext)
           .resourceParamsSrc;
 
     if (isUsingIdentifier) {

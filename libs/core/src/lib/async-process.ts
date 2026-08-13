@@ -102,6 +102,12 @@ import type {
   BrandReactiveProperties,
   YieldableInsertionMethods,
 } from './yieldable';
+import {
+  createYieldableReactiveFacade,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type YieldableReactiveProperties,
+} from './reactive-read';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -186,6 +192,7 @@ export type AsyncProcessRef<
     HasSchema extends true ? { readonly hasSchema: Signal<true> } : {},
     [unknown] extends [GroupIdentifier]
       ? {
+          readonly resource: CraftResourceRef<Value, Params>;
           readonly value: Signal<Value | undefined>;
           readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
@@ -476,23 +483,25 @@ export type AsyncProcessOutput<
   HasSchema extends boolean = false,
   MethodYielded = never,
   Name extends string = string,
-> = AsyncProcessRef<
-  StripCraftException<State>,
-  ArgParams,
-  StripCraftException<Params>,
-  BrandReactiveProperties<Insertions>,
-  [unknown] extends [ArgParams]
-    ? [unknown] extends [SourceParams]
-      ? 'params'
-      : false
-    : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
-  SourceParams,
-  GroupIdentifier,
-  AsyncProcessExceptions,
-  Dependencies,
-  HasSchema,
-  MethodYielded,
-  Name
+> = YieldableReactiveProperties<
+  AsyncProcessRef<
+    StripCraftException<State>,
+    ArgParams,
+    StripCraftException<Params>,
+    BrandReactiveProperties<Insertions>,
+    [unknown] extends [ArgParams]
+      ? [unknown] extends [SourceParams]
+        ? 'params'
+        : false
+      : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
+    SourceParams,
+    GroupIdentifier,
+    AsyncProcessExceptions,
+    Dependencies,
+    HasSchema,
+    MethodYielded,
+    Name
+  >
 >;
 
 type SchemaAsyncProcessConfig<
@@ -948,7 +957,7 @@ export function asyncProcess<
     Name
   >
 >;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function asyncProcess(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1713,6 +1722,12 @@ function createAsyncProcessRef<
     MethodYielded
   >;
 
+  const publicAsyncContext = createYieldableReactiveFacade(asyncOutput, {
+    name,
+    primitive: 'asyncProcess',
+    path: name,
+  }) as any;
+
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
       NoInfer<GroupIdentifier>,
@@ -1731,15 +1746,30 @@ function createAsyncProcessRef<
         args: [
           {
             ...(isUsingIdentifier
-              ? { resourceById: resourceTarget }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<AsyncProcessParams>
-            >,
-            hasException,
-            exceptions,
+              ? {
+                  resourceById: createYieldableReactiveFacade(resourceTarget, {
+                    name: 'resourceById',
+                    primitive: 'asyncProcess',
+                    path: `${name}.resourceById`,
+                  }),
+                }
+              : { resource: publicAsyncContext }),
+            resourceParamsSrc: createYieldableReactiveFacade(
+              resourceParamsSrc,
+              {
+                name: 'resourceParamsSrc',
+                primitive: 'asyncProcess',
+                path: `${name}.resourceParamsSrc`,
+              },
+            ),
+            hasException: publicAsyncContext.hasException,
+            exceptions: publicAsyncContext.exceptions,
             insertions: acc as {},
-            state: resourceTarget.state,
+            state: createYieldableReactiveFacade(resourceTarget.state, {
+              name: 'state',
+              primitive: 'asyncProcess',
+              path: `${name}.state`,
+            }),
             set: resourceTarget.set,
             update: resourceTarget.update,
             __primitiveKind: 'asyncProcess',
@@ -1755,6 +1785,7 @@ function createAsyncProcessRef<
           if (
             typeof value === 'function' &&
             !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
             const injector = getInjector();
@@ -1791,7 +1822,18 @@ function createAsyncProcessRef<
                 ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
             });
           } else {
-            wrappedAcc[key] = value;
+            const namedValue = nameInsertedReactiveValue(
+              value,
+              key,
+              'asyncProcess',
+              `${name}.${key}`,
+            );
+            wrappedAcc[key] = createYieldableReactiveFacade(namedValue, {
+              name: key,
+              primitive: 'asyncProcess',
+              insertion: key,
+              path: `${name}.${key}`,
+            });
           }
           return wrappedAcc;
         },
@@ -1881,5 +1923,16 @@ function createAsyncProcessRef<
     attachCraftSettledValue(name, asyncOutput as object);
   }
 
-  return asyncOutput;
+  if (!('resource' in asyncOutput)) {
+    Object.defineProperty(asyncOutput, 'resource', {
+      value: asyncOutput,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return createYieldableReactiveFacade(asyncOutput, {
+    name,
+    primitive: 'asyncProcess',
+    path: name,
+  }) as typeof asyncOutput;
 }

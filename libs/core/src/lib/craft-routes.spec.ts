@@ -357,7 +357,7 @@ function getCanMatchGuard(route: Route): CanMatchFn {
 function fakeHttpCall<T>(
   resolved: PromiseLike<T>,
 ): Generator<unknown, PromiseLike<T>, unknown> {
-  // eslint-disable-next-line require-yield
+
   return (function* () {
     return resolved;
   })();
@@ -411,34 +411,34 @@ describe('craftRoutes', () => {
   it('should expose typed inject helpers for route queryParams', () => {
     const listQueryParams = () =>
       craftUse(
-                queryParams(
-                  'listQueryParams',
-                  {
-                    state: {
-                      page: {
-                        fallbackValue: 1,
-                        codec: {
-                          decode: (value: string) => parseInt(value, 10),
-                          encode: (value: number) => String(value),
-                        },
-                      },
-                      pageSize: {
-                        fallbackValue: 10,
-                        codec: {
-                          decode: (value: string) => parseInt(value, 10),
-                          encode: (value: number) => String(value),
-                        },
-                      },
-                    },
-                  },
-                  ({ set, update, patch, reset }) => ({
-                    set,
-                    update,
-                    patch,
-                    reset,
-                  }),
-                ),
-              );
+        queryParams(
+          'listQueryParams',
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
+              },
+              pageSize: {
+                fallbackValue: 10,
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
+              },
+            },
+          },
+          ({ set, update, patch, reset }) => ({
+            set,
+            update,
+            patch,
+            reset,
+          }),
+        ),
+      );
 
     const routes = craftRoutes('player', [
       {
@@ -526,16 +526,16 @@ describe('craftRoutes', () => {
         injectPlayerListQueryParams(),
       );
 
-      expect(routeQueryParams.page()).toBe(2);
-      expect(routeQueryParams.pageSize()).toBe(10);
+      expect(craftUse(routeQueryParams.page())).toBe(2);
+      expect(craftUse(routeQueryParams.pageSize())).toBe(10);
 
       routeQueryParams.set({
         page: 5,
         pageSize: 50,
       });
       await vi.runAllTimersAsync();
-      expect(routeQueryParams.page()).toBe(5);
-      expect(routeQueryParams.pageSize()).toBe(50);
+      expect(craftUse(routeQueryParams.page())).toBe(5);
+      expect(craftUse(routeQueryParams.pageSize())).toBe(50);
       expect(router.url).toContain('page=5');
       expect(router.url).toContain('pageSize=50');
 
@@ -544,25 +544,25 @@ describe('craftRoutes', () => {
         page: current.page + 1,
       }));
       await vi.runAllTimersAsync();
-      expect(routeQueryParams.page()).toBe(6);
+      expect(craftUse(routeQueryParams.page())).toBe(6);
       expect(router.url).toContain('page=6');
 
       routeQueryParams.patch({
         pageSize: 25,
       });
       await vi.runAllTimersAsync();
-      expect(routeQueryParams.pageSize()).toBe(25);
+      expect(craftUse(routeQueryParams.pageSize())).toBe(25);
       expect(router.url).toContain('pageSize=25');
 
       await router.navigateByUrl('/list?page=3&pageSize=20');
       await vi.runAllTimersAsync();
-      expect(routeQueryParams.page()).toBe(3);
-      expect(routeQueryParams.pageSize()).toBe(20);
+      expect(craftUse(routeQueryParams.page())).toBe(3);
+      expect(craftUse(routeQueryParams.pageSize())).toBe(20);
 
       routeQueryParams.reset();
       await vi.runAllTimersAsync();
-      expect(routeQueryParams.page()).toBe(1);
-      expect(routeQueryParams.pageSize()).toBe(10);
+      expect(craftUse(routeQueryParams.page())).toBe(1);
+      expect(craftUse(routeQueryParams.pageSize())).toBe(10);
       expect(router.url).toBe('/list');
     } finally {
       vi.useRealTimers();
@@ -642,14 +642,14 @@ describe('craftRoutes', () => {
         injectParentLayoutQueryParams(),
       );
 
-      expect(routeQueryParams.page()).toBe(4);
+      expect(craftUse(routeQueryParams.page())).toBe(4);
 
       routeQueryParams.patch({
         page: 5,
       });
       await vi.runAllTimersAsync();
 
-      expect(routeQueryParams.page()).toBe(5);
+      expect(craftUse(routeQueryParams.page())).toBe(5);
       expect(router.url).toContain('page=5');
     } finally {
       vi.useRealTimers();
@@ -1892,12 +1892,10 @@ describe('craftRoutes', () => {
       );
 
       class PageComponent {
-        readonly load = runInInjectionContext(
-          injector,
-          () =>
-            craftMethod('load', this, function* () {
-                            yield* Console.log('loading');
-                          }),
+        readonly load = runInInjectionContext(injector, () =>
+          craftMethod('load', this, function* () {
+            yield* Console.log('loading');
+          }),
         );
       }
 
@@ -2785,40 +2783,40 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* Console.log('init list queryParams');
 
-          return (yield* queryParams(
-                      'queryParams',
-                      {
-                        state: {
-                          page: {
-                            fallbackValue: 1,
-                            codec: {
-                              decode: (value: string) => parseInt(value, 10),
-                              encode: (value: number) => String(value),
-                            },
-                          },
-                        },
-                      },
-                      function* ({ patch, state }) {
-                        const rules = yield* PaginationRules(
-                          undefined,
-                          ({ maxPage }) => ({
-                            maxPage,
-                          }),
-                        );
+          return yield* queryParams(
+            'queryParams',
+            {
+              state: {
+                page: {
+                  fallbackValue: 1,
+                  codec: {
+                    decode: (value: string) => parseInt(value, 10),
+                    encode: (value: number) => String(value),
+                  },
+                },
+              },
+            },
+            function* ({ patch, state }) {
+              const rules = yield* PaginationRules(
+                undefined,
+                ({ maxPage }) => ({
+                  maxPage,
+                }),
+              );
 
-                        return {
-                          nextPage: () => {
-                            if (state().page >= rules.maxPage()) {
-                              return;
-                            }
+              return {
+                nextPage: () => {
+                  if (craftUse(state()).page >= rules.maxPage()) {
+                    return;
+                  }
 
-                            patch(({ page }) => ({
-                              page: page + 1,
-                            }));
-                          },
-                        };
-                      },
-                    ));
+                  patch(({ page }) => ({
+                    page: page + 1,
+                  }));
+                },
+              };
+            },
+          );
         },
       },
     ]);
@@ -2876,17 +2874,17 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* Counter();
 
-          return (yield* queryParams('queryParams', {
-                      state: {
-                        page: {
-                          fallbackValue: 1,
-                          codec: {
-                            decode: (value: string) => parseInt(value, 10),
-                            encode: (value: number) => String(value),
-                          },
-                        },
-                      },
-                    }));
+          return yield* queryParams('queryParams', {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
+              },
+            },
+          });
         },
       },
     ]);

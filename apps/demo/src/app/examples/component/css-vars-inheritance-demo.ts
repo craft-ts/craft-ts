@@ -19,7 +19,7 @@ const InheritedBadge = craftComponent(
     `,
   },
   () => ({}),
-  () => span('Hérité du parent'),
+  () => span('Inherited from parent'),
 );
 
 const InheritanceExample = craftComponent(
@@ -40,7 +40,7 @@ const InheritanceExample = craftComponent(
   () => ({}),
   () =>
     div([
-      p('Le parent déclare --inherited-badge-ink dans son propre scope.'),
+      p('The parent declares --inherited-badge-ink in its own scope.'),
       InheritedBadge({ cssVars: { '--inherited-badge-ink': inherit } }),
     ]),
 );
@@ -60,9 +60,9 @@ export const CssVarsInheritanceDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-inheritance__intro' }, [
-        h1('Héritage natif'),
+        h1('Native inheritance'),
         p(
-          'Le marqueur inherit ne produit aucun style inline : la cascade CSS résout la valeur depuis le parent.',
+          'The inherit marker produces no inline style: the CSS cascade resolves the value from the parent.',
         ),
       ]),
       InheritanceExample(),

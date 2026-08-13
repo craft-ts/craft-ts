@@ -393,7 +393,7 @@ describe('craftComputed doc page', () => {
       'plain computation: `craftComputed(name, () => value)`',
     );
     expect(content).toContain(
-      'generator factory: `craftComputed(name, function* () { ...; return () => value; })`',
+      'generator factory: `craftComputed(name, function* () { ...; return value; })`',
     );
     expect(content).toContain(
       'function craftComputed<Name extends string, T>(',

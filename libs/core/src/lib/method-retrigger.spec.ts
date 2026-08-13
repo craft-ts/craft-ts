@@ -49,14 +49,15 @@ describe('method re-trigger (nonce)', () => {
   it('mutation: `() => undefined` re-runs the loader on every mutate', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => undefined);
-      const logout = craftUse(mutation('logout', {
+      const logout = craftUse(
+        mutation('logout', {
           method: (_value: undefined) => undefined,
           loader,
         }),
       );
 
       // idle until the first call: loader must not run on creation
-      expect(logout.status()).toBe('idle');
+      expect(craftUse(logout.status())).toBe('idle');
       expect(loader).toHaveBeenCalledTimes(0);
 
       logout.mutate(undefined as never);
@@ -76,7 +77,8 @@ describe('method re-trigger (nonce)', () => {
   it('mutation: calling with the same value twice re-runs the loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async ({ params }: { params: string }) => params);
-      const search = craftUse(mutation('search', {
+      const search = craftUse(
+        mutation('search', {
           method: (term: string) => term,
           loader,
         }),
@@ -95,7 +97,8 @@ describe('method re-trigger (nonce)', () => {
   it('mutation: loader receives raw params, never the nonce wrapper', async () => {
     await TestBed.runInInjectionContext(async () => {
       const seen: unknown[] = [];
-      const m = craftUse(mutation('m', {
+      const m = craftUse(
+        mutation('m', {
           method: (payload: { id: string }) => payload,
           loader: async ({ params }: { params: { id: string } }) => {
             seen.push(params);
@@ -117,13 +120,14 @@ describe('method re-trigger (nonce)', () => {
   it('query: `() => undefined` re-runs the loader on every call', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => ({ value: 'ok' }));
-      const q = craftUse(query('q', {
+      const q = craftUse(
+        query('q', {
           method: (_value: undefined) => undefined,
           loader,
         }),
       );
 
-      expect(q.status()).toBe('idle');
+      expect(craftUse(q.status())).toBe('idle');
       expect(loader).toHaveBeenCalledTimes(0);
 
       q.call(undefined as never);
@@ -139,13 +143,14 @@ describe('method re-trigger (nonce)', () => {
   it('asyncProcess: `() => undefined` re-runs the loader on every call', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => undefined);
-      const p = craftUse(asyncProcess('p', {
+      const p = craftUse(
+        asyncProcess('p', {
           method: (_value: undefined) => undefined,
           loader,
         }),
       );
 
-      expect(p.status()).toBe('idle');
+      expect(craftUse(p.status())).toBe('idle');
       expect(loader).toHaveBeenCalledTimes(0);
 
       p.method(undefined as never);

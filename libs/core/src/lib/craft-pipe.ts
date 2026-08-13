@@ -14,6 +14,10 @@ import {
   isYieldableMethod,
   type YieldableInsertionMethods,
 } from './yieldable';
+import {
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+} from './reactive-read';
 
 // `craftPipe` composes several insertions into ONE, with the primitive's
 // context passed EXPLICITLY: `primitive(config, (context) => craftPipe(context, m1, m2))`.
@@ -151,7 +155,10 @@ export function craftPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3>>,
   ) => I4 | Generator<Y4, I4, unknown>,
   m5: (
-    context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>>,
+    context: CtxWithIns<
+      NoInfer<Ctx>,
+      MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>
+    >,
   ) => I5 | Generator<Y5, I5, unknown>,
 ): Generator<Y1 | Y2 | Y3 | Y4 | Y5, I1 & I2 & I3 & I4 & I5, unknown>;
 export function craftPipe<
@@ -181,10 +188,16 @@ export function craftPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3>>,
   ) => I4 | Generator<Y4, I4, unknown>,
   m5: (
-    context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>>,
+    context: CtxWithIns<
+      NoInfer<Ctx>,
+      MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>
+    >,
   ) => I5 | Generator<Y5, I5, unknown>,
   m6: (
-    context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5>>,
+    context: CtxWithIns<
+      NoInfer<Ctx>,
+      MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5>
+    >,
   ) => I6 | Generator<Y6, I6, unknown>,
 ): Generator<Y1 | Y2 | Y3 | Y4 | Y5 | Y6, I1 & I2 & I3 & I4 & I5 & I6, unknown>;
 export function craftPipe<
@@ -216,15 +229,28 @@ export function craftPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3>>,
   ) => I4 | Generator<Y4, I4, unknown>,
   m5: (
-    context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>>,
+    context: CtxWithIns<
+      NoInfer<Ctx>,
+      MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>
+    >,
   ) => I5 | Generator<Y5, I5, unknown>,
   m6: (
-    context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5>>,
+    context: CtxWithIns<
+      NoInfer<Ctx>,
+      MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5>
+    >,
   ) => I6 | Generator<Y6, I6, unknown>,
   m7: (
-    context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5 & I6>>,
+    context: CtxWithIns<
+      NoInfer<Ctx>,
+      MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5 & I6>
+    >,
   ) => I7 | Generator<Y7, I7, unknown>,
-): Generator<Y1 | Y2 | Y3 | Y4 | Y5 | Y6 | Y7, I1 & I2 & I3 & I4 & I5 & I6 & I7, unknown>;
+): Generator<
+  Y1 | Y2 | Y3 | Y4 | Y5 | Y6 | Y7,
+  I1 & I2 & I3 & I4 & I5 & I6 & I7,
+  unknown
+>;
 export function* craftPipe(
   context: { insertions?: Record<string, unknown> },
   ...members: Array<(context: any) => unknown>
@@ -245,13 +271,23 @@ export function* craftPipe(
       insertions: { ...(context.insertions ?? {}), ...exposedAcc },
     });
     const output = isGenerator(result)
-      ? yield* (result as Generator<unknown, Record<string, unknown>, unknown>)
+      ? yield* result as Generator<unknown, Record<string, unknown>, unknown>
       : result;
     const rawOutput = output as Record<string, unknown>;
     acc = { ...acc, ...rawOutput };
 
     const nextExposed = Object.entries(rawOutput).reduce(
       (previous, [key, value]) => {
+        if (isYieldableReactiveValue(value)) {
+          previous[key] = nameInsertedReactiveValue(
+            value,
+            key,
+            'craftPipe',
+            `craftPipe.${key}`,
+          );
+          return previous;
+        }
+
         if (isSource(value) || isSignal(value) || isYieldableMethod(value)) {
           previous[key] = value;
           return previous;

@@ -61,6 +61,13 @@ import {
   useSchemaValidationPolicy,
 } from './schema-validation';
 import type { AnyCraftException } from './craft-exception';
+import {
+  createYieldableReactiveFacade,
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -95,22 +102,28 @@ export type StateOutput<
   HasSchema extends boolean = false,
 > = HasSchema extends true
   ? MergeObject<
-      Signal<StateType>,
+      YieldableReactiveValue<StateType>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         {
-          readonly hasSchema: Signal<true>;
-          readonly hasException: Signal<boolean>;
-          readonly exceptions: Signal<{
-            list: AnyCraftException[];
-            parse: { state?: AnyCraftException };
-          }>;
+          readonly hasSchema: YieldableReactiveValue<true, 'hasSchema'>;
+          readonly hasException: YieldableReactiveValue<
+            boolean,
+            'hasException'
+          >;
+          readonly exceptions: YieldableReactiveValue<
+            {
+              list: AnyCraftException[];
+              parse: { state?: AnyCraftException };
+            },
+            'exceptions'
+          >;
           readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
         }
       >
     >
   : MergeObject<
-      Signal<StateType>,
+      YieldableReactiveValue<StateType>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
@@ -516,10 +529,7 @@ function createStateRef<StateType>(
       : isSignalState
         ? linkedSignal(
             () =>
-              applySchema(
-                (resolvedStateConfig as Signal<unknown>)(),
-                'source',
-              ),
+              applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
             { equal: () => false },
           )
         : signal(initialStateValue);
@@ -527,6 +537,11 @@ function createStateRef<StateType>(
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
+  const publicStateReader = createYieldableReactiveValue(
+    readonlyStateSignal,
+    name,
+    { primitive: 'state', path: name },
+  );
   const originalSet = stateSignal.set.bind(stateSignal);
   const setState = (newState: StateType) => {
     if (!schema) {
@@ -557,7 +572,7 @@ function createStateRef<StateType>(
   ).reduce(
     (acc, insert) => {
       const insertionContext = {
-        state: readonlyStateSignal,
+        state: publicStateReader,
         set: (newState: StateType) => setState(newState),
         update: (updateFn: (currentState: StateType) => StateType) =>
           updateState(updateFn),
@@ -611,9 +626,20 @@ function createStateRef<StateType>(
             return exposedAcc;
           }
 
+          if (isYieldableReactiveValue(value)) {
+            exposedAcc[key] = nameInsertedReactiveValue(
+              value,
+              key,
+              'state',
+              `${name}.${key}`,
+            );
+            return exposedAcc;
+          }
+
           if (
             typeof value === 'function' &&
             !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
             const methodInjector = ɵcreateHostTaggedInjector(
@@ -633,8 +659,7 @@ function createStateRef<StateType>(
               injector: methodInjector,
               invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage:
-                STATE_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
             });
           } else {
             exposedAcc[key] = value;
@@ -737,5 +762,9 @@ function createStateRef<StateType>(
       });
   }
 
-  return stateOutput;
+  return createYieldableReactiveFacade(stateOutput, {
+    name,
+    primitive: 'state',
+    path: name,
+  });
 }

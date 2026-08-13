@@ -22,7 +22,15 @@ import { CraftResourceRef } from './util/craft-resource-ref';
 import { QueryParamsExceptions, QueryParamsToState } from './query-params';
 import { Prettify } from './util/util.type';
 import { InsertMetaInCraftExceptionIfExists } from './craft-exception';
-import type { YieldableInsertionMethods } from './yieldable';
+import type {
+  YieldableInsertionMethods,
+  YieldableInvocation,
+} from './yieldable';
+import type {
+  YieldableReactiveProperties,
+  YieldableReactiveSignal,
+  YieldableReactiveValue,
+} from './reactive-read';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -564,7 +572,7 @@ export type InsertionParams<
   PreviousInsertionsOutputs,
 > = {
   test: ResourceState;
-  state: Signal<ResourceState>;
+  state: YieldableReactiveValue<ResourceState, 'state'>;
   set: (newState: ResourceState) => ResourceState;
   update: (
     updateFn: (currentState: ResourceState) => ResourceState,
@@ -575,33 +583,41 @@ export type InsertionParams<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
-  resource: CraftResourceRef<ResourceState, ResourceParams>;
-  resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
-  hasException: Signal<boolean>;
-  exceptions: Signal<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          Exceptions['params'],
-          'params',
-          unknown
-        >
-      | InsertMetaInCraftExceptionIfExists<
-          Exceptions['loader'],
-          'loader',
-          unknown
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      Exceptions['params'],
-      'params',
-      unknown
-    >;
-    loader?: InsertMetaInCraftExceptionIfExists<
-      Exceptions['loader'],
-      'loader',
-      unknown
-    >;
-  }>;
+  resource: YieldableReactiveProperties<
+    CraftResourceRef<ResourceState, ResourceParams>
+  >;
+  resourceParamsSrc: YieldableReactiveSignal<
+    WritableSignal<ResourceParams | undefined>,
+    'resourceParamsSrc'
+  >;
+  hasException: YieldableReactiveValue<boolean, 'hasException'>;
+  exceptions: YieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            Exceptions['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            Exceptions['loader'],
+            'loader',
+            unknown
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        Exceptions['params'],
+        'params',
+        unknown
+      >;
+      loader?: InsertMetaInCraftExceptionIfExists<
+        Exceptions['loader'],
+        'loader',
+        unknown
+      >;
+    },
+    'exceptions'
+  >;
   // 👇 Keeps optional insertion dependencies from widening the query contract.
   resourceById: never;
   identifier: never;
@@ -630,7 +646,7 @@ export type InsertionByIdParams<
   Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
 > = {
-  state: Signal<ResourceState>;
+  state: YieldableReactiveValue<ResourceState, 'state'>;
   set: (newState: ResourceState) => ResourceState;
   update: (
     updateFn: (currentState: ResourceState) => ResourceState,
@@ -641,45 +657,54 @@ export type InsertionByIdParams<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
-  resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
+  resourceById: YieldableReactiveSignal<
+    ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>,
+    'resourceById'
+  >;
   resource: never;
-  resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
-  hasException: Signal<boolean>;
-  exceptions: Signal<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          Exceptions['params'],
-          'params',
-          unknown
+  resourceParamsSrc: YieldableReactiveSignal<
+    WritableSignal<ResourceParams | undefined>,
+    'resourceParamsSrc'
+  >;
+  hasException: YieldableReactiveValue<boolean, 'hasException'>;
+  exceptions: YieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            Exceptions['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            Exceptions['loader'],
+            'loader',
+            GroupIdentifier
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        Exceptions['params'],
+        'params',
+        unknown
+      >;
+      loader: Partial<
+        Record<
+          GroupIdentifier,
+          InsertMetaInCraftExceptionIfExists<
+            Exceptions['loader'],
+            'loader',
+            GroupIdentifier
+          >
         >
-      | InsertMetaInCraftExceptionIfExists<
-          Exceptions['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      Exceptions['params'],
-      'params',
-      unknown
-    >;
-    loader: Partial<
-      Record<
-        GroupIdentifier,
-        InsertMetaInCraftExceptionIfExists<
-          Exceptions['loader'],
-          'loader',
-          GroupIdentifier
-        >
-      >
-    >;
-  }>;
+      >;
+    },
+    'exceptions'
+  >;
   identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
 };
 
 export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
   {
-    state: Signal<StateType>;
+    state: YieldableReactiveValue<StateType, 'state'>;
     set: (newState: StateType) => StateType;
     update: (updateFn: (currentState: StateType) => StateType) => StateType;
     patch: (
@@ -695,21 +720,44 @@ export type QueryParamsMethods<QueryParamsState> = {
     (
       patchFn: (currentParams: QueryParamsState) => Partial<QueryParamsState>,
       options?: QueryParamsNavigationOptions,
+    ): YieldableInvocation<never, QueryParamsState>;
+    (
+      params: Partial<QueryParamsState>,
+      options?: QueryParamsNavigationOptions,
+    ): YieldableInvocation<never, QueryParamsState>;
+    (
+      patchFn: (currentParams: QueryParamsState) => Partial<QueryParamsState>,
+      options?: QueryParamsNavigationOptions,
     ): QueryParamsState;
     (
       params: Partial<QueryParamsState>,
       options?: QueryParamsNavigationOptions,
     ): QueryParamsState;
   };
-  reset: (options?: QueryParamsNavigationOptions) => void;
-  set: (
-    params: QueryParamsState,
-    options?: QueryParamsNavigationOptions,
-  ) => QueryParamsState;
-  update: (
-    updateFn: (currentParams: QueryParamsState) => QueryParamsState,
-    options?: QueryParamsNavigationOptions,
-  ) => QueryParamsState;
+  reset: {
+    (options?: QueryParamsNavigationOptions): YieldableInvocation<never, void>;
+    (options?: QueryParamsNavigationOptions): void;
+  };
+  set: {
+    (
+      params: QueryParamsState,
+      options?: QueryParamsNavigationOptions,
+    ): YieldableInvocation<never, QueryParamsState>;
+    (
+      params: QueryParamsState,
+      options?: QueryParamsNavigationOptions,
+    ): QueryParamsState;
+  };
+  update: {
+    (
+      updateFn: (currentParams: QueryParamsState) => QueryParamsState,
+      options?: QueryParamsNavigationOptions,
+    ): YieldableInvocation<never, QueryParamsState>;
+    (
+      updateFn: (currentParams: QueryParamsState) => QueryParamsState,
+      options?: QueryParamsNavigationOptions,
+    ): QueryParamsState;
+  };
 };
 
 export type InsertionQueryParamsFactoryContext<
@@ -718,10 +766,13 @@ export type InsertionQueryParamsFactoryContext<
   //! do not get the QueryParamsState directly from the queryParams utility (it's broke the inference),
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 > = QueryParamsMethods<QueryParamsState> & {
-  state: Signal<QueryParamsState>;
+  state: YieldableReactiveValue<QueryParamsState, 'state'>;
   config: QueryParamsType;
-  hasException: Signal<boolean>;
-  exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
+  hasException: YieldableReactiveValue<boolean, 'hasException'>;
+  exceptions: YieldableReactiveValue<
+    QueryParamsExceptions<QueryParamsType>,
+    'exceptions'
+  >;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;

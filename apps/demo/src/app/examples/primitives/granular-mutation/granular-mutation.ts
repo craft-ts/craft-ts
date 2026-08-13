@@ -16,9 +16,11 @@ import {
   insertStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
+  craftMethod,
   mutation,
   query,
   queryParams,
+  craftUse,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -34,8 +36,14 @@ const GranularMutation = craftComponent(
       'pagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
+        nextPage: function* () {
+          const _state = yield* state();
+          return patch({ page: _state.page + 1 });
+        },
+        previousPage: function* () {
+          const _state = yield* state();
+          return patch({ page: Math.max(1, _state.page - 1) });
+        },
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -82,10 +90,11 @@ const GranularMutation = craftComponent(
       pagination,
       updateUserName,
       usersQuery,
-      updatePageSize: (event: Event) =>
-        pagination.updatePageSize(
+      updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
+        yield* pagination.updatePageSize(
           Number((event.target as HTMLSelectElement).value),
-        ),
+        );
+      }),
     };
   },
   ({ pagination, updatePageSize, updateUserName, usersQuery }) =>
@@ -96,7 +105,7 @@ const GranularMutation = craftComponent(
             h2({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
-                status: () => usersQuery.currentPageStatus(),
+                status: () => craftUse(usersQuery.currentPageStatus()),
               }),
             ]),
             div({ class: 'table-container' }, [
@@ -128,8 +137,12 @@ const GranularMutation = craftComponent(
                             [
                               'Update Name',
                               StatusComponent({
-                                status: updateUserName.selectOrCreate(user.id)
-                                  .status,
+                                status: () =>
+                                  craftUse(
+                                    updateUserName
+                                      .selectOrCreate(user.id)
+                                      .status(),
+                                  ),
                               }),
                             ],
                           ),
@@ -143,14 +156,14 @@ const GranularMutation = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: () => String(pagination().pageSize),
+                  value: () => String(craftUse(pagination()).pageSize),
                   change: updatePageSize,
                 },
                 [2, 4, 8, 16].map((size) =>
                   option(
                     {
                       value: String(size),
-                      selected: () => size === pagination().pageSize,
+                      selected: () => size === craftUse(pagination()).pageSize,
                     },
                     size,
                   ),
@@ -164,7 +177,7 @@ const GranularMutation = craftComponent(
               span(
                 'CurrentPage',
                 { class: 'current-page' },
-                () => pagination().page,
+                () => craftUse(pagination()).page,
               ),
               button(
                 'NextPage',

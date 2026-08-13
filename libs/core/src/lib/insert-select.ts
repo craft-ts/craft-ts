@@ -27,6 +27,15 @@ import {
   type NonYieldableInsertionMethod,
   type YieldableInsertionMethods,
 } from './yieldable';
+import {
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+  rawReactiveValue,
+} from './reactive-read';
+
+function readInsertionState(state: () => unknown): unknown {
+  return isYieldableReactiveValue(state) ? rawReactiveValue(state)() : state();
+}
 
 export type SelectedTarget<
   StateType,
@@ -214,7 +223,7 @@ function createInsertSelectItemRuntime(
       (previousInsertions as Record<string, unknown> | undefined) ?? {};
 
     const select = (id: number) => {
-      const currentState = state();
+      const currentState = readInsertionState(state);
       if (!Array.isArray(currentState)) {
         return undefined;
       }
@@ -245,7 +254,11 @@ function createInsertSelectItemRuntime(
               injectFnWrapper()(insertion),
             );
             const insertionContext = {
-              state: selectedStateSignal,
+              state: createYieldableReactiveValue(
+                selectedStateSignal,
+                'state',
+                { primitive: 'insertSelect', path: `${name}.state` },
+              ),
               __primitiveKind: primitiveKind,
               set: (newState: unknown) => {
                 update((currentState: unknown) => {
@@ -395,6 +408,7 @@ function createInsertSelectItemRuntime(
                 if (
                   typeof value === 'function' &&
                   !isSignal(value) &&
+                  !isYieldableReactiveValue(value) &&
                   !isNonYieldableInsertionMethod(value)
                 ) {
                   const methodInjector = ɵcreateHostTaggedInjector(
@@ -403,7 +417,7 @@ function createInsertSelectItemRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                        insertionContext,
+                        { ...insertionContext, state: selectedStateSignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -465,7 +479,7 @@ function createInsertSelectItemRuntime(
     };
 
     const items = () => {
-      const currentState = state();
+      const currentState = readInsertionState(state);
       if (!Array.isArray(currentState)) {
         return [];
       }
@@ -479,7 +493,7 @@ function createInsertSelectItemRuntime(
       }, []);
     };
 
-    const currentState = state();
+    const currentState = readInsertionState(state);
     if (Array.isArray(currentState) && currentState.length > 0) {
       selectItem(0);
     }
@@ -489,7 +503,7 @@ function createInsertSelectItemRuntime(
       insertionSnapshotRegistry.trigger$
         .pipe(takeUntilDestroyed(destroyRef))
         .subscribe(() => {
-          const rawState = state();
+          const rawState = readInsertionState(state);
           if (!Array.isArray(rawState)) return;
           const snapshot = rawState.map((rawItem, i) => {
             const proxy = selectItem(i);
@@ -549,7 +563,7 @@ function createInsertSelectPropertyRuntime(
     };
 
     const selectProperty = () => {
-      const currentState = state();
+      const currentState = readInsertionState(state);
       if (!currentState || typeof currentState !== 'object') {
         return undefined;
       }
@@ -592,7 +606,11 @@ function createInsertSelectPropertyRuntime(
               injectFnWrapper()(insertion),
             );
             const insertionContext = {
-              state: selectedPropertySignal,
+              state: createYieldableReactiveValue(
+                selectedPropertySignal,
+                'state',
+                { primitive: 'insertSelect', path: `${name}.state` },
+              ),
               __primitiveKind: primitiveKind,
               set: setProperty,
               update: updateProperty,
@@ -696,6 +714,7 @@ function createInsertSelectPropertyRuntime(
                 if (
                   typeof value === 'function' &&
                   !isSignal(value) &&
+                  !isYieldableReactiveValue(value) &&
                   !isNonYieldableInsertionMethod(value)
                 ) {
                   const methodInjector = ɵcreateHostTaggedInjector(
@@ -704,7 +723,7 @@ function createInsertSelectPropertyRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                        insertionContext,
+                        { ...insertionContext, state: selectedPropertySignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -773,7 +792,10 @@ function createInsertSelectPropertyRuntime(
         .pipe(takeUntilDestroyed(destroyRef))
         .subscribe(() => {
           const proxy = selectPropertyItem();
-          const rawPropertyValue = state() as Record<string, unknown>;
+          const rawPropertyValue = readInsertionState(state) as Record<
+            string,
+            unknown
+          >;
           const rawPropValue =
             rawPropertyValue &&
             typeof rawPropertyValue === 'object' &&
@@ -811,7 +833,7 @@ function createDeferredInsertSelectRuntime(
     let activeRuntime: any;
 
     const getActiveRuntime = () => {
-      const isArray = Array.isArray(context.state());
+      const isArray = Array.isArray(readInsertionState(context.state));
       if (activeRuntime && activeIsArray === isArray) {
         return activeRuntime;
       }
@@ -960,7 +982,7 @@ export function insertSelect(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: any,
   ) => {
-    const currentState = context.state();
+    const currentState = readInsertionState(context.state);
     if (
       currentState === undefined &&
       context.__primitiveKind &&

@@ -21,8 +21,7 @@ import {
   insertPaginationPlaceholderData,
   insertQueryPipe,
   query,
-  queryParams,
-} from '@craft-ng/core';
+  queryParams, craftUse } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -34,8 +33,10 @@ export const { provideUserList, UserList } = craftService(
       'pagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
+        nextPage: function* () {
+              const _state = yield* state(); return patch({ page: _state.page + 1 }); },
+        previousPage: function* () {
+            const _state = yield* state(); return patch({ page: Math.max(1, _state.page - 1) }); },
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -56,7 +57,7 @@ export const { provideUserList, UserList } = craftService(
         insertPaginationPlaceholderData(
           { initialValue: [] as User[] },
           ({ state }) => ({
-            total: computed(() => state().length),
+            total: computed(() => craftUse(state()).length),
           }),
         ),
       ),
@@ -75,7 +76,8 @@ const ListWithPaginationCraft = craftComponent(
     const store = yield* UserList();
     const isCurrentPageResolved = craftComputed(
       'isCurrentPageResolved',
-      () => store.users.currentPageStatus() === 'resolved',
+      function* () {
+          const _storeuserscurrentPageStatus = yield* store.users.currentPageStatus(); return _storeuserscurrentPageStatus === 'resolved'; },
     );
     const updatePageSize = craftMethod(
       'updatePageSize',
@@ -95,12 +97,12 @@ const ListWithPaginationCraft = craftComponent(
             h2({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
-                status: () => store.users.currentPageStatus(),
+                status: () => craftUse(store.users.currentPageStatus()),
               }),
               span(
                 'TotalUsers',
                 { class: 'current-page' },
-                () => ` ${store.users.total()} on page`,
+                () => ` ${craftUse(store.users.total())} on page`,
               ),
             ]),
             div({ class: 'table-container' }, [
@@ -141,7 +143,7 @@ const ListWithPaginationCraft = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: () => String(store.pagination().pageSize),
+                  value: () => String(craftUse(store.pagination()).pageSize),
                   style: { marginRight: '8px' },
                   *change(event) {
                     yield* updatePageSize(event);
@@ -151,7 +153,8 @@ const ListWithPaginationCraft = craftComponent(
                   option(
                     {
                       value: String(size),
-                      selected: () => size === store.pagination().pageSize,
+                      selected: () =>
+                        size === craftUse(store.pagination()).pageSize,
                     },
                     size,
                   ),
@@ -165,7 +168,7 @@ const ListWithPaginationCraft = craftComponent(
               span(
                 'CurrentPage',
                 { class: 'current-page' },
-                () => store.pagination().page,
+                () => craftUse(store.pagination()).page,
               ),
               button(
                 'NextPage',

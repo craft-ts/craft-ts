@@ -47,7 +47,10 @@ import {
   markYieldableValue,
   isYieldableValue,
   isYieldableMethod,
+  isYieldableReactiveValue,
   provideHostName,
+  rawReactiveFacade,
+  rawReactiveValue,
   toYieldable,
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
@@ -376,7 +379,11 @@ function findResourceException(
     readonly exceptions?: () => { readonly list?: readonly unknown[] };
   };
   if (typeof candidate.exceptions === 'function') {
-    const exceptions = candidate.exceptions();
+    const exceptions = (
+      isYieldableReactiveValue(candidate.exceptions)
+        ? rawReactiveValue(candidate.exceptions)()
+        : candidate.exceptions()
+    ) as { readonly list?: readonly unknown[] };
     const exception = exceptions.list?.find(isCraftException);
     if (exception) return exception;
   }
@@ -2031,11 +2038,10 @@ class EachRenderedNode implements RenderedNode {
   }
 
   private reconcile(itemTemplateChanged = false): void {
-    const items = (
-      typeof this.node.source === 'function'
-        ? this.node.source()
-        : this.node.source
-    ) as readonly unknown[] | null | undefined;
+    const items = resolveTemplateValue(this.node.source, this.context) as
+      | readonly unknown[]
+      | null
+      | undefined;
     const collection = items ?? [];
 
     if (collection.length === 0) {
@@ -2308,7 +2314,6 @@ class MatchBlockRenderedNode implements RenderedNode {
   }
 }
 
-
 /**
  * Detaches a mounted DOM range into a holder fragment, keeping every node (and
  * therefore every binding) alive. Both boundaries hide their subtree this way:
@@ -2388,7 +2393,13 @@ class CatchBlockRenderedNode implements RenderedNode {
     // The fallback renders in the OUTER context: an exception thrown by a
     // fallback belongs to the next boundary up, never to this one.
     const createFallback = () =>
-      createFragment(parent, this.end, this.context, [], 'craft-catch-fallback');
+      createFragment(
+        parent,
+        this.end,
+        this.context,
+        [],
+        'craft-catch-fallback',
+      );
     const createSource = () =>
       createFragment(
         parent,
@@ -2584,7 +2595,9 @@ function componentFieldExceptionSources(
   const source = (
     value as Partial<Record<typeof CRAFT_FIELD_EXCEPTION_SOURCE, unknown>>
   )[CRAFT_FIELD_EXCEPTION_SOURCE];
-  if (source) return [source as CraftFieldExceptionSource];
+  if (source) {
+    return [rawReactiveFacade(source as CraftFieldExceptionSource)];
+  }
   const sources: CraftFieldExceptionSource[] = [];
   if (depth >= 4) return sources;
 
@@ -2677,7 +2690,9 @@ class PendingBlockRenderedNode implements RenderedNode {
     private readonly context: RenderContext,
   ) {
     this.position = node.position;
-    this.start = context.renderer.createComment('craft-pending:start') as Comment;
+    this.start = context.renderer.createComment(
+      'craft-pending:start',
+    ) as Comment;
     this.end = context.renderer.createComment('craft-pending:end') as Comment;
     insertBefore(context.renderer, parent, this.start, before);
     insertBefore(context.renderer, parent, this.end, before);
@@ -2685,7 +2700,13 @@ class PendingBlockRenderedNode implements RenderedNode {
     // The fallback renders in the OUTER context: a fallback that suspends in
     // turn belongs to the next boundary up, never to this one.
     const createFallback = () =>
-      createFragment(parent, this.end, this.context, [], 'craft-pending-fallback');
+      createFragment(
+        parent,
+        this.end,
+        this.context,
+        [],
+        'craft-pending-fallback',
+      );
     const createSource = () =>
       createFragment(
         parent,
@@ -2951,12 +2972,13 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
     source: CraftFieldExceptionSource,
     element?: Element,
   ): () => void {
+    const rawSource = rawReactiveFacade(source);
     const unregisterParent = this.context.fieldExceptionBoundary?.register(
-      source,
+      rawSource,
       element,
     );
     const registered: RegisteredFieldExceptionSource = {
-      source,
+      source: rawSource,
       element,
       messageIds: new Map(),
     };

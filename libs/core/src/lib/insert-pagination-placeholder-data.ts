@@ -7,6 +7,12 @@ import {
   CraftResourceStatus,
   toCraftStatus,
 } from './util/craft-resource-status';
+import {
+  createYieldableReactiveFacade,
+  createYieldableReactiveValue,
+  rawReactiveFacade,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
 /**
  * Base outputs produced by {@link insertPaginationPlaceholderData}.
@@ -22,6 +28,16 @@ export type PaginationBaseOutputs<PageState> = {
   currentPageStatus: Signal<CraftResourceStatus>;
   isPlaceHolderData: Signal<boolean>;
   currentIdentifier: Signal<string>;
+};
+
+type PublicPaginationBaseOutputs<PageState> = {
+  currentPageData: YieldableReactiveValue<PageState, 'currentPageData'>;
+  currentPageStatus: YieldableReactiveValue<
+    CraftResourceStatus,
+    'currentPageStatus'
+  >;
+  isPlaceHolderData: YieldableReactiveValue<boolean, 'isPlaceHolderData'>;
+  currentIdentifier: YieldableReactiveValue<string, 'currentIdentifier'>;
 };
 
 /**
@@ -50,9 +66,9 @@ type PaginationContextPassthrough<PageState> = Pick<
  * page the user is looking at rather than the global `Record<id, State>`.
  */
 export type PaginationBuildContext<PageState> =
-  PaginationBaseOutputs<PageState> & {
+  PublicPaginationBaseOutputs<PageState> & {
     /** Current page data (or `initialValue` when not yet loaded). */
-    state: Signal<PageState>;
+    state: YieldableReactiveValue<PageState, 'state'>;
     /** Replace the current page data. No-op if the page is not loaded yet. */
     set: (newValue: PageState) => PageState;
     /** Update the current page data from its previous value. */
@@ -142,7 +158,7 @@ export function insertPaginationPlaceholderData<
       PageState & object,
       ResourceParams,
       Exceptions,
-      PreviousInsertionsOutputs
+      NoInfer<PreviousInsertionsOutputs>
     >,
   ): PaginationBaseOutputs<PageState> & ExtraOutputs => {
     const {
@@ -161,8 +177,8 @@ export function insertPaginationPlaceholderData<
 
     let previousPageKey: string | undefined;
     const showPlaceHolderData = computed(() => {
-      const page = resourceParamsSrc();
-      const resources = resourceById();
+      const page = rawReactiveFacade(resourceParamsSrc)();
+      const resources = rawReactiveFacade(resourceById)();
       const pageKey = page != null ? identifier(page) : undefined;
       if (!pageKey) {
         return false;
@@ -181,8 +197,8 @@ export function insertPaginationPlaceholderData<
     });
 
     const currentPageData = computed<PageState>(() => {
-      const page = resourceParamsSrc();
-      const resources = resourceById();
+      const page = rawReactiveFacade(resourceParamsSrc)();
+      const resources = rawReactiveFacade(resourceById)();
       const pageKey = page != null ? identifier(page) : undefined;
       if (!pageKey) {
         return config.initialValue;
@@ -203,14 +219,14 @@ export function insertPaginationPlaceholderData<
     });
 
     const currentPageStatus = computed<CraftResourceStatus>(() => {
-      const page = resourceParamsSrc();
-      const resources = resourceById();
+      const page = rawReactiveFacade(resourceParamsSrc)();
+      const resources = rawReactiveFacade(resourceById)();
       if (page == null) {
         return 'idle' as const; // avoid to handle the undefined check
       }
       const pageKey = identifier(page);
       const currentResource = resources[pageKey];
-      const currentExceptions = exceptions();
+      const currentExceptions = rawReactiveFacade(exceptions)();
       const hasCurrentPageException =
         Object.keys(currentExceptions.params ?? {}).length > 0 ||
         currentExceptions.loader?.[pageKey] !== undefined;
@@ -222,7 +238,7 @@ export function insertPaginationPlaceholderData<
     });
 
     const currentIdentifier = computed<string>(() => {
-      const page = resourceParamsSrc();
+      const page = rawReactiveFacade(resourceParamsSrc)();
       if (page == null) {
         return '';
       }
@@ -242,12 +258,12 @@ export function insertPaginationPlaceholderData<
 
     // Helpers scoped to the current page (the displayed data), not the global record.
     const currentPageKey = (): string | undefined => {
-      const params = resourceParamsSrc();
+      const params = rawReactiveFacade(resourceParamsSrc)();
       return params != null ? identifier(params) : undefined;
     };
     const state = computed<PageState>(() => {
       const key = currentPageKey();
-      const res = key ? resourceById()[key] : undefined;
+      const res = key ? rawReactiveFacade(resourceById)()[key] : undefined;
       return res?.hasValue() ? (res.value() as PageState) : config.initialValue;
     });
     const set = (newValue: PageState): PageState => {
@@ -256,7 +272,9 @@ export function insertPaginationPlaceholderData<
         // Use the page's CraftResourceRef directly. Do NOT use resourceById.set({...}),
         // which is destructive: it resets keys absent from the payload.
         // No-op if the page is not loaded yet (we only act on a displayed page).
-        resourceById()[key]?.set(newValue as PageState & object);
+        rawReactiveFacade(resourceById)()[key]?.set(
+          newValue as PageState & object,
+        );
       }
       return newValue;
     };
@@ -270,9 +288,17 @@ export function insertPaginationPlaceholderData<
           ({ ...(current as object), ...patchFn(current) }) as PageState,
       );
 
+    const publicBaseOutputs = createYieldableReactiveFacade(baseOutputs, {
+      name: 'pagination',
+      primitive: 'insertPaginationPlaceholderData',
+      path: 'pagination',
+    }) as PublicPaginationBaseOutputs<PageState>;
     const extra = build({
-      ...baseOutputs,
-      state,
+      ...publicBaseOutputs,
+      state: createYieldableReactiveValue(state, 'state', {
+        primitive: 'insertPaginationPlaceholderData',
+        path: 'pagination.state',
+      }),
       set,
       update,
       patch,

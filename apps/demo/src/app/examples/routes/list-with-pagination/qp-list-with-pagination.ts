@@ -14,6 +14,7 @@ import {
   insertStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
+  craftMethod,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -31,8 +32,14 @@ const QpListWithPagination = craftComponent(
       'pagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
+        nextPage: function* () {
+          const _state = yield* state();
+          return yield* patch({ page: _state.page + 1 });
+        },
+        previousPage: function* () {
+          const _state = yield* state();
+          return yield* patch({ page: Math.max(1, _state.page - 1) });
+        },
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -54,10 +61,14 @@ const QpListWithPagination = craftComponent(
         insertPaginationPlaceholderData({ initialValue: [] as User[] }),
       ),
     );
-    const updatePageSize = (event: Event) =>
-      pagination.updatePageSize(
-        Number((event.target as HTMLSelectElement).value),
-      );
+    const updatePageSize = craftMethod(
+      'updatePageSize',
+      function* (event: Event) {
+        yield* pagination.updatePageSize(
+          Number((event.target as HTMLSelectElement).value),
+        );
+      },
+    );
     return { pagination, usersQuery, updatePageSize };
   },
   ({ pagination, updatePageSize, usersQuery }) =>
@@ -65,11 +76,12 @@ const QpListWithPagination = craftComponent(
       h2([
         'Route QueryParams pagination: ',
         StatusComponent({
-          status: () => usersQuery.currentPageStatus(),
+          status: usersQuery.currentPageStatus,
         }),
       ]),
       h(
         'table',
+        { class: 'table' },
         h(
           'tbody',
           each(
@@ -79,16 +91,16 @@ const QpListWithPagination = craftComponent(
           ),
         ),
       ),
-      div([
+      div({ class: 'pagination' }, [
         select(
           {
-            value: () => pagination().pageSize,
+            value: pagination.pageSize,
             change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
-        span(() => pagination().page),
+        span({ class: 'current-page' }, pagination.page),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
     ]),

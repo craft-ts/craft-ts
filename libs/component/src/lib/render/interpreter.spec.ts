@@ -1077,7 +1077,10 @@ describe('functional component interpreter', () => {
         });
         return { value };
       },
-      ({ value }) => p(value.value()?.status ?? 'loading'),
+      ({ value }) =>
+        p(function* () {
+          return (yield* value.value())?.status ?? 'loading';
+        }),
     );
     const parent = craftComponent(
       'queryParent',
@@ -1128,7 +1131,9 @@ describe('functional component interpreter', () => {
       ({ todos, add }) =>
         section([
           p('source'),
-          p(() => todos.status()),
+          p(function* () {
+            return yield* todos.status();
+          }),
           button({ click: () => add.mutate('new todo') }, 'Add'),
         ]),
     ).pipe(
@@ -1269,7 +1274,9 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         const counter = yield* state('counter', 0, ({ state }) => ({
-          disabled: craftComputed('disabled', () => state() % 2 === 0),
+          disabled: craftComputed('disabled', function* () {
+            return (yield* state()) % 2 === 0;
+          }),
         }));
         return { counter };
       },
@@ -1295,6 +1302,62 @@ describe('functional component interpreter', () => {
     expect(
       (element.querySelector('button') as HTMLButtonElement).disabled,
     ).toBe(true);
+    mounted.destroy();
+  });
+
+  it('renders root and derived reactive readers across template blocks', () => {
+    const component = craftComponent(
+      'yieldableReactiveTemplate',
+      {},
+      function* () {
+        const counter = yield* state('counter', 1, ({ state, set }) => ({
+          doubled: craftComputed(function* () {
+            return (yield* state()) * 2;
+          }),
+          items: craftComputed(function* () {
+            return Array.from({ length: yield* state() }, (_, index) => index);
+          }),
+          increment: function* () {
+            set((yield* state()) + 1);
+          },
+        }));
+        return { counter };
+      },
+      ({ counter }) =>
+        section([
+          span({ class: 'value' }, function* () {
+            return yield* counter.doubled();
+          }),
+          ifBlock(counter.doubled, () => p({ class: 'visible' }, 'visible')),
+          each(counter.items, { track: (item) => item }, (item) =>
+            li(String(item)),
+          ),
+          button(
+            {
+              click: function* () {
+                yield* counter.increment();
+              },
+            },
+            '+',
+          ),
+        ]),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+
+    TestBed.tick();
+    expect(element.querySelector('.value')?.textContent).toBe('2');
+    expect(element.querySelector('.visible')).not.toBeNull();
+    expect(element.querySelectorAll('li')).toHaveLength(1);
+
+    element.querySelector('button')?.click();
+    TestBed.tick();
+    expect(element.querySelector('.value')?.textContent).toBe('4');
+    expect(element.querySelectorAll('li')).toHaveLength(2);
     mounted.destroy();
   });
 

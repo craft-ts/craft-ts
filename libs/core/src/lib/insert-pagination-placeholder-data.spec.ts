@@ -1,15 +1,16 @@
-import { computed, signal, Signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';
 import type { CraftResourceStatus } from './util/craft-resource-status';
-import type { NamedYieldableValue } from './yieldable';
+import type { YieldableReactiveValue } from './reactive-read';
 
 describe('insertPaginationPlaceholderData', () => {
   it('should return the data of the currentPage', () => {
     TestBed.runInInjectionContext(() => {
-      const finalResult = craftUse(query(
+      const finalResult = craftUse(
+        query(
           'finalResult',
           {
             params: () => ({
@@ -30,21 +31,18 @@ describe('insertPaginationPlaceholderData', () => {
       );
 
       // initialValue drives the type: currentPageData is never undefined
-      expectTypeOf(finalResult.currentPageData).toEqualTypeOf<
-        NamedYieldableValue<'currentPageData', Signal<{
-          id: string;
-          name: string;
-        }>>
+      expectTypeOf(finalResult.currentPageData).toMatchTypeOf<
+        YieldableReactiveValue<{ id: string; name: string }>
       >();
-      expectTypeOf(finalResult.currentPageStatus).toEqualTypeOf<
-        NamedYieldableValue<'currentPageStatus', Signal<CraftResourceStatus>>
+      expectTypeOf(finalResult.currentPageStatus).toMatchTypeOf<
+        YieldableReactiveValue<CraftResourceStatus>
       >();
-      expectTypeOf(finalResult.isPlaceHolderData).toEqualTypeOf<
-        NamedYieldableValue<'isPlaceHolderData', Signal<boolean>>
+      expectTypeOf(finalResult.isPlaceHolderData).toMatchTypeOf<
+        YieldableReactiveValue<boolean>
       >();
 
-      expectTypeOf(finalResult.currentIdentifier).toEqualTypeOf<
-        NamedYieldableValue<'currentIdentifier', Signal<string>>
+      expectTypeOf(finalResult.currentIdentifier).toMatchTypeOf<
+        YieldableReactiveValue<string>
       >();
     });
   });
@@ -53,7 +51,8 @@ describe('insertPaginationPlaceholderData', () => {
     vi.useFakeTimers();
     await TestBed.runInInjectionContext(async () => {
       const pagination = signal(1);
-      const userQuery = craftUse(query(
+      const userQuery = craftUse(
+        query(
           'userQuery',
           {
             params: pagination,
@@ -74,18 +73,24 @@ describe('insertPaginationPlaceholderData', () => {
       );
 
       // initialValue is returned instead of undefined before the first load
-      expect(userQuery.currentPageData()).toEqual([]);
+      expect(craftUse(userQuery.currentPageData())).toEqual([]);
       await vi.advanceTimersByTimeAsync(15000);
-      expect(userQuery.currentPageData()).toEqual([{ name: 'User1' }]);
-      expect(userQuery.currentIdentifier()).toEqual('1');
+      expect(craftUse(userQuery.currentPageData())).toEqual([
+        { name: 'User1' },
+      ]);
+      expect(craftUse(userQuery.currentIdentifier())).toEqual('1');
       pagination.set(2);
       await vi.advanceTimersByTimeAsync(5000);
-      expect(userQuery.currentPageData()).toEqual([{ name: 'User1' }]);
-      expect(userQuery.currentPageStatus()).toEqual('loading');
-      expect(userQuery.currentIdentifier()).toEqual('2');
+      expect(craftUse(userQuery.currentPageData())).toEqual([
+        { name: 'User1' },
+      ]);
+      expect(craftUse(userQuery.currentPageStatus())).toEqual('loading');
+      expect(craftUse(userQuery.currentIdentifier())).toEqual('2');
       await vi.advanceTimersByTimeAsync(7000);
-      expect(userQuery.currentPageData()).toEqual([{ name: 'User2' }]);
-      expect(userQuery.currentPageStatus()).toEqual('resolved');
+      expect(craftUse(userQuery.currentPageData())).toEqual([
+        { name: 'User2' },
+      ]);
+      expect(craftUse(userQuery.currentPageStatus())).toEqual('resolved');
 
       vi.restoreAllMocks();
     });
@@ -96,7 +101,8 @@ describe('insertPaginationPlaceholderData', () => {
     await TestBed.runInInjectionContext(async () => {
       type Item = { id: string; name: string; completed: boolean };
       const pagination = signal(1);
-      const userQuery = craftUse(query(
+      const userQuery = craftUse(
+        query(
           'userQuery',
           {
             params: pagination,
@@ -112,7 +118,7 @@ describe('insertPaginationPlaceholderData', () => {
             { initialValue: [] as Item[] },
             ({ state, update }) => ({
               uncompletedCount: computed(
-                () => state().filter((d) => !d.completed).length,
+                () => craftUse(state()).filter((d) => !d.completed).length,
               ),
               markFirstCompleted: () =>
                 update((list) =>
@@ -124,39 +130,39 @@ describe('insertPaginationPlaceholderData', () => {
       );
 
       // computed output is typed and a Signal
-      expectTypeOf(userQuery.uncompletedCount).toEqualTypeOf<
-        NamedYieldableValue<'uncompletedCount', Signal<number>>
+      expectTypeOf(userQuery.uncompletedCount).toMatchTypeOf<
+        YieldableReactiveValue<number>
       >();
 
       // load page 1
       await vi.advanceTimersByTimeAsync(2000);
-      expect(userQuery.currentPageData()).toEqual([
+      expect(craftUse(userQuery.currentPageData())).toEqual([
         { id: '1-a', name: 'User1', completed: false },
       ]);
-      expect(userQuery.uncompletedCount()).toBe(1);
+      expect(craftUse(userQuery.uncompletedCount())).toBe(1);
 
       // load page 2
       pagination.set(2);
       await vi.advanceTimersByTimeAsync(2000);
-      expect(userQuery.currentPageData()).toEqual([
+      expect(craftUse(userQuery.currentPageData())).toEqual([
         { id: '2-a', name: 'User2', completed: false },
       ]);
-      expect(userQuery.uncompletedCount()).toBe(1);
+      expect(craftUse(userQuery.uncompletedCount())).toBe(1);
 
       // mutate the current page (page 2) via the build method
       userQuery.markFirstCompleted();
-      expect(userQuery.currentPageData()).toEqual([
+      expect(craftUse(userQuery.currentPageData())).toEqual([
         { id: '2-a', name: 'User2', completed: true },
       ]);
-      expect(userQuery.uncompletedCount()).toBe(0);
+      expect(craftUse(userQuery.uncompletedCount())).toBe(0);
 
       // go back to page 1: it must NOT have been reset by the page-2 mutation
       pagination.set(1);
       await vi.advanceTimersByTimeAsync(2000);
-      expect(userQuery.currentPageData()).toEqual([
+      expect(craftUse(userQuery.currentPageData())).toEqual([
         { id: '1-a', name: 'User1', completed: false },
       ]);
-      expect(userQuery.uncompletedCount()).toBe(1);
+      expect(craftUse(userQuery.uncompletedCount())).toBe(1);
 
       vi.restoreAllMocks();
     });

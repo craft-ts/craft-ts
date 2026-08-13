@@ -35,18 +35,18 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.disabled()).toBe(false);
-      expect(fieldForm.form.hidden()).toBe(false);
-      expect(fieldForm.form.readonly()).toBe(false);
+      expect(craftUse(fieldForm.form.disabled())).toBe(false);
+      expect(craftUse(fieldForm.form.hidden())).toBe(false);
+      expect(craftUse(fieldForm.form.readonly())).toBe(false);
 
       disabled.set(true);
       hidden.set(true);
       readonly.set(true);
       TestBed.tick();
 
-      expect(fieldForm.form.disabled()).toBe(true);
-      expect(fieldForm.form.hidden()).toBe(true);
-      expect(fieldForm.form.readonly()).toBe(true);
+      expect(craftUse(fieldForm.form.disabled())).toBe(true);
+      expect(craftUse(fieldForm.form.hidden())).toBe(true);
+      expect(craftUse(fieldForm.form.readonly())).toBe(true);
     });
   });
 
@@ -113,23 +113,23 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.invalid()).toBe(true);
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.invalid())).toBe(true);
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         cRequired: { code: 'required' },
       });
 
       fieldState.set('romain');
       TestBed.tick();
 
-      expect(fieldForm.form.invalid()).toBe(true);
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.invalid())).toBe(true);
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         hasAtSign: { code: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
       TestBed.tick();
-      expect(fieldForm.form.invalid()).toBe(false);
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.invalid())).toBe(false);
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -162,12 +162,14 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.errors()[0]).toMatchObject({ code: 'required' });
+      expect(craftUse(fieldForm.form.errors())[0]).toMatchObject({
+        code: 'required',
+      });
 
       fieldState.set('ok');
       TestBed.tick();
 
-      expect(fieldForm.form.errors()).toEqual([]);
+      expect(craftUse(fieldForm.form.errors())).toEqual([]);
     });
   });
 
@@ -185,16 +187,16 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.exceptions().list.length).toBe(1);
-      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+      expect(craftUse(fieldForm.form.exceptions()).list.length).toBe(1);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkDirty();
       TestBed.tick();
-      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkTouched();
       TestBed.tick();
-      expect(fieldForm.form.visibleExceptions().list.length).toBe(1);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(1);
     });
   });
 
@@ -215,20 +217,24 @@ describe('insertFormAttributes', () => {
 
       fieldForm.form.ɵmarkDirty();
       TestBed.tick();
-      expect(fieldForm.form.visibleExceptions().list).toHaveLength(0);
-      expect(fieldForm.form.visibleFirstLeftFailedValidation()).toBeUndefined();
+      expect(craftUse(fieldForm.form.visibleExceptions()).list).toHaveLength(0);
+      expect(
+        craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
+      ).toBeUndefined();
 
       fieldForm.form.ɵmarkTouched();
       TestBed.tick();
-      expect(fieldForm.form.visibleExceptions().list).toHaveLength(1);
-      expect(fieldForm.form.visibleFirstLeftFailedValidation()).toMatchObject({
+      expect(craftUse(fieldForm.form.visibleExceptions()).list).toHaveLength(1);
+      expect(
+        craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
+      ).toMatchObject({
         code: 'required',
       });
 
       fieldForm.form.reset();
       TestBed.tick();
-      expect(fieldForm.form.touched()).toBe(false);
-      expect(fieldForm.form.visibleExceptions().list).toHaveLength(0);
+      expect(craftUse(fieldForm.form.touched())).toBe(false);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list).toHaveLength(0);
     });
   });
 
@@ -263,31 +269,47 @@ describe('insertFormAttributes', () => {
 
         // empty -> only cRequired fails
         expect(
-          (fieldForm.form.firstLeftFailedValidation() as { code: string })
-            ?.code,
+          (
+            craftUse(fieldForm.form.firstLeftFailedValidation()) as {
+              code: string;
+            }
+          )?.code,
         ).toBe('required');
         expect(
-          (fieldForm.form.lastRightFailedValidation() as { code: string })
-            ?.code,
+          (
+            craftUse(fieldForm.form.lastRightFailedValidation()) as {
+              code: string;
+            }
+          )?.code,
         ).toBe('TOO_SHORT');
 
         // "ab" -> hasAtSign + minLen5 fail
         fieldState.set('ab');
         TestBed.tick();
         expect(
-          (fieldForm.form.firstLeftFailedValidation() as { code: string })
-            ?.code,
+          (
+            craftUse(fieldForm.form.firstLeftFailedValidation()) as {
+              code: string;
+            }
+          )?.code,
         ).toBe('MISSING_AT');
         expect(
-          (fieldForm.form.lastRightFailedValidation() as { code: string })
-            ?.code,
+          (
+            craftUse(fieldForm.form.lastRightFailedValidation()) as {
+              code: string;
+            }
+          )?.code,
         ).toBe('TOO_SHORT');
 
         // valid -> undefined
         fieldState.set('foo@bar.com');
         TestBed.tick();
-        expect(fieldForm.form.firstLeftFailedValidation()).toBeUndefined();
-        expect(fieldForm.form.lastRightFailedValidation()).toBeUndefined();
+        expect(
+          craftUse(fieldForm.form.firstLeftFailedValidation()),
+        ).toBeUndefined();
+        expect(
+          craftUse(fieldForm.form.lastRightFailedValidation()),
+        ).toBeUndefined();
       });
     });
 
@@ -305,27 +327,33 @@ describe('insertFormAttributes', () => {
           ),
         );
 
-        expect(fieldForm.form.firstLeftFailedValidation()).toBeDefined();
         expect(
-          fieldForm.form.visibleFirstLeftFailedValidation(),
+          craftUse(fieldForm.form.firstLeftFailedValidation()),
+        ).toBeDefined();
+        expect(
+          craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
         ).toBeUndefined();
         expect(
-          fieldForm.form.visibleLastRightFailedValidation(),
+          craftUse(fieldForm.form.visibleLastRightFailedValidation()),
         ).toBeUndefined();
 
         fieldForm.form.ɵmarkDirty();
         TestBed.tick();
         expect(
-          fieldForm.form.visibleFirstLeftFailedValidation(),
+          craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
         ).toBeUndefined();
         expect(
-          fieldForm.form.visibleLastRightFailedValidation(),
+          craftUse(fieldForm.form.visibleLastRightFailedValidation()),
         ).toBeUndefined();
 
         fieldForm.form.ɵmarkTouched();
         TestBed.tick();
-        expect(fieldForm.form.visibleFirstLeftFailedValidation()).toBeDefined();
-        expect(fieldForm.form.visibleLastRightFailedValidation()).toBeDefined();
+        expect(
+          craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
+        ).toBeDefined();
+        expect(
+          craftUse(fieldForm.form.visibleLastRightFailedValidation()),
+        ).toBeDefined();
       });
     });
   });
@@ -346,12 +374,12 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.invalid()).toBe(true);
+      expect(craftUse(fieldForm.form.invalid())).toBe(true);
 
       hidden.set(true);
       TestBed.tick();
-      expect(fieldForm.form.invalid()).toBe(false);
-      expect(fieldForm.form.exceptions().list.length).toBe(0);
+      expect(craftUse(fieldForm.form.invalid())).toBe(false);
+      expect(craftUse(fieldForm.form.exceptions()).list.length).toBe(0);
     });
   });
 
@@ -374,7 +402,9 @@ describe('insertFormAttributes', () => {
             { email: 'romain@example.com' },
             insertForm(
               ({ state }) => ({
-                upperEmail: computed(() => state().email.toUpperCase()),
+                upperEmail: computed(() =>
+                  craftUse(state()).email.toUpperCase(),
+                ),
               }),
               insertFormAttributes((context) => {
                 seen.insertionsHasUpperEmail =
@@ -383,7 +413,7 @@ describe('insertFormAttributes', () => {
                 seen.upperEmail = (
                   context.insertions as { upperEmail: () => string }
                 ).upperEmail();
-                seen.stateEmail = context.state().email;
+                seen.stateEmail = craftUse(context.state()).email;
                 seen.fieldValueEmail = context.field.value().email;
                 seen.validatedEmail = context.validatedFormValue()?.email;
                 seen.formIdentifier = context.formIdentifier;
@@ -411,9 +441,9 @@ describe('insertFormAttributes', () => {
         expect(seen.submittingObservedInsideFactory).toBe(true);
 
         // The set inside the factory propagated to the root state.
-        expect(profileForm()).toEqual({ email: 'set@example.com' });
+        expect(craftUse(profileForm())).toEqual({ email: 'set@example.com' });
         // submitting was reset back to false.
-        expect(profileForm.form.submitting()).toBe(false);
+        expect(craftUse(profileForm.form.submitting())).toBe(false);
       });
     });
 
@@ -550,18 +580,18 @@ describe('formAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.disabled()).toBe(false);
-      expect(fieldForm.form.hidden()).toBe(false);
-      expect(fieldForm.form.readonly()).toBe(false);
+      expect(craftUse(fieldForm.form.disabled())).toBe(false);
+      expect(craftUse(fieldForm.form.hidden())).toBe(false);
+      expect(craftUse(fieldForm.form.readonly())).toBe(false);
 
       disabled.set(true);
       hidden.set(true);
       readonly.set(true);
       TestBed.tick();
 
-      expect(fieldForm.form.disabled()).toBe(true);
-      expect(fieldForm.form.hidden()).toBe(true);
-      expect(fieldForm.form.readonly()).toBe(true);
+      expect(craftUse(fieldForm.form.disabled())).toBe(true);
+      expect(craftUse(fieldForm.form.hidden())).toBe(true);
+      expect(craftUse(fieldForm.form.readonly())).toBe(true);
     });
   });
 
@@ -592,20 +622,20 @@ describe('formAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.invalid()).toBe(true);
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.invalid())).toBe(true);
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         cRequired: { code: 'required' },
       });
 
       fieldState.set('romain');
       TestBed.tick();
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         hasAtSign: { code: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
       TestBed.tick();
-      expect(fieldForm.form.invalid()).toBe(false);
+      expect(craftUse(fieldForm.form.invalid())).toBe(false);
     });
   });
 
@@ -682,16 +712,16 @@ describe('formAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form.exceptions().list.length).toBe(1);
-      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+      expect(craftUse(fieldForm.form.exceptions()).list.length).toBe(1);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkDirty();
       TestBed.tick();
-      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkTouched();
       TestBed.tick();
-      expect(fieldForm.form.visibleExceptions().list.length).toBe(1);
+      expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(1);
     });
   });
 
@@ -749,18 +779,30 @@ describe('formAttributes', () => {
       );
 
       expect(
-        (fieldForm.form.firstLeftFailedValidation() as { code: string })?.code,
+        (
+          craftUse(fieldForm.form.firstLeftFailedValidation()) as {
+            code: string;
+          }
+        )?.code,
       ).toBe('MISSING_AT');
       expect(
-        (fieldForm.form.lastRightFailedValidation() as { code: string })?.code,
+        (
+          craftUse(fieldForm.form.lastRightFailedValidation()) as {
+            code: string;
+          }
+        )?.code,
       ).toBe('MISSING_DOT');
 
       fieldState.set('foo@bar.com');
       TestBed.tick();
-      expect(fieldForm.form.firstLeftFailedValidation()).toBeUndefined();
-      expect(fieldForm.form.lastRightFailedValidation()).toBeUndefined();
+      expect(
+        craftUse(fieldForm.form.firstLeftFailedValidation()),
+      ).toBeUndefined();
+      expect(
+        craftUse(fieldForm.form.lastRightFailedValidation()),
+      ).toBeUndefined();
 
-      void computed(() => fieldForm.form.firstLeftFailedValidation());
+      void computed(() => craftUse(fieldForm.form.firstLeftFailedValidation()));
     });
   });
 });

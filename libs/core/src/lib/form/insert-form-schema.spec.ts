@@ -1,4 +1,3 @@
-import { Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftUse } from '../craft-use';
 import { mutation } from '../mutation';
@@ -6,6 +5,7 @@ import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormSchema } from './insert-form-schema';
 import { insertFormSubmit } from './insert-form-submit';
+import type { YieldableReactiveValue } from '../reactive-read';
 
 type UserForm = {
   email: string;
@@ -19,11 +19,11 @@ type TestSchema<Input, Output = Input> = {
     version: 1;
     vendor: 'test';
     types: { input: Input; output: Output };
-    validate: (
-      value: unknown,
-    ) =>
+    validate: (value: unknown) =>
       | { value: Output; issues?: undefined }
-      | { issues: readonly { message: string; path?: readonly PropertyKey[] }[] };
+      | {
+          issues: readonly { message: string; path?: readonly PropertyKey[] }[];
+        };
   };
 };
 
@@ -40,9 +40,7 @@ describe('insertFormSchema', () => {
       value && typeof value === 'object' && 'email' in value && value.email
         ? { value: value as UserForm }
         : {
-            issues: [
-              { message: 'Email is required', path: ['email'] },
-            ],
+            issues: [{ message: 'Email is required', path: ['email'] }],
           },
     );
 
@@ -56,19 +54,21 @@ describe('insertFormSchema', () => {
       ),
     );
 
-    expect(userForm.form.hasSchema()).toBe(true);
-    expectTypeOf(userForm.form.hasSchema).toEqualTypeOf<Signal<true>>();
-    expect(userForm.form.valid()).toBe(false);
-    expect(userForm.form.hasSchemaExceptions()).toBe(true);
-    expect(userForm.form.schemaExceptions()).toHaveLength(1);
-    expect(userForm.form.schemaExceptions()[0]?.payload.issues[0]?.message).toBe(
-      'Email is required',
-    );
-    expect(userForm.form.email.errors()).toHaveLength(1);
-    expect(userForm.form.email.errors()[0]?.code).toBe(
+    expect(craftUse(userForm.form.hasSchema())).toBe(true);
+    expectTypeOf(userForm.form.hasSchema).toMatchTypeOf<
+      YieldableReactiveValue<true>
+    >();
+    expect(craftUse(userForm.form.valid())).toBe(false);
+    expect(craftUse(userForm.form.hasSchemaExceptions())).toBe(true);
+    expect(craftUse(userForm.form.schemaExceptions())).toHaveLength(1);
+    expect(
+      craftUse(userForm.form.schemaExceptions())[0]?.payload.issues[0]?.message,
+    ).toBe('Email is required');
+    expect(craftUse(userForm.form.email.errors())).toHaveLength(1);
+    expect(craftUse(userForm.form.email.errors())[0]?.code).toBe(
       'SCHEMA_VALIDATION_ERROR',
     );
-    expect(userForm.form.validatedFormValue()).toBeUndefined();
+    expect(craftUse(userForm.form.validatedFormValue())).toBeUndefined();
   });
 
   it('projects nested issues, revalidates, and keeps schema input values', () => {
@@ -80,9 +80,7 @@ describe('insertFormSchema', () => {
       return zip === '75001'
         ? { value: value as UserForm }
         : {
-            issues: [
-              { message: 'ZIP is invalid', path: ['address', 'zip'] },
-            ],
+            issues: [{ message: 'ZIP is invalid', path: ['address', 'zip'] }],
           };
     });
 
@@ -90,22 +88,27 @@ describe('insertFormSchema', () => {
       craftUse(
         state(
           'userForm',
-          { email: 'user@example.com', address: { zip: '' } } satisfies UserForm,
+          {
+            email: 'user@example.com',
+            address: { zip: '' },
+          } satisfies UserForm,
           insertForm(insertFormSchema(userSchema)),
         ),
       ),
     );
 
-    expect(userForm.form.address.zip.errors()).toHaveLength(1);
-    expect(userForm.form.address.errors()).toHaveLength(1);
-    expect(userForm.form.valid()).toBe(false);
+    expect(craftUse(userForm.form.address.zip.errors())).toHaveLength(1);
+    expect(craftUse(userForm.form.address.errors())).toHaveLength(1);
+    expect(craftUse(userForm.form.valid())).toBe(false);
 
     userForm.form.address.zip.set('75001');
 
-    expect(userForm.form.valid()).toBe(true);
-    expect(userForm.form.hasSchemaExceptions()).toBe(false);
-    expect(userForm.form.address.zip.errors()).toEqual([]);
-    expect(userForm.form.validatedFormValue()?.address?.zip).toBe('75001');
+    expect(craftUse(userForm.form.valid())).toBe(true);
+    expect(craftUse(userForm.form.hasSchemaExceptions())).toBe(false);
+    expect(craftUse(userForm.form.address.zip.errors())).toEqual([]);
+    expect(craftUse(userForm.form.validatedFormValue())?.address?.zip).toBe(
+      '75001',
+    );
   });
 
   it('does not replace form input with a transformed schema output', () => {
@@ -125,9 +128,9 @@ describe('insertFormSchema', () => {
       ),
     );
 
-    expect(userForm.form.valid()).toBe(true);
-    expect(userForm().age).toBe('42');
-    expect(userForm.form.validatedFormValue()?.age).toBe('42');
+    expect(craftUse(userForm.form.valid())).toBe(true);
+    expect(craftUse(userForm()).age).toBe('42');
+    expect(craftUse(userForm.form.validatedFormValue())?.age).toBe('42');
   });
 
   it('blocks submit when the schema is invalid', () => {
@@ -151,17 +154,14 @@ describe('insertFormSchema', () => {
         state(
           'userForm',
           { email: '', address: { zip: '75001' } } satisfies UserForm,
-          insertForm(
-            insertFormSchema(userSchema),
-            insertFormSubmit(saveUser),
-          ),
+          insertForm(insertFormSchema(userSchema), insertFormSubmit(saveUser)),
         ),
       );
     });
 
     userForm.form.submit();
 
-    expect(userForm.form.hasAttemptedSubmit()).toBe(true);
+    expect(craftUse(userForm.form.hasAttemptedSubmit())).toBe(true);
     expect(loader).not.toHaveBeenCalled();
   });
 
@@ -192,10 +192,10 @@ describe('insertFormSchema', () => {
       ),
     );
 
-    expect(usersForm.select(0)?.valid()).toBe(false);
-    expect(usersForm.select(1)?.valid()).toBe(true);
-    expect(usersForm.select(0)?.email.errors()).toHaveLength(1);
-    expect(usersForm.select(1)?.email.errors()).toEqual([]);
+    expect(craftUse(usersForm.select(0)?.valid())).toBe(false);
+    expect(craftUse(usersForm.select(1)?.valid())).toBe(true);
+    expect(craftUse(usersForm.select(0)?.email.errors())).toHaveLength(1);
+    expect(craftUse(usersForm.select(1)?.email.errors())).toEqual([]);
   });
 
   it('rejects asynchronous schemas explicitly', () => {
@@ -220,7 +220,7 @@ describe('insertFormSchema', () => {
       ),
     );
 
-    expect(() => userForm.form.valid()).toThrow(
+    expect(() => craftUse(userForm.form.valid())).toThrow(
       'Form schemas must be synchronous',
     );
   });

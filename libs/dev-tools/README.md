@@ -125,6 +125,12 @@ validators change shape. For async validators, the script reports the
 `validateAsync(...) + rxResource(...)` pattern so it can be rewritten as a local
 `query(...)` triggered by the field value plus `cAsyncValidate(queryRef, ...)`.
 
+The primitive migration also consumes the yieldable reactive-read contract. In
+generator callbacks it introduces a local reader with `yield*` (for example,
+`const _state = yield* state();`), while non-generator boundaries use the
+canonical `craftUse(...)` name. It does not generate the legacy
+`craftUse as __craftRead` alias, and its output is idempotent.
+
 The service migration also:
 
 - preserves method type parameters and avoids property/parameter shadowing
@@ -316,6 +322,8 @@ export default [
       'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/no-imperative-craft-resource-trigger': 'error',
       'craft-ng/require-craft-resource-trigger-yield': 'error',
+      'craft-ng/no-craft-computed-side-effects': 'error',
+      'craft-ng/require-craft-method-for-yieldable-callback': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',

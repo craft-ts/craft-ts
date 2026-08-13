@@ -24,12 +24,15 @@ import type {
   ExtractCraftPendingSources,
 } from './craft-settled';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
-import { markYieldableMethod, markYieldableValue } from './yieldable';
-import type { NamedYieldableValue, YieldableMethod } from './yieldable';
+import {
+  createYieldableReactiveValue,
+  ɵactiveReactiveReader,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
 type CraftComputedGenerator<This, Yielded, T> = (
   this: This,
-) => Generator<Yielded, () => T, unknown>;
+) => Generator<Yielded, T, unknown>;
 
 /**
  * A computation that read a `settledValue` through `yield* settled(...)` inherits
@@ -49,11 +52,13 @@ type SettledBrandFromYielded<Yielded> = [
       ExtractCraftGenExceptions<Yielded>
     >;
 
-type TrackedCraftComputed<Name extends string, T, Yielded> = Signal<T> &
-  YieldableMethod<[], T, Yielded> & {
-    readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
-  } & NamedYieldableValue<Name, Signal<T>> &
-  SettledBrandFromYielded<Yielded>;
+type TrackedCraftComputed<
+  Name extends string,
+  T,
+  Yielded,
+> = YieldableReactiveValue<T, Name> & {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
+} & SettledBrandFromYielded<Yielded>;
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,
@@ -84,22 +89,32 @@ export function craftComputed<Name extends string, T>(
   computation: () => T,
   options?: CreateComputedOptions<T>,
 ): TrackedCraftComputed<Name, T, never>;
+export function craftComputed<Yielded, T>(
+  factory: CraftComputedGenerator<void, Yielded, T>,
+  options?: CreateComputedOptions<T>,
+): TrackedCraftComputed<'computed', T, Yielded>;
 export function craftComputed<T>(
-  name: string,
-  hostOrComputation: unknown,
+  computation: () => T,
+  options?: CreateComputedOptions<T>,
+): TrackedCraftComputed<'computed', T, never>;
+export function craftComputed<T>(
+  nameOrComputation: string | ((...args: never[]) => unknown),
+  hostOrComputation?: unknown,
   factoryOrOptions?: unknown,
   maybeOptions?: CreateComputedOptions<T>,
 ): TrackedCraftComputed<string, T, unknown> {
+  const hasName = typeof nameOrComputation === 'string';
+  const name = hasName ? nameOrComputation : 'computed';
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
-  const hasHost = typeof factoryOrOptions === 'function';
+  const hasHost = hasName && typeof factoryOrOptions === 'function';
   const host = hasHost ? hostOrComputation : undefined;
   const computationOrFactory = (
-    hasHost ? factoryOrOptions : hostOrComputation
+    hasHost ? factoryOrOptions : hasName ? hostOrComputation : nameOrComputation
   ) as ((this: unknown) => T) | CraftComputedGenerator<unknown, unknown, T>;
-  const options = (hasHost ? maybeOptions : factoryOrOptions) as
-    | CreateComputedOptions<T>
-    | undefined;
+  const options = (
+    hasHost ? maybeOptions : hasName ? factoryOrOptions : hostOrComputation
+  ) as CreateComputedOptions<T> | undefined;
 
   assertInInjectionContext(craftComputed);
   const injector = inject(Injector);
@@ -111,23 +126,31 @@ export function craftComputed<T>(
   let result: Signal<T>;
 
   if (isGeneratorFunction(computationOrFactory)) {
-    const computationFn = runInInjectionContext(computedInjector, () => {
-      const iterator = (
-        computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
-      ).call(host);
-      return runCraftGenerator({
-        iterator,
-        injector: computedInjector,
-        hostScope: 'function',
-        invalidYieldErrorMessage:
-          'craftComputed generators can only yield craftService dependencies.',
-        multipleAppStartErrorMessage:
-          'craftComputed generators cannot declare onAppStart(...) more than once.',
-        onAppStartNotSupportedErrorMessage:
-          'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
-      }).value as unknown as () => T;
-    });
-    result = computed(computationFn, options);
+    result = computed(
+      () =>
+        runInInjectionContext(computedInjector, () => {
+          const iterator = (
+            computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
+          ).call(host);
+          return runCraftGenerator({
+            iterator,
+            injector: computedInjector,
+            hostScope: 'function',
+            invalidYieldErrorMessage:
+              'craftComputed generators can only yield Craft dependencies and reactive read requests; received an unknown yield.',
+            multipleAppStartErrorMessage:
+              'craftComputed generators cannot declare onAppStart(...) more than once.',
+            onAppStartNotSupportedErrorMessage:
+              'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
+            reactiveReader: ɵactiveReactiveReader() ?? {
+              name,
+              computed: name,
+              path: name,
+            },
+          }).value as T;
+        }),
+      options,
+    );
   } else {
     const computation = computationOrFactory as (this: unknown) => T;
     result = computed(
@@ -162,8 +185,8 @@ export function craftComputed<T>(
     }
   }
 
-  return markYieldableValue(
-    markYieldableMethod(result),
-    name,
-  ) as unknown as TrackedCraftComputed<string, T, unknown>;
+  return createYieldableReactiveValue(result, name, {
+    computed: name,
+    path: name,
+  }) as unknown as TrackedCraftComputed<string, T, unknown>;
 }

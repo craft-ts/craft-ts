@@ -3,8 +3,7 @@ import {
   craftException,
   CraftHttpClient,
   craftService,
-  query,
-} from '@craft-ng/core';
+  query, craftUse } from '@craft-ng/core';
 import type { User } from '../query/api.service';
 import { OtherService, provideOtherService } from './to-provide.service';
 
@@ -58,6 +57,6 @@ export const OtherComponent = craftComponent(
   ({ other, users }) =>
     div([
       p(() => other.getValue()),
-      p(() => `Query status: ${users.query.status()}`),
+      p(() => `Query status: ${craftUse(users.query.status())}`),
     ]),
 );

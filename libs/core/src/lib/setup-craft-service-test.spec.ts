@@ -50,7 +50,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
         };
       },
     );
@@ -97,13 +97,9 @@ describe('setupCraftServiceTest', () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const childCounter = yield* state(
-          'childCounter',
-          0,
-          ({ update }) => ({
-            increment: () => update((value) => value + 1),
-          }),
-        );
+        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
         return childCounter;
       },
     );
@@ -193,7 +189,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -223,7 +219,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -265,7 +261,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -364,7 +360,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           incrementThroughCounter: () => counter.increment(),
         };
       },
@@ -403,7 +399,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -439,7 +435,7 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -481,7 +477,7 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    expect(sut()).toBe(5);
+    expect(craftUse(sut())).toBe(5);
   });
 
   it('should require an explicit provider when a raw external dependency only uses provider inputs', () => {

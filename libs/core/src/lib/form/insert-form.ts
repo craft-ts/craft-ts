@@ -27,6 +27,10 @@ import {
   markNonYieldableInsertionMethod,
   type NonYieldableInsertionMethod,
 } from '../yieldable';
+import {
+  createYieldableReactiveValue,
+  rawReactiveValue,
+} from '../reactive-read';
 
 export { validatedFormValueSymbol } from './insert-form-internals';
 export type {
@@ -99,16 +103,17 @@ function buildSimpleForm<Model>(
   formIdentifier: string | number | unknown,
 ): FormWithInsertions<Model, Record<string, unknown>> {
   const submission = createSubmissionController();
+  const rawState = rawReactiveValue(context.state);
   const field = createCraftFieldTree<Model>({
-    read: () => context.state(),
+    read: () => rawState(),
     set: (next: Model) => context.set(next),
-    asReadonly: () => context.state,
+    asReadonly: () => rawState,
   });
 
   const { rawInsertionsOutput, exposedInsertionsOutput } =
     executeFormInsertions(formInsertions, {
       field,
-      state: context.state,
+      state: rawState,
       submission,
       set: (newState: Model) => context.set(newState),
       update: (fn: (current: Model) => Model) => context.update(fn),
@@ -766,7 +771,7 @@ export function insertForm(...args: any[]): any {
     const identifier = parallelConfig.identifier;
 
     const selectItem = (formIdentifier: string | number) => {
-      const currentState = context.state();
+      const currentState = rawReactiveValue(context.state)();
       if (!Array.isArray(currentState)) return undefined;
       const index = findItemIndexByIdentifier(
         currentState,
@@ -804,7 +809,10 @@ export function insertForm(...args: any[]): any {
         unknown,
         Record<string, unknown>
       > = {
-        state: itemState,
+        state: createYieldableReactiveValue(itemState, 'state', {
+          primitive: 'form',
+          path: `form.${String(formIdentifier)}.state`,
+        }),
         set: (next: unknown) => setItem(formIdentifier, next),
         update: (fn: (curr: unknown) => unknown) => {
           const next = fn(selectItem(formIdentifier));
@@ -851,7 +859,7 @@ export function insertForm(...args: any[]): any {
     };
 
     const formsSignal = linkedSignal(() => {
-      const currentState = context.state();
+      const currentState = rawReactiveValue(context.state)();
       if (!Array.isArray(currentState)) {
         formsByIdentifier.clear();
         return [] as ParallelEntry[];

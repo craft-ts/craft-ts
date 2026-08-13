@@ -1,4 +1,11 @@
-import { computed, effect, Signal, untracked } from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injector,
+  Signal,
+  untracked,
+} from '@angular/core';
 import {
   AnyCraftException,
   ExcludeByCode,
@@ -11,6 +18,9 @@ import {
 } from '../mutation';
 import { ResourceExceptionConstraints } from '../query.core';
 import { MergeObjects } from '../util/util.type';
+import { rawReactiveFacade } from '../reactive-read';
+import type { YieldableReactiveValue } from '../reactive-read';
+import { executeYieldable } from '../yieldable';
 import {
   FormWithInsertions,
   InsertionsFormFactory,
@@ -26,9 +36,9 @@ type SubmitContext<
   submitCraftResource: SubmitCraftResource;
   form: FormWithInsertions<FormValue, {}>;
   exceptions: CurrentExceptions[];
-  omit: <C extends SubmitExceptions>(
+  omit: <C extends string>(
     codes: readonly C[],
-  ) => ExcludeByCode<CurrentExceptions, C>[];
+  ) => ExcludeByCode<CurrentExceptions, Extract<C, SubmitExceptions>>[];
 };
 
 type MutationSubmitExceptions<
@@ -71,10 +81,16 @@ type SubmitExceptionUnion<SubmitCraftResource> =
         >
       ? MutationSubmitExceptions<MutationExceptions, GroupIdentifier>
       : SubmitCraftResource extends {
-            exceptions: Signal<{ list: (infer ExceptionList)[] }>;
+            exceptions: YieldableReactiveValue<{
+              list: (infer ExceptionList)[];
+            }>;
           }
         ? ExceptionList
-        : never;
+        : SubmitCraftResource extends {
+              exceptions: Signal<{ list: (infer ExceptionList)[] }>;
+            }
+          ? ExceptionList
+          : never;
 
 type SelectedSubmitCraftResource<SubmitCraftResourceById> =
   SubmitCraftResourceById extends {
@@ -102,15 +118,23 @@ type MaybeExceptions =
   | AnyCraftException
   | readonly AnyCraftException[]
   | undefined;
+type MaybeYieldableExceptions =
+  | MaybeExceptions
+  | Generator<any, MaybeExceptions, unknown>;
 
 type ExceptionRuleReturn<T> = T extends (...args: any[]) => infer Return
-  ? Return
+  ? Return extends Generator<any, infer Result, any>
+    ? Result
+    : Return
   : never;
 
 type ExtractExceptionReturn<T> =
   Exclude<T, undefined> extends readonly (infer Exception)[]
     ? Exception
     : Exclude<T, undefined>;
+
+type ResolvedCallbackReturn<T> =
+  T extends Generator<any, infer Result, any> ? Result : T;
 
 type ApplyExceptionRule<CurrentExceptions, Rule> =
   Exclude<ExceptionRuleReturn<Rule>, undefined> extends readonly unknown[]
@@ -147,21 +171,21 @@ type InsertFormSubmitConfig<
           SubmitCraftResource,
           SubmitExceptions
         >,
-      ) => MaybeExceptions;
+      ) => MaybeYieldableExceptions;
       exception?: (
         context: SubmitContext<
           FormValue,
           SubmitCraftResource,
           SubmitExceptions
         >,
-      ) => MaybeExceptions;
+      ) => MaybeYieldableExceptions;
       exceptions?: readonly ((
         context: SubmitContext<
           FormValue,
           SubmitCraftResource,
           SubmitExceptions
         >,
-      ) => MaybeExceptions)[];
+      ) => MaybeYieldableExceptions)[];
     },
     [unknown] extends [FormIdentifier]
       ? {}
@@ -228,7 +252,7 @@ type ToSubmitExceptions<
       : SubmitExceptions)
   | InsertMetaInCraftExceptionIfKnown<
       Config extends { success: (...args: any[]) => infer SuccessExceptions }
-        ? SuccessExceptions
+        ? ResolvedCallbackReturn<SuccessExceptions>
         : never,
       'insertFormSubmitSuccess',
       FormIdentifier
@@ -237,7 +261,7 @@ type ToSubmitExceptions<
       Config extends {
         exception: (...args: any[]) => infer ExceptionExceptions;
       }
-        ? ExceptionExceptions
+        ? ResolvedCallbackReturn<ExceptionExceptions>
         : never,
       'insertFormSubmitError',
       FormIdentifier
@@ -319,6 +343,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     setAttemptedSubmit,
     setSubmitting,
     formIdentifier,
+    injector,
     validatedFormValue: validatedFormValueSignal,
   }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -326,8 +351,10 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     setAttemptedSubmit: () => void;
     setSubmitting: (submitting: boolean) => void;
     formIdentifier: unknown;
+    injector: Injector;
     validatedFormValue: Signal<ValidatedFormValue<unknown>>;
   }) => {
+    const callbackInjector = injector ?? inject(Injector);
     const submitCraftResourceTarget = computed(() => {
       if (
         formIdentifier !== undefined &&
@@ -350,21 +377,25 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       return submitCraftResource as any;
     });
 
+    const rawSubmitCraftResourceTarget = computed(() =>
+      rawReactiveFacade(submitCraftResourceTarget()),
+    );
+
     effect(() => {
-      const target = submitCraftResourceTarget();
+      const target = rawSubmitCraftResourceTarget();
       const isLoading = target?.isLoading?.() ?? false;
       untracked(() => setSubmitting(isLoading));
     });
 
     effect(() => {
-      const target = submitCraftResourceTarget();
+      const target = rawSubmitCraftResourceTarget();
       if (target?.status?.() === 'resolved') {
         untracked(() => field.reset?.());
       }
     });
 
     const hasSubmitExceptions = computed(() => {
-      const target = submitCraftResourceTarget();
+      const target = rawSubmitCraftResourceTarget();
       return target &&
         'hasException' in target &&
         typeof target.hasException === 'function'
@@ -373,7 +404,8 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     }) as Signal<boolean>;
 
     const submitExceptions = computed(() => {
-      const target = submitCraftResourceTarget();
+      const target = rawSubmitCraftResourceTarget();
+      const publicTarget = submitCraftResourceTarget();
       const resourceExceptions =
         target &&
         'exceptions' in target &&
@@ -388,7 +420,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
         );
 
       const ctx = {
-        submitCraftResource: target,
+        submitCraftResource: publicTarget,
         form: field,
         exceptions: resourceExceptions,
         omit,
@@ -408,7 +440,11 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       // returning one exception appends it.
       if (hasResourceException && Array.isArray(config?.exceptions)) {
         for (const exceptionRule of config.exceptions) {
-          const next = exceptionRule({ ...ctx, exceptions: merged });
+          const next = executeYieldable(
+            exceptionRule,
+            [{ ...ctx, exceptions: merged }],
+            callbackInjector,
+          );
           const normalized = normalizeExceptionList(next);
           if (!normalized) continue;
           merged = Array.isArray(next)
@@ -424,7 +460,11 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
         typeof config?.success === 'function'
       ) {
         const next = normalizeExceptionList(
-          config.success({ ...ctx, exceptions: merged }),
+          executeYieldable(
+            config.success,
+            [{ ...ctx, exceptions: merged }],
+            callbackInjector,
+          ),
         );
         if (next?.length) merged = [...merged, ...next];
       }
@@ -433,7 +473,11 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       // craft-exception responses, which flow through `exceptions`).
       if (status === 'exception' && typeof config?.exception === 'function') {
         const next = normalizeExceptionList(
-          config.exception({ ...ctx, exceptions: merged }),
+          executeYieldable(
+            config.exception,
+            [{ ...ctx, exceptions: merged }],
+            callbackInjector,
+          ),
         );
         if (next?.length) merged = [...merged, ...next];
       }
@@ -446,7 +490,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       const validatedFormValue = validatedFormValueSignal();
       if (!validatedFormValue) return;
       if (!submitCraftResource) {
-        // eslint-disable-next-line no-console
+
         console.warn(
           'No submit resource found for form submission. Please check that the resource is correctly passed to insertFormSubmit and that the formIdentifier (if used) is correct.',
         );

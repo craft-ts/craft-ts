@@ -89,7 +89,8 @@ describe('queryParams', () => {
 
   it('should create a query params', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams('myQueryParams', {
+      const myQueryParams = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -114,7 +115,8 @@ describe('queryParams', () => {
 
   it('should create a query params and can expose state and basic methods (set, update, patch)', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -137,36 +139,36 @@ describe('queryParams', () => {
           ({ set, update, patch }) => ({ set, update, patch }),
         ),
       );
-      expectTypeOf(myQueryParams()).toEqualTypeOf<{
+      expectTypeOf(craftUse(myQueryParams())).toEqualTypeOf<{
         page: number;
         pageSize: number;
       }>();
 
-      expect(myQueryParams()).toEqual({
+      expect(craftUse(myQueryParams())).toEqual({
         page: 1,
         pageSize: 10,
       });
 
-      expect(myQueryParams.page()).toBe(1);
-      expect(myQueryParams.pageSize()).toBe(10);
+      expect(craftUse(myQueryParams.page())).toBe(1);
+      expect(craftUse(myQueryParams.pageSize())).toBe(10);
       console.log('myQueryParams', myQueryParams);
       myQueryParams.set({
         page: 2,
         pageSize: 20,
       });
-      expect(myQueryParams.page()).toBe(2);
-      expect(myQueryParams.pageSize()).toBe(20);
+      expect(craftUse(myQueryParams.page())).toBe(2);
+      expect(craftUse(myQueryParams.pageSize())).toBe(20);
 
       myQueryParams.update((current) => ({
         ...current,
         page: current.page + 1,
       }));
-      expect(myQueryParams.page()).toBe(3);
+      expect(craftUse(myQueryParams.page())).toBe(3);
 
       myQueryParams.patch({
         pageSize: 50,
       });
-      expect(myQueryParams.pageSize()).toBe(50);
+      expect(craftUse(myQueryParams.pageSize())).toBe(50);
     });
   });
 
@@ -177,7 +179,8 @@ describe('queryParams', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams('myQueryParams', {
+      const myQueryParams = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -200,14 +203,14 @@ describe('queryParams', () => {
       expect(resourceContext?.kind).toBe('queryParams');
       expect(resourceContext?.grouped).toBe(false);
       resourceContext?.set({ page: 2, pageSize: 20 });
-      expect(myQueryParams()).toEqual({ page: 2, pageSize: 20 });
+      expect(craftUse(myQueryParams())).toEqual({ page: 2, pageSize: 20 });
       resourceContext?.update((current) => ({
         ...(current as object),
         page: 3,
       }));
-      expect(myQueryParams.page()).toBe(3);
+      expect(craftUse(myQueryParams.page())).toBe(3);
       resourceContext?.patch(() => ({ pageSize: 30 }));
-      expect(myQueryParams.pageSize()).toBe(30);
+      expect(craftUse(myQueryParams.pageSize())).toBe(30);
     });
   });
 
@@ -223,7 +226,8 @@ describe('queryParams', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -247,7 +251,7 @@ describe('queryParams', () => {
       expect(runtimeContext?.kind).toBe('queryParams');
       expect(runtimeContext?.get()).toEqual({ page: 2 });
       runtimeContext?.patch(() => ({ page: 10 }));
-      expect(myQueryParams.page()).toBe(10);
+      expect(craftUse(myQueryParams.page())).toBe(10);
     });
   });
 
@@ -260,7 +264,8 @@ describe('queryParams', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -278,7 +283,7 @@ describe('queryParams', () => {
 
             return {
               nextPage: () => {
-                if (state().page >= rules.maxPage()) {
+                if (craftUse(state()).page >= rules.maxPage()) {
                   return;
                 }
 
@@ -305,7 +310,8 @@ describe('queryParams', () => {
 
   it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams('myQueryParams', {
+      const myQueryParams = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -337,7 +343,8 @@ describe('queryParams', () => {
 
   it('should create a query params and methods', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -358,16 +365,18 @@ describe('queryParams', () => {
             },
           },
           ({ state, set }) => ({
-            goTo: (newPage: number) => {
-              expectTypeOf(state()).toEqualTypeOf<{
-                page: number;
-                pageSize: number;
-              }>();
-              set({
-                ...state(),
-                page: newPage,
-              });
-            },
+            goTo: function* (newPage: number) {
+                  const _state2 = yield* state();
+                            expectTypeOf(_state2).toEqualTypeOf<{
+                              page: number;
+                              pageSize: number;
+                            }>();
+                  const _state = yield* state();
+                  return yield* set({
+                              ..._state,
+                              page: newPage,
+                            });
+                          },
           }),
         ),
       );
@@ -376,7 +385,8 @@ describe('queryParams', () => {
 
   it('should expose basic methods in insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -403,12 +413,12 @@ describe('queryParams', () => {
             expect(config).toBeDefined();
             return {
               _setPage: (newPage: number) => {
-                expectTypeOf(state()).toEqualTypeOf<{
+                expectTypeOf(craftUse(state())).toEqualTypeOf<{
                   page: number;
                   pageSize: number;
                 }>();
                 set({
-                  ...state(),
+                  ...craftUse(state()),
                   page: newPage,
                 });
               },
@@ -431,13 +441,13 @@ describe('queryParams', () => {
         ),
       );
       myQueryParams._setPage(2);
-      expect(myQueryParams.page()).toBe(2);
+      expect(craftUse(myQueryParams.page())).toBe(2);
       myQueryParams._updatePage(3);
-      expect(myQueryParams.page()).toBe(5);
+      expect(craftUse(myQueryParams.page())).toBe(5);
       myQueryParams._patchPageSize(100);
-      expect(myQueryParams.pageSize()).toBe(100);
+      expect(craftUse(myQueryParams.pageSize())).toBe(100);
       myQueryParams._reset();
-      expect(myQueryParams()).toEqual({
+      expect(craftUse(myQueryParams())).toEqual({
         page: 1,
         pageSize: 10,
       });
@@ -446,7 +456,8 @@ describe('queryParams', () => {
 
   it('should accept options and not loosing insertions inference', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -477,12 +488,12 @@ describe('queryParams', () => {
             expect(config).toBeDefined();
             return {
               _set: (newPage: number) => {
-                expectTypeOf(state()).toEqualTypeOf<{
+                expectTypeOf(craftUse(state())).toEqualTypeOf<{
                   page: number;
                   pageSize: number;
                 }>();
                 set({
-                  ...state(),
+                  ...craftUse(state()),
                   page: newPage,
                 });
               },
@@ -510,7 +521,8 @@ describe('queryParams', () => {
   it('should not expose methods bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const mySource = signalSource<number>('mySource');
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -533,12 +545,12 @@ describe('queryParams', () => {
           ({ state, set }) => {
             return {
               _setPage: afterRecomputation(mySource, (newPage: number) => {
-                expectTypeOf(state()).toEqualTypeOf<{
+                expectTypeOf(craftUse(state())).toEqualTypeOf<{
                   page: number;
                   pageSize: number;
                 }>();
                 set({
-                  ...state(),
+                  ...craftUse(state()),
                   page: newPage,
                 });
               }),
@@ -554,7 +566,8 @@ describe('queryParams', () => {
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const myQueryParams = craftUse(queryParams(
+      const myQueryParams = craftUse(
+        queryParams(
           'myQueryParams',
           {
             state: {
@@ -603,8 +616,8 @@ describe('queryParams', () => {
       expect(router.url).not.toContain('?');
 
       // But state should still have fallback values
-      expect(myQueryParams.page()).toBe(1);
-      expect(myQueryParams.pageSize()).toBe(10);
+      expect(craftUse(myQueryParams.page())).toBe(1);
+      expect(craftUse(myQueryParams.pageSize())).toBe(10);
     });
   });
 });
@@ -624,7 +637,8 @@ describe('queryParams codecs', () => {
   it('decodes and encodes values through a synchronous codec', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const filters = craftUse(queryParams(
+      const filters = craftUse(
+        queryParams(
           'filters',
           {
             state: {
@@ -641,10 +655,10 @@ describe('queryParams codecs', () => {
         ),
       );
 
-      expectTypeOf(filters.page()).toEqualTypeOf<number>();
+      expectTypeOf(craftUse(filters.page())).toEqualTypeOf<number>();
 
       await router.navigate([], { queryParams: { page: '4' } });
-      expect(filters.page()).toBe(4);
+      expect(craftUse(filters.page())).toBe(4);
 
       filters.set({ page: 5 });
       await vi.runAllTimersAsync();
@@ -657,7 +671,8 @@ describe('queryParams codecs', () => {
 
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const filters = craftUse(queryParams('filters', {
+      const filters = craftUse(
+        queryParams('filters', {
           state: {
             page: {
               fallbackValue: 1,
@@ -674,11 +689,11 @@ describe('queryParams codecs', () => {
 
       await router.navigate([], { queryParams: { page: 'invalid' } });
 
-      expect(filters.page()).toBe(1);
-      expect(filters.exceptions().parse.page?.code).toBe(
+      expect(craftUse(filters.page())).toBe(1);
+      expect(craftUse(filters.exceptions()).parse.page?.code).toBe(
         'QueryParamDecodeError',
       );
-      expect(filters.exceptions().parse.page?.payload).toEqual({
+      expect(craftUse(filters.exceptions()).parse.page?.payload).toEqual({
         key: 'page',
         value: 'invalid',
         error: nativeError,
@@ -690,7 +705,8 @@ describe('queryParams codecs', () => {
     TestBed.runInInjectionContext(() => {
       const router = TestBed.inject(Router);
       const navigate = vi.spyOn(router, 'navigate');
-      const filters = craftUse(queryParams(
+      const filters = craftUse(
+        queryParams(
           'filters',
           {
             state: {
@@ -711,7 +727,7 @@ describe('queryParams codecs', () => {
 
       expect(() => filters.set({ page: 2 })).toThrowError();
       expect(navigate).not.toHaveBeenCalled();
-      expect(filters.page()).toBe(1);
+      expect(craftUse(filters.page())).toBe(1);
     });
   });
 });

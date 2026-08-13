@@ -15,8 +15,7 @@ import {
   insertStoragePersister,
   insertSelect,
   insertStatePipe,
-  state,
-} from '@craft-ng/core';
+  state, craftUse } from '@craft-ng/core';
 
 const GRID_SIZE = 16;
 const EMPTY_COLOR = '#f8fafc';
@@ -63,9 +62,9 @@ const PixelArt = craftComponent(
             update((cell) => ({
               ...cell,
               color:
-                cell.color === ui().activeColor
+                cell.color === craftUse(ui()).activeColor
                   ? EMPTY_COLOR
-                  : ui().activeColor,
+                  : craftUse(ui()).activeColor,
               paintCount: cell.paintCount + 1,
             })),
         })),
@@ -75,10 +74,15 @@ const PixelArt = craftComponent(
               current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
             ),
           paintedCount: computed(
-            () => state().filter(({ color }) => color !== EMPTY_COLOR).length,
+            () =>
+              craftUse(state()).filter(({ color }) => color !== EMPTY_COLOR)
+                .length,
           ),
           totalPaintActions: computed(() =>
-            state().reduce((total, { paintCount }) => total + paintCount, 0),
+            craftUse(state()).reduce(
+              (total, { paintCount }) => total + paintCount,
+              0,
+            ),
           ),
         }),
       ),
@@ -113,8 +117,11 @@ const PixelArt = craftComponent(
         'Effacer',
       ),
       p([
-        span(() => `Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
-        span(() => ` · Clics: ${cells.totalPaintActions()}`),
+        span(
+          () =>
+            `Cases peintes: ${craftUse(cells.paintedCount())}/${INDEXES.length}`,
+        ),
+        span(() => ` · Clics: ${craftUse(cells.totalPaintActions())}`),
       ]),
       div(
         { class: 'pixel-grid', role: 'grid' },

@@ -8,7 +8,9 @@ import {
   setupCraftComponentLogicTest,
   type Input,
 } from '@craft-ng/component';
-import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
+import type {
+  ExtractDeps,
+  GetServiceDependencies, craftUse } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GlobalQuery from './query';
@@ -27,7 +29,7 @@ describe('Query template', () => {
     >
   >;
 
-type _UserQueryDependsOnStoragePersister = Expect<
+  type _UserQueryDependsOnStoragePersister = Expect<
     Equal<
       'StoragePersister' extends keyof ExtractDeps<QueryLogic['userQuery']>
         ? true
@@ -38,9 +40,9 @@ type _UserQueryDependsOnStoragePersister = Expect<
 
   type _ApiServiceDependencyIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends GetServiceDependencies<
-        typeof ApiService
-      >
+      ExtractDeps<
+        QueryLogic['userQuery']
+      >['ApiService'] extends GetServiceDependencies<typeof ApiService>
         ? true
         : false,
       true
@@ -203,7 +205,7 @@ describe('Query logic', () => {
     try {
       expect(getItemById).toHaveBeenCalledTimes(1);
       await vi.waitFor(() =>
-        expect(context.userQuery.value()).toEqual({
+        expect(craftUse(context.userQuery.value())).toEqual({
           id: '3',
           name: 'User 3',
         }),

@@ -14,6 +14,7 @@ import {
   untracked,
 } from '@angular/core';
 import type { GetDeps } from '../branded-component/branded-component';
+import { REACTIVE_VALUE_TYPE, rawReactiveFacade } from '../reactive-read';
 import {
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
@@ -80,7 +81,8 @@ const NUMERIC_TYPES = new Set(['number', 'range']);
 export class CraftFieldBinding<T> {
   private cleanupFns: Array<() => void> = [];
   private strategy: Strategy = 'unsupported';
-  private readonly craftField = () => this.field;
+  private readonly craftField = () =>
+    rawReactiveFacade(this.field) as CraftField<T>;
   private readonly createEffect: CraftNodeEffectFactory;
 
   constructor(
@@ -649,16 +651,21 @@ const functionalFieldDirectives = new WeakMap<
  * `insertSelectFormTree`, because selection materializes the branch insertions.
  */
 type CraftFieldValueOf<Field> = Field extends {
-  readonly value: Signal<infer Value>;
+  readonly value: { readonly [REACTIVE_VALUE_TYPE]: infer Value };
 }
   ? Value
-  : never;
+  : Field extends { set: (next: infer Value) => void }
+    ? Value
+    : Field extends { readonly value: Signal<infer Value> }
+      ? Value
+      : never;
 
 export function CraftFieldDirective<
-  Field extends { readonly value: Signal<any> },
->(
-  field: Field & CraftField<CraftFieldValueOf<Field>>,
-): BoundCraftFieldDirective<Field> {
+  Field extends {
+    readonly value: (...args: any[]) => unknown;
+    set: (next: any) => void;
+  },
+>(field: Field): BoundCraftFieldDirective<Field> {
   if (!isCraftField(field)) {
     throw new TypeError('CraftFieldDirective requires a CraftField.');
   }

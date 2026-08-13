@@ -23,7 +23,7 @@ import {
   settled,
   state,
   type CraftExceptionResult,
-  type CraftSettledSignal,
+  type CraftSettledSignal
 } from '@craft-ng/core';
 import {
   button,
@@ -92,7 +92,7 @@ describe('pendingBlock', () => {
         });
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName };
       },
@@ -138,7 +138,7 @@ describe('pendingBlock', () => {
         });
         const text = craftComputed('text', function* () {
           const settledLabel = yield* settled(label);
-          return () => settledLabel().text;
+          return settledLabel.text;
         });
         return { label, text };
       },
@@ -171,7 +171,8 @@ describe('pendingBlock', () => {
           again: () => update((current) => current + 1),
         }));
         const users = yield* query('users', {
-          params: () => reload(),
+          params: function* () {
+                const _reload = yield* reload(); return _reload; },
           loader: async ({ params }): Promise<User[]> => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return [{ id: String(params), name: `Ada ${params}` }];
@@ -179,7 +180,7 @@ describe('pendingBlock', () => {
         });
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName, reload };
       },
@@ -240,7 +241,7 @@ describe('pendingBlock', () => {
         });
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName };
       },
@@ -288,7 +289,7 @@ describe('pendingBlock', () => {
         // ever sees the computed derived from it.
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName };
       },
@@ -421,7 +422,7 @@ describe('pendingBlock type-level contract', () => {
         });
         const label = craftComputed('label', function* () {
           const settledUsers = yield* settled(users);
-          return () => settledUsers().text;
+          return settledUsers.text;
         });
         return { label };
       },

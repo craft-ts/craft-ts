@@ -27,8 +27,7 @@ import {
   query,
   retry,
   state,
-  insertStatePipe,
-} from '@craft-ng/core';
+  insertStatePipe, craftUse } from '@craft-ng/core';
 import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
 
@@ -136,8 +135,8 @@ const DebouncedWebSearch = craftComponent(
           setSearchInput: (value: string) => set(value),
         }),
         ({ state }) => ({
-          currentTerm: computed(() => state()?.trim() ?? ''),
-          tooShort: computed(() => state().trim().length < 2),
+          currentTerm: computed(() => craftUse(state())?.trim() ?? ''),
+          tooShort: computed(() => craftUse(state()).trim().length < 2),
         }),
       ),
     );
@@ -147,7 +146,8 @@ const DebouncedWebSearch = craftComponent(
     const debouncedSearch = yield* asyncProcess(
       'debouncedSearch',
       {
-        params: () => searchInput().trim(),
+        params: function* () {
+              const _searchInput = yield* searchInput(); return _searchInput.trim(); },
         loader: function* ({ params }) {
           if (!params) return { term: '' };
 
@@ -156,7 +156,7 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource }) => ({
-        isDebouncing: computed(() => resource.isLoading()),
+        isDebouncing: computed(() => craftUse(resource.isLoading())),
       }),
     );
 
@@ -165,7 +165,8 @@ const DebouncedWebSearch = craftComponent(
     const searchQuery = yield* query(
       'openLibrarySearch',
       {
-        params: () => debouncedSearch.value()?.term,
+        params: function* () {
+              const _debouncedSearchvalue = yield* debouncedSearch.value(); return _debouncedSearchvalue?.term; },
         loader: function* ({ params }) {
           if (!params) return EMPTY_RESULTS;
 
@@ -181,22 +182,29 @@ const DebouncedWebSearch = craftComponent(
       },
       ({ resource, hasException }) => {
         const hasResults = computed(
-          () => (resource.value()?.books.length ?? 0) > 0,
+          () => (craftUse(resource.value())?.books.length ?? 0) > 0,
         );
 
         return {
           hasResults,
-          resultCount: computed(() => String(resource.value()?.total ?? 0)),
-          resultBooks: computed(() => resource.value()?.books ?? []),
-          hasSearchError: computed(() => hasException()),
+          resultCount: computed(() =>
+            String(craftUse(resource.value())?.total ?? 0),
+          ),
+          resultBooks: computed(
+            () => craftUse(resource.value())?.books ?? [],
+          ),
+          hasSearchError: computed(() => craftUse(hasException())),
           showResults: computed(
-            () => !resource.isLoading() && !hasException() && hasResults(),
+            () =>
+              !craftUse(resource.isLoading()) &&
+              !craftUse(hasException()) &&
+              hasResults(),
           ),
           showEmpty: computed(
             () =>
-              searchInput.currentTerm().length >= 2 &&
-              !resource.isLoading() &&
-              !hasException() &&
+              craftUse(searchInput.currentTerm()).length >= 2 &&
+              !craftUse(resource.isLoading()) &&
+              !craftUse(hasException()) &&
               !hasResults(),
           ),
         };
@@ -205,7 +213,10 @@ const DebouncedWebSearch = craftComponent(
 
     const showDebouncing = craftComputed(
       'showDebouncing',
-      () => searchInput().trim().length >= 2 && debouncedSearch.isDebouncing(),
+      function* () {
+          const _debouncedSearchisDebouncing = yield* debouncedSearch.isDebouncing();
+          const _searchInput = yield* searchInput(); return _searchInput.trim().length >= 2 &&
+                _debouncedSearchisDebouncing; },
     );
 
     return {
@@ -230,7 +241,7 @@ const DebouncedWebSearch = craftComponent(
       ),
       input({
         type: 'search',
-        value: () => searchInput(),
+        value: () => craftUse(searchInput()),
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
@@ -240,9 +251,14 @@ const DebouncedWebSearch = craftComponent(
       div({ class: 'pipeline-status' }, [
         span([
           'Debounce: ',
-          StatusComponent({ status: debouncedSearch.status }),
+          StatusComponent({
+            status: () => craftUse(debouncedSearch.status()),
+          }),
         ]),
-        span(['HTTP query: ', StatusComponent({ status: searchQuery.status })]),
+        span([
+          'HTTP query: ',
+          StatusComponent({ status: () => craftUse(searchQuery.status()) }),
+        ]),
       ]),
       ifBlock(searchInput.tooShort, () =>
         p({ class: 'hint' }, 'Enter at least two characters to search.'),
@@ -258,15 +274,15 @@ const DebouncedWebSearch = craftComponent(
       ),
       ifBlock(searchQuery.showResults, () => [
         h3([
-          () => searchQuery.resultCount(),
+          () => craftUse(searchQuery.resultCount()),
           ' results for “',
-          () => searchInput(),
+          () => craftUse(searchInput()),
           '”',
         ]),
         ul(
           { class: 'results' },
           each(
-            () => searchQuery.resultBooks(),
+            () => craftUse(searchQuery.resultBooks()),
             { track: (book) => book.key },
             (book) =>
               article({ class: 'book' }, [

@@ -8,7 +8,9 @@ import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
 } from '@craft-ng/component';
-import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
+import type {
+  ExtractDeps,
+  GetServiceDependencies, craftUse } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPagination from './list-with-pagination';
@@ -28,7 +30,7 @@ type _UsersQueryDependsOnApiService = Expect<
 
 type _UsersQueryDependsOnStoragePersister = Expect<
   Equal<
-      'StoragePersister' extends keyof ExtractDeps<ListLogic['usersQuery']>
+    'StoragePersister' extends keyof ExtractDeps<ListLogic['usersQuery']>
       ? true
       : false,
     true
@@ -280,8 +282,11 @@ describe('primitive list with pagination logic', () => {
     const { context, getDataList, destroy } = await setupLogic();
 
     try {
-      expect(context.pagination()).toEqual({ page: 1, pageSize: 4 });
-      expect(context.usersQuery.currentPageData()).toEqual([
+      expect(craftUse(context.pagination())).toEqual({
+        page: 1,
+        pageSize: 4,
+      });
+      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },
         { id: '3', name: 'Rom1' },
@@ -301,17 +306,23 @@ describe('primitive list with pagination logic', () => {
       await vi.waitFor(() =>
         expect(getDataList).toHaveBeenCalledWith({ page: 2, pageSize: 4 }),
       );
-      expect(context.pagination()).toEqual({ page: 2, pageSize: 4 });
-      expect(context.usersQuery.currentPageData()).toEqual([
+      expect(craftUse(context.pagination())).toEqual({
+        page: 2,
+        pageSize: 4,
+      });
+      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
         { id: '5', name: 'Toto' },
         { id: '6', name: 'Julien' },
       ]);
 
       context.pagination.previousPage();
       await vi.waitFor(() =>
-        expect(context.pagination()).toEqual({ page: 1, pageSize: 4 }),
+        expect(craftUse(context.pagination())).toEqual({
+          page: 1,
+          pageSize: 4,
+        }),
       );
-      expect(context.usersQuery.currentPageData()).toEqual([
+      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },
         { id: '3', name: 'Rom1' },
@@ -322,8 +333,11 @@ describe('primitive list with pagination logic', () => {
       await vi.waitFor(() =>
         expect(getDataList).toHaveBeenCalledWith({ page: 1, pageSize: 2 }),
       );
-      expect(context.pagination()).toEqual({ page: 1, pageSize: 2 });
-      expect(context.usersQuery.currentPageData()).toEqual([
+      expect(craftUse(context.pagination())).toEqual({
+        page: 1,
+        pageSize: 2,
+      });
+      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },
       ]);

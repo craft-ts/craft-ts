@@ -98,11 +98,10 @@ export const pendingBlockExceptionDemo = craftComponent(
     });
 
     // Reading through `settled(...)` keeps the happy path free of both
-    // `undefined` and the exception: `invoice()` is the resolved invoice, always.
+    // `undefined` and the exception: `invoice` is the resolved invoice, always.
     const summary = craftComputed('summary', function* () {
       const invoice = yield* settled(issue);
-      return () =>
-        `${invoice().reference} — ${(invoice().amount / 100).toFixed(2)} €`;
+      return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
     });
 
     return { issue, summary };

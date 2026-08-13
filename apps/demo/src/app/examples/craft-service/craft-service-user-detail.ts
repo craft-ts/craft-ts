@@ -17,8 +17,7 @@ import {
   state,
   toValue,
   type MaybeSignal,
-  craftException,
-} from '@craft-ng/core';
+  craftException, craftUse } from '@craft-ng/core';
 
 type User = { id: string; name: string; email: string };
 const USERS: User[] = [
@@ -94,7 +93,7 @@ const CraftServiceUserDetailComponent = craftComponent(
       div({ class: 'controls' }, [
         select(
           {
-            value: () => userId(),
+            value: () => craftUse(userId()),
             *change(event) {
               yield* userId.selectUser(
                 (event.target as HTMLSelectElement).value,
@@ -110,11 +109,11 @@ const CraftServiceUserDetailComponent = craftComponent(
           () =>
             h('dl', [
               h('dt', 'ID'),
-              h('dd', () => (user.value() as User).id),
+              h('dd', () => (craftUse(user.value()) as User).id),
               h('dt', 'Name'),
-              h('dd', () => (user.value() as User).name),
+              h('dd', () => (craftUse(user.value()) as User).name),
               h('dt', 'Email'),
-              h('dd', () => (user.value() as User).email),
+              h('dd', () => (craftUse(user.value()) as User).email),
             ]),
           () =>
             ifBlock(

@@ -105,6 +105,12 @@ import type {
   BrandReactiveProperties,
   YieldableInsertionMethods,
 } from './yieldable';
+import {
+  createYieldableReactiveFacade,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type YieldableReactiveProperties,
+} from './reactive-read';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -545,6 +551,7 @@ export type ResourceLikeMutationRef<
 } & MergeObjects<
     [
       {
+        readonly resource: CraftResourceRef<Value, Params>;
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
@@ -715,23 +722,25 @@ export type MutationOutput<
   MethodYielded = never,
   IsMethod extends boolean | undefined = undefined,
   Name extends string = string,
-> = MutationRef<
-  StripCraftException<State>,
-  StripCraftException<Params>,
-  ArgParams,
-  YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
-  IsMethod extends boolean
-    ? IsMethod
-    : [unknown] extends [ArgParams]
-      ? false
-      : true,
-  SourceParams,
-  GroupIdentifier,
-  MutationExceptions,
-  Dependencies,
-  HasSchema,
-  MethodYielded,
-  Name
+> = YieldableReactiveProperties<
+  MutationRef<
+    StripCraftException<State>,
+    StripCraftException<Params>,
+    ArgParams,
+    YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
+    IsMethod extends boolean
+      ? IsMethod
+      : [unknown] extends [ArgParams]
+        ? false
+        : true,
+    SourceParams,
+    GroupIdentifier,
+    MutationExceptions,
+    Dependencies,
+    HasSchema,
+    MethodYielded,
+    Name
+  >
 >;
 
 type SchemaMutationConfig<
@@ -1242,7 +1251,7 @@ export function mutation<
  * console.log(processed?.value()); // { userId: 'user-123', processed: true, ... }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function mutation(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2012,6 +2021,12 @@ function createMutationRef<
     MutationIsMethod<Config, MutationArgsParams>
   >;
 
+  const publicMutationContext = createYieldableReactiveFacade(output, {
+    name,
+    primitive: 'mutation',
+    path: name,
+  }) as any;
+
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
       NoInfer<GroupIdentifier>,
@@ -2031,17 +2046,19 @@ function createMutationRef<
           {
             ...(isUsingIdentifier
               ? {
-                  resourceById: resourceTarget,
+                  resourceById: createYieldableReactiveFacade(resourceTarget, {
+                    name: 'resourceById',
+                    primitive: 'mutation',
+                    path: `${name}.resourceById`,
+                  }),
                   identifier: mutationConfig.identifier,
                 }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<MutationParams>
-            >,
-            hasException,
-            exceptions,
+              : { resource: publicMutationContext }),
+            resourceParamsSrc: publicMutationContext.resourceParamsSrc,
+            hasException: publicMutationContext.hasException,
+            exceptions: publicMutationContext.exceptions,
             insertions: acc as {},
-            state: resourceTarget.state,
+            state: publicMutationContext.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
             patch: (patchFn: (currentState: any) => Partial<any>) =>
@@ -2061,6 +2078,7 @@ function createMutationRef<
           if (
             typeof value === 'function' &&
             !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
             const injector = getInjector();
@@ -2095,7 +2113,18 @@ function createMutationRef<
                 MUTATION_APP_START_ERROR_MESSAGE,
             });
           } else {
-            wrappedAcc[key] = value;
+            const namedValue = nameInsertedReactiveValue(
+              value,
+              key,
+              'mutation',
+              `${name}.${key}`,
+            );
+            wrappedAcc[key] = createYieldableReactiveFacade(namedValue, {
+              name: key,
+              primitive: 'mutation',
+              insertion: key,
+              path: `${name}.${key}`,
+            });
           }
           return wrappedAcc;
         },
@@ -2185,5 +2214,16 @@ function createMutationRef<
     attachCraftSettledValue(name, output);
   }
 
-  return output;
+  if (!('resource' in output)) {
+    Object.defineProperty(output, 'resource', {
+      value: output,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return createYieldableReactiveFacade(output, {
+    name,
+    primitive: 'mutation',
+    path: name,
+  }) as typeof output;
 }

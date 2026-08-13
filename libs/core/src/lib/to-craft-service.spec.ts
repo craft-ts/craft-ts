@@ -312,9 +312,9 @@ describe('toCraftService', () => {
     TestBed.runInInjectionContext(() => {
       const counterFacade = craftUse(CounterFacade());
 
-      expect(counterFacade()).toBe(10);
+      expect(craftUse(counterFacade())).toBe(10);
       counterFacade.incrementCounter();
-      expect(counterFacade()).toBe(11);
+      expect(craftUse(counterFacade())).toBe(11);
       expect('$self' in counterFacade).toBe(false);
       //@ts-expect-error $self should never be exposed publicly
       expect(counterFacade.$self).toBeUndefined();
@@ -350,9 +350,9 @@ describe('toCraftService', () => {
     TestBed.runInInjectionContext(() => {
       const counterDriver = craftUse(CounterDriver());
 
-      expect(counterDriver.total()).toBe(0);
+      expect(craftUse(counterDriver.total())).toBe(0);
       counterDriver.increment();
-      expect(counterDriver.total()).toBe(1);
+      expect(craftUse(counterDriver.total())).toBe(1);
     });
   });
 

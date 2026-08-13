@@ -9,7 +9,7 @@ import {
   p,
   section,
 } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { state, craftUse } from '@craft-ng/core';
 
 type Cell = {
   readonly id: number;
@@ -51,7 +51,9 @@ const PixelArtMatrix = craftComponent(
                     ? {
                         ...cell,
                         color:
-                          cell.color === activeColor() ? EMPTY : activeColor(),
+                          cell.color === craftUse(activeColor())
+                            ? EMPTY
+                            : craftUse(activeColor()),
                         count: cell.count + 1,
                       }
                     : cell,

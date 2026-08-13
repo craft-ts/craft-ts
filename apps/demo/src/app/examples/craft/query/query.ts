@@ -15,8 +15,7 @@ import {
   CraftRouter,
   craftService,
   insertStoragePersister,
-  query,
-} from '@craft-ng/core';
+  query, craftUse } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
@@ -74,9 +73,11 @@ const CraftGlobalQuery = craftComponent(
     div({ class: 'query-shell' }, [
       div({ class: 'query-result' }, [
         'User ',
-        StatusComponent({ status: () => user.status() }),
+        StatusComponent({ status: () => craftUse(user.status()) }),
         ifBlock(hasUser, () =>
-          pre('QueryValue', {}, () => JSON.stringify(user.value(), null, 2)),
+          pre('QueryValue', {}, () =>
+            JSON.stringify(craftUse(user.value()), null, 2),
+          ),
         ),
       ]),
       p(

@@ -45,6 +45,7 @@ export default [
     files: ['**/src/app/function-registry.spec.ts'],
     rules: {
       'craft-ng/prefer-craft-computed': 'off',
+      'craft-ng/no-craft-computed-side-effects': 'off',
     },
   },
   {
@@ -118,6 +119,8 @@ export default [
       'craft-ng/no-imperative-craft-resource-trigger': 'off',
       'craft-ng/require-craft-resource-trigger-yield': 'off',
       'craft-ng/require-yieldable-template-method': 'off',
+      'craft-ng/require-craft-method-for-yieldable-callback': 'off',
+      'craft-ng/require-yieldable-reactive-read': 'off',
       'craft-ng/no-ephemeral-template-form-state': 'off',
       'craft-ng/template-element-name-unique': 'off',
       'craft-ng/require-primitive-context': 'off',

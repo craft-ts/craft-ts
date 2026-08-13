@@ -69,6 +69,7 @@ export * from './lib/craft-service';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
 export * from './lib/yieldable';
+export * from './lib/reactive-read';
 export * from './lib/correlation-id';
 export * from './lib/correlation-id-plugin';
 export * from './lib/dom-event-hook';

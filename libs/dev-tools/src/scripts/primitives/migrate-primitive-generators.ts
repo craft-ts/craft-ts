@@ -122,6 +122,14 @@ function migrateFile(
   return changed;
 }
 
+/** Applies primitive-generator consumption to an already loaded source file. */
+export function migratePrimitiveGeneratorsInFile(
+  sourceFile: SourceFile,
+  primitives: readonly PrimitiveName[] = ALL_PRIMITIVES,
+): boolean {
+  return migrateFile(sourceFile, new Set(primitives));
+}
+
 function collectImportedLocalNames(
   sourceFile: SourceFile,
   primitives: Set<string>,

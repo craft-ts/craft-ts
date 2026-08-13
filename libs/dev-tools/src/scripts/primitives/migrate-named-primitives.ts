@@ -181,6 +181,14 @@ function migrateFile(
   return changed;
 }
 
+/** Applies the named-primitive rewrite to an already loaded source file. */
+export function migrateNamedPrimitivesInFile(
+  sourceFile: SourceFile,
+  unmigrated: UnmigratedCall[] = [],
+): boolean {
+  return migrateFile(sourceFile, unmigrated);
+}
+
 function removeLegacyNamedProperty(
   call: CallExpression,
   preNamed: boolean,

@@ -11,7 +11,8 @@ import { craftUse } from '../craft-use';
 describe('insertSubFormField', () => {
   it('exposes a derived sub-field that reads from the parent', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
@@ -25,7 +26,8 @@ describe('insertSubFormField', () => {
 
   it('writes back to the parent through the lens.write function', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(
@@ -37,17 +39,18 @@ describe('insertSubFormField', () => {
 
       form.form.selectDate().set('2026-05-11');
       TestBed.tick();
-      expect(form()).toBe('2026-05-11 12:00');
+      expect(craftUse(form())).toBe('2026-05-11 12:00');
 
       form.form.selectTime().set('09:30');
       TestBed.tick();
-      expect(form()).toBe('2026-05-11 09:30');
+      expect(craftUse(form())).toBe('2026-05-11 09:30');
     });
   });
 
   it('reflects external parent updates in the sub-field value', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
@@ -65,7 +68,8 @@ describe('insertSubFormField', () => {
 
   it('runs validators registered via nested insertFormAttributes', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           ' 12:00',
           insertForm(
@@ -89,23 +93,25 @@ describe('insertSubFormField', () => {
 
   it('marks the parent dirty when the sub-field is edited', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
         ),
       );
 
-      expect(form.form.dirty()).toBe(false);
+      expect(craftUse(form.form.dirty())).toBe(false);
       form.form.selectDate().set('2026-05-11');
       TestBed.tick();
-      expect(form.form.dirty()).toBe(true);
+      expect(craftUse(form.form.dirty())).toBe(true);
     });
   });
 
   it('round-trips through splitLens (read → set → read)', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(
@@ -120,14 +126,15 @@ describe('insertSubFormField', () => {
       const initialDate = dateForm.value();
       dateForm.set(initialDate);
       TestBed.tick();
-      expect(form()).toBe('2026-05-10 12:00');
+      expect(craftUse(form())).toBe('2026-05-10 12:00');
       expect(timeForm.value()).toBe('12:00');
     });
   });
 
   it('supports two derived sub-fields on the same parent without collision', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(
@@ -144,7 +151,8 @@ describe('insertSubFormField', () => {
 
   it('caches the derived form so repeated calls return the same instance', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
@@ -159,7 +167,8 @@ describe('insertSubFormField', () => {
 
   it('mapLens converts string ↔ number for nested numeric editing', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(state(
+      const form = craftUse(
+        state(
           'form',
           { ageStr: '42' },
           insertForm(
@@ -191,7 +200,7 @@ describe('insertSubFormField', () => {
       expect(numberForm.value()).toBe(42);
       numberForm.set(43);
       TestBed.tick();
-      expect(form().ageStr).toBe('43');
+      expect(craftUse(form()).ageStr).toBe('43');
     });
   });
 });

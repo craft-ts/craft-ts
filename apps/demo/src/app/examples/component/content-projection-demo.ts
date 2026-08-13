@@ -22,7 +22,7 @@ import {
   type RequiredContent,
 } from '@craft-ng/component';
 import type { Input } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { state, craftUse } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -235,7 +235,7 @@ export const contentProjectionDemo = craftComponent(
         ),
         p(
           { class: 'projection-demo__status' },
-          () => `Dernière action : ${lastAction()}`,
+          () => `Dernière action : ${craftUse(lastAction())}`,
         ),
         button(
           {

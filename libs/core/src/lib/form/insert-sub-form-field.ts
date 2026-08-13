@@ -1,9 +1,6 @@
 import { inject, Injector } from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
-import {
-  CraftFieldTree,
-  ɵgetOrCreateDerivedChild,
-} from './craft-field';
+import { CraftFieldTree, ɵgetOrCreateDerivedChild } from './craft-field';
 import type { FieldLens } from './field-lens';
 import {
   buildSubForm,
@@ -15,6 +12,7 @@ import {
   markNonYieldableInsertionMethod,
   type NonYieldableInsertionMethod,
 } from '../yieldable';
+import { rawReactiveValue } from '../reactive-read';
 
 type MergeInsertions<
   Insertions extends readonly unknown[],
@@ -23,8 +21,7 @@ type MergeInsertions<
   ? MergeInsertions<Tail, Acc & Head>
   : Acc;
 
-type SubFormFieldMethodName<Name extends string> =
-  `select${Capitalize<Name>}`;
+type SubFormFieldMethodName<Name extends string> = `select${Capitalize<Name>}`;
 
 type InsertSubFormFieldOutput<
   Sub,
@@ -135,7 +132,7 @@ export function insertSubFormField(
         lens,
       ) as CraftFieldTree<unknown>;
 
-      const subState = () => lens.read(context.state());
+      const subState = () => lens.read(rawReactiveValue(context.state)());
       const setSub = (next: unknown) =>
         context.update((curr: unknown) => lens.write(curr, next));
 

@@ -46,18 +46,32 @@ describe('craft-computed-name-match', () => {
     expect(messages).toEqual([]);
   });
 
-  it('accepts an object-literal property whose first arg matches its key', async () => {
+  it('accepts an unnamed computed in an insertion result', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { craftComputed } from '@craft-ng/core';
 
-        const insertions = {
-          total: craftComputed('total', () => 42),
-        };
+        const insertion = state('counter', 0, ({ state }) => ({
+          total: craftComputed(function* () { return (yield* state()) * 2; }),
+        }));
       `,
     });
 
     expect(messages).toEqual([]);
+  });
+
+  it('still requires a name in a plain object outside an insertion', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComputed } from '@craft-ng/core';
+
+        const values = { total: craftComputed(() => 42) };
+      `,
+    });
+
+    expect(messages).toEqual([
+      "craftComputed must be called with a string literal name matching 'total' as the first argument.",
+    ]);
   });
 
   it('reports a mismatch between property name and first arg', async () => {

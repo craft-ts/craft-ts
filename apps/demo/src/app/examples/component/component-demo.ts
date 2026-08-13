@@ -11,7 +11,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -54,7 +54,10 @@ export const componentDemo = craftComponent(
           { id: 2, name: 'Grace Hopper' },
         ] satisfies DemoUser[],
       },
-      ({ update }) => ({
+      ({ state, update }) => ({
+        items: craftComputed(function* () {
+          return (yield* state()).items;
+        }),
         addUser: () =>
           update((current) => {
             const id = current.nextId;
@@ -85,7 +88,7 @@ export const componentDemo = craftComponent(
       div(
         { class: 'component-demo__list' },
         each(
-          () => users().items,
+          users.items,
           {
             track: (user) => user.id,
             empty: () =>

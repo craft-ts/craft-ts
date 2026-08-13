@@ -8,6 +8,7 @@ const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
 const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
 const preferCraftComputed = require('./prefer-craft-computed.cjs');
+const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs');
 const preferCraftState = require('./prefer-craft-state.cjs');
 const preferCraftEffect = require('./prefer-craft-effect.cjs');
 const noAngularInject = require('./no-angular-inject.cjs');
@@ -21,6 +22,10 @@ const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
 const requirePrimitiveGeneratorUnwrap = require('./require-primitive-generator-unwrap.cjs');
 const requireYieldableTemplateMethod = require('./require-yieldable-template-method.cjs');
+const requireCraftMethodForYieldableCallback = require('./require-craft-method-for-yieldable-callback.cjs');
+const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.cjs');
+const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
+const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const preferCraftRouterOutlet = require('./prefer-craft-router-outlet.cjs');
@@ -63,6 +68,7 @@ module.exports = {
     'craft-source-name-match': craftSourceNameMatch,
     'craft-signal-source-name-match': craftSignalSourceNameMatch,
     'prefer-craft-computed': preferCraftComputed,
+    'no-craft-computed-side-effects': noCraftComputedSideEffects,
     'prefer-craft-state': preferCraftState,
     'prefer-craft-effect': preferCraftEffect,
     'no-angular-inject': noAngularInject,
@@ -76,6 +82,11 @@ module.exports = {
     'require-component-monitoring': requireComponentMonitoring,
     'require-primitive-generator-unwrap': requirePrimitiveGeneratorUnwrap,
     'require-yieldable-template-method': requireYieldableTemplateMethod,
+    'require-craft-method-for-yieldable-callback':
+      requireCraftMethodForYieldableCallback,
+    'require-yieldable-reactive-read': requireYieldableReactiveRead,
+    'require-yieldable-insertion-write': requireYieldableInsertionWrite,
+    'no-craft-use-in-template': noCraftUseInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,

@@ -17,8 +17,7 @@ import {
   mutation,
   query,
   state,
-  craftMethod,
-} from '@craft-ng/core';
+  craftMethod, craftUse } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { computed } from '@angular/core';
@@ -78,7 +77,8 @@ const MutationDemoComponent = craftComponent(
       if (!name) {
         return;
       }
-      const user = userQuery.value();
+        const _userQueryvalue = yield* userQuery.value();
+      const user = _userQueryvalue;
       if (user) {
         yield* updateUserName.mutate({
           userName: name,
@@ -100,10 +100,10 @@ const MutationDemoComponent = craftComponent(
     return div([
       div([
         'User ',
-        StatusComponent({ status: () => userQuery.status() }),
+        StatusComponent({ status: () => craftUse(userQuery.status()) }),
         ifBlock(userQuery.hasUser, () =>
           pre('UserValue', {}, () =>
-            JSON.stringify(userQuery.value(), null, 2),
+            JSON.stringify(craftUse(userQuery.value()), null, 2),
           ),
         ),
       ]),
@@ -111,7 +111,7 @@ const MutationDemoComponent = craftComponent(
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: () => nameInput(),
+        value: () => craftUse(nameInput()),
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
@@ -120,7 +120,7 @@ const MutationDemoComponent = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: () => updateUserName.isLoading(),
+          disabled: () => craftUse(updateUserName.isLoading()),
           click: function* () {
             const currentName = yield* nameInput();
             yield* update(currentName);
@@ -128,7 +128,9 @@ const MutationDemoComponent = craftComponent(
         },
         [
           'Update name ',
-          StatusComponent({ status: () => updateUserName.status() }),
+          StatusComponent({
+            status: () => craftUse(updateUserName.status()),
+          }),
         ],
       ),
       button('PreviousUser', { click: () => goTo(-1) }, 'Previous user'),

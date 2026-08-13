@@ -22,6 +22,10 @@ import {
   type YieldableInsertionMethods,
 } from '../yieldable';
 import {
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+} from '../reactive-read';
+import {
   type CraftFieldExceptionSourceCarrier,
   type CraftFieldValidationCasesCarrier,
   type FieldValidationCasesFromInsertions,
@@ -222,6 +226,7 @@ function createExposedInsertions(
       if (
         typeof value === 'function' &&
         !isSignal(value) &&
+        !isYieldableReactiveValue(value) &&
         !isNonYieldableInsertionMethod(value)
       ) {
         const methodInjector = ɵcreateHostTaggedInjector(
@@ -508,7 +513,10 @@ export function executeFormInsertions<Model>(
       );
       const insertionCallResult = runInInjectionContext(options.injector, () =>
         wrappedInsertion({
-          state: options.state,
+          state: createYieldableReactiveValue(options.state, 'state', {
+            primitive: 'form',
+            path: 'form.state',
+          }),
           set: options.set,
           update: options.update,
           patch: options.patch,

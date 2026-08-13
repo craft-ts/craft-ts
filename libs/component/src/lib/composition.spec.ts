@@ -14,7 +14,11 @@ import {
   expectTypeOf,
   it,
 } from 'vitest';
-import { abstract, craftException, craftService, query } from '@craft-ng/core';
+import {
+  abstract,
+  craftException,
+  craftService,
+  query, craftUse } from '@craft-ng/core';
 import {
   catchBlock,
   catchTag,
@@ -180,9 +184,13 @@ describe('component composition', () => {
       ({ value }) =>
         section([
           p('source'),
-          matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
-            FAILED_TO_LOAD: () => p('match fallback'),
-          }),
+          matchBlock.exhaustive(
+            () => craftUse(value.exceptions()).loader,
+            'code',
+            {
+              FAILED_TO_LOAD: () => p('match fallback'),
+            },
+          ),
         ]),
     );
     expectTypeOf<
@@ -236,10 +244,14 @@ describe('component composition', () => {
       },
       ({ value }) =>
         section([
-          p(() => value.value()?.id ?? ''),
-          matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
-            FAILED_TO_LOAD: () => p('fallback'),
-          }),
+          p(() => craftUse(value.value())?.id ?? ''),
+          matchBlock.exhaustive(
+            () => craftUse(value.exceptions()).loader,
+            'code',
+            {
+              FAILED_TO_LOAD: () => p('fallback'),
+            },
+          ),
         ]),
     );
     const element = host();

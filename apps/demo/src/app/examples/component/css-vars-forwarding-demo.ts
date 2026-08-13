@@ -18,11 +18,11 @@ const ForwardingExample = craftComponent(
           '--token-card-ink': forward('#155e75'),
           '--token-card-bg': forward('#ecfeff'),
         },
-        label: () => 'Valeurs forward par défaut',
+        label: () => 'Default forwarded values',
       }),
       p(
         { class: 'forwarding-example__note' },
-        'Ces valeurs deviennent l’API optionnelle du composant parent.',
+        "These values become the parent component's optional API.",
       ),
     ]),
 );
@@ -43,9 +43,9 @@ export const CssVarsForwardingDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-forwarding__intro' }, [
-        h1('Forwarding et surcharge'),
+        h1('Forwarding and overrides'),
         p(
-          'À gauche, les valeurs par défaut sont forwardées. À droite, le parent est surchargé par son appelant.',
+          'On the left, default values are forwarded. On the right, the parent is overridden by its caller.',
         ),
       ]),
       div({ class: 'css-vars-forwarding__grid' }, [

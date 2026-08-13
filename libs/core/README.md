@@ -16,15 +16,29 @@ The current beta targets Angular 21 and requires Node.js 20.19+ (or 22.12+).
 ## Quick start
 
 ```ts
-import { state } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ng/core';
 
-const { counter } = state('counter', 0, ({ update }) => ({
-  increment: () => update((value) => value + 1),
-}));
+function* createCounter() {
+  const counter = yield* state('counter', 0, ({ state, update }) => ({
+    doubled: craftComputed(function* () {
+      return (yield* state()) * 2;
+    }),
+    increment: () => update((value) => value + 1),
+  }));
 
-counter.increment();
-counter(); // 1
+  yield* counter.increment();
+  const value = yield* counter(); // 1
+  const doubled = yield* counter.doubled(); // 2
+  return { counter, value, doubled };
+}
 ```
+
+All reactive values exposed by Craft are readers delegated with `yield*`.
+This includes primitive roots, derived insertions and nested resource properties
+such as `yield* query.value()`, `yield* query.status()` and
+`yield* query.resource.value()`. Angular signals remain internal to the
+primitives. In tests and other synchronous boundaries, `craftUse(reader())`
+drives the same runtime explicitly.
 
 ## Documentation
 

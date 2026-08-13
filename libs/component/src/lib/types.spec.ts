@@ -2,6 +2,7 @@ import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import { computed } from '@angular/core';
 import {
+  craftComputed,
   craftMethod,
   craftRoutes,
   craftService,
@@ -9,8 +10,7 @@ import {
   provideHostName,
   state,
   type ComponentDepsOf,
-  type RouteCheckedDI,
-} from '@craft-ng/core';
+  type RouteCheckedDI, craftUse } from '@craft-ng/core';
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
@@ -778,14 +778,18 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     {},
     function* () {
       const counter = yield* state('counter', 0, ({ state }) => ({
-        disabled: computed(() => state() % 2 === 0),
+        disabled: craftComputed(function* () {
+          return (yield* state()) % 2 === 0;
+        }),
       }));
       return { counter };
     },
     ({ counter }) =>
       button(
         {
-          disabled: () => counter.disabled(),
+          *disabled() {
+            return yield* counter.disabled();
+          },
         },
         '+',
       ),
@@ -805,7 +809,7 @@ it('keeps yieldable primitive properties in template VNodes', () => {
         increment: () => update((value) => value + 1),
       })),
     (counter) => {
-      const current: number = counter();
+      const current: number = craftUse(counter());
       return button({ click: counter.increment }, `${current}`);
     },
   );
@@ -1032,7 +1036,10 @@ it('tracks rendered state reads through conditional template branches', () => {
     ({ isAdult, isAuth }) =>
       ifBlock(
         isAuth,
-        () => button('increment', {}, () => isAdult()),
+        () =>
+          button('increment', {}, function* () {
+            return yield* isAdult();
+          }),
         () => p('signed out'),
       ),
   );
@@ -1113,7 +1120,9 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
         'items',
         [{ key: 'first' }, { key: 'second' }],
         insertSelect('item', ({ state: selectedItem }) => ({
-          translatedLabel: computed(() => `translated:${selectedItem().key}`),
+          translatedLabel: computed(
+            () => `translated:${craftUse(selectedItem()).key}`,
+          ),
         })),
       );
       return { items };
@@ -1212,9 +1221,9 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
       return { users };
     },
     ({ users }) => [
-      span(String(users().length)),
+      span(String(craftUse(users()).length)),
       each(
-        () => users(),
+        () => craftUse(users()),
         { track: (user) => user.id },
         (user) => p(user.name),
       ),

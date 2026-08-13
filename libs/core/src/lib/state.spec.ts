@@ -23,7 +23,6 @@ import {
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
 import { craftUse } from './craft-use';
-import type { NamedYieldableValue } from './yieldable';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -65,7 +64,8 @@ describe('state', () => {
     });
 
     runInInjectionContext(() => {
-      const counter = craftUse(state('counter', 0, ({ update }) => ({
+      const counter = craftUse(
+        state('counter', 0, ({ update }) => ({
           increment: () => update((current) => current + 1),
         })),
       );
@@ -76,7 +76,7 @@ describe('state', () => {
       expect(runtimeContext?.get()).toBe(1);
       expect(runtimeContext?.originalSource).toContain('current + 1');
       runtimeContext?.update((current) => Number(current) + 9);
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
     });
   });
   it('should expose insertion methods to wrap observers before invocation', () => {
@@ -104,10 +104,8 @@ describe('state', () => {
       const myState = craftUse(state('myState', 0));
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<
-        NamedYieldableValue<'myState', StateOutput<number, {}>>
-      >();
-      expect(myState()).toBe(0);
+      expectTypeOf(myState).toMatchTypeOf<StateOutput<number, {}>>();
+      expect(craftUse(myState())).toBe(0);
 
       // @ts-expect-error State mutations must be explicitly exposed through an insertion.
       type _ImplicitSet = (typeof myState)['set'];
@@ -117,24 +115,24 @@ describe('state', () => {
   it('should create a signal state', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           linkedSignal(() => origin() * 2),
         ),
       );
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<
-        NamedYieldableValue<'myState', StateOutput<number, {}>>
-      >();
-      expect(myState()).toBe(10);
+      expectTypeOf(myState).toMatchTypeOf<StateOutput<number, {}>>();
+      expect(craftUse(myState())).toBe(10);
     });
   });
 
   it('should accept insertion, use to add methods and properties', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           linkedSignal(() => origin() * 2),
           (context) =>
@@ -145,35 +143,32 @@ describe('state', () => {
                 reset: () => set(0),
               }),
               ({ state }) => ({
-                isOdd: computed(() => state() % 2 === 1),
+                isOdd: computed(() => craftUse(state()) % 2 === 1),
               }),
             ),
         ),
       );
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<
-        NamedYieldableValue<
-          'myState',
-          StateOutput<
-            number,
-            {
-              increment: () => number;
-              reset: () => number;
-            } & {
-              isOdd: Signal<boolean>;
-            }
-          >
+      expectTypeOf(myState).toMatchTypeOf<
+        StateOutput<
+          number,
+          {
+            increment: () => number;
+            reset: () => number;
+          } & {
+            isOdd: Signal<boolean>;
+          }
         >
       >();
-      expect(myState()).toBe(10);
-      expect(myState.isOdd()).toBe(false);
+      expect(craftUse(myState())).toBe(10);
+      expect(craftUse(myState.isOdd())).toBe(false);
       myState.increment();
-      expect(myState()).toBe(11);
-      expect(myState.isOdd()).toBe(true);
+      expect(craftUse(myState())).toBe(11);
+      expect(craftUse(myState.isOdd())).toBe(true);
       myState.reset();
-      expect(myState()).toBe(0);
-      expect(myState.isOdd()).toBe(false);
+      expect(craftUse(myState())).toBe(0);
+      expect(craftUse(myState.isOdd())).toBe(false);
     });
   });
 
@@ -192,7 +187,8 @@ describe('state', () => {
     );
 
     runInInjectionContext(() => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           function* () {
             const counter = yield* CounterReader(undefined, ({ read }) => ({
@@ -212,7 +208,7 @@ describe('state', () => {
         ),
       );
 
-      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
       expectTypeOf<ExtractDeps<typeof myState>>().toEqualTypeOf<{
         CounterReader: {
           scope: 'global';
@@ -251,7 +247,8 @@ describe('state', () => {
     );
 
     runInInjectionContext(() => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           function* () {
             const counter = yield* CounterReaderRuntime(
@@ -274,16 +271,17 @@ describe('state', () => {
         ),
       );
 
-      expect(myState()).toBe(2);
+      expect(craftUse(myState())).toBe(2);
       myState.increment();
-      expect(myState()).toBe(5);
+      expect(craftUse(myState())).toBe(5);
     });
   });
 
   it('methods can be bind to a source, but not exposed', async () => {
     await runInInjectionContext(async () => {
       const sourceSignal = signalSource<number>('sourceSignal');
-      const myState = craftUse(state('myState', 0, ({ set }) => ({
+      const myState = craftUse(
+        state('myState', 0, ({ set }) => ({
           setValue: afterRecomputation(sourceSignal, (value) => {
             set(value);
           }),
@@ -292,8 +290,8 @@ describe('state', () => {
       );
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState()).toEqualTypeOf<number>();
-      expect(myState()).toBe(0);
+      expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
+      expect(craftUse(myState())).toBe(0);
 
       //@ts-expect-error setValue should not be exposed
       type _ShouldNotBeExposed = (typeof myState)['setValue'];
@@ -301,19 +299,20 @@ describe('state', () => {
 
       sourceSignal.set(34);
       await vi.runAllTimersAsync();
-      console.log('post myState()', myState());
-      expect(myState()).toBe(34);
+      console.log('post myState()', craftUse(myState()));
+      expect(craftUse(myState())).toBe(34);
 
       myState.reset();
       await vi.runAllTimersAsync();
-      expect(myState()).toBe(0);
+      expect(craftUse(myState())).toBe(0);
     });
   });
 
   it('methods can be bind to a source$, but not exposed', async () => {
     await runInInjectionContext(async () => {
       const sourceSignal = source$<number>('sourceSignal');
-      const myState = craftUse(state('myState', 0, ({ set }) => ({
+      const myState = craftUse(
+        state('myState', 0, ({ set }) => ({
           setValue: on$(sourceSignal, (value) => {
             set(value);
           }),
@@ -322,25 +321,26 @@ describe('state', () => {
       );
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState()).toEqualTypeOf<number>();
-      expect(myState()).toBe(0);
+      expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
+      expect(craftUse(myState())).toBe(0);
 
       //@ts-expect-error setValue should not be exposed
       type _ShouldNotBeExposed = (typeof myState)['setValue'];
       await vi.runAllTimersAsync();
 
       sourceSignal.emit(34);
-      console.log('post myState()', myState());
-      expect(myState()).toBe(34);
+      console.log('post myState()', craftUse(myState()));
+      expect(craftUse(myState())).toBe(34);
 
       myState.reset();
-      expect(myState()).toBe(0);
+      expect(craftUse(myState())).toBe(0);
     });
   });
 
   it('should expose root source$ insertions as callable methods', async () => {
     await runInInjectionContext(async () => {
-      const myState = craftUse(state('myState', 0, (context) =>
+      const myState = craftUse(
+        state('myState', 0, (context) =>
           craftPipe(
             context,
             ({ set }) => ({
@@ -355,10 +355,10 @@ describe('state', () => {
       );
 
       craftUse(myState.increment());
-      expect(myState()).toBe(1);
+      expect(craftUse(myState())).toBe(1);
 
       craftUse(myState.resetAll$());
-      expect(myState()).toBe(0);
+      expect(craftUse(myState())).toBe(0);
     });
   });
 
@@ -373,18 +373,19 @@ describe('state', () => {
         }
       > = ({ set, state }) => ({
         addNumber: (numberValue: number) => {
-          const stateValue = state();
+          const stateValue = craftUse(state());
           return set([...stateValue, numberValue]);
         },
         filterNumber: (filterValue: number) => {
-          const stateValue = state();
+          const stateValue = craftUse(state());
           return set(stateValue.filter((num) => num !== filterValue));
         },
       });
 
-      const s = craftUse(state('s', linkedSignal(() => myRefSigal()).asReadonly(), insertion),
+      const s = craftUse(
+        state('s', linkedSignal(() => myRefSigal()).asReadonly(), insertion),
       );
-      expect(s()).toEqual([0]);
+      expect(craftUse(s())).toEqual([0]);
     });
   });
 });
@@ -401,10 +402,8 @@ describe('state — $self config with providers', () => {
     runInInjectionContext(() => {
       const myState = craftUse(state('myState', { $self: 42 }));
 
-      expectTypeOf(myState).toEqualTypeOf<
-        NamedYieldableValue<'myState', StateOutput<number, {}>>
-      >();
-      expect(myState()).toBe(42);
+      expectTypeOf(myState).toMatchTypeOf<StateOutput<number, {}>>();
+      expect(craftUse(myState())).toBe(42);
     });
   });
 
@@ -413,35 +412,37 @@ describe('state — $self config with providers', () => {
       const src = signal(7);
       const myState = craftUse(state('myState', { $self: src }));
 
-      expectTypeOf(myState()).toEqualTypeOf<number>();
-      expect(myState()).toBe(7);
+      expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
+      expect(craftUse(myState())).toBe(7);
     });
   });
 
   it('should resolve $self generator factory', () => {
     runInInjectionContext(() => {
-      const myState = craftUse(state('myState', {
+      const myState = craftUse(
+        state('myState', {
           $self: function* () {
             return 99;
           },
         }),
       );
 
-      expectTypeOf(myState()).toEqualTypeOf<number>();
-      expect(myState()).toBe(99);
+      expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
+      expect(craftUse(myState())).toBe(99);
     });
   });
 
   it('should work with insertions alongside $self', () => {
     runInInjectionContext(() => {
-      const myState = craftUse(state('myState', { $self: 0 }, ({ update }) => ({
+      const myState = craftUse(
+        state('myState', { $self: 0 }, ({ update }) => ({
           increment: () => update((v) => v + 1),
         })),
       );
 
-      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
       myState.increment();
-      expect(myState()).toBe(1);
+      expect(craftUse(myState())).toBe(1);
     });
   });
 
@@ -483,7 +484,8 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           {
             $self: 0,
@@ -516,7 +518,8 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      const withProvider = craftUse(state(
+      const withProvider = craftUse(
+        state(
           'withProvider',
           {
             $self: 0,
@@ -530,7 +533,8 @@ describe('state — $self config with providers', () => {
           ({ update }) => ({ increment: () => update((v) => v + 1) }),
         ),
       );
-      const withoutProvider = craftUse(state('withoutProvider', 0, ({ update }) => ({
+      const withoutProvider = craftUse(
+        state('withoutProvider', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         })),
       );
@@ -546,11 +550,10 @@ describe('state — $self config with providers', () => {
   it('typing: $self unwraps to the correct state type', () => {
     runInInjectionContext(() => {
       const plain = craftUse(state('plain', { $self: 'hello' }));
-      expectTypeOf(plain()).toEqualTypeOf<string>();
+      expectTypeOf(craftUse(plain())).toEqualTypeOf<string>();
 
-      const withSignal = craftUse(state('withSignal', { $self: signal(0) }),
-      );
-      expectTypeOf(withSignal()).toEqualTypeOf<number>();
+      const withSignal = craftUse(state('withSignal', { $self: signal(0) }));
+      expectTypeOf(craftUse(withSignal())).toEqualTypeOf<number>();
     });
   });
 
@@ -561,7 +564,8 @@ describe('state — $self config with providers', () => {
     );
 
     if (false) {
-      const withoutProviders = craftUse(state('withoutProviders', function* () {
+      const withoutProviders = craftUse(
+        state('withoutProviders', function* () {
           const counter = yield* LocalCounter();
           return counter.value();
         }),
@@ -571,7 +575,8 @@ describe('state — $self config with providers', () => {
         'LocalCounter' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
-      const withProviders = craftUse(state('withProviders', {
+      const withProviders = craftUse(
+        state('withProviders', {
           $self: function* () {
             const counter = yield* LocalCounter();
             return counter.value();

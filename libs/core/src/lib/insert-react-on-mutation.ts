@@ -12,6 +12,51 @@ import {
 import { ResourceByIdRef } from './resource-by-id';
 import { reactOnMutationEffect } from './util/react-on-mutation-effect';
 import { InternalType } from './util/types/util.type';
+import {
+  rawReactiveFacade,
+  type YieldableReactiveSignal,
+  type YieldableReactiveValue,
+} from './reactive-read';
+
+type PublicMutation = {
+  readonly kind: 'mutation';
+  readonly resourceParamsSrc: YieldableReactiveValue<any>;
+  readonly value?: YieldableReactiveValue<any>;
+  readonly mutate?: (...args: any[]) => unknown;
+  readonly select?: (...args: any[]) => unknown;
+};
+
+type PublicMutationState<Mutation> = Mutation extends {
+  readonly value: YieldableReactiveValue<infer Value>;
+}
+  ? Exclude<Value, undefined>
+  : Mutation extends {
+        readonly select: (...args: any[]) => infer Selected;
+      }
+    ? NonNullable<Selected> extends {
+        readonly value: YieldableReactiveValue<infer Value>;
+      }
+      ? Exclude<Value, undefined>
+      : unknown
+    : unknown;
+
+type PublicMutationParams<Mutation> = Mutation extends {
+  readonly resourceParamsSrc: YieldableReactiveValue<infer Params>;
+}
+  ? Exclude<Params, undefined>
+  : unknown;
+
+type PublicMutationArgs<Mutation> = Mutation extends {
+  readonly mutate: (args: infer Args) => unknown;
+}
+  ? Args
+  : PublicMutationParams<Mutation>;
+
+type PublicMutationIdentifier<Mutation> = Mutation extends {
+  readonly select: (identifier: infer Identifier) => unknown;
+}
+  ? Identifier
+  : unknown;
 
 /**
  * Creates an insertion function that makes a query react to mutation state changes.
@@ -237,36 +282,24 @@ export function insertReactOnMutation<
   QuerySourceParams,
   QueryGroupIdentifier,
   QueryInsertions,
-  MutationResourceState,
-  MutationResourceParams,
-  MutationResourceArgsParams,
-  MutationIsMethod,
-  MutationSourceParams,
-  MutationGroupIdentifier,
-  MutationInsertions,
-  MutationExceptions extends ResourceExceptionConstraints,
-  QueryExceptions extends ResourceExceptionConstraints,
+  Mutation extends PublicMutation,
+  MutationResourceState = PublicMutationState<Mutation>,
+  MutationResourceParams = PublicMutationParams<Mutation>,
+  MutationResourceArgsParams = PublicMutationArgs<Mutation>,
+  MutationIsMethod = Mutation extends {
+    readonly mutate: (...args: any[]) => unknown;
+  }
+    ? true
+    : false,
+  MutationSourceParams = unknown,
+  MutationGroupIdentifier = PublicMutationIdentifier<Mutation>,
+  MutationInsertions = unknown,
+  MutationExceptions extends
+    ResourceExceptionConstraints = ResourceExceptionConstraints,
+  QueryExceptions extends
+    ResourceExceptionConstraints = ResourceExceptionConstraints,
 >(
-  mutation:
-    | ResourceLikeMutationRef<
-        MutationResourceState,
-        MutationResourceParams,
-        MutationIsMethod,
-        MutationResourceArgsParams,
-        MutationSourceParams,
-        MutationInsertions,
-        MutationExceptions
-      >
-    | ResourceByIdLikeMutationRef<
-        MutationResourceState,
-        MutationResourceParams,
-        MutationIsMethod,
-        MutationResourceArgsParams,
-        MutationSourceParams,
-        MutationInsertions,
-        MutationGroupIdentifier,
-        MutationExceptions
-      >,
+  mutation: Mutation,
   mutationEffectOptions: QueryDeclarativeEffect<{
     query: InternalType<
       NoInfer<QueryResourceState>,
@@ -302,12 +335,18 @@ export function insertReactOnMutation<
         >
       | {
           // ! avoid to use InsertionByIdParams it is broking the typing inference
-          resourceById: ResourceByIdRef<
-            QueryGroupIdentifier & string,
-            QueryResourceState,
-            QueryResourceParams
+          resourceById: YieldableReactiveSignal<
+            ResourceByIdRef<
+              QueryGroupIdentifier & string,
+              QueryResourceState,
+              QueryResourceParams
+            >,
+            'resourceById'
           >;
-          resourceParamsSrc: WritableSignal<QueryResourceParams | undefined>;
+          resourceParamsSrc: YieldableReactiveSignal<
+            WritableSignal<QueryResourceParams | undefined>,
+            'resourceParamsSrc'
+          >;
           identifier: (
             params: NonNullable<QueryResourceParams>,
           ) => QueryGroupIdentifier;
@@ -318,9 +357,9 @@ export function insertReactOnMutation<
   ) => {
     return reactOnMutationEffect(
       {
-        queryTargeted: ('resource' in context
-          ? context.resource
-          : context.resourceById) as unknown as
+        queryTargeted: rawReactiveFacade(
+          'resource' in context ? context.resource : context.resourceById,
+        ) as unknown as
           | ResourceLikeQueryRef<
               QueryResourceState,
               QueryResourceParams,
@@ -340,7 +379,26 @@ export function insertReactOnMutation<
               QueryGroupIdentifier,
               QueryExceptions
             >,
-        mutationTargeted: mutation,
+        mutationTargeted: rawReactiveFacade(mutation) as unknown as
+          | ResourceLikeMutationRef<
+              MutationResourceState,
+              MutationResourceParams,
+              MutationIsMethod,
+              MutationResourceArgsParams,
+              MutationSourceParams,
+              MutationInsertions,
+              MutationExceptions
+            >
+          | ResourceByIdLikeMutationRef<
+              MutationResourceState,
+              MutationResourceParams,
+              MutationIsMethod,
+              MutationResourceArgsParams,
+              MutationSourceParams,
+              MutationInsertions,
+              MutationGroupIdentifier,
+              MutationExceptions
+            >,
       },
       mutationEffectOptions,
     );

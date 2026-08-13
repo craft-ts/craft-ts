@@ -12,7 +12,7 @@ import {
   type ComponentDepsOf,
   type CraftRouteExceptionType,
   type RouteCheckedDI,
-  type ViewTransitionPayloadDef,
+  type ViewTransitionPayloadDef
 } from '@craft-ng/core';
 import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
@@ -401,8 +401,10 @@ export const { demoRoutes } = craftRoutes('demo', [
         'pagination',
         paginationQueryParams(),
         ({ patch, state }) => ({
-          nextPage: () => patch({ page: state().page + 1 }),
-          previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
+          nextPage: function* () {
+                const _state = yield* state(); return patch({ page: _state.page + 1 }); },
+          previousPage: function* () {
+              const _state = yield* state(); return patch({ page: Math.max(1, _state.page - 1) }); },
           updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
         }),
       );

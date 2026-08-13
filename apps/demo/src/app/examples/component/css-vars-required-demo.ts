@@ -59,11 +59,11 @@ export const CssVarsRequiredDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-required__intro' }, [
-        h1('Valeurs requises et optionnelles'),
+        h1('Required and optional values'),
         p([
-          'Sans fallback, ',
+          'Without a fallback, ',
           span('var(--token-card-ink)'),
-          ' devient requis. Les autres tokens restent optionnels.',
+          ' becomes required. The other tokens remain optional.',
         ]),
       ]),
       div({ class: 'css-vars-required__grid' }, [
@@ -72,7 +72,7 @@ export const CssVarsRequiredDemo = craftComponent(
             '--token-card-ink': '#1e3a8a',
             '--token-card-bg': '#eff6ff',
           },
-          label: () => 'Bleu calme',
+          label: () => 'Calm blue',
         }),
         TokenCard({
           cssVars: {
@@ -80,14 +80,14 @@ export const CssVarsRequiredDemo = craftComponent(
             '--token-card-bg': '#fff1f2',
             '--token-card-radius': '2rem',
           },
-          label: () => 'Rose arrondi',
+          label: () => 'Rounded pink',
         }),
         TokenCard({
           cssVars: {
             '--token-card-ink': '#166534',
             '--token-card-bg': omit,
           },
-          label: () => 'Optionnel omis',
+          label: () => 'Optional token omitted',
         }),
       ]),
     ]),

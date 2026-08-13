@@ -8,11 +8,11 @@ import {
   isCraftException,
 } from '../craft-exception';
 import {
-  ResourceByIdLikeMutationRef,
-  ResourceLikeMutationRef,
-} from '../mutation';
-import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
-import { ResourceExceptionConstraints } from '../query.core';
+  isYieldableReactiveValue,
+  rawReactiveFacade,
+  rawReactiveValue,
+  type YieldableReactiveValue,
+} from '../reactive-read';
 import { MergeObjects } from '../util/util.type';
 import {
   CraftField,
@@ -203,64 +203,28 @@ type CValidateSyncConfig<
   | CValidateAdvancedSyncConfig<TValue, Name, Exceptions, Identifier>
   | CValidateSimpleSyncConfig<TValue, Name, Exceptions, Identifier>;
 
-type AnyAsyncCraftResourceRef =
-  | ResourceLikeQueryRef<any, any, any, any, any, any, any>
-  | ResourceByIdLikeQueryRef<any, any, any, any, any, any, any, any>
-  | ResourceLikeMutationRef<any, any, any, any, any, any, any>
-  | ResourceByIdLikeMutationRef<any, any, any, any, any, any, any, any>;
+type AsyncReactiveValue<T> = Signal<T> | YieldableReactiveValue<T>;
+
+type AnyAsyncCraftResourceRef = {
+  kind: 'query' | 'mutation';
+  exceptions: AsyncReactiveValue<{ list: AnyCraftException[] }>;
+  hasException: AsyncReactiveValue<boolean>;
+  resourceParamsSrc: AsyncReactiveValue<unknown>;
+  call?: (value: any) => unknown;
+  mutate?: (value: any) => unknown;
+  select?: (identifier: any) => unknown;
+};
 
 type AsyncValidatorRequest<TResourceRef extends AnyAsyncCraftResourceRef> =
-  TResourceRef extends ResourceLikeQueryRef<
-    any,
-    infer Params,
-    infer IsMethod,
-    infer ArgParams,
-    any,
-    any,
-    any
-  >
-    ? IsMethod extends true
-      ? ArgParams
-      : Params
-    : TResourceRef extends ResourceByIdLikeQueryRef<
-          any,
-          infer Params,
-          infer IsMethod,
-          infer ArgParams,
-          any,
-          any,
-          any,
-          any
-        >
-      ? IsMethod extends true
-        ? ArgParams
-        : Params
-      : TResourceRef extends ResourceLikeMutationRef<
-            any,
-            infer Params,
-            infer IsMethod,
-            infer ArgParams,
-            any,
-            any,
-            any
-          >
-        ? IsMethod extends true
-          ? ArgParams
-          : Params
-        : TResourceRef extends ResourceByIdLikeMutationRef<
-              any,
-              infer Params,
-              infer IsMethod,
-              infer ArgParams,
-              any,
-              any,
-              any,
-              any
-            >
-          ? IsMethod extends true
-            ? ArgParams
-            : Params
-          : never;
+  TResourceRef extends { call: (value: infer Args) => unknown }
+    ? Args
+    : TResourceRef extends { mutate: (value: infer Args) => unknown }
+      ? Args
+      : TResourceRef extends {
+            resourceParamsSrc: AsyncReactiveValue<infer Params>;
+          }
+        ? Exclude<Params, undefined>
+        : never;
 
 type AsyncValidatorResourceTarget<TResourceRef> = TResourceRef extends {
   select: (...args: any[]) => infer SelectedResource;
@@ -268,33 +232,14 @@ type AsyncValidatorResourceTarget<TResourceRef> = TResourceRef extends {
   ? NonNullable<SelectedResource>
   : TResourceRef;
 
-type AsyncValidatorResourceIdentifier<TResourceRef> =
-  TResourceRef extends ResourceByIdLikeQueryRef<
-    any,
-    any,
-    any,
-    any,
-    any,
-    any,
-    infer Identifier,
-    any
-  >
-    ? Identifier
-    : TResourceRef extends ResourceByIdLikeMutationRef<
-          any,
-          any,
-          any,
-          any,
-          any,
-          any,
-          infer Identifier,
-          any
-        >
-      ? Identifier
-      : unknown;
+type AsyncValidatorResourceIdentifier<TResourceRef> = TResourceRef extends {
+  select: (identifier: infer Identifier) => unknown;
+}
+  ? Identifier
+  : unknown;
 
 type AsyncValidatorResourceExceptionUnion<TResource> = TResource extends {
-  exceptions: Signal<{ list: (infer Exception)[] }>;
+  exceptions: AsyncReactiveValue<{ list: (infer Exception)[] }>;
 }
   ? Exception
   : never;
@@ -545,9 +490,12 @@ function getResourceExceptionList(value: unknown): AnyCraftException[] {
   ) {
     return [];
   }
-  const list = (
-    value as { exceptions: Signal<{ list?: unknown[] }> }
-  ).exceptions()?.list;
+  const exceptions = (
+    value as {
+      exceptions: AsyncReactiveValue<{ list?: unknown[] }>;
+    }
+  ).exceptions;
+  const list = readAsyncReactiveValue(exceptions)?.list;
   return Array.isArray(list) ? list.filter(isCraftException) : [];
 }
 
@@ -558,17 +506,23 @@ function hasResourceExceptions(value: unknown): boolean {
     'hasException' in value &&
     typeof (value as { hasException?: unknown }).hasException === 'function'
   ) {
-    return !!(value as { hasException: Signal<boolean> }).hasException();
+    return !!readAsyncReactiveValue(
+      (value as { hasException: AsyncReactiveValue<boolean> }).hasException,
+    );
   }
   return getResourceExceptionList(value).length > 0;
 }
 
 function isResourceRefWithSelection(
   value: AnyAsyncCraftResourceRef,
-): value is
-  | ResourceByIdLikeQueryRef<any, any, any, any, any, any, any, any>
-  | ResourceByIdLikeMutationRef<any, any, any, any, any, any, any, any> {
+): value is AnyAsyncCraftResourceRef & {
+  select: (identifier: any) => unknown;
+} {
   return 'select' in value && typeof value.select === 'function';
+}
+
+function readAsyncReactiveValue<T>(value: AsyncReactiveValue<T>): T {
+  return isYieldableReactiveValue(value) ? rawReactiveValue(value)() : value();
 }
 
 function resolveAsyncValidatorResourceTarget<
@@ -965,7 +919,9 @@ function createCustomAsyncValidator<
     // Trigger the resource when the value changes.
     effect(() => {
       const v = context.value() as AsyncValidatorRequest<TResourceRef>;
-      const target = untracked(() => resourceTarget()) as
+      const target = rawReactiveFacade(
+        untracked(() => resourceTarget()),
+      ) as
         | {
             mutate?: (params: unknown) => void;
             call?: (params: unknown) => void;
@@ -1001,7 +957,8 @@ function createCustomAsyncValidator<
     };
 
     const result = computed<CraftValidatorOutput>(() => {
-      const r = resourceTarget() as
+      const currentResource = resourceTarget();
+      const r = rawReactiveFacade(currentResource) as
         | {
             isLoading: Signal<boolean>;
             status: Signal<string>;
@@ -1015,7 +972,7 @@ function createCustomAsyncValidator<
 
       const status = r.status();
       const asyncCtx = buildContext(
-        r as AsyncValidatorResourceTarget<TResourceRef>,
+        currentResource as AsyncValidatorResourceTarget<TResourceRef>,
       );
 
       if (hasResourceExceptions(r)) {

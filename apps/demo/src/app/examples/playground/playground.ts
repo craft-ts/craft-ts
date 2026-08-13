@@ -20,8 +20,7 @@ import {
   mutation,
   query,
   state,
-  craftException,
-} from '@craft-ng/core';
+  craftException, craftUse } from '@craft-ng/core';
 
 // -- Types --
 
@@ -50,11 +49,12 @@ const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
   function* () {
     const nextId = yield* state('nextId', 4, ({ state, update }) => ({
-      take: () => {
-        const id = state();
-        update((value) => value + 1);
-        return id;
-      },
+      take: function* () {
+            const _state = yield* state();
+                const id = _state;
+                update((value) => value + 1);
+                return id;
+              },
     }));
 
     return {
@@ -256,8 +256,14 @@ const PlaygroundComponent = craftComponent(
       input.value = '';
       return {};
     });
-    const isAdding = craftComputed('isAdding', () => pg.addTodo.isLoading());
-    const todos = craftComputed('todos', () => pg.todos.value() ?? []);
+    const isAdding = craftComputed('isAdding', function* () {
+        const _pgaddTodoisLoading = yield* pg.addTodo.isLoading(); return _pgaddTodoisLoading; },
+    );
+    const todos = craftComputed(
+      'todos',
+      function* () {
+          const _pgtodosvalue = yield* pg.todos.value(); return _pgtodosvalue ?? []; },
+    );
     return { pg, add, isAdding, todos };
   },
   ({ pg, add, isAdding, todos }) => {
@@ -278,7 +284,7 @@ const PlaygroundComponent = craftComponent(
         }),
         button(
           {
-            disabled: () => pg.addTodo.isLoading(),
+            disabled: () => craftUse(pg.addTodo.isLoading()),
             *click() {
               if (field) yield* add(field);
             },

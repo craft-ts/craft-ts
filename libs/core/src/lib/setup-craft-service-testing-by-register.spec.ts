@@ -41,13 +41,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const childCounter = yield* state(
-          'childCounter',
-          0,
-          ({ update }) => ({
-            increment: () => update((value) => value + 1),
-          }),
-        );
+        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
         return childCounter;
       },
     );
@@ -118,7 +114,7 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -155,7 +151,7 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -260,7 +256,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     );
 
     expect(sut.isLoading).toBe(mockLoading);
-    expect(sut.isLoading()).toBe(true);
+    expect(craftUse(sut.isLoading())).toBe(true);
     expect(mocks.QueryApi.userQuery.isLoading).toBe(mockLoading);
 
     if (false) {
@@ -340,7 +336,7 @@ describe('setupCraftServiceTestingByRegister', () => {
         );
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => incrementCounter(),
           decrement: () => counter.decrement(),
         };
@@ -393,7 +389,7 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -442,7 +438,7 @@ describe('setupCraftServiceTestingByRegister', () => {
 
         return {
           incrementRight: () => shared.increment(),
-          readSharedFromRight: () => shared(),
+          readSharedFromRight: () => craftUse(shared()),
         };
       },
     );
@@ -488,13 +484,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const childCounter = yield* state(
-          'childCounter',
-          0,
-          ({ update }) => ({
-            increment: () => update((value) => value + 1),
-          }),
-        );
+        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
         return childCounter;
       },
     );
@@ -532,7 +524,7 @@ describe('setupCraftServiceTestingByRegister', () => {
             parent.incrementParent();
             child.increment();
           },
-          readChild: () => child(),
+          readChild: () => craftUse(child()),
         };
       },
     );
@@ -587,13 +579,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RightCounter, provideRightCounter } = craftService(
       { name: 'RightCounter', scope: 'toProvide' },
       function* () {
-        const rightCounter = yield* state(
-          'rightCounter',
-          0,
-          ({ update }) => ({
-            incrementRight: () => update((value) => value + 1),
-          }),
-        );
+        const rightCounter = yield* state('rightCounter', 0, ({ update }) => ({
+          incrementRight: () => update((value) => value + 1),
+        }));
         return rightCounter;
       },
     );
@@ -609,7 +597,7 @@ describe('setupCraftServiceTestingByRegister', () => {
             left.incrementLeft();
             right.incrementRight();
           },
-          readRight: () => right(),
+          readRight: () => craftUse(right()),
         };
       },
     );
@@ -872,13 +860,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const childCounter = yield* state(
-          'childCounter',
-          0,
-          ({ update }) => ({
-            increment: () => update((value) => value + 1),
-          }),
-        );
+        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
         return childCounter;
       },
     );
@@ -925,7 +909,7 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* Counter();
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },

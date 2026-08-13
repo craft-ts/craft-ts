@@ -19,8 +19,7 @@ import {
   insertQueryPipe,
   mutation,
   query,
-  state,
-} from '@craft-ng/core';
+  state, craftUse } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
@@ -82,7 +81,8 @@ const MutationCraft = craftComponent(
           undefined,
           ({ user, updateUserName }) => ({ user, updateUserName }),
         );
-        const userValue = user.value();
+          const _uservalue = yield* user.value();
+        const userValue = _uservalue;
         if (userValue) {
           yield* updateUserName.mutate({
             userName: newName,
@@ -113,10 +113,10 @@ const MutationCraft = craftComponent(
     return div([
       div([
         'User ',
-        StatusComponent({ status: () => store.user.status() }),
+        StatusComponent({ status: () => craftUse(store.user.status()) }),
         ifBlock(hasUser, () =>
           pre('UserValue', {}, () =>
-            JSON.stringify(store.user.value(), null, 2),
+            JSON.stringify(craftUse(store.user.value()), null, 2),
           ),
         ),
       ]),
@@ -124,7 +124,7 @@ const MutationCraft = craftComponent(
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: () => nameInput(),
+        value: () => craftUse(nameInput()),
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
@@ -133,7 +133,7 @@ const MutationCraft = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: () => store.updateUserName.isLoading(),
+          disabled: () => craftUse(store.updateUserName.isLoading()),
           *click() {
             const currentName = yield* nameInput();
             yield* updateUserNameFn(currentName ?? '');
@@ -142,7 +142,7 @@ const MutationCraft = craftComponent(
         [
           'Update name ',
           StatusComponent({
-            status: () => store.updateUserName.status(),
+            status: () => craftUse(store.updateUserName.status()),
           }),
         ],
       ),

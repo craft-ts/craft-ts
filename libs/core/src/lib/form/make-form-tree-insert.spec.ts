@@ -23,7 +23,8 @@ describe('makeFormTreeInsert', () => {
         })),
       );
 
-      const parent = craftUse(state(
+      const parent = craftUse(
+        state(
           'parent',
           { user: { name: 'romain', age: 30 }, orderId: 'abc' },
           insertForm(insertUserFormTree()),
@@ -44,7 +45,7 @@ describe('makeFormTreeInsert', () => {
 
       userForm.name.set('alice');
       TestBed.tick();
-      expect(parent().user.name).toBe('alice');
+      expect(craftUse(parent()).user.name).toBe('alice');
       expect(userForm.upperName()).toBe('ALICE');
     });
   });
@@ -59,7 +60,8 @@ describe('makeFormTreeInsert', () => {
         }),
       );
 
-      const parent = craftUse(state(
+      const parent = craftUse(
+        state(
           'parent',
           { user: { name: 'romain', age: 30 } },
           insertForm(insertUserFormTree()),
@@ -93,7 +95,8 @@ describe('makeFormTreeInsert', () => {
           ),
       );
 
-      const parent = craftUse(state(
+      const parent = craftUse(
+        state(
           'parent',
           { user: { name: 'romain', age: 30 } },
           insertForm(insertUserFormTree()),
@@ -104,7 +107,10 @@ describe('makeFormTreeInsert', () => {
         'hello',
       );
       expect(
-        (parent.form as unknown as { greetedName: () => string }).greetedName(),
+        craftUse(
+          (parent.form as unknown as { greetedName: () => string })
+            .greetedName(),
+        ),
       ).toBe('hello world');
     });
   });

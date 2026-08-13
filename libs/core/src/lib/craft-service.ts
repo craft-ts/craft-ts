@@ -24,6 +24,11 @@ import {
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
 import { registerResolvedService } from './craft-register-for-runtime';
+import {
+  isYieldableReactiveValue,
+  rawReactiveValue,
+  type YieldableReactiveValue,
+} from './reactive-read';
 export {
   SERVICE_APP_START_REQUEST_MARKER,
   SERVICE_DEPENDENCY_ACCESS_MARKER,
@@ -2017,10 +2022,10 @@ type AbstractHelper<Name extends string, Contract> = {
   >;
 };
 
-export type AbstractServiceApi<Name extends string, Contract> = RequirementHelper<
-  Name,
-  Contract
-> &
+export type AbstractServiceApi<
+  Name extends string,
+  Contract,
+> = RequirementHelper<Name, Contract> &
   AbstractProvideHelper<Name, Contract> &
   AbstractHelper<Name, Contract>;
 
@@ -2324,10 +2329,14 @@ export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
   factory: () => new Map(),
 });
 
-export type MaybeSignal<T> = T | Signal<T>;
+export type MaybeSignal<T> = T | Signal<T> | YieldableReactiveValue<T>;
 
 export function toValue<T>(value: MaybeSignal<T>): T {
-  return isSignal(value) ? value() : value;
+  if (isYieldableReactiveValue(value)) {
+    return rawReactiveValue(value)() as T;
+  }
+  if (isSignal(value)) return value() as T;
+  return value as T;
 }
 
 export function onAppStart(

@@ -73,18 +73,19 @@ export const pendingBlockDemo = craftComponent(
 
     yield* users.call(undefined); // trigger first call
 
-    // The computed consumes the resolved value: inside the callback `list()` is
+    // The computed consumes the resolved value: inside the callback `list` is
     // an `{ items }`, never `undefined`. In exchange the computed is tagged as
     // depending on the async source "users".
     const teams = craftComputed('teams', function* () {
       const list = yield* settled(users);
-      return () =>
-        [...new Set(list().items.map((user) => user.team))].sort().join(' · ');
+      return [...new Set(list.items.map((user) => user.team))]
+        .sort()
+        .join(' · ');
     });
 
     const total = craftComputed('total', function* () {
       const list = yield* settled(users);
-      return () => `${list().items.length} people`;
+      return `${list.items.length} people`;
     });
 
     return { users, teams, total };

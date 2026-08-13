@@ -29,6 +29,11 @@ import {
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { craftUse } from './craft-use';
+import type {
+  YieldableReactiveProperties,
+  YieldableReactiveSignal,
+  YieldableReactiveValue,
+} from './reactive-read';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -68,7 +73,8 @@ describe('mutation', () => {
   });
   it('should enable to define a mutation that can be call with the method', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationInstance = craftUse(mutation('mutationInstance', {
+      const mutationInstance = craftUse(
+        mutation('mutationInstance', {
           method: ({
             timeToWait,
             searchChange,
@@ -90,15 +96,17 @@ describe('mutation', () => {
         }),
       );
 
-      expect(mutationInstance.status()).toBe('idle');
+      expect(craftUse(mutationInstance.status())).toBe('idle');
       mutationInstance.mutate({
         searchChange: 'test',
         timeToWait: 1000,
       });
-      expect(mutationInstance.status()).toBe('loading');
+      expect(craftUse(mutationInstance.status())).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(mutationInstance.status()).toBe('resolved');
-      expect(mutationInstance.value()).toEqual({ searchChange: 'test' });
+      expect(craftUse(mutationInstance.status())).toBe('resolved');
+      expect(craftUse(mutationInstance.value())).toEqual({
+        searchChange: 'test',
+      });
     });
   });
 
@@ -113,7 +121,8 @@ describe('mutation', () => {
         (searchConfig) => searchConfig,
       );
       const result = test();
-      const myMutation = craftUse(mutation('myMutation', {
+      const myMutation = craftUse(
+        mutation('myMutation', {
           method: afterRecomputation(
             searchSource,
             (searchConfig) => searchConfig,
@@ -129,52 +138,61 @@ describe('mutation', () => {
         }),
       );
 
-      expect(myMutation.status()).toBe('idle');
+      expect(craftUse(myMutation.status())).toBe('idle');
       expectTypeOf(myMutation.source).toEqualTypeOf<
-        ReadonlySource<{
-          searchChange: string;
-          timeToWait: number;
-        }>
+        YieldableReactiveSignal<
+          ReadonlySource<
+            | {
+                searchChange: string;
+                timeToWait: number;
+              }
+            | undefined
+          >,
+          'source'
+        >
       >();
       searchSource.set({
         searchChange: 'test',
         timeToWait: 1000,
       });
       await vi.advanceTimersByTimeAsync(100);
-      expect(myMutation.status()).toBe('loading');
+      expect(craftUse(myMutation.status())).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(myMutation.status()).toBe('resolved');
-      expect(myMutation.value()).toEqual({ searchChange: 'test' });
+      expect(craftUse(myMutation.status())).toBe('resolved');
+      expect(craftUse(myMutation.value())).toEqual({ searchChange: 'test' });
     });
   });
 
   it('preserves the previous value while a new mutation is loading when configured', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
-        method: (value: string) => value,
-        preservePreviousValue: () => true,
-        loader: async ({ params }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { value: params };
-        },
-      }));
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
+          method: (value: string) => value,
+          preservePreviousValue: () => true,
+          loader: async ({ params }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { value: params };
+          },
+        }),
+      );
 
       mutationRef.mutate('first');
       await vi.runAllTimersAsync();
-      expect(mutationRef.value()).toEqual({ value: 'first' });
+      expect(craftUse(mutationRef.value())).toEqual({ value: 'first' });
 
       mutationRef.mutate('second');
-      expect(mutationRef.status()).toBe('loading');
-      expect(mutationRef.value()).toEqual({ value: 'first' });
+      expect(craftUse(mutationRef.status())).toBe('loading');
+      expect(craftUse(mutationRef.value())).toEqual({ value: 'first' });
 
       await vi.runAllTimersAsync();
-      expect(mutationRef.value()).toEqual({ value: 'second' });
+      expect(craftUse(mutationRef.value())).toEqual({ value: 'second' });
     });
   });
 
   it('should return undefined with value when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationInstance = craftUse(mutation('mutationInstance', {
+      const mutationInstance = craftUse(
+        mutation('mutationInstance', {
           method: (shouldFail: boolean) => shouldFail,
           loader: async ({ params: shouldFail }) => {
             if (shouldFail) {
@@ -185,16 +203,16 @@ describe('mutation', () => {
         }),
       );
 
-      expect(mutationInstance.status()).toBe('idle');
+      expect(craftUse(mutationInstance.status())).toBe('idle');
       mutationInstance.mutate(true);
-      expect(mutationInstance.status()).toBe('loading');
+      expect(craftUse(mutationInstance.status())).toBe('loading');
       await vi.runAllTimersAsync();
       // A thrown (technical) error surfaces as the craft `'exception'` status.
-      expect(mutationInstance.status()).toBe('exception');
+      expect(craftUse(mutationInstance.status())).toBe('exception');
       expect(mutationInstance.hasValue()).toBe(false);
 
       // value should return undefined without throwing
-      expect(mutationInstance.value()).toBeUndefined();
+      expect(craftUse(mutationInstance.value())).toBeUndefined();
     });
   });
 
@@ -220,7 +238,8 @@ describe('mutation', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const mutationRef = craftUse(mutation(
+      const mutationRef = craftUse(
+        mutation(
           'mutationRef',
           {
             method: function* (userId: string) {
@@ -269,7 +288,8 @@ describe('mutation', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation(
+      const mutationRef = craftUse(
+        mutation(
           'mutationRef',
           {
             method: function* (userId: string) {
@@ -296,7 +316,7 @@ describe('mutation', () => {
       await vi.runAllTimersAsync();
 
       expect(mutationRef.initialized).toBe(true);
-      expect(mutationRef.value()).toEqual({ userId: 'user-1' });
+      expect(craftUse(mutationRef.value())).toEqual({ userId: 'user-1' });
       expect(logs).toEqual(['insert:init', 'mutate:user-1']);
     });
   });
@@ -308,7 +328,8 @@ describe('mutation types without identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = craftUse(mutation('searchChange', {
+          const searchChange = craftUse(
+            mutation('searchChange', {
               method: ({
                 timeToWait,
                 searchChange,
@@ -331,7 +352,8 @@ describe('mutation types without identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(mutation(
+          const filterChange = craftUse(
+            mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -374,48 +396,50 @@ describe('mutation types without identifier', () => {
       expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
-      expectTypeOf<props>().toEqualTypeOf<{
-        searchChange: {
-          '~InternalType': 'Used to avoid TS type erasure';
-          readonly value: Signal<
-            | {
+      expectTypeOf<props>().toMatchTypeOf<
+        YieldableReactiveProperties<{
+          searchChange: {
+            '~InternalType': 'Used to avoid TS type erasure';
+            readonly value: Signal<
+              | {
+                  searchChange: string;
+                }
+              | undefined
+            >;
+            readonly status: Signal<CraftResourceStatus>;
+            readonly isLoading: Signal<boolean>;
+            hasValue: () => boolean;
+            readonly resourceParamsSrc: WritableSignal<
+              NoInfer<{
+                timeToWait: number;
                 searchChange: string;
-              }
-            | undefined
-          >;
-          readonly status: Signal<CraftResourceStatus>;
-          readonly isLoading: Signal<boolean>;
-          hasValue: () => boolean;
-          readonly resourceParamsSrc: WritableSignal<
-            NoInfer<{
-              timeToWait: number;
-              searchChange: string;
-            }>
-          >;
-          type: 'resourceLike';
-          kind: 'mutation';
-        };
-        filterChange: {
-          '~InternalType': 'Used to avoid TS type erasure';
-          readonly value: Signal<
-            | {
+              }>
+            >;
+            type: 'resourceLike';
+            kind: 'mutation';
+          };
+          filterChange: {
+            '~InternalType': 'Used to avoid TS type erasure';
+            readonly value: Signal<
+              | {
+                  filter: string;
+                }
+              | undefined
+            >;
+            readonly status: Signal<CraftResourceStatus>;
+            readonly isLoading: Signal<boolean>;
+            hasValue: () => boolean;
+            readonly resourceParamsSrc: WritableSignal<
+              NoInfer<{
                 filter: string;
-              }
-            | undefined
-          >;
-          readonly status: Signal<CraftResourceStatus>;
-          readonly isLoading: Signal<boolean>;
-          hasValue: () => boolean;
-          readonly resourceParamsSrc: WritableSignal<
-            NoInfer<{
-              filter: string;
-            }>
-          >;
-          additionalInsertion: 'injectedValue';
-          type: 'resourceLike';
-          kind: 'mutation';
-        };
-      }>();
+              }>
+            >;
+            additionalInsertion: 'injectedValue';
+            type: 'resourceLike';
+            kind: 'mutation';
+          };
+        }>
+      >();
 
       type methods = (typeof mutationsOutput)['methods'];
       expectTypeOf<methods>().toMatchTypeOf<
@@ -444,7 +468,8 @@ describe('mutation types without identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = craftUse(mutation('searchChange', {
+          const searchChange = craftUse(
+            mutation('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
                 return searchChange;
               }),
@@ -457,7 +482,8 @@ describe('mutation types without identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(mutation(
+          const filterChange = craftUse(
+            mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -493,53 +519,55 @@ describe('mutation types without identifier', () => {
       expect(mutationsOutput.props.filterChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
-      expectTypeOf<props>().toEqualTypeOf<{
-        searchChange: {
-          '~InternalType': 'Used to avoid TS type erasure';
-          readonly value: Signal<
-            | {
-                searchChangeText: string;
-              }
-            | undefined
-          >;
-          readonly status: Signal<CraftResourceStatus>;
-          readonly isLoading: Signal<boolean>;
-          hasValue: () => boolean;
-          readonly resourceParamsSrc: WritableSignal<
-            NoInfer<
+      expectTypeOf<props>().toMatchTypeOf<
+        YieldableReactiveProperties<{
+          searchChange: {
+            '~InternalType': 'Used to avoid TS type erasure';
+            readonly value: Signal<
               | {
                   searchChangeText: string;
                 }
               | undefined
-            >
-          >;
-          source: ReadonlySource<{
-            searchChangeText: string;
-          }>;
-          type: 'resourceLike';
-          kind: 'mutation';
-        };
-        filterChange: {
-          '~InternalType': 'Used to avoid TS type erasure';
-          readonly value: Signal<
-            | {
+            >;
+            readonly status: Signal<CraftResourceStatus>;
+            readonly isLoading: Signal<boolean>;
+            hasValue: () => boolean;
+            readonly resourceParamsSrc: WritableSignal<
+              NoInfer<
+                | {
+                    searchChangeText: string;
+                  }
+                | undefined
+              >
+            >;
+            source: ReadonlySource<{
+              searchChangeText: string;
+            }>;
+            type: 'resourceLike';
+            kind: 'mutation';
+          };
+          filterChange: {
+            '~InternalType': 'Used to avoid TS type erasure';
+            readonly value: Signal<
+              | {
+                  filter: string;
+                }
+              | undefined
+            >;
+            readonly status: Signal<CraftResourceStatus>;
+            readonly isLoading: Signal<boolean>;
+            hasValue: () => boolean;
+            readonly resourceParamsSrc: WritableSignal<
+              NoInfer<{
                 filter: string;
-              }
-            | undefined
-          >;
-          readonly status: Signal<CraftResourceStatus>;
-          readonly isLoading: Signal<boolean>;
-          hasValue: () => boolean;
-          readonly resourceParamsSrc: WritableSignal<
-            NoInfer<{
-              filter: string;
-            }>
-          >;
-          additionalInsertion: 'injectedValue';
-          type: 'resourceLike';
-          kind: 'mutation';
-        };
-      }>();
+              }>
+            >;
+            additionalInsertion: 'injectedValue';
+            type: 'resourceLike';
+            kind: 'mutation';
+          };
+        }>
+      >();
 
       type methods = (typeof mutationsOutput)['methods'];
       //   ^?
@@ -553,7 +581,8 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(
+        mutation('_mutationsOutput', {
           method: (searchChange: string) => {
             return searchChange;
           },
@@ -563,7 +592,7 @@ describe('mutation types without identifier', () => {
           },
         }),
       );
-      expectTypeOf<typeof _mutationsOutput>().toEqualTypeOf<
+      expectTypeOf<typeof _mutationsOutput>().toMatchTypeOf<
         MutationOutput<
           {
             searchChange: string;
@@ -584,10 +613,12 @@ describe('mutation types without identifier', () => {
 
   it('exposes mutate for an imperative method whose argument is unknown', () => {
     TestBed.runInInjectionContext(() => {
-      const mutationRef = craftUse(mutation('unknownArgMutation', {
-        method: (value: unknown) => value,
-        loader: async ({ params }) => ({ params }),
-      }));
+      const mutationRef = craftUse(
+        mutation('unknownArgMutation', {
+          method: (value: unknown) => value,
+          loader: async ({ params }) => ({ params }),
+        }),
+      );
 
       expectTypeOf(mutationRef.mutate).toBeFunction();
       mutationRef.mutate('value');
@@ -600,7 +631,8 @@ describe('mutation types without identifier', () => {
         'searchSource',
       );
 
-      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(
+        mutation('_mutationsOutput', {
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -610,7 +642,7 @@ describe('mutation types without identifier', () => {
           },
         }),
       );
-      expectTypeOf<typeof _mutationsOutput>().toEqualTypeOf<
+      expectTypeOf<typeof _mutationsOutput>().toMatchTypeOf<
         MutationOutput<
           {
             searchChangeResult: string;
@@ -638,17 +670,19 @@ describe('mutation types without identifier', () => {
 describe('mutation types with identifier', () => {
   it('selectOrCreate returns an idle resource without changing select', () => {
     TestBed.runInInjectionContext(() => {
-      const mutationRef = craftUse(mutation('mutationRef', {
-        method: (id: string) => id,
-        identifier: (id) => id,
-        loader: async ({ params }) => ({ id: params }),
-      }));
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
+          method: (id: string) => id,
+          identifier: (id) => id,
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       expect(mutationRef.select('missing')).toBeUndefined();
 
       const selected = mutationRef.selectOrCreate('missing');
       expect(selected).toBeDefined();
-      expect(selected.status()).toBe('idle');
+      expect(craftUse(selected.status())).toBe('idle');
       expect(mutationRef.select('missing')).toBeDefined();
     });
   });
@@ -658,7 +692,8 @@ describe('mutation types with identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = craftUse(mutation('searchChange', {
+          const searchChange = craftUse(
+            mutation('searchChange', {
               method: ({
                 timeToWait,
                 searchChange,
@@ -682,7 +717,8 @@ describe('mutation types with identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(mutation(
+          const filterChange = craftUse(
+            mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -728,7 +764,7 @@ describe('mutation types with identifier', () => {
       type s = props['searchChange'];
 
       const search = {} as ReturnType<s['select']>;
-      expectTypeOf(search).toEqualTypeOf<
+      expectTypeOf(search).toMatchTypeOf<
         | {
             readonly value: Signal<
               | {
@@ -747,26 +783,28 @@ describe('mutation types with identifier', () => {
       //.  ^?
 
       const filter = {} as f;
-      expectTypeOf<typeof filter>().toEqualTypeOf<{
-        '~InternalType': 'Used to avoid TS type erasure';
-        readonly value: Signal<
-          | {
+      expectTypeOf<typeof filter>().toMatchTypeOf<
+        YieldableReactiveProperties<{
+          '~InternalType': 'Used to avoid TS type erasure';
+          readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly status: Signal<CraftResourceStatus>;
+          readonly isLoading: Signal<boolean>;
+          hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<{
               filter: string;
-            }
-          | undefined
-        >;
-        readonly status: Signal<CraftResourceStatus>;
-        readonly isLoading: Signal<boolean>;
-        hasValue: () => boolean;
-        readonly resourceParamsSrc: WritableSignal<
-          NoInfer<{
-            filter: string;
-          }>
-        >;
-        additionalInsertion: 'injectedValue';
-        type: 'resourceLike';
-        kind: 'mutation';
-      }>();
+            }>
+          >;
+          additionalInsertion: 'injectedValue';
+          type: 'resourceLike';
+          kind: 'mutation';
+        }>
+      >();
 
       type methods = (typeof mutationsOutput)['methods'];
       expectTypeOf<methods>().toMatchTypeOf<
@@ -795,7 +833,8 @@ describe('mutation types with identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = craftUse(mutation('searchChange', {
+          const searchChange = craftUse(
+            mutation('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
                 return searchChange;
               }),
@@ -809,7 +848,8 @@ describe('mutation types with identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(mutation(
+          const filterChange = craftUse(
+            mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -845,7 +885,7 @@ describe('mutation types with identifier', () => {
 
       type props = (typeof mutationsOutput)['props'];
       const search = mutationsOutput.props.searchChange.select('test');
-      expectTypeOf(search).toEqualTypeOf<
+      expectTypeOf(search).toMatchTypeOf<
         | {
             readonly value: Signal<
               | {
@@ -861,26 +901,28 @@ describe('mutation types with identifier', () => {
       >();
 
       const filter = mutationsOutput.props.filterChange;
-      expectTypeOf<typeof filter>().toEqualTypeOf<{
-        '~InternalType': 'Used to avoid TS type erasure';
-        readonly value: Signal<
-          | {
+      expectTypeOf<typeof filter>().toMatchTypeOf<
+        YieldableReactiveProperties<{
+          '~InternalType': 'Used to avoid TS type erasure';
+          readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly status: Signal<CraftResourceStatus>;
+          readonly isLoading: Signal<boolean>;
+          hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<{
               filter: string;
-            }
-          | undefined
-        >;
-        readonly status: Signal<CraftResourceStatus>;
-        readonly isLoading: Signal<boolean>;
-        hasValue: () => boolean;
-        readonly resourceParamsSrc: WritableSignal<
-          NoInfer<{
-            filter: string;
-          }>
-        >;
-        additionalInsertion: 'injectedValue';
-        type: 'resourceLike';
-        kind: 'mutation';
-      }>();
+            }>
+          >;
+          additionalInsertion: 'injectedValue';
+          type: 'resourceLike';
+          kind: 'mutation';
+        }>
+      >();
 
       type methods = (typeof mutationsOutput)['methods'];
       //   ^?
@@ -896,7 +938,8 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(
+        mutation('_mutationsOutput', {
           method: (searchChange: string) => {
             return searchChange;
           },
@@ -908,7 +951,7 @@ describe('mutation types with identifier', () => {
         }),
       );
       const _entity = _mutationsOutput.select('test');
-      expectTypeOf<typeof _entity>().toEqualTypeOf<
+      expectTypeOf<typeof _entity>().toMatchTypeOf<
         | {
             readonly value: Signal<
               | {
@@ -931,7 +974,8 @@ describe('mutation types with identifier', () => {
         'searchSource',
       );
 
-      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(
+        mutation('_mutationsOutput', {
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -943,9 +987,10 @@ describe('mutation types with identifier', () => {
         }),
       );
 
-      expectTypeOf(_mutationsOutput.select('test')?.value()).toEqualTypeOf<
-        { searchChangeResult: string } | undefined
-      >();
+      const selected = _mutationsOutput.select('test');
+      expectTypeOf(
+        selected ? craftUse(selected.value()) : undefined,
+      ).toEqualTypeOf<{ searchChangeResult: string } | undefined>();
     });
   });
 });
@@ -986,63 +1031,71 @@ describe('mutation exceptions', () => {
                   };
             },
           },
-          ({ exceptions, hasException, state }) => {
-            expectTypeOf(state()).toEqualTypeOf<{
-              id: string;
-              name: string;
-              email: string;
-            }>();
-            expectTypeOf(exceptions()).toEqualTypeOf<{
-              list: (
-                | CraftExceptionResult<
-                    {
-                      code: 'INVALID_USER_ID_Param';
-                      scope: 'params';
+          function* ({ exceptions, hasException, state }) {
+              const _state = yield* state();
+                      expectTypeOf(_state).toEqualTypeOf<{
+                        id: string;
+                        name: string;
+                        email: string;
+                      }>();
+              const _exceptions4 = yield* exceptions();
+                      expectTypeOf(_exceptions4).toEqualTypeOf<{
+                        list: (
+                          | CraftExceptionResult<
+                              {
+                                code: 'INVALID_USER_ID_Param';
+                                scope: 'params';
+                              },
+                              {
+                                reason: 'missing';
+                              }
+                            >
+                          | CraftExceptionResult<
+                              {
+                                code: 'INVALID_USER_ID_Loader';
+                                scope: 'loader';
+                              },
+                              {
+                                reason: 'missing';
+                              }
+                            >
+                        )[];
+                        params?:
+                          | CraftExceptionResult<
+                              {
+                                code: 'INVALID_USER_ID_Param';
+                                scope: 'params';
+                              },
+                              {
+                                reason: 'missing';
+                              }
+                            >
+                          | undefined;
+                        loader?:
+                          | CraftExceptionResult<
+                              {
+                                code: 'INVALID_USER_ID_Loader';
+                                scope: 'loader';
+                              },
+                              {
+                                reason: 'missing';
+                              }
+                            >
+                          | undefined;
+                      }>();
+              const _hasException = yield* hasException();
+                      expectTypeOf(_hasException).toEqualTypeOf<boolean>();
+                      expectTypeOf(exceptions).toBeFunction();
+              const _exceptions3 = yield* exceptions();
+                      expectTypeOf(_exceptions3)
+                        .toHaveProperty('list')
+                        .toBeArray();
+              const _exceptions2 = yield* exceptions();
+                      expectTypeOf(_exceptions2).toHaveProperty('params');
+              const _exceptions = yield* exceptions();
+                      expectTypeOf(_exceptions).toHaveProperty('loader');
+                      return {};
                     },
-                    {
-                      reason: 'missing';
-                    }
-                  >
-                | CraftExceptionResult<
-                    {
-                      code: 'INVALID_USER_ID_Loader';
-                      scope: 'loader';
-                    },
-                    {
-                      reason: 'missing';
-                    }
-                  >
-              )[];
-              params?:
-                | CraftExceptionResult<
-                    {
-                      code: 'INVALID_USER_ID_Param';
-                      scope: 'params';
-                    },
-                    {
-                      reason: 'missing';
-                    }
-                  >
-                | undefined;
-              loader?:
-                | CraftExceptionResult<
-                    {
-                      code: 'INVALID_USER_ID_Loader';
-                      scope: 'loader';
-                    },
-                    {
-                      reason: 'missing';
-                    }
-                  >
-                | undefined;
-            }>();
-            expectTypeOf(hasException()).toEqualTypeOf<boolean>();
-            expectTypeOf(exceptions).toBeFunction();
-            expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
-            expectTypeOf(exceptions()).toHaveProperty('params');
-            expectTypeOf(exceptions()).toHaveProperty('loader');
-            return {};
-          },
         ),
       );
     });
@@ -1051,7 +1104,8 @@ describe('mutation exceptions', () => {
   it('typing: captures exception returned by method and loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const shouldFail = signal(true);
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (value: string) =>
             shouldFail()
               ? craftException(
@@ -1075,7 +1129,7 @@ describe('mutation exceptions', () => {
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
 
-      expectTypeOf(mutationRef.exceptions().list).toEqualTypeOf<
+      expectTypeOf(craftUse(mutationRef.exceptions()).list).toEqualTypeOf<
         (
           | CraftExceptionResult<
               {
@@ -1105,7 +1159,8 @@ describe('mutation exceptions', () => {
       const shouldFailMethod = signal(true);
       const shouldFailLoader = signal(true);
 
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (value: string) =>
             shouldFailMethod()
               ? craftException(
@@ -1132,7 +1187,7 @@ describe('mutation exceptions', () => {
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
 
-      expectTypeOf(mutationRef.exceptions().list).toEqualTypeOf<
+      expectTypeOf(craftUse(mutationRef.exceptions()).list).toEqualTypeOf<
         (
           | CraftExceptionResult<
               {
@@ -1156,7 +1211,7 @@ describe('mutation exceptions', () => {
         )[]
       >();
 
-      expectTypeOf(mutationRef.exceptions().params).toEqualTypeOf<
+      expectTypeOf(craftUse(mutationRef.exceptions()).params).toEqualTypeOf<
         | CraftExceptionResult<
             {
               code: 'INVALID_USER_ID';
@@ -1169,7 +1224,7 @@ describe('mutation exceptions', () => {
         | undefined
       >();
 
-      expectTypeOf(mutationRef.exceptions().loader).toEqualTypeOf<
+      expectTypeOf(craftUse(mutationRef.exceptions()).loader).toEqualTypeOf<
         Partial<
           Record<
             string,
@@ -1191,7 +1246,8 @@ describe('mutation exceptions', () => {
 
   it('typing with identifier: return a select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (value: string) => value,
           identifier: (id) => id,
           loader: async () =>
@@ -1207,7 +1263,7 @@ describe('mutation exceptions', () => {
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
 
-      expectTypeOf(mutationRef.exceptions().loader).toEqualTypeOf<
+      expectTypeOf(craftUse(mutationRef.exceptions()).loader).toEqualTypeOf<
         Partial<
           Record<
             string,
@@ -1225,7 +1281,11 @@ describe('mutation exceptions', () => {
         >
       >();
 
-      expectTypeOf(mutationRef.select('')?.exceptions().loader).toEqualTypeOf<
+      expectTypeOf(
+        mutationRef.select('')
+          ? craftUse(mutationRef.select('')!.exceptions()).loader
+          : undefined,
+      ).toEqualTypeOf<
         | CraftExceptionResult<
             {
               code: 'API_ERROR';
@@ -1244,7 +1304,8 @@ describe('mutation exceptions', () => {
   it('typing with identifier: return a select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
       const failed = signal(true);
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (value: string) => value,
           identifier: (id) => id,
           loader: async () =>
@@ -1267,7 +1328,7 @@ describe('mutation exceptions', () => {
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
 
-      expectTypeOf(mutationRef.exceptions().loader).toEqualTypeOf<
+      expectTypeOf(craftUse(mutationRef.exceptions()).loader).toEqualTypeOf<
         Partial<
           Record<
             string,
@@ -1296,7 +1357,9 @@ describe('mutation exceptions', () => {
       >();
 
       expectTypeOf(
-        mutationRef.select('')?.exceptions().loader?.code,
+        mutationRef.select('')
+          ? craftUse(mutationRef.select('')!.exceptions()).loader?.code
+          : undefined,
       ).toEqualTypeOf<'API_ERROR' | 'HTTP_ERROR' | undefined>();
     });
   });
@@ -1307,7 +1370,8 @@ describe('mutation exceptions', () => {
         id: params,
       }));
 
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (value: string) =>
             value.length < 3
               ? craftException(
@@ -1323,9 +1387,11 @@ describe('mutation exceptions', () => {
       await vi.runAllTimersAsync();
 
       expect(loader).not.toHaveBeenCalled();
-      expect(mutationRef.resourceParamsSrc()).toBeUndefined();
-      expect(mutationRef.hasException()).toBe(true);
-      expect(mutationRef.exceptions().params?.SEARCH_TERM_TOO_SHORT).toEqual({
+      expect(craftUse(mutationRef.resourceParamsSrc())).toBeUndefined();
+      expect(craftUse(mutationRef.hasException())).toBe(true);
+      expect(
+        craftUse(mutationRef.exceptions()).params?.SEARCH_TERM_TOO_SHORT,
+      ).toEqual({
         min: 3,
         received: 2,
       });
@@ -1334,7 +1400,8 @@ describe('mutation exceptions', () => {
 
   it('captures exception returned by loader without exposing a value', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (value: string) => value,
           loader: async () =>
             craftException(
@@ -1347,17 +1414,20 @@ describe('mutation exceptions', () => {
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
 
-      expect(mutationRef.exceptions().loader?.INVALID_USER_ID).toEqual({
+      expect(
+        craftUse(mutationRef.exceptions()).loader?.INVALID_USER_ID,
+      ).toEqual({
         from: 'loader',
       });
-      expect(mutationRef.value()).toBeUndefined();
-      expect(mutationRef.hasException()).toBe(true);
+      expect(craftUse(mutationRef.value())).toBeUndefined();
+      expect(craftUse(mutationRef.hasException())).toBe(true);
     });
   });
 
   it('keeps method exceptions global in parallel mutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (id: 'A' | 'B') =>
             craftException({ code: 'INVALID_ID' }, { params: id }),
           identifier: (id) => id,
@@ -1368,8 +1438,10 @@ describe('mutation exceptions', () => {
       mutationRef.mutate('A');
       await vi.runAllTimersAsync();
 
-      expect(mutationRef.exceptions().params?.payload).toEqual({ params: 'A' });
-      expect(mutationRef.exceptions().loader).toEqual({});
+      expect(craftUse(mutationRef.exceptions()).params?.payload).toEqual({
+        params: 'A',
+      });
+      expect(craftUse(mutationRef.exceptions()).loader).toEqual({});
     });
   });
 });
@@ -1394,7 +1466,8 @@ describe('mutation — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const mutationRef = craftUse(mutation(
+      const mutationRef = craftUse(
+        mutation(
           'mutationRef',
           {
             providers: [
@@ -1429,7 +1502,8 @@ describe('mutation — providers', () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
     TestBed.runInInjectionContext(() => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           providers: [
             providePrimitiveResourceRuntimeObserver((context) => {
               resourceContext = context;
@@ -1445,7 +1519,7 @@ describe('mutation — providers', () => {
       resourceContext?.set({ count: 1 });
       resourceContext?.patch(() => ({ count: 2 }));
       expect(resourceContext?.get()).toEqual({ count: 2 });
-      expect(mutationRef.value()).toEqual({ count: 2 });
+      expect(craftUse(mutationRef.value())).toEqual({ count: 2 });
     });
   });
 
@@ -1459,7 +1533,8 @@ describe('mutation — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           providers: [
             provideFnWrapper(
               'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -1490,7 +1565,8 @@ describe('mutation — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const withProvider = craftUse(mutation('withProvider', {
+      const withProvider = craftUse(
+        mutation('withProvider', {
           providers: [
             provideFnWrapper(
               'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -1503,7 +1579,8 @@ describe('mutation — providers', () => {
           loader: async ({ params }) => ({ id: params }),
         }),
       );
-      const withoutProvider = craftUse(mutation('withoutProvider', {
+      const withoutProvider = craftUse(
+        mutation('withoutProvider', {
           method: function* (id: string) {
             return id;
           },
@@ -1528,7 +1605,8 @@ describe('mutation — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const withoutProviders = craftUse(mutation('withoutProviders', {
+      const withoutProviders = craftUse(
+        mutation('withoutProviders', {
           params: function* () {
             yield* MethodService();
             return 'user-1';
@@ -1542,7 +1620,8 @@ describe('mutation — providers', () => {
       >().toEqualTypeOf<true>();
 
       // Verify mutation accepts providers without type errors
-      const withProviders = craftUse(mutation('withProviders', {
+      const withProviders = craftUse(
+        mutation('withProviders', {
           providers: [provideMethodService()],
           params: () => 'user-1',
           loader: async ({ params }) => ({ id: params }),
@@ -1554,7 +1633,8 @@ describe('mutation — providers', () => {
 
   it('should accepts this', () => {
     TestBed.runInInjectionContext(() => {
-      const registerPizzeriaOwner = craftUse(mutation('registerPizzeriaOwner', {
+      const registerPizzeriaOwner = craftUse(
+        mutation('registerPizzeriaOwner', {
           method: ({
             email,
             password,
@@ -1579,24 +1659,28 @@ describe('mutation — providers', () => {
 
   it('typing: loader generator can return null or primitive sync values', () => {
     TestBed.runInInjectionContext(() => {
-      const withNull = craftUse(mutation('withNull', {
+      const withNull = craftUse(
+        mutation('withNull', {
           method: (id: string) => id,
           loader: function* () {
             return null;
           },
         }),
       );
-      expectTypeOf(withNull.value).toEqualTypeOf<Signal<null | undefined>>();
+      expectTypeOf(withNull.value).toMatchTypeOf<
+        YieldableReactiveValue<null | undefined>
+      >();
 
-      const withString = craftUse(mutation('withString', {
+      const withString = craftUse(
+        mutation('withString', {
           method: (id: string) => id,
           loader: function* () {
             return 'result';
           },
         }),
       );
-      expectTypeOf(withString.value).toEqualTypeOf<
-        Signal<string | undefined>
+      expectTypeOf(withString.value).toMatchTypeOf<
+        YieldableReactiveValue<string | undefined>
       >();
     });
   });

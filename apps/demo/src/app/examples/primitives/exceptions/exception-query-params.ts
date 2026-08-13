@@ -13,8 +13,7 @@ import {
   craftMethod,
   CraftRouter,
   queryParams,
-  craftException,
-} from '@craft-ng/core';
+  craftException, craftUse } from '@craft-ng/core';
 
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
@@ -79,7 +78,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       },
       ({ exceptions }) => ({
         hasParseException: computed(
-          () => exceptions().parse.mode !== undefined,
+          () => craftUse(exceptions()).parse.mode !== undefined,
         ),
       }),
     );
@@ -114,14 +113,19 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate exception',
         ),
       ]),
-      p([strong('Parsed value: '), () => String(modeQueryParams().mode)]),
+      p([
+        strong('Parsed value: '),
+        () => String(craftUse(modeQueryParams()).mode),
+      ]),
       ifBlock(
         modeQueryParams.hasParseException,
         () =>
           p([
             strong('Exception: '),
             () => {
-              const exception = modeQueryParams.exceptions().parse.mode as {
+              const exception = craftUse(
+                modeQueryParams.exceptions(),
+              ).parse.mode as {
                 code: string;
                 payload: { error: unknown };
               };

@@ -14,6 +14,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   InsertionsQueryParamsFactory,
   InsertionQueryParamsFactoryContext,
+  QueryParamsMethods,
 } from './query.core';
 import { MergeObjects } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
@@ -52,11 +53,17 @@ import {
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
+  yieldableInvocation,
 } from './yieldable';
-import type {
-  BrandReactiveProperties,
-  YieldableInsertionMethods,
-} from './yieldable';
+import {
+  createYieldableReactiveFacade,
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type YieldableReactiveProperties,
+  type YieldableReactiveValue,
+} from './reactive-read';
+import type { YieldableInsertionMethods } from './yieldable';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -155,8 +162,8 @@ export type QueryParamsOutput<
   Insertions,
   QueryParamsState,
   Dependencies = QueryParamsTrackedDependencies<QueryParamsType>,
-> = BrandReactiveProperties<
-  Signal<QueryParamsState> &
+> = YieldableReactiveValue<QueryParamsState> &
+  YieldableReactiveProperties<
     MergeObjects<
       [
         {
@@ -175,7 +182,7 @@ export type QueryParamsOutput<
         },
       ]
     >
->;
+  >;
 
 function enrichQueryParamsParseException(
   exception: AnyCraftException,
@@ -431,7 +438,7 @@ export function queryParams<
     >
   >
 >;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function queryParams(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -656,6 +663,32 @@ function createQueryParamsRef<
     },
   };
 
+  const insertionMethods = {
+    set: (
+      params: QueryParamsToState<QueryParamsType>,
+      navOptions?: QueryParamsNavigationOptions,
+    ) =>
+      yieldableInvocation(methods.set(params, navOptions)),
+    update: (
+      updateFn: (
+        currentParams: QueryParamsToState<QueryParamsType>,
+      ) => QueryParamsToState<QueryParamsType>,
+      navOptions?: QueryParamsNavigationOptions,
+    ) =>
+      yieldableInvocation(methods.update(updateFn, navOptions)),
+    patch: (
+      paramsOrPatchFn:
+        | Partial<QueryParamsToState<QueryParamsType>>
+        | ((
+            currentParams: QueryParamsToState<QueryParamsType>,
+          ) => Partial<QueryParamsToState<QueryParamsType>>),
+      navOptions?: QueryParamsNavigationOptions,
+    ) =>
+      yieldableInvocation(methods.patch(paramsOrPatchFn, navOptions)),
+    reset: (navOptions?: QueryParamsNavigationOptions) =>
+      yieldableInvocation(methods.reset(navOptions)),
+  } as unknown as QueryParamsMethods<QueryParamsToState<QueryParamsType>>;
+
   runInInjectionContext(injector, () =>
     ɵobservePrimitiveResourceRuntimeContext(
       ɵcreatePrimitiveResourceRuntimeContext('queryParams', {
@@ -672,6 +705,22 @@ function createQueryParamsRef<
   );
 
   // Process insertions
+  const readonlyQueryParamsState = queryParamsState.asReadonly();
+  const publicStateReader = createYieldableReactiveValue(
+    readonlyQueryParamsState,
+    'state',
+    { primitive: 'queryParams', path: `${name}.state` },
+  );
+  const publicHasException = createYieldableReactiveValue(
+    hasException,
+    'hasException',
+    { primitive: 'queryParams', path: `${name}.hasException` },
+  );
+  const publicExceptions = createYieldableReactiveValue(
+    exceptions,
+    'exceptions',
+    { primitive: 'queryParams', path: `${name}.exceptions` },
+  );
   const insertionResults =
     (insertions as InsertionsQueryParamsFactory<QueryParamsType, {}>[])?.reduce(
       (acc, insert) => {
@@ -680,11 +729,11 @@ function createQueryParamsRef<
           insert,
           undefined,
           {
-            state: queryParamsState.asReadonly(),
+            state: publicStateReader,
             config: queryParamsConfig,
-            hasException,
-            exceptions,
-            ...methods,
+            hasException: publicHasException,
+            exceptions: publicExceptions,
+            ...insertionMethods,
             insertions: acc as {},
           } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>,
         );
@@ -695,7 +744,21 @@ function createQueryParamsRef<
               isSignal(value) ||
               isNonYieldableInsertionMethod(value)
             ) {
-              wrappedAcc[key] = value;
+              wrappedAcc[key] = nameInsertedReactiveValue(
+                value,
+                key,
+                'queryParams',
+                `${name}.${key}`,
+              );
+              return wrappedAcc;
+            }
+            if (isYieldableReactiveValue(value)) {
+              wrappedAcc[key] = nameInsertedReactiveValue(
+                value,
+                key,
+                'queryParams',
+                `${name}.${key}`,
+              );
               return wrappedAcc;
             }
             const methodInjector = ɵcreateHostTaggedInjector(
@@ -749,9 +812,7 @@ function createQueryParamsRef<
       {} as Record<string, unknown>,
     ) || {};
 
-  const readonlyQueryParamsState = queryParamsState.asReadonly();
-  const queryParamsCallable = (() =>
-    readonlyQueryParamsState()) as typeof readonlyQueryParamsState;
+  const queryParamsCallable = readonlyQueryParamsState;
   Object.defineProperty(queryParamsCallable, 'name', {
     configurable: true,
     writable: true,
@@ -796,5 +857,9 @@ function createQueryParamsRef<
       });
   }
 
-  return queryParamsOutput;
+  return createYieldableReactiveFacade(queryParamsOutput, {
+    name,
+    primitive: 'queryParams',
+    path: name,
+  }) as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
 }

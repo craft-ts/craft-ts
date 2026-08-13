@@ -46,6 +46,7 @@ import {
 } from './util/method-trigger-nonce';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
+import type { CraftResourceRef } from './util/craft-resource-ref';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -93,6 +94,12 @@ import type {
   BrandReactiveProperties,
   YieldableInsertionMethods,
 } from './yieldable';
+import {
+  createYieldableReactiveFacade,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type YieldableReactiveProperties,
+} from './reactive-read';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,
@@ -436,9 +443,10 @@ export type ResourceLikeExceptionUnion<
   QueryException extends ResourceExceptionConstraints,
   GroupIdentifier = unknown,
 > =
-  ResourceLikeExceptions<QueryException, GroupIdentifier>['exception'] extends Signal<
-    infer Exception
-  >
+  ResourceLikeExceptions<
+    QueryException,
+    GroupIdentifier
+  >['exception'] extends Signal<infer Exception>
     ? Exclude<Exception, undefined>
     : never;
 
@@ -466,6 +474,7 @@ export type ResourceLikeQueryRef<
   MergeObjects<
     [
       {
+        readonly resource: CraftResourceRef<Value, Params>;
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
@@ -618,19 +627,21 @@ export type QueryOutput<
   HasSchema extends boolean = false,
   MethodYielded = never,
   Name extends string = string,
-> = QueryRef<
-  State,
-  Params,
-  ArgParams,
-  YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
-  [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
-  SourceParams,
-  GroupIdentifier,
-  QueryExceptions,
-  Dependencies,
-  HasSchema,
-  MethodYielded,
-  Name
+> = YieldableReactiveProperties<
+  QueryRef<
+    State,
+    Params,
+    ArgParams,
+    YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
+    [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
+    SourceParams,
+    GroupIdentifier,
+    QueryExceptions,
+    Dependencies,
+    HasSchema,
+    MethodYielded,
+    Name
+  >
 >;
 
 type SchemaQueryConfig<
@@ -1189,7 +1200,8 @@ export function query<
  * console.log(enrichedUser?.value()); // { ...userData, ...details }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+
 export function query(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1951,6 +1963,11 @@ function createQueryRef<
     },
   );
 
+  const publicQueryContext = createYieldableReactiveFacade(
+    queryOutputWithoutInsertions,
+    { name, primitive: 'query', path: name },
+  ) as any;
+
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
       NoInfer<GroupIdentifier>,
@@ -1970,17 +1987,19 @@ function createQueryRef<
           {
             ...(isUsingIdentifier
               ? {
-                  resourceById: resourceTarget,
+                  resourceById: createYieldableReactiveFacade(resourceTarget, {
+                    name: 'resourceById',
+                    primitive: 'query',
+                    path: `${name}.resourceById`,
+                  }),
                   identifier: queryConfig.identifier,
                 }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<QueryParams>
-            >,
-            hasException,
-            exceptions,
+              : { resource: publicQueryContext }),
+            resourceParamsSrc: publicQueryContext.resourceParamsSrc,
+            hasException: publicQueryContext.hasException,
+            exceptions: publicQueryContext.exceptions,
             insertions: acc as {},
-            state: resourceTarget.state,
+            state: publicQueryContext.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
             patch: (patchFn: (currentState: any) => Partial<any>) =>
@@ -2000,6 +2019,7 @@ function createQueryRef<
           if (
             typeof value === 'function' &&
             !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
             const injector = getInjector();
@@ -2033,7 +2053,18 @@ function createQueryRef<
               onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
             });
           } else {
-            wrappedAcc[key] = value;
+            const namedValue = nameInsertedReactiveValue(
+              value,
+              key,
+              'query',
+              `${name}.${key}`,
+            );
+            wrappedAcc[key] = createYieldableReactiveFacade(namedValue, {
+              name: key,
+              primitive: 'query',
+              insertion: key,
+              path: `${name}.${key}`,
+            });
           }
           return wrappedAcc;
         },
@@ -2121,10 +2152,22 @@ function createQueryRef<
     attachCraftSettledValue(name, queryOutputWithoutInsertions);
   }
 
-  return Object.assign(
+  const queryOutput = Object.assign(
     queryOutputWithoutInsertions,
     insertionsResult,
-  ) as unknown as QueryOutput<
+  );
+  if (!('resource' in queryOutput)) {
+    Object.defineProperty(queryOutput, 'resource', {
+      value: queryOutput,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return createYieldableReactiveFacade(queryOutput, {
+    name,
+    primitive: 'query',
+    path: name,
+  }) as unknown as QueryOutput<
     StripCraftException<QueryState>,
     StripCraftException<QueryParams>,
     QueryArgsParams,
@@ -2134,4 +2177,3 @@ function createQueryRef<
     ResourceExceptionConstraints
   >;
 }
-

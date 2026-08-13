@@ -229,10 +229,7 @@ describe('fromEventToSource$', () => {
     const { ClickEventSource: Click } = craftService(
       { name: 'ClickEventSource', scope: 'global' },
       function* () {
-        const click = yield* fromEventToSource$<MouseEvent>(
-          button,
-          'click',
-        );
+        const click = yield* fromEventToSource$<MouseEvent>(button, 'click');
         return click;
       },
     );
@@ -254,7 +251,7 @@ describe('fromEventToSource$', () => {
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
       button.dispatchEvent(new MouseEvent('click'));
-      expect(counter.counter()).toBe(1);
+      expect(craftUse(counter.counter())).toBe(1);
     });
 
     type ConsumerDependencies = GetServiceDependencies<typeof Counter>;
