@@ -1,3 +1,16 @@
+## 0.7.0-beta.7 (2026-08-13)
+
+### 🚀 Features
+
+- **component:** CSS variables contract for craft components ([dc6d2e8](https://github.com/ng-angular-stack/ng-craft/commit/dc6d2e8))
+- **component:** settledValue + pendingBlock, type-safe suspension ([15a77ab](https://github.com/ng-angular-stack/ng-craft/commit/15a77ab))
+- **component:** pendingBlock reloading slot, and reliable boundary recovery ([7dbf767](https://github.com/ng-angular-stack/ng-craft/commit/7dbf767))
+
+### ❤️ Thank You
+
+- Claude Opus 5
+- Romain
+
 ## 0.7.0-beta.6 (2026-08-12)
 
 ### 🚀 Features
