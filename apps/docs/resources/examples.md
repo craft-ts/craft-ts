@@ -21,6 +21,8 @@ Functional, selectorless components rendered from typed hyperscript.
 | [Functional Components](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/component/component-demo.ts&initialpath=/) | `craftComponent`, inputs and outputs as factory parameters, hyperscript templates |
 | [Reactive Composition](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/component/component-composition-demo.ts&initialpath=/component-composition) | Composing components and directives with `.pipe(...)` |
 | [Content Projection](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/component/content-projection-demo.ts&initialpath=/content-projection) | Free DOM content, typed DOM contracts, and logical projection by contract |
+| [Pending Block](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/component/pending-block-demo.ts&initialpath=/pending-block) | Type-safe async suspension with `settledValue`, `settled(...)` and `pendingBlock` |
+| [Pending Block — Exception](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/component/pending-block-exception-demo.ts&initialpath=/pending-block/exception) | Coordinating pending, reloading and business-exception fallbacks with `pendingBlock` and `catchBlock` |
 
 ## Primitives
 
