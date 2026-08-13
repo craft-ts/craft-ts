@@ -162,6 +162,13 @@ Both bubble up the node tree until a boundary clears them, and both fail the
 exception boundary — settled exceptions pass straight through it, and vice
 versa.
 
+These two throws are intentional CraftNG control flow. The shared
+`isCraftControlFlow(error)` predicate identifies them so observability and
+error-conversion wrappers can rethrow them without logging or taking an app
+snapshot. If a pending read escapes its boundary, it becomes
+`CraftUnhandledPendingError`; that is a real template error and remains
+observable.
+
 ```typescript
 div([span(summary)])
   .pipe(pendingBlock.exhaustive({ issue: () => Skeleton() }))

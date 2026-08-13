@@ -1,6 +1,7 @@
 import { inject, InjectionToken, isSignal, type Provider } from '@angular/core';
 import { debounceTime, Subject, tap } from 'rxjs';
 import { provideFnWrapper } from './fn-wrapper';
+import { isCraftControlFlow } from './craft-control-flow';
 
 export interface SnapshotReport {
   source: string;
@@ -76,6 +77,12 @@ export function provideTakeAppSnapshot(
         try {
           return yield* factory.apply(thisArg, args);
         } catch (error) {
+          // CraftGenShortCircuit and CraftNotSettled are expected control-flow
+          // throws. Their boundaries will consume them during rendering; they
+          // must not produce an application snapshot on the way there.
+          if (isCraftControlFlow(error)) {
+            throw error;
+          }
           inject(TAKE_APP_SNAPSHOT)();
           throw error;
         }

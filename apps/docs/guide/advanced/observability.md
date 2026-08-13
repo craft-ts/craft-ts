@@ -195,7 +195,7 @@ Each `SnapshotReport` contains:
 - `from` — the ancestry chain that produced it
 - `state` — the actual current value
 
-Under the hood, `provideTakeAppSnapshot` registers its own `provideFnWrapper` that triggers the snapshot collection whenever an unexpected error bubbles up. You do not need to call it manually.
+Under the hood, `provideTakeAppSnapshot` registers its own `provideFnWrapper` that triggers the snapshot collection whenever an unexpected error bubbles up. CraftNG control-flow throws such as `CraftGenShortCircuit` and `CraftNotSettled` are deliberately excluded: they are consumed by `catchBlock` and `pendingBlock` boundaries during normal rendering. An unhandled boundary error remains observable and still triggers a snapshot. You do not need to call it manually.
 
 ## Craft DOM event hooks
 

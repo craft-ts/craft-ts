@@ -10,13 +10,7 @@ import {
   span,
   ul,
 } from '@craft-ng/component';
-import {
-  craftComputed,
-  craftSleep,
-  query,
-  settled,
-  state,
-} from '@craft-ng/core';
+import { craftComputed, craftSleep, query, settled } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -65,12 +59,8 @@ export const pendingBlockDemo = craftComponent(
     `,
   },
   function* () {
-    const reload = yield* state('reload', 0, ({ update }) => ({
-      again: () => update((current) => current + 1),
-    }));
-
     const users = yield* query('users', {
-      params: () => reload(),
+      method: (_: undefined) => undefined,
       // `preservePreviousValue: false` clears the value on every reload, so the
       // boundary shows again on each click. Without it a reload keeps the
       // previous value and does not suspend at all (stale-while-revalidate).
@@ -80,6 +70,8 @@ export const pendingBlockDemo = craftComponent(
         return { items: USERS };
       },
     });
+
+    yield* users.call(undefined); // trigger first call
 
     // The computed consumes the resolved value: inside the callback `list()` is
     // an `{ items }`, never `undefined`. In exchange the computed is tagged as
@@ -95,16 +87,21 @@ export const pendingBlockDemo = craftComponent(
       return () => `${list().items.length} people`;
     });
 
-    return { users, teams, total, reload };
+    return { users, teams, total };
   },
-  ({ teams, total, reload }) =>
+  ({ teams, total, users }) =>
     section({ class: 'pending-demo' }, [
       h2('settledValue + pendingBlock'),
       p(
         'The template reads an always-resolved value; the pendingBlock owns the loading state.',
       ),
       button(
-        { class: 'pending-demo__reload', click: reload.again },
+        {
+          class: 'pending-demo__reload',
+          *click() {
+            yield* users.call(undefined);
+          },
+        },
         'Reload',
       ),
       div([
@@ -116,8 +113,7 @@ export const pendingBlockDemo = craftComponent(
         // One boundary covers both computeds. Remove this line and
         // `craftComponent(...)` refuses to compile, naming the "users" source.
         pendingBlock.exhaustive({
-          users: () =>
-            p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
+          users: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
         }),
       ),
     ]),
