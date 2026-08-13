@@ -1,3 +1,7 @@
+## 0.7.0-beta.8 (2026-08-13)
+
+This was a version bump only, there were no code changes.
+
 ## 0.7.0-beta.7 (2026-08-13)
 
 ### 🚀 Features
