@@ -5,6 +5,7 @@ import type {
   CraftComponentDependencies,
   CraftServiceProvider,
   ExtractCraftGenExceptions,
+  ExtractCraftAsyncSources,
   ResolveGeneratorResult,
   YieldableMethod,
   NamedYieldableValue,
@@ -29,6 +30,7 @@ import type {
   CraftNodeChildrenFieldExceptions,
   CraftNodeChildrenRawFieldExceptions,
   CraftNodeChildrenHandledExceptionCodes,
+  CraftNodeChildrenHandledPendingSources,
   CraftNodeDepsCarrier,
   ComponentNode,
   ContentDependenciesFromProps,
@@ -398,6 +400,13 @@ export type TemplatePendingSources<Template> = Template extends (
   ? CraftNodeChildrenPendingSources<Output>
   : never;
 
+/** Async sources a template explicitly acknowledges with a probe or boundary. */
+export type TemplateHandledPendingSources<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenHandledPendingSources<Output>
+  : never;
+
 /**
  * Exception codes a template can reach through a settled read without covering
  * them with a `catchBlock`.
@@ -497,6 +506,8 @@ export interface ComponentMeta<
   readonly cssVars?: CssVarsMetaDeclaration;
   /** Styles exposed explicitly to opted-in projected fragments, by slot. */
   readonly contentStyles?: ContentStyles<SlotName>;
+  /** Async source names intentionally left unmanaged by this component. */
+  readonly unmanagedAsyncSources?: readonly string[];
 }
 
 export interface DirectiveMeta {
@@ -669,6 +680,9 @@ export type ComponentInitializationExceptions<
   Factory extends ComponentFactory,
   Providers,
 > = ComponentFactoryExceptions<Factory> | ProviderExceptions<Providers>;
+
+export type ComponentAsyncSources<Factory extends ComponentFactory> =
+  ExtractCraftAsyncSources<FactoryYielded<Factory>>;
 
 type ComponentExceptionCodes<Exceptions> = Exceptions extends {
   readonly code: infer Code extends string;

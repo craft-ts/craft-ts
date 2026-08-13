@@ -7,6 +7,8 @@ import type {
   CraftSettledCodesOf,
   CraftSettledSourcesOf,
   ExtractCraftGenExceptions,
+  CraftPendingProbeSourcesOf,
+  ExtractCraftPendingHandled,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
 } from '@craft-ng/core';
@@ -57,6 +59,7 @@ export const CRAFT_NODE_CSS_VARS: unique symbol = Symbol('craft-node-css-vars');
 export const CRAFT_NODE_DIRECTIVES = Symbol('craft-node-directives');
 declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
 declare const CRAFT_NODE_HANDLED_EXCEPTIONS: unique symbol;
+declare const CRAFT_NODE_HANDLED_PENDING: unique symbol;
 declare const CRAFT_NODE_PENDING: unique symbol;
 declare const CRAFT_NODE_SETTLED_EXCEPTIONS: unique symbol;
 export declare const CRAFT_NODE_FIELD_EXCEPTIONS: unique symbol;
@@ -97,6 +100,10 @@ export type CraftNodeExceptionsCarrier<Exceptions extends string = string> = {
 
 export type CraftNodeHandledExceptionsCarrier<Codes extends string = string> = {
   readonly [CRAFT_NODE_HANDLED_EXCEPTIONS]?: Codes;
+};
+
+export type CraftNodeHandledPendingCarrier<Sources extends string = string> = {
+  readonly [CRAFT_NODE_HANDLED_PENDING]?: Sources;
 };
 
 export type CraftNodeFieldExceptionsCarrier<Cases = never> = {
@@ -235,9 +242,10 @@ export type CraftTextBinding =
 type ElementNodeExceptions<
   Children extends CraftNodeChildren,
   Exceptions extends string,
-> = string extends CraftNodeChildrenExceptions<Children>
-  ? Exceptions
-  : CraftNodeChildrenExceptions<Children>;
+> =
+  string extends CraftNodeChildrenExceptions<Children>
+    ? Exceptions
+    : CraftNodeChildrenExceptions<Children>;
 
 /**
  * The async sources an element still needs a `pendingBlock` for: the ones read
@@ -273,16 +281,20 @@ export interface ElementNodeBase<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeExceptionsCarrier<
-      ElementNodeExceptions<Children, Exceptions>
-    >,
+    CraftNodeExceptionsCarrier<ElementNodeExceptions<Children, Exceptions>>,
     CraftNodeHandledExceptionsCarrier<HandledExceptions>,
     CraftNodePendingCarrier<
       ElementNodePendingSources<Props, Children, PendingSources>
     >,
     CraftNodeSettledExceptionsCarrier<
       ElementNodeSettledExceptions<Props, Children, SettledExceptions>
+    >,
+    CraftNodeHandledPendingCarrier<
+      | HandledPendingSources
+      | CraftNodeChildrenHandledPendingSources<Children>
+      | CraftNodeChildrenHandledPendingSources<Props[keyof Props]>
     >,
     CraftNodeFieldExceptionsCarrier<
       FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>
@@ -307,6 +319,7 @@ export interface ElementNode<
   CssVars extends CssVarContract = EmptyCssVarContract,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends ElementNodeBase<
       Dependencies,
       Tag,
@@ -317,13 +330,11 @@ export interface ElementNode<
       HandledExceptions,
       FieldExceptions,
       PendingSources,
-      SettledExceptions
+      SettledExceptions,
+      HandledPendingSources
     >,
     CraftNodeCssVarsCarrier<CssVars> {
-  readonly [CRAFT_NODE_EXCEPTIONS]: ElementNodeExceptions<
-    Children,
-    Exceptions
-  >;
+  readonly [CRAFT_NODE_EXCEPTIONS]: ElementNodeExceptions<Children, Exceptions>;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]:
     | FieldExceptions
     | CraftNodeChildrenRawFieldExceptions<Children>;
@@ -332,9 +343,19 @@ export interface ElementNode<
     ElementNodeExceptions<Children, Exceptions>,
     FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>,
     ElementNodePendingSources<Props, Children, PendingSources>,
-    ElementNodeSettledExceptions<Props, Children, SettledExceptions>
+    ElementNodeSettledExceptions<Props, Children, SettledExceptions>,
+    ElementNodeHandledPendingSources<Props, Children, HandledPendingSources>
   >;
 }
+
+type ElementNodeHandledPendingSources<
+  Props extends object,
+  Children extends CraftNodeChildren,
+  HandledPendingSources extends string,
+> =
+  | HandledPendingSources
+  | CraftNodeChildrenHandledPendingSources<Children>
+  | CraftNodeChildrenHandledPendingSources<Props[keyof Props]>;
 
 type PipedNode<
   Dependencies extends object,
@@ -343,6 +364,7 @@ type PipedNode<
   Directive extends CraftDirective,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > =
   Directive extends PendingBlockDirective<
     infer Handlers extends PendingBlockHandlers | undefined,
@@ -358,7 +380,10 @@ type PipedNode<
         // A pending boundary is not an exception boundary: settled exceptions
         // pass straight through it.
         | SettledExceptions
-        | CraftNodeChildrenSettledExceptions<FallbackChildren>
+        | CraftNodeChildrenSettledExceptions<FallbackChildren>,
+        | HandledPendingSources
+        | Extract<keyof Handlers, string>
+        | CraftNodeChildrenHandledPendingSources<FallbackChildren>
       >
     : PipedNodeWithoutPending<
         Dependencies,
@@ -366,7 +391,8 @@ type PipedNode<
         FieldExceptions,
         Directive,
         PendingSources,
-        SettledExceptions
+        SettledExceptions,
+        HandledPendingSources
       >;
 
 type PipedNodeWithoutPending<
@@ -376,6 +402,7 @@ type PipedNodeWithoutPending<
   Directive extends CraftDirective,
   PendingSources extends string,
   SettledExceptions extends string,
+  HandledPendingSources extends string,
 > =
   Directive extends FieldExceptionBlockDirective<
     infer FieldHandlers extends FieldExceptionHandlers,
@@ -404,6 +431,10 @@ type PipedNodeWithoutPending<
         | SettledExceptions
         | CraftNodeChildrenSettledExceptions<
             FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
+          >,
+        | HandledPendingSources
+        | CraftNodeChildrenHandledPendingSources<
+            FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
           >
       >
     : Directive extends CatchBlockDirective<
@@ -427,6 +458,10 @@ type PipedNodeWithoutPending<
           | Exclude<SettledExceptions, Extract<keyof Handlers, string>>
           | CraftNodeChildrenSettledExceptions<
               CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+            >,
+          | HandledPendingSources
+          | CraftNodeChildrenHandledPendingSources<
+              CatchBlockHandlerChildren<Handlers[keyof Handlers]>
             >
         >
       : CraftDirectiveNode<
@@ -434,7 +469,8 @@ type PipedNodeWithoutPending<
           Exceptions,
           FieldExceptions,
           PendingSources,
-          SettledExceptions
+          SettledExceptions,
+          HandledPendingSources
         >;
 
 type PipedCraftNodeDirective<
@@ -444,6 +480,7 @@ type PipedCraftNodeDirective<
   Directive extends CraftNodeDirective<any>,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > = ElementNode<
   Dependencies,
   string,
@@ -455,7 +492,8 @@ type PipedCraftNodeDirective<
   FieldExceptions | FieldValidationCasesOf<Directive>,
   EmptyCssVarContract,
   PendingSources,
-  SettledExceptions
+  SettledExceptions,
+  HandledPendingSources
 >;
 
 export type CraftNodePipe<
@@ -464,6 +502,7 @@ export type CraftNodePipe<
   FieldExceptions = never,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > = {
   <Directive extends CraftDirective>(
     directive: Directive &
@@ -505,7 +544,8 @@ export type CraftNodePipe<
     FieldExceptions,
     Directive,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    HandledPendingSources
   >;
   (directive: AngularDirectiveNode): CraftNode;
   <Directive extends CraftNodeDirective<any>>(
@@ -516,7 +556,8 @@ export type CraftNodePipe<
     FieldExceptions,
     Directive,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    HandledPendingSources
   >;
   (directive: Type<unknown>): CraftNode;
 };
@@ -532,10 +573,12 @@ export interface CraftDirectiveNode<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
+    CraftNodeHandledPendingCarrier<HandledPendingSources>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
   readonly [CRAFT_NODE_EXCEPTIONS]: Exceptions;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]: FieldExceptions;
@@ -547,7 +590,8 @@ export interface CraftDirectiveNode<
     Exceptions,
     FieldExceptions,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    HandledPendingSources
   >;
 }
 
@@ -585,6 +629,7 @@ export interface ComponentNode<
   CssVars extends CssVarContract = EmptyCssVarContract,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends CraftNodeDepsCarrier<ComponentDeps & ContentDependencies>,
     CraftNodeCssVarsCarrier<CssVars>,
     CraftNodeExceptionsCarrier<
@@ -595,6 +640,10 @@ export interface ComponentNode<
     >,
     CraftNodeSettledExceptionsCarrier<
       SettledExceptions | ContentSettledExceptionsFromProps<Props>
+    >,
+    CraftNodeHandledPendingCarrier<
+      | HandledPendingSources
+      | CraftNodeChildrenHandledPendingSources<Props[keyof Props]>
     >,
     CraftNodeFieldExceptionsCarrier<
       | ComponentFieldExceptionsOf<Component>
@@ -618,7 +667,8 @@ export interface ComponentNode<
     | ComponentFieldExceptionsOf<Component>
     | ContentFieldExceptionsFromProps<Props>,
     PendingSources | ContentPendingSourcesFromProps<Props>,
-    SettledExceptions | ContentSettledExceptionsFromProps<Props>
+    SettledExceptions | ContentSettledExceptionsFromProps<Props>,
+    HandledPendingSources
   >;
 }
 
@@ -645,11 +695,18 @@ export interface CatchBlockNode<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
     CraftNodeHandledExceptionsCarrier<Extract<keyof Handlers, string>>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
+    CraftNodeHandledPendingCarrier<
+      | HandledPendingSources
+      | CraftNodeChildrenHandledPendingSources<
+          CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+        >
+    >,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
   readonly kind: 'catch-block';
   readonly source: CraftNode;
@@ -664,10 +721,12 @@ export interface FieldExceptionBlockNode<
   Handlers extends FieldExceptionHandlers = FieldExceptionHandlers,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
+    CraftNodeHandledPendingCarrier<HandledPendingSources>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
   readonly kind: 'field-exception-block';
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]: FieldExceptions;
@@ -682,7 +741,8 @@ export interface FieldExceptionBlockNode<
     Exceptions,
     FieldExceptions,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    HandledPendingSources
   >;
 }
 
@@ -693,6 +753,9 @@ export interface MatchBlockNode<
   HandledExceptions extends string = string,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeHandledExceptionsCarrier<HandledExceptions>,
+    CraftNodeHandledPendingCarrier<
+      CraftNodeChildrenHandledPendingSources<Children>
+    >,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
@@ -713,6 +776,9 @@ export interface EachNode<
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<
       CraftNodeChildrenCssVars<ItemChildren | EmptyChildren>
+    >,
+    CraftNodeHandledPendingCarrier<
+      CraftNodeChildrenHandledPendingSources<ItemChildren | EmptyChildren>
     >,
     CraftNodePendingCarrier<
       | CraftNodeChildrenPendingSources<ItemChildren>
@@ -744,9 +810,14 @@ export interface IfBlockNode<
   Dependencies extends object = {},
   TrueChildren extends CraftNodeChildren = CraftNodeChildren,
   FalseChildren extends CraftNodeChildren = CraftNodeChildren,
+  Condition extends object = object,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<
       CraftNodeChildrenCssVars<TrueChildren | FalseChildren>
+    >,
+    CraftNodeHandledPendingCarrier<
+      | CraftNodeChildrenHandledPendingSources<TrueChildren | FalseChildren>
+      | CraftPendingProbeSourcesOf<Condition>
     >,
     CraftNodePendingCarrier<
       | CraftNodeChildrenPendingSources<TrueChildren>
@@ -775,6 +846,9 @@ export interface DeferNode<
   Children extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
+    CraftNodeHandledPendingCarrier<
+      CraftNodeChildrenHandledPendingSources<Children>
+    >,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
@@ -801,10 +875,12 @@ export interface PendingBlockNode<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  HandledPendingSources extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
+    CraftNodeHandledPendingCarrier<HandledPendingSources>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
   readonly [CRAFT_NODE_EXCEPTIONS]: Exceptions;
   readonly kind: 'pending-block';
@@ -818,7 +894,8 @@ export interface PendingBlockNode<
     Exceptions,
     FieldExceptions,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    HandledPendingSources
   >;
 }
 
@@ -886,6 +963,9 @@ export interface ProjectionNode<
   Output extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Output>>,
+    CraftNodeHandledPendingCarrier<
+      CraftNodeChildrenHandledPendingSources<Output>
+    >,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Output>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Output>
@@ -905,6 +985,9 @@ export interface TemplateNode<
   Output extends CraftNodeChildren = CraftNodeChildren,
   Dependencies extends object = CraftNodeChildrenDependencies<Output>,
 > extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeHandledPendingCarrier<
+      CraftNodeChildrenHandledPendingSources<Output>
+    >,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Output>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Output>
@@ -964,6 +1047,25 @@ export type CraftNodeChildrenPendingSources<Value> = Value extends unknown
     ? CraftNodeDirectPendingSources<Child>
     : CraftNodeDirectPendingSources<Value>
   : never;
+
+type CraftNodeDirectHandledPendingSources<Value> =
+  IsAny<Value> extends true
+    ? never
+    :
+        | CraftPendingProbeSourcesOf<Value>
+        | ExtractCraftPendingHandled<ChildBindingYielded<Value>>
+        | (Value extends CraftNodeHandledPendingCarrier<infer Sources>
+            ? string extends Sources
+              ? never
+              : Sources
+            : never);
+
+export type CraftNodeChildrenHandledPendingSources<Value> =
+  Value extends unknown
+    ? Value extends readonly (infer Child)[]
+      ? CraftNodeDirectHandledPendingSources<Child>
+      : CraftNodeDirectHandledPendingSources<Value>
+    : never;
 
 type CraftNodeDirectSettledExceptions<Value> =
   IsAny<Value> extends true

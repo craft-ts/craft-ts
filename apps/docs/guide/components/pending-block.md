@@ -4,8 +4,10 @@ Reading an async value in a template without ever handling `undefined` — and
 being told at **compile time** when the loading state has nowhere to go.
 
 **Use it when** a template renders data that comes from a `query`.
-**Not when** you want to drive the loading state yourself: `query.value()`
-(`T | undefined`) and `query.status()` stay exactly as they were.
+`query.value()` (`T | undefined`) remains available when you want to drive the
+loading state yourself. In that case, the component must still acknowledge the
+source by binding its `status`/`isLoading` signal by reference, or explicitly
+declare the source as unmanaged.
 
 ## Import
 
@@ -33,6 +35,41 @@ lands in the nearest `catchBlock`.
 Because the dependency is visible in the types, a template that renders a
 suspending value with no `pendingBlock` around it does not compile.
 
+## The obligation starts at the factory
+
+Every `query`, `mutation` and `asyncProcess` yielded by a component factory
+creates a loading obligation, even if the template only reads `value()` or
+never reads the primitive at all. The template must acknowledge every source:
+
+```typescript
+craftComponent(
+  'users',
+  {},
+  function* () {
+    const users = yield* query('users', { ... });
+    return { users };
+  },
+  // ERROR_async_source_loading_not_handled_in_template: "users"
+  ({ users }) => div([span(() => String(users.value()))]),
+);
+```
+
+Binding a status signal by reference is enough — it also covers props and
+children of nested components:
+
+```typescript
+({ users }) => StatusComponent({ status: users.status });
+```
+
+For a source that is intentionally fire-and-forget, use a local, explicit
+escape hatch:
+
+```typescript
+{
+  unmanagedAsyncSources: ['telemetry'] as const;
+}
+```
+
 ## Reading a settled value in a computed
 
 Inside a `craftComputed` generator, `yield* settled(ref)` hands back the
@@ -47,7 +84,7 @@ const teams = craftComputed('teams', function* () {
 ```
 
 Nothing is awaited and nothing is yielded at runtime: the markers are type-only.
-What they do is tag `teams` as *depending on the async source `users`*, which is
+What they do is tag `teams` as _depending on the async source `users`_, which is
 what the template checker reads.
 
 ## The boundary
@@ -145,17 +182,19 @@ Two escapes are reported rather than silently swallowed:
 
 The first is the runtime backstop for what the types cannot see — typically a
 settled read hidden inside a lambda (`() => users.settledValue().name`), where
-the brand that carries the obligation is lost. Bind the value **by reference**
-(`span(users.settledValue)`, `span(teams)`) to keep the compile-time guarantee.
+the brand that carries the read-specific boundary is lost. The factory-level
+loading obligation still applies; bind the value **by reference**
+(`span(users.settledValue)`, `span(teams)`) when you want the pending source to
+be checked at the exact read site too.
 
 ## Two boundaries, two obligations
 
 A settled read has two exits and each one has its own boundary:
 
-| Exit | Thrown | Boundary | Checked at |
-| ---- | ------ | -------- | ---------- |
-| nothing to show yet | `CraftNotSettled` | `pendingBlock` | `craftComponent(...)` |
-| the source carries an exception | `CraftGenShortCircuit` | `catchBlock` | `craftComponent(...)` |
+| Exit                            | Thrown                 | Boundary       | Checked at            |
+| ------------------------------- | ---------------------- | -------------- | --------------------- |
+| nothing to show yet             | `CraftNotSettled`      | `pendingBlock` | `craftComponent(...)` |
+| the source carries an exception | `CraftGenShortCircuit` | `catchBlock`   | `craftComponent(...)` |
 
 Both bubble up the node tree until a boundary clears them, and both fail the
 `craftComponent` template argument when uncovered. A `pendingBlock` is not an
@@ -182,8 +221,10 @@ payload itself.
 ## Current limits
 
 - The by-id forms (`select(...)` / `selectOrCreate(...)`) have no settled read
-  yet: a by-id ref holds one status per group member.
+  yet and do not create a factory-level async-source marker: a by-id ref holds
+  one status per group member.
 - A component cannot yet delegate its boundaries to its caller: both checks are
   enforced on each `craftComponent` template.
-- A settled read hidden inside a lambda loses its brand, and with it both
-  compile-time obligations — the runtime backstops still fire.
+- A status or settled read hidden inside a lambda loses its brand and its
+  read-site compile-time signal; the factory-level loading obligation and the
+  runtime backstops still apply.

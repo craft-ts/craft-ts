@@ -74,7 +74,7 @@ const GlobalQuery = craftComponent(
     div({ class: 'query-shell' }, [
       div({ class: 'query-result' }, [
         'User ',
-        StatusComponent({ status: () => userQuery.status() }),
+        StatusComponent({ status: userQuery.status }),
         ifBlock(userQuery.hasUser, () =>
           pre('QueryValue', {}, () =>
             JSON.stringify(userQuery.value(), null, 2),

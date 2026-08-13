@@ -7,6 +7,7 @@ import {
 import { isGenerator } from './craft-generator-runtime';
 
 const CRAFT_GEN_EXCEPTION_MARKER = Symbol('craft-gen-exception-marker');
+const CRAFT_ASYNC_SOURCE_MARKER = Symbol('craft-async-source-marker');
 const CRAFT_GEN_SHORT_CIRCUIT = Symbol('craft-gen-short-circuit');
 const CRAFT_PROGRAM_RECREATE = Symbol('craft-program-recreate');
 
@@ -25,6 +26,11 @@ export interface CraftGenExceptionMarker<Exception> {
   readonly [CRAFT_GEN_EXCEPTION_MARKER]: Exception;
 }
 
+/** Type-only marker for an async source declared by a primitive generator. */
+export interface CraftAsyncSourceMarker<Source extends string> {
+  readonly [CRAFT_ASYNC_SOURCE_MARKER]: Source;
+}
+
 /** Extracts the union of exceptions advertised by the markers in `Yielded`. */
 export type ExtractCraftGenExceptions<Yielded> = [
   Extract<Yielded, CraftGenExceptionMarker<any>>,
@@ -35,6 +41,18 @@ export type ExtractCraftGenExceptions<Yielded> = [
         CraftGenExceptionMarker<any>
       > extends CraftGenExceptionMarker<infer Exception>
     ? Exception
+    : never;
+
+/** Extracts async source names advertised by primitive-generator markers. */
+export type ExtractCraftAsyncSources<Yielded> = [
+  Extract<Yielded, CraftAsyncSourceMarker<any>>,
+] extends [never]
+  ? never
+  : Extract<
+        Yielded,
+        CraftAsyncSourceMarker<any>
+      > extends CraftAsyncSourceMarker<infer Source>
+    ? Source
     : never;
 
 type AnyGeneratorFactory = (...args: any[]) => Generator<any, any, any>;

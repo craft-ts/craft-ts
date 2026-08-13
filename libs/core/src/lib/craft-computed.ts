@@ -21,6 +21,8 @@ import {
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import type {
   CraftSettledBrand,
+  CraftPendingProbeBrand,
+  ExtractCraftPendingHandled,
   ExtractCraftPendingSources,
 } from './craft-settled';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
@@ -49,11 +51,18 @@ type SettledBrandFromYielded<Yielded> = [
       ExtractCraftGenExceptions<Yielded>
     >;
 
+type PendingHandledBrandFromYielded<Yielded> = [
+  ExtractCraftPendingHandled<Yielded>,
+] extends [never]
+  ? {}
+  : CraftPendingProbeBrand<ExtractCraftPendingHandled<Yielded>>;
+
 type TrackedCraftComputed<Name extends string, T, Yielded> = Signal<T> &
   YieldableMethod<[], T, Yielded> & {
     readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
   } & NamedYieldableValue<Name, Signal<T>> &
-  SettledBrandFromYielded<Yielded>;
+  SettledBrandFromYielded<Yielded> &
+  PendingHandledBrandFromYielded<Yielded>;
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,

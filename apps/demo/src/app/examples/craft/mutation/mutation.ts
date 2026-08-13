@@ -113,7 +113,7 @@ const MutationCraft = craftComponent(
     return div([
       div([
         'User ',
-        StatusComponent({ status: () => store.user.status() }),
+        StatusComponent({ status: store.user.status }),
         ifBlock(hasUser, () =>
           pre('UserValue', {}, () =>
             JSON.stringify(store.user.value(), null, 2),
@@ -133,7 +133,7 @@ const MutationCraft = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: () => store.updateUserName.isLoading(),
+          disabled: store.updateUserName.isLoading,
           *click() {
             const currentName = yield* nameInput();
             yield* updateUserNameFn(currentName ?? '');
@@ -142,7 +142,7 @@ const MutationCraft = craftComponent(
         [
           'Update name ',
           StatusComponent({
-            status: () => store.updateUserName.status(),
+            status: store.updateUserName.status,
           }),
         ],
       ),

@@ -119,7 +119,7 @@ const FullDemoCraft = craftComponent(
     return div([
       h2([
         'Full craftService demo ',
-        StatusComponent({ status: () => store.todos.status() }),
+        StatusComponent({ status: store.todos.status }),
       ]),
       p('A toProvide service composed from a query and two mutations.'),
       div([
@@ -133,7 +133,7 @@ const FullDemoCraft = craftComponent(
         button(
           'AddTodoButton',
           {
-            disabled: () => store.add.isLoading(),
+            disabled: store.add.isLoading,
             *click() {
               const title = yield* titleInput();
               yield* store.add.mutate((title ?? '').trim());
@@ -152,7 +152,7 @@ const FullDemoCraft = craftComponent(
               button(
                 'RemoveTodoButton',
                 {
-                  disabled: () => store.remove.isLoading(),
+                  disabled: store.remove.isLoading,
                   *click() {
                     yield* store.remove.mutate(todo.id);
                   },

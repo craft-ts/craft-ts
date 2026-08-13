@@ -30,6 +30,7 @@ import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime'
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import {
   attachCraftSettledValue,
+  type CraftPendingProbeSignal,
   type CraftSettledSignal,
 } from './craft-settled';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
@@ -436,9 +437,10 @@ export type ResourceLikeExceptionUnion<
   QueryException extends ResourceExceptionConstraints,
   GroupIdentifier = unknown,
 > =
-  ResourceLikeExceptions<QueryException, GroupIdentifier>['exception'] extends Signal<
-    infer Exception
-  >
+  ResourceLikeExceptions<
+    QueryException,
+    GroupIdentifier
+  >['exception'] extends Signal<infer Exception>
     ? Exclude<Exception, undefined>
     : never;
 
@@ -467,8 +469,8 @@ export type ResourceLikeQueryRef<
     [
       {
         readonly value: Signal<Value | undefined>;
-        readonly status: Signal<CraftResourceStatus>;
-        readonly isLoading: Signal<boolean>;
+        readonly status: CraftPendingProbeSignal<CraftResourceStatus, Name>;
+        readonly isLoading: CraftPendingProbeSignal<boolean, Name>;
         hasValue(): boolean;
         /**
          * The settled read: never `undefined`, never a value while an exception
@@ -2134,4 +2136,3 @@ function createQueryRef<
     ResourceExceptionConstraints
   >;
 }
-

@@ -40,6 +40,7 @@ export function isCraftNotSettled(value: unknown): value is CraftNotSettled {
 }
 
 declare const CRAFT_SETTLED_BRAND: unique symbol;
+declare const CRAFT_PENDING_PROBE_BRAND: unique symbol;
 
 /**
  * Type-only brand carried by a {@link CraftSettledSignal}. It records **which**
@@ -79,6 +80,27 @@ export type CraftSettledSignal<
   Exceptions = never,
 > = Signal<Value> & CraftSettledBrand<Source, Exceptions>;
 
+/** Type-only brand carried by a status signal used to acknowledge loading. */
+export interface CraftPendingProbeBrand<Source extends string = string> {
+  readonly [CRAFT_PENDING_PROBE_BRAND]: {
+    readonly source: Source;
+  };
+}
+
+export type CraftPendingProbeSignal<
+  Value,
+  Source extends string = string,
+> = string extends Source
+  ? Signal<Value>
+  : Signal<Value> & CraftPendingProbeBrand<Source>;
+
+export type CraftPendingProbeSourcesOf<Value> =
+  Value extends CraftPendingProbeBrand<infer Source>
+    ? string extends Source
+      ? never
+      : Source
+    : never;
+
 /** The async source names a value depends on (`never` when it depends on none). */
 export type CraftSettledSourcesOf<Value> =
   Value extends CraftSettledBrand<infer Source, any>
@@ -109,15 +131,30 @@ export interface CraftPendingMarker<Source extends string> {
   readonly __craftPendingSource__: Source;
 }
 
+/** Type-only marker emitted by {@link pendingProbe}. */
+export interface CraftPendingHandledMarker<Source extends string> {
+  readonly __craftPendingHandledSource__: Source;
+}
+
 /** Extracts the union of async source names advertised by the markers in `Yielded`. */
 export type ExtractCraftPendingSources<Yielded> = [
   Extract<Yielded, CraftPendingMarker<any>>,
 ] extends [never]
   ? never
+  : Extract<Yielded, CraftPendingMarker<any>> extends CraftPendingMarker<
+        infer Source
+      >
+    ? Source
+    : never;
+
+export type ExtractCraftPendingHandled<Yielded> = [
+  Extract<Yielded, CraftPendingHandledMarker<any>>,
+] extends [never]
+  ? never
   : Extract<
         Yielded,
-        CraftPendingMarker<any>
-      > extends CraftPendingMarker<infer Source>
+        CraftPendingHandledMarker<any>
+      > extends CraftPendingHandledMarker<infer Source>
     ? Source
     : never;
 
@@ -241,7 +278,9 @@ type SettledSignalOf<Ref> = Ref extends {
  * - carry the source's exceptions — a `catchBlock` becomes mandatory too.
  */
 export function* settled<
-  const Ref extends { readonly settledValue: CraftSettledSignal<any, any, any> },
+  const Ref extends {
+    readonly settledValue: CraftSettledSignal<any, any, any>;
+  },
 >(
   resource: Ref,
 ): Generator<
@@ -255,6 +294,33 @@ export function* settled<
   unknown
 > {
   return resource.settledValue as SettledSignalOf<Ref>;
+}
+
+type PendingProbeSignalOf<Ref> = Ref extends {
+  readonly status: Signal<any> & CraftPendingProbeBrand<infer Source>;
+}
+  ? CraftPendingProbeSignal<any, Source>
+  : Ref extends {
+        readonly isLoading: Signal<any> & CraftPendingProbeBrand<infer Source>;
+      }
+    ? CraftPendingProbeSignal<any, Source>
+    : never;
+
+/** Reads a resource status while carrying its loading acknowledgement type. */
+export function* pendingProbe<
+  const Ref extends {
+    readonly status: Signal<any> & CraftPendingProbeBrand<any>;
+  },
+>(
+  resource: Ref,
+): Generator<
+  PendingProbeSignalOf<Ref> extends CraftPendingProbeSignal<any, infer Source>
+    ? CraftPendingHandledMarker<Source>
+    : never,
+  PendingProbeSignalOf<Ref>,
+  unknown
+> {
+  return resource.status as unknown as PendingProbeSignalOf<Ref>;
 }
 
 /**
@@ -272,7 +338,10 @@ export function attachCraftSettledValue(name: string, ref: object): void {
   let cached: CraftSettledSignal<unknown> | undefined;
   Object.defineProperty(ref, 'settledValue', {
     get: () =>
-      (cached ??= craftSettledValue(name, ref as unknown as SettleableResource)),
+      (cached ??= craftSettledValue(
+        name,
+        ref as unknown as SettleableResource,
+      )),
     enumerable: true,
     configurable: true,
   });

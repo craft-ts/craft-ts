@@ -5,7 +5,11 @@ import {
 } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import type { SERVICE_HELPER_DEPENDENCIES } from './craft-service';
-import type { CraftGenExceptionMarker } from './craft-gen';
+import type {
+  CraftAsyncSourceMarker,
+  CraftGenExceptionMarker,
+} from './craft-gen';
+import type { CraftSettledSignal } from './craft-settled';
 import {
   markNamedReactiveProperties,
   markYieldableValue,
@@ -69,9 +73,22 @@ type PrimitiveExceptionMarker<Ref> = [PrimitiveExceptionUnion<Ref>] extends [
   ? never
   : CraftGenExceptionMarker<PrimitiveExceptionUnion<Ref>>;
 
+type PrimitiveAsyncSource<Ref> = Ref extends {
+  readonly settledValue: CraftSettledSignal<any, infer Source, any>;
+}
+  ? Source
+  : never;
+
+type PrimitiveAsyncSourceMarker<Ref> = [PrimitiveAsyncSource<Ref>] extends [
+  never,
+]
+  ? never
+  : CraftAsyncSourceMarker<PrimitiveAsyncSource<Ref>>;
+
 export type CraftPrimitiveGen<Ref, ExceptionRef = Ref> = Generator<
   | ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>
-  | PrimitiveExceptionMarker<ExceptionRef>,
+  | PrimitiveExceptionMarker<ExceptionRef>
+  | PrimitiveAsyncSourceMarker<Ref>,
   Ref,
   unknown
 >;
@@ -105,24 +122,19 @@ export type NamedCraftPrimitiveGen<
   Ref,
 > = CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref>;
 
-type YieldRecordValue<Value> = Value extends Generator<
-  any,
-  infer Output,
-  any
->
-  ? Output
-  : Value;
+type YieldRecordValue<Value> =
+  Value extends Generator<any, infer Output, any> ? Output : Value;
 
 type YieldRecordOutput<Record extends object> = {
   [Key in keyof Record]: YieldRecordValue<Record[Key]>;
 };
 
-type YieldRecordYielded<Record extends object> = Record[keyof Record] extends
-  infer Value
-  ? Value extends Generator<infer Yielded, any, any>
-    ? Yielded
-    : never
-  : never;
+type YieldRecordYielded<Record extends object> =
+  Record[keyof Record] extends infer Value
+    ? Value extends Generator<infer Yielded, any, any>
+      ? Yielded
+      : never
+    : never;
 
 /**
  * Resolves a record of generator-compatible values while preserving its keys.
@@ -147,11 +159,7 @@ type YieldRecordYielded<Record extends object> = Record[keyof Record] extends
  */
 export function craftYieldRecord<Record extends object>(
   record: Record,
-): Generator<
-  YieldRecordYielded<Record>,
-  YieldRecordOutput<Record>,
-  unknown
-> {
+): Generator<YieldRecordYielded<Record>, YieldRecordOutput<Record>, unknown> {
   return (function* () {
     const output = {} as YieldRecordOutput<Record>;
 

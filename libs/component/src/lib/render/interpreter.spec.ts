@@ -1077,7 +1077,7 @@ describe('functional component interpreter', () => {
         });
         return { value };
       },
-      ({ value }) => p(value.value()?.status ?? 'loading'),
+      ({ value }) => p(value.status),
     );
     const parent = craftComponent(
       'queryParent',
@@ -1107,7 +1107,7 @@ describe('functional component interpreter', () => {
         factoryRuns += 1;
         const refresh = signal(0);
         // Keep the unused local query from the full-demo shape in the repro.
-        yield* query('localTodos', {
+        const localTodos = yield* query('localTodos', {
           params: () => true,
           loader: async () => [],
         });
@@ -1123,13 +1123,17 @@ describe('functional component interpreter', () => {
             return 'added';
           },
         });
-        return { todos, add };
+        return { localTodos, todos, add };
       },
-      ({ todos, add }) =>
+      ({ localTodos, todos, add }) =>
         section([
           p('source'),
-          p(() => todos.status()),
-          button({ click: () => add.mutate('new todo') }, 'Add'),
+          p(localTodos.status),
+          p(todos.status),
+          button(
+            { click: () => add.mutate('new todo'), disabled: add.isLoading },
+            'Add',
+          ),
         ]),
     ).pipe(
       catchBlock.exhaustive({

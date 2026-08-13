@@ -99,7 +99,7 @@ describe('pendingBlock', () => {
       ({ firstName }) =>
         section([
           div([span(firstName)]).pipe(
-            pendingBlock({ fallback: () => p('chargement') }),
+            pendingBlock.exhaustive({ users: () => p('chargement') }),
           ),
         ]),
     );
@@ -143,7 +143,9 @@ describe('pendingBlock', () => {
         return { label, text };
       },
       ({ text }) =>
-        div([span(text)]).pipe(pendingBlock({ fallback: () => p('attente') })),
+        div([span(text)]).pipe(
+          pendingBlock.exhaustive({ label: () => p('attente') }),
+        ),
     );
 
     const element = host();
@@ -247,7 +249,7 @@ describe('pendingBlock', () => {
       ({ firstName }) =>
         section([
           div([span(firstName)])
-            .pipe(pendingBlock({ fallback: () => p('chargement') }))
+            .pipe(pendingBlock.exhaustive({ users: () => p('chargement') }))
             .pipe(
               catchBlock.exhaustive({
                 MISSING_USER_ID: () => p('identifiant manquant'),

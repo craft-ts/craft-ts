@@ -100,7 +100,7 @@ const MutationDemoComponent = craftComponent(
     return div([
       div([
         'User ',
-        StatusComponent({ status: () => userQuery.status() }),
+        StatusComponent({ status: userQuery.status }),
         ifBlock(userQuery.hasUser, () =>
           pre('UserValue', {}, () =>
             JSON.stringify(userQuery.value(), null, 2),
@@ -120,16 +120,13 @@ const MutationDemoComponent = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: () => updateUserName.isLoading(),
+          disabled: updateUserName.isLoading,
           click: function* () {
             const currentName = yield* nameInput();
             yield* update(currentName);
           },
         },
-        [
-          'Update name ',
-          StatusComponent({ status: () => updateUserName.status() }),
-        ],
+        ['Update name ', StatusComponent({ status: updateUserName.status })],
       ),
       button('PreviousUser', { click: () => goTo(-1) }, 'Previous user'),
       button('NextUser', { click: () => goTo(1) }, 'Next user'),

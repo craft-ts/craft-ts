@@ -72,9 +72,9 @@ const LoginFormComponent = craftComponent(
         }),
       ),
     );
-    return loginForm;
+    return { loginForm, submitted };
   },
-  (loginForm) =>
+  ({ loginForm, submitted }) =>
     // exceptions are volontary handled at different place for demo reasons
     form(
       {
@@ -109,7 +109,7 @@ const LoginFormComponent = craftComponent(
         ifBlock(loginForm.form.showSuccess, () =>
           p('✅ Login form submitted.'),
         ),
-        button({ type: 'submit' }, 'Sign in'),
+        button({ type: 'submit', disabled: submitted.isLoading }, 'Sign in'),
       ],
     ).pipe(
       fieldExceptionBlock.exhaustive({

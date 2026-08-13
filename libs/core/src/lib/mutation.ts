@@ -31,6 +31,7 @@ import {
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import {
   attachCraftSettledValue,
+  type CraftPendingProbeSignal,
   type CraftSettledSignal,
 } from './craft-settled';
 import type { ExtractCraftGenExceptions } from './craft-gen';
@@ -546,8 +547,8 @@ export type ResourceLikeMutationRef<
     [
       {
         readonly value: Signal<Value | undefined>;
-        readonly status: Signal<CraftResourceStatus>;
-        readonly isLoading: Signal<boolean>;
+        readonly status: CraftPendingProbeSignal<CraftResourceStatus, Name>;
+        readonly isLoading: CraftPendingProbeSignal<boolean, Name>;
         hasValue(): boolean;
         /**
          * The settled read: never `undefined`, never a value while an exception

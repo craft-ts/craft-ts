@@ -26,7 +26,8 @@ export function ifBlock<
   Name,
   BranchDependencies<TrueBranch> | BranchDependencies<FalseBranch>,
   ReturnType<TrueBranch>,
-  FalseBranch extends (...args: any[]) => infer False ? False : never
+  FalseBranch extends (...args: any[]) => infer False ? False : never,
+  Condition<Name>
 > {
   const conditionName = (
     condition as unknown as {

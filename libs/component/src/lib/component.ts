@@ -9,6 +9,7 @@ import {
   type ComponentMeta,
   type ComponentCompositionDefinition,
   type ComponentInitializationExceptionCodesForTemplate,
+  type ComponentAsyncSources,
   type ComponentTemplate,
   type ComponentResidualFieldExceptions,
   type ContentRequirementsOfContext,
@@ -20,6 +21,7 @@ import {
   type TemplateDependencies,
   type TemplateCssVars,
   type TemplatePendingSources,
+  type TemplateHandledPendingSources,
   type TemplateSettledExceptions,
 } from './types';
 import type { CssVarsContractOfMeta } from './css-vars.type';
@@ -89,6 +91,58 @@ type ValidPendingSources<Template> =
             readonly ERROR_async_source_rendered_outside_a_pendingBlock: TemplatePendingSources<Template>;
           };
 
+type UnmanagedAsyncSourcesOf<Meta extends ComponentMeta> = Meta extends {
+  readonly unmanagedAsyncSources?: readonly (infer Source extends string)[];
+}
+  ? 'unmanagedAsyncSources' extends keyof Meta
+    ? Source
+    : never
+  : never;
+
+type ValidHandledAsyncSources<
+  Meta extends ComponentMeta,
+  Factory extends ComponentFactory,
+  Template,
+> =
+  IsAny<ComponentAsyncSources<Factory>> extends true
+    ? unknown
+    : string extends ComponentAsyncSources<Factory>
+      ? unknown
+      : IsAny<TemplateHandledPendingSources<Template>> extends true
+        ? unknown
+        : string extends TemplateHandledPendingSources<Template>
+          ? unknown
+          : Exclude<
+                ComponentAsyncSources<Factory>,
+                | TemplateHandledPendingSources<Template>
+                | UnmanagedAsyncSourcesOf<Meta>
+              > extends infer Missing
+            ? [Missing] extends [never]
+              ? unknown
+              : {
+                  readonly ERROR_async_source_loading_not_handled_in_template: Missing;
+                }
+            : never;
+
+type ValidUnmanagedAsyncSources<
+  Meta extends ComponentMeta,
+  Factory extends ComponentFactory,
+> =
+  IsAny<UnmanagedAsyncSourcesOf<Meta>> extends true
+    ? unknown
+    : string extends UnmanagedAsyncSourcesOf<Meta>
+      ? unknown
+      : Exclude<
+            UnmanagedAsyncSourcesOf<Meta>,
+            ComponentAsyncSources<Factory>
+          > extends infer Unknown
+        ? [Unknown] extends [never]
+          ? unknown
+          : {
+              readonly ERROR_unmanaged_async_source_is_not_declared_by_factory: Unknown;
+            }
+        : never;
+
 /**
  * A template may only render a value whose settled read can raise an exception
  * from inside a `catchBlock`. Anything left uncovered fails here, on the
@@ -131,7 +185,9 @@ export function craftComponent<
   template: Template &
     ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &
-    ValidSettledExceptions<NoInfer<Template>>,
+    ValidSettledExceptions<NoInfer<Template>> &
+    ValidUnmanagedAsyncSources<Meta, NoInfer<Factory>> &
+    ValidHandledAsyncSources<Meta, Factory, NoInfer<Template>>,
 ): CraftComponent<
   PropsFromFactory<Factory>,
   CraftComponentDependencies<

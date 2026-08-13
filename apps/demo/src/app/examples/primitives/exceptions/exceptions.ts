@@ -97,7 +97,7 @@ const ExceptionsComponent = craftComponent(
     const currentUser = () =>
       userQuery.value() as { id: string; name: string; email: string };
     return div([
-      h3(() => `Query user with business exceptions (${userQuery.status()})`),
+      h3(['Query user with business exceptions ', userQuery.status]),
       div({ class: 'exception-actions' }, [
         button(
           {

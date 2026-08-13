@@ -80,10 +80,7 @@ const FullDemo = craftComponent(
   },
   ({ todos, addTodo, removeTodo, titleInput, setTitle }) => {
     return div([
-      h2([
-        'Full primitives demo ',
-        StatusComponent({ status: () => todos.status() }),
-      ]),
+      h2(['Full primitives demo ', StatusComponent({ status: todos.status })]),
       p('Query, mutations, optimistic interaction and functional rendering.'),
       div([
         input('TodoNameToAddInput', {
@@ -97,7 +94,7 @@ const FullDemo = craftComponent(
         button(
           'AddTodoButton',
           {
-            disabled: () => addTodo.isLoading(),
+            disabled: addTodo.isLoading,
             *click() {
               const trimmedTitle = titleInput().trim() ?? ''; // todo handle that in the state
               if (trimmedTitle) {
@@ -118,7 +115,7 @@ const FullDemo = craftComponent(
               button(
                 'RemoveTodoButton',
                 {
-                  disabled: () => removeTodo.isLoading(),
+                  disabled: removeTodo.isLoading,
                   *click() {
                     yield* removeTodo.mutate(todo.id);
                   },

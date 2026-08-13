@@ -180,6 +180,7 @@ describe('component composition', () => {
       ({ value }) =>
         section([
           p('source'),
+          p(value.status),
           matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
             FAILED_TO_LOAD: () => p('match fallback'),
           }),
@@ -236,6 +237,7 @@ describe('component composition', () => {
       },
       ({ value }) =>
         section([
+          p(value.status),
           p(() => value.value()?.id ?? ''),
           matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
             FAILED_TO_LOAD: () => p('fallback'),
@@ -362,7 +364,7 @@ describe('component composition', () => {
         });
         return { todos };
       },
-      () => p('Todos'),
+      ({ todos }) => p(todos.status),
     );
 
     expectTypeOf<
