@@ -78,6 +78,20 @@ describe('architecture migration', () => {
     expect(
       existsSync(join(root, 'architecture/rules/route-di-proofs.spec.ts')),
     ).toBe(true);
+    expect(
+      existsSync(join(root, 'architecture/rules/mutation-react-on.spec.ts')),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(root, 'architecture/rules/persisted-primitive-unique.spec.ts'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(join(root, 'architecture/rules/insert-select-unique.spec.ts')),
+    ).toBe(true);
+    expect(
+      existsSync(join(root, 'architecture/rules/craft-effect-no-network.spec.ts')),
+    ).toBe(true);
     expect(existsSync(join(root, 'architecture/architecture.spec.ts'))).toBe(
       true,
     );

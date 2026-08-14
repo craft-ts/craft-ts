@@ -153,3 +153,4 @@ handle that case inside a `filter`.
 - [query](/guide/state/server-state) — the read side
 - [Mutations](/guide/state/mutations) — the write side
 - [Insertions](/guide/concepts/insertions) — composing several reactions
+- [Architecture rules](/guide/testing/architecture) — `assertMutationHasReactOn` flags a mutation no query reacts to

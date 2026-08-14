@@ -153,3 +153,4 @@ Two demos built almost entirely on nested selects:
 - [Insertions](/guide/concepts/insertions) — composing several on one primitive
 - [Local state](/guide/state/local-state)
 - [Collections](/guide/state/collections) — for entity lists specifically
+- [Architecture rules](/guide/testing/architecture) — `assertInsertSelectUnique` when two selects share a key on one host

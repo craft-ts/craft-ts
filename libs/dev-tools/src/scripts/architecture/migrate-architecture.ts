@@ -71,6 +71,34 @@ const RULES = [
     it: 'requires a DI proof on every routed component and app-config error screen',
     call: 'assertRouteDiProofs(graph.graph)',
   },
+  {
+    file: 'mutation-react-on.spec.ts',
+    helper: 'assertMutationHasReactOn',
+    describe: 'assertMutationHasReactOn',
+    it: 'requires a query to react to each mutation',
+    call: 'assertMutationHasReactOn(graph.graph)',
+  },
+  {
+    file: 'persisted-primitive-unique.spec.ts',
+    helper: 'assertPersistedPrimitiveHasUnique',
+    describe: 'assertPersistedPrimitiveHasUnique',
+    it: 'requires craftUnique on every persisted primitive',
+    call: 'assertPersistedPrimitiveHasUnique(graph.graph)',
+  },
+  {
+    file: 'insert-select-unique.spec.ts',
+    helper: 'assertInsertSelectUnique',
+    describe: 'assertInsertSelectUnique',
+    it: 'keeps insertSelect keys unique on each host',
+    call: 'assertInsertSelectUnique(graph.graph)',
+  },
+  {
+    file: 'craft-effect-no-network.spec.ts',
+    helper: 'assertCraftEffectNoNetwork',
+    describe: 'assertCraftEffectNoNetwork',
+    it: 'keeps craftEffect off HTTP and mutations',
+    call: 'assertCraftEffectNoNetwork(graph.graph)',
+  },
 ] as const;
 
 export async function runArchitectureMigration(

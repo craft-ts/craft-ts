@@ -15,8 +15,9 @@ not mean a button works.
 ::: tip A rule is an ordinary `it()`
 Look a node up, walk its edges, assert. The helpers below are the declarative
 baseline — unique identities, unique HTTP, pure `craftComputed`, no
-`depends-on` cycles — plus `assertRouteDiProofs` for the routing DI contract.
-Everything else is Vitest.
+`depends-on` cycles — plus `assertRouteDiProofs` for the routing DI contract
+and insertion rules (`insertReactOnMutation`, persisted `craftUnique`,
+`insertSelect` keys, `craftEffect` off the network). Everything else is Vitest.
 :::
 
 ## Import
@@ -26,11 +27,15 @@ import {
   analyzeDependencyGraph,
   architectureCatalogToTypeScript,
   assertCraftComputedPure,
+  assertCraftEffectNoNetwork,
   assertCraftUnique,
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
+  assertInsertSelectUnique,
+  assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPathBoundaries,
+  assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
   buildArchitectureCatalog,
   createArchitectureGraph,
@@ -248,7 +253,8 @@ graph.craftMethods();
 
 Each node exposes `providers()`, `provider(name)`, `outgoing(kind?)`,
 `incoming(kind?)` and `httpEndpoints()`. Edge kinds include `depends-on`,
-`provides`, `calls`, `loads`, `renders`, `reads`, `writes`, `checks`.
+`provides`, `calls`, `loads`, `renders`, `reads`, `writes`, `checks`,
+`triggers`.
 
 `unique(...)` takes the **canonical JSON** of the identity object: keys sorted
 in depth. `{ storeName, key }` and `{ key, storeName }` index as the same
@@ -271,6 +277,10 @@ run it with `npx nx architecture demo`.
 | `assertRouteDiProofs` | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
 | `assertPathBoundaries` | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
 | `noExclusiveLink(a, b)` | the only path between two branches is a leak, not a shared kernel |
+| `assertMutationHasReactOn` | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
+| `assertPersistedPrimitiveHasUnique` | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
+| `assertInsertSelectUnique` | the same `insertSelect` key appears twice on one host primitive |
+| `assertCraftEffectNoNetwork` | a `craftEffect` `calls` HTTP or a `mutation` |
 
 ### `noExclusiveLink`
 
@@ -432,6 +442,64 @@ A missing proof, an unarmed mapper, a pending/error screen without its own
 `provideCraftRouteLoadErrorComponent` (or `withErrorComponent` /
 `withRouteLoadError`) without an armed `RouteExceptionComponentCheckedDI` fails
 with the file:line of the hole.
+
+### `assertMutationHasReactOn`
+
+A mutation that no query reacts to is the graph-wide form of
+[the button that knows which lists to refresh](/guide/state/react-on-mutation).
+The analyzer records `insertReactOnMutation` as a `triggers` edge from the
+mutation to the query — including when the insertion is nested in
+`insertQueryPipe`. This helper fails on every `mutation` primitive that has no
+such edge.
+
+Fire-and-forget writes (logout, a form submit with no cache, a demo that
+refreshes by incrementing local state) pass an `allow` list of mutation names:
+
+```typescript
+it('requires a query to react to each mutation', () => {
+  assertMutationHasReactOn(graph.graph, { allow: ['logout'] });
+});
+```
+
+### `assertPersistedPrimitiveHasUnique`
+
+`assertCraftUnique` says an identity appears once. This helper says a persisted
+primitive *has* an identity: `insertStoragePersister` / `insertLocalStoragePersister`
+must take `craftUnique(...)`. A raw `{ key, storeName }` indexes the primitive
+as persisted and fails here.
+
+```typescript
+it('requires craftUnique on every persisted primitive', () => {
+  assertPersistedPrimitiveHasUnique(graph.graph);
+});
+```
+
+See [Persistence](/guide/state/persistence).
+
+### `assertInsertSelectUnique`
+
+`insertSelect('cell')` names a slice on its host `state` / `query`. Two
+siblings with the same key on the same host stomp each other. The same key on
+two different hosts is allowed — each list can have a `cell`.
+
+```typescript
+it('keeps insertSelect keys unique on each host', () => {
+  assertInsertSelectUnique(graph.graph);
+});
+```
+
+See [Selecting](/guide/state/select).
+
+### `assertCraftEffectNoNetwork`
+
+A `craftEffect` that `calls` `CraftHttpClient` or a `mutation` is a `query` or
+`mutation` in disguise. Reads of local `state` stay valid.
+
+```typescript
+it('keeps craftEffect off HTTP and mutations', () => {
+  assertCraftEffectNoNetwork(graph.graph);
+});
+```
 
 ## Writing your own rules
 

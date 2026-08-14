@@ -513,6 +513,10 @@ describe('architecture rules doc page', () => {
       'TypeScript still judges whether a dependency is provided',
     );
     expect(content).toContain('assertPathBoundaries');
+    expect(content).toContain('assertMutationHasReactOn');
+    expect(content).toContain('assertPersistedPrimitiveHasUnique');
+    expect(content).toContain('assertInsertSelectUnique');
+    expect(content).toContain('assertCraftEffectNoNetwork');
     expect(content).toContain('npx nx architecture demo');
     expect(content).toContain('craft-migrate-architecture');
     expect(content).toContain('depends-on');

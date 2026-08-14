@@ -5,18 +5,26 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeDependencyGraph, writeDependencyGraph } from './dependency-graph';
 import {
   assertCraftComputedPure,
+  assertCraftEffectNoNetwork,
   assertCraftUnique,
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
+  assertInsertSelectUnique,
+  assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPathBoundaries,
+  assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
   craftComputedPureViolations,
+  craftEffectNetworkViolations,
   createArchitectureGraph,
   dependencyCycleViolations,
   httpEndpointUniqueViolations,
+  insertSelectUniqueViolations,
+  mutationReactOnViolations,
   noExclusiveLink,
   pathBoundaryViolations,
+  persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
 } from './architecture-graph';
 
@@ -73,10 +81,14 @@ declare function craftRoutes(...args: unknown[]): unknown;
 declare function craftRoute(...args: unknown[]): unknown;
 declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
+declare function mutation(...args: unknown[]): unknown;
 declare function craftUnique<T>(value: T): T;
 declare function insertStoragePersister(...args: unknown[]): unknown;
+declare function insertReactOnMutation(...args: unknown[]): unknown;
+declare function insertSelect(...args: unknown[]): unknown;
 declare function craftComputed(...args: unknown[]): unknown;
 declare function craftMethod(...args: unknown[]): unknown;
+declare function craftEffect(...args: unknown[]): unknown;
 declare function source$<T>(name: string): {
   emit: (value?: T) => void;
   set: (value: T) => void;
@@ -1406,6 +1418,237 @@ describe('app config DI proofs', () => {
     });
 
     expect(routeDiProofViolations(graph.graph)).toEqual([]);
+  });
+});
+
+describe('insertion architecture rules', () => {
+  it('rejects a mutation that no query reacts to', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const save = yield* mutation('save', {});
+            const user = yield* query('user', {});
+            return { save, user };
+          },
+        );
+      `,
+    });
+
+    expect(mutationReactOnViolations(graph.graph).map((item) => item.label)).toEqual(
+      ['save'],
+    );
+    expect(() => assertMutationHasReactOn(graph.graph)).toThrow(
+      /mutation save has no query reacting to it/i,
+    );
+  });
+
+  it('accepts a mutation that a query reacts to, and an allowlisted orphan', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const save = yield* mutation('save', {});
+            const logout = yield* mutation('logout', {});
+            const user = yield* query(
+              'user',
+              {},
+              insertReactOnMutation(save, {}),
+            );
+            return { save, logout, user };
+          },
+        );
+      `,
+    });
+
+    expect(mutationReactOnViolations(graph.graph, { allow: ['logout'] })).toEqual(
+      [],
+    );
+    expect(() =>
+      assertMutationHasReactOn(graph.graph, { allow: ['logout'] }),
+    ).not.toThrow();
+  });
+
+  it('rejects a persisted primitive whose identity is not craftUnique', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const leaked = yield* query(
+              'leaked',
+              {},
+              insertStoragePersister({ key: 'user', storeName: 'app' }),
+            );
+            return { leaked };
+          },
+        );
+      `,
+    });
+
+    expect(
+      persistedPrimitiveUniqueViolations(graph.graph).map((item) => item.label),
+    ).toEqual(['leaked']);
+    expect(() => assertPersistedPrimitiveHasUnique(graph.graph)).toThrow(
+      /persisted query leaked is missing craftUnique/i,
+    );
+  });
+
+  it('accepts a persisted primitive wrapped in craftUnique', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const cached = yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ key: 'user', storeName: 'app' })),
+            );
+            return { cached };
+          },
+        );
+      `,
+    });
+
+    expect(persistedPrimitiveUniqueViolations(graph.graph)).toEqual([]);
+    expect(() => assertPersistedPrimitiveHasUnique(graph.graph)).not.toThrow();
+  });
+
+  it('rejects two insertSelect keys on the same host', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Grid } = craftService(
+          { name: 'Grid', scope: 'global' },
+          function* () {
+            const cells = yield* state(
+              'cells',
+              [],
+              insertSelect('cell', () => ({})),
+              insertSelect('cell', () => ({})),
+            );
+            return { cells };
+          },
+        );
+      `,
+    });
+
+    expect(insertSelectUniqueViolations(graph.graph)[0]?.key).toBe('cell');
+    expect(() => assertInsertSelectUnique(graph.graph)).toThrow(
+      /Duplicate insertSelect cell/i,
+    );
+  });
+
+  it('allows the same insertSelect key on two different hosts', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Grid } = craftService(
+          { name: 'Grid', scope: 'global' },
+          function* () {
+            const left = yield* state('left', [], insertSelect('cell', () => ({})));
+            const right = yield* state('right', [], insertSelect('cell', () => ({})));
+            return { left, right };
+          },
+        );
+      `,
+    });
+
+    expect(insertSelectUniqueViolations(graph.graph)).toEqual([]);
+    expect(() => assertInsertSelectUnique(graph.graph)).not.toThrow();
+  });
+
+  it('rejects a craftEffect that calls HTTP', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const poll = craftEffect('poll', function* () {
+              yield* CraftHttpClient.get(({ response }) => ({
+                url: 'users',
+                success: response(),
+              }));
+            });
+            return { poll };
+          },
+        );
+      `,
+    });
+
+    expect(
+      craftEffectNetworkViolations(graph.graph).some(
+        (item) => item.kind === 'http',
+      ),
+    ).toBe(true);
+    expect(() => assertCraftEffectNoNetwork(graph.graph)).toThrow(
+      /craftEffect poll calls HTTP/i,
+    );
+  });
+
+  it('rejects a craftEffect that calls a mutation', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const save = yield* mutation('save', {});
+            const poll = craftEffect('poll', function* () {
+              yield* save();
+            });
+            return { save, poll };
+          },
+        );
+      `,
+    });
+
+    expect(
+      craftEffectNetworkViolations(graph.graph).some(
+        (item) => item.kind === 'mutation',
+      ),
+    ).toBe(true);
+    expect(() => assertCraftEffectNoNetwork(graph.graph)).toThrow(
+      /craftEffect poll calls mutation/i,
+    );
+  });
+
+  it('allows a craftEffect that only reads local state', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const count = yield* state('count', 0);
+            const poll = craftEffect('poll', function* () {
+              return yield* count();
+            });
+            return { count, poll };
+          },
+        );
+      `,
+    });
+
+    expect(craftEffectNetworkViolations(graph.graph)).toEqual([]);
+    expect(() => assertCraftEffectNoNetwork(graph.graph)).not.toThrow();
   });
 });
 

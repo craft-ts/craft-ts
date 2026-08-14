@@ -223,7 +223,9 @@ Anything you can see on the graph is a rule you can write: folder lanes,
 exclusive feature branches, a method that must not both be called and write a
 `source$`. Built-in helpers cover unique `craftUnique` identities, unique HTTP
 verb+URL, pure `craftComputed`, no `depends-on` cycles, `assertPathBoundaries`,
-`noExclusiveLink`, and the route DI proofs from [step 9](/learn/09-routing).
+`noExclusiveLink`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`,
+`assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, and the route DI
+proofs from [step 9](/learn/09-routing).
 
 Those proofs (`CanRun`, `RouteCheckedDI`) are unused type aliases — omit one
 and the project still compiles. `assertRouteDiProofs` fails the suite unless

@@ -1004,6 +1004,278 @@ export function assertPathBoundaries(
   );
 }
 
+export type MutationReactOnOptions = {
+  allow?: readonly string[];
+};
+
+export type MutationReactOnViolation = {
+  id: string;
+  label: string;
+  filePath?: string;
+  line?: number;
+};
+
+export function mutationReactOnViolations(
+  graph: DependencyGraph,
+  options: MutationReactOnOptions = {},
+): MutationReactOnViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const allowed = new Set(options.allow ?? []);
+  return graph.nodes.flatMap((node) => {
+    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'mutation') {
+      return [];
+    }
+    const name = primitiveDisplayName(node);
+    if (allowed.has(name) || allowed.has(node.label)) return [];
+    const reacts = graph.edges.some(
+      (edge) =>
+        edge.from === node.id &&
+        edge.kind === 'triggers' &&
+        edge.details?.['insertion'] === 'react-on-mutation' &&
+        nodesById.get(edge.to)?.details?.['primitive'] === 'query',
+    );
+    if (reacts) return [];
+    return [
+      {
+        id: node.id,
+        label: name,
+        filePath: relativeGraphPath(graph, node.filePath),
+        line: node.line,
+      },
+    ];
+  });
+}
+
+export function assertMutationHasReactOn(
+  graph: DependencyGraph,
+  options: MutationReactOnOptions = {},
+): void {
+  const violations = mutationReactOnViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        return `Mutation ${violation.label} has no query reacting to it${at ? ` (${at})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type PersistedUniqueViolation = {
+  id: string;
+  label: string;
+  primitive: string;
+  filePath?: string;
+  line?: number;
+};
+
+export function persistedPrimitiveUniqueViolations(
+  graph: DependencyGraph,
+): PersistedUniqueViolation[] {
+  return graph.nodes.flatMap((node) => {
+    if (node.kind !== 'primitive' || node.details?.['persisted'] !== true) {
+      return [];
+    }
+    if (node.details['persistedUnique'] === true) return [];
+    const primitive =
+      typeof node.details['primitive'] === 'string'
+        ? node.details['primitive']
+        : 'primitive';
+    return [
+      {
+        id: node.id,
+        label: primitiveDisplayName(node),
+        primitive,
+        filePath: relativeGraphPath(graph, node.filePath),
+        line: node.line,
+      },
+    ];
+  });
+}
+
+export function assertPersistedPrimitiveHasUnique(
+  graph: DependencyGraph,
+): void {
+  const violations = persistedPrimitiveUniqueViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        return `Persisted ${violation.primitive} ${violation.label} is missing craftUnique${at ? ` (${at})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type InsertSelectUniqueViolation = {
+  key: string;
+  hostId: string;
+  hostLabel: string;
+  callSites: readonly { filePath?: string; line?: number }[];
+};
+
+export function insertSelectUniqueViolations(
+  graph: DependencyGraph,
+): InsertSelectUniqueViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const grouped = new Map<string, DependencyGraphNode[]>();
+  for (const node of graph.nodes) {
+    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'insertSelect') {
+      continue;
+    }
+    const parent = graph.edges.find(
+      (edge) => edge.kind === 'contains' && edge.to === node.id,
+    );
+    const hostId = parent?.from ?? node.details?.['ownerId'];
+    if (typeof hostId !== 'string') continue;
+    const key = primitiveDisplayName(node);
+    const groupKey = `${hostId}::${key}`;
+    const list = grouped.get(groupKey) ?? [];
+    list.push(node);
+    grouped.set(groupKey, list);
+  }
+  return [...grouped.entries()].flatMap(([groupKey, nodes]) => {
+    if (nodes.length <= 1) return [];
+    const hostId = groupKey.slice(0, groupKey.indexOf('::'));
+    const key = groupKey.slice(groupKey.indexOf('::') + 2);
+    const host = nodesById.get(hostId);
+    return [
+      {
+        key,
+        hostId,
+        hostLabel: host ? primitiveDisplayName(host) : hostId,
+        callSites: nodes.map((node) => ({
+          filePath: relativeGraphPath(graph, node.filePath),
+          line: node.line,
+        })),
+      },
+    ];
+  });
+}
+
+export function assertInsertSelectUnique(graph: DependencyGraph): void {
+  const violations = insertSelectUniqueViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const sites = violation.callSites
+          .map((site) => [site.filePath, site.line].filter(Boolean).join(':'))
+          .filter(Boolean)
+          .join(', ');
+        return `Duplicate insertSelect ${violation.key} on ${violation.hostLabel}${sites ? ` (${sites})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type CraftEffectNetworkViolation = {
+  kind: 'http' | 'mutation';
+  id: string;
+  label: string;
+  targetId: string;
+  targetLabel: string;
+  filePath?: string;
+  line?: number;
+};
+
+export function craftEffectNetworkViolations(
+  graph: DependencyGraph,
+): CraftEffectNetworkViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return graph.nodes.flatMap((node) => {
+    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'craftEffect') {
+      return [];
+    }
+    const violations: CraftEffectNetworkViolation[] = [];
+    const location = {
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    };
+    const push = (
+      kind: 'http' | 'mutation',
+      targetId: string,
+      targetLabel: string,
+    ) => {
+      violations.push({
+        kind,
+        id: node.id,
+        label: primitiveDisplayName(node),
+        targetId,
+        targetLabel,
+        ...location,
+      });
+    };
+    for (const edge of graph.edges) {
+      if (edge.from !== node.id) continue;
+      if (edge.kind !== 'calls' && edge.kind !== 'depends-on') continue;
+      const target = nodesById.get(edge.to);
+      if (!target) continue;
+      if (target.kind === 'http-endpoint') {
+        push('http', target.id, target.label);
+        continue;
+      }
+      if (isMutationTarget(graph, nodesById, target)) {
+        push('mutation', target.id, primitiveDisplayName(target));
+      }
+    }
+    if (
+      node.details?.['craftHttpClient'] === true &&
+      !violations.some((violation) => violation.kind === 'http')
+    ) {
+      push('http', node.id, 'CraftHttpClient');
+    }
+    return violations;
+  });
+}
+
+export function assertCraftEffectNoNetwork(graph: DependencyGraph): void {
+  const violations = craftEffectNetworkViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        const action =
+          violation.kind === 'http'
+            ? `calls HTTP ${violation.targetLabel}`
+            : `calls mutation ${violation.targetLabel}`;
+        return `craftEffect ${violation.label} ${action}${at ? ` (${at})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+function primitiveDisplayName(node: DependencyGraphNode): string {
+  if (typeof node.details?.['name'] === 'string') return node.details['name'];
+  const separator = node.label.indexOf(':');
+  return separator >= 0 ? node.label.slice(separator + 1) : node.label;
+}
+
+function isMutationTarget(
+  graph: DependencyGraph,
+  nodesById: Map<string, DependencyGraphNode>,
+  target: DependencyGraphNode,
+): boolean {
+  if (target.kind === 'primitive' && target.details?.['primitive'] === 'mutation') {
+    return true;
+  }
+  if (target.kind !== 'property') return false;
+  const owner = graph.edges.find(
+    (edge) => edge.kind === 'contains' && edge.to === target.id,
+  );
+  const parent = owner ? nodesById.get(owner.from) : undefined;
+  return parent?.details?.['primitive'] === 'mutation';
+}
+
 export function assertDeclarativeArchitecture(graph: DependencyGraph): void {
   const messages: string[] = [];
   for (const assert of [

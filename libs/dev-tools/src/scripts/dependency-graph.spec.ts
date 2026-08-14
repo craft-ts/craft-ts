@@ -43,8 +43,13 @@ declare function craftService(...args: unknown[]): Record<string, (...args: neve
 declare function craftComponent(...args: unknown[]): unknown;
 declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
+declare function mutation(...args: unknown[]): unknown;
 declare function craftUnique<T>(value: T): T;
 declare function insertStoragePersister(...args: unknown[]): unknown;
+declare function insertReactOnMutation(...args: unknown[]): unknown;
+declare function insertQueryPipe(...args: unknown[]): unknown;
+declare function insertSelect(...args: unknown[]): unknown;
+declare function craftEffect(...args: unknown[]): unknown;
 declare function craftComputed(...args: unknown[]): unknown;
 declare function craftMethod(...args: unknown[]): unknown;
 declare function settled(...args: unknown[]): unknown;
@@ -581,5 +586,204 @@ describe('analyzeDependencyGraph architecture facts', () => {
     expect(
       graph.nodes.find((node) => node.kind === 'http-endpoint')?.filePath,
     ).toContain('users-api.ts');
+  });
+});
+
+describe('analyzeDependencyGraph insertions', () => {
+  it('links insertReactOnMutation from the mutation to the query', async () => {
+    const root = await fixture({
+      'users.ts': `
+        ${CRAFT_STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const updateUserName = yield* mutation('updateUserName', {});
+            const user = yield* query(
+              'user',
+              {},
+              insertReactOnMutation(updateUserName, {}),
+            );
+            return { user, updateUserName };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(edgeLabels(graph, 'mutation:updateUserName', 'triggers')).toContain(
+      'triggers->query:user',
+    );
+  });
+
+  it('links insertReactOnMutation nested in insertQueryPipe', async () => {
+    const root = await fixture({
+      'users.ts': `
+        ${CRAFT_STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const save = yield* mutation('updateUserName', {});
+            const user = yield* query(
+              'user',
+              {},
+              insertQueryPipe(insertReactOnMutation(save, {})),
+            );
+            return { user, save };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(edgeLabels(graph, 'mutation:updateUserName', 'triggers')).toContain(
+      'triggers->query:user',
+    );
+  });
+
+  it('marks a persisted primitive and whether craftUnique wraps the identity', async () => {
+    const root = await fixture({
+      'users.ts': `
+        ${CRAFT_STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const cached = yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ key: 'user', storeName: 'app' })),
+            );
+            const leaked = yield* query(
+              'leaked',
+              {},
+              insertStoragePersister({ key: 'leaked', storeName: 'app' }),
+            );
+            return { cached, leaked };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(nodeByLabel(graph, 'query:cached')[0]?.details?.['persisted']).toBe(
+      true,
+    );
+    expect(
+      nodeByLabel(graph, 'query:cached')[0]?.details?.['persistedUnique'],
+    ).toBe(true);
+    expect(nodeByLabel(graph, 'query:leaked')[0]?.details?.['persisted']).toBe(
+      true,
+    );
+    expect(
+      nodeByLabel(graph, 'query:leaked')[0]?.details?.['persistedUnique'],
+    ).toBe(false);
+  });
+
+  it('attributes CraftHttpClient calls inside craftEffect to the effect node', async () => {
+    const root = await fixture({
+      'sync.ts': `
+        ${CRAFT_STUBS}
+        declare const CraftHttpClient: {
+          get(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
+        };
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const poll = craftEffect('poll', function* () {
+              yield* CraftHttpClient.get(({ response }) => ({
+                url: 'users',
+                success: response(),
+              }));
+            });
+            return { poll };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(edgeLabels(graph, 'craftEffect:poll', 'calls')).toContain(
+      'calls->GET users',
+    );
+  });
+
+  it('records a craftEffect that calls a mutation', async () => {
+    const root = await fixture({
+      'sync.ts': `
+        ${CRAFT_STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const save = yield* mutation('save', {});
+            const poll = craftEffect('poll', function* () {
+              yield* save();
+            });
+            return { save, poll };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(edgeLabels(graph, 'craftEffect:poll')).toEqual(
+      expect.arrayContaining([expect.stringMatching(/->mutation:save/)]),
+    );
+  });
+
+  it('indexes insertSelect under the enclosing state', async () => {
+    const root = await fixture({
+      'grid.ts': `
+        ${CRAFT_STUBS}
+
+        const { Grid } = craftService(
+          { name: 'Grid', scope: 'global' },
+          function* () {
+            const cells = yield* state(
+              'cells',
+              [],
+              insertSelect('cell', () => ({})),
+              insertSelect('cell', () => ({})),
+            );
+            return { cells };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(nodeByLabel(graph, 'insertSelect:cell')).toHaveLength(2);
+    expect(edgeLabels(graph, 'state:cells', 'contains')).toEqual(
+      expect.arrayContaining([
+        'contains->insertSelect:cell',
+      ]),
+    );
   });
 });

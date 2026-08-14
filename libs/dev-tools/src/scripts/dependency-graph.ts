@@ -112,6 +112,18 @@ const PRIMITIVES = new Set([
   'craftEffect',
   'craftMethod',
 ]);
+const HOST_PRIMITIVES = new Set([
+  'state',
+  'query',
+  'mutation',
+  'asyncProcess',
+  'queryParams',
+  'insertSelect',
+]);
+const STORAGE_PERSISTER_INSERTIONS = new Set([
+  'insertStoragePersister',
+  'insertLocalStoragePersister',
+]);
 
 const SOURCE_CREATORS = new Set(['source$', 'signalSource']);
 const CRAFT_HTTP_CLIENT_METHODS = new Set([
@@ -297,6 +309,7 @@ export function analyzeDependencyGraph(
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
   analyzeRoutes(builder);
+  analyzeInsertions(builder);
   collectCraftUniques(builder, sourceFiles);
   collectRouteChecks(builder);
 
@@ -1694,6 +1707,111 @@ function analyzeComponents(builder: GraphBuilder): void {
     }
     collectServicePropertyUses(builder, component);
   }
+}
+
+function analyzeInsertions(builder: GraphBuilder): void {
+  const scopes: { node: Node; ownerId: string }[] = [];
+  for (const service of builder.services) {
+    const factory = service.call.getArguments()[1];
+    if (factory) scopes.push({ node: factory, ownerId: service.node.id });
+  }
+  for (const component of builder.components) {
+    const setup = component.call.getArguments()[2];
+    if (setup) scopes.push({ node: setup, ownerId: component.node.id });
+  }
+  for (const { node, ownerId } of scopes) {
+    for (const call of node.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const name = call.getExpression().getText();
+      if (name === 'insertReactOnMutation') {
+        addReactOnMutation(builder, call, ownerId);
+      }
+      if (STORAGE_PERSISTER_INSERTIONS.has(name)) {
+        addStoragePersister(builder, call, ownerId);
+      }
+    }
+  }
+}
+
+function addReactOnMutation(
+  builder: GraphBuilder,
+  call: CallExpression,
+  ownerId: string,
+): void {
+  const host = nearestHostPrimitive(builder, call, ownerId, new Set(['query']));
+  const mutationName = identifierText(call.getArguments()[0]);
+  if (!host || !mutationName) return;
+  const mutationNode = findOwnedPrimitive(
+    builder,
+    ownerId,
+    mutationName,
+    'mutation',
+  );
+  if (!mutationNode) return;
+  addEdge(builder, mutationNode.id, host.id, 'triggers', 'ast', {
+    insertion: 'react-on-mutation',
+    line: call.getStartLineNumber(),
+  });
+}
+
+function addStoragePersister(
+  builder: GraphBuilder,
+  call: CallExpression,
+  ownerId: string,
+): void {
+  const host = nearestHostPrimitive(builder, call, ownerId);
+  if (!host) return;
+  const uniqueArgument = unwrapExpression(call.getArguments()[0]);
+  const uniqueCall =
+    uniqueArgument?.isKind(SyntaxKind.CallExpression) &&
+    uniqueArgument.getExpression().getText() === 'craftUnique'
+      ? uniqueArgument
+      : undefined;
+  host.details = {
+    ...(host.details ?? {}),
+    persisted: true,
+    persistedUnique: Boolean(uniqueCall),
+  };
+}
+
+function nearestHostPrimitive(
+  builder: GraphBuilder,
+  node: Node,
+  aggregateOwnerId: string,
+  hosts: ReadonlySet<string> = HOST_PRIMITIVES,
+): DependencyGraphNode | undefined {
+  let current: Node | undefined = node.getParent();
+  while (current) {
+    if (Node.isCallExpression(current) && isPrimitiveFactory(current)) {
+      const primitive = primitiveFactoryName(current);
+      if (primitive && hosts.has(primitive)) {
+        return addPrimitiveNode(builder, current, primitive, aggregateOwnerId);
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+function findOwnedPrimitive(
+  builder: GraphBuilder,
+  ownerId: string,
+  name: string,
+  primitive?: string,
+): DependencyGraphNode | undefined {
+  return [...builder.nodes.values()].find(
+    (node) =>
+      node.kind === 'primitive' &&
+      node.details?.['ownerId'] === ownerId &&
+      (primitive === undefined || node.details?.['primitive'] === primitive) &&
+      (node.details?.['usage'] === name || node.details?.['name'] === name),
+  );
+}
+
+function identifierText(node: Node | undefined): string | undefined {
+  const current = unwrapExpression(node);
+  if (!current) return undefined;
+  if (Node.isIdentifier(current)) return current.getText();
+  return undefined;
 }
 
 function analyzeRoutes(builder: GraphBuilder): void {

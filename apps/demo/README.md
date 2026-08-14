@@ -27,6 +27,10 @@ Each common rule has its own file under `architecture/rules/`:
 - `rules/declarative-architecture.spec.ts` — `assertDeclarativeArchitecture`
 - `rules/exclusive-link.spec.ts` — `noExclusiveLink`
 - `rules/route-di-proofs.spec.ts` — `assertRouteDiProofs` (routes + `app.config.ts`)
+- `rules/mutation-react-on.spec.ts` — `assertMutationHasReactOn`
+- `rules/persisted-primitive-unique.spec.ts` — `assertPersistedPrimitiveHasUnique`
+- `rules/insert-select-unique.spec.ts` — `assertInsertSelectUnique`
+- `rules/craft-effect-no-network.spec.ts` — `assertCraftEffectNoNetwork`
 
 Run them with Nx, from the repository root:
 
