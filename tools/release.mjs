@@ -35,6 +35,21 @@ export const releaseTrackedFiles = [
   ...releasePackages.map(({ sourceManifest }) => sourceManifest),
 ].sort();
 
+const unpublishedNpmPackPath =
+  /(^|\/)tests(\/|$)|(?:^|\/)[^/]+\.(?:spec|test)\.(?:[cm]?[jt]sx?)$/;
+
+export function unpublishedNpmPackPaths(paths) {
+  return paths.filter((path) => unpublishedNpmPackPath.test(path));
+}
+
+export function assertNpmPackExcludesTests(packageName, paths) {
+  const leaked = unpublishedNpmPackPaths(paths);
+  if (leaked.length === 0) return;
+  throw new Error(
+    `${packageName} tarball must not include tests; found ${leaked.join(', ')}.`,
+  );
+}
+
 export function parseReleaseVersion(version) {
   const match =
     /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(beta|rc)\.(0|[1-9]\d*))?$/.exec(
@@ -274,6 +289,13 @@ function assertFileList(path) {
   assertFileNames(readFileSync(path, 'utf8').split('\n').filter(Boolean));
 }
 
+function packedTarballPaths(tarball) {
+  return execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' })
+    .split('\n')
+    .filter(Boolean)
+    .map((entry) => entry.replace(/^package\//, ''));
+}
+
 function packRelease(version, outputDirectory) {
   assertManifests(version);
   const absoluteOutput = resolve(outputDirectory);
@@ -301,6 +323,10 @@ function packRelease(version, outputDirectory) {
     ) {
       throw new Error(`npm pack returned invalid metadata for ${pkg.name}.`);
     }
+    assertNpmPackExcludesTests(
+      pkg.name,
+      packedTarballPaths(`${absoluteOutput}/${artifact.filename}`),
+    );
     artifacts.push({
       key: pkg.key,
       name: pkg.name,

@@ -1,7 +1,7 @@
 # Where to go next
 
-You have the whole mental model: **declare with a name, drive with `yield*`,
-derive the rest.** Everything below is a variation on it.
+You have the whole mental model: **declare with a name, yield what you do not
+own, derive the rest.** Everything below is a variation on it.
 
 ## Fill the gaps in what you built
 
@@ -22,6 +22,22 @@ derive the rest.** Everything below is a variation on it.
 - [Insertions](/guide/concepts/insertions) — writing your own and composing them
 - [Typed insertion pipes](/guide/concepts/insertion-pipes) — readable composition for each primitive
 - [Generators](/guide/concepts/generators) — `craftGen` outside a service
+
+## Teach the app its boundaries
+
+The graph you just tested is also a map you can constrain. [Architecture
+rules](/guide/testing/architecture) are ordinary Vitest assertions on the
+static Craft graph: unique identities, unique HTTP, pure `craftComputed`,
+folder lanes, exclusive feature branches — and any neighbourhood you can look
+up is a rule you can write. Nx still owns the workspace graph (imports,
+affected, cache); Craft judges the app. [Craft graph vs
+Nx](/guide/testing/craft-graph-vs-nx) is the split.
+
+Setup is in that guide. The demo suite already runs them:
+
+```shell
+npx nx architecture demo
+```
 
 ## When your app grows
 

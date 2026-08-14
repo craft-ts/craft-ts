@@ -80,13 +80,16 @@ type GraphNodeKind =
   | 'service'
   | 'property'
   | 'primitive'
-  | 'source';
+  | 'source'
+  | 'http-endpoint'
+  | 'unique';
 
 type GraphEdgeKind =
   | 'loads'
   | 'renders'
   | 'contains'
   | 'depends-on'
+  | 'provides'
   | 'uses-property'
   | 'calls'
   | 'reads'
@@ -763,6 +766,7 @@ const EDGE_KINDS: GraphEdgeKind[] = [
   'renders',
   'contains',
   'depends-on',
+  'provides',
   'uses-property',
   'calls',
   'reads',
@@ -779,6 +783,8 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
   primitive: 3,
   source: 2,
   property: 4,
+  'http-endpoint': 4,
+  unique: 4,
 };
 
 @Component({
@@ -1059,6 +1065,10 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
       .graph-node.node-source {
         border-color: #06b6d4;
         background: #ecfeff;
+      }
+      .graph-node.node-unique {
+        border-color: #c026d3;
+        background: #fae8ff;
       }
       .graph-node.is-http-client {
         border-color: #f59e0b;
@@ -1507,6 +1517,12 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         border-color: #22d3ee;
         background: linear-gradient(145deg, #103e4bee, #0c2539ee);
         box-shadow: 0 0 0 1px #22d3ee22, 0 0 18px #22d3ee55, 0 8px 20px #02061766;
+      }
+
+      .graph-node.node-unique {
+        border-color: #e879f9;
+        background: linear-gradient(145deg, #43154bee, #241536ee);
+        box-shadow: 0 0 0 1px #e879f922, 0 0 18px #e879f955, 0 8px 20px #02061766;
       }
 
       .graph-node.is-constellation {
@@ -5611,6 +5627,14 @@ export class App implements OnInit {
         return incoming.length || outgoing.length
           ? 'source utilisée par le graphe'
           : 'source sans utilisation détectée';
+      case 'http-endpoint':
+        return incoming.length
+          ? 'endpoint HTTP appelé par le graphe'
+          : 'endpoint HTTP sans appel détecté';
+      case 'unique':
+        return incoming.length
+          ? 'identité unique utilisée par le graphe'
+          : 'identité unique sans appel détecté';
     }
   }
 

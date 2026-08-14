@@ -129,12 +129,16 @@ const { tasksQuery } =
       /* … */
     },
     ({ value, isLoading }) => ({
-      count: computed(() => value()?.length ?? 0),
-      isEmpty: computed(() => !isLoading() && value()?.length === 0),
+      count: craftComputed(function* () {
+        return (yield* value())?.length ?? 0;
+      }),
+      isEmpty: craftComputed(function* () {
+        return !(yield* isLoading()) && (yield* value())?.length === 0;
+      }),
     }),
   );
 
-tasksQuery.count();
+yield* tasksQuery.count();
 ```
 
 ## About the flicker

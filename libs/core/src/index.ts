@@ -12,6 +12,7 @@ export * from './lib/craft-program-operators';
 export * from './lib/temporal-runtime';
 export * from './lib/craft-match';
 export * from './lib/insert-storage-persister';
+export * from './lib/craft-unique';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';
 export * from './lib/insert-select-resource';

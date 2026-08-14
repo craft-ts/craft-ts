@@ -20,7 +20,7 @@ automatic cleanup and signal-based value tracking.
 ## Import
 
 ```typescript
-import { source$ } from '@craft-ng/core';
+import { craftComputed, source$ } from '@craft-ng/core';
 ```
 
 ## Signature
@@ -147,8 +147,10 @@ const message$ = source$<string>('message$');
 message$.emit('Hello');
 console.log(message$.value()); // 'Hello'
 
-// Use in templates or computed signals
-const uppercased = computed(() => message$.value()?.toUpperCase());
+// Use in templates or craftComputed
+const uppercased = craftComputed('uppercased', function* () {
+  return (yield* message$.value())?.toUpperCase();
+});
 ```
 
 ### Last Value Preservation
@@ -236,7 +238,9 @@ export const Counter = craftComponent(
     return { counter, reset$ };
   },
   ({ counter, reset$ }) => [
-    p(() => `Count: ${counter()}`),
+    p(function* () {
+      return `Count: ${yield* counter()}`;
+    }),
     button({ click: counter.increment }, '+1'),
     button({ click: counter.decrement }, '-1'),
     button({ click: () => reset$.emit() }, 'Reset'),

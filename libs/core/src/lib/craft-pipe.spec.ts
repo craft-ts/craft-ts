@@ -8,6 +8,7 @@ import type { ExtractDeps } from './branded-component/branded-component';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import { provideFnWrapObserver, provideFnWrapper } from './fn-wrapper';
+import { craftUnique } from './craft-unique';
 import { insertStoragePersister } from './insert-storage-persister';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { insertReactOnMutation } from './insert-react-on-mutation';
@@ -416,7 +417,10 @@ describe('craftPipe with query', () => {
           (context) =>
             craftPipe(
               context,
-              insertStoragePersister({ storeName: 'probe', key: 'probe' }),
+              insertStoragePersister(craftUnique({
+                storeName: 'probe',
+                key: 'probe',
+              })),
               insertPaginationPlaceholderData({ initialValue: [] as User[] }),
               insertReactOnMutation(del, {
                 filter: ({ mutationIdentifier, queryResource }) =>

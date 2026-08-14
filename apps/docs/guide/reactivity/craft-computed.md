@@ -3,7 +3,8 @@
 A yieldable reactive value that can read Craft dependencies and other reactive
 Craft values with `yield*`.
 
-**Use it when** a derived value needs a service.
+**Use it when** a derived value reads a Craft reader, a service, or another
+computed — so those dependencies are recorded on the computed itself.
 Use Angular's `computed` only inside Craft's implementation. Application code
 uses `craftComputed` so every reactive dependency can be traced consistently.
 
@@ -16,13 +17,28 @@ import { craftComputed } from '@craft-ng/core';
 ## Overview
 
 `craftComputed` wraps Angular `computed(...)` internally and exposes a yieldable
-reader in both modes:
+reader. Application code uses the generator form so every reactive dependency
+is recorded on **that** computed:
 
-- plain computation: `craftComputed(name, () => value)`
+```typescript
+const counter = yield* state('counter', 1, ({ state }) => ({
+  doubled: craftComputed(function* () {
+    return (yield* state()) * 2;
+  }),
+}));
+
+const doubled = yield* counter.doubled();
+```
+
+Two modes exist:
+
 - generator factory: `craftComputed(name, function* () { ...; return value; })`
+  — the default for Craft values. The generator is replayed on every
+  recomputation.
+- plain computation: `craftComputed(name, () => value)` — Angular-class interop
+  when the computation only reads Angular signals you already hold.
 
-The generator is replayed on every recomputation. It may read services,
-primitive roots, other computed values, or nested resource properties.
+Inside an insertion the name may be omitted: Craft uses the insertion key.
 
 ## Signatures
 
@@ -47,9 +63,10 @@ injector context, reactive graph and dev-tools snapshots. The
 [`craft-ng/craft-computed-name-match`](/guide/routing/setup) ESLint rule
 enforces the match and offers a quick fix.
 
-## Plain Computation
+## Angular-class interop
 
-Use this form when no `yield*` dependencies are needed.
+Use the plain form only when no Craft reader needs `yield*` — typically an
+Angular `@Component` field that reads Angular signals:
 
 ```typescript
 import { signal } from '@angular/core';
@@ -60,15 +77,28 @@ class CounterComponent {
   readonly doubled = craftComputed('doubled', () => this.count() * 2);
 }
 
-const value = yield * component.doubled();
+const value = yield* component.doubled();
 ```
 
 ## Generator Computation
 
-Use this form when the computed needs crafted dependencies.
+Use this form whenever the computed reads a Craft reader, a service, or another
+computed.
 
 ```typescript
-import { signal } from '@angular/core';
+const counter = yield* state('counter', 1, ({ state }) => ({
+  doubled: craftComputed(function* () {
+    return (yield* state()) * 2;
+  }),
+}));
+
+const doubled = yield* counter.doubled();
+```
+
+`doubled` does not own `state()`, so it yields it. That is how the computed's
+own dependency graph records the read.
+
+```typescript
 import { craftComputed, craftService } from '@craft-ng/core';
 
 const { Multiplier } = craftService(
@@ -76,29 +106,10 @@ const { Multiplier } = craftService(
   () => ({ factor: 3 }),
 );
 
-class CounterComponent {
-  readonly count = signal(0);
-
-  readonly tripled = craftComputed('tripled', function* () {
-    const multiplier = yield* Multiplier();
-    return this.count() * multiplier.factor;
-  });
-}
-```
-
-Inside an insertion, reactive reads are yieldable and the insertion key supplies
-the name:
-
-```typescript
-const counter =
-  yield *
-  state('counter', 1, ({ state }) => ({
-    doubled: craftComputed(function* () {
-      return (yield* state()) * 2;
-    }),
-  }));
-
-const doubled = yield * counter.doubled();
+const tripled = craftComputed('tripled', function* () {
+  const multiplier = yield* Multiplier();
+  return (yield* counter()) * multiplier.factor;
+});
 ```
 
 ## Caveats
@@ -120,3 +131,5 @@ When using a generator, yielded dependencies are tracked and can be extracted wi
 - [`craftEffect`](/guide/reactivity/craft-effect)
 - [`craftService`](/guide/app/craft-service)
 - [`onAppStart`](/guide/app/app-start)
+- [Architecture rules](/guide/testing/architecture) — `assertCraftComputedPure`
+  forbids methods and `source$` writes inside a computed

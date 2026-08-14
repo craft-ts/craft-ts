@@ -16,6 +16,7 @@ import {
   craftMethod,
   craftService,
   insertStoragePersister,
+  craftUnique,
   insertPaginationPlaceholderData,
   insertQueryPipe,
   insertReactOnMutation,
@@ -64,10 +65,10 @@ export const { provideGranularMutation, GranularMutation } = craftService(
         },
       },
       insertQueryPipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app-craft',
           key: 'granular',
-        }),
+        })),
         insertPaginationPlaceholderData({ initialValue: [] as User[] }),
         insertReactOnMutation(updateUserName, {
           filter: ({ mutationIdentifier, queryResource }) =>

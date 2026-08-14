@@ -110,6 +110,10 @@ component. See [Exceptions as values](/guide/concepts/exceptions).
 - [Type-level tests](/guide/testing/type-level) assert the template contract
   itself — that an element renders only under a condition, that a binding is the
   one you think.
+- [Architecture rules](/guide/testing/architecture) assert the shape of the app
+  on the static Craft graph — exclusive features, unique HTTP, `craftUnique`,
+  and armed route DI proofs. That graph is not Nx's project graph; see
+  [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx).
 
 ## Because it's declarative, you get observability for free
 
@@ -148,6 +152,9 @@ Being fair about the trade:
   before they are useful.
 - **Type-checking time.** Deep inference is not free; large route collections
   need splitting ([Scaling routes](/guide/routing/scaling)).
+- **Unused proofs compile.** The route DI checks are type aliases TypeScript
+  does not require you to keep. [Architecture tests](/guide/testing/architecture#assertroutediproofs)
+  make omitting them a hard failure.
 - **Error messages.** A failed inference deep in a type can read badly.
 - **Experimental.** The library and this documentation both still move between
   minor versions — see the [migration notes](/resources/migration).

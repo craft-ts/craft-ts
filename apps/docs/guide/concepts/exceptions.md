@@ -253,6 +253,10 @@ handler for a code nothing produces. Add a `craftException` to a guard six month
 from now and the routes file tells you exactly which routes must decide what to
 do about it.
 
+The assertion itself is an unused call unless it stays in the file.
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) fail if a
+collection omits it.
+
 ## Pitfalls
 
 **Throwing instead of returning.** A thrown value is an *error*: it bypasses the
@@ -265,5 +269,6 @@ detail.
 ## See Also
 
 - [Route exception handling](/guide/routing/exception-handling)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the exhaustiveness assert in place
 - [query](/guide/state/server-state) — typed HTTP exception matchers
 - [Form exception handling](/guide/forms/exceptions)

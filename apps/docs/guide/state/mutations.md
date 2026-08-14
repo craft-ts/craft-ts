@@ -202,6 +202,14 @@ const userFeature = craft(
 
 :::
 
+::: tip Advanced — injectable writes
+Insertion methods provide `injectMutationMethodRuntimeContext()`, and the
+mutation value itself is published to
+`providePrimitiveResourceRuntimeObserver`. Both expose `get`, `set`, `update`,
+and `patch` for wrappers, WebMCP tools, and other advanced patterns. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
+:::
+
 ## See Also
 
 - [query](/guide/state/server-state) — the read side

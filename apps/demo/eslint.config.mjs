@@ -10,6 +10,9 @@ export default [
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],
   {
+    ignores: ['**/architecture/catalog.ts'],
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
@@ -17,6 +20,7 @@ export default [
           './tsconfig.app.json',
           './tsconfig.spec.json',
           './tsconfig.e2e.json',
+          './tsconfig.architecture.json',
         ],
         tsconfigRootDir: import.meta.dirname,
       },
@@ -106,7 +110,12 @@ export default [
   },
   {
     // Playwright files are test-boundary code, not authored Craft modules.
-    files: ['**/e2e/**/*.ts', '**/playwright.config.ts'],
+    files: [
+      '**/e2e/**/*.ts',
+      '**/playwright.config.ts',
+      '**/architecture/**/*.ts',
+      '**/vitest.architecture.config.ts',
+    ],
     rules: {
       'craft-ng/craft-method-name-match': 'off',
       'craft-ng/craft-computed-name-match': 'off',

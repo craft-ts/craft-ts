@@ -127,24 +127,35 @@ npx craft-migrate \
 Finish with the application's normal lint, type-check, test, and build commands.
 See the [complete migration guide](/resources/migration) for the post-codemod checklist.
 
-## Verify the route safety contract
+## Make the DI contract enforceable
 
-`craft route verify` is the development check for the routing guarantees. It
-first type-checks the project as it is, then audits the existing route files:
-every component-bearing route must have an active `CanRun` proof (or a
-collection-level `ValidateCascadeRoutesFile` proof), and the route ESLint rules
-must report no missing exception, pending-component or lazy-retry bookkeeping.
-This catches an accidentally commented or omitted `_CanRun...` block even when
-the TypeScript baseline itself still compiles.
+The CLI writes the route, `componentDeps`, `withRetry` and the DI proof. Those
+proofs are unused type aliases: omit one and the project still compiles. That
+is the one fragile step in an otherwise compile-time guarantee.
 
-It then writes temporary fixtures covering route DI, `toProvide` providers,
-lazy child checks, route params and inputs, Angular and Craft templates,
-pending/error components, lazy loading, guard/resolve/component exceptions,
-local recovery and exhaustive handlers. Invalid fixtures are expected to fail,
-and their diagnostics are matched with the expected `path`, `pending component`
-or `exception component` context.
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) close it.
+`assertRouteDiProofs` walks the static graph and fails unless every routed
+component — including lazy `loadChildren` collections — every pending or error
+screen, and every `craftAppConfig` error surface is hooked to an armed mapper.
+TypeScript still judges whether a dependency is provided; the architecture
+suite judges whether that judgement was invoked.
 
-Add it to the application scripts:
+Add `assertRouteDiProofs` to the app's architecture suite and run it in CI.
+That is the application-facing check for the routing contract.
+
+## Compiler fixture suite (optional)
+
+`craft route verify` is a separate, heavier check: it type-checks the project,
+then writes temporary valid and invalid fixtures covering route DI, `toProvide`
+providers, lazy child checks, route params and inputs, Angular and Craft
+templates, pending/error components, lazy loading, guard/resolve/component
+exceptions, local recovery and exhaustive handlers. Invalid fixtures are
+expected to fail, and their diagnostics are matched with the expected `path`,
+`pending component` or `exception component` context.
+
+Use it when you need to regression-test the type machinery itself — not as the
+app's proof that *your* routes still carry `CanRun`. Architecture tests cover
+that.
 
 ```json
 {
@@ -153,8 +164,6 @@ Add it to the application scripts:
   }
 }
 ```
-
-Run it locally or in CI:
 
 ```shell
 npm run craft:verify-routes
@@ -172,5 +181,6 @@ chunk-loading scenarios remain covered by the browser tests.
 ## See Also
 
 - [Routing setup](/guide/routing/setup) — what the CLI generates for you
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` is the app-facing routing check
 - [Angular brand config](/guide/routing/angular-brand-config)
 - [Scaling routes](/guide/routing/scaling) — `craft route split`

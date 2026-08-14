@@ -50,7 +50,14 @@
   "files": [
     "generators.json",
     "src/**/*",
-    "README.md"
+    "README.md",
+    "!src/**/*.spec.ts",
+    "!src/**/*.spec.js",
+    "!src/**/*.spec.d.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.js",
+    "!src/**/*.test.d.ts",
+    "!tests/**"
   ],
   "dependencies": {
     "@nx/devkit": "^22.3.1",

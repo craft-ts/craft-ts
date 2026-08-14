@@ -2,7 +2,8 @@
 
 Six steps turn Angular's routes into routes the compiler checks: a missing
 provider, a misspelled input or a route pointing at nothing becomes a build
-error instead of a blank screen.
+error instead of a blank screen. Architecture tests then keep those proofs
+from quietly disappearing.
 
 **Do this once per app**, then let [the CLI](/guide/routing/automation) write
 new routes for you.
@@ -243,38 +244,33 @@ Important limits:
 An Eslint error does not trigger a compilation error, so make sure to run the Quick Fix or `eslint --fix` after changing a component's DI shape. Otherwise, `main.ts` will not see the updated `GenDeps_*` and may miss real DI errors.
 :::
 
-## 6. Validate the complete routing setup
+## 6. Make the DI contract enforceable
 
-Once the route files, generated `GenDeps_*` aliases and ESLint rules are in
-place, run the dedicated compile-time verification suite:
+The proofs in this guide are unused type aliases unless they stay in the file:
+comment out a `CanRun` and the project still compiles. That is the one fragile
+step in an otherwise compile-time guarantee.
 
-```json
-{
-  "scripts": {
-    "craft:verify-routes": "craft route verify --project tsconfig.app.json"
-  }
-}
+Architecture tests close it. `assertRouteDiProofs` walks the static graph and
+fails unless every routed component — including lazy `loadChildren`
+collections — every pending or error screen, and every `craftAppConfig` error
+surface is hooked to an armed mapper. TypeScript still judges whether a
+dependency is provided; the architecture suite judges whether that judgement
+was invoked.
+
+Copy the demo layout (`apps/demo/architecture/`) and add:
+
+```typescript
+it('requires a DI proof on every routed component and app-config error screen', () => {
+  assertRouteDiProofs(graph.graph);
+});
 ```
 
-```bash
-npm run craft:verify-routes
-```
-
-The command first checks the existing route files: a component route must have
-an active `CanRun`/`RouteCheckedDI` proof (or a collection-level
-`ValidateCascadeRoutesFile` proof), and the exception, pending-component and
-lazy-retry ESLint bookkeeping must be complete. It then checks valid and
-intentionally invalid temporary fixtures for DI, route inputs, Angular/Craft
-template dependencies, pending and exception components, lazy retries,
-exception recovery and handler exhaustiveness. It refuses to run when the
-application already has type errors, and removes the fixtures afterwards. Use
-`--json` in CI tooling or `--keep-fixtures` to inspect a failed diagnostic.
-
-See [CLI automation](/guide/routing/automation#verify-the-route-safety-contract)
-for the full workflow and flags.
+Full setup — analysis tsconfig, catalog, Nx target — is on
+[Architecture rules](/guide/testing/architecture).
 
 ## See Also
 
 - [CLI automation](/guide/routing/automation) — let the CLI write routes for you
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the proofs armed
 - [Route guards](/guide/routing/guards) — the next thing you'll add
 - [Scaling routes](/guide/routing/scaling) — when one routes file gets too big

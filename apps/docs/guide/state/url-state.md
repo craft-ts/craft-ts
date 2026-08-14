@@ -194,6 +194,14 @@ yield* queryParams(
 
 :::
 
+::: tip Advanced — injectable writes
+Insertion methods provide `injectQueryParamsMethodRuntimeContext()`, and the
+URL state itself is published to `providePrimitiveResourceRuntimeObserver`.
+Both expose `get`, `set`, `update`, and `patch` for wrappers, WebMCP tools,
+and other advanced patterns. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
+:::
+
 ## See Also
 
 - [Local state](/guide/state/local-state) — for non-URL state

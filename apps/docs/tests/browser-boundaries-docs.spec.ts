@@ -66,6 +66,8 @@ describe('docs sidebar', () => {
     expect(guideLinks).toContain('/guide/routing/scaling');
     expect(guideLinks).toContain('/guide/testing/browser-boundaries');
     expect(guideLinks).toContain('/guide/testing/components');
+    expect(guideLinks).toContain('/guide/testing/architecture');
+    expect(guideLinks).toContain('/guide/testing/craft-graph-vs-nx');
     expect(guideLinks).toContain('/guide/components/fine-grained-reactivity');
     expect(guideLinks).toContain('/guide/reactivity/craft-method');
     expect(guideLinks).toContain('/guide/reactivity/craft-computed');
@@ -488,5 +490,50 @@ describe('Angular Brand Config doc page', () => {
     expect(content).toContain(
       '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );
+  });
+});
+
+describe('architecture rules doc page', () => {
+  const content = readFileSync(
+    new URL('../guide/testing/architecture.md', import.meta.url),
+    'utf8',
+  );
+
+  it('documents the declarative baseline helpers and the demo Nx target', () => {
+    expect(content).toContain('# Architecture rules');
+    expect(content).toContain('assertCraftUnique');
+    expect(content).toContain('assertHttpEndpointUnique');
+    expect(content).toContain('assertCraftComputedPure');
+    expect(content).toContain('assertNoDependencyCycles');
+    expect(content).toContain('assertDeclarativeArchitecture');
+    expect(content).toContain('assertRouteDiProofs');
+    expect(content).toContain('RouteExceptionComponentCheckedDI');
+    expect(content).toContain('provideCraftGlobalErrorComponent');
+    expect(content).toContain(
+      'TypeScript still judges whether a dependency is provided',
+    );
+    expect(content).toContain('assertPathBoundaries');
+    expect(content).toContain('npx nx architecture demo');
+    expect(content).toContain('depends-on');
+    expect(content).toContain('/guide/testing/craft-graph-vs-nx');
+  });
+});
+
+describe('craft graph vs Nx doc page', () => {
+  const content = readFileSync(
+    new URL('../guide/testing/craft-graph-vs-nx.md', import.meta.url),
+    'utf8',
+  );
+
+  it('states what each graph cannot see and how they complement', () => {
+    expect(content).toContain('# Craft graph vs Nx');
+    expect(content).toContain('What Nx cannot see');
+    expect(content).toContain('What Craft cannot see');
+    expect(content).toContain('How they complement');
+    expect(content).toContain('@nx/enforce-module-boundaries');
+    expect(content).toContain('assertHttpEndpointUnique');
+    expect(content).toContain('assertPathBoundaries');
+    expect(content).toContain('nx affected');
+    expect(content).toContain('/guide/testing/architecture');
   });
 });

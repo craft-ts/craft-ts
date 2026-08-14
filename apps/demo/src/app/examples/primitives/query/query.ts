@@ -13,6 +13,7 @@ import {
   craftMethod,
   CraftRouter,
   insertStoragePersister,
+  craftUnique,
   insertQueryPipe,
   query,
   craftComputed,
@@ -46,10 +47,10 @@ const GlobalQuery = craftComponent(
         ({ resource }) => ({
           hasUser: craftComputed('hasUser', () => resource.hasValue()),
         }),
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app',
           key: 'user-query',
-        }),
+        })),
       ),
     );
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({

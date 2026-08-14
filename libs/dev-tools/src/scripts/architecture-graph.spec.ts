@@ -1,11 +1,23 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { analyzeDependencyGraph } from './dependency-graph';
+import { analyzeDependencyGraph, writeDependencyGraph } from './dependency-graph';
 import {
+  assertCraftComputedPure,
+  assertCraftUnique,
+  assertDeclarativeArchitecture,
+  assertHttpEndpointUnique,
+  assertNoDependencyCycles,
+  assertPathBoundaries,
+  assertRouteDiProofs,
+  craftComputedPureViolations,
   createArchitectureGraph,
+  dependencyCycleViolations,
+  httpEndpointUniqueViolations,
   noExclusiveLink,
+  pathBoundaryViolations,
+  routeDiProofViolations,
 } from './architecture-graph';
 
 const temporaryDirectories: string[] = [];
@@ -35,11 +47,23 @@ async function fixture(files: Record<string, string>): Promise<string> {
     'utf8',
   );
   await Promise.all(
-    Object.entries(files).map(([path, contents]) =>
-      writeFile(join(root, path), contents, 'utf8'),
-    ),
+    Object.entries(files).map(async ([path, contents]) => {
+      const fullPath = join(root, path);
+      await mkdir(dirname(fullPath), { recursive: true });
+      await writeFile(fullPath, contents, 'utf8');
+    }),
   );
   return root;
+}
+
+async function graphOf(files: Record<string, string>) {
+  const root = await fixture(files);
+  return createArchitectureGraph(
+    analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    }),
+  );
 }
 
 const STUBS = `
@@ -48,9 +72,19 @@ declare function craftComponent(...args: unknown[]): unknown;
 declare function craftRoutes(...args: unknown[]): unknown;
 declare function craftRoute(...args: unknown[]): unknown;
 declare function state(...args: unknown[]): unknown;
+declare function query(...args: unknown[]): unknown;
+declare function craftUnique<T>(value: T): T;
+declare function insertStoragePersister(...args: unknown[]): unknown;
+declare function craftComputed(...args: unknown[]): unknown;
+declare function craftMethod(...args: unknown[]): unknown;
+declare function source$<T>(name: string): {
+  emit: (value?: T) => void;
+  set: (value: T) => void;
+};
 declare function div(...args: unknown[]): unknown;
 declare const CraftHttpClient: {
   get(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
+  post(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
 };
 `;
 
@@ -128,6 +162,11 @@ describe('createArchitectureGraph', () => {
     expect(graph.dependingOnBrowserBoundary().map((node) => node.label)).toContain(
       'User',
     );
+    expect(graph.catalog.browserBoundaryServices).toContain('UsersApi');
+    expect(graph.catalog.httpEndpoints).toEqual(
+      expect.arrayContaining([{ method: 'GET', url: 'users' }]),
+    );
+    expect(graph.catalog.routeProviders['/admin']).toEqual(['User']);
   });
 
   it('allows a shared kernel between exclusive feature branches', async () => {
@@ -229,4 +268,1144 @@ describe('createArchitectureGraph', () => {
 
     expect(() => graph.service('Missing')).toThrow(/Unknown service 'Missing'/);
   });
+
+  it('requires a file path when two services share a name', async () => {
+    const root = await fixture({
+      'users-api.ts': `
+        ${STUBS}
+        const { ApiService } = craftService({ name: 'ApiService', scope: 'global' }, () => ({}));
+      `,
+      'cart-api.ts': `
+        ${STUBS}
+        const { ApiService } = craftService({ name: 'ApiService', scope: 'global' }, () => ({}));
+      `,
+    });
+
+    const graph = createArchitectureGraph(
+      analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      }),
+    );
+
+    expect(() => graph.service('ApiService')).toThrow(/Ambiguous service 'ApiService'/);
+    expect(graph.service('ApiService', 'users-api.ts').filePath).toContain(
+      'users-api.ts',
+    );
+  });
+
+  it('writes a compact TypeScript catalog next to the JSON graph', async () => {
+    const root = await fixture({
+      'app.ts': `
+        ${STUBS}
+        const { User, provideUser } = craftService(
+          { name: 'User', scope: 'toProvide' },
+          () => ({}),
+        );
+        export const appRoutes = craftRoutes('appRoutes', [
+          craftRoute('/admin', { path: '/admin', providers: [provideUser()] }),
+        ]);
+      `,
+    });
+
+    await writeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+      outputPath: join(root, 'craft-dependency-graph'),
+      format: 'json',
+    });
+
+    const catalogSource = await readFile(
+      join(root, 'craft-dependency-graph.architecture.ts'),
+      'utf8',
+    );
+    expect(catalogSource).toContain('as const');
+    expect(catalogSource).toContain('"/admin"');
+    expect(catalogSource).toContain('"User"');
+    expect(catalogSource).toContain('export type ArchitectureCatalog');
+  });
+
+  it('indexes craftUnique values and rejects duplicates or non-static identities', async () => {
+    const duplicateRoot = await fixture({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ key: 'user', storeName: 'app' })),
+            );
+            return {};
+          },
+        );
+
+        const { Profile } = craftService(
+          { name: 'Profile', scope: 'global' },
+          function* () {
+            yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ storeName: 'app', key: 'user' })),
+            );
+            return {};
+          },
+        );
+      `,
+    });
+
+    const duplicateGraph = createArchitectureGraph(
+      analyzeDependencyGraph({
+        rootDir: duplicateRoot,
+        tsConfigFilePath: 'tsconfig.json',
+      }),
+    );
+
+    expect(duplicateGraph.catalog.uniques).toEqual([
+      '{"key":"user","storeName":"app"}',
+    ]);
+    expect(
+      duplicateGraph.unique('{"key":"user","storeName":"app"}').details?.[
+        'callSites'
+      ],
+    ).toHaveLength(2);
+    expect(() => assertCraftUnique(duplicateGraph.graph)).toThrow(
+      /craftUnique.*twice|duplicate/i,
+    );
+
+    const okRoot = await fixture({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ key: 'user', storeName: 'app' })),
+            );
+            return {};
+          },
+        );
+      `,
+    });
+
+    const okGraph = analyzeDependencyGraph({
+      rootDir: okRoot,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    expect(() => assertCraftUnique(okGraph)).not.toThrow();
+
+    const dynamicRoot = await fixture({
+      'app.ts': `
+        ${STUBS}
+        const identity = { key: 'user', storeName: 'app' };
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique(identity)),
+            );
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(() =>
+      assertCraftUnique(
+        analyzeDependencyGraph({
+          rootDir: dynamicRoot,
+          tsConfigFilePath: 'tsconfig.json',
+        }),
+      ),
+    ).toThrow(/non-static|not static/i);
+  });
 });
+
+describe('declarative architecture rules', () => {
+  it('rejects the same HTTP verb+url called from two services', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { UsersApi } = craftService(
+          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          function* () {
+            yield* CraftHttpClient.get(({ response }) => ({
+              url: 'users',
+              success: response(),
+            }));
+            return {};
+          },
+        );
+
+        const { ProfileApi } = craftService(
+          { name: 'ProfileApi', scope: 'global', browserBoundary: true },
+          function* () {
+            yield* CraftHttpClient.get(({ response }) => ({
+              url: 'users',
+              success: response(),
+            }));
+            return {};
+          },
+        );
+      `,
+    });
+
+    const violations = httpEndpointUniqueViolations(graph.graph);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]?.label).toBe('GET users');
+    expect(violations[0]?.callSites).toHaveLength(2);
+    expect(() => assertHttpEndpointUnique(graph.graph)).toThrow(
+      /GET users.*twice|Duplicate HTTP/i,
+    );
+    expect(() => assertDeclarativeArchitecture(graph.graph)).toThrow(
+      /GET users/i,
+    );
+  });
+
+  it('allows distinct HTTP verb+url pairs', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { UsersApi } = craftService(
+          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          function* () {
+            yield* CraftHttpClient.get(({ response }) => ({
+              url: 'users',
+              success: response(),
+            }));
+            yield* CraftHttpClient.post(({ response }) => ({
+              url: 'users',
+              success: response(),
+            }));
+            yield* CraftHttpClient.get(({ response }) => ({
+              url: 'orders',
+              success: response(),
+            }));
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(httpEndpointUniqueViolations(graph.graph)).toEqual([]);
+    expect(() => assertHttpEndpointUnique(graph.graph)).not.toThrow();
+  });
+
+  it('rejects a craftComputed that calls a craftMethod', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Counter } = craftService(
+          { name: 'Counter', scope: 'global' },
+          function* () {
+            const bump = craftMethod('bump', function* () {
+              return 1;
+            });
+            const label = craftComputed('label', function* () {
+              yield* bump();
+              return 1;
+            });
+            return { bump, label };
+          },
+        );
+      `,
+    });
+
+    const violations = craftComputedPureViolations(graph.graph);
+    expect(violations.some((violation) => violation.kind === 'calls')).toBe(
+      true,
+    );
+    expect(() => assertCraftComputedPure(graph.graph)).toThrow(
+      /craftComputed.*label|calls/i,
+    );
+  });
+
+  it('rejects a craftComputed that writes a source$', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const reset$ = source$<void>('reset$');
+
+        const { Counter } = craftService(
+          { name: 'Counter', scope: 'global' },
+          function* () {
+            const label = craftComputed('label', function* () {
+              reset$.emit();
+              return 1;
+            });
+            return { label };
+          },
+        );
+      `,
+    });
+
+    const violations = craftComputedPureViolations(graph.graph);
+    expect(violations.some((violation) => violation.kind === 'writes')).toBe(
+      true,
+    );
+    expect(() => assertCraftComputedPure(graph.graph)).toThrow(
+      /source\$|writes|emit/i,
+    );
+  });
+
+  it('rejects a craftComputed that calls a mutating primitive method', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Counter } = craftService(
+          { name: 'Counter', scope: 'global' },
+          function* () {
+            const count = yield* state('count', 0);
+            const label = craftComputed('label', function* () {
+              yield* count.increment();
+              return yield* count();
+            });
+            return { count, label };
+          },
+        );
+      `,
+    });
+
+    expect(
+      craftComputedPureViolations(graph.graph).some(
+        (violation) => violation.kind === 'calls',
+      ),
+    ).toBe(true);
+    expect(() => assertCraftComputedPure(graph.graph)).toThrow(/increment|calls/i);
+  });
+
+  it('allows a craftComputed that only reads reactive values', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Counter } = craftService(
+          { name: 'Counter', scope: 'global' },
+          function* () {
+            const count = yield* state('count', 0);
+            const label = craftComputed('label', function* () {
+              return (yield* count()) + 1;
+            });
+            return { count, label };
+          },
+        );
+      `,
+    });
+
+    expect(craftComputedPureViolations(graph.graph)).toEqual([]);
+    expect(() => assertCraftComputedPure(graph.graph)).not.toThrow();
+  });
+
+  it('rejects a depends-on cycle between two services', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Left } = craftService(
+          { name: 'Left', scope: 'global' },
+          function* () {
+            yield* Right();
+            return {};
+          },
+        );
+
+        const { Right } = craftService(
+          { name: 'Right', scope: 'global' },
+          function* () {
+            yield* Left();
+            return {};
+          },
+        );
+      `,
+    });
+
+    const cycles = dependencyCycleViolations(graph.graph);
+    expect(cycles.length).toBeGreaterThan(0);
+    expect(cycles[0]?.labels).toEqual(expect.arrayContaining(['Left', 'Right']));
+    expect(() => assertNoDependencyCycles(graph.graph)).toThrow(
+      /cycle|Left|Right/i,
+    );
+  });
+
+  it('rejects a three-service depends-on cycle', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { A } = craftService(
+          { name: 'A', scope: 'global' },
+          function* () {
+            yield* B();
+            return {};
+          },
+        );
+        const { B } = craftService(
+          { name: 'B', scope: 'global' },
+          function* () {
+            yield* C();
+            return {};
+          },
+        );
+        const { C } = craftService(
+          { name: 'C', scope: 'global' },
+          function* () {
+            yield* A();
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(dependencyCycleViolations(graph.graph)[0]?.labels).toEqual(
+      expect.arrayContaining(['A', 'B', 'C']),
+    );
+    expect(() => assertNoDependencyCycles(graph.graph)).toThrow(/A|B|C|cycle/i);
+  });
+
+  it('rejects a depends-on cycle between two craftComputed nodes', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Counter } = craftService(
+          { name: 'Counter', scope: 'global' },
+          function* () {
+            const left = craftComputed('left', function* () {
+              return yield* right();
+            });
+            const right = craftComputed('right', function* () {
+              return yield* left();
+            });
+            return { left, right };
+          },
+        );
+      `,
+    });
+
+    expect(
+      dependencyCycleViolations(graph.graph)[0]?.labels.join(' '),
+    ).toMatch(/left|right/i);
+    expect(() => assertNoDependencyCycles(graph.graph)).toThrow(/cycle/i);
+  });
+
+  it('allows a shared kernel without a depends-on cycle', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Auth } = craftService(
+          { name: 'Auth', scope: 'global' },
+          () => ({}),
+        );
+
+        const { Left } = craftService(
+          { name: 'Left', scope: 'global' },
+          function* () {
+            yield* Auth();
+            return {};
+          },
+        );
+
+        const { Right } = craftService(
+          { name: 'Right', scope: 'global' },
+          function* () {
+            yield* Auth();
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(dependencyCycleViolations(graph.graph)).toEqual([]);
+    expect(() => assertNoDependencyCycles(graph.graph)).not.toThrow();
+    expect(() => assertDeclarativeArchitecture(graph.graph)).not.toThrow();
+  });
+});
+
+describe('assertPathBoundaries', () => {
+  const featureConstraints = [
+    {
+      source: 'src/app/features/:feature/**',
+      onlyDependOn: [
+        'src/app/features/:feature/**',
+        'src/app/shared/**',
+        'src/app/ui/**',
+      ],
+    },
+  ];
+
+  async function layeredGraph() {
+    return graphOf({
+      'src/app/shared/auth.ts': `
+        ${STUBS}
+        export const { Auth } = craftService(
+          { name: 'Auth', scope: 'global' },
+          () => ({}),
+        );
+      `,
+      'src/app/features/cart/cart.ts': `
+        ${STUBS}
+        export const { Cart } = craftService(
+          { name: 'Cart', scope: 'global' },
+          () => ({}),
+        );
+      `,
+      'src/app/features/users/users.ts': `
+        ${STUBS}
+        import { Auth } from '../../shared/auth';
+        import { Cart } from '../cart/cart';
+        export const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            yield* Auth();
+            yield* Cart();
+            return {};
+          },
+        );
+      `,
+      'src/app/ui/widget.ts': `
+        ${STUBS}
+        import { Auth } from '../shared/auth';
+        export const { Widget } = craftService(
+          { name: 'Widget', scope: 'global' },
+          function* () {
+            yield* Auth();
+            return {};
+          },
+        );
+      `,
+      'src/app/data/users-api.ts': `
+        ${STUBS}
+        export const { UsersApi } = craftService(
+          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          () => ({}),
+        );
+      `,
+      'src/app/ui/leaky.ts': `
+        ${STUBS}
+        import { UsersApi } from '../data/users-api';
+        export const { LeakyWidget } = craftService(
+          { name: 'LeakyWidget', scope: 'global' },
+          function* () {
+            yield* UsersApi();
+            return {};
+          },
+        );
+      `,
+    });
+  }
+
+  it('rejects a feature that depends on another feature', async () => {
+    const graph = await layeredGraph();
+    const violations = pathBoundaryViolations(graph.graph, {
+      constraints: featureConstraints,
+    });
+    expect(violations.some((violation) => violation.reason === 'allowlist')).toBe(
+      true,
+    );
+    expect(violations.map((violation) => violation.toLabel)).toContain('Cart');
+    expect(() =>
+      assertPathBoundaries(graph.graph, { constraints: featureConstraints }),
+    ).toThrow(/Path boundary:.*Users.*Cart/s);
+  });
+
+  it('allows a feature to depend on shared and on itself', async () => {
+    const graph = await graphOf({
+      'src/app/shared/auth.ts': `
+        ${STUBS}
+        export const { Auth } = craftService(
+          { name: 'Auth', scope: 'global' },
+          () => ({}),
+        );
+      `,
+      'src/app/features/users/profile.ts': `
+        ${STUBS}
+        export const { Profile } = craftService(
+          { name: 'Profile', scope: 'global' },
+          () => ({}),
+        );
+      `,
+      'src/app/features/users/users.ts': `
+        ${STUBS}
+        import { Auth } from '../../shared/auth';
+        import { Profile } from './profile';
+        export const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            yield* Auth();
+            yield* Profile();
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(
+      pathBoundaryViolations(graph.graph, { constraints: featureConstraints }),
+    ).toEqual([]);
+    expect(() =>
+      assertPathBoundaries(graph.graph, { constraints: featureConstraints }),
+    ).not.toThrow();
+  });
+
+  it('rejects a UI node that depends on a denylisted data path', async () => {
+    const graph = await layeredGraph();
+    const constraints = [
+      {
+        source: 'src/app/ui/**',
+        forbidTarget: ['src/app/data/**'],
+      },
+    ];
+    expect(() =>
+      assertPathBoundaries(graph.graph, { constraints }),
+    ).toThrow(/Path boundary:.*LeakyWidget.*UsersApi/s);
+  });
+
+  it('allows UI to depend on shared while still forbidding data', async () => {
+    const graph = await graphOf({
+      'src/app/shared/auth.ts': `
+        ${STUBS}
+        export const { Auth } = craftService(
+          { name: 'Auth', scope: 'global' },
+          () => ({}),
+        );
+      `,
+      'src/app/ui/widget.ts': `
+        ${STUBS}
+        import { Auth } from '../shared/auth';
+        export const { Widget } = craftService(
+          { name: 'Widget', scope: 'global' },
+          function* () {
+            yield* Auth();
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(() =>
+      assertPathBoundaries(graph.graph, {
+        constraints: [
+          {
+            source: 'src/app/ui/**',
+            onlyDependOn: ['src/app/ui/**', 'src/app/shared/**'],
+            forbidTarget: ['src/app/data/**', 'src/app/shared/legacy/**'],
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it('does not constrain nodes whose path matches no source', async () => {
+    const graph = await layeredGraph();
+    expect(() =>
+      assertPathBoundaries(graph.graph, {
+        constraints: [
+          {
+            source: 'src/app/playground/**',
+            onlyDependOn: ['src/app/playground/**'],
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects every dependency when onlyDependOn is empty', async () => {
+    const graph = await graphOf({
+      'src/app/ui/widget.ts': `
+        ${STUBS}
+        import { Auth } from '../shared/auth';
+        export const { Widget } = craftService(
+          { name: 'Widget', scope: 'global' },
+          function* () {
+            yield* Auth();
+            return {};
+          },
+        );
+      `,
+      'src/app/shared/auth.ts': `
+        ${STUBS}
+        export const { Auth } = craftService(
+          { name: 'Auth', scope: 'global' },
+          () => ({}),
+        );
+      `,
+    });
+
+    expect(() =>
+      assertPathBoundaries(graph.graph, {
+        constraints: [{ source: 'src/app/ui/**', onlyDependOn: [] }],
+      }),
+    ).toThrow(/Path boundary/);
+  });
+
+  it('ignores provides and loads by default', async () => {
+    const graph = await graphOf({
+      'src/app/features/users/users.ts': `
+        ${STUBS}
+        export const { Users, provideUsers } = craftService(
+          { name: 'Users', scope: 'toProvide' },
+          () => ({}),
+        );
+      `,
+      'src/app/app.routes.ts': `
+        ${STUBS}
+        import { provideUsers } from './features/users/users';
+        export const appRoutes = craftRoutes('appRoutes', [
+          craftRoute('/users', {
+            path: '/users',
+            providers: [provideUsers()],
+          }),
+        ]);
+      `,
+    });
+
+    expect(() =>
+      assertPathBoundaries(graph.graph, {
+        constraints: [
+          {
+            source: 'src/app/**',
+            onlyDependOn: ['src/app/app.routes.ts'],
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+});
+
+const ROUTE_STUBS = `
+${STUBS}
+declare function loadCraftComponent(...args: unknown[]): object;
+declare function assertExhaustiveRouteExceptions(routes: unknown): void;
+type CanRun<T> = T;
+type ValidateCascadeRoutesFile<A, B, C> = true;
+type RouteCheckedDI<A, B = never, C = unknown, D = string, E = never> = true;
+type RouteExceptionComponentCheckedDI<A, B = never, C = unknown, D = string> = true;
+type ComponentDepsOf<T> = T;
+`;
+
+describe('route DI proofs', () => {
+  it('rejects a component route with no CanRun proof', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    const violations = routeDiProofViolations(graph.graph);
+    expect(violations.map((violation) => violation.kind)).toContain(
+      'missing-di-proof',
+    );
+    expect(() => assertRouteDiProofs(graph.graph)).toThrow(/users/i);
+  });
+
+  it('accepts a cascade mapper armed with CanRun and an exception assert', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+        type _CanRunApp = CanRun<_CheckAppDI>;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph)).toEqual([]);
+    expect(() => assertRouteDiProofs(graph.graph)).not.toThrow();
+    const users = graph.route('users');
+    expect(
+      users
+        .incoming('checks')
+        .map((edge) => graph.graph.nodes.find((node) => node.id === edge.from)?.details?.['mechanism']),
+    ).toEqual(
+      expect.arrayContaining([
+        'ValidateCascadeRoutesFile',
+        'assertExhaustiveRouteExceptions',
+      ]),
+    );
+  });
+
+  it('rejects a cascade mapper that is not armed with CanRun', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph).map((violation) => violation.kind)).toContain(
+      'unarmed-mapper',
+    );
+    expect(() => assertRouteDiProofs(graph.graph)).toThrow(/not armed with CanRun/i);
+  });
+
+  it('follows a type alias wrapping RouteCheckedDI', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        type DemoRouteCheckedDI<
+          Component,
+          RouteInputs extends string = never,
+          Context extends string = 'demo',
+        > = RouteCheckedDI<ComponentDepsOf<Component>, never, unknown, Context, RouteInputs>;
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CanRunUsers = CanRun<
+          DemoRouteCheckedDI<
+            (typeof import('./users'))['users'],
+            never,
+            'path: "users"'
+          >
+        >;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph)).toEqual([]);
+    expect(() => assertRouteDiProofs(graph.graph)).not.toThrow();
+  });
+
+  it('does not let a parent collection cover a loadChildren child', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'admin',
+            loadChildren: () => import('./admin.routes').then((module) => module.adminRoutes),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+        type _CanRunApp = CanRun<_CheckAppDI>;
+      `,
+      'admin.routes.ts': `
+        ${ROUTE_STUBS}
+        export const { adminRoutes } = craftRoutes('admin', [
+          {
+            path: 'users',
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    const violations = routeDiProofViolations(graph.graph);
+    expect(violations.map((violation) => violation.kind)).toEqual(
+      expect.arrayContaining(['missing-di-proof', 'missing-exception-assert']),
+    );
+    expect(violations.some((violation) => violation.label === 'users')).toBe(true);
+  });
+
+  it('accepts a lazy child collection that carries its own proofs', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'admin',
+            loadChildren: () => import('./admin.routes').then((module) => module.adminRoutes),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+        type _CanRunApp = CanRun<_CheckAppDI>;
+      `,
+      'admin.routes.ts': `
+        ${ROUTE_STUBS}
+        export const { adminRoutes } = craftRoutes('admin', [
+          {
+            path: 'users',
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(adminRoutes);
+        type _CheckAdminDI = ValidateCascadeRoutesFile<never, unknown, typeof adminRoutes>;
+        type _CanRunAdmin = CanRun<_CheckAdminDI>;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph)).toEqual([]);
+    expect(() => assertRouteDiProofs(graph.graph)).not.toThrow();
+  });
+
+  it('requires a pending-component RouteCheckedDI in addition to the target proof', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            pendingComponent: () => import('./skeleton'),
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+        type _CanRunApp = CanRun<_CheckAppDI>;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+      'skeleton.ts': `
+        ${STUBS}
+        export const skeleton = craftComponent('Skeleton', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(
+      routeDiProofViolations(graph.graph).map((violation) => violation.kind),
+    ).toContain('missing-pending-proof');
+  });
+
+  it('accepts an armed pending-component RouteCheckedDI', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            pendingComponent: () => import('./skeleton'),
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+        type _CanRunApp = CanRun<_CheckAppDI>;
+        type _CheckPendingDI = RouteCheckedDI<
+          ComponentDepsOf<(typeof import('./skeleton'))['skeleton']>,
+          never,
+          unknown,
+          'pending component: users'
+        >;
+        type _CanRunPending = CanRun<_CheckPendingDI>;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+      'skeleton.ts': `
+        ${STUBS}
+        export const skeleton = craftComponent('Skeleton', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph)).toEqual([]);
+    expect(() => assertRouteDiProofs(graph.graph)).not.toThrow();
+  });
+
+  it('requires an error-component proof when the route declares errorComponent', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${ROUTE_STUBS}
+        export const { appRoutes } = craftRoutes('app', [
+          {
+            path: 'users',
+            errorComponent: () => import('./error-screen'),
+            ...loadCraftComponent(() => import('./users')),
+          },
+        ]);
+        assertExhaustiveRouteExceptions(appRoutes);
+        type _CheckAppDI = ValidateCascadeRoutesFile<never, unknown, typeof appRoutes>;
+        type _CanRunApp = CanRun<_CheckAppDI>;
+      `,
+      'users.ts': `
+        ${STUBS}
+        export const users = craftComponent('Users', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+      'error-screen.ts': `
+        ${STUBS}
+        export const errorScreen = craftComponent('ErrorScreen', {}, function* () {
+          return {};
+        }, () => div());
+      `,
+    });
+
+    expect(
+      routeDiProofViolations(graph.graph).map((violation) => violation.kind),
+    ).toContain('missing-error-proof');
+  });
+});
+
+const APP_CONFIG_STUBS = `
+${ROUTE_STUBS}
+declare function craftAppConfig(config: unknown): unknown;
+declare function provideCraftGlobalErrorComponent(component: unknown): unknown;
+declare function provideCraftRouteLoadErrorComponent(component: unknown): unknown;
+declare function provideCraftRouter(...args: unknown[]): unknown;
+declare function withErrorComponent(config: unknown): unknown;
+declare function withRouteLoadError(config: unknown): unknown;
+`;
+
+describe('app config DI proofs', () => {
+  it('rejects a global error screen registered without an armed CanRun', async () => {
+    const graph = await graphOf({
+      'app.config.ts': `
+        ${APP_CONFIG_STUBS}
+        export const ErrorScreen = craftComponent('ErrorScreen', {}, function* () {
+          return {};
+        }, () => div());
+        export const appConfig = craftAppConfig({
+          providers: [provideCraftGlobalErrorComponent(ErrorScreen)],
+        });
+      `,
+    });
+
+    expect(
+      routeDiProofViolations(graph.graph).map((violation) => violation.kind),
+    ).toContain('missing-global-error-proof');
+    expect(() => assertRouteDiProofs(graph.graph)).toThrow(/global error/i);
+  });
+
+  it('rejects a route-load error screen registered without an armed CanRun', async () => {
+    const graph = await graphOf({
+      'app.config.ts': `
+        ${APP_CONFIG_STUBS}
+        export const LoadErrorScreen = craftComponent('LoadErrorScreen', {}, function* () {
+          return {};
+        }, () => div());
+        export const appConfig = craftAppConfig({
+          providers: [provideCraftRouteLoadErrorComponent(LoadErrorScreen)],
+        });
+      `,
+    });
+
+    expect(
+      routeDiProofViolations(graph.graph).map((violation) => violation.kind),
+    ).toContain('missing-route-load-error-proof');
+    expect(() => assertRouteDiProofs(graph.graph)).toThrow(/route-load error/i);
+  });
+
+  it('accepts armed RouteExceptionComponentCheckedDI proofs next to craftAppConfig', async () => {
+    const graph = await graphOf({
+      'app.config.ts': `
+        ${APP_CONFIG_STUBS}
+        export const ErrorScreen = craftComponent('ErrorScreen', {}, function* () {
+          return {};
+        }, () => div());
+        export const LoadErrorScreen = craftComponent('LoadErrorScreen', {}, function* () {
+          return {};
+        }, () => div());
+        export const appConfig = craftAppConfig({
+          providers: [
+            provideCraftGlobalErrorComponent(ErrorScreen),
+            provideCraftRouteLoadErrorComponent(LoadErrorScreen),
+          ],
+        });
+        type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
+          ComponentDepsOf<typeof ErrorScreen>,
+          never,
+          never,
+          'global error component'
+        >;
+        type _CanRunGlobalError = CanRun<_CheckGlobalErrorDI>;
+        type _CheckGlobalRouteLoadErrorDI = RouteExceptionComponentCheckedDI<
+          ComponentDepsOf<typeof LoadErrorScreen>,
+          never,
+          never,
+          'global route load error component'
+        >;
+        type _CanRunGlobalRouteLoadError = CanRun<_CheckGlobalRouteLoadErrorDI>;
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph)).toEqual([]);
+    expect(() => assertRouteDiProofs(graph.graph)).not.toThrow();
+  });
+
+  it('does not require error proofs when craftAppConfig registers none', async () => {
+    const graph = await graphOf({
+      'app.config.ts': `
+        ${APP_CONFIG_STUBS}
+        export const appConfig = craftAppConfig({
+          providers: [provideCraftRouter([])],
+        });
+      `,
+    });
+
+    expect(routeDiProofViolations(graph.graph)).toEqual([]);
+  });
+});
+

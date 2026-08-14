@@ -1,4 +1,5 @@
 import { ResourceRef } from '@angular/core';
+import type { CraftUnique } from './craft-unique';
 import { StoragePersister } from './storage-persister.service';
 import {
   InsertionByIdParams,
@@ -17,9 +18,27 @@ type StoragePersisterServiceYield = ReturnType<
   ? Yielded
   : never;
 
+export type StoragePersisterIdentity = {
+  storeName: string;
+  key: string;
+};
+
+export type StoragePersisterOptions<
+  ResourceState extends object | undefined = object | undefined,
+  CacheTime = 300000,
+> = {
+  waitForParamsSrcToBeEqualToPreviousValue?: boolean;
+  cacheTime?: CacheTime;
+  staleTime?: number;
+  validate?: (value: unknown) => value is ResourceState;
+};
+
 /**
  * Persists query, mutation, async-process, or state data through the
  * StoragePersister selected by the current Angular/Craft injector.
+ *
+ * The identity (`key` + `storeName`) must be wrapped with `craftUnique` so the
+ * static graph can guarantee it appears only once in the project.
  */
 export function insertStoragePersister<
   GroupIdentifier extends string,
@@ -29,14 +48,10 @@ export function insertStoragePersister<
   StateType,
   QueryExceptions extends ResourceExceptionConstraints,
   const CacheTime = 300000,
->(config: {
-  storeName: string;
-  key: string;
-  waitForParamsSrcToBeEqualToPreviousValue?: boolean;
-  cacheTime?: CacheTime;
-  staleTime?: number;
-  validate?: (value: unknown) => value is ResourceState;
-}): (
+>(
+  identity: CraftUnique<StoragePersisterIdentity>,
+  options?: StoragePersisterOptions<ResourceState, CacheTime>,
+): (
   context: unknown,
 ) => Generator<
   StoragePersisterServiceYield,
@@ -97,30 +112,30 @@ export function insertStoragePersister<
 
     if (isUsingIdentifier) {
       persister.addQueryByIdToPersist({
-        key: config.key,
-        storeName: config.storeName,
-        cacheTime: (config.cacheTime as number | undefined) ?? 300000,
+        key: identity.key,
+        storeName: identity.storeName,
+        cacheTime: (options?.cacheTime as number | undefined) ?? 300000,
         queryByIdResource: resourceTarget as unknown as ResourceByIdRef<
           string,
           unknown,
           unknown
         >,
         queryResourceParamsSrc: resourceParamsSrc as any,
-        staleTime: config.staleTime,
-        validate: config.validate,
+        staleTime: options?.staleTime,
+        validate: options?.validate,
       });
     } else {
       persister.addQueryToPersist({
-        key: config.key,
-        storeName: config.storeName,
-        cacheTime: (config.cacheTime as number | undefined) ?? 300000,
+        key: identity.key,
+        storeName: identity.storeName,
+        cacheTime: (options?.cacheTime as number | undefined) ?? 300000,
         queryResource: resourceTarget as unknown as ResourceRef<unknown>,
         queryResourceParamsSrc: resourceParamsSrc as any,
         waitForParamsSrcToBeEqualToPreviousValue: hasState
           ? false
-          : (config.waitForParamsSrcToBeEqualToPreviousValue ?? true),
-        staleTime: config.staleTime,
-        validate: config.validate,
+          : (options?.waitForParamsSrcToBeEqualToPreviousValue ?? true),
+        staleTime: options?.staleTime,
+        validate: options?.validate,
       });
     }
 

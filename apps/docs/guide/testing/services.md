@@ -55,6 +55,7 @@ The intended workflow is:
 ```typescript
 import {
   craftService,
+  craftUse,
   setupCraftServiceTestingByRegister,
   state,
 } from '@craft-ng/core';
@@ -76,8 +77,12 @@ const { CounterConsumer, provideCounterConsumer } = craftService(
     const counter = yield* Counter();
 
     return {
-      read: () => counter(),
-      increment: () => counter.increment(),
+      read: function* () {
+        return yield* counter();
+      },
+      increment: function* () {
+        return yield* counter.increment();
+      },
     };
   },
 );
@@ -93,8 +98,8 @@ const { sut, mocks } = await setupCraftServiceTestingByRegister(
   },
 );
 
-expect(sut.read()).toBe(41);
-sut.increment();
+expect(craftUse(sut.read())).toBe(41);
+craftUse(sut.increment());
 expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
 ```
 
@@ -256,3 +261,4 @@ const { sut } = await setupCraftServiceTestingByRegister(Navigation, register, {
 ## See Also
 
 - [craftService](/guide/app/craft-service)
+- [Architecture rules](/guide/testing/architecture) — constraints on the whole app graph

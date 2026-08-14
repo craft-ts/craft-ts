@@ -18,6 +18,7 @@ compose in the same pipe:
 
 ```typescript
 import {
+  craftUnique,
   insertStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -36,7 +37,10 @@ const users = yield* query(
     },
   },
   insertQueryPipe(
-    insertStoragePersister({ storeName: 'app', key: 'users' }),
+    insertStoragePersister(craftUnique({
+      storeName: 'app',
+      key: 'users',
+    })),
     insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
@@ -78,7 +82,9 @@ const counter = yield* state(
       reset: () => set(0),
     }),
     ({ state }) => ({
-      isOdd: computed(() => state() % 2 === 1),
+      isOdd: craftComputed(function* () {
+        return (yield* state()) % 2 === 1;
+      }),
     }),
   ),
 );
@@ -88,7 +94,9 @@ Extract it to a named function the moment two primitives want the same
 behaviour — that is the whole extension mechanism.
 
 A member can also be a `function*`, in which case it can `yield*` services and
-those dependencies fold into the enclosing graph.
+those dependencies fold into the enclosing graph. A `craftComputed` or generator
+method must yield every reader it does not own — including this primitive's
+`state()` / `update()` / sibling methods on `insertions`.
 
 ## What piping guarantees
 
@@ -113,14 +121,19 @@ const board = yield* state(
   'board',
   { ui: { activeColor: 'black' }, grid: createInitialGrid() },
   insertStatePipe(
-    insertStoragePersister({ storeName: 'app', key: 'board' }),
+    insertStoragePersister(craftUnique({
+      storeName: 'app',
+      key: 'board',
+    })),
     () => ({ resetAll$: source$<void>('resetAll$') }),
     insertSelect('grid', (gridContext) =>
       craftPipe(
         gridContext,
         ({ state, update }) => ({
           addRow: () => update((grid) => [...grid, createNextRow(grid)]),
-          rowIndexes: computed(() => state().map((_row, index) => index)),
+          rowIndexes: craftComputed(function* () {
+            return (yield* state()).map((_row, index) => index);
+          }),
         }),
         insertSelect('row', ({ update }) => ({
           /* … */
@@ -152,5 +165,7 @@ inference is never degraded.
 ## See Also
 
 - [Anatomy of a primitive](/guide/concepts/primitive-anatomy)
+- [Injectable runtime context](/guide/concepts/primitive-anatomy#injectable-runtime-context) —
+  recovering `set` / `update` / `patch` from DI, including for WebMCP
 - [Selecting](/guide/state/select) — `insertSelect` and nested insertions
 - [Reacting to mutations](/guide/state/react-on-mutation)

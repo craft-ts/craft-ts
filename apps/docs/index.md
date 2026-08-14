@@ -48,8 +48,9 @@ features:
     details: 'Markup is typed hyperscript: each, ifBlock, matchBlock and defer instead of @for, @if, @switch and @defer. No template compiler, no parse errors — your editor refactors a template exactly like it refactors code.'
   - title: Built for observability
     details: 'Declarative code is instrumentable code: one provider adds structured logs, correlation ids, per-service timing or a snapshot of the live dependency graph — across the whole app, without touching a single call site. Fast to debug, easy to trace and monitor.'
-  - title: 'Work in progress: Architecture as a graph'
-    details: 'I’m building a living map of the codebase where architecture becomes enforceable: keep this file from importing that one, keep file kinds in their lanes, or allow an endpoint to be called only once. See the shape of the system — then teach it its boundaries.'
+  - title: Architecture as a graph
+    details: 'The static Craft graph makes architecture enforceable: keep this feature from depending on that one, keep file kinds in their lanes, or allow an endpoint to be called only once. Ordinary Vitest assertions — see the shape of the system, then teach it its boundaries.'
+    link: /guide/testing/architecture
 ---
 
 ## Packages

@@ -3,6 +3,9 @@ import baseConfig from '../../eslint.config.mjs';
 export default [
   ...baseConfig,
   {
+    ignores: ['tests/architecture/fixtures/**'],
+  },
+  {
     files: ['**/*.json'],
     rules: {
       '@nx/dependency-checks': [

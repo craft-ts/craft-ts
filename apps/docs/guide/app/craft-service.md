@@ -89,7 +89,7 @@ const { CounterConsumer } = craftService(
   { name: 'CounterConsumer', scope: 'global' },
   function* () {
     const counter = yield* Counter();
-    counter.increment();
+    yield* counter.increment();
     return counter;
   },
 );
@@ -198,8 +198,12 @@ const { CounterFacade } = craftService(
     const counter = yield* Counter();
 
     return {
-      read: () => counter(),
-      increment: () => counter.increment(),
+      read: function* () {
+        return yield* counter();
+      },
+      increment: function* () {
+        return yield* counter.increment();
+      },
     };
   },
 );
@@ -267,6 +271,9 @@ whole app, whether or not that was intended. Start at `function` — see
 **`toProvide` without the provider.** Angular does not report a missing provider
 at compile time; the failure appears at runtime. The
 [route DI check](/guide/routing/setup) is what closes that hole.
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) keep that
+check from quietly disappearing — a `CanRun` alias that nobody references still
+compiles.
 
 **Returning the whole world.** What a service returns is its API. Return the
 narrow thing; consumers that need more can yield more.

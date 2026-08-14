@@ -44,8 +44,8 @@ graph.
 
 You don't manage that channel yourself. In practice the whole rule is:
 
-> Inside a `function*` craft factory, drive **everything** with `yield*` —
-> services and primitives alike.
+> Every named entity yields what it does not own. A factory, a computed, a
+> method — each one records **its** dependencies with `yield*`.
 
 ```typescript
 const api = yield* TaskApi(); // a service
@@ -75,7 +75,9 @@ const { TaskList } = craftService(
     const api = yield* TaskApi();
     const tasks = yield* state('tasks', [] as Task[], ({ set }) => ({
       // For this demo only; we'll later see why this belongs in a mutation instead.
-      load: async () => set(await api.fetchAll()),
+      load: function* () {
+        return yield* set(yield* api.fetchAll());
+      },
     }));
     return tasks;
   },
@@ -85,13 +87,20 @@ const { TaskStats } = craftService(
   { name: 'TaskStats', scope: 'function' },
   function* () {
     const tasks = yield* TaskList();
-    return { done: computed(() => tasks().filter((t) => t.done).length) };
+    return {
+      done: craftComputed('done', function* () {
+        return (yield* tasks()).filter((t) => t.done).length;
+      }),
+    };
   },
 );
 ```
 
 Note the factory of `TaskApi` is a plain arrow — a service with no dependencies
 doesn't need to be a generator.
+
+`TaskStats` does not own `TaskList`. The computed yields `tasks` so **that**
+read is recorded on `done`, not silently closed over from the factory.
 
 ::: warning Don't call `fetch` directly in real code
 It is used here only to keep the example about composition. HTTP goes through

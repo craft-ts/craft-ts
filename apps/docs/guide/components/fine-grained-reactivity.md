@@ -8,13 +8,13 @@ read it. It does not need to execute the surrounding component template again.
 ({ counter }) =>
   div([
     h2('Counter'),
-    p({ class: 'value' }, () => counter()),
+    p({ class: 'value' }, counter),
     button({ click: counter.increment }, '+'),
   ]);
 ```
 
-Here, `counter()` is read by the callback passed to `p`. That callback owns a
-small reactive effect. Incrementing the counter evaluates that effect and
+Here, `counter` is passed to `p` as a yieldable reader. The renderer drives the
+read for that text binding. Incrementing the counter evaluates that binding and
 patches its text node; the `div`, heading, button, and component template remain
 untouched.
 
@@ -25,27 +25,27 @@ values already derived by the primitive layer; comparisons, formatting, and UI
 decisions stay out of the template:
 
 ```ts
-p(() => items.totalLabel());
+p(items.totalLabel);
 
 button(
   {
-    disabled: () => items.isEmpty(),
-    title: () => items.clearTitle(),
+    disabled: items.isEmpty,
+    title: items.clearTitle,
   },
   'Clear',
 );
 
 div({
-  class: () => items.emptyClass(),
-  style: () => items.emptyStyle(),
+  class: items.emptyClass,
+  style: items.emptyStyle,
 });
 ```
 
 `totalLabel`, `isEmpty`, `clearTitle`, `emptyClass`, and `emptyStyle` are named
 derived values exposed by the state, query, insertion, or component context.
-Each callback tracks its own dependencies. If only an item-related dependency
-changes, Craft evaluates only the affected callbacks. A sibling binding
-depending on another signal does not run.
+Pass the reader. If only an item-related dependency changes, Craft evaluates
+only the affected bindings. A sibling binding depending on another reader does
+not run.
 
 Static values do not need callbacks:
 
@@ -70,9 +70,9 @@ div({ class: items.emptyClass() });
 Move each read into the binding that consumes it:
 
 ```ts
-p(() => items.totalLabel());
-button({ disabled: () => items.isEmpty() }, 'Clear');
-div({ class: () => items.emptyClass() });
+p(items.totalLabel);
+button({ disabled: items.isEmpty }, 'Clear');
+div({ class: items.emptyClass });
 ```
 
 This is also the rule for component inputs. Pass a yieldable reader directly
@@ -133,13 +133,13 @@ A binding reads a value already derived by the primitive layer. It does not
 format data, make business decisions, or write state:
 
 ```ts
-// Correct: the primitive exposes the render-ready value.
-p(() => cart.formattedTotal());
+// Correct: the primitive exposes the render-ready reader.
+p(cart.formattedTotal);
 
 // Incorrect: rendering changes application state.
-p(() => {
-  counter.update((value) => value + 1);
-  return counter();
+p(function* () {
+  yield* counter.update((value) => value + 1);
+  return yield* counter();
 });
 ```
 
@@ -195,10 +195,12 @@ the DOM they served.
 ## Migration checklist
 
 1. Move comparisons, formatting, and display decisions into named derived
-   primitive values such as `items.isEmpty()`.
-2. Wrap reactive text in `() => value()`.
-3. Wrap reactive DOM properties such as `value`, `disabled`, and `title`.
-4. Return complete reactive class and style values from callbacks.
+   primitive values such as `items.isEmpty`.
+2. Pass yieldable readers to text bindings (`p(counter)`), or use a generator
+   when the binding must format: `p(function* () { return \`Count: ${yield* counter()}\`; })`.
+3. Pass yieldable readers to DOM properties such as `value`, `disabled`, and
+   `title`.
+4. Return complete reactive class and style readers from the primitive.
 5. Pass changing component inputs as yieldable readers.
 6. Express structural changes with `ifBlock`, `each`,
    `matchBlock.exhaustive`, or `defer`.

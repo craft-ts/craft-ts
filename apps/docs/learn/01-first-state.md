@@ -20,7 +20,7 @@ A Craft component is a **function**, not a class. It takes a name, meta, a logic
 factory, and a template:
 
 ```typescript
-import { craftComponent, div, h1, li, ul } from '@craft-ng/component';
+import { craftComponent, div, each, h1, li, ul } from '@craft-ng/component';
 import { state } from '@craft-ng/core';
 
 type Task = { id: string; title: string; done: boolean };
@@ -29,13 +29,16 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const tasks = yield* state('tasks', [
+    const tasks = yield* state('tasks', [ // read yield* as "I need"
       { id: '1', title: 'Read step 1', done: false },
     ] as Task[]);
 
     return { tasks };
   },
-  ({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))],
+  ({ tasks }) => [
+    h1('Tasks'),
+    ul(each(tasks, { track: (task) => task.id }, (task) => li(task.title))),
+  ],
 );
 ```
 
@@ -65,31 +68,36 @@ import {
   div,
   span,
 } from '@craft-ng/component';
+import { deepYieldable } from '@craft-ng/core';
 
 const UserCard = craftComponent(
   'UserCard',
   {},
   (user: Input<User>, onRemove: Output<(user: User) => void>) => ({
-    user,
+    user: deepYieldable(user),
     onRemove,
   }),
   ({ user, onRemove }) =>
     div([
-      span(user().name),
-      button({ click: () => onRemove(user()) }, 'Remove'),
+      span(user.name),
+      button({
+        *click() {
+          yield* onRemove(yield* user());
+        },
+      }, 'Remove'),
     ]),
 );
 ```
 
-An `Input<T>` **is callable** — `user()` reads the current value — so there is
-no `input()` signal to unwrap and no `@Input()` decorator. An `Output<H>` is the
-handler itself; calling it is emitting.
+An `Input<T>` **is a yieldable reader** — `yield* user()` reads the current
+value. Project nested fields with `deepYieldable` so `user.name` stays a
+reader. An `Output<H>` is a yieldable callback; delegate to it with `yield*`.
 
-At the call site you pass an object, with inputs as getters:
+At the call site you pass the reader itself, not a getter:
 
 ```typescript
 UserCard({
-  user: () => currentUser,
+  user: currentUser,
   onRemove: removeUser,
 });
 ```
@@ -98,7 +106,7 @@ UserCard({
 | ------------------------------------------- | ------------------------------------------- |
 | `@Input()` / `input()` / `input.required()` | a `Input<T>` factory parameter              |
 | `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: () => u, onRemove: fn })` |
+| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: u, onRemove: fn })` |
 | Missing required input → runtime            | missing parameter → **compile error**       |
 
 Because it's a function call, there is no template-binding layer between caller
@@ -163,13 +171,15 @@ and is what identifies this piece of state in logs, snapshots and observability.
 const tasks = yield * state('tasks', []);
 ```
 
-`tasks` is a signal: call it to read, `tasks()`.
+`tasks` is a yieldable reader: `yield* tasks()` in a generator, `craftUse(tasks())`
+at a synchronous boundary, or pass `tasks` directly to a template binding.
 
 ## What is `yield*` doing there?
 
-The factory is a generator, and `yield*` is how it drives everything it needs —
-primitives and services alike. It also **records the dependency in the type**,
-which is what makes the compile-time DI checks possible later.
+The factory is a generator, and `yield*` is how **this** factory drives
+everything it does not own — primitives and services alike. The same rule
+applies later to every computed and method: each entity yields its own
+dependencies so they show up on **its** graph.
 
 For now, treat it as "the way to use a primitive inside a factory".
 [Step 4](/learn/04-compose) explains what it buys you.
@@ -189,28 +199,25 @@ without a helper:
 ```typescript
 ({ tasks }) => [
   h1('Tasks'),
-  ul(() =>
-    tasks()
-      .map((task) => task.title)
-      .join(', '),
+  ul(
+    each(tasks, { track: (task) => task.id }, (task) => li(task.title)),
   ),
 ];
 ```
 
-Passing a callback keeps the signal read attached to that text binding, so an
-update patches only its DOM text node. Reads performed before a VNode is
-created are still reactive for compatibility, but rerun the surrounding
-structural template. Use `each(...)` when the collection controls a node per
-item. No `*ngFor`, no change detection to think about.
+Pass the reader (`tasks`) to the binding that consumes it. The renderer drives
+the read; wrapping `() => tasks()` is a synchronous call the yield rules reject.
+Use `each(...)` when the collection controls a node per item. No `*ngFor`, no
+change detection to think about.
 
 ## Writing to it
 
 Right now the state is read-only from the outside. Give it a writer:
 
 ```typescript
-const { tasks } = yield * state('tasks', [] as Task[], ({ set }) => ({ set }));
+const tasks = yield* state('tasks', [] as Task[], ({ set }) => ({ set }));
 
-tasks.set([{ id: '1', title: 'Write step 2', done: false }]);
+yield* tasks.set([{ id: '1', title: 'Write step 2', done: false }]);
 ```
 
 That third argument is an **insertion** — the mechanism you'll use in every step

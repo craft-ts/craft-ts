@@ -153,7 +153,9 @@ const input$ = fromEventToSource$(inputElement, 'input', {
 });
 
 // Use in template or computed
-const trimmedValue = computed(() => input$.value()?.trim() ?? '');
+const trimmedValue = craftComputed('trimmedValue', function* () {
+  return (yield* input$.value())?.trim() ?? '';
+});
 ```
 
 ### Event Transformation
@@ -207,7 +209,10 @@ export const Clicker = craftComponent(
 
     return { clicks };
   },
-  ({ clicks }) => p(() => `Clicks: ${clicks()}`),
+  ({ clicks }) =>
+    p(function* () {
+      return `Clicks: ${yield* clicks()}`;
+    }),
 );
 ```
 
@@ -227,7 +232,9 @@ export const Search = craftComponent(
   },
   ({ searchTerm }) => [
     input({ type: 'text', placeholder: 'Search…' }),
-    p(() => `You typed: ${searchTerm() || 'nothing yet'}`),
+    p(function* () {
+      return `You typed: ${(yield* searchTerm()) || 'nothing yet'}`;
+    }),
   ],
 );
 ```
@@ -260,7 +267,11 @@ export const InfiniteScroll = craftComponent(
     return { scrollPosition: scroll$.value };
   },
   ({ scrollPosition }) =>
-    div(p(() => `Scroll position: ${scrollPosition()?.scrollY}`)),
+    div(
+      p(function* () {
+        return `Scroll position: ${(yield* scrollPosition())?.scrollY}`;
+      }),
+    ),
 );
 ```
 
@@ -282,14 +293,19 @@ export const Responsive = craftComponent(
 
     return {
       dimensions,
-      isMobile: computed(() => {
-        const dims = dimensions();
+      isMobile: craftComputed('isMobile', function* () {
+        const dims = yield* dimensions();
         return dims ? dims.width < 768 : false;
       }),
     };
   },
   ({ dimensions }) =>
-    div(p(() => `Viewport: ${dimensions()?.width} x ${dimensions()?.height}`)),
+    div(
+      p(function* () {
+        const dims = yield* dimensions();
+        return `Viewport: ${dims?.width} x ${dims?.height}`;
+      }),
+    ),
 );
 ```
 
@@ -389,7 +405,12 @@ export const CursorTracker = craftComponent(
     return { position: mouseMove$.value };
   },
   ({ position }) =>
-    div(p(() => `Mouse position: ${position()?.x}, ${position()?.y}`)),
+    div(
+      p(function* () {
+        const pos = yield* position();
+        return `Mouse position: ${pos?.x}, ${pos?.y}`;
+      }),
+    ),
 );
 ```
 
@@ -423,7 +444,9 @@ export const SubmitDemo = craftComponent(
     form([
       input({ type: 'text', name: 'username' }),
       button({ type: 'submit' }, 'Submit'),
-      p(() => JSON.stringify(formData())),
+      p(function* () {
+        return JSON.stringify(yield* formData());
+      }),
     ]),
 );
 ```

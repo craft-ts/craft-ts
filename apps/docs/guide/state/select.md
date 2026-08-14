@@ -130,7 +130,10 @@ state(
 
 ```ts
 state('cells', initialCells, insertStatePipe(
-    insertStoragePersister({ storeName: 'app', key: 'cells' }),
+    insertStoragePersister(craftUnique({
+      storeName: 'app',
+      key: 'cells',
+    })),
     insertSelect('cell', ({ update }) => ({
       paint: () => update((cell) => ({ ...cell, painted: true })),
     })),

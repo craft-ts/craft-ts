@@ -135,7 +135,9 @@ const Counter = craftComponent(
   {},
   function* () {
     const counter = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: computed(() => state() === 0),
+      disabled: craftComputed(function* () {
+        return (yield* state()) === 0;
+      }),
       increment: () => update((value) => value + 1),
     }));
 
@@ -146,7 +148,7 @@ const Counter = craftComponent(
       { class: 'counter' },
       button(
         {
-          disabled: () => counter.disabled(),
+          disabled: counter.disabled,
           *click(_event: MouseEvent) {
             yield* counter.increment();
           },
@@ -198,7 +200,7 @@ member makes the corresponding assertion fail. The `TemplateHasElementWithProps`
 check also catches an unexpected extra, missing, or differently typed prop.
 
 Primitive properties follow the same contract as events. For derived state, use
-`computed` in the `state` insertion:
+`craftComputed` in the `state` insertion:
 
 ```ts
 const Counter = craftComponent(
@@ -206,7 +208,9 @@ const Counter = craftComponent(
   {},
   function* () {
     const counter = yield* state('counter', 0, ({ state }) => ({
-      disabled: computed(() => state() % 2 === 0),
+      disabled: craftComputed(function* () {
+        return (yield* state()) % 2 === 0;
+      }),
     }));
 
     return { counter };
@@ -214,7 +218,7 @@ const Counter = craftComponent(
   (context) =>
     button(
       {
-        disabled: () => context.counter.disabled(),
+        disabled: context.counter.disabled,
       },
       '+',
     ),
@@ -303,10 +307,7 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const isAuth = yield* state(
-      'isAuth',
-      computed(() => true),
-    );
+    const isAuth = yield* state('isAuth', true);
     const brandedStatus = yield* state('brandedStatus', 'ready');
     return { isAuth, brandedStatus };
   },
@@ -436,7 +437,9 @@ const ItemList = craftComponent(
       'items',
       [{ key: 'first' }, { key: 'second' }],
       insertSelect('item', ({ state: selectedItem }) => ({
-        translatedLabel: computed(() => `translated:${selectedItem().key}`),
+        translatedLabel: craftComputed(function* () {
+          return `translated:${(yield* selectedItem()).key}`;
+        }),
       })),
     );
     return { items };
@@ -583,7 +586,7 @@ the context marker remains visible to the template contract:
 
 ```ts
 button('RemoveTodoButton', {
-  disabled: () => store.remove.isLoading(),
+  disabled: store.remove.isLoading,
 });
 ```
 
@@ -655,4 +658,5 @@ type Assert<T extends true> = Expect<T>;
 
 - [Testing components](/guide/testing/components) — the runtime half
 - [Testing services](/guide/testing/services)
+- [Architecture rules](/guide/testing/architecture) — constraints on the whole app graph
 - [Learn: test what you wrote](/learn/10-testing)

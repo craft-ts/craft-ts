@@ -40,6 +40,9 @@ export default [
       'craft-ng/no-craft-computed-side-effects': 'error',
       'craft-ng/require-craft-method-for-yieldable-callback': 'error',
       'craft-ng/prefer-direct-yieldable-callback': 'error',
+      'craft-ng/require-yieldable-reactive-read': 'error',
+      'craft-ng/require-yieldable-template-method': 'error',
+      'craft-ng/require-yieldable-insertion-write': 'error',
       'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -73,7 +76,7 @@ What each rule does:
 - `craft-ng/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ng/require-reactive-template-bindings`: requires Angular Signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ng/no-craft-use-in-template`: forbids the synchronous `craftUse(...)` escape hatch in Craft templates; pass the reactive reader directly, such as `status: usersQuery.currentPageStatus`
-- `craft-ng/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed
+- `craft-ng/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ng/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
@@ -86,6 +89,9 @@ What each rule does:
 - `craft-ng/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ng/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
 - `craft-ng/prefer-direct-yieldable-callback`: replaces a template generator that only returns `yield* callback()` with the callback reference itself
+- `craft-ng/require-yieldable-reactive-read`: requires Craft reactive readers to be delegated with `yield*` inside generator functions; a function that reads a Craft reader must itself be a generator (`craftUse` remains the synchronous boundary)
+- `craft-ng/require-yieldable-template-method`: requires yieldable Craft method calls in a `craftComponent` template to be delegated with `yield*`, or passed as a reference (`click: counter.increment`)
+- `craft-ng/require-yieldable-insertion-write`: requires `set(...)`, `patch(...)`, and `update(...)` to be delegated with `yield*` when they are used inside a generator method
 - `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
 - `craft-ng/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
 - `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
@@ -138,12 +144,16 @@ button({ disabled: isDisabled() }, 'Save');
 div({ class: { active: isActive() } });
 ```
 
-Keep each read inside the callback owned by its DOM binding:
+Keep each read inside the callback owned by its DOM binding. Pass a yieldable
+reader, or use a generator when the binding must format:
 
 ```ts
-p(() => `Count: ${count()}`);
-button({ disabled: () => isDisabled() }, 'Save');
-div({ class: () => ({ active: isActive() }) });
+p(count);
+p(function* () {
+  return `Count: ${yield* count()}`;
+});
+button({ disabled: isDisabled }, 'Save');
+div({ class: isActiveClass });
 ```
 
 Literal and otherwise static values are still allowed, as are reads performed
@@ -189,9 +199,13 @@ On an existing codebase, enable them in waves rather than all at once:
 
 1. **The generators first** — `brand-angular-gen-deps-required` and
    `brand-angular-deps-match`. They only add code.
-2. **The route safety nets** — the `require-*` rules. Mostly autofixable.
+2. **The route safety nets** — the `require-*` rules. Mostly autofixable. They
+   generate the proofs; [architecture tests](/guide/testing/architecture#assertroutediproofs)
+   (`assertRouteDiProofs`) fail CI if a proof is later removed or left unarmed.
 3. **The architecture rules last** — `no-angular-inject`, `prefer-craft-service`,
-   `prefer-craft-http-client`. These ask for real refactors.
+   `prefer-craft-http-client`, `require-yieldable-reactive-read`,
+   `require-yieldable-template-method`, `require-yieldable-insertion-write`.
+   These ask for real refactors.
 
 The two migration rules also expose a VS Code quick fix that inserts a temporary
 local disable comment with the intended migration note, so you can unblock a
@@ -202,3 +216,4 @@ file before doing the full refactor.
 - [Routing setup](/guide/routing/setup) — where these rules are installed
 - [CLI automation](/guide/routing/automation) — the codemods they complement
 - [Angular brand config](/guide/routing/angular-brand-config)
+- [Architecture rules](/guide/testing/architecture) — graph-wide constraints ESLint cannot see

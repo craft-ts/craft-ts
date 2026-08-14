@@ -226,8 +226,7 @@ To verify that a DOM property is connected to the correct context member, add a
 contract assertion next to the template test:
 
 ```ts
-import { computed } from '@angular/core';
-import { state } from '@craft-ng/core';
+import { craftComputed, craftUse, state } from '@craft-ng/core';
 import { craftComponent, button } from '@craft-ng/component';
 import type {
   ComponentTemplateOf,
@@ -240,7 +239,9 @@ const Counter = craftComponent(
   {},
   function* () {
     const counter = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: computed(() => state() % 2 === 0),
+      disabled: craftComputed(function* () {
+        return (yield* state()) % 2 === 0;
+      }),
       increment: () => update((value) => value + 1),
     }));
 
@@ -249,7 +250,7 @@ const Counter = craftComponent(
   ({ counter }) =>
     button(
       {
-        disabled: () => counter.disabled(),
+        disabled: counter.disabled,
         *click() {
           yield* counter.increment();
         },
@@ -267,12 +268,12 @@ it('tests the derived disabled state', async () => {
   );
 
   try {
-    expect(context.counter.disabled()).toBe(true);
+    expect(craftUse(context.counter.disabled())).toBe(true);
 
-    context.counter.increment();
+    craftUse(context.counter.increment());
 
-    expect(context.counter()).toBe(1);
-    expect(context.counter.disabled()).toBe(false);
+    expect(craftUse(context.counter())).toBe(1);
+    expect(craftUse(context.counter.disabled())).toBe(false);
   } finally {
     destroy();
   }
@@ -388,4 +389,5 @@ you think, that a list item renders its label. That is its own page:
 
 - [Testing services](/guide/testing/services)
 - [Browser boundaries](/guide/testing/browser-boundaries)
+- [Architecture rules](/guide/testing/architecture) — constraints on the whole app graph
 - [Routing setup](/guide/routing/setup) — where `GenDeps_*` comes from

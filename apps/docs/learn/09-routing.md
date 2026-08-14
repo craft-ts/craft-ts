@@ -142,7 +142,10 @@ Input "taskId" is not provided in path: "tasks"
 ```
 
 Remember step 3, where `toProvide` was flagged as failing only at runtime? This
-is what closes that hole.
+is what closes that hole — **provided the proof stays in the file**. A `CanRun`
+alias that nobody references still compiles; [architecture
+tests](/guide/testing/architecture#assertroutediproofs) are what turn omitting
+it into a failing suite.
 
 ::: tip Why one check per route
 `RouteCheckedDI` validates a single component with no recursion between routes,
@@ -185,26 +188,22 @@ export const appConfig = craftAppConfig({
 `toRoutes()` hands Angular the real routes; `META_DATA` hands the compile-time
 graph to `craftAppConfig`.
 
-## Validate the routing safety net
+## Make the DI contract enforceable
 
-After wiring the routes into `craftAppConfig`, add the verification script:
+The proofs above look ceremonial: unused type aliases, a `CanRun` wrapper, a
+cascade that does not descend into `loadChildren`, a separate check for pending
+and error screens, another for `app.config`. Each piece is small; omitting one
+is silent. TypeScript still compiles.
 
-```json
-{
-  "scripts": {
-    "craft:verify-routes": "craft route verify --project tsconfig.app.json"
-  }
-}
-```
+Architecture tests collapse that checklist into a single assertion.
+`assertRouteDiProofs` walks the static graph and fails unless every routed
+component — including lazy child collections — and every `craftAppConfig` error
+screen is hooked to an armed mapper. TypeScript still judges whether a
+dependency is provided; the architecture suite judges whether that judgement
+was invoked.
 
-Then run `npm run craft:verify-routes`. The command first audits the routes you
-just created: commenting or forgetting a `CanRun`/`RouteCheckedDI` proof is
-reported even though an unused type alias would otherwise compile. It also
-checks existing exception, pending-component and lazy-retry bookkeeping.
-Temporary valid and invalid examples then confirm that the compiler catches
-missing DI providers, template dependencies, route inputs, pending/error
-component contracts and unhandled route exceptions. Fixtures are deleted when
-the command ends; use `--json` for CI or `--keep-fixtures` to inspect a failure.
+Add it next to `e2e/`, in `architecture/`, then run it in CI. Full setup:
+[Architecture rules](/guide/testing/architecture).
 
 ## What the user sees while a route loads
 
@@ -296,12 +295,14 @@ loader, the check block and the registry entry, then runs ESLint and `tsc`. Use
 ## What you gained
 
 Routing where a forgotten provider, a misspelled input, an unhandled exception or
-a route pointing at nothing stops the build instead of reaching production.
+a route pointing at nothing stops the build instead of reaching production — and
+architecture tests keep those proofs from quietly disappearing.
 
 ::: details The parts you'll want later
 Route-scoped providers, guards as bare generators and centralised exception
 handling all live under [Routing](/guide/routing/setup). Splitting a growing collection across lazy
-child files is [Scaling routes](/guide/routing/scaling).
+child files is [Scaling routes](/guide/routing/scaling). Architecture tests that keep the DI proofs
+armed are [Architecture rules](/guide/testing/architecture).
 :::
 
 <div style="display: flex; justify-content: space-between; margin-top: 2rem">

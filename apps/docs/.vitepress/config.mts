@@ -176,6 +176,8 @@ const guideSidebar = [
       { text: 'Testing components', link: '/guide/testing/components' },
       { text: 'Type-level tests', link: '/guide/testing/type-level' },
       { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
+      { text: 'Architecture rules', link: '/guide/testing/architecture' },
+      { text: 'Craft graph vs Nx', link: '/guide/testing/craft-graph-vs-nx' },
     ],
   },
   {

@@ -23,6 +23,7 @@ export type ArchitectureCatalog = {
   primitives: readonly string[];
   sources: readonly string[];
   httpEndpoints: readonly { method: string; url: string }[];
+  uniques: readonly string[];
   providers: readonly string[];
   routeProviders: Readonly<Record<string, readonly string[]>>;
   componentProviders: Readonly<Record<string, readonly string[]>>;
@@ -36,15 +37,17 @@ export type ArchitectureCatalog = {
   scopes: Readonly<Record<string, string>>;
 };
 
-export type ArchitectureNodeView = {
+export type ArchitectureNodeView<
+  C extends ArchitectureCatalog = ArchitectureCatalog,
+> = {
   id: string;
   kind: DependencyGraphNodeKind;
   label: string;
   filePath?: string;
   line?: number;
   details?: Record<string, unknown>;
-  provider(name: string): ArchitectureNodeView;
-  providers(): ArchitectureNodeView[];
+  provider(name: CatalogProviders<C>): ArchitectureNodeView<C>;
+  providers(): ArchitectureNodeView<C>[];
   outgoing(kind?: DependencyGraphEdgeKind): DependencyGraphEdge[];
   incoming(kind?: DependencyGraphEdgeKind): DependencyGraphEdge[];
   httpEndpoints(): { method: string; url: string }[];
@@ -55,23 +58,30 @@ export type ArchitectureServiceFilter = {
   scope?: string;
 };
 
-export type ArchitectureGraphView = {
+export type ArchitectureGraphView<
+  C extends ArchitectureCatalog = ArchitectureCatalog,
+> = {
   graph: DependencyGraph;
-  catalog: ArchitectureCatalog;
-  route(path: string, file?: string): ArchitectureNodeView;
-  service(name: string, file?: string): ArchitectureNodeView;
-  component(name: string, file?: string): ArchitectureNodeView;
-  craftMethod(name: string, file?: string): ArchitectureNodeView;
-  httpEndpoint(method: string, url: string): ArchitectureNodeView;
-  providedOn(name: string): ArchitectureNodeView[];
-  services(filter?: ArchitectureServiceFilter): ArchitectureNodeView[];
-  usingHttp(): ArchitectureNodeView[];
-  usingTemporal(): ArchitectureNodeView[];
-  dependingOnBrowserBoundary(): ArchitectureNodeView[];
-  craftMethods(): ArchitectureNodeView[];
-  primitives(primitive?: string): ArchitectureNodeView[];
-  sources(): ArchitectureNodeView[];
-  httpEndpoints(): ArchitectureNodeView[];
+  catalog: C;
+  route(path: CatalogRoutes<C>, file?: string): ArchitectureNodeView<C>;
+  service(name: CatalogServices<C>, file?: string): ArchitectureNodeView<C>;
+  component(name: CatalogComponents<C>, file?: string): ArchitectureNodeView<C>;
+  craftMethod(name: string, file?: string): ArchitectureNodeView<C>;
+  httpEndpoint(
+    method: CatalogHttp<C>['method'],
+    url: CatalogHttp<C>['url'],
+  ): ArchitectureNodeView<C>;
+  providedOn(name: CatalogProviders<C>): ArchitectureNodeView<C>[];
+  services(filter?: ArchitectureServiceFilter): ArchitectureNodeView<C>[];
+  usingHttp(): ArchitectureNodeView<C>[];
+  usingTemporal(): ArchitectureNodeView<C>[];
+  dependingOnBrowserBoundary(): ArchitectureNodeView<C>[];
+  craftMethods(): ArchitectureNodeView<C>[];
+  primitives(primitive?: string): ArchitectureNodeView<C>[];
+  sources(): ArchitectureNodeView<C>[];
+  httpEndpoints(): ArchitectureNodeView<C>[];
+  unique(value: CatalogUniques<C>): ArchitectureNodeView<C>;
+  uniques(): ArchitectureNodeView<C>[];
 };
 
 export type ExclusiveLinkViolation = {
@@ -80,7 +90,17 @@ export type ExclusiveLinkViolation = {
   kind: DependencyGraphEdgeKind;
 };
 
-const graphByNode = new WeakMap<ArchitectureNodeView, DependencyGraph>();
+type CatalogRoutes<C extends ArchitectureCatalog> = C['routes'][number];
+type CatalogServices<C extends ArchitectureCatalog> = C['services'][number];
+type CatalogComponents<C extends ArchitectureCatalog> = C['components'][number];
+type CatalogProviders<C extends ArchitectureCatalog> = C['providers'][number];
+type CatalogHttp<C extends ArchitectureCatalog> = C['httpEndpoints'][number];
+type CatalogUniques<C extends ArchitectureCatalog> = C['uniques'][number];
+
+const graphByNode = new WeakMap<
+  ArchitectureNodeView<ArchitectureCatalog>,
+  DependencyGraph
+>();
 
 export function graphHash(graph: DependencyGraph): string {
   return createHash('sha256')
@@ -152,6 +172,11 @@ export function buildArchitectureCatalog(
     .sort((left, right) =>
       `${left.method}:${left.url}`.localeCompare(`${right.method}:${right.url}`),
     );
+  const uniques = uniqueSorted(
+    graph.nodes
+      .filter((node) => node.kind === 'unique')
+      .map((node) => String(node.details?.['canonical'] ?? node.label)),
+  );
   const providedNames = uniqueSorted(
     graph.edges
       .filter((edge) => edge.kind === 'provides')
@@ -199,6 +224,7 @@ export function buildArchitectureCatalog(
     primitives,
     sources,
     httpEndpoints,
+    uniques,
     providers: providedNames,
     routeProviders,
     componentProviders,
@@ -219,13 +245,13 @@ export function architectureCatalogToTypeScript(
   return `export const architectureCatalog = ${JSON.stringify(catalog, null, 2)} as const;\nexport type ArchitectureCatalog = typeof architectureCatalog;\n`;
 }
 
-export function createArchitectureGraph(
-  graph: DependencyGraph,
-): ArchitectureGraphView {
+export function createArchitectureGraph<
+  C extends ArchitectureCatalog = ArchitectureCatalog,
+>(graph: DependencyGraph, catalog?: C): ArchitectureGraphView<C> {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
 
-  const wrap = (node: DependencyGraphNode): ArchitectureNodeView => {
-    const view: ArchitectureNodeView = {
+  const wrap = (node: DependencyGraphNode): ArchitectureNodeView<C> => {
+    const view: ArchitectureNodeView<C> = {
       id: node.id,
       kind: node.kind,
       label: node.label,
@@ -296,7 +322,7 @@ export function createArchitectureGraph(
 
   return {
     graph,
-    catalog: buildArchitectureCatalog(graph),
+    catalog: (catalog ?? buildArchitectureCatalog(graph)) as C,
     route(path, file) {
       return lookup('route', path, file);
     },
@@ -413,12 +439,24 @@ export function createArchitectureGraph(
         .filter((node) => node.kind === 'http-endpoint')
         .map(wrap);
     },
+    unique(value) {
+      return lookup(
+        'unique',
+        value,
+        undefined,
+        (node) =>
+          node.label === value || node.details?.['canonical'] === value,
+      );
+    },
+    uniques() {
+      return graph.nodes.filter((node) => node.kind === 'unique').map(wrap);
+    },
   };
 }
 
 export function exclusiveLinkViolations(
-  left: ArchitectureNodeView,
-  right: ArchitectureNodeView,
+  left: ArchitectureNodeView<ArchitectureCatalog>,
+  right: ArchitectureNodeView<ArchitectureCatalog>,
 ): ExclusiveLinkViolation[] {
   const graph = graphOf(left);
   const ownership = assignBranchOwnership(graph, [left.id, right.id]);
@@ -437,8 +475,8 @@ export function exclusiveLinkViolations(
 }
 
 export function noExclusiveLink(
-  left: ArchitectureNodeView,
-  right: ArchitectureNodeView,
+  left: ArchitectureNodeView<ArchitectureCatalog>,
+  right: ArchitectureNodeView<ArchitectureCatalog>,
 ): void {
   const violations = exclusiveLinkViolations(left, right);
   if (violations.length === 0) return;
@@ -455,7 +493,674 @@ export function noExclusiveLink(
   );
 }
 
-function graphOf(node: ArchitectureNodeView): DependencyGraph {
+export type CraftUniqueViolation = {
+  kind: 'duplicate' | 'non-static';
+  id: string;
+  label: string;
+  callSites: readonly { filePath?: string; line?: number; ownerId?: string }[];
+};
+
+export function craftUniqueViolations(
+  graph: DependencyGraph,
+): CraftUniqueViolation[] {
+  return graph.nodes
+    .filter((node) => node.kind === 'unique')
+    .flatMap((node): CraftUniqueViolation[] => {
+      const callSites = Array.isArray(node.details?.['callSites'])
+        ? (node.details['callSites'] as CraftUniqueViolation['callSites'])
+        : [];
+      if (node.details?.['static'] === false) {
+        return [
+          {
+            kind: 'non-static' as const,
+            id: node.id,
+            label: node.label,
+            callSites,
+          },
+        ];
+      }
+      if (callSites.length > 1) {
+        return [
+          {
+            kind: 'duplicate' as const,
+            id: node.id,
+            label: node.label,
+            callSites,
+          },
+        ];
+      }
+      return [];
+    });
+}
+
+export function assertCraftUnique(graph: DependencyGraph): void {
+  const violations = craftUniqueViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const sites = violation.callSites
+          .map((site) =>
+            [site.filePath, site.line].filter(Boolean).join(':'),
+          )
+          .filter(Boolean)
+          .join(', ');
+        if (violation.kind === 'non-static') {
+          return `Non-static craftUnique argument cannot be verified${sites ? ` (${sites})` : ''}.`;
+        }
+        return `Duplicate craftUnique ${violation.label} used twice${sites ? ` (${sites})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type RouteDiProofViolationKind =
+  | 'missing-di-proof'
+  | 'unarmed-mapper'
+  | 'missing-pending-proof'
+  | 'missing-error-proof'
+  | 'missing-exception-assert'
+  | 'missing-global-error-proof'
+  | 'missing-route-load-error-proof';
+
+export type RouteDiProofViolation = {
+  kind: RouteDiProofViolationKind;
+  label: string;
+  filePath?: string;
+  line?: number;
+};
+
+export function routeDiProofViolations(
+  graph: DependencyGraph,
+): RouteDiProofViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const incomingChecks = new Map<string, DependencyGraphEdge[]>();
+  const incomingContains = new Map<string, DependencyGraphEdge[]>();
+  for (const edge of graph.edges) {
+    if (edge.kind === 'checks') {
+      const list = incomingChecks.get(edge.to) ?? [];
+      list.push(edge);
+      incomingChecks.set(edge.to, list);
+    }
+    if (edge.kind === 'contains') {
+      const list = incomingContains.get(edge.to) ?? [];
+      list.push(edge);
+      incomingContains.set(edge.to, list);
+    }
+  }
+
+  const isArmedMapper = (mapperId: string): boolean => {
+    return (incomingContains.get(mapperId) ?? []).some(
+      (edge) => nodesById.get(edge.from)?.details?.['mechanism'] === 'CanRun',
+    );
+  };
+
+  const location = (node: DependencyGraphNode) => ({
+    filePath: relativeGraphPath(graph, node.filePath),
+    line: node.line,
+  });
+
+  const violations: RouteDiProofViolation[] = [];
+  for (const node of graph.nodes) {
+    if (node.kind !== 'route') continue;
+    const checks = incomingChecks.get(node.id) ?? [];
+    const diChecks = checks.filter((edge) => {
+      const mechanism = nodesById.get(edge.from)?.details?.['mechanism'];
+      return (
+        mechanism === 'ValidateCascadeRoutesFile' ||
+        mechanism === 'RouteCheckedDI' ||
+        mechanism === 'RouteExceptionComponentCheckedDI'
+      );
+    });
+    const componentChecks = diChecks.filter(
+      (edge) => edge.details?.['target'] !== 'pending' && edge.details?.['target'] !== 'error',
+    );
+    if (node.details?.['hasComponent']) {
+      if (componentChecks.length === 0) {
+        violations.push({
+          kind: 'missing-di-proof',
+          label: String(node.details['path'] ?? node.label),
+          ...location(node),
+        });
+      } else if (!componentChecks.some((edge) => isArmedMapper(edge.from))) {
+        violations.push({
+          kind: 'unarmed-mapper',
+          label: String(node.details['path'] ?? node.label),
+          ...location(node),
+        });
+      }
+    }
+    if (node.details?.['hasPendingComponent']) {
+      const pendingChecks = diChecks.filter(
+        (edge) => edge.details?.['target'] === 'pending',
+      );
+      if (
+        pendingChecks.length === 0 ||
+        !pendingChecks.some((edge) => isArmedMapper(edge.from))
+      ) {
+        violations.push({
+          kind: 'missing-pending-proof',
+          label: String(node.details['path'] ?? node.label),
+          ...location(node),
+        });
+      }
+    }
+    if (node.details?.['hasErrorComponent']) {
+      const errorChecks = diChecks.filter(
+        (edge) => edge.details?.['target'] === 'error',
+      );
+      if (
+        errorChecks.length === 0 ||
+        !errorChecks.some((edge) => isArmedMapper(edge.from))
+      ) {
+        violations.push({
+          kind: 'missing-error-proof',
+          label: String(node.details['path'] ?? node.label),
+          ...location(node),
+        });
+      }
+    }
+  }
+
+  const collections = new Map<string, DependencyGraphNode[]>();
+  for (const node of graph.nodes) {
+    if (node.kind !== 'route') continue;
+    const key = `${node.filePath ?? ''}::${String(node.details?.['routesName'] ?? '')}`;
+    const list = collections.get(key) ?? [];
+    list.push(node);
+    collections.set(key, list);
+  }
+  for (const [, routes] of collections) {
+    const representative = routes[0];
+    if (!representative) continue;
+    const hasAssert = routes.some((route) =>
+      (incomingChecks.get(route.id) ?? []).some(
+        (edge) =>
+          nodesById.get(edge.from)?.details?.['mechanism'] ===
+          'assertExhaustiveRouteExceptions',
+      ),
+    );
+    if (!hasAssert) {
+      violations.push({
+        kind: 'missing-exception-assert',
+        label: String(representative.details?.['routesName'] ?? representative.label),
+        ...location(representative),
+      });
+    }
+  }
+
+  for (const node of graph.nodes) {
+    if (node.kind !== 'app-config') continue;
+    const checks = incomingChecks.get(node.id) ?? [];
+    const armedTarget = (target: string) =>
+      checks.some(
+        (edge) =>
+          edge.details?.['target'] === target &&
+          nodesById.get(edge.from)?.details?.['mechanism'] ===
+            'RouteExceptionComponentCheckedDI' &&
+          isArmedMapper(edge.from),
+      );
+    if (node.details?.['hasGlobalError'] && !armedTarget('global-error')) {
+      violations.push({
+        kind: 'missing-global-error-proof',
+        label: String(node.details['globalErrorComponent'] ?? node.label),
+        ...location(node),
+      });
+    }
+    if (node.details?.['hasRouteLoadError'] && !armedTarget('route-load-error')) {
+      violations.push({
+        kind: 'missing-route-load-error-proof',
+        label: String(node.details['routeLoadErrorComponent'] ?? node.label),
+        ...location(node),
+      });
+    }
+  }
+
+  return violations;
+}
+
+export function assertRouteDiProofs(graph: DependencyGraph): void {
+  const violations = routeDiProofViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        const suffix = at ? ` (${at})` : '';
+        switch (violation.kind) {
+          case 'missing-di-proof':
+            return `Route ${JSON.stringify(violation.label)} is missing its DI proof.${suffix}`;
+          case 'unarmed-mapper':
+            return `Route ${JSON.stringify(violation.label)} has a DI mapper that is not armed with CanRun.${suffix}`;
+          case 'missing-pending-proof':
+            return `Route ${JSON.stringify(violation.label)} is missing its pending-component DI proof.${suffix}`;
+          case 'missing-error-proof':
+            return `Route ${JSON.stringify(violation.label)} is missing its error-component DI proof.${suffix}`;
+          case 'missing-exception-assert':
+            return `Route collection ${violation.label} is missing assertExhaustiveRouteExceptions.${suffix}`;
+          case 'missing-global-error-proof':
+            return `App config is missing an armed DI proof for its global error component ${violation.label}.${suffix}`;
+          case 'missing-route-load-error-proof':
+            return `App config is missing an armed DI proof for its route-load error component ${violation.label}.${suffix}`;
+        }
+      })
+      .join('\n'),
+  );
+}
+
+export type HttpEndpointUniqueViolation = {
+  id: string;
+  label: string;
+  method: string;
+  url: string;
+  callSites: readonly { ownerId?: string; filePath?: string; line?: number }[];
+};
+
+export function httpEndpointUniqueViolations(
+  graph: DependencyGraph,
+): HttpEndpointUniqueViolation[] {
+  return graph.nodes
+    .filter((node) => node.kind === 'http-endpoint')
+    .flatMap((node): HttpEndpointUniqueViolation[] => {
+      const callSites = Array.isArray(node.details?.['callSites'])
+        ? (node.details['callSites'] as HttpEndpointUniqueViolation['callSites'])
+        : [];
+      if (callSites.length <= 1) return [];
+      return [
+        {
+          id: node.id,
+          label: node.label,
+          method: String(node.details?.['method'] ?? ''),
+          url: String(node.details?.['url'] ?? ''),
+          callSites,
+        },
+      ];
+    });
+}
+
+export function assertHttpEndpointUnique(graph: DependencyGraph): void {
+  const violations = httpEndpointUniqueViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const sites = violation.callSites
+          .map((site) =>
+            [site.filePath, site.line].filter(Boolean).join(':'),
+          )
+          .filter(Boolean)
+          .join(', ');
+        return `Duplicate HTTP ${violation.label} used twice${sites ? ` (${sites})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type CraftComputedPureViolation = {
+  kind: 'calls' | 'writes';
+  id: string;
+  label: string;
+  targetId: string;
+  targetLabel: string;
+  filePath?: string;
+  line?: number;
+};
+
+export function craftComputedPureViolations(
+  graph: DependencyGraph,
+): CraftComputedPureViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return graph.nodes
+    .filter(
+      (node) =>
+        node.kind === 'primitive' &&
+        node.details?.['primitive'] === 'craftComputed',
+    )
+    .flatMap((node) =>
+      graph.edges
+        .filter(
+          (edge) =>
+            edge.from === node.id &&
+            (edge.kind === 'calls' || edge.kind === 'writes'),
+        )
+        .map((edge) => {
+          const target = nodesById.get(edge.to);
+          const name =
+            typeof node.details?.['name'] === 'string'
+              ? node.details['name']
+              : node.label.replace(/^craftComputed:/, '');
+          return {
+            kind: edge.kind as 'calls' | 'writes',
+            id: node.id,
+            label: name,
+            targetId: edge.to,
+            targetLabel: target?.label ?? edge.to,
+            filePath: node.filePath,
+            line: node.line,
+          };
+        }),
+    );
+}
+
+export function assertCraftComputedPure(graph: DependencyGraph): void {
+  const violations = craftComputedPureViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const site = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        const action =
+          violation.kind === 'writes' ? 'writes' : 'calls';
+        return `craftComputed ${violation.label} ${action} ${violation.targetLabel}${site ? ` (${site})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type DependencyCycle = {
+  ids: readonly string[];
+  labels: readonly string[];
+};
+
+export function dependencyCycleViolations(
+  graph: DependencyGraph,
+): DependencyCycle[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const adjacency = new Map<string, string[]>();
+  for (const node of graph.nodes) adjacency.set(node.id, []);
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'depends-on') continue;
+    if (!adjacency.has(edge.from)) adjacency.set(edge.from, []);
+    if (!adjacency.has(edge.to)) adjacency.set(edge.to, []);
+    adjacency.get(edge.from)?.push(edge.to);
+  }
+
+  const labelOf = (id: string) => nodesById.get(id)?.label ?? id;
+  return stronglyConnectedComponents(adjacency).flatMap((component) => {
+    const allowed = new Set(component);
+    const cyclic =
+      component.length > 1 ||
+      (adjacency.get(component[0]) ?? []).some((neighbor) =>
+        allowed.has(neighbor),
+      );
+    if (!cyclic) return [];
+    const ids = cyclePath(component, adjacency);
+    return [
+      {
+        ids,
+        labels: ids.map(labelOf),
+      },
+    ];
+  });
+}
+
+export function assertNoDependencyCycles(graph: DependencyGraph): void {
+  const violations = dependencyCycleViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((cycle) => `Dependency cycle: ${cycle.labels.join(' -> ')}.`)
+      .join('\n'),
+  );
+}
+
+export type PathBoundaryConstraint = {
+  source: string;
+  onlyDependOn?: readonly string[];
+  forbidTarget?: readonly string[];
+};
+
+export type PathBoundaryOptions = {
+  edgeKinds?: readonly DependencyGraphEdgeKind[];
+  constraints: readonly PathBoundaryConstraint[];
+};
+
+export type PathBoundaryViolation = {
+  fromId: string;
+  toId: string;
+  fromLabel: string;
+  toLabel: string;
+  fromPath: string;
+  toPath: string;
+  edgeKind: DependencyGraphEdgeKind;
+  source: string;
+  reason: 'allowlist' | 'denylist';
+};
+
+export function pathBoundaryViolations(
+  graph: DependencyGraph,
+  options: PathBoundaryOptions,
+): PathBoundaryViolation[] {
+  const edgeKinds = new Set(options.edgeKinds ?? ['depends-on']);
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const violations: PathBoundaryViolation[] = [];
+
+  for (const edge of graph.edges) {
+    if (!edgeKinds.has(edge.kind)) continue;
+    const from = nodesById.get(edge.from);
+    const to = nodesById.get(edge.to);
+    if (!from || !to) continue;
+    const fromPath = relativeGraphPath(graph, from.filePath);
+    const toPath = relativeGraphPath(graph, to.filePath);
+    if (!fromPath || !toPath) continue;
+
+    for (const constraint of options.constraints) {
+      if (
+        constraint.onlyDependOn === undefined &&
+        constraint.forbidTarget === undefined
+      ) {
+        continue;
+      }
+      const captures = matchPathGlob(constraint.source, fromPath);
+      if (!captures) continue;
+
+      const allowed = constraint.onlyDependOn;
+      const forbidden = constraint.forbidTarget;
+      const allowHit =
+        allowed === undefined
+          ? true
+          : allowed.some((pattern) =>
+              matchPathGlob(pattern, toPath, captures),
+            );
+      const forbidHit =
+        forbidden !== undefined &&
+        forbidden.some((pattern) => matchPathGlob(pattern, toPath, captures));
+
+      if (allowHit && !forbidHit) continue;
+      violations.push({
+        fromId: from.id,
+        toId: to.id,
+        fromLabel: from.label,
+        toLabel: to.label,
+        fromPath,
+        toPath,
+        edgeKind: edge.kind,
+        source: constraint.source,
+        reason: forbidHit ? 'denylist' : 'allowlist',
+      });
+    }
+  }
+
+  return violations;
+}
+
+export function assertPathBoundaries(
+  graph: DependencyGraph,
+  options: PathBoundaryOptions,
+): void {
+  const violations = pathBoundaryViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `Path boundary: ${violation.fromLabel} -[${violation.edgeKind}]-> ${violation.toLabel} (${violation.fromPath} → ${violation.toPath}).`,
+      )
+      .join('\n'),
+  );
+}
+
+export function assertDeclarativeArchitecture(graph: DependencyGraph): void {
+  const messages: string[] = [];
+  for (const assert of [
+    assertCraftUnique,
+    assertHttpEndpointUnique,
+    assertCraftComputedPure,
+    assertNoDependencyCycles,
+  ]) {
+    try {
+      assert(graph);
+    } catch (error) {
+      messages.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  if (messages.length === 0) return;
+  throw new Error(messages.join('\n'));
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function globToRegExp(
+  pattern: string,
+  captures: Readonly<Record<string, string>> = {},
+): RegExp {
+  let source = '^';
+  let i = 0;
+  while (i < pattern.length) {
+    if (pattern.startsWith('**/', i)) {
+      source += '(?:.*/)?';
+      i += 3;
+      continue;
+    }
+    if (pattern.startsWith('**', i)) {
+      source += '.*';
+      i += 2;
+      continue;
+    }
+    if (pattern[i] === '*') {
+      source += '[^/]*';
+      i += 1;
+      continue;
+    }
+    if (pattern[i] === ':') {
+      const nameMatch = /^:([A-Za-z_][A-Za-z0-9_]*)/.exec(pattern.slice(i));
+      if (!nameMatch) {
+        source += ':';
+        i += 1;
+        continue;
+      }
+      const name = nameMatch[1] ?? '';
+      if (name in captures) {
+        source += escapeRegex(captures[name] ?? '');
+      } else {
+        source += `(?<${name}>[^/]+)`;
+      }
+      i += nameMatch[0].length;
+      continue;
+    }
+    source += escapeRegex(pattern[i] ?? '');
+    i += 1;
+  }
+  source += '$';
+  return new RegExp(source);
+}
+
+function matchPathGlob(
+  pattern: string,
+  path: string,
+  captures: Readonly<Record<string, string>> = {},
+): Record<string, string> | null {
+  const match = globToRegExp(pattern, captures).exec(path);
+  if (!match) return null;
+  return { ...captures, ...(match.groups ?? {}) };
+}
+
+function stronglyConnectedComponents(
+  adjacency: Map<string, string[]>,
+): string[][] {
+  let index = 0;
+  const indices = new Map<string, number>();
+  const lowlink = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const components: string[][] = [];
+
+  const connect = (id: string): void => {
+    indices.set(id, index);
+    lowlink.set(id, index);
+    index += 1;
+    stack.push(id);
+    onStack.add(id);
+
+    for (const neighbor of adjacency.get(id) ?? []) {
+      if (!indices.has(neighbor)) {
+        connect(neighbor);
+        lowlink.set(
+          id,
+          Math.min(lowlink.get(id) ?? 0, lowlink.get(neighbor) ?? 0),
+        );
+      } else if (onStack.has(neighbor)) {
+        lowlink.set(
+          id,
+          Math.min(lowlink.get(id) ?? 0, indices.get(neighbor) ?? 0),
+        );
+      }
+    }
+
+    if (lowlink.get(id) !== indices.get(id)) return;
+    const component: string[] = [];
+    let node: string;
+    do {
+      node = stack.pop() ?? id;
+      onStack.delete(node);
+      component.push(node);
+    } while (node !== id);
+    components.push(component);
+  };
+
+  for (const id of adjacency.keys()) {
+    if (!indices.has(id)) connect(id);
+  }
+  return components;
+}
+
+function cyclePath(
+  component: string[],
+  adjacency: Map<string, string[]>,
+): string[] {
+  const allowed = new Set(component);
+  if (component.length === 1) {
+    const id = component[0];
+    return (adjacency.get(id) ?? []).includes(id) ? [id, id] : [id];
+  }
+
+  const start = component[0];
+  const path: string[] = [];
+  const visit = (id: string): boolean => {
+    path.push(id);
+    for (const next of adjacency.get(id) ?? []) {
+      if (!allowed.has(next)) continue;
+      if (next === start && path.length > 1) {
+        path.push(start);
+        return true;
+      }
+      if (!path.includes(next) && visit(next)) return true;
+    }
+    path.pop();
+    return false;
+  };
+  return visit(start) ? path : component;
+}
+
+function graphOf(
+  node: ArchitectureNodeView<ArchitectureCatalog>,
+): DependencyGraph {
   const graph = graphByNode.get(node);
   if (!graph) {
     throw new Error('Architecture nodes must come from createArchitectureGraph().');
@@ -582,6 +1287,11 @@ function nodeMatches(
   name: string,
 ): boolean {
   if (kind === 'route') return routePath(node) === name;
+  if (kind === 'unique') {
+    return (
+      node.label === name || node.details?.['canonical'] === name
+    );
+  }
   if (kind === 'primitive') {
     return (
       node.details?.['name'] === name ||
@@ -613,12 +1323,12 @@ function uniqueSorted(values: readonly string[]): string[] {
   return [...new Set(values)].sort();
 }
 
-function uniqueNode(
-  matches: ArchitectureNodeView[],
+function uniqueNode<C extends ArchitectureCatalog>(
+  matches: ArchitectureNodeView<C>[],
   kind: string,
   name: string,
   file?: string,
-): ArchitectureNodeView {
+): ArchitectureNodeView<C> {
   if (matches.length === 1) return matches[0];
   if (matches.length === 0) {
     throw new Error(

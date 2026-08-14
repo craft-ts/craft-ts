@@ -12,7 +12,7 @@ reactivity and mutation wiring on top.
 ## The common case
 
 ```typescript
-import { asyncProcess } from '@craft-ng/core';
+import { asyncProcess, craftComputed } from '@craft-ng/core';
 
 const { delay } =
   yield *
@@ -54,12 +54,14 @@ const { shareContent } =
       },
     },
     ({ resource }) => ({
-      isMenuOpen: computed(() => resource.status() === 'loading'),
+      isMenuOpen: craftComputed(function* () {
+        return (yield* resource.status()) === 'loading';
+      }),
     }),
   );
 
 yield * shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
-shareContent.isMenuOpen(); // true while the sheet is open
+yield* shareContent.isMenuOpen();
 ```
 
 Yielding the browser API through a service — rather than touching `navigator`
@@ -175,6 +177,14 @@ const { loadProfile } =
   });
 ```
 
+:::
+
+::: tip Advanced — injectable writes
+Insertion methods provide `injectAsyncProcessMethodRuntimeContext()`, and the
+process value itself is published to
+`providePrimitiveResourceRuntimeObserver`. Both expose `get`, `set`, `update`,
+and `patch` for wrappers, WebMCP tools, and other advanced patterns. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
 :::
 
 ## See Also

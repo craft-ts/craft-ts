@@ -64,6 +64,7 @@ Options:
   --root <dir>                 Workspace root. Defaults to cwd.
   --out <path>                 Output basename. Defaults to craft-dependency-graph.
   --format <format>            json, mermaid, html, both, or all. Defaults to both.
+                               json/both/all also write a .architecture.ts catalog.
                                html creates one self-contained visualizer file.
   --include <text>             Restrict analysis to source paths containing text.
 `);

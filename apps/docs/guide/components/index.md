@@ -32,7 +32,7 @@ craftComponent(name, meta, factory, template);
 | `template` | receives that context, returns nodes                              |
 
 ```typescript
-import { craftComponent, div, h1, li, ul } from '@craft-ng/component';
+import { craftComponent, div, each, h1, li, ul } from '@craft-ng/component';
 import { deepYieldable, state } from '@craft-ng/core';
 
 export const Tasks = craftComponent(
@@ -42,7 +42,7 @@ export const Tasks = craftComponent(
     const tasks = yield* state('tasks', [] as Task[]);
     return { tasks };
   },
-  ({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))],
+  ({ tasks }) => [h1('Tasks'), ul(each(tasks, { track: (task) => task.id }, (task) => li(task.title)))],
 );
 ```
 
@@ -115,29 +115,22 @@ UserCard({ user: currentUser, onRemove: removeUser });
 ## The template
 
 Nodes are built with hyperscript helpers — `div`, `ul`, `button`, and `h(tag, …)`
-for anything without one. Passing a **callback** is what makes a node reactive:
+for anything without one. Pass a yieldable reader to a binding. Use a generator
+when the binding must format or call a method:
 
 ```typescript
 ({ tasks }) => [
-  h1(() => `Tasks — ${tasks.remaining()} left`), // patches only this text node
-  h1(`Tasks — ${tasks.remaining()} left`), // structural template dependency
+  h1(function* () {
+    return `Tasks — ${yield* tasks.remaining()} left`;
+  }),
+  h1(`Tasks — static`); // static text needs no reader
 ];
 ```
 
 The same binding boundary applies to attributes, DOM properties, classes,
-styles, and host props:
-
-```typescript
-button({ disabled: () => tasks.remaining() === 0 }, 'Clear');
-div({ class: () => ({ empty: tasks.remaining() === 0 }) });
-div({ style: () => ({ opacity: tasks.remaining() ? 1 : 0.5 }) });
-```
-
-Each callback has its own effect. A signal change only evaluates the bindings
-that read it; sibling bindings and the component template are left alone. A
-value calculated before creating the node cannot be assigned to that precise
-binding, so Craft keeps the compatible structural rerender behaviour for that
-form.
+styles, and host props. Prefer exposing a derived reader on the primitive
+(`tasks.isEmpty`) and passing it (`disabled: tasks.isEmpty`) over wrapping a
+synchronous call.
 
 See [Fine-grained reactivity](/guide/components/fine-grained-reactivity) for
 the complete rendering model, structural scopes, observability expectations,
@@ -211,8 +204,9 @@ rest of your bootstrap is unchanged.
 
 ## Pitfalls
 
-**Reading a signal outside a callback.** `h1(tasks().length)` evaluates once at
-build time. Wrap it: `h1(() => tasks().length)`.
+**Reading a reader outside a binding.** `h1(tasks().length)` evaluates once at
+build time. Pass the reader (`p(tasks.remaining)`) or use a generator:
+`h1(function* () { return yield* tasks.remaining(); })`.
 
 **Forgetting `track` in `each`.** Without a stable identity the renderer cannot
 reuse, move or remove the right node.

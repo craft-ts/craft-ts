@@ -16,6 +16,7 @@ import {
   insertPaginationPlaceholderData,
   insertQueryPipe,
   insertStoragePersister,
+  craftUnique,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -58,10 +59,10 @@ const QpListWithPagination = craftComponent(
         },
       },
       insertQueryPipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app',
           key: 'route-list-with-pagination',
-        }),
+        })),
         insertPaginationPlaceholderData({ initialValue: [] as User[] }),
       ),
     );

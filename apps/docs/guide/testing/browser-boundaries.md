@@ -423,3 +423,4 @@ Browser boundaries participate in the same dependency tracking model as any othe
 
 - [`craftService`](/guide/app/craft-service)
 - [`toCraftService`](/guide/app/integrate-existing)
+- [Architecture rules](/guide/testing/architecture) — assert HTTP only crosses a boundary

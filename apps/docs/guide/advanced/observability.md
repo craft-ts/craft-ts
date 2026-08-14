@@ -146,6 +146,15 @@ But it has two consequences:
 Use `provideFnWrapper` mostly for **side effects** — logging, metrics, snapshots, correlation propagation. Avoid pulling business state through it.
 :::
 
+When the wrapped function is an insertion method, the wrapper can inject the
+matching runtime context — `injectQueryMethodRuntimeContext()`,
+`injectStateMethodRuntimeContext()`, and the siblings for `mutation`,
+`queryParams`, and `asyncProcess` — and call `get` / `set` / `update` /
+`patch` on the owning primitive. That is how registries, WebMCP tools, and
+other advanced patterns seed or replace a query result, a mutation value, a
+`state`, and so on. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
+
 ### Example: timing every craft function
 
 ```ts

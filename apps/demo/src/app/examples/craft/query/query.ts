@@ -16,6 +16,7 @@ import {
   CraftRouter,
   craftService,
   insertStoragePersister,
+  craftUnique,
   query,
   craftUse,
 } from '@craft-ng/core';
@@ -34,10 +35,10 @@ const { UserQuery } = craftService(
           return yield* ApiService.getItemById(params);
         },
       },
-      insertStoragePersister({
+      insertStoragePersister(craftUnique({
         storeName: 'demo-app-craft',
         key: 'user-query',
-      }),
+      })),
     );
   },
 );

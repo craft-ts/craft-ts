@@ -15,6 +15,7 @@ import {
 import {
   insertQueryPipe,
   insertStoragePersister,
+  craftUnique,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   craftMethod,
@@ -67,10 +68,10 @@ const GranularMutation = craftComponent(
         },
       },
       insertQueryPipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app',
           key: 'granular',
-        }),
+        })),
         insertPaginationPlaceholderData({ initialValue: [] as User[] }),
         insertReactOnMutation(updateUserName, {
           filter: ({ mutationIdentifier, queryResource }) =>

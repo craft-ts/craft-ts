@@ -13,6 +13,7 @@ import {
 } from '@craft-ng/component';
 import {
   insertStoragePersister,
+  craftUnique,
   insertSelect,
   insertStatePipe,
   craftComputed,
@@ -41,10 +42,10 @@ const PixelArt = craftComponent(
           setActiveColor: (activeColor: string) =>
             update(() => ({ activeColor })),
         }),
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           key: 'pixel-art-ui-state',
           storeName: 'pixel-art-ui',
-        }),
+        })),
       ),
     );
     const cells = yield* state(
@@ -55,10 +56,10 @@ const PixelArt = craftComponent(
         paintCount: 0,
       })),
       insertStatePipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           key: 'pixel-art-cells-state',
           storeName: 'pixel-art-cells',
-        }),
+        })),
         insertSelect('cell', function* ({ update }) {
           return {
             paint: function* () {

@@ -82,7 +82,9 @@ afternoon:
 [Services](/guide/testing/services) ·
 [Components](/guide/testing/components) ·
 [Type-level tests](/guide/testing/type-level) ·
-[Browser boundaries](/guide/testing/browser-boundaries)
+[Browser boundaries](/guide/testing/browser-boundaries) ·
+[Architecture rules](/guide/testing/architecture) ·
+[Craft graph vs Nx](/guide/testing/craft-graph-vs-nx)
 
 ### Reactivity utilities
 

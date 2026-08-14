@@ -25,10 +25,9 @@ export const { TaskStats, provideTaskStats } = craftService(
     const tasks = yield* TaskList();
 
     return {
-      done: craftComputed(
-        'done',
-        () => tasks().filter((task) => task.done).length,
-      ),
+      done: craftComputed('done', function* () {
+        return (yield* tasks()).filter((task) => task.done).length;
+      }),
     };
   },
 );
@@ -38,7 +37,7 @@ It depends on one thing, `TaskList`, and exposes one thing, `done`. The test
 mirrors that exactly:
 
 ```typescript
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
+import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ng/core';
 import { vi } from 'vitest';
 
 const { sut, mocks } = await setupCraftServiceTestingByRegister(TaskStats, {
@@ -54,7 +53,7 @@ const { sut, mocks } = await setupCraftServiceTestingByRegister(TaskStats, {
   },
 });
 
-expect(sut.done()).toBe(1);
+expect(craftUse(sut.done())).toBe(1);
 expect(mocks.TaskList.$self).toHaveBeenCalled();
 ```
 
@@ -91,10 +90,12 @@ export const Tasks = craftComponent(
     return { tasks };
   },
   ({ tasks }) => [
-    h1(() => `Tasks — ${tasks.remaining()} left`),
+    h1(function* () {
+      return `Tasks — ${yield* tasks.remaining()} left`;
+    }),
     ul(
       each(
-        () => tasks(),
+        tasks,
         { track: (task) => task.id },
         (task) => li(task.title),
       ),
@@ -195,10 +196,54 @@ const { sut } = await setupCraftServiceTestingByRegister(TaskList, register, {
 Everything in between runs for real. See
 [Browser boundaries](/guide/testing/browser-boundaries).
 
+## Architecture of the whole app
+
+The register proves one service's graph is complete. Architecture rules prove
+invariants **across** services: this feature must not depend on that one, this
+HTTP endpoint is owned once, this `craftUnique` storage key appears once.
+
+They live next to `e2e/`, analyze TypeScript without booting Angular, and are
+ordinary Vitest assertions on a typed graph. Look a node up, walk its edges,
+assert. A precise rule — HTTP may only be called from a `browserBoundary`
+service — is an `it()`:
+
+```typescript
+it('only browser-boundary services call HTTP', () => {
+  const boundaryIds = new Set(
+    graph.services({ browserBoundary: true }).map((node) => node.id),
+  );
+  const leaked = graph
+    .usingHttp()
+    .filter((node) => node.kind === 'service' && !boundaryIds.has(node.id));
+  expect(leaked.map((node) => node.label)).toEqual([]);
+});
+```
+
+Anything you can see on the graph is a rule you can write: folder lanes,
+exclusive feature branches, a method that must not both be called and write a
+`source$`. Built-in helpers cover unique `craftUnique` identities, unique HTTP
+verb+URL, pure `craftComputed`, no `depends-on` cycles, `assertPathBoundaries`,
+`noExclusiveLink`, and the route DI proofs from [step 9](/learn/09-routing).
+
+Those proofs (`CanRun`, `RouteCheckedDI`) are unused type aliases — omit one
+and the project still compiles. `assertRouteDiProofs` fails the suite unless
+every routed component and every `app.config` error screen stays hooked to an
+armed mapper. TypeScript still judges injection; the architecture suite judges
+whether that judgement was invoked.
+
+Full setup: [Architecture rules](/guide/testing/architecture). Why that graph
+is not Nx's project graph: [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx).
+The demo app already imports the helpers. From the repository root:
+
+```shell
+npx nx architecture demo
+```
+
 ## What you gained
 
 Tests whose setup is derived from the real dependency graph, so "I forgot to
-mock that" becomes a compile error.
+mock that" becomes a compile error — and architecture rules on that same graph,
+so the app can be taught its boundaries.
 
 <div style="display: flex; justify-content: space-between; margin-top: 2rem">
 

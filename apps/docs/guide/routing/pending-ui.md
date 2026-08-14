@@ -272,8 +272,12 @@ from `pendingComponent` on `--fix` — resolving the skeleton's `GenDeps_*`, der
 service names from the route's path params + payload, and borrowing the parent context from the
 collection's own `ValidateCascadeRoutesFile` — so you never hand-write or stale it.
 
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) (`assertRouteDiProofs`) fail
+if that pending proof is missing or not armed with `CanRun`.
+
 ## See Also
 
 - [Route exception handling](/guide/routing/exception-handling)
 - [Route guards](/guide/routing/guards) — what the outlet is waiting on
 - [Global error component](/guide/routing/global-error-component)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the pending-component proof armed

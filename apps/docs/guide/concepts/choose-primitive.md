@@ -52,7 +52,10 @@ craft generator, and the last argument is an insertion.
 
 That shared shape is one page: **[Anatomy of a
 primitive](/guide/concepts/primitive-anatomy)**. Read it once and every
-primitive page becomes just its own specifics.
+primitive page becomes just its own specifics. Advanced patterns that need to
+write a primitive from DI — wrappers, registries, WebMCP tools, seeding a
+query result — use the [injectable runtime
+context](/guide/concepts/primitive-anatomy#injectable-runtime-context).
 
 ## See Also
 

@@ -12,7 +12,7 @@ import {
   type ComponentDepsOf,
   type CraftRouteExceptionType,
   type RouteCheckedDI,
-  type ViewTransitionPayloadDef
+  type ViewTransitionPayloadDef,
 } from '@craft-ng/core';
 import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
@@ -584,6 +584,78 @@ type _CanRunContentProjection = CanRun<
   >
 >;
 /* demo-check-end */
+/* demo-check: component-composition */
+type _CanRunComponentComposition = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/component-composition-demo'))['componentCompositionDemo'],
+    never,
+    'path: "component-composition"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: pending-block */
+type _CanRunPendingBlock = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/pending-block-demo'))['default'],
+    never,
+    'path: "pending-block"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: pending-block-exception */
+type _CanRunPendingBlockException = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/pending-block-exception-demo'))['default'],
+    never,
+    'path: "pending-block/exception"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: css-vars */
+type _CanRunCssVars = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/css-vars-demo'))['default'],
+    never,
+    'path: "css-vars"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: css-vars-required */
+type _CanRunCssVarsRequired = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/css-vars-required-demo'))['default'],
+    never,
+    'path: "css-vars/required"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: css-vars-inheritance */
+type _CanRunCssVarsInheritance = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/css-vars-inheritance-demo'))['default'],
+    never,
+    'path: "css-vars/inheritance"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: css-vars-forwarding */
+type _CanRunCssVarsForwarding = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/css-vars-forwarding-demo'))['default'],
+    never,
+    'path: "css-vars/forwarding"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: css-vars-property */
+type _CanRunCssVarsProperty = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/css-vars-property-demo'))['default'],
+    never,
+    'path: "css-vars/property"'
+  >
+>;
+/* demo-check-end */
 /* demo-check: mutation */
 type _CanRunMutation = CanRun<
   DemoRouteCheckedDI<
@@ -725,6 +797,15 @@ type _CanRunCraftServiceCounter = CanRun<
     (typeof import('./examples/craft-service/craft-service-counter'))['default'],
     never,
     'path: "craft-service/counter"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: craft-service-register-for */
+type _CanRunCraftServiceRegisterFor = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/craft-service/register-for'))['default'],
+    never,
+    'path: "craft-service/register-for"'
   >
 >;
 /* demo-check-end */

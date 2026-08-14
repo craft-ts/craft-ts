@@ -17,6 +17,23 @@ For an explanation rather than a lookup, start from the [Guide](/guide/).
 
 Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primitive)
 
+## Runtime context
+
+Typed helpers that recover `get` / `set` / `update` / `patch` from DI, for
+wrappers, WebMCP tools, and other advanced patterns. Everyday insertions
+already receive those methods as arguments — see
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
+
+| Symbol                                       | What it does                                                                 | Page                                                                                         |
+| -------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `injectStateMethodRuntimeContext`            | `state` writes inside an insertion method                                    | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| `injectQueryMethodRuntimeContext`            | `query` writes inside an insertion method                                    | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| `injectMutationMethodRuntimeContext`         | `mutation` writes inside an insertion method                                 | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| `injectQueryParamsMethodRuntimeContext`      | `queryParams` writes inside an insertion method                              | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| `injectAsyncProcessMethodRuntimeContext`     | `asyncProcess` writes inside an insertion method                             | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| `injectPrimitiveMethodRuntimeContext`        | Same context, untyped `kind`                                                 | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| `providePrimitiveResourceRuntimeObserver`    | Observes `query` / `mutation` / `asyncProcess` / `queryParams` values        | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+
 ## Composition
 
 | Symbol                   | What it does                               | Page                                                     |
@@ -131,6 +148,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | `ComponentTemplateOf`, `ComponentLogicOutputOf`, `SetupTestComponentTemplate`                                                                                                  | Resolves component logic and validates a template at compile time | [Type-level tests](/guide/testing/type-level)           |
 | `TemplateHasElement`, `TemplateRendersNamedElementWhen`, `TemplateNamedElementRendersStateWhen`, `TemplateNamedElementDelegatesToContext`, `TemplateRenderAvailableActionWhen` | Proves what a template renders and uses                           | [Type-level tests](/guide/testing/type-level)           |
 | `Expect`, `Equal`                                                                                                                                                              | Turns a type-level result into a compile-time assertion           | [Type-level tests](/guide/testing/type-level)           |
+| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries` | Typed lookups and declarative architecture helpers | [Architecture rules](/guide/testing/architecture) |
 
 ## Tooling
 
@@ -138,7 +156,9 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | ---------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
 | `npx craft route add`              | Scaffolds a typed route                     | [Automation](/guide/routing/automation)                                  |
 | `npx craft route split`            | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)                                 |
-| `npx craft route verify`           | Verifies route DI, templates and exceptions | [Automation](/guide/routing/automation#verify-the-route-safety-contract) |
+| `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional) |
 | `craft-brand --root src/app`       | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/angular-brand-config)                      |
 | `@craft-ng/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules)                              |
+| `npx craft-graph`                  | Writes the static Craft graph               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
+| `npx nx architecture <app>`        | Runs the app's architecture Vitest suite    | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | Template migrator                  | Migrates templates to craft components      | [Template migrator](/guide/components/template-migrator)                 |

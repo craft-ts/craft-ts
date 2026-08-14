@@ -16,6 +16,7 @@ import {
   craftMethod,
   craftService,
   insertStoragePersister,
+  craftUnique,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
@@ -49,10 +50,10 @@ export const { provideUserMutation, UserMutation } = craftService(
         preservePreviousValue: () => true,
       },
       insertQueryPipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app-craft',
           key: 'mutation',
-        }),
+        })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams: { name } }) => name,

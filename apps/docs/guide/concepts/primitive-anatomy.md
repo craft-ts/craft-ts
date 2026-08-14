@@ -25,8 +25,9 @@ one label, and the tooling cannot tell them apart.
 ## Driving it with `yield*`
 
 A primitive does not run itself. Inside any generator host — a `craftComponent`
-logic factory, a `craftService` factory, `craftGen`, a route helper — `yield*` is
-the driver:
+logic factory, a `craftService` factory, a `craftComputed`, a `craftMethod`,
+`craftGen`, a route helper — `yield*` is the driver. The entity that yields
+records the dependency on **its** graph:
 
 ```typescript
 const tasks = yield* state('tasks', []);
@@ -66,18 +67,22 @@ keys in the returned value:
 
 ```typescript
 import {
+  craftComputed,
   craftService,
   craftYieldRecord,
   query,
   state,
+  type CraftServiceInput,
 } from '@craft-ng/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQueryWithState', scope: 'global' },
-  (inputs: { userId: () => string | undefined }) =>
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     craftYieldRecord({
       userQuery: query('userQuery', {
-        params: inputs.userId,
+        params: function* () {
+          return yield* inputs.userId();
+        },
         loader: ({ params }) => ApiService.getItemById(params),
       }),
       refresh: state('refresh', 0, ({ update }) => ({
@@ -96,15 +101,19 @@ available: `const userQuery = yield* query(...)`.
 The last argument receives the primitive's internals and returns what to expose:
 
 ```typescript
-state('counter', 0, ({ state, update, set }) => ({
+state('counter', 0, ({ state, update }) => ({
   increment: () => update((value) => value + 1),
-  isEven: computed(() => state() % 2 === 0),
+  isEven: craftComputed(function* () {
+    return (yield* state()) % 2 === 0;
+  }),
 }));
 ```
 
 Compose several with the primitive-specific helpers described in
 [Typed insertion pipes](/guide/concepts/insertion-pipes). An insertion can also
-be a `function*`, in which case it can `yield*` services. Keep
+be a `function*`, in which case it can `yield*` services. A derived value or
+generator method must yield readers it does not own — including this
+primitive's `state()` / `update()` when the member is a generator. Keep
 [`craftPipe`](/guide/concepts/insertions) for universal or nested compositions.
 
 ## Scoped providers
@@ -121,6 +130,106 @@ query('userQuery', {
 });
 ```
 
+## Injectable runtime context
+
+Everyday insertions already receive `set`, `update`, and `patch` as arguments.
+Keep using that.
+
+Each primitive also **provides those same writes through Angular DI** on every
+insertion method. Wrappers, registries, tests, WebMCP tools, and other
+advanced patterns can recover them without being passed the insertion context
+— for example to seed a query result, patch a mutation value, or drive a
+`state` from a
+[`provideFnWrapper`](/guide/advanced/observability#providefnwrapper).
+
+That is also the surface a WebMCP client uses to inspect and mutate a live
+primitive: `get` / `set` / `update` / `patch` on a query result, a `state`, a
+mutation, an `asyncProcess`, or `queryParams`, without editing TypeScript or
+reloading the page.
+
+The helpers return `undefined` outside an insertion-method injection context.
+Use the one that matches the primitive, or the generic helper and branch on
+`kind`:
+
+| Primitive      | Helper                                      |
+| -------------- | ------------------------------------------- |
+| `state`        | `injectStateMethodRuntimeContext()`         |
+| `query`        | `injectQueryMethodRuntimeContext()`         |
+| `mutation`     | `injectMutationMethodRuntimeContext()`      |
+| `queryParams`  | `injectQueryParamsMethodRuntimeContext()`   |
+| `asyncProcess` | `injectAsyncProcessMethodRuntimeContext()`  |
+| any of them    | `injectPrimitiveMethodRuntimeContext()`     |
+
+The context is the same shape everywhere:
+
+```typescript
+{
+  kind: 'state' | 'query' | 'mutation' | 'queryParams' | 'asyncProcess';
+  get(): unknown;
+  set(value: unknown): unknown;
+  update(updater: (current: unknown) => unknown): unknown;
+  patch(updater: (current: unknown) => object): unknown;
+  originalSource: string;
+}
+```
+
+`patch` merges objects. Use `update` to replace arrays or primitives. Nested
+[`insertSelect`](/guide/state/select) methods receive the selected slice, not
+the root.
+
+```typescript
+import {
+  injectQueryMethodRuntimeContext,
+  provideFnWrapper,
+} from '@craft-ng/core';
+
+provideFnWrapper(
+  'Warning: dependency injection here is not type-safe and may fail at runtime',
+  function* (factory, thisArg, args) {
+    const query = injectQueryMethodRuntimeContext();
+    const result = yield* factory.apply(thisArg, args);
+    query?.patch((current) => ({ ...current, viewed: true }));
+    return result;
+  },
+);
+```
+
+`query`, `mutation`, `asyncProcess`, and `queryParams` also publish the
+**primitive value itself** — not only its methods — through
+`providePrimitiveResourceRuntimeObserver`. Register it on the primitive's
+`providers` (or higher). The observer runs at creation; keep the context if
+you need to write later. Grouped resources take an optional `id` equivalent to
+`.select(id)`. `state` has no resource observer: only the method context.
+
+```typescript
+import {
+  providePrimitiveResourceRuntimeObserver,
+  query,
+  type PrimitiveResourceRuntimeContext,
+} from '@craft-ng/core';
+
+let usersRuntime: PrimitiveResourceRuntimeContext | undefined;
+
+const users = yield* query('users', {
+  providers: [
+    providePrimitiveResourceRuntimeObserver((context) => {
+      if (context.kind === 'query') {
+        usersRuntime = context;
+      }
+    }),
+  ],
+  params: () => true,
+  loader: function* () {
+    return yield* UserApi.list();
+  },
+});
+
+usersRuntime?.set([{ id: 'stub', name: 'Preview' }]);
+```
+
+The Angular `InjectionToken` behind these helpers is not part of the public
+API. Inject the helpers; do not look up the token yourself.
+
 ## Reading a value that may have failed
 
 The async primitives (`query`, `mutation`, `asyncProcess`) expose one value reader:
@@ -128,7 +237,7 @@ The async primitives (`query`, `mutation`, `asyncProcess`) expose one value read
 - `value()` — never throws, returns `undefined` when no value is available.
 
 ::: tip
-`value()` can be read directly in templates and computed signals.
+Pass `query.value` to a template binding. Inside a generator, `yield* query.value()`.
 :::
 
 ## Pitfalls
@@ -145,8 +254,15 @@ confusing "not a function" error.
 **Methods bound to a source with `on$` are not exposed on the result.** They
 work internally, driven by the source, and do not appear on the ref.
 
+**Don't inject the runtime context from feature insertions.** The insertion
+already receives typed `set` / `update` / `patch` as arguments. The injectable
+helpers are untyped and exist for wrappers, registries, WebMCP tools, and
+other advanced patterns.
+
 ## See Also
 
 - [Which primitive should I use?](/guide/concepts/choose-primitive)
 - [Insertions](/guide/concepts/insertions)
 - [Generators and `yield*`](/guide/concepts/generators)
+- [Observability](/guide/advanced/observability) — `provideFnWrapper` as a
+  consumer of the runtime context

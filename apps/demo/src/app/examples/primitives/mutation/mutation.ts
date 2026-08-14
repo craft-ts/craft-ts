@@ -13,6 +13,7 @@ import {
 import {
   CraftRouter,
   insertStoragePersister,
+  craftUnique,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
@@ -55,10 +56,10 @@ const MutationDemoComponent = craftComponent(
         ({ resource }) => ({
           hasUser: craftComputed('hasUser', () => resource.hasValue()),
         }),
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app',
           key: 'mutation',
-        }),
+        })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams: { name } }) => name,

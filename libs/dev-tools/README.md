@@ -168,7 +168,88 @@ npx craft-graph \
   --format both
 ```
 
-This writes `craft-dependency-graph.json` and `craft-dependency-graph.mmd`.
+This writes `craft-dependency-graph.json`, `craft-dependency-graph.architecture.ts`,
+and `craft-dependency-graph.mmd`.
+The TypeScript catalog is a compact `as const` index of names (routes, services,
+providers, HTTP endpoints, `browserBoundary` flags). Architecture tests import it
+for autocomplete; the JSON remains the graph they walk.
+
+```ts
+import {
+  analyzeDependencyGraph,
+  createArchitectureGraph,
+  noExclusiveLink,
+  assertCraftUnique,
+  assertHttpEndpointUnique,
+  assertCraftComputedPure,
+  assertNoDependencyCycles,
+  assertPathBoundaries,
+  assertDeclarativeArchitecture,
+  assertRouteDiProofs,
+} from '@craft-ng/dev-tools';
+import { architectureCatalog } from './craft-dependency-graph.architecture';
+
+const graph = createArchitectureGraph(
+  analyzeDependencyGraph({
+    tsConfigFilePath: 'apps/demo/tsconfig.app.json',
+  }),
+  architectureCatalog, // generated unions for autocomplete
+);
+
+graph.route('/admin').provider('User');
+graph.providedOn('User');
+graph.httpEndpoint('GET', 'users');
+graph.unique('{"key":"user","storeName":"app"}');
+graph.services({ browserBoundary: true });
+
+noExclusiveLink(graph.route('/checkout'), graph.route('/admin'));
+assertPathBoundaries(graph.graph, {
+  constraints: [
+    {
+      source: 'src/app/features/:feature/**',
+      onlyDependOn: [
+        'src/app/features/:feature/**',
+        'src/app/shared/**',
+      ],
+    },
+  ],
+});
+assertCraftUnique(graph.graph);
+assertHttpEndpointUnique(graph.graph);
+assertCraftComputedPure(graph.graph);
+assertNoDependencyCycles(graph.graph);
+assertRouteDiProofs(graph.graph);
+// or the four declarative checks together:
+assertDeclarativeArchitecture(graph.graph);
+```
+
+`noExclusiveLink` forbids edges between nodes exclusive to each branch. A shared
+kernel (Auth, HTTP client, …) is allowed. Branch membership stops at other
+`provides` sites so a leak into another feature is not reclassified as shared.
+
+`assertPathBoundaries` is the folder equivalent of Nx `depConstraints`: an
+allowlist (`onlyDependOn`) and optional denylist (`forbidTarget`) on
+`depends-on` edges, matched against each node's `filePath`. `:name` captures a
+path segment so a feature can depend on itself but not on siblings.
+
+`assertHttpEndpointUnique` forbids the same HTTP verb+URL from two call sites.
+`assertCraftComputedPure` forbids `craftComputed` from calling methods or
+writing `source$`. `assertNoDependencyCycles` forbids directed `depends-on`
+cycles (services, components, computeds). `provides` / `loads` / `contains` are
+not cycles. `assertRouteDiProofs` requires every routed component to be hooked
+to an armed `CanRun` mapper (`ValidateCascadeRoutesFile` or `RouteCheckedDI`),
+including lazy `loadChildren` collections, and every `craftAppConfig` error
+screen (`provideCraftGlobalErrorComponent`, `provideCraftRouteLoadErrorComponent`)
+to have an armed `RouteExceptionComponentCheckedDI`.
+
+Custom rules are ordinary Vitest assertions on the same graph. Lookup is `kind + name`; homonyms require a
+relative file path (`graph.service('ApiService', 'users/api.service.ts')`).
+If a name disappears from the graph, the lookup throws.
+
+The demo app has the first in-app suite at `apps/demo/architecture/`, next to
+`e2e/`. Common rules each live in `architecture/rules/` (one file per helper).
+Run it with `npx nx architecture demo` (see `apps/demo/README.md`).
+
 The same command is also available as `npx craft graph`. Use `--format json` or
 `--format mermaid` to write only one representation and `--include <text>` to
 restrict the analysis to matching source paths.
@@ -177,7 +258,7 @@ To get the interactive route explorer, use `--format html`. It embeds the graph
 in one standalone file: no server, application runtime, or separate JSON file is
 needed. The explorer lets you expand route → component → service/property/
 primitive, click any node for its source and relations, and identify services
-used by other routes. `--format all` writes JSON, Mermaid, and HTML together.
+used by other routes. `--format all` writes JSON, the architecture catalog, Mermaid, and HTML together.
 
 ```bash
 npx nx build dev-tools
@@ -324,6 +405,10 @@ export default [
       'craft-ng/require-craft-resource-trigger-yield': 'error',
       'craft-ng/no-craft-computed-side-effects': 'error',
       'craft-ng/require-craft-method-for-yieldable-callback': 'error',
+      'craft-ng/prefer-direct-yieldable-callback': 'error',
+      'craft-ng/require-yieldable-reactive-read': 'error',
+      'craft-ng/require-yieldable-template-method': 'error',
+      'craft-ng/require-yieldable-insertion-write': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',

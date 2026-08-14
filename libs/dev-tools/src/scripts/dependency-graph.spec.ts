@@ -43,6 +43,8 @@ declare function craftService(...args: unknown[]): Record<string, (...args: neve
 declare function craftComponent(...args: unknown[]): unknown;
 declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
+declare function craftUnique<T>(value: T): T;
+declare function insertStoragePersister(...args: unknown[]): unknown;
 declare function craftComputed(...args: unknown[]): unknown;
 declare function craftMethod(...args: unknown[]): unknown;
 declare function settled(...args: unknown[]): unknown;
@@ -400,8 +402,184 @@ describe('analyzeDependencyGraph architecture facts', () => {
     expect(endpoint?.label).toBe('GET users');
     expect(endpoint?.details?.['method']).toBe('GET');
     expect(endpoint?.details?.['url']).toBe('users');
+    expect(endpoint?.filePath).toContain('api.ts');
+    expect(endpoint?.line).toEqual(expect.any(Number));
+    expect(endpoint?.details?.['callSites']).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ filePath: 'api.ts', line: expect.any(Number) }),
+      ]),
+    );
     expect(edgeLabels(graph, 'UsersApi', 'calls')).toEqual(
       expect.arrayContaining(['calls->GET users']),
     );
+  });
+
+  it('merges craftUnique calls with canonically equal objects into one node', async () => {
+    const root = await fixture({
+      'app.ts': `
+        ${CRAFT_STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const cached = yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ key: 'user', storeName: 'app' })),
+            );
+            return { cached };
+          },
+        );
+
+        const { Profile } = craftService(
+          { name: 'Profile', scope: 'global' },
+          function* () {
+            const cached = yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique({ storeName: 'app', key: 'user' })),
+            );
+            return { cached };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    const uniques = graph.nodes.filter((node) => node.kind === 'unique');
+    expect(uniques).toHaveLength(1);
+    expect(uniques[0]?.details?.['static']).toBe(true);
+    expect(uniques[0]?.details?.['canonical']).toBe(
+      '{"key":"user","storeName":"app"}',
+    );
+    expect(uniques[0]?.details?.['callSites']).toHaveLength(2);
+    expect(uniques[0]?.filePath).toContain('app.ts');
+    expect(uniques[0]?.line).toEqual(expect.any(Number));
+    expect(edgeLabels(graph, 'query:cached', 'calls')).toEqual(
+      expect.arrayContaining(['calls->{"key":"user","storeName":"app"}']),
+    );
+  });
+
+  it('marks a non-literal craftUnique argument as non-static', async () => {
+    const root = await fixture({
+      'app.ts': `
+        ${CRAFT_STUBS}
+        const identity = { key: 'user', storeName: 'app' };
+
+        const { Users } = craftService(
+          { name: 'Users', scope: 'global' },
+          function* () {
+            const cached = yield* query(
+              'cached',
+              {},
+              insertStoragePersister(craftUnique(identity)),
+            );
+            return { cached };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    const uniques = graph.nodes.filter((node) => node.kind === 'unique');
+    expect(uniques).toHaveLength(1);
+    expect(uniques[0]?.details?.['static']).toBe(false);
+    expect(uniques[0]?.filePath).toContain('app.ts');
+  });
+
+  it('records the source file path on every node', async () => {
+    const root = await fixture({
+      'users-api.ts': `
+        ${CRAFT_STUBS}
+        declare const CraftHttpClient: {
+          get(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
+        };
+
+        export const { UsersApi } = craftService(
+          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          function* () {
+            const users = yield* CraftHttpClient.get(({ response }) => ({
+              url: 'users',
+              success: response(),
+            }));
+            return { users };
+          },
+        );
+      `,
+      'user-list.ts': `
+        ${CRAFT_STUBS}
+        import { UsersApi } from './users-api';
+
+        export const { UserList, provideUserList } = craftService(
+          { name: 'UserList', scope: 'toProvide' },
+          function* () {
+            yield* UsersApi();
+            const list = yield* query(
+              'userList',
+              {},
+              insertStoragePersister(craftUnique({ key: 'user-list', storeName: 'shop' })),
+            );
+            return { list };
+          },
+        );
+      `,
+      'admin.ts': `
+        ${CRAFT_STUBS}
+        import { UserList, provideUserList } from './user-list';
+        declare function craftRoutes(...args: unknown[]): unknown;
+        declare function craftRoute(...args: unknown[]): unknown;
+
+        const Admin = craftComponent(
+          'Admin',
+          {},
+          function* () {
+            yield* UserList();
+            return {};
+          },
+          () => div([]),
+        );
+
+        export const appRoutes = craftRoutes('appRoutes', [
+          craftRoute('/admin', {
+            path: '/admin',
+            providers: [provideUserList()],
+            loadComponent: () => Promise.resolve(Admin),
+          }),
+        ]);
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    const missing = graph.nodes.filter((node) => !node.filePath);
+    expect(missing.map((node) => `${node.kind}:${node.label}`)).toEqual([]);
+    expect(
+      graph.nodes.find((node) => node.kind === 'service' && node.label === 'UsersApi')
+        ?.filePath,
+    ).toContain('users-api.ts');
+    expect(
+      graph.nodes.find((node) => node.kind === 'component' && node.label === 'Admin')
+        ?.filePath,
+    ).toContain('admin.ts');
+    expect(graph.nodes.find((node) => node.kind === 'route')?.filePath).toContain(
+      'admin.ts',
+    );
+    expect(graph.nodes.find((node) => node.kind === 'unique')?.filePath).toContain(
+      'user-list.ts',
+    );
+    expect(
+      graph.nodes.find((node) => node.kind === 'http-endpoint')?.filePath,
+    ).toContain('users-api.ts');
   });
 });

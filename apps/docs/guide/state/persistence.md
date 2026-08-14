@@ -12,7 +12,7 @@ you'd rather show instantly than fetch again.
 Works with `state()`, `query()`, `mutation()` and `asyncProcess()`.
 
 ```typescript
-import { insertStoragePersister } from '@craft-ng/core';
+import { craftUnique, insertStoragePersister } from '@craft-ng/core';
 ```
 
 Configure the storage backend once in `appConfig`. The default application
@@ -55,10 +55,10 @@ providers: [
 const { myState } = state(
   'myState',
   0,
-  insertStoragePersister({
+  insertStoragePersister(craftUnique({
     storeName: 'myApp',
     key: 'myState',
-  }),
+  })),
 );
 
 const { myQuery } = query(
@@ -69,19 +69,19 @@ const { myQuery } = query(
       return { data: 'testData' };
     },
   },
-  insertStoragePersister({
+  insertStoragePersister(craftUnique({
     storeName: 'myApp',
     key: 'myQuery',
-  }),
+  })),
 );
 ```
 
 ## Options
 
+The identity (`storeName` + `key`) is the first argument, wrapped in `craftUnique` so the static graph can guarantee it appears only once. Options are the second argument.
+
 | Option                                     | Type                          | Default     | Description                                                                                                                                                                                    |
 | ------------------------------------------ | ----------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storeName`                                | `string`                      | —           | Prefix for keys in the configured storage backend, used to namespace this store                                                                                                                |
-| `key`                                      | `string`                      | —           | Key identifying the specific data within the store                                                                                                                                             |
 | `cacheTime`                                | `number`                      | `300000`    | Time in ms after which cached data is deleted from the configured storage backend (garbage collection). Set to `0` to disable expiration.                                                       |
 | `staleTime`                                | `number`                      | `undefined` | Time in ms after which cached data is considered stale. The cached value is still restored immediately, but a background `reload()` is triggered (SWR pattern). Must be less than `cacheTime`. |
 | `validate`                                 | `(value: unknown) => boolean` | `undefined` | Called on the deserialized value before restoring it. Return `false` to discard the entry and load fresh. Useful when the data model has changed.                                              |
@@ -107,11 +107,14 @@ const { userQuery } = query(
     params: () => currentUserId(),
     loader: async ({ params }) => fetchUser(params),
   },
-  insertStoragePersister({
+  insertStoragePersister(craftUnique({
     storeName: 'myApp',
     key: 'user',
-    cacheTime: 10 * 60_000, // delete from the configured backend after 10 min
-    staleTime: 60_000, // show cached + reload in background after 1 min
+  }), {
+    cacheTime: 10 * 60_000,
+    // delete from the configured backend after 10 min
+    staleTime: 60_000,
+    // show cached + reload in background after 1 min,
   }),
 );
 
@@ -137,9 +140,10 @@ const { userQuery } = query(
     params: () => currentUserId(),
     loader: async ({ params }) => fetchUser(params),
   },
-  insertStoragePersister({
+  insertStoragePersister(craftUnique({
     storeName: 'myApp',
     key: 'user',
+  }), {
     validate: (v): v is User => UserSchema.safeParse(v).success,
   }),
 );
@@ -161,9 +165,10 @@ const postsQuery = yield* query(
     identifier: (id) => id,
     loader: async ({ params }) => fetchPost(params),
   },
-  insertStoragePersister({
+  insertStoragePersister(craftUnique({
     storeName: 'myApp',
     key: 'posts',
+  }), {
     cacheTime: 15 * 60_000,
     staleTime: 2 * 60_000,
   }),
@@ -193,3 +198,4 @@ sessionStorage backends clear their own persisted entries.
 - [GlobalPersisterHandler](/guide/state/persistence-handler)
 - [query](/guide/state/server-state)
 - [Insertions](/guide/concepts/insertions) — composing with other insertions
+- [Architecture rules](/guide/testing/architecture) — `assertCraftUnique` on storage identities

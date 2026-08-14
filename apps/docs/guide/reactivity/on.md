@@ -79,7 +79,7 @@ const { myState } = state('myState', 0, ({ set }) => ({
   reset: on$(resetSource$, () => set(0)),
 }));
 
-myState.increment(); // ✅ Available
+myState.increment(); // ✅ Available as a yieldable method (`yield*` / pass the reference)
 myState.reset(); // ❌ Not available (TypeScript error)
 ```
 
@@ -112,12 +112,12 @@ const { counter } = state('counter', 0, ({ set, update }) => ({
   reset: on$(resetSource, () => set(0)),
 }));
 
-console.log(counter()); // 0
-counter.increment();
-console.log(counter()); // 1
+console.log(yield* counter()); // 0
+yield* counter.increment();
+console.log(yield* counter()); // 1
 
 resetSource.emit(); // Triggers reset
-console.log(counter()); // 0
+console.log(yield* counter()); // 0
 
 // counter.reset() ❌ TypeScript error - not exposed
 ```

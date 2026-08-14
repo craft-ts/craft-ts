@@ -80,20 +80,24 @@ const { usersQuery } = query(
     { initialValue: [] as Data[] },
     ({ state, settledState, set }) => ({
       // a computed derived from the current page
-      totalOfUnCompletedData: computed(
-        () => state().filter((d) => !d.completed).length,
-      ),
-      // Reads the current page only; it does not use the previous-page placeholder.
-      settledCount: computed(() => craftUse(settledState()).length),
-      // a method that mutates only the current page
-      markAsCompleted: (id: string) =>
-        set(state().map((d) => (d.id === id ? { ...d, completed: true } : d))),
+      totalOfUnCompletedData: craftComputed(function* () {
+        return (yield* state()).filter((d) => !d.completed).length;
+      }),
+      settledCount: craftComputed(function* () {
+        return (yield* settledState()).length;
+      }),
+      markAsCompleted: function* (id: string) {
+        const current = yield* state();
+        return yield* set(
+          current.map((d) => (d.id === id ? { ...d, completed: true } : d)),
+        );
+      },
     }),
   ),
 );
 
-usersQuery.totalOfUnCompletedData(); // Signal<number>
-usersQuery.markAsCompleted('42');
+yield* usersQuery.totalOfUnCompletedData(); // number
+yield* usersQuery.markAsCompleted('42');
 ```
 
 The `build` context exposes:
@@ -112,8 +116,8 @@ The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderDa
 ::: details A full paginated component
 
 ```typescript
-import { button, craftComponent, div, each, span } from '@craft-ng/component';
-import { query, state } from '@craft-ng/core';
+import { button, craftComponent, div, each, ifBlock, span } from '@craft-ng/component';
+import { craftComputed, query, state } from '@craft-ng/core';
 
 export const UsersList = craftComponent(
   'UsersList',
@@ -121,7 +125,16 @@ export const UsersList = craftComponent(
   function* () {
     const page = yield* state('page', 1, ({ state, update, set }) => ({
       next: () => update((value) => value + 1),
-      previous: () => set(Math.max(1, state() - 1)),
+      previous: function* () {
+        const current = yield* state();
+        return yield* set(Math.max(1, current - 1));
+      },
+      isFirst: craftComputed(function* () {
+        return (yield* state()) === 1;
+      }),
+      label: craftComputed(function* () {
+        return `Page ${yield* state()}`;
+      }),
     }));
 
     const userQuery = yield* query(
@@ -139,23 +152,29 @@ export const UsersList = craftComponent(
   },
   ({ page, userQuery }) => [
     div(
-      { class: () => (userQuery.isPlaceHolderData() ? 'users-list loading' : 'users-list') },
+      {
+        class: function* () {
+          return (yield* userQuery.isPlaceHolderData())
+            ? 'users-list loading'
+            : 'users-list';
+        },
+      },
       each(
-        () => userQuery.currentPageData(),
+        userQuery.currentPageData,
         { track: (user) => user.id },
-        (user) => UserCard({ user: () => user }),
+        (user) => UserCard({ user }),
       ),
     ),
 
     div({ class: 'pagination' }, [
-      button({ click: page.previous, disabled: () => page() === 1 }, 'Previous'),
-      span(() => `Page ${page()}`),
+      button({ click: page.previous, disabled: page.isFirst }, 'Previous'),
+      span(page.label),
       button({ click: page.next }, 'Next'),
     ]),
 
-    userQuery.isPlaceHolderData()
-      ? div({ class: 'loading-indicator' }, 'Loading new page…')
-      : [],
+    ifBlock(userQuery.isPlaceHolderData, () =>
+      div({ class: 'loading-indicator' }, 'Loading new page…'),
+    ),
   ],
 );
 ```

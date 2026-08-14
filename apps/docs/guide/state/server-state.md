@@ -105,12 +105,16 @@ const { todosQuery } =
         (await fetch(`/api/todos?completed=${params.completed}`)).json(),
     },
     ({ value, isLoading }) => ({
-      count: computed(() => value()?.length ?? 0),
-      isEmpty: computed(() => !isLoading() && value()?.length === 0),
+      count: craftComputed(function* () {
+        return (yield* value())?.length ?? 0;
+      }),
+      isEmpty: craftComputed(function* () {
+        return !(yield* isLoading()) && (yield* value())?.length === 0;
+      }),
     }),
   );
 
-todosQuery.count();
+yield* todosQuery.count();
 ```
 
 An insertion can also be a `function*` when it needs to yield services.
@@ -146,17 +150,20 @@ const { usersQuery } =
       },
     },
     insertQuerySelect('user', ({ state }) => ({
-      displayName: computed(() => `${state().firstName} ${state().lastName}`),
-      roleLabel: computed(() =>
-        state().role === 'admin' ? 'Administrator' : 'Member',
-      ),
+      displayName: craftComputed(function* () {
+        const user = yield* state();
+        return `${user.firstName} ${user.lastName}`;
+      }),
+      roleLabel: craftComputed(function* () {
+        return (yield* state()).role === 'admin' ? 'Administrator' : 'Member';
+      }),
     })),
   );
 
 // `selectUser` targets one item in the returned array.
 const firstUser = usersQuery.selectUser(0);
-firstUser?.displayName(); // 'Ada Lovelace'
-firstUser?.roleLabel(); // 'Administrator'
+yield* firstUser?.displayName(); // 'Ada Lovelace'
+yield* firstUser?.roleLabel(); // 'Administrator'
 ```
 
 The same pattern supports selecting a nested object property with
@@ -211,10 +218,10 @@ const userQuery = yield* query(
         // and go get the truth back if the mutation failed
         reload: { onMutationException: true },
       }),
-      insertStoragePersister({
+      insertStoragePersister(craftUnique({
         storeName: 'demo-app',
         key: 'user-query',
-      }),
+      })),
     ),
 );
 ```
@@ -360,6 +367,15 @@ const { userQuery } =
   );
 ```
 
+:::
+
+::: tip Advanced — injectable writes
+Insertion methods provide `injectQueryMethodRuntimeContext()`, and the query
+value itself is published to `providePrimitiveResourceRuntimeObserver`. Both
+expose `get`, `set`, `update`, and `patch`, so wrappers, WebMCP tools, and
+other advanced patterns can seed or replace a result without going through the
+insertion callback. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
 :::
 
 ## See Also

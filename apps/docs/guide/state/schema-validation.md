@@ -122,13 +122,13 @@ const price = signal(10);
 const quantity = signal(2);
 
 const total = yield* state('total', {
-  $self: computed(() => price() * quantity()),
+  $self: craftComputed('totalSelf', () => price() * quantity()),
   schema: NonNegativeNumberSchema,
 });
 
-console.log(total()); // 20
+console.log(yield* total()); // 20
 quantity.set(3);
-console.log(total()); // 30
+console.log(yield* total()); // 30
 ```
 
 When a derived value fails validation, the configured policy decides whether

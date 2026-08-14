@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asyncProcess } from './async-process';
+import { craftUnique } from './craft-unique';
 import { insertStoragePersister } from './insert-storage-persister';
 import { mutation } from './mutation';
 import { query } from './query';
@@ -93,9 +94,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myTestQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
           }),
         ),
@@ -116,10 +118,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myTestQueryById',
-          }),
+          })),
         ),
       );
 
@@ -158,10 +160,10 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myMutation',
-          }),
+          })),
         ),
       );
 
@@ -176,10 +178,10 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myMutationById',
-          }),
+          })),
         ),
       );
 
@@ -219,10 +221,10 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myAsyncProcess',
-          }),
+          })),
         ),
       );
 
@@ -237,10 +239,10 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myAsyncProcessById',
-          }),
+          })),
         ),
       );
 
@@ -292,9 +294,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myStaleQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             cacheTime: 60000,
             staleTime: 5000,
@@ -329,9 +332,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'mySWRQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             cacheTime: 60000,
             staleTime: 5000,
@@ -378,9 +382,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myStaleQueryById',
+          }), {
             cacheTime: 60000,
             staleTime: 5000,
           }),
@@ -427,9 +432,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myFreshQueryById',
+          }), {
             cacheTime: 60000,
             staleTime: 5000,
           }),
@@ -465,9 +471,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}`, version: 2 };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myValidatedQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             // validate rejects the old shape (missing 'version' field)
             validate: (v): v is { data: string; version: number } =>
@@ -511,9 +518,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}`, version: 1 };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myValidatedQuery2',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             validate: (v): v is { data: string; version: number } =>
               typeof (v as any)?.version === 'number',
@@ -555,9 +563,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}`, version: 2 };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myValidatedQueryById',
+          }), {
             validate: (v): v is { data: string; version: number } =>
               typeof (v as any)?.version === 'number',
           }),
@@ -585,10 +594,10 @@ describe('insertStoragePersister', () => {
             ({ set }) => ({
               setValue: (value: number) => set(value),
             }),
-            insertStoragePersister({
+            insertStoragePersister(craftUnique({
               storeName: 'myTestStore',
               key: 'myState',
-            }),
+            })),
           ),
         ),
       );
@@ -623,10 +632,10 @@ describe('insertStoragePersister', () => {
         state(
           'restoredState',
           0,
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myStateRestored',
-          }),
+          })),
         ),
       );
 
