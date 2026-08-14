@@ -118,6 +118,7 @@ provideCraftLoading(
 | `withErrorComponent`       | `CRAFT_ERROR_COMPONENT`                                               | `null`                            |
 | `withRouteLoadError`       | `CRAFT_ROUTE_LOAD_ERROR_COMPONENT` / `CRAFT_ROUTE_LOAD_RETRY`         | `null` / one retry after 250 ms   |
 | `withCraftViewTransitions` | `CRAFT_VIEW_TRANSITIONS_ENABLED` / `CRAFT_VIEW_TRANSITION_SKIP_BLANK` | `false` / `false`                 |
+| `withA11yNavigationFocus`  | `CRAFT_A11Y_NAVIGATION_FOCUS`                                         | `false`                           |
 
 The default pending component renders `CRAFT_LOADING_TEXT`, which reads `LOCALE_ID` and picks a
 built-in translation (`Loading…` / `Chargement…`).

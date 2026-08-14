@@ -92,7 +92,7 @@ const GlobalQuery = craftComponent(
       div({ class: 'query-actions' }, [
         button(
           'GoToPreviousUser',
-          {
+          { type: 'button',
             *click() {
               yield* navigatePrevious();
             },
@@ -101,7 +101,7 @@ const GlobalQuery = craftComponent(
         ),
         button(
           'GoToNextUser',
-          {
+          { type: 'button',
             *click() {
               yield* navigateNext();
             },

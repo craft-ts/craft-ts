@@ -361,6 +361,11 @@ function getBrowserDocument() {
   return requireBrowserValue(globalThis.document, 'document');
 }
 
+/** @internal Angular TitleStrategy writes the document title through the same boundary as `BrowserDocument.setTitle`. */
+export function ɵapplyBrowserDocumentTitle(value: string): void {
+  getBrowserDocument().title = value;
+}
+
 function createInMemoryStorage(): StorageLike {
   const values = new Map<string, string>();
 
@@ -827,7 +832,7 @@ const browserDocumentService: BrowserBoundaryService<
   (): BrowserDocumentServiceApi => ({
     title: () => getBrowserDocument().title,
     setTitle: (value) => {
-      getBrowserDocument().title = value;
+      ɵapplyBrowserDocumentTitle(value);
     },
     visibilityState: () => getBrowserDocument().visibilityState,
     hasFocus: () => getBrowserDocument().hasFocus(),

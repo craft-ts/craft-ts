@@ -5,12 +5,17 @@ import {
   craftComponent,
   div,
   each,
-  h,
-  h2,
   main,
   option,
   select,
   span,
+  table,
+  thead,
+  th,
+  td,
+  heading,
+  tr,
+  tbody,
 } from '@craft-ng/component';
 import {
   insertQueryPipe,
@@ -105,35 +110,33 @@ const GranularMutation = craftComponent(
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
-            h2({ class: 'card-title' }, [
+            heading({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
                 status: usersQuery.currentPageStatus,
               }),
             ]),
             div({ class: 'table-container' }, [
-              h('table', { class: 'table' }, [
-                h('thead', [
-                  h('tr', [h('th', 'ID'), h('th', 'Name'), h('th', 'Action')]),
+              table( { class: 'table' }, [
+                thead( [
+                  tr( [th( 'ID'), th( 'Name'), th( 'Action')]),
                 ]),
-                h(
-                  'tbody',
+                tbody(
                   each(
                     usersQuery.currentPageData,
                     { track: (user) => user.id },
                     (user) =>
-                      h('tr', [
-                        h('td', function* () {
+                      tr( [
+                        td( function* () {
                           return (yield* user()).id;
                         }),
-                        h('td', function* () {
+                        td( function* () {
                           return (yield* user()).name;
                         }),
-                        h(
-                          'td',
+                        td(
                           button(
                             'UpdateUserName',
-                            {
+                            { type: 'button',
                               class: 'action-btn',
                               disabled: function* () {
                                 return updateUserName
@@ -165,6 +168,7 @@ const GranularMutation = craftComponent(
               select(
                 'PageSize',
                 {
+                  'aria-label': 'Page size',
                   value: function* () {
                     return String((yield* pagination()).pageSize);
                   },
@@ -184,7 +188,7 @@ const GranularMutation = craftComponent(
               ),
               button(
                 'PreviousPage',
-                { class: 'btn', click: pagination.previousPage },
+                { type: 'button', class: 'btn', click: pagination.previousPage },
                 'Previous',
               ),
               span(
@@ -196,7 +200,7 @@ const GranularMutation = craftComponent(
               ),
               button(
                 'NextPage',
-                { class: 'btn', click: pagination.nextPage },
+                { type: 'button', class: 'btn', click: pagination.nextPage },
                 'Next',
               ),
             ]),

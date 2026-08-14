@@ -130,6 +130,7 @@ export * from './lib/craft-route-exceptions';
 export * from './lib/craft-route-meta';
 export * from './lib/craft-route-target';
 export * from './lib/craft-pending';
+export * from './lib/craft-a11y';
 export * from './lib/craft-load-retry';
 export * from './lib/craft-route-load-error';
 export * from './lib/craft-lazy';

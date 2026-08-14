@@ -1,4 +1,8 @@
-import { craftComponent, div, p } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  p,
+} from '@craft-ng/component';
 import {
   craftException,
   CraftHttpClient,

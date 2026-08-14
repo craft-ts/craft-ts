@@ -5,11 +5,11 @@ import {
   craftComponent,
   div,
   each,
-  h1,
   header,
   p,
   section,
   span,
+  heading,
 } from '@craft-ng/component';
 import {
   insertStoragePersister,
@@ -102,13 +102,13 @@ const PixelArt = craftComponent(
   ({ ui, cells }) =>
     section([
       header([
-        h1('Atelier Pixel Art'),
+        heading('Atelier Pixel Art'),
         p('Grille 16×16 avec state simple et insertions par case.'),
       ]),
       div(
         { class: 'pixel-palette' },
         each(COLORS, { track: (color) => color }, (color) =>
-          button({
+          button({ type: 'button',
             class: 'pixel-color',
             style: function* () {
               return { backgroundColor: yield* color() };
@@ -123,7 +123,7 @@ const PixelArt = craftComponent(
         ),
       ),
       button(
-        {
+        { type: 'button',
           *click() {
             yield* cells.clearAll();
           },
@@ -144,7 +144,7 @@ const PixelArt = craftComponent(
         { class: 'pixel-grid', role: 'grid' },
         each(INDEXES, { track: (index) => index }, (_item, currentIndex) => {
           const cell = cells.selectCell(currentIndex);
-          return button({
+          return button({ type: 'button',
             class: 'pixel-cell',
             style: function* () {
               return { backgroundColor: cellColor(cell) };

@@ -69,6 +69,7 @@ describe('docs sidebar', () => {
     expect(guideLinks).toContain('/guide/testing/architecture');
     expect(guideLinks).toContain('/guide/testing/craft-graph-vs-nx');
     expect(guideLinks).toContain('/guide/components/fine-grained-reactivity');
+    expect(guideLinks).toContain('/guide/components/accessibility');
     expect(guideLinks).toContain('/guide/reactivity/craft-method');
     expect(guideLinks).toContain('/guide/reactivity/craft-computed');
     expect(guideLinks).toContain('/guide/reactivity/craft-effect');
@@ -517,6 +518,7 @@ describe('architecture rules doc page', () => {
     expect(content).toContain('assertPersistedPrimitiveHasUnique');
     expect(content).toContain('assertInsertSelectUnique');
     expect(content).toContain('assertCraftEffectNoNetwork');
+    expect(content).toContain('assertCraftEffectNoImperativeSync');
     expect(content).toContain('npx nx architecture demo');
     expect(content).toContain('craft-migrate-architecture');
     expect(content).toContain('depends-on');

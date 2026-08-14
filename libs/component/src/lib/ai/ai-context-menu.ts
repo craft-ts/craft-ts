@@ -69,6 +69,9 @@ export const AiContextMenu = craftComponent(
     div(
       {
         class: 'craft-ai-menu',
+        role: 'menu',
+        tabIndex: -1,
+        'aria-label': 'Component actions',
         style: () => ({ left: `${x()}px`, top: `${y()}px` }),
         click: (event: MouseEvent) => event.stopPropagation(),
         contextmenu: (event: MouseEvent) => event.preventDefault(),
@@ -76,6 +79,7 @@ export const AiContextMenu = craftComponent(
       button(
         {
           type: 'button',
+          role: 'menuitem',
           class: 'craft-ai-menu-item',
           click: () => onSelect(),
         },

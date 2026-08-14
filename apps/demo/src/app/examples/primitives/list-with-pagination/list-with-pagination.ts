@@ -5,12 +5,15 @@ import {
   craftComponent,
   div,
   each,
-  h,
-  h2,
   ifBlock,
   option,
   select,
   span,
+  heading,
+  td,
+  tr,
+  table,
+  tbody,
 } from '@craft-ng/component';
 import {
   insertStoragePersister,
@@ -89,26 +92,22 @@ const ListWithPagination = craftComponent(
   },
   ({ pagination, usersQuery, updatePageSize }) => {
     return div([
-      h2([
+      heading([
         'User Management: ',
         StatusComponent({
           status: usersQuery.currentPageStatus,
         }),
       ]),
-      h(
-        'table',
+      table(
         { class: 'table' },
-        h(
-          'tbody',
+        tbody(
           each(
             usersQuery.currentPageData,
             {
               track: (user) => user.id,
               empty: () =>
-                h(
-                  'tr',
-                  h(
-                    'td',
+                tr(
+                  td(
                     ifBlock(
                       usersQuery.isCurrentPageResolved,
                       () => 'No users found',
@@ -118,11 +117,11 @@ const ListWithPagination = craftComponent(
                 ),
             },
             (user) =>
-              h('tr', [
-                h('td', function* () {
+              tr( [
+                td( function* () {
                   return (yield* user()).id;
                 }),
-                h('td', function* () {
+                td( function* () {
                   return (yield* user()).name;
                 }),
               ]),
@@ -133,6 +132,7 @@ const ListWithPagination = craftComponent(
         select(
           'PageSize',
           {
+            'aria-label': 'Page size',
             value: function* () {
               return String((yield* pagination()).pageSize);
             },
@@ -150,7 +150,7 @@ const ListWithPagination = craftComponent(
             ),
           ),
         ),
-        button('PreviousPage', { click: pagination.previousPage }, 'Previous'),
+        button('PreviousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
         span(
           'CurrentPage',
           { class: 'current-page' },
@@ -158,7 +158,7 @@ const ListWithPagination = craftComponent(
             return (yield* pagination()).page;
           },
         ),
-        button('NextPage', { click: pagination.nextPage }, 'Next'),
+        button('NextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
       ]),
     ]);
   },

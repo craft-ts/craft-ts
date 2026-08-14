@@ -56,8 +56,26 @@ const craftCssVarNaming = require('./craft-css-var-naming.cjs');
 const craftCssTokenRegistry = require('./craft-css-token-registry.cjs');
 const noHardcodedDesignValues = require('./no-hardcoded-design-values.cjs');
 const noImportantInComponentStyles = require('./no-important-in-component-styles.cjs');
+const preferNamedHtmlHelpers = require('./prefer-named-html-helpers.cjs');
+const imgHasAlt = require('./img-has-alt.cjs');
+const controlHasAccessibleName = require('./control-has-accessible-name.cjs');
+const labelHasAssociatedControl = require('./label-has-associated-control.cjs');
+const noNoninteractiveElementInteractions = require('./no-noninteractive-element-interactions.cjs');
+const anchorHasHref = require('./anchor-has-href.cjs');
+const buttonHasType = require('./button-has-type.cjs');
+const iframeHasTitle = require('./iframe-has-title.cjs');
+const headingHasContent = require('./heading-has-content.cjs');
+const preferRelativeHeading = require('./prefer-relative-heading.cjs');
+const requireRouteHeadingOutline = require('./require-route-heading-outline.cjs');
+const noHeadingLevelSkip = require('./no-heading-level-skip.cjs');
+const noPositiveTabindex = require('./no-positive-tabindex.cjs');
+const validAria = require('./valid-aria.cjs');
+const roleHasRequiredAria = require('./role-has-required-aria.cjs');
+const targetBlankNoopener = require('./target-blank-noopener.cjs');
+const requireFocusVisible = require('./require-focus-visible.cjs');
+const requireReducedMotion = require('./require-reduced-motion.cjs');
 
-module.exports = {
+const plugin = {
   rules: {
     'app-start-registry-match': appStartRegistryMatch,
     'global-exception-registry-match': globalExceptionRegistryMatch,
@@ -119,5 +137,53 @@ module.exports = {
     'craft-css-token-registry': craftCssTokenRegistry,
     'no-hardcoded-design-values': noHardcodedDesignValues,
     'no-important-in-component-styles': noImportantInComponentStyles,
+    'prefer-named-html-helpers': preferNamedHtmlHelpers,
+    'img-has-alt': imgHasAlt,
+    'control-has-accessible-name': controlHasAccessibleName,
+    'label-has-associated-control': labelHasAssociatedControl,
+    'no-noninteractive-element-interactions': noNoninteractiveElementInteractions,
+    'anchor-has-href': anchorHasHref,
+    'button-has-type': buttonHasType,
+    'iframe-has-title': iframeHasTitle,
+    'heading-has-content': headingHasContent,
+    'prefer-relative-heading': preferRelativeHeading,
+    'require-route-heading-outline': requireRouteHeadingOutline,
+    'no-heading-level-skip': noHeadingLevelSkip,
+    'no-positive-tabindex': noPositiveTabindex,
+    'valid-aria': validAria,
+    'role-has-required-aria': roleHasRequiredAria,
+    'target-blank-noopener': targetBlankNoopener,
+    'require-focus-visible': requireFocusVisible,
+    'require-reduced-motion': requireReducedMotion,
   },
 };
+
+const a11yRuleSeverity = {
+  'craft-ng/prefer-named-html-helpers': 'error',
+  'craft-ng/img-has-alt': 'error',
+  'craft-ng/control-has-accessible-name': 'error',
+  'craft-ng/label-has-associated-control': 'error',
+  'craft-ng/no-noninteractive-element-interactions': 'error',
+  'craft-ng/anchor-has-href': 'error',
+  'craft-ng/button-has-type': 'error',
+  'craft-ng/iframe-has-title': 'error',
+  'craft-ng/heading-has-content': 'error',
+  'craft-ng/prefer-relative-heading': 'error',
+  'craft-ng/require-route-heading-outline': 'error',
+  'craft-ng/no-heading-level-skip': 'error',
+  'craft-ng/no-positive-tabindex': 'error',
+  'craft-ng/valid-aria': 'error',
+  'craft-ng/role-has-required-aria': 'error',
+  'craft-ng/target-blank-noopener': 'error',
+  'craft-ng/require-focus-visible': 'error',
+  'craft-ng/require-reduced-motion': 'error',
+};
+
+plugin.configs = {
+  a11y: {
+    plugins: { 'craft-ng': plugin },
+    rules: a11yRuleSeverity,
+  },
+};
+
+module.exports = plugin;

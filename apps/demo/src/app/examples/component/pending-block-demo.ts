@@ -3,13 +3,13 @@ import {
   button,
   craftComponent,
   div,
-  h2,
   li,
   p,
   pendingBlock,
   section,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import { craftComputed, craftSleep, query, settled } from '@craft-ng/core';
 
@@ -93,12 +93,12 @@ export const pendingBlockDemo = craftComponent(
   },
   ({ teams, total, users }) =>
     section({ class: 'pending-demo' }, [
-      h2('settledValue + pendingBlock'),
+      heading('settledValue + pendingBlock'),
       p(
         'The template reads an always-resolved value; the pendingBlock owns the loading state.',
       ),
       button(
-        {
+        { type: 'button',
           class: 'pending-demo__reload',
           *click() {
             yield* users.call(undefined);

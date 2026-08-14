@@ -443,6 +443,7 @@ type TemplateTestResult<Component extends CraftComponent<any>, Context> =
     detectChanges(): void;
     updateContext(context: Context): void;
     destroy(): void;
+    toBeAccessible(): Promise<void>;
   };
 
 function setupCraftComponentTemplateTestImpl<
@@ -488,6 +489,7 @@ async function setupCraftComponentTemplateTestImpl<
       mounted.updateContext(context);
     },
     locator,
+    toBeAccessible: () => assertAccessible(host),
     destroy() {
       mounted.destroy();
       host.remove();
@@ -640,3 +642,49 @@ export const setupCraftDirectiveTemplateTest = Object.assign(
   setupCraftDirectiveTemplateTestImpl,
   { byRegister: setupCraftDirectiveTemplateTestImpl },
 );
+
+/**
+ * WCAG 2.2 AA smoke checks on a mounted Craft tree. Complements axe/AccessLint
+ * in application CI: images have alt, controls have a name, tabindex is not
+ * positive, ARIA attributes are known.
+ */
+export async function assertAccessible(container: Element): Promise<void> {
+  const violations: string[] = [];
+
+  container.querySelectorAll('img').forEach((image) => {
+    if (!image.hasAttribute('alt')) {
+      violations.push(`<img src="${image.getAttribute('src') ?? ''}"> is missing alt`);
+    }
+  });
+
+  container.querySelectorAll('button, a, [role="button"]').forEach((control) => {
+    const name = (
+      control.getAttribute('aria-label') ||
+      control.getAttribute('aria-labelledby') ||
+      control.textContent ||
+      ''
+    ).trim();
+    if (!name && control.getAttribute('href') !== null && !(control.textContent ?? '').trim()) {
+      violations.push(`<${control.tagName.toLowerCase()}> has no accessible name`);
+    } else if (!name && control.tagName === 'BUTTON') {
+      violations.push('<button> has no accessible name');
+    }
+  });
+
+  container.querySelectorAll('[tabindex]').forEach((node) => {
+    const value = Number(node.getAttribute('tabindex'));
+    if (Number.isFinite(value) && value > 0) {
+      violations.push(`${node.tagName.toLowerCase()} has tabIndex=${value}`);
+    }
+  });
+
+  container.querySelectorAll('iframe').forEach((frame) => {
+    if (!frame.getAttribute('title')) {
+      violations.push('<iframe> is missing title');
+    }
+  });
+
+  if (violations.length > 0) {
+    throw new Error(`Accessibility violations:\n- ${violations.join('\n- ')}`);
+  }
+}

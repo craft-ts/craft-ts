@@ -3,11 +3,11 @@ import {
   craftComponent,
   div,
   h,
-  h2,
   ifBlock,
   option,
   p,
   select,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -81,6 +81,8 @@ const CraftServiceUserDetailComponent = craftComponent(
       dd{margin:0;color:#6b7280}
       .loading{color:#6b7280;font-style:italic}
       .error{color:#dc2626}
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -92,10 +94,11 @@ const CraftServiceUserDetailComponent = craftComponent(
   ({ userId, user }) => {
     const hasValue = craftComputed('hasValue', () => user.hasValue());
     return div([
-      h2('craftService User Detail (query)'),
+      heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
         select(
           {
+            'aria-label': 'User',
             value: userId,
             *change(event) {
               yield* userId.selectUser(

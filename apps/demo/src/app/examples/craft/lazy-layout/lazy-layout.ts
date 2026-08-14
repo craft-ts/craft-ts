@@ -4,14 +4,14 @@ import {
   craftComponent,
   CraftRouterOutlet,
   div,
-  h1,
-  h2,
   header,
   p,
   section,
   span,
   strong,
   type Input,
+  heading,
+  headingSection,
 } from '@craft-ng/component';
 
 const LazyLayoutComponent = craftComponent(
@@ -27,12 +27,13 @@ const LazyLayoutComponent = craftComponent(
     section([
       header({ class: 'lazy-hero' }, [
         span('Inherited parent bindings'),
-        h1('Parent route values inside a lazy feature'),
+        heading('Parent route values inside a lazy feature'),
         p('This lazy route displays inherited params and data as SFC inputs.'),
       ]),
+      headingSection(
       div({ class: 'lazy-grid' }, [
         article([
-          h2('Layout component'),
+          heading('Layout component'),
           p([
             strong('Layout route: '),
             function* () {
@@ -50,6 +51,7 @@ const LazyLayoutComponent = craftComponent(
         ]),
         CraftRouterOutlet(),
       ]),
+      ),
     ]),
 );
 

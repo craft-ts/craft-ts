@@ -17,7 +17,9 @@ import {
   type RouteCheckedDI,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
-import { loadCraftComponent } from '@craft-ng/component';
+import {
+  loadCraftComponent,
+} from '@craft-ng/component';
 
 // --- Slow guard + slow resolve demo (non-blocking outlet) -------------------
 // Two deliberately slow async steps (~1.5s each) used to showcase

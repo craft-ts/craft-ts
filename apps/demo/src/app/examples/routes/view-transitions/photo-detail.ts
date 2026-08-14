@@ -4,11 +4,11 @@ import {
   article,
   craftComponent,
   div,
-  h2,
   ifBlock,
   p,
   span,
   type Input,
+  heading,
 } from '@craft-ng/component';
 import { craftComputed, craftMethod, CraftRouter } from '@craft-ng/core';
 import { findPhoto, type Photo } from './photos';
@@ -82,7 +82,7 @@ const ViewTransitionsDetailComponent = craftComponent(
               p(function* () {
                 return (yield* currentPhoto()).subtitle;
               }),
-              h2(function* () {
+              heading(function* () {
                 return (yield* currentPhoto()).title;
               }),
               p(function* () {

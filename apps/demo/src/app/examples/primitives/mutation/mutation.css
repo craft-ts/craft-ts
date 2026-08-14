@@ -101,3 +101,11 @@
 :scope button {
   margin-right: 1rem;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :scope,
+  :scope * {
+    animation: none;
+    transition: none;
+  }
+}

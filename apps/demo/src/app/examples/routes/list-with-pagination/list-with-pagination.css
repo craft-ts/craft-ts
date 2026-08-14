@@ -105,3 +105,11 @@ h2 {
     flex: 1 1 auto;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :scope,
+  :scope * {
+    animation: none;
+    transition: none;
+  }
+}

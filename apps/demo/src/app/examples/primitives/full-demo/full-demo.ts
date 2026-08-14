@@ -5,12 +5,12 @@ import {
   craftComponent,
   div,
   each,
-  h2,
   input,
   li,
   p,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   mutation,
@@ -87,7 +87,7 @@ const FullDemo = craftComponent(
   },
   ({ todos, addTodo, removeTodo, titleInput, setTitle }) => {
     return div([
-      h2([
+      heading([
         'Full primitives demo ',
         StatusComponent({ status: todos.status }),
       ]),
@@ -103,7 +103,7 @@ const FullDemo = craftComponent(
         }),
         button(
           'AddTodoButton',
-          {
+          { type: 'button',
             disabled: addTodo.isLoading,
             *click() {
               const trimmedTitle = (yield* titleInput()).trim() ?? ''; // todo handle that in the state
@@ -126,7 +126,7 @@ const FullDemo = craftComponent(
               }),
               button(
                 'RemoveTodoButton',
-                {
+                { type: 'button',
                   disabled: removeTodo.isLoading,
                   *click() {
                     yield* removeTodo.mutate((yield* todo()).id);

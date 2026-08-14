@@ -3,12 +3,12 @@ import {
   a,
   craftComponent,
   each,
-  h2,
   header,
   li,
   p,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   craftMethod,
@@ -40,7 +40,7 @@ const ViewTransitionsGalleryComponent = craftComponent(
   },
   ({ open }) => [
     header({ class: 'vt-intro' }, [
-      h2('View Transitions'),
+      heading('View Transitions'),
       p('Click a tile to morph it into the detail hero.'),
     ]),
     ul(

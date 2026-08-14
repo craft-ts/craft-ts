@@ -5,10 +5,10 @@ import {
   craftComponent,
   div,
   each,
-  h1,
   header,
   p,
   section,
+  heading,
 } from '@craft-ng/component';
 import { state, craftUse } from '@craft-ng/core';
 
@@ -98,16 +98,19 @@ const PixelArtMatrix = craftComponent(
   ({ activeColor, grid }) =>
     section([
       header([
-        h1('Pixel Art Workshop (Matrix)'),
+        heading('Pixel Art Workshop (Matrix)'),
         p('2D matrix: click paints, right-click paints a row.'),
       ]),
       div(
         { class: 'matrix-palette' },
         each(COLORS, { track: (color) => color }, (color) =>
-          button({
+          button({ type: 'button',
             class: 'matrix-color',
             style: function* () {
               return { backgroundColor: yield* color() };
+            },
+            'aria-label': function* () {
+              return `Color ${yield* color()}`;
             },
             *click() {
               yield* activeColor.setColor(yield* color());
@@ -115,16 +118,19 @@ const PixelArtMatrix = craftComponent(
           }),
         ),
       ),
-      button({ click: grid.reset }, 'Reset'),
+      button({ type: 'button', click: grid.reset }, 'Reset'),
       div(
         { class: 'matrix-grid' },
         each(grid, { track: trackGridRow }, (row, rowIndex) =>
           div({ class: 'matrix-row' }, [
             each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-              button({
+              button({ type: 'button',
                 class: 'matrix-cell',
                 style: function* () {
                   return { backgroundColor: (yield* cell()).color };
+                },
+                'aria-label': function* () {
+                  return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
                 },
                 *click() {
                   yield* grid.paint(rowIndex, columnIndex);
@@ -136,7 +142,7 @@ const PixelArtMatrix = craftComponent(
               }),
             ),
             button(
-              {
+              { type: 'button',
                 *click() {
                   yield* grid.addCell(rowIndex);
                 },
@@ -146,7 +152,7 @@ const PixelArtMatrix = craftComponent(
           ]),
         ),
       ),
-      button({ click: grid.addRow }, 'Add row'),
+      button({ type: 'button', click: grid.addRow }, 'Add row'),
     ]),
 );
 

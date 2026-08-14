@@ -6,8 +6,6 @@ import {
   craftComponent,
   div,
   each,
-  h2,
-  h3,
   ifBlock,
   img,
   input,
@@ -16,6 +14,7 @@ import {
   small,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   asyncProcess,
@@ -246,7 +245,7 @@ const DebouncedWebSearch = craftComponent(
     setSearchInput,
   }) => {
     return section([
-      h2('Debounced web search'),
+      heading('Debounced web search'),
       p(
         'Type a book title. The input waits 350 ms in an asyncProcess before the query calls the public Open Library API.',
       ),
@@ -284,7 +283,7 @@ const DebouncedWebSearch = craftComponent(
         ),
       ),
       ifBlock(searchQuery.showResults, () => [
-        h3([
+        heading([
           searchQuery.resultCount,
           ' results for “',
           searchInput,

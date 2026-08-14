@@ -1,5 +1,11 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { button, craftComponent, div, h2, p } from '@craft-ng/component';
+import {
+  button,
+  craftComponent,
+  div,
+  p,
+  heading,
+} from '@craft-ng/component';
 import { craftService, state } from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
@@ -23,6 +29,8 @@ const CraftServiceCounterComponent = craftComponent(
       .value{font-size:3rem;font-weight:bold;margin:0}
       .actions{display:flex;gap:8px}
       button{padding:8px 20px;font-size:1.2rem;cursor:pointer;border:1px solid #ccc;border-radius:6px;background:#fff}
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -30,12 +38,12 @@ const CraftServiceCounterComponent = craftComponent(
   },
   ({ counter }) =>
     div([
-      h2('craftService Counter (toProvide scope)'),
+      heading('craftService Counter (toProvide scope)'),
       p({ class: 'value' }, counter),
       div({ class: 'actions' }, [
-        button({ click: counter.decrement }, '-'),
-        button({ click: counter.reset }, 'Reset'),
-        button({ click: counter.increment }, '+'),
+        button({ type: 'button', click: counter.decrement }, '-'),
+        button({ type: 'button', click: counter.reset }, 'Reset'),
+        button({ type: 'button', click: counter.increment }, '+'),
       ]),
     ]),
 );

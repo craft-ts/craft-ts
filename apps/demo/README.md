@@ -31,6 +31,7 @@ Each common rule has its own file under `architecture/rules/`:
 - `rules/persisted-primitive-unique.spec.ts` — `assertPersistedPrimitiveHasUnique`
 - `rules/insert-select-unique.spec.ts` — `assertInsertSelectUnique`
 - `rules/craft-effect-no-network.spec.ts` — `assertCraftEffectNoNetwork`
+- `rules/craft-effect-no-imperative-sync.spec.ts` — `assertCraftEffectNoImperativeSync`
 
 Run them with Nx, from the repository root:
 

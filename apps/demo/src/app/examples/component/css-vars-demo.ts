@@ -3,8 +3,8 @@ import {
   a,
   craftComponent,
   div,
-  h1,
-  h2,
+  heading,
+  headingSection,
   p,
   section,
 } from '@craft-ng/component';
@@ -70,6 +70,10 @@ export const CssVarsDemo = craftComponent(
       }
       .css-vars-demo__card:hover { transform: translateY(-2px); box-shadow: 0 .8rem 2rem #17203314; }
       .css-vars-demo__card p { color: var(--css-vars-demo-muted); line-height: 1.45; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+    
+      @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
     `,
   },
   () => ({}),
@@ -77,11 +81,12 @@ export const CssVarsDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-demo__intro' }, [
-        h1('Typed CSS variables'),
+        heading('Typed CSS variables'),
         p(
           'Each mechanism now has its own page to isolate its behavior and contract.',
         ),
       ]),
+      headingSection(
       section(
         { class: 'css-vars-demo__grid', 'aria-label': 'Examples' },
         CASES.map(({ path, title, description }) =>
@@ -90,9 +95,10 @@ export const CssVarsDemo = craftComponent(
               class: 'css-vars-demo__card',
               craftRouterLink: { to: path },
             },
-            [h2(title), p(description)],
+            [heading(title), p(description)],
           ).pipe(CraftRouterLink),
         ),
+      ),
       ),
     ]),
 );

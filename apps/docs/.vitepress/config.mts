@@ -144,6 +144,7 @@ const guideSidebar = [
         text: 'settledValue & pendingBlock',
         link: '/guide/components/pending-block',
       },
+      { text: 'Accessibility', link: '/guide/components/accessibility' },
       { text: 'Customization', link: '/guide/components/customization' },
       {
         text: 'Content projection',

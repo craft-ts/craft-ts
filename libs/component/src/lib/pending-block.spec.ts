@@ -35,6 +35,7 @@ import {
   pendingBlock,
   section,
   span,
+  assertAccessible,
 } from '../index';
 import type {
   CraftNodeChildrenPendingSources,
@@ -114,6 +115,10 @@ describe('pendingBlock', () => {
 
     expect(element.textContent).toContain('chargement');
     expect(element.textContent).not.toContain('Ada');
+    const live = element.querySelector('[aria-live="polite"][aria-busy="true"]');
+    expect(live?.getAttribute('aria-live')).toBe('polite');
+    expect(live?.getAttribute('aria-busy')).toBe('true');
+    await assertAccessible(element);
 
     await vi.runAllTimersAsync();
     TestBed.tick();
@@ -269,6 +274,10 @@ describe('pendingBlock', () => {
 
     expect(element.textContent).toContain('identifiant manquant');
     expect(element.textContent).not.toContain('chargement');
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+      'identifiant manquant',
+    );
+    await assertAccessible(element);
 
     mounted.destroy();
   });

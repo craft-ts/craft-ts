@@ -4,11 +4,11 @@ import {
   craftComponent,
   div,
   each,
-  h2,
   ifBlock,
   input,
   p,
   span,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -247,6 +247,8 @@ const PlaygroundComponent = craftComponent(
       color: #9ca3af;
       font-style: italic;
     }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -271,7 +273,7 @@ const PlaygroundComponent = craftComponent(
   ({ pg, add, isAdding, todos }) => {
     let field: HTMLInputElement | undefined;
     return div({ class: 'playground' }, [
-      h2('Playground'),
+      heading('Playground'),
       p('Sandbox for testing @craft-ng — ready to share on StackBlitz'),
       div({ class: 'add-form' }, [
         input({
@@ -285,7 +287,7 @@ const PlaygroundComponent = craftComponent(
           },
         }),
         button(
-          {
+          { type: 'button',
             disabled: pg.addTodo.isLoading,
             *click() {
               if (field) yield* add(field);
@@ -313,7 +315,7 @@ const PlaygroundComponent = craftComponent(
               },
             }, [
               button(
-                {
+                { type: 'button',
                   *click() {
                     yield* pg.toggleTodo.mutate((yield* todo()).id);
                   },
@@ -326,7 +328,10 @@ const PlaygroundComponent = craftComponent(
                 return (yield* todo()).title;
               }),
               button(
-                {
+                { type: 'button',
+                  'aria-label': function* () {
+                    return `Delete ${(yield* todo()).title}`;
+                  },
                   *click() {
                     yield* pg.deleteTodo.mutate((yield* todo()).id);
                   },

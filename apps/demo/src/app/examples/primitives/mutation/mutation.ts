@@ -123,7 +123,7 @@ const MutationDemoComponent = craftComponent(
       }),
       button(
         'UpdateUserNameButton',
-        {
+        { type: 'button',
           class: 'update-user-name',
           disabled: updateUserName.isLoading,
           click: function* () {
@@ -140,12 +140,12 @@ const MutationDemoComponent = craftComponent(
       ),
       button(
         'PreviousUser',
-        { click: function* () { yield* goTo(-1); } },
+        { type: 'button', click: function* () { yield* goTo(-1); } },
         'Previous user',
       ),
       button(
         'NextUser',
-        { click: function* () { yield* goTo(1); } },
+        { type: 'button', click: function* () { yield* goTo(1); } },
         'Next user',
       ),
     ]);

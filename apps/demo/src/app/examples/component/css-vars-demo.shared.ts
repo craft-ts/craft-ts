@@ -1,5 +1,9 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { a, craftComponent, nav } from '@craft-ng/component';
+import {
+  a,
+  craftComponent,
+  nav,
+} from '@craft-ng/component';
 import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ng/core';
 
 const CSS_VARS_LINKS = [
@@ -26,6 +30,8 @@ export const CssVarsPageNav = craftComponent(
         font-weight: 650;
       }
       a:hover { color: #172033; background: #f8fafc; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   () => ({}),

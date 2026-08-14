@@ -17,7 +17,8 @@ Look a node up, walk its edges, assert. The helpers below are the declarative
 baseline — unique identities, unique HTTP, pure `craftComputed`, no
 `depends-on` cycles — plus `assertRouteDiProofs` for the routing DI contract
 and insertion rules (`insertReactOnMutation`, persisted `craftUnique`,
-`insertSelect` keys, `craftEffect` off the network). Everything else is Vitest.
+`insertSelect` keys, `craftEffect` off the network and off imperative sync).
+Everything else is Vitest.
 :::
 
 ## Import
@@ -27,6 +28,7 @@ import {
   analyzeDependencyGraph,
   architectureCatalogToTypeScript,
   assertCraftComputedPure,
+  assertCraftEffectNoImperativeSync,
   assertCraftEffectNoNetwork,
   assertCraftUnique,
   assertDeclarativeArchitecture,
@@ -281,6 +283,7 @@ run it with `npx nx architecture demo`.
 | `assertPersistedPrimitiveHasUnique` | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
 | `assertInsertSelectUnique` | the same `insertSelect` key appears twice on one host primitive |
 | `assertCraftEffectNoNetwork` | a `craftEffect` `calls` HTTP or a `mutation` |
+| `assertCraftEffectNoImperativeSync` | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
 
 ### `noExclusiveLink`
 
@@ -498,6 +501,22 @@ A `craftEffect` that `calls` `CraftHttpClient` or a `mutation` is a `query` or
 ```typescript
 it('keeps craftEffect off HTTP and mutations', () => {
   assertCraftEffectNoNetwork(graph.graph);
+});
+```
+
+### `assertCraftEffectNoImperativeSync`
+
+A `craftEffect` that writes another `state` or `source$`, or that calls
+`query.call` / `mutation.mutate` / `asyncProcess.method`, is glue that should
+be a sourced `state` or reactive `params` instead. Logging, focus, and other
+I/O that does not push into a Craft primitive stay valid. ESLint
+`craft-ng/no-imperative-craft-resource-trigger` catches the resource-trigger
+half in the editor; this helper is the graph-wide counterpart, including
+state writes.
+
+```typescript
+it('keeps craftEffect from pushing into other primitives', () => {
+  assertCraftEffectNoImperativeSync(graph.graph);
 });
 ```
 

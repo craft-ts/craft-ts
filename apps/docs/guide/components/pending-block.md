@@ -187,3 +187,6 @@ payload itself.
   enforced on each `craftComponent` template.
 - A settled read hidden inside a lambda loses its brand, and with it both
   compile-time obligations — the runtime backstops still fire.
+
+The pending fallback is announced to assistive tech (`aria-live`, `aria-busy`).
+See [Accessibilité](/guide/components/accessibility).

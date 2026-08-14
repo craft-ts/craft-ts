@@ -3,10 +3,10 @@ import {
   article,
   craftComponent,
   h,
-  h2,
   p,
   span,
   type Input,
+  heading,
 } from '@craft-ng/component';
 import { OtherComponent } from './other';
 
@@ -22,7 +22,7 @@ const LazyLayoutChildComponent = craftComponent(
   ({ teamId, someParentRouteData }) => [
     article([
       span('Child component'),
-      h2('Input binding inside a lazy feature'),
+      heading('Input binding inside a lazy feature'),
       p('The inherited parent values are available as typed SFC inputs.'),
       h('dl', [
       h('dt', 'teamId'),

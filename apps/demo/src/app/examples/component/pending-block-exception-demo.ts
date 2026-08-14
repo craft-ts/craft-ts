@@ -4,13 +4,13 @@ import {
   catchBlock,
   craftComponent,
   div,
-  h2,
   li,
   p,
   pendingBlock,
   section,
   strong,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -109,13 +109,13 @@ export const pendingBlockExceptionDemo = craftComponent(
   },
   ({ issue, summary }) =>
     section({ class: 'pending-exception' }, [
-      h2('settledValue — the failing path'),
+      heading('settledValue — the failing path'),
       p(
         'The same read suspends to the pendingBlock, then fails to the catchBlock.',
       ),
       div({ class: 'pending-exception__actions' }, [
         button(
-          {
+          { type: 'button',
             class: 'pending-exception__action',
             *click() {
               yield* issue.mutate({
@@ -127,7 +127,7 @@ export const pendingBlockExceptionDemo = craftComponent(
           'Issue (success)',
         ),
         button(
-          {
+          { type: 'button',
             class: 'pending-exception__action',
             *click() {
               yield* issue.mutate({

@@ -224,7 +224,8 @@ exclusive feature branches, a method that must not both be called and write a
 `source$`. Built-in helpers cover unique `craftUnique` identities, unique HTTP
 verb+URL, pure `craftComputed`, no `depends-on` cycles, `assertPathBoundaries`,
 `noExclusiveLink`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`,
-`assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, and the route DI
+`assertInsertSelectUnique`, `assertCraftEffectNoNetwork`,
+`assertCraftEffectNoImperativeSync`, and the route DI
 proofs from [step 9](/learn/09-routing).
 
 Those proofs (`CanRun`, `RouteCheckedDI`) are unused type aliases — omit one

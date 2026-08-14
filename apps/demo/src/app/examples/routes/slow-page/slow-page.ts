@@ -1,5 +1,10 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { craftComponent, div, h2, p } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  p,
+  heading,
+} from '@craft-ng/component';
 
 const SlowPageComponent = craftComponent(
   'SlowPageComponent',
@@ -13,7 +18,7 @@ const SlowPageComponent = craftComponent(
   () => ({}),
   () =>
     div([
-      h2('✅ Slow page loaded'),
+      heading('✅ Slow page loaded'),
       p(
         'Both the slow guard and resolver finished. This component was mounted only after the whole chain settled.',
       ),

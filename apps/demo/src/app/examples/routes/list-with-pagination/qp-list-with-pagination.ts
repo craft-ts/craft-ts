@@ -4,12 +4,15 @@ import {
   craftComponent,
   div,
   each,
-  h,
-  h2,
   option,
   pendingBlock,
   select,
   span,
+  heading,
+  td,
+  tr,
+  table,
+  tbody,
 } from '@craft-ng/component';
 import {
   craftMethod,
@@ -78,30 +81,28 @@ const QpListWithPagination = craftComponent(
   },
   ({ pagination, updatePageSize, usersQuery }) =>
     div([
-      h2([
+      heading([
         'Route QueryParams pagination: ',
         StatusComponent({
           status: usersQuery.currentPageStatus,
         }),
       ]).pipe(
         pendingBlock({
-          fallback: () => h2('Route QueryParams pagination: Loading…'),
+          fallback: () => heading('Route QueryParams pagination: Loading…'),
         }),
       ),
-      h(
-        'table',
+      table(
         { class: 'table' },
-        h(
-          'tbody',
+        tbody(
           each(
             usersQuery.currentPageData,
             { track: (user) => user.id },
                     (user) =>
-                      h('tr', [
-                        h('td', function* () {
+                      tr( [
+                        td( function* () {
                           return (yield* user()).id;
                         }),
-                        h('td', function* () {
+                        td( function* () {
                           return (yield* user()).name;
                         }),
                       ]),
@@ -111,14 +112,15 @@ const QpListWithPagination = craftComponent(
       div({ class: 'pagination' }, [
         select(
           {
+            'aria-label': 'Page size',
             value: pagination.pageSize,
             change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
-        button({ click: pagination.previousPage }, 'Previous'),
+        button({ type: 'button', click: pagination.previousPage }, 'Previous'),
         span({ class: 'current-page' }, pagination.page),
-        button({ click: pagination.nextPage }, 'Next'),
+        button({ type: 'button', click: pagination.nextPage }, 'Next'),
       ]),
     ]),
 );

@@ -19,6 +19,7 @@ import {
   type StyleOwner,
   type TemplateDependencies,
   type TemplateCssVars,
+  type TemplateHeadingNeed,
   type TemplatePendingSources,
   type TemplateSettledExceptions,
 } from './types';
@@ -105,6 +106,24 @@ type ValidSettledExceptions<Template> =
             readonly ERROR_settled_read_exception_not_caught_by_a_catchBlock: TemplateSettledExceptions<Template>;
           };
 
+/**
+ * A reusable child may render `heading()` without a local `headingSection` —
+ * the need bubbles. The *parent* that calls that child must wrap the call in
+ * `headingSection` (same DNA as `pendingBlock` on the parent, not the child).
+ */
+type ValidHeadingNeed<Template> =
+  IsAny<TemplateHeadingNeed<Template>> extends true
+    ? unknown
+    : string extends TemplateHeadingNeed<Template>
+      ? unknown
+      : [Extract<TemplateHeadingNeed<Template>, 'heading-from-child'>] extends [
+            never,
+          ]
+        ? unknown
+        : {
+            readonly ERROR_child_heading_rendered_outside_a_headingSection: 'heading-from-child';
+          };
+
 type ValidInheritedCssVars<Meta extends ComponentMeta, Template> =
   IsAny<TemplateCssVars<Template>['inherited']> extends true
     ? unknown
@@ -131,7 +150,8 @@ export function craftComponent<
   template: Template &
     ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &
-    ValidSettledExceptions<NoInfer<Template>>,
+    ValidSettledExceptions<NoInfer<Template>> &
+    ValidHeadingNeed<NoInfer<Template>>,
 ): CraftComponent<
   PropsFromFactory<Factory>,
   CraftComponentDependencies<

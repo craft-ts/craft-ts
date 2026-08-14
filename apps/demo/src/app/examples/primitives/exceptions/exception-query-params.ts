@@ -3,11 +3,11 @@ import {
   button,
   craftComponent,
   div,
-  h,
   ifBlock,
   p,
   section,
   strong,
+  heading,
 } from '@craft-ng/component';
 import {
   craftMethod,
@@ -48,6 +48,8 @@ const ExceptionQueryParamsComponent = craftComponent(
       }
       :scope button:hover { background: #f1f5f9; }
       :scope p { margin: 0.5rem 0; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -99,10 +101,10 @@ const ExceptionQueryParamsComponent = craftComponent(
   },
   ({ modeQueryParams, navigate }) => {
     return section([
-      h('h4', 'QueryParams decode exception'),
+      heading( 'QueryParams decode exception'),
       div([
         button(
-          {
+          { type: 'button',
             *click() {
               yield* navigate('success');
             },
@@ -110,7 +112,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate success',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* navigate('exception');
             },

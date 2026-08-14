@@ -9,6 +9,7 @@ import {
   ifBlock,
   main,
   nav,
+  skipLink,
   span,
   strong,
 } from '@craft-ng/component';
@@ -106,6 +107,9 @@ export const App = craftComponent(
   {
     styles: `
       :scope{display:flex;flex-direction:column;height:100vh;background:#fafafa}
+      .skip-link{position:absolute;left:-9999px;z-index:10;padding:.5rem .75rem;background:#1d4ed8;color:#fff;border-radius:.3rem;font-weight:700}
+      .skip-link:focus,.skip-link:focus-visible{left:1rem;top:1rem}
+      a:focus-visible,button:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
       .demo-banner{display:grid;gap:.25rem;padding:.7rem 1.25rem;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:.85rem;line-height:1.45;flex-shrink:0}
       .demo-banner__main{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .5rem}.demo-banner__main strong{font-weight:700}.demo-banner a{color:#1d4ed8;font-weight:700;text-decoration:underline;text-underline-offset:2px}.demo-banner a:hover{color:#1e3a8a}
       .demo-banner__hint{color:#475569;font-size:.8rem}.demo-banner__hint strong{color:#1e293b}
@@ -138,15 +142,8 @@ export const App = craftComponent(
     };
   },
   ({ clearCache, navOpen, toggleNav, closeNav }) =>
-    div(
-      {
-        click: function* () {
-          if (yield* navOpen()) {
-            yield* closeNav();
-          }
-        },
-      },
-      [
+    div([
+        skipLink('main', 'Aller au contenu'),
         div({ class: 'demo-banner' }, [
           div({ class: 'demo-banner__main' }, [
             strong('Beta demo'),
@@ -198,7 +195,6 @@ export const App = craftComponent(
               div(
                 {
                   class: 'demo-nav__panel',
-                  click: (event: MouseEvent) => event.stopPropagation(),
                 },
                 each(
                   VISIBLE_NAV_GROUPS,
@@ -235,10 +231,11 @@ export const App = craftComponent(
             () => [],
           ),
         ]),
-        main({ class: 'content' }, CraftRouterOutlet()),
+        main({ id: 'main', class: 'content', tabIndex: -1 }, CraftRouterOutlet()),
         button(
           {
             class: 'clear-cache-btn',
+            type: 'button',
             *click() {
               yield* clearCache();
             },

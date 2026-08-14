@@ -4,11 +4,11 @@ import {
   catchTag,
   craftComponent,
   div,
-  h3,
   ifBlock,
   matchBlock,
   p,
   strong,
+  heading,
 } from '@craft-ng/component';
 import {
   craftException,
@@ -58,6 +58,8 @@ const ExceptionsComponent = craftComponent(
       }
       :scope .exception-actions button:hover { background: #f1f5f9; }
       :scope p { margin: 0.5rem 0; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -110,14 +112,14 @@ const ExceptionsComponent = craftComponent(
   },
   ({ scenario, userQuery, userExceptionLoader }) => {
     return div([
-      h3(
+      heading(
         function* () {
           return `Query user with business exceptions (${yield* userQuery.status()})`;
         },
       ),
       div({ class: 'exception-actions' }, [
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('success');
             },
@@ -125,7 +127,7 @@ const ExceptionsComponent = craftComponent(
           'Success',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('not-found');
             },
@@ -133,7 +135,7 @@ const ExceptionsComponent = craftComponent(
           'User not found',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('consent-missing');
             },
@@ -141,7 +143,7 @@ const ExceptionsComponent = craftComponent(
           'Consent missing',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('forbidden');
             },

@@ -1,5 +1,11 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { craftComponent, div, h2, ifBlock, p } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  ifBlock,
+  p,
+  heading,
+} from '@craft-ng/component';
 import { craftComputed, CraftGlobalError } from '@craft-ng/core';
 
 export const MyGlobalErrorScreen = craftComponent(
@@ -18,7 +24,7 @@ export const MyGlobalErrorScreen = craftComponent(
   },
   ({ disabled }) => {
     return div([
-      h2([
+      heading([
         '⚠️ ',
         ifBlock(disabled, () => 'Account disabled', () => 'Something went wrong'),
       ]),

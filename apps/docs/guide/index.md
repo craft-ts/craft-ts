@@ -68,7 +68,8 @@ afternoon:
 [Directives and `.pipe(...)`](/guide/components/directives) ·
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·
-[Encapsulated styles](/guide/components/styles)
+[Encapsulated styles](/guide/components/styles) ·
+[Accessibilité](/guide/components/accessibility)
 
 ### Forms
 

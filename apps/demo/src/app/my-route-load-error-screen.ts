@@ -1,5 +1,11 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { button, craftComponent, div, h2, p } from '@craft-ng/component';
+import {
+  button,
+  craftComponent,
+  div,
+  p,
+  heading,
+} from '@craft-ng/component';
 import {
   craftComputed,
   CraftRouteLoadError,
@@ -30,11 +36,11 @@ export const MyRouteLoadErrorScreen = craftComponent(
   },
   ({ message, recovery }) => {
     return div([
-      h2('⚠️ Route chunk failed'),
+      heading('⚠️ Route chunk failed'),
       p(() => message()),
       div({ class: 'actions' }, [
-        button({ click: () => void recovery.retry() }, 'Retry route load'),
-        button({ click: function* () { yield* recovery.reload(); } }, 'Reload app'),
+        button({ type: 'button', click: () => void recovery.retry() }, 'Retry route load'),
+        button({ type: 'button', click: function* () { yield* recovery.reload(); } }, 'Reload app'),
       ]),
     ]);
   },

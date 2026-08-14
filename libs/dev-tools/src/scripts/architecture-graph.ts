@@ -1254,10 +1254,145 @@ export function assertCraftEffectNoNetwork(graph: DependencyGraph): void {
   );
 }
 
+const IMPERATIVE_SYNC_HOSTS = new Set([
+  'state',
+  'query',
+  'mutation',
+  'asyncProcess',
+]);
+const IMPERATIVE_SYNC_WRITE_MEMBERS = new Set([
+  'set',
+  'update',
+  'patch',
+  'emit',
+]);
+
+export type CraftEffectImperativeSyncKind =
+  | 'state'
+  | 'source'
+  | 'query'
+  | 'mutation'
+  | 'asyncProcess';
+
+export type CraftEffectImperativeSyncViolation = {
+  kind: CraftEffectImperativeSyncKind;
+  action: 'writes' | 'calls';
+  id: string;
+  label: string;
+  targetId: string;
+  targetLabel: string;
+  filePath?: string;
+  line?: number;
+};
+
+export function craftEffectImperativeSyncViolations(
+  graph: DependencyGraph,
+): CraftEffectImperativeSyncViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return graph.nodes.flatMap((node) => {
+    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'craftEffect') {
+      return [];
+    }
+    const location = {
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    };
+    const violations: CraftEffectImperativeSyncViolation[] = [];
+    for (const edge of graph.edges) {
+      if (edge.from !== node.id) continue;
+      const target = nodesById.get(edge.to);
+      if (!target) continue;
+      const host = imperativeSyncHost(graph, nodesById, target);
+      if (!host) continue;
+      const member = propertyMemberName(target);
+      const writes =
+        edge.kind === 'writes' ||
+        (edge.kind === 'calls' &&
+          member !== undefined &&
+          IMPERATIVE_SYNC_WRITE_MEMBERS.has(member));
+      const calls = edge.kind === 'calls';
+      const functionTrigger =
+        edge.kind === 'depends-on' &&
+        (host.kind === 'mutation' || host.kind === 'asyncProcess') &&
+        target.kind === 'primitive';
+      if (!writes && !calls && !functionTrigger) continue;
+      violations.push({
+        kind: host.kind,
+        action: writes ? 'writes' : 'calls',
+        id: node.id,
+        label: primitiveDisplayName(node),
+        targetId: target.id,
+        targetLabel: host.label,
+        ...location,
+      });
+    }
+    return violations;
+  });
+}
+
+export function assertCraftEffectNoImperativeSync(
+  graph: DependencyGraph,
+): void {
+  const violations = craftEffectImperativeSyncViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        return `craftEffect ${violation.label} ${violation.action} ${violation.kind} ${violation.targetLabel}${at ? ` (${at})` : ''}. Prefer a state sourced from those signals, or reactive query/mutation params.`;
+      })
+      .join('\n'),
+  );
+}
+
 function primitiveDisplayName(node: DependencyGraphNode): string {
   if (typeof node.details?.['name'] === 'string') return node.details['name'];
   const separator = node.label.indexOf(':');
   return separator >= 0 ? node.label.slice(separator + 1) : node.label;
+}
+
+function propertyMemberName(node: DependencyGraphNode): string | undefined {
+  if (typeof node.details?.['member'] === 'string') return node.details['member'];
+  if (typeof node.details?.['property'] === 'string') {
+    return node.details['property'];
+  }
+  return undefined;
+}
+
+function containingParent(
+  graph: DependencyGraph,
+  nodesById: Map<string, DependencyGraphNode>,
+  target: DependencyGraphNode,
+): DependencyGraphNode | undefined {
+  const owner = graph.edges.find(
+    (edge) => edge.kind === 'contains' && edge.to === target.id,
+  );
+  return owner ? nodesById.get(owner.from) : undefined;
+}
+
+function imperativeSyncHost(
+  graph: DependencyGraph,
+  nodesById: Map<string, DependencyGraphNode>,
+  target: DependencyGraphNode,
+): { kind: CraftEffectImperativeSyncKind; label: string } | undefined {
+  if (target.kind === 'source') {
+    return { kind: 'source', label: target.label };
+  }
+  if (
+    target.kind === 'primitive' &&
+    typeof target.details?.['primitive'] === 'string' &&
+    IMPERATIVE_SYNC_HOSTS.has(target.details['primitive'])
+  ) {
+    return {
+      kind: target.details['primitive'] as CraftEffectImperativeSyncKind,
+      label: primitiveDisplayName(target),
+    };
+  }
+  const parent = containingParent(graph, nodesById, target);
+  if (!parent || parent.id === target.id) return undefined;
+  return imperativeSyncHost(graph, nodesById, parent);
 }
 
 function isMutationTarget(

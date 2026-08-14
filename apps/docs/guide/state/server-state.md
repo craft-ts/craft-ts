@@ -10,6 +10,8 @@ run a one-off async action that isn't a fetch
 
 ::: warning One source of truth
 Don't copy a query's result into a `state`. The query _is_ the state.
+Don't reload it from a `craftEffect` either — put the inputs in `params` so
+the loader re-runs when they change.
 :::
 
 ## The common case

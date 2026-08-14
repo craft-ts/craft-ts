@@ -6,7 +6,6 @@ import {
   div,
   each,
   footer,
-  h2,
   ifBlock,
   li,
   p,
@@ -20,6 +19,7 @@ import {
   type ProjectionOf,
   type ProjectionSlot,
   type RequiredContent,
+  heading,
 } from '@craft-ng/component';
 import type { Input } from '@craft-ng/component';
 import { craftComputed, state } from '@craft-ng/core';
@@ -134,7 +134,7 @@ const card = craftComponent(
     header:
       input.header ??
       content(() =>
-        h2({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
+        heading({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
       ),
     body: input.body,
   }),
@@ -209,12 +209,12 @@ export const contentProjectionDemo = craftComponent(
     recordAction,
   }) =>
     section({ class: 'component-demo projection-demo' }, [
-      h2('Projection de contenu et contrats logiques'),
+      heading('Projection de contenu et contrats logiques'),
       p(
         'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
       ),
       card({
-        header: content(() => h2('Slot header fourni par la page')),
+        header: content(() => heading('Slot header fourni par la page')),
         body: content(
           () => [
             p(
@@ -242,7 +242,7 @@ export const contentProjectionDemo = craftComponent(
           ),
       }),
       section({ class: 'projection-demo__case' }, [
-        h2('Projection logique et collection keyée'),
+        heading('Projection logique et collection keyée'),
         p(
           'ToolbarAction expose un contract. Toolbar reçoit une collection explicite, la rend avec renderContent() et la réconcilie par key.',
         ),
@@ -305,7 +305,7 @@ export const contentProjectionDemo = craftComponent(
           dialog({
             body: content(() =>
               div([
-                h2('Dialog avec contenu optionnel'),
+                heading('Dialog avec contenu optionnel'),
                 p(
                   'Le corps est un ContentSlot libre, les actions sont contractuelles.',
                 ),

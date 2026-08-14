@@ -6,12 +6,12 @@ import {
   craftComponent,
   div,
   each,
-  h2,
   input,
   li,
   p,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   craftException,
@@ -120,7 +120,7 @@ const FullDemoCraft = craftComponent(
   },
   ({ store, titleInput, setTitle }) => {
     return div([
-      h2([
+      heading([
         'Full craftService demo ',
         StatusComponent({ status: store.todos.status }),
       ]),
@@ -135,7 +135,7 @@ const FullDemoCraft = craftComponent(
         }),
         button(
           'AddTodoButton',
-          {
+          { type: 'button',
             disabled: store.add.isLoading,
             *click() {
               const title = yield* titleInput();
@@ -156,7 +156,7 @@ const FullDemoCraft = craftComponent(
               }),
               button(
                 'RemoveTodoButton',
-                {
+                { type: 'button',
                   disabled: store.remove.isLoading,
                   *click() {
                     yield* store.remove.mutate((yield* todo()).id);

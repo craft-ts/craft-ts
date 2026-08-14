@@ -9,10 +9,10 @@ import {
   button,
   catchTag,
   craftComponent,
-  h2,
   p,
   section,
   withProviders,
+  heading,
 } from '@craft-ng/component';
 
 const noAccess = craftException({ code: 'NO_ACCESS' });
@@ -66,12 +66,12 @@ export const componentCompositionDemo = craftComponent(
   },
   ({ canReadRestrictedData, lastHandledException }) =>
     section({ class: 'component-demo component-demo__composition-page' }, [
-      h2('Composition réactive avec providers'),
+      heading('Composition réactive avec providers'),
       p(
         'Le provider fournit les données au composant. Cliquez pour passer par le handler NO_ACCESS, puis revenir au template.',
       ),
       button(
-        {
+        { type: 'button',
           class: 'component-demo__access-toggle',
           click: canReadRestrictedData.toggle,
         },

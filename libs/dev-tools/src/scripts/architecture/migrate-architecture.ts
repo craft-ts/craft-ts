@@ -99,6 +99,13 @@ const RULES = [
     it: 'keeps craftEffect off HTTP and mutations',
     call: 'assertCraftEffectNoNetwork(graph.graph)',
   },
+  {
+    file: 'craft-effect-no-imperative-sync.spec.ts',
+    helper: 'assertCraftEffectNoImperativeSync',
+    describe: 'assertCraftEffectNoImperativeSync',
+    it: 'keeps craftEffect from pushing into state, sources, queries or mutations',
+    call: 'assertCraftEffectNoImperativeSync(graph.graph)',
+  },
 ] as const;
 
 export async function runArchitectureMigration(

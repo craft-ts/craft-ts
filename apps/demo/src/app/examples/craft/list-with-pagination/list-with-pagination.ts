@@ -6,12 +6,17 @@ import {
   craftComponent,
   div,
   each,
-  h,
-  h2,
   main,
   option,
   select,
   span,
+  table,
+  thead,
+  th,
+  td,
+  heading,
+  tr,
+  tbody,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -104,7 +109,7 @@ const ListWithPaginationCraft = craftComponent(
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
-            h2({ class: 'card-title' }, [
+            heading({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
                 status: store.users.currentPageStatus,
@@ -118,19 +123,16 @@ const ListWithPaginationCraft = craftComponent(
               ),
             ]),
             div({ class: 'table-container' }, [
-              h('table', { class: 'table' }, [
-                h('thead', h('tr', [h('th', 'ID'), h('th', 'Name')])),
-                h(
-                  'tbody',
+              table( { class: 'table' }, [
+                thead( tr( [th( 'ID'), th( 'Name')])),
+                tbody(
                   each(
                     store.users.currentPageData,
                     {
                       track: (user) => user.id,
                       empty: () =>
-                        h(
-                          'tr',
-                          h(
-                            'td',
+                        tr(
+                          td(
                             {
                               colSpan: 2,
                               style: {
@@ -147,11 +149,11 @@ const ListWithPaginationCraft = craftComponent(
                         ),
                     },
                     (user) =>
-                      h('tr', [
-                        h('td', function* () {
+                      tr( [
+                        td( function* () {
                           return (yield* user()).id;
                         }),
-                        h('td', function* () {
+                        td( function* () {
                           return (yield* user()).name;
                         }),
                       ]),
@@ -163,6 +165,7 @@ const ListWithPaginationCraft = craftComponent(
               select(
                 'PageSize',
                 {
+                  'aria-label': 'Page size',
                   value: function* () {
                     return String((yield* store.pagination()).pageSize);
                   },
@@ -185,7 +188,7 @@ const ListWithPaginationCraft = craftComponent(
               ),
               button(
                 'PreviousPage',
-                { class: 'btn', click: store.pagination.previousPage },
+                { type: 'button', class: 'btn', click: store.pagination.previousPage },
                 'Previous',
               ),
               span(
@@ -197,7 +200,7 @@ const ListWithPaginationCraft = craftComponent(
               ),
               button(
                 'NextPage',
-                { class: 'btn', click: store.pagination.nextPage },
+                { type: 'button', class: 'btn', click: store.pagination.nextPage },
                 'Next',
               ),
             ]),

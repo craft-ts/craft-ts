@@ -139,7 +139,7 @@ const MutationCraft = craftComponent(
       }),
       button(
         'UpdateUserNameButton',
-        {
+        { type: 'button',
           class: 'update-user-name',
           disabled: store.updateUserName.isLoading,
           *click() {
@@ -156,7 +156,7 @@ const MutationCraft = craftComponent(
       ),
       button(
         'PreviousUser',
-        {
+        { type: 'button',
           *click() {
             yield* navigate(-1);
           },
@@ -165,7 +165,7 @@ const MutationCraft = craftComponent(
       ),
       button(
         'NextUser',
-        {
+        { type: 'button',
           *click() {
             yield* navigate(1);
           },

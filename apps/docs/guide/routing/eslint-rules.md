@@ -85,7 +85,7 @@ What each rule does:
 - `craft-ng/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ng/no-async-await`: forbids `async` functions, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ng/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ code: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
-- `craft-ng/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`
+- `craft-ng/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).
 - `craft-ng/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ng/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
 - `craft-ng/prefer-direct-yieldable-callback`: replaces a template generator that only returns `yield* callback()` with the callback reference itself
@@ -100,6 +100,22 @@ What each rule does:
 - `craft-ng/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
 - `craft-ng/require-cascade-route-di-check`: rejects any `craftRoutes(...)` collection without a same-file `ValidateCascadeRoutesFile + CanRun` proof; its autofix adds the conservative `<never, Router>` context, which should be adjusted when the mount inherits providers
 - `craft-ng/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
+
+### Accessibilité (`craft-ng/a11y`)
+
+Spread `craftRules.configs.a11y.rules` to enable the WCAG 2.2 AA preset as
+`error`. The rules walk **all** hyperscript in the file (`craftTemplate`,
+factories extraites, `h('tag')`), not only `craftComponent` argument 3.
+
+- `prefer-named-html-helpers`: forbids `h('img')` / `h('button')` when a named helper exists
+- `img-has-alt`, `iframe-has-title`, `button-has-type`, `anchor-has-href`
+- `control-has-accessible-name`, `label-has-associated-control`, `heading-has-content`
+- `no-noninteractive-element-interactions`, `no-positive-tabindex`
+- `valid-aria`, `role-has-required-aria`, `target-blank-noopener`
+- `prefer-relative-heading`, `require-route-heading-outline`, `no-heading-level-skip`
+- `require-focus-visible`, `require-reduced-motion` (CSS of `craftComponent`)
+
+See [Accessibilité](/guide/components/accessibility).
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
 

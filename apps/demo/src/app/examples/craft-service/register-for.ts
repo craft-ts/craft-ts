@@ -4,10 +4,10 @@ import {
   craftComponent,
   div,
   each,
-  h2,
   p,
   section,
   span,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -37,6 +37,8 @@ const CounterChild = craftComponent(
       .value{font-size:1.6rem;font-weight:700}
       .actions{display:flex;gap:.4rem}
       button{padding:.35rem .65rem;border:1px solid #cbd5e1;border-radius:.35rem;background:#fff;cursor:pointer}
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -47,8 +49,8 @@ const CounterChild = craftComponent(
     div([
       span({ class: 'value' }, counter),
       div({ class: 'actions' }, [
-        button({ click: counter.decrement }, '-'),
-        button({ click: counter.increment }, '+'),
+        button({ type: 'button', 'aria-label': 'Decrement', click: counter.decrement }, '-'),
+        button({ type: 'button', 'aria-label': 'Increment', click: counter.increment }, '+'),
       ]),
     ]),
 );
@@ -80,6 +82,8 @@ const RegisterForDemo = craftComponent(
       .toolbar button{padding:.55rem .8rem;border:1px solid #94a3b8;border-radius:.4rem;background:#fff;cursor:pointer}
       .children{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem}
       .meta{color:#475569}
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -114,21 +118,21 @@ const RegisterForDemo = craftComponent(
   },
   ({ counterChildIds, childComponents, childTotal, serviceTotal }) =>
     section([
-      h2('craftRegisterFor: control child counters'),
+      heading('craftRegisterFor: control child counters'),
       p(
         'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
       ),
       div({ class: 'toolbar' }, [
         button(
-          { click: childComponents.incrementAllChildCounter },
+          { type: 'button', click: childComponents.incrementAllChildCounter },
           'Increment all',
         ),
         button(
-          { click: childComponents.decrementAllChildCounter },
+          { type: 'button', click: childComponents.decrementAllChildCounter },
           'Decrement all',
         ),
-        button({ click: counterChildIds.addChild }, 'Add a child'),
-        button({ click: counterChildIds.removeChild }, 'Remove a child'),
+        button({ type: 'button', click: counterChildIds.addChild }, 'Add a child'),
+        button({ type: 'button', click: counterChildIds.removeChild }, 'Remove a child'),
         span(
           { class: 'meta' },
           function* () {

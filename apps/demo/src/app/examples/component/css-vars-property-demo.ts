@@ -1,5 +1,11 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { craftComponent, div, h1, p, span } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  p,
+  span,
+  heading,
+} from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 const RegisteredMeter = craftComponent(
@@ -32,6 +38,8 @@ const RegisteredMeter = craftComponent(
         background: var(--registered-meter-fill);
         transition: width 220ms ease;
       }
+    
+      @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
     `,
   },
   () => ({}),
@@ -54,6 +62,8 @@ export const CssVarsPropertyDemo = craftComponent(
       .css-vars-property__intro { display: grid; gap: .5rem; }
       .css-vars-property__intro p { color: #64748b; line-height: 1.55; }
       .css-vars-property__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   () => ({}),
@@ -61,7 +71,7 @@ export const CssVarsPropertyDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-property__intro' }, [
-        h1('Component-owned @property'),
+        heading('Component-owned @property'),
         p(
           'The first meter uses initial-value: 35. The second receives a numeric value of 78.',
         ),

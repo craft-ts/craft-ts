@@ -4,12 +4,12 @@ import {
   defer,
   div,
   each,
-  h2,
   p,
   section,
   span,
   type Input,
   type Output,
+  heading,
 } from '@craft-ng/component';
 import { craftComputed, deepYieldable, state } from '@craft-ng/core';
 
@@ -32,7 +32,7 @@ const userCard = craftComponent(
     }, [
       span(user.name),
       button(
-        {
+        { type: 'button',
           class: 'component-demo__remove',
           *click() {
             yield* onRemove(yield* user());
@@ -80,10 +80,10 @@ export const componentDemo = craftComponent(
     ),
   (users) =>
     section({ class: 'component-demo' }, [
-      h2('Composants fonctionnels SFC'),
+      heading('Composants fonctionnels SFC'),
       p('Rendu runtime, signaux inline, liste keyée et enfant selectorless.'),
       button(
-        {
+        { type: 'button',
           class: 'component-demo__add',
           click: users.addUser,
           'data-testid': 'add-user',
@@ -115,7 +115,7 @@ export const componentDemo = craftComponent(
           trigger: 'interaction',
           placeholder: () =>
             button(
-              {
+              { type: 'button',
                 class: 'component-demo__defer-trigger',
                 'data-testid': 'load-deferred',
               },

@@ -320,6 +320,78 @@ function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
   }) as unknown as TagHelper<Tag>;
 }
 
+type AltValue =
+  | string
+  | (() => string)
+  | YieldableRenderCallback<string>;
+
+type WithRequiredAlt<Tag extends 'img' | 'area', Props extends object> = Props &
+  ElementPropsContext<Tag> & {
+    readonly alt: AltValue;
+  };
+
+/**
+ * `img` / `area` must declare `alt` at the type level — including `''` for
+ * decorative images. There is no children-only overload: a missing `alt` is a
+ * compile error, not an ESLint opt-out.
+ */
+export interface RequiredAltTagHelper<Tag extends 'img' | 'area'> {
+  <
+    const Props extends object,
+    const Children extends CraftNodeChildren = CraftNodeChildren,
+  >(
+    props: WithRequiredAlt<Tag, Props>,
+    children?: Children &
+      CraftNodeChildren &
+      RequireCaughtComponentExceptions<NoInfer<Children>>,
+  ): ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    Props,
+    Children,
+    string | undefined,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<Children>,
+    never,
+    CraftNodeChildrenCssVars<Children>
+  >;
+  <const Name extends string, const Props extends object>(
+    name: Name,
+    props: WithRequiredAlt<Tag, Props>,
+  ): ElementNode<
+    CraftNodeChildrenDependencies<readonly []>,
+    Tag,
+    Props,
+    readonly [],
+    Name,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<readonly []>,
+    never,
+    CraftNodeChildrenCssVars<readonly []>
+  >;
+  <
+    const Name extends string,
+    const Props extends object,
+    const Children extends CraftNodeChildren,
+  >(
+    name: Name,
+    props: WithRequiredAlt<Tag, Props>,
+    children: Children &
+      CraftNodeChildren &
+      RequireCaughtComponentExceptions<NoInfer<Children>>,
+  ): ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    Props,
+    Children,
+    Name,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<Children>,
+    never,
+    CraftNodeChildrenCssVars<Children>
+  >;
+}
+
 export const a = tagHelper('a');
 export const article = tagHelper('article');
 export const aside = tagHelper('aside');
@@ -330,8 +402,11 @@ export const form = tagHelper('form');
 export const h1 = tagHelper('h1');
 export const h2 = tagHelper('h2');
 export const h3 = tagHelper('h3');
+export const h4 = tagHelper('h4');
+export const h5 = tagHelper('h5');
+export const h6 = tagHelper('h6');
 export const header = tagHelper('header');
-export const img = tagHelper('img');
+export const img = tagHelper('img') as RequiredAltTagHelper<'img'>;
 export const input = tagHelper('input');
 export const label = tagHelper('label');
 export const li = tagHelper('li');
@@ -348,3 +423,19 @@ export const span = tagHelper('span');
 export const strong = tagHelper('strong');
 export const textarea = tagHelper('textarea');
 export const ul = tagHelper('ul');
+export const dialog = tagHelper('dialog');
+export const fieldset = tagHelper('fieldset');
+export const legend = tagHelper('legend');
+export const table = tagHelper('table');
+export const thead = tagHelper('thead');
+export const tbody = tagHelper('tbody');
+export const tr = tagHelper('tr');
+export const th = tagHelper('th');
+export const td = tagHelper('td');
+export const caption = tagHelper('caption');
+export const figure = tagHelper('figure');
+export const figcaption = tagHelper('figcaption');
+export const iframe = tagHelper('iframe');
+export const area = tagHelper('area') as RequiredAltTagHelper<'area'>;
+/** SVG is not an HTMLElement; the helper still produces a typed Craft element node. */
+export const svg = tagHelper('svg' as keyof HTMLElementTagNameMap);

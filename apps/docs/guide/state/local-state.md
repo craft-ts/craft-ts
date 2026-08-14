@@ -135,8 +135,10 @@ what makes the dependency visible to the route DI check and to test registers.
 ## Pitfalls
 
 **Don't duplicate derived state.** If a value is a function of another, it is a
-`craftComputed` inside an insertion that `yield*`s its readers, not a second
-`state` kept in sync by an effect.
+`craftComputed` inside an insertion that `yield*`s its readers, or a `state`
+whose second argument is that source — not a second `state` kept in sync by an
+effect. [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync)
+fails the architecture suite when an effect writes another primitive.
 
 **Keep slices granular.** One `state` per coherent concern. A single object
 holding five unrelated things makes every consumer depend on all five.

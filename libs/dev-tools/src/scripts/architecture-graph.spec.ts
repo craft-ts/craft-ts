@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeDependencyGraph, writeDependencyGraph } from './dependency-graph';
 import {
   assertCraftComputedPure,
+  assertCraftEffectNoImperativeSync,
   assertCraftEffectNoNetwork,
   assertCraftUnique,
   assertDeclarativeArchitecture,
@@ -16,6 +17,7 @@ import {
   assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
   craftComputedPureViolations,
+  craftEffectImperativeSyncViolations,
   craftEffectNetworkViolations,
   createArchitectureGraph,
   dependencyCycleViolations,
@@ -82,6 +84,7 @@ declare function craftRoute(...args: unknown[]): unknown;
 declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
 declare function mutation(...args: unknown[]): unknown;
+declare function asyncProcess(...args: unknown[]): unknown;
 declare function craftUnique<T>(value: T): T;
 declare function insertStoragePersister(...args: unknown[]): unknown;
 declare function insertReactOnMutation(...args: unknown[]): unknown;
@@ -1649,6 +1652,176 @@ describe('insertion architecture rules', () => {
 
     expect(craftEffectNetworkViolations(graph.graph)).toEqual([]);
     expect(() => assertCraftEffectNoNetwork(graph.graph)).not.toThrow();
+  });
+});
+
+describe('assertCraftEffectNoImperativeSync', () => {
+  it('rejects a craftEffect that writes a state', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const selectedId = yield* state('selectedId', '1');
+            const result = yield* state('result', null);
+            const sync = craftEffect('sync', function* () {
+              yield* result.set(yield* selectedId());
+            });
+            return { selectedId, result, sync };
+          },
+        );
+      `,
+    });
+
+    expect(
+      craftEffectImperativeSyncViolations(graph.graph).some(
+        (item) => item.kind === 'state',
+      ),
+    ).toBe(true);
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).toThrow(
+      /craftEffect sync writes state result/i,
+    );
+  });
+
+  it('rejects a craftEffect that calls a query', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const selectedId = yield* state('selectedId', '1');
+            const usersQuery = yield* query('usersQuery', {});
+            const sync = craftEffect('sync', function* () {
+              yield* usersQuery.call(yield* selectedId());
+            });
+            return { selectedId, usersQuery, sync };
+          },
+        );
+      `,
+    });
+
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).toThrow(
+      /craftEffect sync calls query usersQuery/i,
+    );
+  });
+
+  it('rejects a craftEffect that emits a source$', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const reset$ = source$<void>('reset$');
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const count = yield* state('count', 0);
+            const sync = craftEffect('sync', function* () {
+              if ((yield* count()) > 10) reset$.emit();
+            });
+            return { count, sync };
+          },
+        );
+      `,
+    });
+
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).toThrow(
+      /craftEffect sync writes source reset\$/i,
+    );
+  });
+
+  it('rejects a craftEffect that mutates a resource', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const save = yield* mutation('save', {});
+            const sync = craftEffect('sync', function* () {
+              yield* save.mutate('payload');
+            });
+            return { save, sync };
+          },
+        );
+      `,
+    });
+
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).toThrow(
+      /craftEffect sync calls mutation save/i,
+    );
+  });
+
+  it('rejects a craftEffect that calls asyncProcess.method', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const validate = yield* asyncProcess('validate', {});
+            const sync = craftEffect('sync', function* () {
+              yield* validate.method('payload');
+            });
+            return { validate, sync };
+          },
+        );
+      `,
+    });
+
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).toThrow(
+      /craftEffect sync calls asyncProcess validate/i,
+    );
+  });
+
+  it('allows a craftEffect that only reads local state', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const count = yield* state('count', 0);
+            const log = craftEffect('log', function* () {
+              return yield* count();
+            });
+            return { count, log };
+          },
+        );
+      `,
+    });
+
+    expect(craftEffectImperativeSyncViolations(graph.graph)).toEqual([]);
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).not.toThrow();
+  });
+
+  it('allows a craftEffect that only reads a query', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Sync } = craftService(
+          { name: 'Sync', scope: 'global' },
+          function* () {
+            const usersQuery = yield* query('usersQuery', {});
+            const log = craftEffect('log', function* () {
+              return yield* usersQuery();
+            });
+            return { usersQuery, log };
+          },
+        );
+      `,
+    });
+
+    expect(craftEffectImperativeSyncViolations(graph.graph)).toEqual([]);
+    expect(() => assertCraftEffectNoImperativeSync(graph.graph)).not.toThrow();
   });
 });
 

@@ -102,6 +102,8 @@ already receive those methods as arguments — see
 | `.withParent`, `ParentRoutes`, `assertChildRouteMounts`             | Pins a child collection to its mount            | [Scaling routes](/guide/routing/scaling)              |
 | `withRetry`                                                         | Retryable lazy `loadComponent` / `loadChildren` | [Setup](/guide/routing/setup)                         |
 | `provideCraftRouter`, `provideCraftLoading`                         | Router with craft loading features              | [Pending UI](/guide/routing/pending-ui)               |
+| `withA11yNavigationFocus`, `CraftTitleStrategy`                     | Focus after nav; route `title` → document       | [Accessibility](/guide/components/accessibility)      |
+| `heading`, `headingSection`, `headingRoot`, `skipLink`, `liveRegion` | Relative outline, skip link, live regions     | [Accessibility](/guide/components/accessibility)      |
 | `withErrorComponent`, `withRouteLoadError`, `withTransitionTimings` | Router features                                 | [Route load errors](/guide/routing/route-load-errors) |
 | `CraftRouterOutlet`                                                 | Non-blocking outlet                             | [Pending UI](/guide/routing/pending-ui)               |
 | `craftRouterLink`                                                   | Type-safe navigation target                     | [Setup](/guide/routing/setup)                         |
@@ -148,7 +150,7 @@ already receive those methods as arguments — see
 | `ComponentTemplateOf`, `ComponentLogicOutputOf`, `SetupTestComponentTemplate`                                                                                                  | Resolves component logic and validates a template at compile time | [Type-level tests](/guide/testing/type-level)           |
 | `TemplateHasElement`, `TemplateRendersNamedElementWhen`, `TemplateNamedElementRendersStateWhen`, `TemplateNamedElementDelegatesToContext`, `TemplateRenderAvailableActionWhen` | Proves what a template renders and uses                           | [Type-level tests](/guide/testing/type-level)           |
 | `Expect`, `Equal`                                                                                                                                                              | Turns a type-level result into a compile-time assertion           | [Type-level tests](/guide/testing/type-level)           |
-| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertCraftEffectNoNetwork` | Typed lookups and declarative architecture helpers | [Architecture rules](/guide/testing/architecture) |
+| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, `assertCraftEffectNoImperativeSync` | Typed lookups and declarative architecture helpers | [Architecture rules](/guide/testing/architecture) |
 
 ## Tooling
 
@@ -158,7 +160,7 @@ already receive those methods as arguments — see
 | `npx craft route split`            | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)                                 |
 | `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional) |
 | `craft-brand --root src/app`       | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/angular-brand-config)                      |
-| `@craft-ng/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules)                              |
+| `@craft-ng/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) · [Accessibilité](/guide/components/accessibility) |
 | `npx craft-graph`                  | Writes the static Craft graph               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | `npx nx architecture <app>`        | Runs the app's architecture Vitest suite    | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | Template migrator                  | Migrates templates to craft components      | [Template migrator](/guide/components/template-migrator)                 |

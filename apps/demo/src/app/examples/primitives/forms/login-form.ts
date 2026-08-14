@@ -5,11 +5,11 @@ import {
   div,
   fieldExceptionBlock,
   form,
-  h2,
   ifBlock,
   input,
   label,
   p,
+  heading,
 } from '@craft-ng/component';
 import {
   cEmail,
@@ -85,7 +85,7 @@ const LoginFormComponent = craftComponent(
         },
       },
       [
-        h2('Login form'),
+        heading('Login form'),
         div({ class: 'login-field' }, [
           label({ htmlFor: 'email' }, 'Email'),
           input({

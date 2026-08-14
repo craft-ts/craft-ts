@@ -3,11 +3,11 @@ import {
   article,
   craftComponent,
   div,
-  h1,
   omit,
   p,
   span,
   type Input,
+  heading,
 } from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
@@ -53,6 +53,8 @@ export const CssVarsRequiredDemo = craftComponent(
       .css-vars-required__intro p { color: #64748b; line-height: 1.55; }
       .css-vars-required__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
       code { padding: .15rem .35rem; border-radius: .35rem; background: #e2e8f0; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   () => ({}),
@@ -60,7 +62,7 @@ export const CssVarsRequiredDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-required__intro' }, [
-        h1('Required and optional values'),
+        heading('Required and optional values'),
         p([
           'Without a fallback, ',
           span('var(--token-card-ink)'),

@@ -1902,6 +1902,195 @@ describe('functional component interpreter', () => {
     expect(element.querySelector('a')?.textContent).toBe('List');
   });
 
+  it('reopens an ifBlock nav panel after a router link closes it', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: '', component: TestAngularChild },
+          { path: 'list', component: TestAngularChild },
+          { path: 'other', component: TestAngularChild },
+        ]),
+      ],
+    });
+    const links = [
+      ['List', { to: 'list' }],
+      ['Other', { to: 'other' }],
+    ] as const;
+    const nav = craftComponent(
+      'reopenNavPanel',
+      {},
+      function* () {
+        const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
+          toggle: () => update((open) => !open),
+          close: () => set(false),
+        }));
+        return {
+          navOpen,
+          toggleNav: navOpen.toggle,
+          closeNav: navOpen.close,
+        };
+      },
+      ({ navOpen, toggleNav, closeNav }) =>
+        div(
+          {
+            click: function* () {
+              if (yield* navOpen()) {
+                yield* closeNav();
+              }
+            },
+          },
+          [
+            button(
+              {
+                class: 'toggle',
+                click: function* (event: MouseEvent) {
+                  event.stopPropagation();
+                  yield* toggleNav();
+                },
+                'aria-expanded': navOpen,
+              },
+              ifBlock(
+                navOpen,
+                () => 'Close',
+                () => 'Open',
+              ),
+            ),
+            ifBlock(
+              navOpen,
+              () =>
+                div(
+                  {
+                    class: 'panel',
+                    click: (event: MouseEvent) => event.stopPropagation(),
+                  },
+                  each(
+                    links,
+                    { track: ([, link]) => link.to },
+                    (entry) =>
+                      a(
+                        {
+                          click: closeNav,
+                          craftRouterLink: function* () {
+                            return (yield* entry())[1];
+                          },
+                        },
+                        function* () {
+                          return (yield* entry())[0];
+                        },
+                      ).pipe(CraftRouterLink),
+                  ),
+                ),
+              () => [],
+            ),
+          ],
+        ),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      nav,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const toggle = () => {
+      element.querySelector<HTMLButtonElement>('.toggle')?.click();
+      TestBed.tick();
+    };
+    const clickLink = (label: string) => {
+      const link = Array.from(
+        element.querySelectorAll<HTMLAnchorElement>('a'),
+      ).find((anchor) => anchor.textContent?.trim() === label);
+      expect(link).toBeDefined();
+      link!.click();
+      TestBed.tick();
+    };
+
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+    expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
+      '',
+    );
+
+    clickLink('List');
+    expect(element.querySelector('.panel')).toBeNull();
+
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+    expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
+      '',
+    );
+
+    clickLink('Other');
+    expect(element.querySelector('.panel')).toBeNull();
+
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+
+    mounted.destroy();
+  });
+
+  it('recovers an ifBlock after its true branch throws', () => {
+    const explode = signal(true);
+    const component = craftComponent(
+      'ifBlockRecoversAfterThrow',
+      {},
+      function* () {
+        const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
+          toggle: () => update((open) => !open),
+          close: () => set(false),
+        }));
+        return { navOpen, toggleNav: navOpen.toggle };
+      },
+      ({ navOpen, toggleNav }) =>
+        div([
+          button(
+            {
+              class: 'toggle',
+              click: function* (event: MouseEvent) {
+                event.stopPropagation();
+                yield* toggleNav();
+              },
+            },
+            'toggle',
+          ),
+          ifBlock(
+            navOpen,
+            () => {
+              if (explode()) {
+                throw new Error('panel boom');
+              }
+              return div({ class: 'panel' }, 'ok');
+            },
+            () => [],
+          ),
+        ]),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const toggle = () => {
+      element.querySelector<HTMLButtonElement>('.toggle')?.click();
+      TestBed.tick();
+    };
+
+    expect(() => toggle()).toThrow(/panel boom/);
+    expect(element.querySelector('.panel')).toBeNull();
+
+    explode.set(false);
+    TestBed.tick();
+    toggle();
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+
+    mounted.destroy();
+  });
+
   it('resolves yield* craftService dependencies in the child injector', () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
     const { Greeting } = craftService(

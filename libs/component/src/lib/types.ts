@@ -32,6 +32,7 @@ import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildrenCssVars,
   CraftNodeChildrenPendingSources,
+  CraftNodeChildrenHeadingNeed,
   CraftNodeChildrenSettledExceptions,
   CraftNodeChildrenExceptions,
   CraftNodeChildrenFieldExceptions,
@@ -452,6 +453,16 @@ export type TemplatePendingSources<Template> = Template extends (
   ...args: any[]
 ) => infer Output
   ? CraftNodeChildrenPendingSources<Output>
+  : never;
+
+/**
+ * Heading outline a template still exposes. Local `heading()` is `'heading'`.
+ * A child component with an uncovered `heading()` is `'heading-from-child'`.
+ */
+export type TemplateHeadingNeed<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenHeadingNeed<Output>
   : never;
 
 /**

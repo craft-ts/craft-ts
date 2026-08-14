@@ -1,4 +1,6 @@
-import { craftComponent } from '@craft-ng/component';
+import {
+  craftComponent,
+} from '@craft-ng/component';
 
 export const GuardDemo = craftComponent(
   'GuardDemo',
