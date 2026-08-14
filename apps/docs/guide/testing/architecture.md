@@ -63,8 +63,25 @@ proof was never armed. See [ESLint rules](/guide/routing/eslint-rules).
 
 The demo app is the working reference: `apps/demo/architecture/`, run with
 `npx nx architecture demo`. Commands are listed in `apps/demo/README.md`.
-Copy that layout. Common rules each get a file under `architecture/rules/`;
-app-specific lookups stay in `architecture.spec.ts`.
+Copy that layout, or scaffold it with the migrator (Vitest, Node):
+
+```shell
+npx craft-migrate-architecture \
+  --project tsconfig.app.json \
+  --root src \
+  --write
+```
+
+That writes `tsconfig.graph.json`, `tsconfig.architecture.json`,
+`vitest.architecture.config.ts`, the `architecture/` suite (loader, catalog,
+baseline rules, and an `architecture.spec.ts` for app-specific lookups), an
+Nx `architecture` target or a `package.json` script, and ignores the generated
+catalog in the nearest flat ESLint config. `--write` overwrites the scaffold.
+`--check` fails when the suite is missing or the generated tooling files
+drifted. `craft-migrate --write` runs this as its last step.
+
+Common rules each get a file under `architecture/rules/`; app-specific lookups
+stay in `architecture.spec.ts`.
 
 ### 1. Analysis tsconfig
 

@@ -96,9 +96,9 @@ craft-migrate --project apps/my-app/tsconfig.app.json --root apps/my-app/src --d
 craft-migrate --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 ```
 
-`craft-migrate` runs primitives, services, routes, then Craft components and can emit one combined
-report with `--json [path]`. The individual commands remain available for
-targeted migrations:
+`craft-migrate` runs primitives, services, routes, Craft components, then the
+architecture test suite, and can emit one combined report with `--json [path]`.
+The individual commands remain available for targeted migrations:
 
 ```bash
 craft-migrate-primitives --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run
@@ -107,6 +107,7 @@ craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-ap
 craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 craft-migrate-routes --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 craft-migrate-components --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
+craft-migrate-architecture --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 ng build my-app
 ```
 
@@ -155,10 +156,12 @@ sites and other tooling.
 
 ## Static Craft dependency graph
 
-`craft-graph` analyzes a TypeScript application without starting it and without
-using the runtime registry. It combines the AST with the TypeScript type checker
-to represent routes, lazy-loaded components, Craft services, service properties,
-component primitives, and source interactions.
+`craft-migrate-architecture` scaffolds the Vitest architecture suite documented
+in the architecture rules guide. `craft-graph` analyzes a TypeScript application
+without starting it and without using the runtime registry. It combines the AST
+with the TypeScript type checker to represent routes, lazy-loaded components,
+Craft services, service properties, component primitives, and source
+interactions.
 
 ```bash
 npx craft-graph \

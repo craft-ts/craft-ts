@@ -514,6 +514,7 @@ describe('architecture rules doc page', () => {
     );
     expect(content).toContain('assertPathBoundaries');
     expect(content).toContain('npx nx architecture demo');
+    expect(content).toContain('craft-migrate-architecture');
     expect(content).toContain('depends-on');
     expect(content).toContain('/guide/testing/craft-graph-vs-nx');
   });

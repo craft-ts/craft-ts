@@ -8,8 +8,9 @@ import {
 import type {
   ExtractDeps,
   GetServiceDependencies,
-  ResolvedServiceOutput, craftUse } from '@craft-ng/core';
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
+  ResolvedServiceOutput,
+} from '@craft-ng/core';
+import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {

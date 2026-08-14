@@ -146,9 +146,15 @@ const PixelArt = craftComponent(
           const cell = cells.selectCell(currentIndex);
           return button({
             class: 'pixel-cell',
-            style: { backgroundColor: cellColor(cell) },
+            style: function* () {
+              return { backgroundColor: cellColor(cell) };
+            },
             title: `Case ${currentIndex + 1}`,
-            click: () => cell?.paint(),
+            *click() {
+              if (cell) {
+                yield* cell.paint();
+              }
+            },
           });
         }),
       ),

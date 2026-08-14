@@ -6,6 +6,7 @@
 2. Angular services and their consumers
 3. Angular route collections and type-safe DI checks
 4. Legacy `component(...)` factories to `craftComponent(name, ...)`
+5. Baseline architecture tests (Vitest, Node)
 
 The migration is intentionally conservative. Deterministic transformations are
 written automatically; code requiring a business or lifecycle decision is
@@ -82,6 +83,7 @@ npx craft-migrate-primitives --project tsconfig.app.json --root src --write
 npx craft-migrate-services --project tsconfig.app.json --root src --write
 npx craft-migrate-routes --project tsconfig.app.json --root src --write
 npx craft-migrate-components --project tsconfig.app.json --root src --write
+npx craft-migrate-architecture --project tsconfig.app.json --root src --write
 ```
 
 For a pasted HTML/Web Component snippet, use the standalone template converter:
@@ -124,6 +126,8 @@ particular, complete the following work before considering the migration done:
   complete.
 - Review HTTP mutations and subscriptions whose callback or lifecycle
   semantics could not be moved automatically.
+- Add app-specific graph lookups in `architecture.spec.ts`. The migrator
+  already scaffolds the baseline rules under `architecture/rules/`.
 
 ## Verify the result
 
@@ -143,6 +147,7 @@ Then run the normal project verification:
 npx eslint "src/**/*.ts"
 npx tsc --noEmit -p tsconfig.app.json
 npx ng test
+npx vitest run --config vitest.architecture.config.ts
 npx ng build
 ```
 

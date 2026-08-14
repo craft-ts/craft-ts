@@ -8,9 +8,8 @@ import {
   setupCraftComponentLogicTest,
   type Input,
 } from '@craft-ng/component';
-import type {
-  ExtractDeps,
-  GetServiceDependencies, craftUse } from '@craft-ng/core';
+import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
+import { craftUse } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GlobalQuery from './query';

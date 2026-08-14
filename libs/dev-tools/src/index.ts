@@ -15,6 +15,7 @@ export * from './scripts/services/migrate-services.js';
 export * from './scripts/services/migration-diagnostic.js';
 export * from './scripts/components/migrate-components.js';
 export * from './scripts/components/migration-diagnostic.js';
+export * from './scripts/architecture/migrate-architecture.js';
 export * from './scripts/dependency-graph.js';
 export * from './scripts/architecture-graph.js';
 export * from './template-migration.js';

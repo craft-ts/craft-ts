@@ -56,6 +56,7 @@ npx craft-migrate \
 2. `craft-migrate-services`
 3. `craft-migrate-routes`
 4. `craft-migrate-components`
+5. `craft-migrate-architecture`
 
 The `--write` command also runs ESLint fixes on the touched files. Use
 `--no-eslint` only when your project runs this step separately.
@@ -75,6 +76,10 @@ npx craft-migrate-routes \
   --root src \
   --write
 npx craft-migrate-components \
+  --project tsconfig.app.json \
+  --root src \
+  --write
+npx craft-migrate-architecture \
   --project tsconfig.app.json \
   --root src \
   --write

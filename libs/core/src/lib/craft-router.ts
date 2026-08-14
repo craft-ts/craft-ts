@@ -40,6 +40,7 @@ import {
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
 } from './craft-node-directive';
+import { executeYieldable } from './yieldable';
 
 export interface CraftRouterRoutesRegistry {}
 
@@ -540,7 +541,11 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
         const candidate = context.props.craftRouterLink;
         currentInput =
           typeof candidate === 'function'
-            ? (candidate as () => CraftRouterLinkInput | null | undefined)()
+            ? executeYieldable(
+                candidate as () => CraftRouterLinkInput | null | undefined,
+                [],
+                context.injector,
+              )
             : candidate;
 
         if (!currentInput) {

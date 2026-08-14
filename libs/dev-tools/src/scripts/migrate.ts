@@ -16,6 +16,10 @@ import {
   runComponentsMigration,
   type MigrateComponentsResult,
 } from './components/migrate-components.js';
+import {
+  runArchitectureMigration,
+  type MigrateArchitectureResult,
+} from './architecture/migrate-architecture.js';
 
 export type MigrateOptions = {
   rootDir?: string;
@@ -39,6 +43,7 @@ export type MigrateResult = {
   services: MigrateServicesResult;
   routes: MigrateRoutesResult;
   components: MigrateComponentsResult;
+  architecture: MigrateArchitectureResult;
   changedFiles: string[];
   diagnostics: {
     primitives: MigratePrimitivesResult['diagnostics'];
@@ -64,20 +69,20 @@ export async function runMigration(
     log: stepLog,
   };
 
-  if (!options.json) log('1/4 Migrating primitives and Signal Forms...');
+  if (!options.json) log('1/5 Migrating primitives and Signal Forms...');
   const primitives = await runPrimitivesMigration({
     ...shared,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('2/4 Migrating Angular services...');
+  if (!options.json) log('2/5 Migrating Angular services...');
   const services = await runServicesMigration({
     ...shared,
     configFilePath: options.configFilePath,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('3/4 Migrating Angular routes...');
+  if (!options.json) log('3/5 Migrating Angular routes...');
   const routes = await runRoutesMigration({
     ...shared,
     collectionName: options.collectionName,
@@ -85,10 +90,19 @@ export async function runMigration(
     parentNames: options.parentNames,
   });
 
-  if (!options.json) log('4/4 Migrating Craft components and directives...');
+  if (!options.json) log('4/5 Migrating Craft components and directives...');
   const components = await runComponentsMigration({
     ...shared,
     eslint: options.eslint,
+  });
+
+  if (!options.json) log('5/5 Scaffolding architecture tests...');
+  const architecture = await runArchitectureMigration({
+    rootDir: options.rootDir,
+    tsConfigFilePath: options.tsConfigFilePath,
+    write: options.write,
+    check: options.check,
+    log: stepLog,
   });
 
   const result: MigrateResult = {
@@ -96,12 +110,14 @@ export async function runMigration(
     services,
     routes,
     components,
+    architecture,
     changedFiles: [
       ...new Set([
         ...primitives.changedFiles,
         ...services.changedFiles,
         ...routes.changedFiles,
         ...components.changedFiles,
+        ...architecture.changedFiles,
       ]),
     ],
     diagnostics: {
@@ -115,6 +131,7 @@ export async function runMigration(
       services.exitCode,
       routes.exitCode,
       components.exitCode,
+      architecture.exitCode,
     ),
   };
 

@@ -32,6 +32,7 @@ import {
   craftComputed,
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
+  CraftRouterLink,
   craftException,
   craftMethod,
   craftService,
@@ -61,7 +62,7 @@ import { defer } from '../defer';
 import { each } from '../each';
 import { ifBlock } from '../if-block';
 import { catchBlock } from '../block';
-import { button, div, h2, li, p, section, span, ul } from '../hyperscript';
+import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
@@ -1865,6 +1866,40 @@ describe('functional component interpreter', () => {
     mounted.destroy();
     expect(returnedCleanups).toHaveBeenCalledTimes(2);
     expect(destroyRefCleanups).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves generator craftRouterLink inputs used by each() navigation', () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([{ path: 'list', component: TestAngularChild }])],
+    });
+    const links = [['List', { to: 'list' }]] as const;
+    const nav = craftComponent(
+      'generatorRouterLinkNav',
+      {},
+      () => ({}),
+      () =>
+        each(
+          links,
+          { track: ([, link]) => link.to },
+          (entry) =>
+            a(
+              {
+                craftRouterLink: function* () {
+                  return (yield* entry())[1];
+                },
+              },
+              function* () {
+                return (yield* entry())[0];
+              },
+            ).pipe(CraftRouterLink),
+        ),
+    );
+    const element = host();
+    mountCraftComponent(nav, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    expect(element.querySelector('a')?.getAttribute('href')).toBe('/list');
+    expect(element.querySelector('a')?.textContent).toBe('List');
   });
 
   it('resolves yield* craftService dependencies in the child injector', () => {
