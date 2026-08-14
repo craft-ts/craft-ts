@@ -26,6 +26,8 @@ import type {
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import {
   createYieldableReactiveValue,
+  REACTIVE_DEPENDENCIES,
+  type ReactiveDependencyMapFromYielded,
   ɵactiveReactiveReader,
   type YieldableReactiveValue,
 } from './reactive-read';
@@ -58,7 +60,11 @@ type TrackedCraftComputed<
   Yielded,
 > = YieldableReactiveValue<T, Name> & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
-} & SettledBrandFromYielded<Yielded>;
+} & ([ReactiveDependencyMapFromYielded<Yielded>] extends [never]
+  ? {}
+  : {
+      readonly [REACTIVE_DEPENDENCIES]?: ReactiveDependencyMapFromYielded<Yielded>;
+    }) & SettledBrandFromYielded<Yielded>;
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,

@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
   craftComponent,
@@ -24,10 +25,10 @@ const LazyLayoutChildComponent = craftComponent(
       h2('Input binding inside a lazy feature'),
       p('The inherited parent values are available as typed SFC inputs.'),
       h('dl', [
-        h('dt', 'teamId'),
-        h('dd', teamId()),
+      h('dt', 'teamId'),
+        h('dd', teamId),
         h('dt', 'someParentRouteData'),
-        h('dd', someParentRouteData()),
+        h('dd', someParentRouteData),
       ]),
     ]),
     OtherComponent({}),

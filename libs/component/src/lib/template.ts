@@ -3,8 +3,18 @@ import type {
   CraftNodeChildrenDependencies,
   TemplateNode,
 } from './render/vnode';
-import { CRAFT_TEMPLATE, type CraftTemplate } from './types';
+import {
+  CRAFT_TEMPLATE,
+  type CraftTemplate,
+  type InputValue,
+} from './types';
 import { currentCraftRenderContext } from './render/vnode';
+
+type TemplateContextInput<Context> = Context extends object
+  ? {
+      [Key in keyof Context]: Context[Key] | InputValue<Context[Key]>;
+    }
+  : Context | InputValue<Context>;
 
 /** Creates an inert, reusable and context-checked Craft template fragment. */
 export function craftTemplate<
@@ -25,12 +35,12 @@ export function craftTemplate<
 /** Schedules a typed template for rendering without evaluating it eagerly. */
 export function renderTemplate<Context, Output extends CraftNodeChildren>(
   template: CraftTemplate<Context, Output>,
-  context: Context,
+  context: TemplateContextInput<NoInfer<Context>>,
 ): TemplateNode<Context, Output, CraftNodeChildrenDependencies<Output>> {
   return {
     kind: 'template',
     template,
-    context,
+    context: context as Context,
     declarationContext: currentCraftRenderContext(),
   };
 }

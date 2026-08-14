@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, span, type Input } from '@craft-ng/component';
 import type { CraftResourceStatus } from '@craft-ng/core';
 
@@ -38,13 +39,22 @@ export const StatusComponent = craftComponent(
     `,
   },
   (status: Input<CraftResourceStatus>) => ({ status }),
-  ({ status }) => {
-    const [emoji, label, color] = STATUS_VIEW[status()];
-    return span({ class: 'badge-container' }, [
-      span({ class: 'status-emoji' }, emoji),
-      span({ class: `badge badge-${color}` }, label),
-    ]);
-  },
+  ({ status }) =>
+    span({ class: 'badge-container' }, [
+      span({ class: 'status-emoji' }, function* () {
+        return STATUS_VIEW[yield* status()][0];
+      }),
+      span(
+        {
+          class: function* () {
+            return `badge badge-${STATUS_VIEW[yield* status()][2]}`;
+          },
+        },
+        function* () {
+          return STATUS_VIEW[yield* status()][1];
+        },
+      ),
+    ]),
 );
 
 export type StatusComponent = typeof StatusComponent;

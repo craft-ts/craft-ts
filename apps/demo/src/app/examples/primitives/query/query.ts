@@ -1,5 +1,5 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './query.css' with { loader: 'text' };
-import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -14,7 +14,9 @@ import {
   CraftRouter,
   insertStoragePersister,
   insertQueryPipe,
-  query, craftUse } from '@craft-ng/core';
+  query,
+  craftComputed,
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
@@ -41,7 +43,9 @@ const GlobalQuery = craftComponent(
         },
       },
       insertQueryPipe(
-        ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
+        ({ resource }) => ({
+          hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        }),
         insertStoragePersister({
           storeName: 'demo-app',
           key: 'user-query',
@@ -52,7 +56,7 @@ const GlobalQuery = craftComponent(
       navigate,
     }));
     const navigateNext = craftMethod('navigateNext', function* () {
-      const currentUserId = userId();
+      const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') + 1);
       void router.navigate({
         to: 'query/:userId',
@@ -60,7 +64,7 @@ const GlobalQuery = craftComponent(
       });
     });
     const navigatePrevious = craftMethod('navigatePrevious', function* () {
-      const currentUserId = userId();
+      const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') - 1);
       void router.navigate({
         to: 'query/:userId',
@@ -73,11 +77,11 @@ const GlobalQuery = craftComponent(
     div({ class: 'query-shell' }, [
       div({ class: 'query-result' }, [
         'User ',
-        StatusComponent({ status: () => craftUse(userQuery.status()) }),
+        StatusComponent({ status: userQuery.status }),
         ifBlock(userQuery.hasUser, () =>
-          pre('QueryValue', {}, () =>
-            JSON.stringify(craftUse(userQuery.value()), null, 2),
-          ),
+          pre('QueryValue', {}, function* () {
+            return JSON.stringify(yield* userQuery.value(), null, 2);
+          }),
         ),
       ]),
       p(

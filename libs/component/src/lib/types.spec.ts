@@ -89,25 +89,34 @@ it('infers component input and output props from the branded context', () => {
       user,
       onPick,
     }),
-    ({ user, onPick }) => p({ click: () => onPick(user()) }, user().name),
+    ({ user, onPick }) =>
+      p({
+        *click() {
+          yield* onPick(yield* user());
+        },
+      }, function* () {
+        return (yield* user()).name;
+      }),
   );
 
   type _UserCardProps = Expect<
     Equal<
       PropsOf<typeof userCard>,
       {
-        user: () => User;
+        user: () => Generator<unknown, User, unknown>;
         onPick: (user: User) => void;
       }
     >
   >;
   expectTypeOf<PropsOf<typeof userCard>>().toEqualTypeOf<{
-    user: () => User;
+    user: () => Generator<unknown, User, unknown>;
     onPick: (user: User) => void;
   }>();
 
   userCard({
-    user: () => ({ id: 1, name: 'Ada' }),
+      user: function* () {
+        return { id: 1, name: 'Ada' };
+      },
     onPick: (user) => user.name,
   });
 
@@ -123,15 +132,20 @@ it('does not expose ordinary context callbacks as component outputs', () => {
       name,
       reset: () => undefined,
     }),
-    ({ name }) => p(name()),
+    ({ name }) => p(function* () {
+      return yield* name();
+    }),
   );
 
   type _InternalActionProps = Expect<
-    Equal<PropsOf<typeof internalAction>, { name: () => string }>
+    Equal<
+      PropsOf<typeof internalAction>,
+      { name: () => Generator<unknown, string, unknown> }
+    >
   >;
   expectTypeOf(internalAction).toBeFunction();
   expectTypeOf<PropsOf<typeof internalAction>>().toEqualTypeOf<{
-    name: () => string;
+      name: () => Generator<unknown, string, unknown>;
   }>();
 });
 
@@ -293,8 +307,25 @@ it('checks reusable template contexts at every render site', () => {
   }>(({ $implicit: user, index }) => li(`${index}: ${user.name}`));
 
   renderTemplate(row, { $implicit: { id: 1, name: 'Ada' }, index: 0 });
+  renderTemplate(row, {
+    $implicit: function* () {
+      return { id: 2, name: 'Lin' };
+    },
+    index: 1,
+  });
   // @ts-expect-error the template context must provide both fields.
   renderTemplate(row, { $implicit: { id: 1, name: 'Ada' } });
+  const invalidUser = function* () {
+    return 'not a user';
+  };
+  // @ts-expect-error a yieldable context value must resolve to the field type.
+  renderTemplate(row, { $implicit: invalidUser, index: 0 });
+
+  const invalidContent = function* () {
+    return 'not Craft content';
+  };
+  // @ts-expect-error renderContent only accepts yieldables resolving to content.
+  renderContent(invalidContent);
 });
 
 it('carries inferred dependencies from the component through the lazy route fragment', () => {
@@ -496,16 +527,22 @@ it('infers public inputs added by a piped directive', () => {
     'card',
     {},
     (user: Input<User>) => ({ user }),
-    ({ user }) => p(user().name),
+    ({ user }) => p(function* () {
+      return (yield* user()).name;
+    }),
   ).pipe(withPermission);
 
   expectTypeOf<PropsOf<typeof card>>().toEqualTypeOf<{
-    user: () => User;
-    permission: () => string;
+    user: () => Generator<unknown, User, unknown>;
+    permission: () => Generator<unknown, string, unknown>;
   }>();
   card({
-    user: () => ({ id: 1, name: 'Ada' }),
-    permission: () => 'edit',
+      user: function* () {
+        return { id: 1, name: 'Ada' };
+      },
+      permission: function* () {
+        return 'edit';
+      },
   });
 });
 
@@ -629,9 +666,15 @@ it('keeps exact child component references and validates their props', () => {
     'contractPropsChild',
     {},
     (value: Input<number>) => ({ value }),
-    ({ value }) => p(String(value())),
+    ({ value }) => p(function* () {
+      return String(yield* value());
+    }),
   );
-  const node = child({ value: () => 1 });
+  const node = child({
+    value: function* () {
+      return 1;
+    },
+  });
   const parent = craftComponent(
     'contractPropsParent',
     {},
@@ -1236,5 +1279,9 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
 it('accepts nullable each sources', () => {
   let items!: readonly { key: string }[] | null | undefined;
 
-  each(items, { track: (item) => item.key }, (item) => p(item.key));
+  each(items, { track: (item) => item.key }, (item) =>
+    p(function* () {
+      return (yield* item()).key;
+    }),
+  );
 });

@@ -169,7 +169,11 @@ describe('Query logic', () => {
       length: vi.fn(() => values.size),
     };
     const result = await setupCraftComponentLogicTest(GlobalQuery, {
-      args: [(() => currentUserId) as Input<string | undefined>],
+      args: [
+        (function* () {
+          return currentUserId;
+        }) as Input<string | undefined>,
+      ],
       register: {
         ApiService: { getItemById },
         CraftRouter: { navigate },

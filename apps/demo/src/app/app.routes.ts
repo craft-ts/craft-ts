@@ -402,10 +402,16 @@ export const { demoRoutes } = craftRoutes('demo', [
         paginationQueryParams(),
         ({ patch, state }) => ({
           nextPage: function* () {
-                const _state = yield* state(); return patch({ page: _state.page + 1 }); },
+            const _state = yield* state();
+            return yield* patch({ page: _state.page + 1 });
+          },
           previousPage: function* () {
-              const _state = yield* state(); return patch({ page: Math.max(1, _state.page - 1) }); },
-          updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+            const _state = yield* state();
+            return yield* patch({ page: Math.max(1, _state.page - 1) });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
         }),
       );
       return pagination;

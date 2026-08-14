@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
@@ -19,7 +20,9 @@ import {
   insertQueryPipe,
   mutation,
   query,
-  state, craftUse } from '@craft-ng/core';
+  state,
+  craftUse,
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
@@ -69,7 +72,11 @@ const MutationCraft = craftComponent(
     providers: [provideUserMutation()],
   },
   function* (userId: Input<string | undefined>) {
-    const store = yield* UserMutation({ userId: () => userId() });
+    const store = yield* UserMutation({
+      userId: () => {
+        return craftUse(userId());
+      },
+    });
     const nameInput = yield* state('nameInput', '', ({ set }) => ({
       setName: (value: string) => set(value),
     }));
@@ -97,7 +104,7 @@ const MutationCraft = craftComponent(
     const navigate = craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/mutation/:userId',
-        params: { userId: String(Number(userId() ?? '0') + offset) },
+        params: { userId: String(Number((yield* userId()) ?? '0') + offset) },
       });
     });
     return {
@@ -113,18 +120,18 @@ const MutationCraft = craftComponent(
     return div([
       div([
         'User ',
-        StatusComponent({ status: () => craftUse(store.user.status()) }),
+        StatusComponent({ status: store.user.status }),
         ifBlock(hasUser, () =>
-          pre('UserValue', {}, () =>
-            JSON.stringify(craftUse(store.user.value()), null, 2),
-          ),
+          pre('UserValue', {}, function* () {
+            return JSON.stringify(yield* store.user.value(), null, 2);
+          }),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: () => craftUse(nameInput()),
+        value: nameInput,
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
@@ -133,7 +140,7 @@ const MutationCraft = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: () => craftUse(store.updateUserName.isLoading()),
+          disabled: store.updateUserName.isLoading,
           *click() {
             const currentName = yield* nameInput();
             yield* updateUserNameFn(currentName ?? '');
@@ -142,7 +149,7 @@ const MutationCraft = craftComponent(
         [
           'Update name ',
           StatusComponent({
-            status: () => craftUse(store.updateUserName.status()),
+            status: store.updateUserName.status,
           }),
         ],
       ),

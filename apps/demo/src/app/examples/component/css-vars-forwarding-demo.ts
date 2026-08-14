@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, forward, h1, p } from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { TokenCard } from './css-vars-required-demo';
@@ -18,7 +19,9 @@ const ForwardingExample = craftComponent(
           '--token-card-ink': forward('#155e75'),
           '--token-card-bg': forward('#ecfeff'),
         },
-        label: () => 'Default forwarded values',
+        label: function* () {
+          return 'Default forwarded values';
+        },
       }),
       p(
         { class: 'forwarding-example__note' },

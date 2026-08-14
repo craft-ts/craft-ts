@@ -15,7 +15,7 @@ Don't copy a query's result into a `state`. The query _is_ the state.
 ## The common case
 
 ```typescript
-import { CraftHttpClient, query } from '@craft-ng/core';
+import { CraftHttpClient, craftComputed, craftUse, query, settled } from '@craft-ng/core';
 
 const { userQuery } =
   yield *
@@ -44,6 +44,25 @@ userQuery.exception(); // craftException | undefined
 `value()` is safe to read in templates and computed signals: it returns
 `undefined` when the query has no resolved value.
 :::
+
+## Reading only settled data
+
+Use `settledValue` when a template or derived computation requires a real
+value. It suspends to the nearest `pendingBlock` while the first value is
+unavailable, propagates query exceptions to a `catchBlock`, and keeps the
+previous value during a reload.
+
+```typescript
+const userName = craftComputed('userName', function* () {
+  return (yield* settled(userQuery)).name;
+});
+
+const user = craftUse(userQuery.settledValue());
+```
+
+Insertion contexts keep the existing fallback behaviour of `state()`. Use
+`settledState()` when `yield*` (or `craftUse`) should return a non-nullable
+value and suspend until the current resource is available.
 
 ## Triggering it yourself
 

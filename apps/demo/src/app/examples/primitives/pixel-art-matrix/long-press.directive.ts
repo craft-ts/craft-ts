@@ -5,6 +5,7 @@ import {
   type Input,
   type YieldableTemplateContext,
 } from '@craft-ng/component';
+import { craftUse } from '@craft-ng/core';
 
 type PressHandlers = {
   start: (event: PointerEvent) => void;
@@ -53,8 +54,10 @@ export const longPress = craftDirective(
           timer = setTimeout(() => {
             longPressTriggered = true;
             suppressClickOnce = true;
-            onLongPress()(event);
-          }, longPressDuration());
+            craftUse(onLongPress())(event);
+          },
+          craftUse(longPressDuration()),
+        );
         },
         end,
         click: (event) => {

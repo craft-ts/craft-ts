@@ -71,5 +71,5 @@ export function preservedResource<T, R>(
     asReadonly: original.asReadonly.bind(original),
     paramSrc: config.params as Signal<R | undefined>,
     state,
-  } as CraftResourceRef<T | undefined, R>;
+  } as unknown as CraftResourceRef<T | undefined, R>;
 }

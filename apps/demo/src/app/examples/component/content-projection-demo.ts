@@ -22,7 +22,7 @@ import {
   type RequiredContent,
 } from '@craft-ng/component';
 import type { Input } from '@craft-ng/component';
-import { state, craftUse } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -44,7 +44,7 @@ const userBadge = craftComponent(
   'userBadge',
   {},
   (role: Input<string>) => ({ role }),
-  ({ role }) => span({ class: 'projection-demo__badge' }, role()),
+  ({ role }) => span({ class: 'projection-demo__badge' }, role),
 );
 
 type ToolbarActionContract = {
@@ -151,7 +151,11 @@ const userRow = craftTemplate<{
 }>(({ $implicit: user, index }) =>
   li({ class: 'projection-demo__row' }, [
     span(`${index + 1}. ${user.name}`),
-    userBadge({ role: () => user.role }),
+    userBadge({
+      role: function* () {
+        return user.role;
+      },
+    }),
   ]),
 );
 
@@ -169,7 +173,12 @@ export const contentProjectionDemo = craftComponent(
     const lastAction = yield* state(
       'lastAction',
       'Aucune action déclenchée.',
-      ({ set }) => ({ record: (label: string) => set(label) }),
+      ({ state, set }) => ({
+        record: (label: string) => set(label),
+        lastActionLabel: craftComputed('lastActionLabel', function* () {
+          return `Dernière action : ${yield* state()}`;
+        }),
+      }),
     );
     const users = [
       { id: 1, name: 'Ada Lovelace', role: 'Pionnière des algorithmes' },
@@ -182,6 +191,7 @@ export const contentProjectionDemo = craftComponent(
       showToolbar,
       dialogOpen,
       lastAction,
+      lastActionLabel: lastAction.lastActionLabel,
       toggleToolbar: showToolbar.toggle,
       openDialog: dialogOpen.open,
       closeDialog: dialogOpen.close,
@@ -192,7 +202,7 @@ export const contentProjectionDemo = craftComponent(
     users,
     showToolbar,
     dialogOpen,
-    lastAction,
+    lastActionLabel,
     toggleToolbar,
     openDialog,
     closeDialog,
@@ -214,7 +224,10 @@ export const contentProjectionDemo = craftComponent(
             ul(
               { class: 'projection-demo__list' },
               each(users, { track: (user) => user.id }, (user, index) =>
-                renderTemplate(userRow, { $implicit: user, index }),
+                renderTemplate(userRow, {
+                  $implicit: user,
+                  index,
+                }),
               ),
             ),
           ],
@@ -233,10 +246,7 @@ export const contentProjectionDemo = craftComponent(
         p(
           'ToolbarAction expose un contract. Toolbar reçoit une collection explicite, la rend avec renderContent() et la réconcilie par key.',
         ),
-        p(
-          { class: 'projection-demo__status' },
-          () => `Dernière action : ${craftUse(lastAction())}`,
-        ),
+        p({ class: 'projection-demo__status' }, lastActionLabel),
         button(
           {
             class: 'projection-demo__toggle',

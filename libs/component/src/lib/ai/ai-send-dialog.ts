@@ -1,6 +1,7 @@
 import {
   CRAFT_TEMPORAL_RUNTIME,
   craftMethod,
+  craftUse,
   fromEventToSource$,
   state,
   toCraftService,
@@ -234,7 +235,10 @@ export const AiSendDialog = craftComponent(
       const text = instruction().trim();
       if (!text) return;
 
-      const content = formatPrompt({ ...payload(), instruction: text });
+      const content = formatPrompt({
+        ...craftUse(payload()),
+        instruction: text,
+      });
       void navigator.clipboard.writeText(content).then(() => {
         setCopied(true);
         copiedTimer?.cancel();
@@ -287,15 +291,22 @@ export const AiSendDialog = craftComponent(
           section({ class: 'craft-ai-context' }, [
             div([
               span({ class: 'label' }, 'Component:'),
-              () => payload().hostName,
+              function* () {
+                return (yield* payload()).hostName;
+              },
             ]),
             div([
               span({ class: 'label' }, 'Coords:'),
-              () => `(${payload().coords.x}, ${payload().coords.y})`,
+              function* () {
+                const value = yield* payload();
+                return `(${value.coords.x}, ${value.coords.y})`;
+              },
             ]),
             div([
               span({ class: 'label' }, 'Snapshot:'),
-              () => `${payload().snapshot.length} report(s)`,
+              function* () {
+                return `${(yield* payload()).snapshot.length} report(s)`;
+              },
             ]),
           ]),
 

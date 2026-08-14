@@ -11,7 +11,10 @@ import {
   markYieldableValue,
   YIELDABLE_VALUE,
 } from './yieldable';
-import type { YieldableReactiveValue } from './reactive-read';
+import {
+  DEEP_YIELDABLE,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
 /**
  * Dependency map carried by a primitive (`mutation`, `query`, `asyncProcess`,
@@ -93,6 +96,8 @@ export type NamedPrimitive<Name extends string, Ref> = Ref extends {
   kind: string;
 }
   ? Ref
+  : Ref extends { readonly [DEEP_YIELDABLE]: true }
+    ? Ref
   : Ref extends YieldableReactiveValue<infer State, any>
     ? Omit<Ref, keyof YieldableReactiveValue<State, any>> &
         YieldableReactiveValue<State, Name>

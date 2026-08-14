@@ -8,7 +8,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -171,6 +171,9 @@ describe('settledValue on query', () => {
       await vi.runAllTimersAsync();
 
       expect(craftUse(users.settledValue())).toEqual([
+        { id: '1', name: 'Ada' },
+      ]);
+      expect(craftUse(users.resource.settledValue())).toEqual([
         { id: '1', name: 'Ada' },
       ]);
     });
@@ -355,6 +358,146 @@ describe('settledValue on mutation and asyncProcess', () => {
     expectTypeOf<
       CraftSettledSourcesOf<Refs['compute']['settledValue']>
     >().toEqualTypeOf<'compute'>();
+  });
+
+  it('exposes settledValue on by-id selections', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const users = craftUse(
+        query('usersById', {
+          params: () => ({ id: 'ada' }),
+          identifier: (params) => params.id,
+          loader: async ({ params }): Promise<User> => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { id: params.id, name: 'Ada' };
+          },
+        }),
+      );
+
+      const selected = users.selectOrCreate('ada');
+      expect(() => craftUse(selected.settledValue())).toThrow(CraftNotSettled);
+
+      await vi.runAllTimersAsync();
+      expect(craftUse(selected.settledValue())).toEqual({
+        id: 'ada',
+        name: 'Ada',
+      });
+    });
+  });
+
+  it('exposes settledValue on mutation and asyncProcess by-id selections', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const save = craftUse(
+        mutation('saveById', {
+          method: (id: string) => ({ id }),
+          identifier: (params) => params.id,
+          loader: async ({ params }): Promise<User> => ({
+            id: params.id,
+            name: 'Ada',
+          }),
+        }),
+      );
+      const compute = craftUse(
+        asyncProcess('computeById', {
+          method: (id: string) => ({ id }),
+          identifier: (params) => params.id,
+          loader: async ({ params }): Promise<User> => ({
+            id: params.id,
+            name: 'Ada',
+          }),
+        }),
+      );
+
+      save.mutate('ada');
+      compute.method('ada');
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(save.select('ada')!.settledValue())).toEqual({
+        id: 'ada',
+        name: 'Ada',
+      });
+      expect(craftUse(compute.selectOrCreate('ada').settledValue())).toEqual({
+        id: 'ada',
+        name: 'Ada',
+      });
+    });
+  });
+});
+
+describe('settledState in resource insertions', () => {
+  it('propagates pending and exception markers through a derived craftComputed', () => {
+    TestBed.runInInjectionContext(() => {
+      query(
+        'typedSettledState',
+        {
+          params: () => true,
+          loader: async (): Promise<User[]> => [],
+        },
+        function* ({ settledState }) {
+          const derived = craftComputed('derivedSettledState', function* () {
+            return (yield* settledState()).length;
+          });
+          expectTypeOf<CraftSettledSourcesOf<typeof derived>>().toEqualTypeOf<
+            'typedSettledState'
+          >();
+          return {};
+        },
+      );
+    });
+  });
+
+  it('returns a non-nullable value through yield* and suspends until resolution', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const users = craftUse(
+        query(
+          'usersForSettledState',
+          {
+            params: () => true,
+            loader: async (): Promise<User[]> => {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              return [{ id: 'ada', name: 'Ada' }];
+            },
+          },
+          ({ settledState }) => ({
+            firstSettledUser: computed(() => {
+              const value = craftUse(settledState());
+              expectTypeOf(value).toEqualTypeOf<User[]>();
+              return value[0]?.name ?? '';
+            }),
+          }),
+        ),
+      );
+
+      expect(() => craftUse(users.firstSettledUser())).toThrow(
+        CraftNotSettled,
+      );
+      await vi.runAllTimersAsync();
+      expect(craftUse(users.firstSettledUser())).toBe('Ada');
+    });
+  });
+
+  it('reads the settled value of the current by-id resource', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const users = craftUse(
+        query(
+          'usersForSettledStateById',
+          {
+            params: () => ({ id: 'ada' }),
+            identifier: (params) => params.id,
+            loader: async ({ params }): Promise<User> => ({
+              id: params.id,
+              name: 'Ada',
+            }),
+          },
+          ({ settledState }) => ({
+            settledUserName: computed(() => craftUse(settledState()).name),
+          }),
+        ),
+      );
+
+      expect(() => craftUse(users.settledUserName())).toThrow(CraftNotSettled);
+      await vi.runAllTimersAsync();
+      expect(craftUse(users.settledUserName())).toBe('Ada');
+    });
   });
 });
 

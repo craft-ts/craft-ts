@@ -1,9 +1,10 @@
-import { computed } from '@angular/core';
 import {
   abstract,
   craftException,
   craftService,
-  state, craftUse } from '@craft-ng/core';
+  craftComputed,
+  state,
+} from '@craft-ng/core';
 import {
   button,
   catchTag,
@@ -41,9 +42,9 @@ export const componentCompositionDemo = craftComponent(
       'canReadRestrictedData',
       false,
       ({ update, state }) => ({
-        restriction: computed(() =>
-          craftUse(state()) ? 'accessible' : noAccess,
-        ),
+        restriction: craftComputed('restriction', function* () {
+          return (yield* state()) ? 'accessible' : noAccess;
+        }),
         toggle: () => update((v) => !v),
       }),
     );
@@ -76,12 +77,12 @@ export const componentCompositionDemo = craftComponent(
         },
         'Changer les droits',
       ),
-      p(() => craftUse(lastHandledException())),
+      p(lastHandledException),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(() =>
-            craftUse(canReadRestrictedData.restriction()),
-          ),
+          provideRestrictedData(function* () {
+            return yield* canReadRestrictedData.restriction();
+          }),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {

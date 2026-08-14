@@ -18,6 +18,169 @@ const RAW_REACTIVE_ACTION = Symbol('craft-raw-reactive-action');
 /** Type/runtime marker retaining the reader's resolved value type. */
 export const REACTIVE_VALUE_TYPE = Symbol('craft-reactive-value-type');
 
+/** Type-only carrier identifying the root reader and projected path. */
+export const YIELDABLE_DEPENDENCY = Symbol('craft-yieldable-dependency');
+
+/** Runtime/type marker for an explicitly adapted deep-yieldable reader. */
+export const DEEP_YIELDABLE = Symbol('craft-deep-yieldable');
+
+/** Type-only carrier propagated by computed readers. */
+export const REACTIVE_DEPENDENCIES = Symbol('craft-reactive-dependencies');
+
+/** Marker carried by the opt-in primitive insertion. */
+export const DEEP_YIELDABLE_INSERTION = Symbol(
+  'craft-deep-yieldable-insertion',
+);
+
+export type ReactiveDependencyMap = Readonly<{
+  readonly source: unknown;
+  readonly path: string;
+}>;
+
+export type YieldableDependency<
+  Source,
+  Path extends string,
+> = {
+  readonly [YIELDABLE_DEPENDENCY]?: {
+    readonly source: Source;
+    readonly path: Path;
+  };
+};
+
+type DeepYieldableReadRequest<
+  Value,
+  Source,
+  Path extends string,
+> = ReactiveReadRequest<Value> & YieldableDependency<Source, Path>;
+
+type DeepYieldableObject<
+  Value extends object,
+  Source,
+  Path extends string,
+  Depth extends readonly unknown[],
+> = Depth extends readonly []
+  ? {}
+  : Value extends readonly unknown[]
+    ? {}
+    : Value extends (...args: any[]) => any
+      ? {}
+      : {
+          readonly [Key in keyof Value as Key extends
+            | typeof YIELDABLE_VALUE
+            | typeof RAW_REACTIVE_VALUE
+            | typeof REACTIVE_VALUE_TYPE
+            | typeof YIELDABLE_DEPENDENCY
+            | typeof DEEP_YIELDABLE
+            ? never
+            : Key]: DeepYieldableValue<
+            Value[Key],
+            Source,
+            `${Path}.${Extract<Key, string>}`,
+            Depth extends readonly [unknown, ...infer Rest]
+              ? Rest
+              : readonly []
+          >;
+        };
+
+/** A lazily projected, yieldable view of one value property. */
+export type DeepYieldableValue<
+  Value,
+  Source,
+  Path extends string,
+  Depth extends readonly unknown[] = readonly [
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+  ],
+> = (() =>
+  Generator<DeepYieldableReadRequest<Value, Source, Path>, Value, unknown>) &
+  YieldableDependency<Source, Path> &
+  (Value extends object
+    ? DeepYieldableObject<Value, Source, Path, Depth>
+    : {});
+
+type ReaderValue<Reader> = Reader extends YieldableReactiveValue<
+  infer Value,
+  any,
+  any
+>
+  ? Value
+  : Reader extends (...args: any[]) => Generator<any, infer Value, any>
+    ? Value
+    : never;
+
+type ReaderName<Reader> = Reader extends YieldableReactiveValue<
+  any,
+  infer Name extends string,
+  any
+>
+  ? Name
+  : string;
+
+/** Type returned by {@link deepYieldable}. */
+export type DeepYieldableReaderOf<Reader> = Reader &
+  DeepYieldableObject<
+    NonNullable<ReaderValue<Reader>> extends object
+      ? NonNullable<ReaderValue<Reader>>
+      : {},
+    Reader,
+    ReaderName<Reader>,
+    readonly [
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+    ]
+  > &
+  DeepYieldableMarker & {
+    readonly [DEEP_YIELDABLE]: true;
+  };
+
+/** Structural companion to the runtime symbol, usable across project references. */
+export type DeepYieldableMarker = {
+  readonly __craftDeepYieldable: true;
+};
+
+export type ReactiveDependencyMapFromYielded<Yielded> = Yielded extends {
+  readonly [YIELDABLE_DEPENDENCY]?: infer Dependency;
+}
+  ? Dependency
+  : never;
+
+export type DeepYieldableInsertion = {
+  readonly [DEEP_YIELDABLE_INSERTION]: true;
+} & ((context: unknown) => {
+  readonly [DEEP_YIELDABLE_INSERTION]: true;
+});
+
+export function insertDeepYieldable(): DeepYieldableInsertion {
+  const insertion = (() => ({})) as unknown as DeepYieldableInsertion;
+  Object.defineProperty(insertion, DEEP_YIELDABLE_INSERTION, {
+    value: true,
+    enumerable: false,
+  });
+  return insertion;
+}
+
+export function hasDeepYieldableInsertion(
+  insertions: readonly unknown[],
+): boolean {
+  return insertions.some(
+    (insertion) =>
+      typeof insertion === 'function' &&
+      DEEP_YIELDABLE_INSERTION in insertion,
+  );
+}
+
 export type NamedYieldableValue<
   Name extends string = string,
   Value = unknown,
@@ -49,9 +212,10 @@ export type ReactiveReadRequest<T = unknown> = Readonly<{
 export type YieldableReactiveValue<
   T,
   Name extends string = string,
+  Yielded = never,
 > = NamedYieldableValue<
   Name,
-  (() => Generator<ReactiveReadRequest<T>, T, unknown>) & {
+  (() => Generator<ReactiveReadRequest<T> | Yielded, T, unknown>) & {
     readonly [RAW_REACTIVE_VALUE]: Signal<T>;
     readonly [REACTIVE_VALUE_TYPE]: T;
   } & Signal<T>
@@ -269,6 +433,166 @@ export function createYieldableReactiveValue<T, const Name extends string>(
   });
 
   return reader as YieldableReactiveValue<T, Name>;
+}
+
+const deepYieldableCache = new WeakMap<object, unknown>();
+const deepYieldableRoots = new WeakSet<object>();
+
+function rawSourceOf(value: object): Signal<unknown> | undefined {
+  const descriptor = Object.getOwnPropertyDescriptor(value, RAW_REACTIVE_VALUE);
+  return descriptor?.value as Signal<unknown> | undefined;
+}
+
+function readProjectedPath(
+  source: () => unknown,
+  path: readonly PropertyKey[],
+): unknown {
+  let value: unknown = source();
+  for (const property of path) {
+    value = value == null ? undefined : Reflect.get(Object(value), property);
+  }
+  return value;
+}
+
+function createDeepProjection(
+  root: object,
+  path: readonly PropertyKey[],
+): unknown {
+  const pathText = [
+    String(Reflect.get(root, YIELDABLE_VALUE) ?? 'reader'),
+    ...path.map(String),
+  ].join('.');
+  const rootSignal = rawSourceOf(root);
+
+  const reader = function* deepProjectedReader(): Generator<
+    ReactiveReadRequest<unknown>,
+    unknown,
+    unknown
+  > {
+    if (rootSignal) {
+      const value = yield {
+        [REACTIVE_READ_REQUEST]: true,
+        identity: { name: String(path[path.length - 1] ?? pathText), path: pathText },
+        read: () => readProjectedPath(rootSignal, path),
+      };
+      return value;
+    }
+
+    const rootValue =
+      typeof root === 'function'
+        ? yield* (root as unknown as () => Generator<
+            ReactiveReadRequest<unknown>,
+            unknown,
+            unknown
+          >)()
+        : root;
+    return readProjectedPath(
+      () => rootValue,
+      path,
+    );
+  };
+
+  Object.defineProperty(reader, YIELDABLE_VALUE, {
+    value: pathText,
+    enumerable: false,
+  });
+
+  return new Proxy(reader, {
+    get(target, property, receiver) {
+      if (isFunctionNativeProperty(property)) {
+        return Reflect.get(target, property, receiver);
+      }
+      if (property === '__craftDeepYieldable') return true;
+      if (property !== 'name' && Reflect.has(target, property)) {
+        return Reflect.get(target, property, receiver);
+      }
+      if (typeof property !== 'string' && typeof property !== 'number') {
+        return undefined;
+      }
+      return getDeepProjection(root, [...path, property]);
+    },
+    has(target, property) {
+      if (isFunctionNativeProperty(property)) return true;
+      return Reflect.has(target, property);
+    },
+  });
+}
+
+function getDeepProjection(root: object, path: readonly PropertyKey[]): unknown {
+  const cacheKey = path.map(String).join('.');
+  const cached = deepYieldableCache.get(root);
+  if (cached && cached instanceof Map && cached.has(cacheKey)) {
+    return cached.get(cacheKey);
+  }
+
+  const projection = createDeepProjection(root, path);
+  const nextCache = cached instanceof Map ? cached : new Map<string, unknown>();
+  nextCache.set(cacheKey, projection);
+  deepYieldableCache.set(root, nextCache);
+  return projection;
+}
+
+function isFunctionNativeProperty(property: PropertyKey): boolean {
+  return (
+    property === 'prototype' ||
+    property === 'arguments' ||
+    property === 'caller'
+  );
+}
+
+/**
+ * Explicitly adapts a reader so data properties become stable lazy readers.
+ * Ordinary readers are deliberately left untouched until this function is
+ * called.
+ */
+export function deepYieldable<Reader>(
+  reader: Reader,
+): Reader extends object ? DeepYieldableReaderOf<Reader> : Reader {
+  if (
+    (typeof reader !== 'function' &&
+      (typeof reader !== 'object' || reader === null)) ||
+    deepYieldableRoots.has(reader as object)
+  ) {
+    return reader as Reader extends object ? DeepYieldableReaderOf<Reader> : Reader;
+  }
+
+  const root = reader as unknown as object;
+  const facade = new Proxy(root, {
+    get(target, property, receiver) {
+      if (isFunctionNativeProperty(property)) {
+        return Reflect.get(target, property, receiver);
+      }
+      if (property === '__craftDeepYieldable') return true;
+      if (
+        property !== 'name' &&
+        rawSourceOf(root) &&
+        Reflect.has(target, property)
+      ) {
+        return Reflect.get(target, property, receiver);
+      }
+      if (property === YIELDABLE_VALUE) return 'deep-yieldable';
+      if (property === DEEP_YIELDABLE) return true;
+      if (typeof property !== 'string' && typeof property !== 'number') {
+        return undefined;
+      }
+      return getDeepProjection(root, [property]);
+    },
+    has(target, property) {
+      if (isFunctionNativeProperty(property)) return true;
+      return (
+        property === '__craftDeepYieldable' ||
+        property === YIELDABLE_VALUE ||
+        property === DEEP_YIELDABLE ||
+        Reflect.has(target, property)
+      );
+    },
+  });
+  Object.defineProperty(facade, '__craftDeepYieldable', {
+    value: true,
+    enumerable: false,
+  });
+  deepYieldableRoots.add(facade);
+  return facade as Reader extends object ? DeepYieldableReaderOf<Reader> : Reader;
 }
 
 const facadeCache = new WeakMap<object, Map<string, unknown>>();

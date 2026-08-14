@@ -23,6 +23,7 @@ import {
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
 import { craftUse } from './craft-use';
+import type { YieldableInvocation } from './yieldable';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -77,6 +78,23 @@ describe('state', () => {
       expect(runtimeContext?.originalSource).toContain('current + 1');
       runtimeContext?.update((current) => Number(current) + 9);
       expect(craftUse(counter())).toBe(10);
+    });
+  });
+  it('makes direct callbacks returning set yieldable', () => {
+    runInInjectionContext(() => {
+      const dialog = craftUse(
+        state('dialogOpen', false, ({ set }) => ({
+          open: () => set(true),
+          close: () => set(false),
+        })),
+      );
+
+      const openInvocation = dialog.open();
+      expect(craftUse(dialog())).toBe(true);
+      expect(craftUse(openInvocation)).toBe(true);
+
+      craftUse(dialog.close());
+      expect(craftUse(dialog())).toBe(false);
     });
   });
   it('should expose insertion methods to wrap observers before invocation', () => {
@@ -368,8 +386,12 @@ describe('state', () => {
       const insertion: InsertionsStateFactory<
         number[],
         {
-          addNumber: (numberValue: number) => number[];
-          filterNumber: (filterValue: number) => number[];
+          addNumber: (
+            numberValue: number,
+          ) => YieldableInvocation<never, number[]>;
+          filterNumber: (
+            filterValue: number,
+          ) => YieldableInvocation<never, number[]>;
         }
       > = ({ set, state }) => ({
         addNumber: (numberValue: number) => {

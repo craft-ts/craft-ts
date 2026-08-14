@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -10,6 +11,8 @@ import { craftComputed } from './craft-computed';
 import { craftUse } from './craft-use';
 import { insertStatePipe } from './insert-typed-pipes';
 import {
+  deepYieldable,
+  insertDeepYieldable,
   provideReactiveReadObserver,
   type ReactiveReadEdge,
 } from './reactive-read';
@@ -114,6 +117,59 @@ describe('yieldable reactive reads', () => {
         ['forwarded', 'counter'],
       ]),
     );
+  });
+
+  it('projects object readers lazily, stably and with the full path', () => {
+    const edges: ReactiveReadEdge[] = [];
+    TestBed.configureTestingModule({
+      providers: [provideReactiveReadObserver((edge) => edges.push(edge))],
+    });
+
+    const source = signal({ id: 1, profile: { name: 'Ada' } });
+    const user = TestBed.runInInjectionContext(() =>
+      craftUse(
+        state(
+          'user',
+          source,
+          insertStatePipe(insertDeepYieldable(), () => ({})),
+        ),
+      ),
+    );
+
+    const id = user.id;
+    expect(id).toBe(user.id);
+    expect(craftUse(id())).toBe(1);
+    expect(craftUse(user.profile.name())).toBe('Ada');
+
+    const displayName = TestBed.runInInjectionContext(() =>
+      craftComputed('displayName', function* () {
+        return yield* user.profile.name();
+      }),
+    );
+    expect(craftUse(displayName())).toBe('Ada');
+    expect(
+      edges.some(
+        ({ reader, dependency }) =>
+          reader?.name === 'displayName' && dependency.path === 'user.profile.name',
+      ),
+    ).toBe(true);
+
+    source.set({ id: 2, profile: { name: 'Grace' } });
+    expect(craftUse(id())).toBe(2);
+    expect(craftUse(user.profile.name())).toBe('Grace');
+  });
+
+  it('adapts a plain yieldable input without reading it during construction', () => {
+    let reads = 0;
+    const rawUser = function* () {
+      reads++;
+      return { id: 7 };
+    };
+    const user = deepYieldable(rawUser);
+
+    expect(reads).toBe(0);
+    expect(craftUse(user.id())).toBe(7);
+    expect(reads).toBe(1);
   });
 
   it('rejects unknown yields with the craftComputed-specific error', () => {

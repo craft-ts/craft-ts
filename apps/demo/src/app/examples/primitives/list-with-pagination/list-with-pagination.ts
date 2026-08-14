@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
@@ -18,12 +19,11 @@ import {
   craftMethod,
   query,
   queryParams,
-  craftUse,
+  craftComputed,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
-import { computed } from '@angular/core';
 
 const ListWithPagination = craftComponent(
   'ListWithPagination',
@@ -37,13 +37,15 @@ const ListWithPagination = craftComponent(
       ({ patch, state }) => ({
         nextPage: function* () {
           const _state = yield* state();
-          return patch({ page: _state.page + 1 });
+          return yield* patch({ page: _state.page + 1 });
         },
         previousPage: function* () {
           const _state = yield* state();
-          return patch({ page: Math.max(1, _state.page - 1) });
+          return yield* patch({ page: Math.max(1, _state.page - 1) });
         },
-        updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+        updatePageSize: function* (pageSize: number) {
+          return yield* patch({ pageSize, page: 1 });
+        },
       }),
     );
     const usersQuery = yield* query(
@@ -63,8 +65,11 @@ const ListWithPagination = craftComponent(
         insertPaginationPlaceholderData(
           { initialValue: [] as User[] },
           ({ currentPageStatus }) => ({
-            isCurrentPageResolved: computed(
-              () => craftUse(currentPageStatus()) === 'resolved',
+            isCurrentPageResolved: craftComputed(
+              'isCurrentPageResolved',
+              function* () {
+                return (yield* currentPageStatus()) === 'resolved';
+              },
             ),
           }),
         ),
@@ -86,7 +91,7 @@ const ListWithPagination = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => craftUse(usersQuery.currentPageStatus()),
+          status: usersQuery.currentPageStatus,
         }),
       ]),
       h(
@@ -111,7 +116,15 @@ const ListWithPagination = craftComponent(
                   ),
                 ),
             },
-            (user) => h('tr', [h('td', user.id), h('td', user.name)]),
+            (user) =>
+              h('tr', [
+                h('td', function* () {
+                  return (yield* user()).id;
+                }),
+                h('td', function* () {
+                  return (yield* user()).name;
+                }),
+              ]),
           ),
         ),
       ),
@@ -119,14 +132,18 @@ const ListWithPagination = craftComponent(
         select(
           'PageSize',
           {
-            value: () => String(craftUse(pagination()).pageSize),
+            value: function* () {
+              return String((yield* pagination()).pageSize);
+            },
             change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) =>
             option(
               {
                 value: String(size),
-                selected: () => size === craftUse(pagination()).pageSize,
+                selected: function* () {
+                  return size === (yield* pagination()).pageSize;
+                },
               },
               size,
             ),
@@ -136,7 +153,9 @@ const ListWithPagination = craftComponent(
         span(
           'CurrentPage',
           { class: 'current-page' },
-          () => craftUse(pagination()).page,
+          function* () {
+            return (yield* pagination()).page;
+          },
         ),
         button('NextPage', { click: pagination.nextPage }, 'Next'),
       ]),

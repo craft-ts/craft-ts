@@ -38,6 +38,7 @@ export const craftDemoRules = {
   'craft-ng/require-craft-method-for-yieldable-callback': 'error',
   'craft-ng/require-yieldable-reactive-read': 'error',
   'craft-ng/require-yieldable-insertion-write': 'error',
+  'craft-ng/prefer-direct-yieldable-callback': 'error',
   'craft-ng/no-craft-use-in-template': 'error',
   'craft-ng/no-ephemeral-template-form-state': 'error',
   'craft-ng/template-element-name-unique': 'error',

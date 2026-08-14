@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, h2, ifBlock, p } from '@craft-ng/component';
 import { craftComputed, CraftGlobalError } from '@craft-ng/core';
 

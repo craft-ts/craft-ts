@@ -31,6 +31,8 @@ import {
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import {
   attachCraftSettledValue,
+  createYieldableSettledValue,
+  CraftNotSettled,
   type CraftSettledSignal,
 } from './craft-settled';
 import type { ExtractCraftGenExceptions } from './craft-gen';
@@ -107,10 +109,13 @@ import type {
 } from './yieldable';
 import {
   createYieldableReactiveFacade,
+  deepYieldable,
+  hasDeepYieldableInsertion,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
 } from './reactive-read';
+import { craftUse } from './craft-use';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -551,7 +556,12 @@ export type ResourceLikeMutationRef<
 } & MergeObjects<
     [
       {
-        readonly resource: CraftResourceRef<Value, Params>;
+        readonly resource: CraftResourceRef<
+          Value,
+          Params,
+          Name,
+          ResourceLikeMutationExceptionUnion<MutationException>
+        >;
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
@@ -599,6 +609,7 @@ export type ResourceByIdLikeMutationRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceByGroupLike';
   kind: 'mutation';
@@ -618,6 +629,11 @@ export type ResourceByIdLikeMutationRef<
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
+        readonly settledValue: CraftSettledSignal<
+          Exclude<Value, undefined>,
+          Name,
+          ResourceLikeMutationExceptionUnion<MutationException>
+        >;
       } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>)
     | undefined;
   /**
@@ -629,6 +645,11 @@ export type ResourceByIdLikeMutationRef<
     readonly status: Signal<CraftResourceStatus>;
     readonly isLoading: Signal<boolean>;
     hasValue(): boolean;
+    readonly settledValue: CraftSettledSignal<
+      Exclude<Value, undefined>,
+      Name,
+      ResourceLikeMutationExceptionUnion<MutationException>
+    >;
   } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>;
 } & MergeObjects<
     [
@@ -689,7 +710,8 @@ export type MutationRef<
       MutationExceptions,
       Dependencies,
       HasSchema,
-      MethodYielded
+      MethodYielded,
+      Name
     >;
 //     & {
 //   // ! Otherwise TS erases the types
@@ -1002,7 +1024,8 @@ export function mutation<
     NoInfer<Exceptions>,
     Insertion1,
     {},
-    Insertion1Yielded
+    Insertion1Yielded,
+    Name
   >,
 ): NamedCraftPrimitiveGen<
   Name,
@@ -1845,7 +1868,7 @@ function createMutationRef<
               }
 
               const rawSelectStatus = resource.status;
-              return Object.assign(resource, {
+              const result = Object.assign(resource, {
                 status: computed(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
@@ -1859,6 +1882,8 @@ function createMutationRef<
                     }))
                   : selectExceptions,
               });
+              attachCraftSettledValue(name, result);
+              return result;
             })();
           },
           selectOrCreate: (id: GroupIdentifier) => {
@@ -1876,7 +1901,7 @@ function createMutationRef<
               id as unknown as string,
             );
             const rawSelectStatus = selected.status;
-            return Object.assign(selected, {
+            const result = Object.assign(selected, {
               status: computed(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
@@ -1890,6 +1915,8 @@ function createMutationRef<
                   }))
                 : selectExceptions,
             });
+            attachCraftSettledValue(name, result);
+            return result;
           },
         }
       : {},
@@ -2021,11 +2048,43 @@ function createMutationRef<
     MutationIsMethod<Config, MutationArgsParams>
   >;
 
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, output);
+  }
+
   const publicMutationContext = createYieldableReactiveFacade(output, {
     name,
     primitive: 'mutation',
     path: name,
   }) as any;
+
+  const insertionSettledState = isUsingIdentifier
+    ? createYieldableSettledValue(
+        computed(() => {
+          const params = craftUse(
+            publicMutationContext.resourceParamsSrc(),
+          ) as any;
+          if (params == null) throw new CraftNotSettled(name);
+          const id = mutationConfig.identifier?.(params);
+          if (id == null) throw new CraftNotSettled(name);
+          const selected = publicMutationContext.select(id);
+          if (!selected) throw new CraftNotSettled(name);
+          return craftUse(selected.settledValue());
+        }),
+        {
+          primitive: 'mutation',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      )
+    : createYieldableSettledValue(
+        computed(() => craftUse(publicMutationContext.settledValue())),
+        {
+          primitive: 'mutation',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      );
 
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
@@ -2059,13 +2118,18 @@ function createMutationRef<
             exceptions: publicMutationContext.exceptions,
             insertions: acc as {},
             state: publicMutationContext.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
+            settledState: insertionSettledState,
+            set: (nextState: any) =>
+              yieldableInvocation(resourceTarget.set(nextState)),
+            update: (updateFn: (currentState: any) => any) =>
+              yieldableInvocation(resourceTarget.update(updateFn)),
             patch: (patchFn: (currentState: any) => Partial<any>) =>
-              resourceTarget.update((current: any) => ({
-                ...current,
-                ...patchFn(current),
-              })),
+              yieldableInvocation(
+                resourceTarget.update((current: any) => ({
+                  ...current,
+                  ...patchFn(current),
+                })),
+              ),
             __primitiveKind: 'mutation',
           } as any,
         ],
@@ -2210,10 +2274,6 @@ function createMutationRef<
       });
   }
 
-  if (!isUsingIdentifier) {
-    attachCraftSettledValue(name, output);
-  }
-
   if (!('resource' in output)) {
     Object.defineProperty(output, 'resource', {
       value: output,
@@ -2221,9 +2281,12 @@ function createMutationRef<
       configurable: true,
     });
   }
-  return createYieldableReactiveFacade(output, {
+  const publicMutation = createYieldableReactiveFacade(output, {
     name,
     primitive: 'mutation',
     path: name,
-  }) as typeof output;
+  });
+  return (hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicMutation)
+    : publicMutation) as typeof output;
 }

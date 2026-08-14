@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   button,
@@ -139,24 +140,24 @@ export const App = craftComponent(
   ({ clearCache, navOpen, toggleNav, closeNav }) =>
     div(
       {
-        click: () => {
-          if (navOpen()) {
-            closeNav();
+        click: function* () {
+          if (yield* navOpen()) {
+            yield* closeNav();
           }
         },
       },
       [
         div({ class: 'demo-banner' }, [
           div({ class: 'demo-banner__main' }, [
-            strong('Démo en bêta'),
-            span(' — l’API et la documentation peuvent encore évoluer.'),
+            strong('Beta demo'),
+            span(' — the API and documentation may still evolve.'),
             a(
               {
                 href: DOCS_URL,
                 target: '_blank',
                 rel: 'noreferrer',
               },
-              'Lire la documentation',
+              'Read the documentation',
             ),
             span(' · '),
             a(
@@ -165,13 +166,13 @@ export const App = craftComponent(
                 target: '_blank',
                 rel: 'noreferrer',
               },
-              'Vos retours sont les bienvenus',
+              'Your feedback is welcome',
             ),
           ]),
           div({ class: 'demo-banner__hint' }, [
-            'Astuce : lisez ',
+            'Tip: read ',
             strong('`yield*`'),
-            ' comme « j’ai besoin de… » : chaque primitive ou service devient une dépendance explicite.',
+            ' as “I need…”: each primitive or service becomes an explicit dependency.',
           ]),
         ]),
         nav({ class: 'demo-nav' }, [
@@ -179,16 +180,16 @@ export const App = craftComponent(
             {
               class: 'demo-nav__toggle',
               type: 'button',
-              click: (event: MouseEvent) => {
+              click: function* (event: MouseEvent) {
                 event.stopPropagation();
-                toggleNav();
+                yield* toggleNav();
               },
               'aria-expanded': navOpen,
             },
             ifBlock(
               navOpen,
-              () => 'Fermer les exemples',
-              () => 'Parcourir les exemples',
+              () => 'Close examples',
+              () => 'Browse examples',
             ),
           ),
           ifBlock(
@@ -204,16 +205,27 @@ export const App = craftComponent(
                   { track: (group) => group.label },
                   (group) =>
                     div({ class: 'demo-nav__group' }, [
-                      strong(group.label),
+                      strong(function* () {
+                        return (yield* group()).label;
+                      }),
                       div(
                         { class: 'demo-nav__links' },
                         each(
-                          group.links,
+                          function* () {
+                            return (yield* group()).links;
+                          },
                           { track: ([, link]) => link.to },
-                          ([label, link]) =>
+                          (entry) =>
                             a(
-                              { click: closeNav, craftRouterLink: link },
-                              label,
+                              {
+                                click: closeNav,
+                                craftRouterLink: function* () {
+                                  return (yield* entry())[1];
+                                },
+                              },
+                              function* () {
+                                return (yield* entry())[0];
+                              },
                             ).pipe(CraftRouterLink),
                         ),
                       ),

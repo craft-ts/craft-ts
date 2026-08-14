@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -12,7 +13,8 @@ import {
   craftComputed,
   craftRegisterFor,
   craftService,
-  state, craftUse } from '@craft-ng/core';
+  state,
+} from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -43,7 +45,7 @@ const CounterChild = craftComponent(
   },
   ({ counter }) =>
     div([
-      span({ class: 'value' }, () => craftUse(counter())),
+      span({ class: 'value' }, counter),
       div({ class: 'actions' }, [
         button({ click: counter.decrement }, '-'),
         button({ click: counter.increment }, '+'),
@@ -129,11 +131,9 @@ const RegisterForDemo = craftComponent(
         button({ click: counterChildIds.removeChild }, 'Remove a child'),
         span(
           { class: 'meta' },
-          // These signals are also yieldable Craft values, but this template
-          // only reads their synchronous signal value for display.
-          // eslint-disable-next-line craft-ng/require-yieldable-template-method
-          () =>
-            `services: ${craftUse(serviceTotal())} · components: ${craftUse(childTotal())}`,
+          function* () {
+            return `services: ${yield* serviceTotal()} · components: ${yield* childTotal()}`;
+          },
         ),
       ]),
       div(

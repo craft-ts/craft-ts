@@ -75,23 +75,27 @@ button({ disabled: () => items.isEmpty() }, 'Clear');
 div({ class: () => items.emptyClass() });
 ```
 
-This is also the rule for component inputs. Pass a callback when the child must
-observe a changing value:
+This is also the rule for component inputs. Pass a yieldable reader directly
+when the child must observe a changing value. When the child needs fields of
+an object, explicitly adapt the input with `deepYieldable`:
 
 ```ts
-UserCard({ user: () => selectedUser() });
+UserCard({ user: selectedUser });
 ```
 
-The callback is lazy: constructing the parent template does not read
-`selectedUser()`. Craft installs the callback as the source of the child's
-`user` input. The child then decides which granular binding observes it:
+The reader is lazy: constructing the parent template does not read
+`selectedUser`. Craft installs it as the source of the child's `user` input.
+The child then decides which granular binding observes it:
 
 ```ts
-const UserCard = craftComponent(({ user }) => h2(() => user().displayName));
+const UserCard = craftComponent(
+  (user: Input<User>) => ({ user: deepYieldable(user) }),
+  ({ user }) => h2(user.displayName),
+);
 ```
 
-When the `h2` binding first evaluates, `user()` invokes the parent callback,
-which reads `selectedUser()`. That text binding becomes the signal consumer.
+When the `h2` binding first evaluates, `yield* user()` invokes the reader,
+which reads `selectedUser`. That text binding becomes the signal consumer.
 When the selected user changes, only the binding evaluates again and patches
 the existing `h2`; neither the parent template nor the child component template
 runs again.
@@ -100,8 +104,8 @@ Reading the input eagerly in the child would move the dependency back to the
 component boundary and is rejected by `require-reactive-template-bindings`:
 
 ```ts
-// Avoid: user() is read while the child template is built.
-h2(user().displayName);
+// Avoid: resolving the input while the child template is built.
+h2(craftUse(user()).displayName);
 ```
 
 ## Structure has its own reactive scopes
@@ -195,7 +199,7 @@ the DOM they served.
 2. Wrap reactive text in `() => value()`.
 3. Wrap reactive DOM properties such as `value`, `disabled`, and `title`.
 4. Return complete reactive class and style values from callbacks.
-5. Pass changing component inputs as callbacks.
+5. Pass changing component inputs as yieldable readers.
 6. Express structural changes with `ifBlock`, `each`,
    `matchBlock.exhaustive`, or `defer`.
 7. Enable the two ESLint rules and remove every direct reactive template read.

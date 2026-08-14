@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -20,7 +21,8 @@ import {
   mutation,
   query,
   state,
-  craftException, craftUse } from '@craft-ng/core';
+  craftException,
+} from '@craft-ng/core';
 
 // -- Types --
 
@@ -52,7 +54,7 @@ const { ApiService } = craftService(
       take: function* () {
             const _state = yield* state();
                 const id = _state;
-                update((value) => value + 1);
+                yield* update((value) => value + 1);
                 return id;
               },
     }));
@@ -284,7 +286,7 @@ const PlaygroundComponent = craftComponent(
         }),
         button(
           {
-            disabled: () => craftUse(pg.addTodo.isLoading()),
+            disabled: pg.addTodo.isLoading,
             *click() {
               if (field) yield* add(field);
             },
@@ -302,20 +304,31 @@ const PlaygroundComponent = craftComponent(
           todos,
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
-            div({ class: { 'todo-item': true, completed: todo.completed } }, [
+            div({
+              class: function* () {
+                return {
+                  'todo-item': true,
+                  completed: (yield* todo()).completed,
+                };
+              },
+            }, [
               button(
                 {
                   *click() {
-                    yield* pg.toggleTodo.mutate(todo.id);
+                    yield* pg.toggleTodo.mutate((yield* todo()).id);
                   },
                 },
-                TODO_ICONS[String(todo.completed)],
+                function* () {
+                  return TODO_ICONS[String((yield* todo()).completed)];
+                },
               ),
-              span({ class: 'title' }, todo.title),
+              span({ class: 'title' }, function* () {
+                return (yield* todo()).title;
+              }),
               button(
                 {
                   *click() {
-                    yield* pg.deleteTodo.mutate(todo.id);
+                    yield* pg.deleteTodo.mutate((yield* todo()).id);
                   },
                 },
                 '🗑️',

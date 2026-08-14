@@ -1,5 +1,6 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { button, craftComponent, div, h2, p } from '@craft-ng/component';
-import { craftService, state, craftUse } from '@craft-ng/core';
+import { craftService, state } from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -30,7 +31,7 @@ const CraftServiceCounterComponent = craftComponent(
   ({ counter }) =>
     div([
       h2('craftService Counter (toProvide scope)'),
-      p({ class: 'value' }, () => craftUse(counter())),
+      p({ class: 'value' }, counter),
       div({ class: 'actions' }, [
         button({ click: counter.decrement }, '-'),
         button({ click: counter.reset }, 'Reset'),

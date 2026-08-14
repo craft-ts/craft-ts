@@ -30,6 +30,8 @@ import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime'
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import {
   attachCraftSettledValue,
+  createYieldableSettledValue,
+  CraftNotSettled,
   type CraftSettledSignal,
 } from './craft-settled';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
@@ -96,10 +98,14 @@ import type {
 } from './yieldable';
 import {
   createYieldableReactiveFacade,
+  deepYieldable,
+  hasDeepYieldableInsertion,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
+  type YieldableReactiveValue,
   type YieldableReactiveProperties,
 } from './reactive-read';
+import { craftUse } from './craft-use';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,
@@ -474,7 +480,12 @@ export type ResourceLikeQueryRef<
   MergeObjects<
     [
       {
-        readonly resource: CraftResourceRef<Value, Params>;
+        readonly resource: CraftResourceRef<
+          Value,
+          Params,
+          Name,
+          ResourceLikeExceptionUnion<QueryException>
+        >;
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
@@ -523,6 +534,7 @@ export type ResourceByIdLikeQueryRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceByGroupLike';
   kind: 'query';
@@ -542,6 +554,11 @@ export type ResourceByIdLikeQueryRef<
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
+        readonly settledValue: CraftSettledSignal<
+          Exclude<Value, undefined>,
+          Name,
+          ResourceLikeExceptionUnion<QueryException, GroupIdentifier>
+        >;
       } & ResourceLikeExceptions<QueryException, GroupIdentifier>) // todo exception params should be display outside
     | undefined;
   /**
@@ -553,6 +570,11 @@ export type ResourceByIdLikeQueryRef<
     readonly status: Signal<CraftResourceStatus>;
     readonly isLoading: Signal<boolean>;
     hasValue(): boolean;
+    readonly settledValue: CraftSettledSignal<
+      Exclude<Value, undefined>,
+      Name,
+      ResourceLikeExceptionUnion<QueryException, GroupIdentifier>
+    >;
   } & ResourceLikeExceptions<QueryException, GroupIdentifier>;
 } & MergeObjects<
     [
@@ -612,7 +634,8 @@ export type QueryRef<
       QueryExceptions,
       Dependencies,
       HasSchema,
-      MethodYielded
+      MethodYielded,
+      Name
     >;
 
 export type QueryOutput<
@@ -926,7 +949,8 @@ export function query<
     NoInfer<Exceptions>,
     Insertion1,
     {},
-    Insertion1Yielded
+    Insertion1Yielded,
+    Name
   >,
 ): NamedCraftPrimitiveGen<
   Name,
@@ -1200,7 +1224,6 @@ export function query<
  * console.log(enrichedUser?.value()); // { ...userData, ...details }
  * ```
  */
-
 
 export function query(
   name: string,
@@ -1809,7 +1832,7 @@ function createQueryRef<
               }
 
               const rawSelectStatus = resource.status;
-              return Object.assign(resource, {
+              const result = Object.assign(resource, {
                 status: computed(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
@@ -1823,6 +1846,8 @@ function createQueryRef<
                     }))
                   : selectExceptions,
               });
+              attachCraftSettledValue(name, result);
+              return result;
             })();
           },
           selectOrCreate: (id: GroupIdentifier) => {
@@ -1841,7 +1866,7 @@ function createQueryRef<
               id as unknown as string,
             );
             const rawSelectStatus = selected.status;
-            return Object.assign(selected, {
+            const result = Object.assign(selected, {
               status: computed(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
@@ -1855,6 +1880,8 @@ function createQueryRef<
                   }))
                 : selectExceptions,
             });
+            attachCraftSettledValue(name, result);
+            return result;
           },
         }
       : {},
@@ -1963,10 +1990,42 @@ function createQueryRef<
     },
   );
 
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, queryOutputWithoutInsertions);
+  }
+
   const publicQueryContext = createYieldableReactiveFacade(
     queryOutputWithoutInsertions,
     { name, primitive: 'query', path: name },
   ) as any;
+
+  const insertionSettledState = isUsingIdentifier
+    ? createYieldableSettledValue(
+        computed(() => {
+          const params = craftUse(
+            publicQueryContext.resourceParamsSrc(),
+          ) as any;
+          if (params == null) throw new CraftNotSettled(name);
+          const id = queryConfig.identifier?.(params);
+          if (id == null) throw new CraftNotSettled(name);
+          const selected = publicQueryContext.select(id);
+          if (!selected) throw new CraftNotSettled(name);
+          return craftUse(selected.settledValue());
+        }),
+        {
+          primitive: 'query',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      )
+    : createYieldableSettledValue(
+        computed(() => craftUse(publicQueryContext.settledValue())),
+        {
+          primitive: 'query',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      );
 
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
@@ -2000,13 +2059,18 @@ function createQueryRef<
             exceptions: publicQueryContext.exceptions,
             insertions: acc as {},
             state: publicQueryContext.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
+            settledState: insertionSettledState,
+            set: (nextState: any) =>
+              yieldableInvocation(resourceTarget.set(nextState)),
+            update: (updateFn: (currentState: any) => any) =>
+              yieldableInvocation(resourceTarget.update(updateFn)),
             patch: (patchFn: (currentState: any) => Partial<any>) =>
-              resourceTarget.update((current: any) => ({
-                ...current,
-                ...patchFn(current),
-              })),
+              yieldableInvocation(
+                resourceTarget.update((current: any) => ({
+                  ...current,
+                  ...patchFn(current),
+                })),
+              ),
             __primitiveKind: 'query',
           } as any,
         ],
@@ -2148,10 +2212,6 @@ function createQueryRef<
       });
   }
 
-  if (!isUsingIdentifier) {
-    attachCraftSettledValue(name, queryOutputWithoutInsertions);
-  }
-
   const queryOutput = Object.assign(
     queryOutputWithoutInsertions,
     insertionsResult,
@@ -2163,11 +2223,14 @@ function createQueryRef<
       configurable: true,
     });
   }
-  return createYieldableReactiveFacade(queryOutput, {
+  const publicQuery = createYieldableReactiveFacade(queryOutput, {
     name,
     primitive: 'query',
     path: name,
-  }) as unknown as QueryOutput<
+  });
+  return (hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicQuery)
+    : publicQuery) as unknown as QueryOutput<
     StripCraftException<QueryState>,
     StripCraftException<QueryParams>,
     QueryArgsParams,

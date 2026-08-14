@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import type { Signal } from '@angular/core';
 import {
   article,
@@ -56,7 +57,10 @@ const ViewTransitionsSkeletonComponent = craftComponent(
           src: imageSrc,
           alt: '',
         }),
-      () => span({ class: 'vt-emoji' }, () => findPhoto(photoId())?.emoji),
+      () =>
+        span({ class: 'vt-emoji' }, function* () {
+          return findPhoto(yield* photoId())?.emoji;
+        }),
     );
     return [
       span('← Back to gallery'),
@@ -64,10 +68,13 @@ const ViewTransitionsSkeletonComponent = craftComponent(
         span(
           {
             class: 'vt-hero',
-            style: () => ({
-              background: photoGradient(findPhoto(photoId())),
-              viewTransitionName: `photo-${photoId()}`,
-            }),
+            style: function* () {
+              const id = yield* photoId();
+              return {
+                background: photoGradient(findPhoto(id)),
+                viewTransitionName: `photo-${id}`,
+              };
+            },
           },
           [heroContent],
         ),

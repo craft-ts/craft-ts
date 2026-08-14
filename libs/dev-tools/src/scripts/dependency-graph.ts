@@ -21,14 +21,17 @@ export type DependencyGraphNodeKind =
   | 'service'
   | 'property'
   | 'primitive'
-  | 'source';
+  | 'source'
+  | 'http-endpoint';
 
 export type DependencyGraphEdgeKind =
   | 'loads'
   | 'renders'
   | 'contains'
   | 'depends-on'
+  | 'provides'
   | 'uses-property'
+  | 'calls'
   | 'reads'
   | 'writes'
   | 'subscribes'
@@ -131,6 +134,48 @@ const NON_DEPENDENCY_PROPERTY_NAMES = new Set([
   'shift',
   'unshift',
 ]);
+const REACTIVE_READER_NAMES = new Set([
+  'state',
+  'resource',
+  'value',
+  'isLoading',
+  'hasValue',
+  'hasException',
+  'exceptions',
+  'settledValue',
+  'status',
+  'currentPageStatus',
+  'currentTerm',
+]);
+const REACTIVE_METHOD_NAMES = new Set([
+  'mutate',
+  'set',
+  'update',
+  'patch',
+  'increment',
+  'decrement',
+  'emit',
+  'reset',
+  'clear',
+  'reload',
+]);
+const REACTIVE_WRAPPER_NAMES = new Set(['settled', 'craftUse']);
+const INSERTION_CONTEXT_NAMES = new Set([
+  'state',
+  'resource',
+  'set',
+  'update',
+  'patch',
+  'hasException',
+  'hasValue',
+  'exceptions',
+  'value',
+]);
+
+type ReactiveBinding = {
+  primitiveId: string;
+  service?: ServiceInfo;
+};
 
 type ServiceInfo = {
   node: DependencyGraphNode;
@@ -373,6 +418,8 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     .legend-line.template { background: #7c4dff; }
     .legend-line.setup { background: #72a9d2; }
     .legend-line.both { background: #ae70c7; }
+    .legend-line.calls { background: #e67e22; }
+    .legend-line.depends { background: #00a884; }
     .tree { display: grid; gap: 12px; }
     .graph-scroll { overflow-x: auto; overflow-y: hidden; margin: 0 -8px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #eef2f8; }
     .graph-canvas { position: relative; display: grid; grid-template-columns: repeat(5, minmax(220px, 255px)); gap: 52px; min-width: 1530px; min-height: 620px; padding: 26px 28px 42px; }
@@ -386,6 +433,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     .graph-edges path.edge-uses-property.edge-setup { stroke: #72a9d2; }
     .graph-edges path.edge-uses-property.edge-both { stroke: #ae70c7; }
     .graph-edges path.edge-reads, .graph-edges path.edge-writes, .graph-edges path.edge-subscribes, .graph-edges path.edge-triggers { stroke: #1292c9; stroke-dasharray: 3 3; }
+    .graph-edges path.edge-calls { stroke: #e67e22; stroke-width: 2.2; }
     .graph-column { position: relative; display: grid; align-content: start; gap: 13px; min-width: 0; }
     .graph-column-title { position: sticky; top: 0; z-index: 3; padding: 6px 8px; border-bottom: 1px solid #cfd8e6; color: var(--muted); background: rgba(238, 242, 248, .94); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
     .graph-card { position: relative; z-index: 6; display: grid; gap: 5px; min-width: 0; min-height: 68px; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid #8a96a8; border-radius: 9px; background: var(--panel); box-shadow: 0 4px 12px rgba(25, 38, 65, .08); text-align: left; cursor: pointer; }
@@ -481,7 +529,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     <main class="workspace">
       <div class="workspace-head"><div><h2 id="route-title">Routes</h2><p id="route-subtitle">Sélectionnez une route pour explorer ses dépendances.</p></div></div>
       <div class="filter-bar" id="filters"></div>
-      <div class="legend"><span class="legend-item"><span class="legend-line template"></span>Template</span><span class="legend-item"><span class="legend-line setup"></span>Setup</span><span class="legend-item"><span class="legend-line both"></span>Template + setup</span></div>
+      <div class="legend"><span class="legend-item"><span class="legend-line template"></span>Template</span><span class="legend-item"><span class="legend-line setup"></span>Setup</span><span class="legend-item"><span class="legend-line both"></span>Template + setup</span><span class="legend-item"><span class="legend-line depends"></span>Dépendance computed / state</span><span class="legend-item"><span class="legend-line calls"></span>Appel de méthode</span></div>
       <div class="tree" id="tree"></div>
     </main>
     <aside class="details" id="details"></aside>
@@ -568,7 +616,8 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     function relationGroupLabel(kinds) {
       if (kinds.some(function (kind) { return kind === 'loads' || kind === 'renders'; })) return 'Routes et composants';
       if (kinds.some(function (kind) { return kind === 'depends-on'; })) return 'Dépendances externes';
-      if (kinds.some(function (kind) { return kind === 'uses-property'; })) return 'Champs utilisés';
+      if (kinds.some(function (kind) { return kind === 'uses-property'; })) return 'Champs et states utilisés';
+      if (kinds.some(function (kind) { return kind === 'calls'; })) return 'Méthodes appelées';
       if (kinds.some(function (kind) { return kind === 'reads' || kind === 'writes' || kind === 'subscribes' || kind === 'triggers'; })) return 'Interactions source$';
       if (kinds.some(function (kind) { return kind === 'contains'; })) return 'Contenu interne';
       return 'Relations';
@@ -664,19 +713,32 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
         return edge.kind === 'contains' && ids.has(edge.to) && nodes.has(edge.to);
       }).map(function (edge) { return edge.to; }).filter(function (id, index, all) { return all.indexOf(id) === index; });
     }
+    function dependencyChildren(ownerId, ids) {
+      return (outgoing.get(ownerId) || []).filter(function (edge) {
+        return (edge.kind === 'depends-on' || edge.kind === 'calls') && ids.has(edge.to) && nodes.has(edge.to);
+      }).map(function (edge) { return { id: edge.to, kind: edge.kind }; }).filter(function (item, index, all) {
+        return all.findIndex(function (other) { return other.id === item.id && other.kind === item.kind; }) === index;
+      });
+    }
     function renderInternalNode(nodeId, ids, trail) {
       if (trail.has(nodeId)) return '';
       const node = nodes.get(nodeId);
       if (!node) return '';
       const children = internalChildren(nodeId, ids);
+      const dependencies = dependencyChildren(nodeId, ids);
       const childHtml = children.map(function (childId) { return renderInternalNode(childId, ids, new Set([...trail, nodeId])); }).join('');
-      return '<div class="internal-node"><span class="internal-relation">contient</span>' + graphCard(node) + childHtml + '</div>';
+      const dependencyHtml = dependencies.map(function (item) {
+        const target = nodes.get(item.id);
+        return target ? '<div class="internal-node"><span class="internal-relation">' + (item.kind === 'calls' ? 'appelle' : 'dépend de') + '</span>' + graphCard(target) + '</div>' : '';
+      }).join('');
+      return '<div class="internal-node"><span class="internal-relation">contient</span>' + graphCard(node) + childHtml + dependencyHtml + '</div>';
     }
     function componentChildrenForUsage(ownerId, ids, usage) {
       return (outgoing.get(ownerId) || []).filter(function (edge) {
         const edgeUsage = edge.details && edge.details.usage;
         const matchesUsage = !edgeUsage || String(edgeUsage).split('+').indexOf(usage) >= 0;
-        return edge.kind === 'contains' && matchesUsage && ids.has(edge.to) && nodes.has(edge.to);
+        const isInternal = edge.kind === 'contains' || ((edge.kind === 'uses-property' || edge.kind === 'calls') && matchesUsage);
+        return isInternal && ids.has(edge.to) && nodes.has(edge.to);
       }).map(function (edge) { return edge.to; }).filter(function (id, index, all) { return all.indexOf(id) === index; });
     }
     function renderComponentPart(owner, ids, usage, title) {
@@ -749,7 +811,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
       (GRAPH.edges || []).filter(function (edge) { return state.graphIds.has(edge.from) && state.graphIds.has(edge.to); }).forEach(function (edge) {
         const fromOwner = state.graphInternalOwner.get(edge.from);
         const toOwner = state.graphInternalOwner.get(edge.to);
-        if (fromOwner && fromOwner === toOwner) return;
+        if (fromOwner && fromOwner === toOwner && edge.kind === 'contains') return;
         const from = elements.get(graphEndpointKey(edge.from, edge, true));
         const to = elements.get(graphEndpointKey(edge.to, edge, false));
         if (!from || !to) return;
@@ -894,6 +956,7 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
         details: {
           scope: getStringProperty(config, 'scope'),
           appStart: getBooleanProperty(config, 'appStart') === true,
+          browserBoundary: getBooleanProperty(config, 'browserBoundary') === true,
           outputProperties: [],
         },
       });
@@ -924,9 +987,17 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
       }
       if (node.details) {
         node.details['outputProperties'] = [...service.outputPropertyNames];
+        node.details['helpers'] = [...service.helpers];
       }
       builder.services.push(service);
     }
+  }
+  for (const service of builder.services) {
+    collectProvides(
+      builder,
+      service.node.id,
+      service.call.getArguments()[0],
+    );
   }
 }
 
@@ -972,6 +1043,7 @@ function collectComponents(builder: GraphBuilder, sourceFiles: readonly SourceFi
         bindings: new Map(),
       };
       builder.components.push(component);
+      collectProvides(builder, component.node.id, call.getArguments()[1]);
       const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
       if (declaration) {
         for (const name of getBindingNames(declaration.getNameNode())) {
@@ -1036,32 +1108,12 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
     for (const call of factory.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const httpClientUsage = findCraftHttpClientUsage(call);
       if (httpClientUsage) {
-        const ownerPrimitive = nearestPrimitiveCall(call);
-        const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
-        const ownerNode =
-          ownerPrimitive && ownerPrimitiveName
-            ? addPrimitiveNode(
-                builder,
-                ownerPrimitive,
-                ownerPrimitiveName,
-                service.node.id,
-              )
-            : service.node;
+        const ownerNode = ownerNodeForCall(builder, call, service.node.id);
         addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
       }
       const temporalUsage = findCraftTemporalUsage(call);
       if (temporalUsage) {
-        const ownerPrimitive = nearestPrimitiveCall(call);
-        const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
-        const ownerNode =
-          ownerPrimitive && ownerPrimitiveName
-            ? addPrimitiveNode(
-                builder,
-                ownerPrimitive,
-                ownerPrimitiveName,
-                service.node.id,
-              )
-            : service.node;
+        const ownerNode = ownerNodeForCall(builder, call, service.node.id);
         addTemporalUsage(builder, ownerNode.id, temporalUsage);
       }
       const helper = findServiceForCall(builder, call);
@@ -1069,12 +1121,12 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
         addEdge(builder, service.node.id, helper.node.id, 'depends-on', 'type');
         addServiceDependency(builder, service.node.id, helper, call);
       }
-      const primitive = primitiveName(call);
-      if (primitive) {
-        const primitiveNode = addPrimitiveNode(builder, call, primitive, service.node.id);
-        addEdge(builder, service.node.id, primitiveNode.id, 'contains', 'ast');
+      if (isPrimitiveFactory(call)) {
+        addOwnedPrimitive(builder, call, service.node.id);
       }
     }
+    const bindings = collectReactiveBindings(builder, factory, service.node.id);
+    analyzeReactiveDependencies(builder, factory, bindings, service.node.id);
     addSourceInteractions(builder, service.node.id, factory);
   }
 }
@@ -1090,32 +1142,12 @@ function analyzeComponents(builder: GraphBuilder): void {
       for (const nested of part.getDescendantsOfKind(SyntaxKind.CallExpression)) {
         const httpClientUsage = findCraftHttpClientUsage(nested);
         if (httpClientUsage) {
-          const ownerPrimitive = nearestPrimitiveCall(nested);
-          const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
-          const ownerNode =
-            ownerPrimitive && ownerPrimitiveName
-              ? addPrimitiveNode(
-                  builder,
-                  ownerPrimitive,
-                  ownerPrimitiveName,
-                  component.node.id,
-                )
-              : component.node;
+          const ownerNode = ownerNodeForCall(builder, nested, component.node.id);
           addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
         }
         const temporalUsage = findCraftTemporalUsage(nested);
         if (temporalUsage) {
-          const ownerPrimitive = nearestPrimitiveCall(nested);
-          const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
-          const ownerNode =
-            ownerPrimitive && ownerPrimitiveName
-              ? addPrimitiveNode(
-                  builder,
-                  ownerPrimitive,
-                  ownerPrimitiveName,
-                  component.node.id,
-                )
-              : component.node;
+          const ownerNode = ownerNodeForCall(builder, nested, component.node.id);
           addTemporalUsage(builder, ownerNode.id, temporalUsage);
         }
         const helper =
@@ -1124,14 +1156,12 @@ function analyzeComponents(builder: GraphBuilder): void {
         if (helper) {
           addEdge(builder, component.node.id, helper.node.id, 'depends-on', 'type');
           addServiceDependency(builder, component.node.id, helper, nested);
-          if (!nearestPrimitiveCall(nested)) {
+          if (!nearestPrimitiveFactory(nested)) {
             collectServiceBindings(component, nested, helper);
           }
         }
-        const primitive = primitiveName(nested);
-        if (primitive) {
-          const primitiveNode = addPrimitiveNode(builder, nested, primitive, component.node.id);
-          addEdge(builder, component.node.id, primitiveNode.id, 'contains', 'ast', {
+        if (isPrimitiveFactory(nested)) {
+          addOwnedPrimitive(builder, nested, component.node.id, {
             usage: part === setup ? 'setup' : 'template',
           });
         }
@@ -1141,6 +1171,25 @@ function analyzeComponents(builder: GraphBuilder): void {
         }
       }
       addSourceInteractions(builder, component.node.id, part);
+    }
+    const setupBindings = setup
+      ? collectReactiveBindings(builder, setup, component.node.id, component)
+      : new Map<string, ReactiveBinding>();
+    if (setup) {
+      analyzeReactiveDependencies(
+        builder,
+        setup,
+        setupBindings,
+        component.node.id,
+      );
+    }
+    if (template) {
+      analyzeTemplateDependencies(
+        builder,
+        component,
+        template,
+        setupBindings,
+      );
     }
     collectServicePropertyUses(builder, component);
   }
@@ -1223,16 +1272,23 @@ function resolveCallableDeclarations(call: CallExpression): Node[] {
 }
 
 function analyzeRouteObject(builder: GraphBuilder, route: RouteInfo): void {
-  // Route loading is resolved in a second pass after all route collections and components exist.
-  for (const property of route.object.getProperties()) {
-    if (!Node.isPropertyAssignment(property)) continue;
-    const propertyName = property.getName();
-    if (propertyName === 'providers') {
-      for (const call of property.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-        const helper = findServiceForCall(builder, call);
-        if (helper) addEdge(builder, route.node.id, helper.node.id, 'depends-on', 'type');
-      }
-    }
+  collectProvides(builder, route.node.id, route.object);
+}
+
+function collectProvides(
+  builder: GraphBuilder,
+  ownerId: string,
+  object: Node | undefined,
+): void {
+  if (!object || !Node.isObjectLiteralExpression(object)) return;
+  const property = object.getProperty('providers');
+  if (!property || !Node.isPropertyAssignment(property)) return;
+  for (const call of property.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const helper = findServiceForCall(builder, call);
+    if (!helper) continue;
+    addEdge(builder, ownerId, helper.node.id, 'provides', 'type', {
+      helper: call.getExpression().getText(),
+    });
   }
 }
 
@@ -1259,7 +1315,7 @@ function collectServiceBindingsFromReturns(
     const expression = yieldExpression.getExpression();
     const call = expression?.asKind(SyntaxKind.CallExpression);
     if (!call) continue;
-    if (nearestPrimitiveCall(call)) continue;
+    if (nearestPrimitiveFactory(call)) continue;
     const service = findServiceForCall(builder, call);
     if (service) collectServiceBindings(component, call, service);
   }
@@ -1331,7 +1387,7 @@ function addSourceInteractions(builder: GraphBuilder, ownerId: string, node: Nod
         const expression = call.getExpression().getText();
         if (expression !== 'on$' && expression !== 'afterRecomputation') continue;
         if (call.getArguments()[0]?.getText() === name) {
-          const primitive = nearestPrimitiveCall(call);
+          const primitive = nearestPrimitiveFactory(call);
           addEdge(
             builder,
             source.node.id,
@@ -1346,11 +1402,591 @@ function addSourceInteractions(builder: GraphBuilder, ownerId: string, node: Nod
 }
 
 function primitiveNodeId(builder: GraphBuilder, call: CallExpression): string {
-  const owner = call.getFirstAncestorByKind(SyntaxKind.CallExpression);
-  const ownerText = owner?.getExpression().getText();
-  const primitive = primitiveName(owner ?? call) ?? ownerText ?? 'primitive';
+  const owner = nearestPrimitiveFactory(call) ?? call;
+  const primitive = primitiveFactoryName(owner) ?? primitiveName(owner) ?? 'primitive';
   const sourceFile = call.getSourceFile();
-  return `primitive:${sourceFile.getFilePath()}:${primitive}:${owner?.getStartLineNumber() ?? call.getStartLineNumber()}`;
+  return `primitive:${sourceFile.getFilePath()}:${primitive}:${owner.getStartLineNumber()}`;
+}
+
+function ownerNodeForCall(
+  builder: GraphBuilder,
+  call: CallExpression,
+  aggregateOwnerId: string,
+): DependencyGraphNode {
+  const ownerPrimitive = nearestPrimitiveFactory(call);
+  const ownerPrimitiveName = ownerPrimitive && primitiveFactoryName(ownerPrimitive);
+  return ownerPrimitive && ownerPrimitiveName
+    ? addPrimitiveNode(builder, ownerPrimitive, ownerPrimitiveName, aggregateOwnerId)
+    : (builder.nodes.get(aggregateOwnerId) ?? {
+        id: aggregateOwnerId,
+        kind: 'service',
+        label: aggregateOwnerId,
+      });
+}
+
+function addOwnedPrimitive(
+  builder: GraphBuilder,
+  call: CallExpression,
+  aggregateOwnerId: string,
+  details?: Record<string, unknown>,
+): DependencyGraphNode | undefined {
+  const primitive = primitiveFactoryName(call);
+  if (!primitive) return undefined;
+  const primitiveNode = addPrimitiveNode(builder, call, primitive, aggregateOwnerId);
+  const enclosing = nearestPrimitiveFactory(call);
+  const enclosingName = enclosing && primitiveFactoryName(enclosing);
+  const parentId =
+    enclosing && enclosingName
+      ? addPrimitiveNode(builder, enclosing, enclosingName, aggregateOwnerId).id
+      : aggregateOwnerId;
+  addEdge(builder, parentId, primitiveNode.id, 'contains', 'ast', details);
+  return primitiveNode;
+}
+
+function collectReactiveBindings(
+  builder: GraphBuilder,
+  scope: Node,
+  ownerId: string,
+  component?: ComponentInfo,
+): Map<string, ReactiveBinding> {
+  const bindings = new Map<string, ReactiveBinding>();
+
+  for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (!isPrimitiveFactory(call)) continue;
+    const primitive = primitiveFactoryName(call);
+    if (!primitive) continue;
+    const primitiveNode = addPrimitiveNode(builder, call, primitive, ownerId);
+
+    const declaration = initializerDeclaration(call);
+    const declarationName = declaration?.getNameNode();
+    if (declarationName && Node.isIdentifier(declarationName)) {
+      bindings.set(declarationName.getText(), { primitiveId: primitiveNode.id });
+    }
+
+    const property = initializerProperty(call);
+    if (property) {
+      bindings.set(property.getName(), { primitiveId: primitiveNode.id });
+    }
+
+  }
+
+  if (component) {
+    for (const [name, service] of component.bindings) {
+      const primitive = findPrimitiveByName(builder, service.node.id, name);
+      if (primitive) {
+        bindings.set(name, { primitiveId: primitive.id, service });
+        continue;
+      }
+      const isKnownMember =
+        service.outputPropertyNames.size === 0 ||
+        service.outputPropertyNames.has(name);
+      if (!isKnownMember) {
+        bindings.set(name, { primitiveId: service.node.id, service });
+        continue;
+      }
+      bindings.set(name, {
+        primitiveId: `property:${service.node.id}:${name}`,
+        service,
+      });
+      addNode(builder, {
+        id: `property:${service.node.id}:${name}`,
+        kind: 'property',
+        label: `${service.node.label}.${name}`,
+        filePath: service.node.filePath,
+        line: service.node.line,
+        details: { member: name },
+      });
+      addEdge(builder, service.node.id, `property:${service.node.id}:${name}`, 'contains', 'type', {
+        property: name,
+      });
+    }
+  }
+
+  return bindings;
+}
+
+function analyzeReactiveDependencies(
+  builder: GraphBuilder,
+  scope: Node,
+  bindings: Map<string, ReactiveBinding>,
+  aggregateOwnerId: string,
+  component?: ComponentInfo,
+): void {
+  for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (!isTrackedReactiveHost(call)) continue;
+    const host = addOwnedPrimitive(builder, call, aggregateOwnerId);
+    if (!host) continue;
+    const body = reactiveHostBody(call);
+    if (!body) continue;
+    for (const expression of collectReactiveExpressions(body)) {
+      const target = resolveReactiveTarget(
+        builder,
+        expression,
+        bindings,
+        component,
+        aggregateOwnerId,
+      );
+      if (!target || target.id === host.id) continue;
+      addEdge(builder, host.id, target.id, target.kind, 'ast', target.details);
+    }
+  }
+}
+
+function analyzeTemplateDependencies(
+  builder: GraphBuilder,
+  component: ComponentInfo,
+  template: Node,
+  bindings: Map<string, ReactiveBinding>,
+): void {
+  const parameterNames = templateParameterNames(template);
+  for (const expression of collectReactiveExpressions(template)) {
+    if (
+      Node.isIdentifier(expression) &&
+      parameterNames.has(expression.getText()) &&
+      isBindingName(expression)
+    ) {
+      continue;
+    }
+    const target = resolveReactiveTarget(
+      builder,
+      expression,
+      bindings,
+      component,
+      component.node.id,
+    );
+    if (!target) continue;
+    const kind = target.kind === 'calls' ? 'calls' : 'uses-property';
+    addEdge(builder, component.node.id, target.id, kind, 'ast', {
+      ...target.details,
+      usage: 'template',
+    });
+  }
+}
+
+function collectReactiveExpressions(scope: Node): Node[] {
+  const expressions: Node[] = [];
+  const seen = new Set<Node>();
+  const add = (node: Node | undefined): void => {
+    if (!node || seen.has(node)) return;
+    seen.add(node);
+    expressions.push(node);
+  };
+
+  for (const yieldExpression of scope.getDescendantsOfKind(SyntaxKind.YieldExpression)) {
+    add(unwrapExpression(yieldExpression.getExpression()));
+  }
+  for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (isPrimitiveFactory(call) || findCraftHttpClientUsage(call) || findCraftTemporalUsage(call)) {
+      continue;
+    }
+    add(call);
+  }
+  for (const access of scope.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    if (access.getParent()?.isKind(SyntaxKind.CallExpression)) continue;
+    add(access);
+  }
+  for (const identifier of scope.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    if (isBindingName(identifier)) continue;
+    if (identifier.getParent()?.isKind(SyntaxKind.PropertyAccessExpression)) continue;
+    if (identifier.getParent()?.isKind(SyntaxKind.CallExpression)) continue;
+    add(identifier);
+  }
+  return expressions;
+}
+
+function resolveReactiveTarget(
+  builder: GraphBuilder,
+  expression: Node | undefined,
+  bindings: Map<string, ReactiveBinding>,
+  component: ComponentInfo | undefined,
+  aggregateOwnerId: string,
+): { id: string; kind: 'depends-on' | 'calls'; details?: Record<string, unknown> } | undefined {
+  const unwrapped = unwrapExpression(expression);
+  if (!unwrapped) return undefined;
+
+  if (Node.isCallExpression(unwrapped)) {
+    const callee = unwrapped.getExpression();
+    const wrapperName = Node.isIdentifier(callee) ? callee.getText() : undefined;
+    if (wrapperName && REACTIVE_WRAPPER_NAMES.has(wrapperName)) {
+      return resolveReactiveTarget(
+        builder,
+        unwrapped.getArguments()[0],
+        bindings,
+        component,
+        aggregateOwnerId,
+      );
+    }
+    const chain = Node.isIdentifier(callee)
+      ? [callee.getText()]
+      : Node.isPropertyAccessExpression(callee)
+        ? propertyAccessChain(callee)
+        : undefined;
+    if (!chain) return undefined;
+    return resolveReactiveChain(
+      builder,
+      chain,
+      unwrapped,
+      bindings,
+      component,
+      aggregateOwnerId,
+    );
+  }
+
+  if (Node.isIdentifier(unwrapped)) {
+    return resolveReactiveChain(
+      builder,
+      [unwrapped.getText()],
+      unwrapped,
+      bindings,
+      component,
+      aggregateOwnerId,
+    );
+  }
+
+  if (Node.isPropertyAccessExpression(unwrapped)) {
+    const chain = propertyAccessChain(unwrapped);
+    if (!chain) return undefined;
+    return resolveReactiveChain(
+      builder,
+      chain,
+      unwrapped,
+      bindings,
+      component,
+      aggregateOwnerId,
+    );
+  }
+
+  return undefined;
+}
+
+function resolveReactiveChain(
+  builder: GraphBuilder,
+  chain: string[],
+  node: Node,
+  bindings: Map<string, ReactiveBinding>,
+  component: ComponentInfo | undefined,
+  aggregateOwnerId: string,
+): { id: string; kind: 'depends-on' | 'calls'; details?: Record<string, unknown> } | undefined {
+  const [root, ...rest] = chain;
+  if (!root) return undefined;
+  if (INSERTION_CONTEXT_NAMES.has(root)) {
+    const enclosing = enclosingPrimitiveNode(builder, node, aggregateOwnerId);
+    if (enclosing) {
+      if (rest.length === 0) {
+        return {
+          id: enclosing.id,
+          kind: isLikelyMethod(rest, node, builder, enclosing.id)
+            ? 'calls'
+            : 'depends-on',
+          details: { reader: root },
+        };
+      }
+      const propertyNode = addPrimitiveMemberProperty(
+        builder,
+        enclosing.id,
+        rest.join('.'),
+        node,
+      );
+      return {
+        id: propertyNode.id,
+        kind: isLikelyMethod(rest, node, builder, enclosing.id)
+          ? 'calls'
+          : 'depends-on',
+        details: { path: rest.join('.') },
+      };
+    }
+  }
+  const binding = bindings.get(root);
+  const service = binding?.service ?? component?.bindings.get(root);
+  const method = isLikelyMethod(rest, node, builder, binding?.primitiveId);
+
+  if (binding?.primitiveId && builder.nodes.has(binding.primitiveId)) {
+    if (rest.length === 0) {
+      const primitive = builder.nodes.get(binding.primitiveId);
+      const isMethod =
+        method || primitive?.details?.['primitive'] === 'craftMethod';
+      return {
+        id: binding.primitiveId,
+        kind: isMethod ? 'calls' : 'depends-on',
+        details: { reader: root },
+      };
+    }
+    const memberPrimitive =
+      INSERTION_CONTEXT_NAMES.has(root)
+        ? undefined
+        : findMemberPrimitive(builder, binding.primitiveId, rest[0]);
+    if (memberPrimitive) {
+      if (rest.length === 1) {
+        return {
+          id: memberPrimitive.id,
+          kind: method ? 'calls' : 'depends-on',
+          details: { path: rest.join('.') },
+        };
+      }
+      const propertyNode = addPrimitiveMemberProperty(
+        builder,
+        memberPrimitive.id,
+        rest.slice(1).join('.'),
+        node,
+      );
+      return {
+        id: propertyNode.id,
+        kind: method ? 'calls' : 'depends-on',
+        details: { path: rest.join('.') },
+      };
+    }
+    const propertyNode = addPrimitiveMemberProperty(
+      builder,
+      binding.primitiveId,
+      rest.join('.'),
+      node,
+    );
+    return {
+      id: propertyNode.id,
+      kind: method ? 'calls' : 'depends-on',
+      details: { path: rest.join('.') },
+    };
+  }
+
+  if (service) {
+    if (rest.length === 0) {
+      const primitive = findPrimitiveByName(builder, service.node.id, root);
+      if (primitive) {
+        return { id: primitive.id, kind: method ? 'calls' : 'depends-on' };
+      }
+      const propertyNode = addServiceMemberProperty(builder, service, root, node);
+      return { id: propertyNode.id, kind: method ? 'calls' : 'depends-on' };
+    }
+    const rootPrimitive = findPrimitiveByName(builder, service.node.id, root);
+    if (rootPrimitive) {
+      const memberPrimitive = findMemberPrimitive(builder, rootPrimitive.id, rest[0]);
+      if (memberPrimitive) {
+        if (rest.length === 1) {
+          return {
+            id: memberPrimitive.id,
+            kind: method ? 'calls' : 'depends-on',
+            details: { path: rest.join('.') },
+          };
+        }
+        const nestedProperty = addPrimitiveMemberProperty(
+          builder,
+          memberPrimitive.id,
+          rest.slice(1).join('.'),
+          node,
+        );
+        return {
+          id: nestedProperty.id,
+          kind: method ? 'calls' : 'depends-on',
+          details: { path: rest.join('.') },
+        };
+      }
+      const propertyNode = addPrimitiveMemberProperty(
+        builder,
+        rootPrimitive.id,
+        rest.join('.'),
+        node,
+      );
+      return {
+        id: propertyNode.id,
+        kind: method ? 'calls' : 'depends-on',
+        details: { path: rest.join('.') },
+      };
+    }
+    const propertyNode = addServiceMemberProperty(builder, service, rest.join('.'), node);
+    return {
+      id: propertyNode.id,
+      kind: method ? 'calls' : 'depends-on',
+      details: { path: rest.join('.') },
+    };
+  }
+
+  return undefined;
+}
+
+function addPrimitiveMemberProperty(
+  builder: GraphBuilder,
+  primitiveId: string,
+  memberPath: string,
+  node: Node,
+): DependencyGraphNode {
+  const primitive = builder.nodes.get(primitiveId);
+  const propertyNode = addNode(builder, {
+    id: `property:${primitiveId}:${memberPath}`,
+    kind: 'property',
+    label: `${primitive?.label ?? primitiveId}.${memberPath}`,
+    filePath: node.getSourceFile().getFilePath(),
+    line: node.getStartLineNumber(),
+    details: { member: memberPath },
+  });
+  addEdge(builder, primitiveId, propertyNode.id, 'contains', 'ast', {
+    property: memberPath.split('.')[0],
+  });
+  return propertyNode;
+}
+
+function addServiceMemberProperty(
+  builder: GraphBuilder,
+  service: ServiceInfo,
+  memberPath: string,
+  node: Node,
+): DependencyGraphNode {
+  const propertyNode = addNode(builder, {
+    id: `property:${service.node.id}:${memberPath}`,
+    kind: 'property',
+    label: `${service.node.label}.${memberPath}`,
+    filePath: service.node.filePath,
+    line: node.getStartLineNumber(),
+    details: { member: memberPath },
+  });
+  addEdge(builder, service.node.id, propertyNode.id, 'contains', 'type', {
+    member: memberPath,
+  });
+  return propertyNode;
+}
+
+function enclosingPrimitiveNode(
+  builder: GraphBuilder,
+  node: Node,
+  aggregateOwnerId: string,
+): DependencyGraphNode | undefined {
+  let current: Node | undefined = node.getParent();
+  while (current) {
+    if (Node.isCallExpression(current) && isPrimitiveFactory(current)) {
+      const primitive = primitiveFactoryName(current);
+      if (
+        primitive &&
+        primitive !== 'craftComputed' &&
+        primitive !== 'craftMethod' &&
+        primitive !== 'craftEffect'
+      ) {
+        return addPrimitiveNode(builder, current, primitive, aggregateOwnerId);
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+function findPrimitiveByName(
+  builder: GraphBuilder,
+  ownerId: string,
+  name: string,
+): DependencyGraphNode | undefined {
+  return [...builder.nodes.values()].find(
+    (node) =>
+      node.kind === 'primitive' &&
+      node.details?.['ownerId'] === ownerId &&
+      node.details?.['name'] === name,
+  );
+}
+
+function findMemberPrimitive(
+  builder: GraphBuilder,
+  parentPrimitiveId: string,
+  memberName: string,
+): DependencyGraphNode | undefined {
+  for (const edge of builder.edges.values()) {
+    if (edge.kind !== 'contains' || edge.from !== parentPrimitiveId) continue;
+    const child = builder.nodes.get(edge.to);
+    if (
+      child?.kind === 'primitive' &&
+      (child.details?.['usage'] === memberName || child.details?.['name'] === memberName)
+    ) {
+      return child;
+    }
+  }
+  return undefined;
+}
+
+function isLikelyMethod(
+  path: string[],
+  node: Node,
+  builder: GraphBuilder,
+  primitiveId?: string,
+): boolean {
+  const leaf = path[path.length - 1];
+  if (leaf && REACTIVE_METHOD_NAMES.has(leaf)) return true;
+  if (leaf && REACTIVE_READER_NAMES.has(leaf)) return false;
+  if (primitiveId) {
+    const member = leaf ? findMemberPrimitive(builder, primitiveId, leaf) : undefined;
+    if (member?.details?.['primitive'] === 'craftMethod') return true;
+  }
+  return (
+    Node.isCallExpression(node) &&
+    node.getArguments().length > 0 &&
+    !REACTIVE_READER_NAMES.has(leaf ?? '')
+  );
+}
+
+function isTrackedReactiveHost(call: CallExpression): boolean {
+  const name = primitiveFactoryName(call);
+  return name === 'craftComputed' || name === 'craftMethod' || name === 'craftEffect';
+}
+
+function reactiveHostBody(call: CallExpression): Node | undefined {
+  return (
+    call
+      .getArguments()
+      .find(
+        (argument) =>
+          argument.isKind(SyntaxKind.ArrowFunction) ||
+          argument.isKind(SyntaxKind.FunctionExpression),
+      ) ?? call.getArguments().at(-1)
+  );
+}
+
+function initializerDeclaration(call: CallExpression): VariableDeclaration | undefined {
+  const yieldExpression = call.getFirstAncestorByKind(SyntaxKind.YieldExpression);
+  const declaration = (yieldExpression ?? call).getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
+  if (!declaration) return undefined;
+  const initializer = unwrapExpression(declaration.getInitializer());
+  if (initializer === call) return declaration;
+  if (
+    initializer?.isKind(SyntaxKind.YieldExpression) &&
+    unwrapExpression(initializer.getExpression()) === call
+  ) {
+    return declaration;
+  }
+  return undefined;
+}
+
+function initializerProperty(
+  call: CallExpression,
+): import('ts-morph').PropertyAssignment | undefined {
+  const property = call.getFirstAncestorByKind(SyntaxKind.PropertyAssignment);
+  if (!property) return undefined;
+  const initializer = unwrapExpression(property.getInitializer());
+  return initializer === call ? property : undefined;
+}
+
+function templateParameterNames(template: Node): Set<string> {
+  if (
+    !template.isKind(SyntaxKind.ArrowFunction) &&
+    !template.isKind(SyntaxKind.FunctionExpression)
+  ) {
+    return new Set();
+  }
+  const parameter = template.getParameters()[0]?.getNameNode();
+  return new Set(parameter ? getBindingNames(parameter) : []);
+}
+
+function isBindingName(identifier: import('ts-morph').Identifier): boolean {
+  const parent = identifier.getParent();
+  return (
+    parent?.isKind(SyntaxKind.BindingElement) === true ||
+    parent?.isKind(SyntaxKind.Parameter) === true ||
+    parent?.isKind(SyntaxKind.VariableDeclaration) === true
+  );
+}
+
+function unwrapExpression(node: Node | undefined): Node | undefined {
+  let current = node;
+  while (current && Node.isParenthesizedExpression(current)) {
+    current = current.getExpression();
+  }
+  return current;
 }
 
 function addPrimitiveNode(
@@ -1388,7 +2024,45 @@ function addHttpClientUsage(
     craftHttpClient: true,
     httpEndpoints: mergeHttpEndpoints(node.details?.['httpEndpoints'], usage),
   };
+  const endpointId = `http-endpoint:${usage.method}:${usage.url}`;
+  const endpoint = addNode(builder, {
+    id: endpointId,
+    kind: 'http-endpoint',
+    label: `${usage.method} ${usage.url}`,
+    details: {
+      method: usage.method,
+      url: usage.url,
+      callSites: [],
+    },
+  });
+  const callSites = Array.isArray(endpoint.details?.['callSites'])
+    ? [...(endpoint.details['callSites'] as DependencyGraphHttpCallSite[])]
+    : [];
+  if (
+    !callSites.some(
+      (site) => site.ownerId === nodeId && site.line === usage.line,
+    )
+  ) {
+    callSites.push({ ownerId: nodeId, line: usage.line });
+  }
+  endpoint.details = {
+    ...(endpoint.details ?? {}),
+    method: usage.method,
+    url: usage.url,
+    callSites,
+  };
+  addEdge(builder, nodeId, endpoint.id, 'calls', 'ast', {
+    http: true,
+    method: usage.method,
+    url: usage.url,
+    line: usage.line,
+  });
 }
+
+type DependencyGraphHttpCallSite = {
+  ownerId: string;
+  line: number;
+};
 
 function addTemporalUsage(
   builder: GraphBuilder,
@@ -1547,6 +2221,15 @@ function getStaticExpressionText(node: Node | undefined): string | undefined {
 }
 
 function primitiveUsageName(call: CallExpression): string | undefined {
+  const property = initializerProperty(call);
+  if (property) return property.getName();
+
+  const declaration = initializerDeclaration(call);
+  const declarationName = declaration?.getNameNode();
+  if (declarationName && Node.isIdentifier(declarationName)) {
+    return declarationName.getText();
+  }
+
   const callableProperty = call
     .getAncestors()
     .find((ancestor) => {
@@ -1561,11 +2244,7 @@ function primitiveUsageName(call: CallExpression): string | undefined {
     return callableProperty.getName();
   }
 
-  const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  const declarationName = declaration?.getNameNode();
-  return declarationName && Node.isIdentifier(declarationName)
-    ? declarationName.getText()
-    : undefined;
+  return undefined;
 }
 
 function addServiceDependency(
@@ -1574,8 +2253,8 @@ function addServiceDependency(
   service: ServiceInfo,
   call: CallExpression,
 ): void {
-  const ownerPrimitive = nearestPrimitiveCall(call);
-  const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
+  const ownerPrimitive = nearestPrimitiveFactory(call);
+  const ownerPrimitiveName = ownerPrimitive && primitiveFactoryName(ownerPrimitive);
   const ownerNode =
     ownerPrimitive && ownerPrimitiveName
       ? addPrimitiveNode(
@@ -1619,13 +2298,31 @@ function addServiceDependency(
   addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type');
 }
 
-function nearestPrimitiveCall(call: CallExpression): CallExpression | undefined {
+function nearestPrimitiveFactory(call: CallExpression): CallExpression | undefined {
   let current: Node | undefined = call.getParent();
   while (current) {
-    if (Node.isCallExpression(current) && primitiveName(current)) return current;
+    if (Node.isCallExpression(current) && isPrimitiveFactory(current)) return current;
     current = current.getParent();
   }
   return undefined;
+}
+
+function isPrimitiveFactory(call: CallExpression): boolean {
+  return primitiveFactoryName(call) !== undefined;
+}
+
+function primitiveFactoryName(call: CallExpression): string | undefined {
+  const name = call.getExpression().getText();
+  if (!PRIMITIVES.has(name)) return undefined;
+  if (
+    name === 'craftComputed' ||
+    name === 'craftEffect' ||
+    name === 'craftMethod' ||
+    name === 'insertSelect'
+  ) {
+    return name;
+  }
+  return call.getArguments().length > 0 ? name : undefined;
 }
 
 function primitiveName(call: CallExpression): string | undefined {

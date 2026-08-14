@@ -3,6 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';
+import {
+  CraftNotSettled,
+  type CraftSettledSourcesOf,
+} from './craft-settled';
 import type { CraftResourceStatus } from './util/craft-resource-status';
 import type { YieldableReactiveValue } from './reactive-read';
 
@@ -37,6 +41,9 @@ describe('insertPaginationPlaceholderData', () => {
       expectTypeOf(finalResult.currentPageStatus).toMatchTypeOf<
         YieldableReactiveValue<CraftResourceStatus>
       >();
+      expectTypeOf<
+        CraftSettledSourcesOf<typeof finalResult.currentPageStatus>
+      >().toEqualTypeOf<'finalResult'>();
       expectTypeOf(finalResult.isPlaceHolderData).toMatchTypeOf<
         YieldableReactiveValue<boolean>
       >();
@@ -74,6 +81,9 @@ describe('insertPaginationPlaceholderData', () => {
 
       // initialValue is returned instead of undefined before the first load
       expect(craftUse(userQuery.currentPageData())).toEqual([]);
+      expect(() => craftUse(userQuery.currentPageStatus())).toThrow(
+        CraftNotSettled,
+      );
       await vi.advanceTimersByTimeAsync(15000);
       expect(craftUse(userQuery.currentPageData())).toEqual([
         { name: 'User1' },
@@ -84,7 +94,9 @@ describe('insertPaginationPlaceholderData', () => {
       expect(craftUse(userQuery.currentPageData())).toEqual([
         { name: 'User1' },
       ]);
-      expect(craftUse(userQuery.currentPageStatus())).toEqual('loading');
+      expect(() => craftUse(userQuery.currentPageStatus())).toThrow(
+        CraftNotSettled,
+      );
       expect(craftUse(userQuery.currentIdentifier())).toEqual('2');
       await vi.advanceTimersByTimeAsync(7000);
       expect(craftUse(userQuery.currentPageData())).toEqual([
@@ -116,9 +128,12 @@ describe('insertPaginationPlaceholderData', () => {
           },
           insertPaginationPlaceholderData(
             { initialValue: [] as Item[] },
-            ({ state, update }) => ({
+            ({ state, settledState, update }) => ({
               uncompletedCount: computed(
                 () => craftUse(state()).filter((d) => !d.completed).length,
+              ),
+              settledCount: computed(
+                () => craftUse(settledState()).length,
               ),
               markFirstCompleted: () =>
                 update((list) =>
@@ -140,9 +155,13 @@ describe('insertPaginationPlaceholderData', () => {
         { id: '1-a', name: 'User1', completed: false },
       ]);
       expect(craftUse(userQuery.uncompletedCount())).toBe(1);
+      expect(craftUse(userQuery.settledCount())).toBe(1);
 
       // load page 2
       pagination.set(2);
+      expect(() => craftUse(userQuery.settledCount())).toThrow(
+        CraftNotSettled,
+      );
       await vi.advanceTimersByTimeAsync(2000);
       expect(craftUse(userQuery.currentPageData())).toEqual([
         { id: '2-a', name: 'User2', completed: false },
@@ -155,6 +174,7 @@ describe('insertPaginationPlaceholderData', () => {
         { id: '2-a', name: 'User2', completed: true },
       ]);
       expect(craftUse(userQuery.uncompletedCount())).toBe(0);
+      expect(craftUse(userQuery.settledCount())).toBe(1);
 
       // go back to page 1: it must NOT have been reset by the page-2 mutation
       pagination.set(1);

@@ -9,6 +9,7 @@ import type {
   ReactiveReadRequest,
   YieldableReactiveValue,
 } from './reactive-read';
+import { createYieldableReactiveValue } from './reactive-read';
 
 const CRAFT_NOT_SETTLED = Symbol('craft-not-settled');
 
@@ -81,6 +82,23 @@ export type CraftSettledSignal<
   Source extends string = string,
   Exceptions = never,
 > = Signal<Value> & CraftSettledBrand<Source, Exceptions>;
+
+/** Type-only yields carried by a direct settled reader in a generator. */
+export type CraftSettledReadMarkers<Source extends string, Exceptions> =
+  | CraftPendingMarker<Source>
+  | CraftGenExceptionMarker<Exceptions>;
+
+/** A settled reader that can be consumed directly with `yield* reader()`. */
+export type CraftSettledYieldableValue<
+  Value,
+  Source extends string = string,
+  Exceptions = never,
+> = YieldableReactiveValue<
+  Value,
+  'settledState',
+  CraftSettledReadMarkers<Source, Exceptions>
+> &
+  CraftSettledBrand<Source, Exceptions>;
 
 /** The async source names a value depends on (`never` when it depends on none). */
 export type CraftSettledSourcesOf<Value> =
@@ -221,7 +239,7 @@ export function craftSettledValue<Value>(
 }
 
 type SettledReaderOf<Ref> = Ref extends {
-  settledValue: YieldableReactiveValue<infer Value> &
+  settledValue: YieldableReactiveValue<infer Value, any, any> &
     CraftSettledBrand<infer Source, infer Exceptions>;
 }
   ? YieldableReactiveValue<Value> & CraftSettledBrand<Source, Exceptions>
@@ -249,7 +267,7 @@ type SettledReaderOf<Ref> = Ref extends {
  */
 export function* settled<
   const Ref extends {
-    readonly settledValue: YieldableReactiveValue<any> &
+    readonly settledValue: YieldableReactiveValue<any, any, any> &
       CraftSettledBrand<any, any>;
   },
 >(
@@ -299,4 +317,24 @@ export function attachCraftSettledValue(name: string, ref: object): void {
     enumerable: true,
     configurable: true,
   });
+}
+
+/** Creates an insertion-facing generator reader over a settled raw signal. */
+export function createYieldableSettledValue<
+  Value,
+  Source extends string,
+  Exceptions,
+>(
+  source: Signal<Value>,
+  identity: {
+    readonly primitive?: string;
+    readonly insertion?: string;
+    readonly path?: string;
+  },
+): CraftSettledYieldableValue<Value, Source, Exceptions> {
+  return createYieldableReactiveValue(
+    source,
+    'settledState',
+    identity,
+  ) as CraftSettledYieldableValue<Value, Source, Exceptions>;
 }

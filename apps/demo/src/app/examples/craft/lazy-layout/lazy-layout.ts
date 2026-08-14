@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
   craftComponent,
@@ -32,9 +33,20 @@ const LazyLayoutComponent = craftComponent(
       div({ class: 'lazy-grid' }, [
         article([
           h2('Layout component'),
-          p([strong('Layout route: '), `/craft/lazy-layout/${teamId()}`]),
-          p([strong('Parent route input: '), teamId()]),
-          p([strong('Parent route data: '), someParentRouteData()]),
+          p([
+            strong('Layout route: '),
+            function* () {
+              return `/craft/lazy-layout/${yield* teamId()}`;
+            },
+          ]),
+          p([
+            strong('Parent route input: '),
+            teamId,
+          ]),
+          p([
+            strong('Parent route data: '),
+            someParentRouteData,
+          ]),
         ]),
         CraftRouterOutlet(),
       ]),

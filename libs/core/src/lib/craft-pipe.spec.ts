@@ -14,6 +14,7 @@ import { insertReactOnMutation } from './insert-react-on-mutation';
 import { insertSelect } from './insert-select';
 import { mutation } from './mutation';
 import { craftPipe } from './craft-pipe';
+import type { YieldableInsertionWrite } from './query.core';
 import { query } from './query';
 import { state } from './state';
 import { craftUse } from './craft-use';
@@ -571,7 +572,9 @@ describe('craftPipe — fn-wrapper interaction', () => {
     const m1 = ({
       update,
     }: {
-      update: (fn: (c: number) => number) => number;
+      update: YieldableInsertionWrite<[
+        fn: (c: number) => number,
+      ], number>;
     }) => ({
       increment: () => update((c) => c + 1),
     });

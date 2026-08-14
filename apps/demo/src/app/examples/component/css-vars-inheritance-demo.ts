@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, h1, inherit, p, span } from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 

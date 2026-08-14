@@ -42,7 +42,7 @@ describe('yieldable insertion methods', () => {
       const increment = counter.increment();
       expect(isGenerator(increment)).toBe(true);
       expect(craftUse(counter())).toBe(1);
-      expect(craftUse(increment)).toBeUndefined();
+      expect(craftUse(increment)).toBe(1);
       expect(craftUse(counter.read())).toBe(1);
 
       const reset = counter.reset$();
@@ -72,7 +72,7 @@ describe('yieldable insertion methods', () => {
         ),
       );
 
-      expect(craftUse(counter.incrementTwice())).toBeUndefined();
+      expect(craftUse(counter.incrementTwice())).toBe(2);
       expect(craftUse(counter())).toBe(2);
     });
   });

@@ -58,6 +58,8 @@ import {
 import {
   createYieldableReactiveFacade,
   createYieldableReactiveValue,
+  deepYieldable,
+  hasDeepYieldableInsertion,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
@@ -857,9 +859,12 @@ function createQueryParamsRef<
       });
   }
 
-  return createYieldableReactiveFacade(queryParamsOutput, {
+  const publicQueryParams = createYieldableReactiveFacade(queryParamsOutput, {
     name,
     primitive: 'queryParams',
     path: name,
-  }) as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
+  });
+  return (hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicQueryParams)
+    : publicQueryParams) as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
 }

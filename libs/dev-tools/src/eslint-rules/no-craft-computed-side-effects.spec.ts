@@ -41,6 +41,23 @@ describe('no-craft-computed-side-effects', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('allows component input reads as reactive dependencies', async () => {
+    const result = await lintFixture(`
+      declare const INPUT_BRAND: unique symbol;
+      type Input<T> = (() => Generator<never, T, unknown>) & {
+        readonly [INPUT_BRAND]: T;
+      };
+      declare const photoId: Input<string>;
+      declare function craftComputed(name: string, factory: Function): unknown;
+
+      craftComputed('hasPhoto', function* () {
+        return (yield* photoId()) === 'aurora';
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('reports yieldable writes, async generators, and promise-returning calls', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;

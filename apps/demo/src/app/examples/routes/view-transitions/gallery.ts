@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   craftComponent,
@@ -49,26 +50,37 @@ const ViewTransitionsGalleryComponent = craftComponent(
           a(
             {
               class: 'vt-tile',
-              href: `/view-transitions/${photo.id}`,
+              href: function* () {
+                return `/view-transitions/${(yield* photo()).id}`;
+              },
               *click(event) {
                 event.preventDefault();
-                yield* open(photo.id);
+                yield* open((yield* photo()).id);
               },
             },
             [
               span(
                 {
                   class: 'vt-art',
-                  style: {
-                    background: photo.gradient,
-                    viewTransitionName: `photo-${photo.id}`,
+                  style: function* () {
+                    const current = yield* photo();
+                    return {
+                      background: current.gradient,
+                      viewTransitionName: `photo-${current.id}`,
+                    };
                   },
                 },
-                span({ class: 'vt-emoji' }, photo.emoji),
+                span({ class: 'vt-emoji' }, function* () {
+                  return (yield* photo()).emoji;
+                }),
               ),
               span({ class: 'vt-meta' }, [
-                span({ class: 'vt-title' }, photo.title),
-                span({ class: 'vt-subtitle' }, photo.subtitle),
+                span({ class: 'vt-title' }, function* () {
+                  return (yield* photo()).title;
+                }),
+                span({ class: 'vt-subtitle' }, function* () {
+                  return (yield* photo()).subtitle;
+                }),
               ]),
             ],
           ),

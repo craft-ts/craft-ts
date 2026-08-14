@@ -272,7 +272,9 @@ describe('primitive granular mutation logic', () => {
           ...user,
           name: `${user.name}-`,
         });
-        expect(context.updateUserName.select(user.id)?.isLoading()).toBe(true);
+        expect(
+          craftUse(context.updateUserName.select(user.id)?.isLoading()),
+        ).toBe(true);
         expect(craftUse(context.usersQuery.currentPageData())[0]).toEqual({
           ...user,
           name: `${user.name}-`,

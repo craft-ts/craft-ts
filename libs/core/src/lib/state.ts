@@ -47,6 +47,7 @@ import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-conte
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
+  yieldableInvocation,
   type BrandReactiveProperties,
   type YieldableInsertionMethods,
 } from './yieldable';
@@ -64,8 +65,12 @@ import type { AnyCraftException } from './craft-exception';
 import {
   createYieldableReactiveFacade,
   createYieldableReactiveValue,
+  deepYieldable,
+  hasDeepYieldableInsertion,
+  DEEP_YIELDABLE_INSERTION,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
+  type DeepYieldableReaderOf,
   type YieldableReactiveValue,
 } from './reactive-read';
 
@@ -95,14 +100,29 @@ export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   >
 >;
 
+type StateReader<
+  StateType,
+  Insertions,
+  Deep extends boolean = false,
+  Name extends string = string,
+> = Deep extends true
+  ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+  : Insertions extends {
+  readonly [DEEP_YIELDABLE_INSERTION]: true;
+}
+  ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+  : YieldableReactiveValue<StateType, Name>;
+
 export type StateOutput<
   StateType,
   Insertions,
   Dependencies = {},
   HasSchema extends boolean = false,
+  Deep extends boolean = false,
+  Name extends string = string,
 > = HasSchema extends true
   ? MergeObject<
-      YieldableReactiveValue<StateType>,
+      StateReader<StateType, Insertions, Deep, Name>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         {
@@ -123,7 +143,7 @@ export type StateOutput<
       >
     >
   : MergeObject<
-      YieldableReactiveValue<StateType>,
+      StateReader<StateType, Insertions, Deep, Name>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
@@ -363,7 +383,7 @@ export function state<Name extends string, Schema extends CraftSchema>(
 ): CraftPrimitiveGen<
   NamedPrimitive<
     Name,
-    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true>
+    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true, false, Name>
   >
 >;
 export function state<Name extends string, StateInput>(
@@ -375,7 +395,10 @@ export function state<Name extends string, StateInput>(
     StateOutput<
       ResolvedStateType<StateInput>,
       {},
-      StateTrackedDependencies<StateInput>
+      StateTrackedDependencies<StateInput>,
+      false,
+      false,
+      Name
     >
   >
 >;
@@ -399,7 +422,10 @@ export function state<
     StateOutput<
       ResolvedStateType<StateInput>,
       Insertion1,
-      StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>
+      StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>,
+      false,
+      false,
+      Name
     >
   >
 >;
@@ -546,22 +572,25 @@ function createStateRef<StateType>(
   const setState = (newState: StateType) => {
     if (!schema) {
       originalSet(newState);
-      return;
+      return newState;
     }
     const next = applySchema(newState, 'set');
     if (!latestStateException) {
       originalSet(next);
     }
+    return next;
   };
   const updateState = (updateFn: (currentState: StateType) => StateType) => {
     if (!schema) {
-      stateSignal.update(updateFn);
-      return;
+      const next = updateFn(stateSignal());
+      originalSet(next);
+      return next;
     }
     const next = applySchema(updateFn(stateSignal()), 'update');
     if (!latestStateException) {
       originalSet(next);
     }
+    return next;
   };
   if (schema) {
     stateSignal.set = setState;
@@ -573,14 +602,17 @@ function createStateRef<StateType>(
     (acc, insert) => {
       const insertionContext = {
         state: publicStateReader,
-        set: (newState: StateType) => setState(newState),
+        set: (newState: StateType) =>
+          yieldableInvocation(setState(newState)),
         update: (updateFn: (currentState: StateType) => StateType) =>
-          updateState(updateFn),
+          yieldableInvocation(updateState(updateFn)),
         patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
-          updateState((current) => ({
-            ...current,
-            ...patchFn(current),
-          })),
+          yieldableInvocation(
+            updateState((current) => ({
+              ...current,
+              ...patchFn(current),
+            })),
+          ),
         insertions: Object.entries(acc.rawInsertionsOutput).reduce(
           (previous, [key, value]) => {
             if (isSource$(value)) previous[key] = value;
@@ -762,9 +794,12 @@ function createStateRef<StateType>(
       });
   }
 
-  return createYieldableReactiveFacade(stateOutput, {
+  const publicState = createYieldableReactiveFacade(stateOutput, {
     name,
     primitive: 'state',
     path: name,
   });
+  return hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicState)
+    : publicState;
 }

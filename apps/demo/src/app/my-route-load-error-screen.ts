@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { button, craftComponent, div, h2, p } from '@craft-ng/component';
 import {
   craftComputed,
@@ -33,7 +34,7 @@ export const MyRouteLoadErrorScreen = craftComponent(
       p(() => message()),
       div({ class: 'actions' }, [
         button({ click: () => void recovery.retry() }, 'Retry route load'),
-        button({ click: () => recovery.reload() }, 'Reload app'),
+        button({ click: function* () { yield* recovery.reload(); } }, 'Reload app'),
       ]),
     ]);
   },

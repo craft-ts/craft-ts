@@ -33,7 +33,7 @@ craftComponent(name, meta, factory, template);
 
 ```typescript
 import { craftComponent, div, h1, li, ul } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { deepYieldable, state } from '@craft-ng/core';
 
 export const Tasks = craftComponent(
   'Tasks',
@@ -81,31 +81,35 @@ const UserCard = craftComponent(
   'UserCard',
   {},
   (user: Input<User>, onRemove: Output<(user: User) => void>) => ({
-    user,
+    user: deepYieldable(user),
     onRemove,
   }),
   ({ user, onRemove }) =>
     div([
-      span(user().name),
-      button({ click: () => onRemove(user()) }, 'Remove'),
+      span(user.name),
+      button({
+        *click() {
+          yield* onRemove(yield* user());
+        },
+      }, 'Remove'),
     ]),
 );
 ```
 
-An `Input<T>` **is callable** — `user()` reads the current value. An `Output<H>`
-is the handler itself; calling it is emitting.
+An `Input<T>` **is a yieldable reader** — `yield* user()` reads the current
+value. An `Output<H>` is a yieldable callback; delegate to it with `yield*`.
 
 Rendering a child is a function call, so there is no binding layer to get wrong:
 
 ```typescript
-UserCard({ user: () => currentUser, onRemove: removeUser });
+UserCard({ user: currentUser, onRemove: removeUser });
 ```
 
 | Angular                                     | Craft                                       |
 | ------------------------------------------- | ------------------------------------------- |
 | `@Input()` / `input()` / `input.required()` | an `Input<T>` factory parameter             |
 | `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: () => u, onRemove: fn })` |
+| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: u, onRemove: fn })` |
 | Missing required input → runtime            | missing parameter → **compile error**       |
 
 ## The template

@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
@@ -15,9 +16,9 @@ import {
   craftSleep,
   query,
   state,
-  toValue,
-  type MaybeSignal,
-  craftException, craftUse } from '@craft-ng/core';
+  type CraftServiceInput,
+  craftException,
+} from '@craft-ng/core';
 
 type User = { id: string; name: string; email: string };
 const USERS: User[] = [
@@ -49,10 +50,12 @@ const { UsersApi } = craftService(
 
 const { provideUser, User } = craftService(
   { name: 'User', scope: 'toProvide' },
-  function* (inputs: { userId: MaybeSignal<string> }) {
+  function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
     const user = yield* query('user', {
-      params: () => toValue(inputs.userId),
+      params: function* () {
+        return yield* inputs.userId();
+      },
       loader: function* ({ params }) {
         return yield* api.getUser(params);
       },
@@ -93,7 +96,7 @@ const CraftServiceUserDetailComponent = craftComponent(
       div({ class: 'controls' }, [
         select(
           {
-            value: () => craftUse(userId()),
+            value: userId,
             *change(event) {
               yield* userId.selectUser(
                 (event.target as HTMLSelectElement).value,
@@ -109,11 +112,20 @@ const CraftServiceUserDetailComponent = craftComponent(
           () =>
             h('dl', [
               h('dt', 'ID'),
-              h('dd', () => (craftUse(user.value()) as User).id),
+              h('dd', function* () {
+                const value = yield* user.value();
+                return (value as User).id;
+              }),
               h('dt', 'Name'),
-              h('dd', () => (craftUse(user.value()) as User).name),
+              h('dd', function* () {
+                const value = yield* user.value();
+                return (value as User).name;
+              }),
               h('dt', 'Email'),
-              h('dd', () => (craftUse(user.value()) as User).email),
+              h('dd', function* () {
+                const value = yield* user.value();
+                return (value as User).email;
+              }),
             ]),
           () =>
             ifBlock(

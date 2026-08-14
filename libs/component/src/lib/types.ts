@@ -6,6 +6,7 @@ import type {
   CraftServiceProvider,
   ExtractCraftGenExceptions,
   ResolveGeneratorResult,
+  Yieldable,
   YieldableMethod,
   NamedYieldableValue,
   CatchTagExhaustiveCodesCheck,
@@ -14,6 +15,8 @@ import type {
   CRAFT_FIELD_VALIDATION_CASES,
   CraftFieldValidationCasesCarrier,
   ReactiveReadRequest,
+  DEEP_YIELDABLE,
+  YIELDABLE_DEPENDENCY,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type {
@@ -87,8 +90,15 @@ export type CraftInputExceptionsCarrier<Exceptions extends string = string> = {
   readonly [CRAFT_INPUT_EXCEPTIONS]?: Exceptions;
 };
 
-export type Input<T> = (() => T) & {
-  readonly [INPUT_BRAND]: T;
+/**
+ * A component input is a yieldable reader.
+ *
+ * Inputs deliberately use the same read contract as Craft primitives: callers
+ * can pass a primitive reader directly and component logic/templates consume
+ * it with `yield* input()`.
+ */
+export type Input<T> = Yieldable<[], T> & {
+  readonly [INPUT_BRAND]?: T;
 };
 
 export type Output<Handler extends (...args: any[]) => unknown> = Handler & {
@@ -111,7 +121,8 @@ export type TemplateMethodUse<ContextMethod extends string> = {
 
 /**
  * Projects branded Craft methods and outputs to generator callbacks only while
- * a template is type-checked. Inputs and render-time functions stay unchanged.
+ * a template is type-checked. Inputs already use the generator reader
+ * contract, while ordinary render-time functions stay unchanged.
  */
 type ContextPathKey<
   Prefix extends string,
@@ -132,6 +143,12 @@ type ProjectTemplateObject<
       ? never
       : Key extends typeof REACTIVE_VALUE_TYPE
         ? never
+        : Key extends typeof YIELDABLE_DEPENDENCY
+          ? never
+        : Key extends typeof DEEP_YIELDABLE
+            ? never
+            : Key extends '__craftDeepYieldable'
+              ? never
         : Key]: Key extends typeof CRAFT_FIELD_VALIDATION_CASES
     ? Value[Key]
     : ProjectTemplateValue<Value[Key], ContextPathKey<ContextMethod, Key>>;
@@ -160,6 +177,8 @@ type ProjectTemplateValue<
   ? Value
   : Value extends ProjectionUnit<any>
     ? Value
+    : Value extends { readonly __craftDeepYieldable: true }
+      ? ProjectTemplateDeepYieldableValue<Value, ContextMethod>
     : Value extends {
           readonly [RAW_REACTIVE_VALUE]: Signal<any>;
           readonly [REACTIVE_VALUE_TYPE]: infer ReactiveState;
@@ -230,7 +249,19 @@ type ProjectTemplateValue<
                       ) => ProjectTemplateValue<Result, ContextMethod>
                     : Value extends object
                       ? ProjectTemplateObject<Value, ContextMethod>
-                      : Value;
+                    : Value;
+
+type ProjectTemplateDeepYieldableValue<
+  Value,
+  ContextMethod extends string,
+> = Value extends (
+  ...args: infer Args
+) => Generator<infer Yielded, infer Result, any>
+  ? ((
+      ...args: Args
+    ) => Generator<Yielded | TemplateMethodUse<ContextMethod>, Result, unknown>) &
+      ProjectTemplateObject<Value & object, ContextMethod>
+  : ProjectTemplateObject<Value & object, ContextMethod>;
 
 type DirectTemplateContextMethod<Context> =
   Context extends NamedYieldableValue<infer Name extends string, any>
@@ -248,7 +279,8 @@ export type YieldableTemplateContext<Context> = Context extends {
       >;
     };
 
-export type InputValue<T> = () => T;
+/** Public call-site shape of an {@link Input}. */
+export type InputValue<T> = Yieldable<[], T>;
 
 export type ContentStylePolicy = 'isolated' | 'allow-container-styles';
 
@@ -484,8 +516,20 @@ export function isCraftDirective(value: unknown): value is CraftDirective {
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
+type IsInputContextValue<Value> = Value extends object
+  ? typeof INPUT_BRAND extends keyof Value
+    ? true
+    : false
+  : false;
+
+type InputValueOfContextValue<Value> = IsInputContextValue<Value> extends true
+  ? Value extends Yieldable<[], infer Result>
+    ? Result
+    : never
+  : never;
+
 export type PropsFromContext<Context> = Simplify<{
-  [Key in keyof Context as Context[Key] extends Input<unknown>
+  [Key in keyof Context as IsInputContextValue<Context[Key]> extends true
     ? Key
     : Context[Key] extends RenderableContent
       ? Key
@@ -493,8 +537,8 @@ export type PropsFromContext<Context> = Simplify<{
         ? Context[Key] extends Output<(...args: any[]) => unknown>
           ? Key
           : never
-        : Key]: Context[Key] extends Input<infer Value>
-    ? InputValue<Value>
+        : Key]: IsInputContextValue<Context[Key]> extends true
+    ? InputValue<InputValueOfContextValue<Context[Key]>>
     : Context[Key] extends RenderableContent
       ? Context[Key]
       : ContentRequirementOf<Context[Key]> extends never

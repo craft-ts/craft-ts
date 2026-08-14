@@ -1,4 +1,4 @@
-import styles from './list-with-pagination.css' with { loader: 'text' };
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -7,20 +7,22 @@ import {
   h,
   h2,
   option,
+  pendingBlock,
   select,
   span,
 } from '@craft-ng/component';
 import {
-  insertStoragePersister,
+  craftMethod,
   insertPaginationPlaceholderData,
   insertQueryPipe,
-  craftMethod,
+  insertStoragePersister,
   query,
   queryParams,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import styles from './list-with-pagination.css' with { loader: 'text' };
 
 const QpListWithPagination = craftComponent(
   'QpListWithPagination',
@@ -40,7 +42,9 @@ const QpListWithPagination = craftComponent(
           const _state = yield* state();
           return yield* patch({ page: Math.max(1, _state.page - 1) });
         },
-        updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+        updatePageSize: function* (pageSize: number) {
+          return yield* patch({ pageSize, page: 1 });
+        },
       }),
     );
     const api = yield* ApiService();
@@ -78,7 +82,11 @@ const QpListWithPagination = craftComponent(
         StatusComponent({
           status: usersQuery.currentPageStatus,
         }),
-      ]),
+      ]).pipe(
+        pendingBlock({
+          fallback: () => h2('Route QueryParams pagination: Loading…'),
+        }),
+      ),
       h(
         'table',
         { class: 'table' },
@@ -87,7 +95,15 @@ const QpListWithPagination = craftComponent(
           each(
             usersQuery.currentPageData,
             { track: (user) => user.id },
-            (user) => h('tr', [h('td', user.id), h('td', user.name)]),
+                    (user) =>
+                      h('tr', [
+                        h('td', function* () {
+                          return (yield* user()).id;
+                        }),
+                        h('td', function* () {
+                          return (yield* user()).name;
+                        }),
+                      ]),
           ),
         ),
       ),

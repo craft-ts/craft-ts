@@ -79,7 +79,8 @@ call `set`, `update`, or `mutate`. Writes belong in DOM events, outputs,
 mutations, or explicit business effects. The optional
 `craft-ng/no-render-writes` ESLint rule detects the common invalid patterns.
 
-`Input<T>` values are reactive accessors. `Output<T>` values are callbacks.
+`Input<T>` values are yieldable reactive readers. `Output<T>` values are
+yieldable callbacks.
 Call-site props are inferred from branded values returned in the factory
 context. Because TypeScript does not expose function parameter names at
 runtime, positional factory arguments follow the key order of the props object;

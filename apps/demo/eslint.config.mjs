@@ -65,6 +65,17 @@ export default [
     files: ['**/src/app/template-trace-demo.ts'],
     rules: {
       'craft-ng/no-angular-inject': 'off',
+      // These wrappers rethrow Craft's control-flow sentinels so the runtime
+      // can handle them at the correct boundary.
+      'craft-ng/no-throw': 'off',
+    },
+  },
+  {
+    // The application exception boundary must preserve Craft's control-flow
+    // sentinels instead of converting them into user-facing exceptions.
+    files: ['**/src/app/app.config.ts'],
+    rules: {
+      'craft-ng/no-throw': 'off',
     },
   },
   {

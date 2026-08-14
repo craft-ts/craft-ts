@@ -31,6 +31,7 @@ import type {
   YieldableReactiveSignal,
   YieldableReactiveValue,
 } from './reactive-read';
+import type { CraftSettledYieldableValue } from './craft-settled';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -565,21 +566,38 @@ export type ResourceExceptionConstraints = {
   loader: unknown;
 };
 
+/**
+ * A mutation exposed to insertion factories.
+ *
+ * The authored contract is an invocation consumed with `yield*`. The
+ * synchronous mutation itself remains internal to the primitive runtime; the
+ * returned invocation is what insertion methods expose to callers.
+ */
+export type YieldableInsertionWrite<Args extends unknown[], Result> = {
+  (...args: Args): YieldableInvocation<never, Result>;
+};
+
 export type InsertionParams<
   ResourceState extends object | undefined,
   ResourceParams,
   Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
+  PrimitiveName extends string = string,
 > = {
   test: ResourceState;
   state: YieldableReactiveValue<ResourceState, 'state'>;
-  set: (newState: ResourceState) => ResourceState;
-  update: (
+  settledState: CraftSettledYieldableValue<
+    NonNullable<ResourceState>,
+    PrimitiveName,
+    Exceptions['params'] | Exceptions['loader']
+  >;
+  set: YieldableInsertionWrite<[newState: ResourceState], ResourceState>;
+  update: YieldableInsertionWrite<[
     updateFn: (currentState: ResourceState) => ResourceState,
-  ) => ResourceState;
-  patch: (
+  ], ResourceState>;
+  patch: YieldableInsertionWrite<[
     patchFn: (currentState: ResourceState) => Partial<ResourceState>,
-  ) => ResourceState;
+  ], ResourceState>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
@@ -630,12 +648,14 @@ export type InsertionsFactory<
   Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs = {},
   Yielded = never,
+  PrimitiveName extends string = string,
 > = (
   context: InsertionParams<
     ResourceState,
     ResourceParams,
     Exceptions,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    PrimitiveName
   >,
 ) => InsertsOutputs | Generator<Yielded, InsertsOutputs, unknown>;
 
@@ -645,15 +665,21 @@ export type InsertionByIdParams<
   ResourceParams,
   Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
+  PrimitiveName extends string = string,
 > = {
   state: YieldableReactiveValue<ResourceState, 'state'>;
-  set: (newState: ResourceState) => ResourceState;
-  update: (
+  settledState: CraftSettledYieldableValue<
+    NonNullable<ResourceState>,
+    PrimitiveName,
+    Exceptions['params'] | Exceptions['loader']
+  >;
+  set: YieldableInsertionWrite<[newState: ResourceState], ResourceState>;
+  update: YieldableInsertionWrite<[
     updateFn: (currentState: ResourceState) => ResourceState,
-  ) => ResourceState;
-  patch: (
+  ], ResourceState>;
+  patch: YieldableInsertionWrite<[
     patchFn: (currentState: ResourceState) => Partial<ResourceState>,
-  ) => ResourceState;
+  ], ResourceState>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
@@ -705,11 +731,13 @@ export type InsertionByIdParams<
 export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
   {
     state: YieldableReactiveValue<StateType, 'state'>;
-    set: (newState: StateType) => StateType;
-    update: (updateFn: (currentState: StateType) => StateType) => StateType;
-    patch: (
+    set: YieldableInsertionWrite<[newState: StateType], StateType>;
+    update: YieldableInsertionWrite<[
+      updateFn: (currentState: StateType) => StateType,
+    ], StateType>;
+    patch: YieldableInsertionWrite<[
       patchFn: (currentState: StateType) => Partial<StateType>,
-    ) => StateType;
+    ], StateType>;
     insertions: keyof PreviousInsertionsOutputs extends string
       ? YieldableInsertionMethods<PreviousInsertionsOutputs>
       : never;
@@ -725,38 +753,21 @@ export type QueryParamsMethods<QueryParamsState> = {
       params: Partial<QueryParamsState>,
       options?: QueryParamsNavigationOptions,
     ): YieldableInvocation<never, QueryParamsState>;
-    (
-      patchFn: (currentParams: QueryParamsState) => Partial<QueryParamsState>,
-      options?: QueryParamsNavigationOptions,
-    ): QueryParamsState;
-    (
-      params: Partial<QueryParamsState>,
-      options?: QueryParamsNavigationOptions,
-    ): QueryParamsState;
   };
   reset: {
     (options?: QueryParamsNavigationOptions): YieldableInvocation<never, void>;
-    (options?: QueryParamsNavigationOptions): void;
   };
   set: {
     (
       params: QueryParamsState,
       options?: QueryParamsNavigationOptions,
     ): YieldableInvocation<never, QueryParamsState>;
-    (
-      params: QueryParamsState,
-      options?: QueryParamsNavigationOptions,
-    ): QueryParamsState;
   };
   update: {
     (
       updateFn: (currentParams: QueryParamsState) => QueryParamsState,
       options?: QueryParamsNavigationOptions,
     ): YieldableInvocation<never, QueryParamsState>;
-    (
-      updateFn: (currentParams: QueryParamsState) => QueryParamsState,
-      options?: QueryParamsNavigationOptions,
-    ): QueryParamsState;
   };
 };
 
@@ -786,13 +797,15 @@ export type InsertionsByIdFactory<
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
   Yielded = never,
+  PrimitiveName extends string = string,
 > = (
   context: InsertionByIdParams<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
     Exceptions,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    PrimitiveName
   >,
 ) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 
@@ -802,19 +815,22 @@ export type InsertionResourceFactoryContext<
   ResourceParams,
   Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
+  PrimitiveName extends string = string,
 > = [unknown] extends [GroupIdentifier]
   ? InsertionParams<
       ResourceState,
       ResourceParams,
       Exceptions,
-      PreviousInsertionsOutputs
+      PreviousInsertionsOutputs,
+      PrimitiveName
     >
   : InsertionByIdParams<
       GroupIdentifier & string,
       ResourceState,
       ResourceParams,
       Exceptions,
-      PreviousInsertionsOutputs
+      PreviousInsertionsOutputs,
+      PrimitiveName
     >;
 export type InsertionsResourcesFactory<
   GroupIdentifier,
@@ -824,13 +840,15 @@ export type InsertionsResourcesFactory<
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
   Yielded = never,
+  PrimitiveName extends string = string,
 > = (
   context: InsertionResourceFactoryContext<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
     Exceptions,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    PrimitiveName
   >,
 ) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 

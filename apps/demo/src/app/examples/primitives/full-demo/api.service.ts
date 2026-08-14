@@ -41,7 +41,7 @@ export const { ApiService } = craftService(
                       { error: new Error('Item not found') },
                     );
                   }
-                  update((items) => items.filter((item) => item.id !== itemId));
+                  yield* update((items) => items.filter((item) => item.id !== itemId));
                   return deletedItem;
                 },
         updateItem: (updatedItem: User) =>
@@ -55,7 +55,7 @@ export const { ApiService } = craftService(
                   const deletedItems = _state.filter((item) =>
                     itemIds.includes(item.id),
                   );
-                  update((items) => items.filter((item) => !itemIds.includes(item.id)));
+                  yield* update((items) => items.filter((item) => !itemIds.includes(item.id)));
                   return deletedItems;
                 },
       }),

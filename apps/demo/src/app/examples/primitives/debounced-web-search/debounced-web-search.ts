@@ -1,4 +1,4 @@
-import { computed } from '@angular/core';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
@@ -27,7 +27,8 @@ import {
   query,
   retry,
   state,
-  insertStatePipe, craftUse } from '@craft-ng/core';
+  insertStatePipe,
+} from '@craft-ng/core';
 import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
 
@@ -135,8 +136,12 @@ const DebouncedWebSearch = craftComponent(
           setSearchInput: (value: string) => set(value),
         }),
         ({ state }) => ({
-          currentTerm: computed(() => craftUse(state())?.trim() ?? ''),
-          tooShort: computed(() => craftUse(state()).trim().length < 2),
+          currentTerm: craftComputed('currentTerm', function* () {
+            return (yield* state())?.trim() ?? '';
+          }),
+          tooShort: craftComputed('tooShort', function* () {
+            return (yield* state()).trim().length < 2;
+          }),
         }),
       ),
     );
@@ -156,7 +161,9 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource }) => ({
-        isDebouncing: computed(() => craftUse(resource.isLoading())),
+        isDebouncing: craftComputed('isDebouncing', function* () {
+          return yield* resource.isLoading();
+        }),
       }),
     );
 
@@ -181,32 +188,36 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource, hasException }) => {
-        const hasResults = computed(
-          () => (craftUse(resource.value())?.books.length ?? 0) > 0,
-        );
+        const hasResults = craftComputed('hasResults', function* () {
+          return ((yield* resource.value())?.books.length ?? 0) > 0;
+        });
 
         return {
           hasResults,
-          resultCount: computed(() =>
-            String(craftUse(resource.value())?.total ?? 0),
-          ),
-          resultBooks: computed(
-            () => craftUse(resource.value())?.books ?? [],
-          ),
-          hasSearchError: computed(() => craftUse(hasException())),
-          showResults: computed(
-            () =>
-              !craftUse(resource.isLoading()) &&
-              !craftUse(hasException()) &&
-              hasResults(),
-          ),
-          showEmpty: computed(
-            () =>
-              craftUse(searchInput.currentTerm()).length >= 2 &&
-              !craftUse(resource.isLoading()) &&
-              !craftUse(hasException()) &&
-              !hasResults(),
-          ),
+          resultCount: craftComputed('resultCount', function* () {
+            return String((yield* resource.value())?.total ?? 0);
+          }),
+          resultBooks: craftComputed('resultBooks', function* () {
+            return (yield* resource.value())?.books ?? [];
+          }),
+          hasSearchError: craftComputed('hasSearchError', function* () {
+            return yield* hasException();
+          }),
+          showResults: craftComputed('showResults', function* () {
+            return (
+              !(yield* resource.isLoading()) &&
+              !(yield* hasException()) &&
+              (yield* hasResults())
+            );
+          }),
+          showEmpty: craftComputed('showEmpty', function* () {
+            return (
+              (yield* searchInput.currentTerm()).length >= 2 &&
+              !(yield* resource.isLoading()) &&
+              !(yield* hasException()) &&
+              !(yield* hasResults())
+            );
+          }),
         };
       },
     );
@@ -241,7 +252,7 @@ const DebouncedWebSearch = craftComponent(
       ),
       input({
         type: 'search',
-        value: () => craftUse(searchInput()),
+        value: searchInput,
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
@@ -252,12 +263,12 @@ const DebouncedWebSearch = craftComponent(
         span([
           'Debounce: ',
           StatusComponent({
-            status: () => craftUse(debouncedSearch.status()),
+            status: debouncedSearch.status,
           }),
         ]),
         span([
           'HTTP query: ',
-          StatusComponent({ status: () => craftUse(searchQuery.status()) }),
+          StatusComponent({ status: searchQuery.status }),
         ]),
       ]),
       ifBlock(searchInput.tooShort, () =>
@@ -274,25 +285,40 @@ const DebouncedWebSearch = craftComponent(
       ),
       ifBlock(searchQuery.showResults, () => [
         h3([
-          () => craftUse(searchQuery.resultCount()),
+          searchQuery.resultCount,
           ' results for “',
-          () => craftUse(searchInput()),
+          searchInput,
           '”',
         ]),
         ul(
           { class: 'results' },
           each(
-            () => craftUse(searchQuery.resultBooks()),
+            searchQuery.resultBooks,
             { track: (book) => book.key },
             (book) =>
               article({ class: 'book' }, [
-                img({ src: book.coverUrl, alt: '' }),
+                img({
+                  src: function* () {
+                    return (yield* book()).coverUrl;
+                  },
+                  alt: '',
+                }),
                 div({ class: 'book__content' }, [
                   a(
-                    { href: book.url, target: '_blank', rel: 'noreferrer' },
-                    book.title,
+                    {
+                      href: function* () {
+                        return (yield* book()).url;
+                      },
+                      target: '_blank',
+                      rel: 'noreferrer',
+                    },
+                    function* () {
+                      return (yield* book()).title;
+                    },
                   ),
-                  small(book.metadata),
+                  small(function* () {
+                    return (yield* book()).metadata;
+                  }),
                 ]),
               ]),
           ),

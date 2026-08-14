@@ -39,6 +39,7 @@ export default [
       'craft-ng/no-craft-use-in-template': 'error',
       'craft-ng/no-craft-computed-side-effects': 'error',
       'craft-ng/require-craft-method-for-yieldable-callback': 'error',
+      'craft-ng/prefer-direct-yieldable-callback': 'error',
       'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -84,6 +85,7 @@ What each rule does:
 - `craft-ng/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`
 - `craft-ng/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ng/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
+- `craft-ng/prefer-direct-yieldable-callback`: replaces a template generator that only returns `yield* callback()` with the callback reference itself
 - `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
 - `craft-ng/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
 - `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
@@ -179,6 +181,7 @@ maintain by hand:
 | `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                 |
 | `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import      |
 | `require-lazy-load-with-retry`               | the `withRetry(...)` wrapper on lazy route imports         |
+| `prefer-direct-yieldable-callback`           | removes redundant template generators                      |
 
 ## Adopting them progressively
 

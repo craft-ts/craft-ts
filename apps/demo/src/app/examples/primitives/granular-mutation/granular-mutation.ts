@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './granular-mutation.css' with { loader: 'text' };
 import {
   button,
@@ -20,7 +21,6 @@ import {
   mutation,
   query,
   queryParams,
-  craftUse,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -38,13 +38,15 @@ const GranularMutation = craftComponent(
       ({ patch, state }) => ({
         nextPage: function* () {
           const _state = yield* state();
-          return patch({ page: _state.page + 1 });
+          return yield* patch({ page: _state.page + 1 });
         },
         previousPage: function* () {
           const _state = yield* state();
-          return patch({ page: Math.max(1, _state.page - 1) });
+          return yield* patch({ page: Math.max(1, _state.page - 1) });
         },
-        updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+        updatePageSize: function* (pageSize: number) {
+          return yield* patch({ pageSize, page: 1 });
+        },
       }),
     );
 
@@ -105,7 +107,7 @@ const GranularMutation = craftComponent(
             h2({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
-                status: () => craftUse(usersQuery.currentPageStatus()),
+                status: usersQuery.currentPageStatus,
               }),
             ]),
             div({ class: 'table-container' }, [
@@ -120,29 +122,35 @@ const GranularMutation = craftComponent(
                     { track: (user) => user.id },
                     (user) =>
                       h('tr', [
-                        h('td', user.id),
-                        h('td', user.name),
+                        h('td', function* () {
+                          return (yield* user()).id;
+                        }),
+                        h('td', function* () {
+                          return (yield* user()).name;
+                        }),
                         h(
                           'td',
                           button(
                             'UpdateUserName',
                             {
                               class: 'action-btn',
-                              disabled: () =>
-                                updateUserName.select(user.id)?.isLoading(),
+                              disabled: function* () {
+                                return updateUserName
+                                  .select((yield* user()).id)
+                                  ?.isLoading();
+                              },
                               *click() {
-                                yield* updateUserName.mutate(user);
+                                yield* updateUserName.mutate(yield* user());
                               },
                             },
                             [
                               'Update Name',
                               StatusComponent({
-                                status: () =>
-                                  craftUse(
-                                    updateUserName
-                                      .selectOrCreate(user.id)
-                                      .status(),
-                                  ),
+                                status: function* () {
+                                  return yield* updateUserName
+                                    .selectOrCreate((yield* user()).id)
+                                    .status();
+                                },
                               }),
                             ],
                           ),
@@ -156,14 +164,18 @@ const GranularMutation = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: () => String(craftUse(pagination()).pageSize),
+                  value: function* () {
+                    return String((yield* pagination()).pageSize);
+                  },
                   change: updatePageSize,
                 },
                 [2, 4, 8, 16].map((size) =>
                   option(
                     {
                       value: String(size),
-                      selected: () => size === craftUse(pagination()).pageSize,
+                      selected: function* () {
+                        return size === (yield* pagination()).pageSize;
+                      },
                     },
                     size,
                   ),
@@ -177,7 +189,9 @@ const GranularMutation = craftComponent(
               span(
                 'CurrentPage',
                 { class: 'current-page' },
-                () => craftUse(pagination()).page,
+                function* () {
+                  return (yield* pagination()).page;
+                },
               ),
               button(
                 'NextPage',

@@ -38,6 +38,7 @@ export type {
   InsertionsQueryParamsFactory,
   // shared constraint used by the resource-based generics above
   ResourceExceptionConstraints,
+  YieldableInsertionWrite,
 } from './lib/query.core';
 export * from './lib/source-from-event';
 export * from './lib/signal-source';

@@ -34,5 +34,5 @@ export function craftResource<Value, Params>(
         debugName: 'craftResourceState',
       },
     ),
-  } as CraftResourceRef<Value, Params>;
+  } as unknown as CraftResourceRef<Value, Params>;
 }

@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
@@ -14,7 +15,8 @@ import {
 import {
   mutation,
   query,
-  state, craftUse } from '@craft-ng/core';
+  state,
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };
@@ -29,7 +31,7 @@ const FullDemo = craftComponent(
       take: function* () {
             const _state = yield* state();
                 const id = _state;
-                update((value) => value + 1);
+              yield* update((value) => value + 1);
                 return id;
               },
     }));
@@ -87,14 +89,14 @@ const FullDemo = craftComponent(
     return div([
       h2([
         'Full primitives demo ',
-        StatusComponent({ status: () => craftUse(todos.status()) }),
+        StatusComponent({ status: todos.status }),
       ]),
       p('Query, mutations, optimistic interaction and functional rendering.'),
       div([
         input('TodoNameToAddInput', {
           type: 'text',
           placeholder: 'New todo',
-          value: () => craftUse(titleInput()),
+          value: titleInput,
           *input(event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
@@ -102,7 +104,7 @@ const FullDemo = craftComponent(
         button(
           'AddTodoButton',
           {
-            disabled: () => craftUse(addTodo.isLoading()),
+            disabled: addTodo.isLoading,
             *click() {
               const trimmedTitle = (yield* titleInput()).trim() ?? ''; // todo handle that in the state
               if (trimmedTitle) {
@@ -119,13 +121,15 @@ const FullDemo = craftComponent(
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([
-              span('TodoTitle', {}, todo.title),
+              span('TodoTitle', {}, function* () {
+                return (yield* todo()).title;
+              }),
               button(
                 'RemoveTodoButton',
                 {
-                  disabled: () => craftUse(removeTodo.isLoading()),
+                  disabled: removeTodo.isLoading,
                   *click() {
-                    yield* removeTodo.mutate(todo.id);
+                    yield* removeTodo.mutate((yield* todo()).id);
                   },
                 },
                 'Remove',

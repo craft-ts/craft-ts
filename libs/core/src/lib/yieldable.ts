@@ -120,7 +120,7 @@ export type YieldableInsertionMethods<Shape> = Shape extends (
  * imperative triggers keep their execution timing; the returned invocation is
  * the dependency-tracking boundary consumed by generator hosts.
  */
-export function yieldableInvocation<Yielded, Result>(
+export function yieldableInvocation<Yielded = never, Result = unknown>(
   result: Result,
 ): YieldableInvocation<Yielded, Result> {
   return (function* () {

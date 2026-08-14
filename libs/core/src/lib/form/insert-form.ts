@@ -25,8 +25,10 @@ import type {
 } from './insert-form-internals';
 import {
   markNonYieldableInsertionMethod,
+  yieldableInvocation,
   type NonYieldableInsertionMethod,
 } from '../yieldable';
+import type { YieldableInsertionWrite } from '../query.core';
 import {
   createYieldableReactiveValue,
   rawReactiveValue,
@@ -813,11 +815,14 @@ export function insertForm(...args: any[]): any {
           primitive: 'form',
           path: `form.${String(formIdentifier)}.state`,
         }),
-        set: (next: unknown) => setItem(formIdentifier, next),
+        set: (next: unknown) => {
+          setItem(formIdentifier, next);
+          return yieldableInvocation(next);
+        },
         update: (fn: (curr: unknown) => unknown) => {
           const next = fn(selectItem(formIdentifier));
           setItem(formIdentifier, next);
-          return next;
+          return yieldableInvocation(next);
         },
         patch: (fn: (curr: unknown) => Partial<unknown>) => {
           const curr = selectItem(formIdentifier);
@@ -827,7 +832,7 @@ export function insertForm(...args: any[]): any {
               ? { ...(curr as object), ...partial }
               : partial;
           setItem(formIdentifier, next);
-          return next;
+          return yieldableInvocation(next);
         },
         insertions: inheritedInsertions as Record<string, unknown> as never,
       };

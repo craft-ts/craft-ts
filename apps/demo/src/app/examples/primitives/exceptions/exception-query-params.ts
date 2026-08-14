@@ -1,4 +1,4 @@
-import { computed } from '@angular/core';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -13,7 +13,9 @@ import {
   craftMethod,
   CraftRouter,
   queryParams,
-  craftException, craftUse } from '@craft-ng/core';
+  craftComputed,
+  craftException,
+} from '@craft-ng/core';
 
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
@@ -77,8 +79,11 @@ const ExceptionQueryParamsComponent = craftComponent(
         },
       },
       ({ exceptions }) => ({
-        hasParseException: computed(
-          () => craftUse(exceptions()).parse.mode !== undefined,
+        hasParseException: craftComputed(
+          'hasParseException',
+          function* () {
+            return (yield* exceptions()).parse.mode !== undefined;
+          },
         ),
       }),
     );
@@ -115,17 +120,18 @@ const ExceptionQueryParamsComponent = craftComponent(
       ]),
       p([
         strong('Parsed value: '),
-        () => String(craftUse(modeQueryParams()).mode),
+        function* () {
+          return String((yield* modeQueryParams()).mode);
+        },
       ]),
       ifBlock(
         modeQueryParams.hasParseException,
         () =>
           p([
             strong('Exception: '),
-            () => {
-              const exception = craftUse(
-                modeQueryParams.exceptions(),
-              ).parse.mode as {
+            function* () {
+              const exception = (yield* modeQueryParams.exceptions()).parse
+                .mode as {
                 code: string;
                 payload: { error: unknown };
               };

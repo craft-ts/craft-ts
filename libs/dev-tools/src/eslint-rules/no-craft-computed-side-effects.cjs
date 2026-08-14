@@ -1,4 +1,5 @@
 const REACTIVE_READ_BRAND = 'RAW_REACTIVE_VALUE';
+const INPUT_BRAND = 'INPUT_BRAND';
 const YIELDABLE_METHOD_BRAND = 'YIELDABLE_METHOD';
 const CORE_PACKAGE = '@craft-ng/core';
 
@@ -131,7 +132,10 @@ module.exports = {
     }
 
     function isReactiveRead(node) {
-      return hasBrand(getCalleeType(node), REACTIVE_READ_BRAND);
+      const type = getCalleeType(node);
+      return (
+        hasBrand(type, REACTIVE_READ_BRAND) || hasBrand(type, INPUT_BRAND)
+      );
     }
 
     function isKnownAsyncApi(node) {

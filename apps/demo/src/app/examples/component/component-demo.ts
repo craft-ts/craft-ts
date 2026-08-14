@@ -11,7 +11,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ng/component';
-import { craftComputed, state } from '@craft-ng/core';
+import { craftComputed, deepYieldable, state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -22,19 +22,24 @@ const userCard = craftComponent(
   'userCard',
   {},
   (user: Input<DemoUser>, onRemove: Output<(user: DemoUser) => void>) => ({
-    user,
+    user: deepYieldable(user),
     onRemove,
   }),
   ({ user, onRemove }) =>
-    div({ class: 'component-demo__user', 'data-user-id': user().id }, [
-      span(user().name),
+    div({
+      class: 'component-demo__user',
+      'data-user-id': user.id,
+    }, [
+      span(user.name),
       button(
         {
           class: 'component-demo__remove',
           *click() {
-            yield* onRemove(user());
+            yield* onRemove(yield* user());
           },
-          'aria-label': `Retirer ${user().name}`,
+          'aria-label': function* () {
+            return `Retirer ${(yield* user()).name}`;
+          },
         },
         'Retirer',
       ),
@@ -93,12 +98,12 @@ export const componentDemo = craftComponent(
             track: (user) => user.id,
             empty: () =>
               p({ class: 'component-demo__empty' }, 'Aucun utilisateur'),
-          },
-          (user) =>
-            userCard({
-              user: () => user,
-              onRemove: users.remove,
-            }),
+            },
+            (user) =>
+              userCard({
+                user,
+                onRemove: users.remove,
+              }),
         ),
       ),
       defer(

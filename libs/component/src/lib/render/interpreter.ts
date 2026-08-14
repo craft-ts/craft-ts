@@ -44,7 +44,9 @@ import {
   type CraftSettledReadObserver,
   isGeneratorFunction,
   isCraftField,
+  isGenerator,
   markYieldableValue,
+  markYieldableMethod,
   isYieldableValue,
   isYieldableMethod,
   isYieldableReactiveValue,
@@ -52,6 +54,7 @@ import {
   rawReactiveFacade,
   rawReactiveValue,
   toYieldable,
+  yieldableInvocation,
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
   type CraftServiceProvider,
@@ -575,6 +578,38 @@ function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
   return typeof value === 'function'
     ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
     : value;
+}
+
+function resolveTemplateContext(
+  context: unknown,
+  renderContext: RenderContext,
+): unknown {
+  if (typeof context === 'function') {
+    return resolveTemplateValue(context, renderContext);
+  }
+  if (context === null || typeof context !== 'object' || Array.isArray(context)) {
+    return context;
+  }
+
+  return Object.fromEntries(
+    Object.entries(context).map(([key, value]) => [
+      key,
+      typeof value === 'function'
+        ? resolveTemplateValue(value, renderContext)
+        : value,
+    ]),
+  );
+}
+
+function resolveProjectionValue(
+  value: unknown,
+  renderContext: RenderContext,
+): unknown {
+  let current = value;
+  for (let depth = 0; depth < 3 && typeof current === 'function'; depth++) {
+    current = resolveTemplateValue(current, renderContext);
+  }
+  return current;
 }
 
 function projectYieldableTemplateContext(
@@ -1900,7 +1935,10 @@ class ProjectionRenderedNode implements RenderedNode {
       () =>
         runInInjectionContext(this.declarationContext.injector, () =>
           withCraftRenderContext(this.declarationContext, () =>
-            this.node.render(),
+            resolveProjectionValue(
+              this.node.render(),
+              this.projectionContext,
+            ) as CraftNodeChildren,
           ),
         ),
     );
@@ -1967,7 +2005,7 @@ class TemplateRenderedNode implements RenderedNode {
 
   private children(): CraftNodeChildren {
     return renderChildrenCallback(this.declarationContext, this.node.template, [
-      this.node.context,
+      resolveTemplateContext(this.node.context, this.declarationContext),
     ]);
   }
 
@@ -2145,7 +2183,12 @@ class EachRenderedNode implements RenderedNode {
       childContext(this.context, { traceState }),
       'each',
       this.node.itemTemplate,
-      [item, index],
+      [
+        function* () {
+          return item;
+        },
+        index,
+      ],
     );
   }
 
@@ -2278,7 +2321,9 @@ class MatchBlockRenderedNode implements RenderedNode {
       );
       this.handledExceptionCode = undefined;
     }
-    const exception = this.node.source();
+    const exception = resolveTemplateValue(this.node.source, this.context) as
+      | AnyCraftException
+      | undefined;
     if (!exception) return [];
     const code = (exception as Record<PropertyKey, unknown>)[this.node.key];
     // Resource exception buckets use an empty object when no exception is
@@ -3364,23 +3409,20 @@ class ComponentRenderedNode implements RenderedNode {
     );
 
     const inputShells = this.propSources.map((source) => {
-      const input = (...callbackArgs: unknown[]) => {
+      const input = markYieldableMethod((...callbackArgs: unknown[]) => {
         const current = source();
-        if (typeof current === 'function') {
-          if (callbackArgs.length > 0) {
-            return toYieldable((...args: unknown[]) =>
-              (current as (...innerArgs: unknown[]) => unknown)(...args),
-            )(...callbackArgs);
-          }
-          return current(...callbackArgs);
+        if (callbackArgs.length > 0 && typeof current === 'function') {
+          return (current as (...args: unknown[]) => unknown)(...callbackArgs);
         }
-        if (callbackArgs.length > 0) {
-          throw new Error(
-            'An Input<T> component prop was invoked as an Output callback.',
-          );
-        }
-        return current;
-      };
+        const value =
+          typeof current === 'function'
+            ? (current as () => unknown)()
+            : current;
+
+        return isGenerator(value)
+          ? value
+          : yieldableInvocation<unknown, unknown>(value);
+      });
 
       // Content inputs are object-shaped at the call site but component
       // factories receive callable input shells. Expose object properties on

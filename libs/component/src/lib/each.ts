@@ -3,6 +3,7 @@ import type {
   CraftNodeChildren,
   EachNode,
 } from './render/vnode';
+import type { InputValue } from './types';
 import { YIELDABLE_VALUE } from '@craft-ng/core';
 
 export interface EachOptions<Item, Key> {
@@ -36,21 +37,21 @@ type EachSource =
   | Generator<unknown, readonly unknown[] | null | undefined, unknown>
   | (() => Generator<unknown, readonly unknown[] | null | undefined, unknown>);
 
-type EachItemFromValue<Value> = [NonNullable<Value>] extends [
-  readonly (infer Item)[],
-]
-  ? Item
-  : [NonNullable<Value>] extends [
-        Generator<unknown, infer Result, unknown>,
-      ]
+type EachItemFromValue<Value> = [NonNullable<Value>] extends [never]
+  ? never
+  : NonNullable<Value> extends (...args: any[]) => infer Result
     ? EachItemFromValue<Result>
-    : never;
+    : NonNullable<Value> extends Generator<any, infer Result, any>
+      ? EachItemFromValue<Result>
+      : NonNullable<Value> extends readonly (infer Item)[]
+        ? Item
+        : never;
 
 type EachItem<Source> = [NonNullable<Source>] extends [never]
   ? unknown
-  : NonNullable<Source> extends (...args: never[]) => infer Value
-    ? EachItemFromValue<Value>
-    : EachItemFromValue<Source>;
+  : EachItemFromValue<Source>;
+
+type EachItemInput<Source> = InputValue<EachItem<Source>>;
 
 export function each<
   Name extends string,
@@ -58,7 +59,7 @@ export function each<
   Key,
   Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
   ItemTemplate extends (
-    item: NoInfer<EachItem<Source>>,
+    item: NoInfer<EachItemInput<Source>>,
     index: number,
   ) => CraftNodeChildren,
 >(
@@ -81,7 +82,7 @@ export function each<
   Key,
   Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
   ItemTemplate extends (
-    item: NoInfer<EachItem<Source>>,
+    item: NoInfer<EachItemInput<Source>>,
     index: number,
   ) => CraftNodeChildren,
 >(
@@ -104,7 +105,7 @@ export function each<
   Key,
   Options extends EachOptions<EachItem<Source>, Key>,
   ItemTemplate extends (
-    item: EachItem<Source>,
+    item: EachItemInput<Source>,
     index: number,
   ) => CraftNodeChildren,
 >(
@@ -144,7 +145,7 @@ export function each<
           : never)
       | undefined,
     itemTemplate: itemTemplate as unknown as (
-      item: EachItem<Source>,
+      item: EachItemInput<Source>,
       index: number,
     ) => ReturnType<ItemTemplate>,
   };

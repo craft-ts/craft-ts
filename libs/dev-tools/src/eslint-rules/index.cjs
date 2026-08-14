@@ -25,6 +25,7 @@ const requireYieldableTemplateMethod = require('./require-yieldable-template-met
 const requireCraftMethodForYieldableCallback = require('./require-craft-method-for-yieldable-callback.cjs');
 const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.cjs');
 const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
+const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
@@ -86,6 +87,7 @@ module.exports = {
       requireCraftMethodForYieldableCallback,
     'require-yieldable-reactive-read': requireYieldableReactiveRead,
     'require-yieldable-insertion-write': requireYieldableInsertionWrite,
+    'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
     'no-craft-use-in-template': noCraftUseInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':

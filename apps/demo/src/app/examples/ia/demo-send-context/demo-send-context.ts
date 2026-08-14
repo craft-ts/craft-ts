@@ -9,7 +9,11 @@ const DemoSendContextComponent = craftComponent(
     div([
       'Demo',
       each(counters, { track: (index) => index }, () =>
-        SendContextCounterComponent({ initialValue: () => 1 }),
+        SendContextCounterComponent({
+          initialValue: function* () {
+            return 1;
+          },
+        }),
       ),
     ]),
 );

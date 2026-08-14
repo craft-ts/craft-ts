@@ -1,5 +1,5 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './pixel-art.css' with { loader: 'text' };
-import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -15,7 +15,9 @@ import {
   insertStoragePersister,
   insertSelect,
   insertStatePipe,
-  state, craftUse } from '@craft-ng/core';
+  craftComputed,
+  state,
+} from '@craft-ng/core';
 
 const GRID_SIZE = 16;
 const EMPTY_COLOR = '#f8fafc';
@@ -57,32 +59,39 @@ const PixelArt = craftComponent(
           key: 'pixel-art-cells-state',
           storeName: 'pixel-art-cells',
         }),
-        insertSelect('cell', ({ update }) => ({
-          paint: () =>
-            update((cell) => ({
-              ...cell,
-              color:
-                cell.color === craftUse(ui()).activeColor
-                  ? EMPTY_COLOR
-                  : craftUse(ui()).activeColor,
-              paintCount: cell.paintCount + 1,
-            })),
-        })),
+        insertSelect('cell', function* ({ update }) {
+          return {
+            paint: function* () {
+              const currentUi = yield* ui();
+              return yield* update((cell) => ({
+                ...cell,
+                color:
+                  cell.color === currentUi.activeColor
+                    ? EMPTY_COLOR
+                    : currentUi.activeColor,
+                paintCount: cell.paintCount + 1,
+              }));
+            },
+          };
+        }),
         ({ state, update }) => ({
           clearAll: () =>
             update((current) =>
               current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
             ),
-          paintedCount: computed(
-            () =>
-              craftUse(state()).filter(({ color }) => color !== EMPTY_COLOR)
-                .length,
-          ),
-          totalPaintActions: computed(() =>
-            craftUse(state()).reduce(
-              (total, { paintCount }) => total + paintCount,
-              0,
-            ),
+          paintedCount: craftComputed('paintedCount', function* () {
+            return (yield* state()).filter(
+              ({ color }) => color !== EMPTY_COLOR,
+            ).length;
+          }),
+          totalPaintActions: craftComputed(
+            'totalPaintActions',
+            function* () {
+              return (yield* state()).reduce(
+                (total, { paintCount }) => total + paintCount,
+                0,
+              );
+            },
           ),
         }),
       ),
@@ -100,10 +109,14 @@ const PixelArt = craftComponent(
         each(COLORS, { track: (color) => color }, (color) =>
           button({
             class: 'pixel-color',
-            style: { backgroundColor: color },
-            'aria-label': `Choisir ${color}`,
+            style: function* () {
+              return { backgroundColor: yield* color() };
+            },
+            'aria-label': function* () {
+              return `Choisir ${yield* color()}`;
+            },
             *click() {
-              yield* ui.setActiveColor(color);
+              yield* ui.setActiveColor(yield* color());
             },
           }),
         ),
@@ -118,19 +131,22 @@ const PixelArt = craftComponent(
       ),
       p([
         span(
-          () =>
-            `Cases peintes: ${craftUse(cells.paintedCount())}/${INDEXES.length}`,
+          function* () {
+            return `Cases peintes: ${yield* cells.paintedCount()}/${INDEXES.length}`;
+          },
         ),
-        span(() => ` · Clics: ${craftUse(cells.totalPaintActions())}`),
+        span(function* () {
+          return ` · Clics: ${yield* cells.totalPaintActions()}`;
+        }),
       ]),
       div(
         { class: 'pixel-grid', role: 'grid' },
-        each(INDEXES, { track: (index) => index }, (index) => {
-          const cell = cells.selectCell(index);
+        each(INDEXES, { track: (index) => index }, (_item, currentIndex) => {
+          const cell = cells.selectCell(currentIndex);
           return button({
             class: 'pixel-cell',
             style: { backgroundColor: cellColor(cell) },
-            title: `Case ${index + 1}`,
+            title: `Case ${currentIndex + 1}`,
             click: () => cell?.paint(),
           });
         }),

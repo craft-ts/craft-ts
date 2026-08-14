@@ -78,11 +78,13 @@ const { usersQuery } = query(
   },
   insertPaginationPlaceholderData(
     { initialValue: [] as Data[] },
-    ({ state, set }) => ({
+    ({ state, settledState, set }) => ({
       // a computed derived from the current page
       totalOfUnCompletedData: computed(
         () => state().filter((d) => !d.completed).length,
       ),
+      // Reads the current page only; it does not use the previous-page placeholder.
+      settledCount: computed(() => craftUse(settledState()).length),
       // a method that mutates only the current page
       markAsCompleted: (id: string) =>
         set(state().map((d) => (d.id === id ? { ...d, completed: true } : d))),
@@ -99,6 +101,7 @@ The `build` context exposes:
 | Helper   | Type                                    | Description                                          |
 | -------- | --------------------------------------- | ---------------------------------------------------- |
 | `state`  | `Signal<T>`                             | The current page data (or `initialValue`)            |
+| `settledState` | generator reader for `T`             | The current page data only when loaded; suspends during the first load or a page transition |
 | `set`    | `(value: T) => T`                       | Replace the current page data (no-op if not loaded)  |
 | `update` | `(fn: (current: T) => T) => T`          | Update the current page data from its previous value |
 | `patch`  | `(fn: (current: T) => Partial<T>) => T` | Patch the current page data with a partial value     |

@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
   craftComponent,
@@ -72,7 +73,9 @@ export const CssVarsRequiredDemo = craftComponent(
             '--token-card-ink': '#1e3a8a',
             '--token-card-bg': '#eff6ff',
           },
-          label: () => 'Calm blue',
+          label: function* () {
+            return 'Calm blue';
+          },
         }),
         TokenCard({
           cssVars: {
@@ -80,14 +83,18 @@ export const CssVarsRequiredDemo = craftComponent(
             '--token-card-bg': '#fff1f2',
             '--token-card-radius': '2rem',
           },
-          label: () => 'Rounded pink',
+          label: function* () {
+            return 'Rounded pink';
+          },
         }),
         TokenCard({
           cssVars: {
             '--token-card-ink': '#166534',
             '--token-card-bg': omit,
           },
-          label: () => 'Optional token omitted',
+          label: function* () {
+            return 'Optional token omitted';
+          },
         }),
       ]),
     ]),

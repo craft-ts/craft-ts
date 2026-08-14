@@ -18,6 +18,7 @@ import type {
   ComponentFieldExceptionsOf,
   CraftTemplate,
   ContentStylePolicy,
+  InputValue,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
 import type { CssVarContract, EmptyCssVarContract } from '../css-vars.type';
@@ -688,7 +689,8 @@ export interface FieldExceptionBlockNode<
 
 export interface MatchBlockNode<
   Dependencies extends object = {},
-  Source extends () => object | undefined = () => object | undefined,
+  Source extends ((...args: any[]) => unknown) | object =
+    () => object | undefined,
   Children extends CraftNodeChildren = CraftNodeChildren,
   HandledExceptions extends string = string,
 > extends CraftNodeDepsCarrier<Dependencies>,
@@ -736,7 +738,7 @@ export interface EachNode<
   readonly sourceName?: SourceName;
   readonly track: (item: Item, index: number) => Key;
   readonly empty?: () => EmptyChildren;
-  readonly itemTemplate: (item: Item, index: number) => ItemChildren;
+  readonly itemTemplate: (item: InputValue<Item>, index: number) => ItemChildren;
 }
 
 export interface IfBlockNode<

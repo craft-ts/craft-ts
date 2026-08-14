@@ -1,4 +1,4 @@
-import { computed } from '@angular/core';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   catchTag,
@@ -15,9 +15,17 @@ import {
   craftGen,
   craftSleep,
   query,
-  state, craftUse } from '@craft-ng/core';
+  craftComputed,
+  state,
+} from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
+type UserExceptionLoader = {
+  readonly code:
+    | 'UserNotFoundException'
+    | 'UserConsentMissingException'
+    | 'UserAccessForbiddenException';
+};
 
 const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
@@ -86,23 +94,26 @@ const ExceptionsComponent = craftComponent(
         }),
       },
       ({ resource }) => ({
-        hasUser: computed(() => resource.hasValue()),
-        isLoading: computed(() => craftUse(resource.isLoading())),
+        hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        isLoading: craftComputed('isLoading', function* () {
+          return yield* resource.isLoading();
+        }),
       }),
     );
-    return { scenario, userQuery };
+    const userExceptionLoader = craftComputed(
+      'userExceptionLoader',
+      function* () {
+        return (yield* userQuery.exceptions()).loader;
+      },
+    );
+    return { scenario, userQuery, userExceptionLoader };
   },
-  ({ scenario, userQuery }) => {
-    const currentUser = () =>
-      craftUse(userQuery.value()) as {
-        id: string;
-        name: string;
-        email: string;
-      };
+  ({ scenario, userQuery, userExceptionLoader }) => {
     return div([
       h3(
-        () =>
-          `Query user with business exceptions (${craftUse(userQuery.status())})`,
+        function* () {
+          return `Query user with business exceptions (${yield* userQuery.status()})`;
+        },
       ),
       div({ class: 'exception-actions' }, [
         button(
@@ -142,13 +153,31 @@ const ExceptionsComponent = craftComponent(
         userQuery.hasUser,
         () =>
           div([
-            p([strong('ID: '), () => currentUser().id]),
-            p([strong('Name: '), () => currentUser().name]),
-            p([strong('Email: '), () => currentUser().email]),
+            p([
+              strong('ID: '),
+              function* () {
+                const user = yield* userQuery.value();
+                return (user as { id: string }).id;
+              },
+            ]),
+            p([
+              strong('Name: '),
+              function* () {
+                const user = yield* userQuery.value();
+                return (user as { name: string }).name;
+              },
+            ]),
+            p([
+              strong('Email: '),
+              function* () {
+                const user = yield* userQuery.value();
+                return (user as { email: string }).email;
+              },
+            ]),
           ]),
         () => [
           matchBlock.exhaustive(
-            () => craftUse(userQuery.exceptions()).loader,
+            userExceptionLoader as unknown as () => UserExceptionLoader,
             'code',
             {
               UserNotFoundException: () =>

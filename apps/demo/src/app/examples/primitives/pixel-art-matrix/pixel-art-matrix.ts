@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './pixel-art-matrix.css' with { loader: 'text' };
 import {
   button,
@@ -105,9 +106,11 @@ const PixelArtMatrix = craftComponent(
         each(COLORS, { track: (color) => color }, (color) =>
           button({
             class: 'matrix-color',
-            style: { backgroundColor: color },
+            style: function* () {
+              return { backgroundColor: yield* color() };
+            },
             *click() {
-              yield* activeColor.setColor(color);
+              yield* activeColor.setColor(yield* color());
             },
           }),
         ),
@@ -120,13 +123,15 @@ const PixelArtMatrix = craftComponent(
             each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
               button({
                 class: 'matrix-cell',
-                style: { backgroundColor: cell.color },
+                style: function* () {
+                  return { backgroundColor: (yield* cell()).color };
+                },
                 *click() {
                   yield* grid.paint(rowIndex, columnIndex);
                 },
                 *contextmenu(event) {
                   event.preventDefault();
-                  yield* grid.paintRow(rowIndex, cell.color);
+                  yield* grid.paintRow(rowIndex, (yield* cell()).color);
                 },
               }),
             ),

@@ -17,10 +17,28 @@ check and the test registers read.
 import { craftService } from '@craft-ng/core';
 ```
 
-::: warning API still moving
-This API will be aligned with the others — made yieldable, so `source$` is
-tracked as a dependency.
-:::
+Service inputs that can change should be consumed as yieldable readers. This
+keeps the input-to-service edge in the dependency graph:
+
+```typescript
+import { craftService, query, type CraftServiceInput } from '@craft-ng/core';
+
+const { UserQuery } = craftService(
+  { name: 'UserQuery', scope: 'global' },
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
+    query('userQuery', {
+      params: function* () {
+        return yield* inputs.userId();
+      },
+      loader: ({ params }) => ApiService.getItemById(params),
+    }),
+);
+```
+
+Static values remain accepted as ordinary inputs for legacy direct access;
+signals and existing Craft readers are adapted automatically at the service
+boundary. Use a signal or Craft reader when the factory consumes an input with
+`yield*`.
 
 ## What you get
 
@@ -84,13 +102,19 @@ directly. `craftService` drives it and the generated service helper returns the
 primitive reference:
 
 ```typescript
-import { craftService, query } from '@craft-ng/core';
+import {
+  craftService,
+  query,
+  type CraftServiceInput,
+} from '@craft-ng/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
-  (inputs: { userId: () => string | undefined }) =>
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     query('userQuery', {
-      params: inputs.userId,
+      params: function* () {
+        return yield* inputs.userId();
+      },
       loader: ({ params }) => ApiService.getItemById(params),
     }),
 );
@@ -105,14 +129,17 @@ import {
   craftYieldRecord,
   query,
   state,
+  type CraftServiceInput,
 } from '@craft-ng/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQueryWithState', scope: 'global' },
-  (inputs: { userId: () => string | undefined }) =>
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     craftYieldRecord({
       userQuery: query('userQuery', {
-        params: inputs.userId,
+        params: function* () {
+          return yield* inputs.userId();
+        },
         loader: ({ params }) => ApiService.getItemById(params),
       }),
       refresh: state('refresh', 0, ({ update }) => ({

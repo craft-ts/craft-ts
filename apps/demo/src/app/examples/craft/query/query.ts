@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './query.css' with { loader: 'text' };
 import {
   button,
@@ -15,7 +16,9 @@ import {
   CraftRouter,
   craftService,
   insertStoragePersister,
-  query, craftUse } from '@craft-ng/core';
+  query,
+  craftUse,
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
@@ -52,7 +55,11 @@ const CraftGlobalQuery = craftComponent(
     },
   },
   function* (userId: Input<string | undefined>) {
-    const user = yield* UserQuery({ userId: () => userId() });
+    const user = yield* UserQuery({
+      userId: () => {
+        return craftUse(userId());
+      },
+    });
 
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
@@ -62,7 +69,7 @@ const CraftGlobalQuery = craftComponent(
       void router.navigate({
         to: 'craft/query/:userId',
         params: {
-          userId: String(Number(userId() ?? '0') + offset),
+          userId: String(Number((yield* userId()) ?? '0') + offset),
         },
       });
     });
@@ -73,11 +80,11 @@ const CraftGlobalQuery = craftComponent(
     div({ class: 'query-shell' }, [
       div({ class: 'query-result' }, [
         'User ',
-        StatusComponent({ status: () => craftUse(user.status()) }),
+        StatusComponent({ status: user.status }),
         ifBlock(hasUser, () =>
-          pre('QueryValue', {}, () =>
-            JSON.stringify(craftUse(user.value()), null, 2),
-          ),
+          pre('QueryValue', {}, function* () {
+            return JSON.stringify(yield* user.value(), null, 2);
+          }),
         ),
       ]),
       p(

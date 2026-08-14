@@ -19,6 +19,7 @@ import { insertQueryPipe } from './insert-typed-pipes';
 import { mutation } from './mutation';
 import { injectPrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
 import { query } from './query';
+import type { YieldableInvocation } from './yieldable';
 
 type User = {
   id: string;
@@ -30,11 +31,13 @@ type User = {
 
 type ProfileInsertions = {
   displayNameSignal: Signal<string>;
-  rename: (displayName: string) => User['profile'];
+  rename: (
+    displayName: string,
+  ) => YieldableInvocation<never, User['profile']>;
 };
 
 type UserInsertions = {
-  rename: (name: string) => User;
+  rename: (name: string) => YieldableInvocation<never, User>;
   currentName: Signal<string>;
 };
 
@@ -43,7 +46,9 @@ type UserRuntimeInsertions = UserInsertions & {
 };
 
 type ProfileRuntimeInsertions = {
-  rename: (displayName: string) => User['profile'];
+  rename: (
+    displayName: string,
+  ) => YieldableInvocation<never, User['profile']>;
   kind: () => string | undefined;
 };
 

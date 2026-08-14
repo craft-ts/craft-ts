@@ -80,8 +80,12 @@ export class AiContextMenuController {
 
     this.menu = openOverlay(99998, 'none', (host) =>
       mountCraftComponent(AiContextMenu, host, this.injector, {
-        x: () => ctx.coords.x,
-        y: () => ctx.coords.y,
+        x: function* () {
+          return ctx.coords.x;
+        },
+        y: function* () {
+          return ctx.coords.y;
+        },
         onSelect: () => this.onSelect(ctx),
         onDismiss: () => this.closeMenu(),
       }),
@@ -108,7 +112,9 @@ export class AiContextMenuController {
   private openDialog(payload: SendContextPayload) {
     this.dialog = openOverlay(99999, 'auto', (host) =>
       mountCraftComponent(AiSendDialog, host, this.injector, {
-        payload: () => payload,
+        payload: function* () {
+          return payload;
+        },
         onClose: () => this.closeDialog(),
       }),
     );

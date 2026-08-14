@@ -24,6 +24,7 @@ import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
   markNonYieldableInsertionMethod,
+  yieldableInvocation,
   type NonYieldableInsertionMethod,
   type YieldableInsertionMethods,
 } from './yieldable';
@@ -260,83 +261,92 @@ function createInsertSelectItemRuntime(
                 { primitive: 'insertSelect', path: `${name}.state` },
               ),
               __primitiveKind: primitiveKind,
-              set: (newState: unknown) => {
-                update((currentState: unknown) => {
-                  if (!Array.isArray(currentState)) {
-                    return currentState;
-                  }
+              set: (newState: unknown) =>
+                yieldableInvocation(
+                  (() => {
+                    update((currentState: unknown) => {
+                      if (!Array.isArray(currentState)) {
+                        return currentState;
+                      }
 
-                  if (
-                    id < 0 ||
-                    id >= currentState.length ||
-                    !Number.isInteger(id)
-                  ) {
-                    return currentState;
-                  }
+                      if (
+                        id < 0 ||
+                        id >= currentState.length ||
+                        !Number.isInteger(id)
+                      ) {
+                        return currentState;
+                      }
 
-                  const nextState = [...currentState];
-                  nextState[id] = newState;
-                  return nextState;
-                });
-                return newState;
-              },
-              update: (updateFn: (currentState: unknown) => unknown) => {
-                const currentSelectedState = select(id);
-                if (currentSelectedState === undefined) {
-                  return undefined;
-                }
+                      const nextState = [...currentState];
+                      nextState[id] = newState;
+                      return nextState;
+                    });
+                    return newState;
+                  })(),
+                ),
+              update: (updateFn: (currentState: unknown) => unknown) =>
+                yieldableInvocation(
+                  (() => {
+                    const currentSelectedState = select(id);
+                    if (currentSelectedState === undefined) {
+                      return undefined;
+                    }
 
-                const nextState = updateFn(currentSelectedState);
-                update((currentState: unknown) => {
-                  if (!Array.isArray(currentState)) {
-                    return currentState;
-                  }
+                    const nextState = updateFn(currentSelectedState);
+                    update((currentState: unknown) => {
+                      if (!Array.isArray(currentState)) {
+                        return currentState;
+                      }
 
-                  if (
-                    id < 0 ||
-                    id >= currentState.length ||
-                    !Number.isInteger(id)
-                  ) {
-                    return currentState;
-                  }
+                      if (
+                        id < 0 ||
+                        id >= currentState.length ||
+                        !Number.isInteger(id)
+                      ) {
+                        return currentState;
+                      }
 
-                  const nextRootState = [...currentState];
-                  nextRootState[id] = nextState;
-                  return nextRootState;
-                });
+                      const nextRootState = [...currentState];
+                      nextRootState[id] = nextState;
+                      return nextRootState;
+                    });
 
-                return nextState;
-              },
-              patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
-                const currentSelectedState = select(id);
-                if (currentSelectedState === undefined) {
-                  return undefined;
-                }
+                    return nextState;
+                  })(),
+                ),
+              patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+                yieldableInvocation(
+                  (() => {
+                    const currentSelectedState = select(id);
+                    if (currentSelectedState === undefined) {
+                      return undefined;
+                    }
 
-                const nextState = {
-                  ...(currentSelectedState as object),
-                  ...patchFn(currentSelectedState),
-                };
-                update((currentState: unknown) => {
-                  if (!Array.isArray(currentState)) {
-                    return currentState;
-                  }
+                    const nextState = {
+                      ...(currentSelectedState as object),
+                      ...patchFn(currentSelectedState),
+                    };
+                    update((currentState: unknown) => {
+                      if (!Array.isArray(currentState)) {
+                        return currentState;
+                      }
 
-                  if (
-                    id < 0 ||
-                    id >= currentState.length ||
-                    !Number.isInteger(id)
-                  ) {
-                    return currentState;
-                  }
+                      if (
+                        id < 0 ||
+                        id >= currentState.length ||
+                        !Number.isInteger(id)
+                      ) {
+                        return currentState;
+                      }
 
-                  const nextRootState = [...currentState];
-                  nextRootState[id] = nextState;
-                  return nextRootState;
-                });
+                      const nextRootState = [...currentState];
+                      nextRootState[id] = nextState;
+                      return nextRootState;
+                    });
 
-                return nextState;
-              },
+                    return nextState;
+                  })(),
+                ),
               insertions: Object.entries(acc.rawInsertionsOutput).reduce(
                 (previous, [key, value]) => {
                   if (isSource$(value)) previous[key] = value;
@@ -612,13 +622,18 @@ function createInsertSelectPropertyRuntime(
                 { primitive: 'insertSelect', path: `${name}.state` },
               ),
               __primitiveKind: primitiveKind,
-              set: setProperty,
-              update: updateProperty,
+              set: (newState: unknown) => {
+                setProperty(newState);
+                return yieldableInvocation(newState);
+              },
+              update: (updateFn: (currentState: unknown) => unknown) => {
+                return yieldableInvocation(updateProperty(updateFn));
+              },
               patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
-                return updateProperty((current) => ({
+                return yieldableInvocation(updateProperty((current) => ({
                   ...(current as object),
                   ...patchFn(current),
-                }));
+                })));
               },
               insertions: Object.entries(acc.rawInsertionsOutput).reduce(
                 (previous, [key, value]) => {

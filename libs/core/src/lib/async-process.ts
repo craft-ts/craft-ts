@@ -26,6 +26,8 @@ import {
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import {
   attachCraftSettledValue,
+  createYieldableSettledValue,
+  CraftNotSettled,
   type CraftSettledSignal,
 } from './craft-settled';
 import type { ExtractCraftGenExceptions } from './craft-gen';
@@ -104,10 +106,13 @@ import type {
 } from './yieldable';
 import {
   createYieldableReactiveFacade,
+  deepYieldable,
+  hasDeepYieldableInsertion,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
 } from './reactive-read';
+import { craftUse } from './craft-use';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -244,6 +249,11 @@ export type AsyncProcessRef<
                 readonly status: Signal<CraftResourceStatus>;
                 readonly isLoading: Signal<boolean>;
                 hasValue(): boolean;
+                readonly settledValue: CraftSettledSignal<
+                  Exclude<Value, undefined>,
+                  Name,
+                  ResourceLikeAsyncProcessExceptionUnion<AsyncProcessExceptions>
+                >;
               } & ResourceLikeAsyncProcessExceptions<
                 AsyncProcessExceptions,
                 GroupIdentifier
@@ -254,6 +264,11 @@ export type AsyncProcessRef<
             readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             hasValue(): boolean;
+            readonly settledValue: CraftSettledSignal<
+              Exclude<Value, undefined>,
+              Name,
+              ResourceLikeAsyncProcessExceptionUnion<AsyncProcessExceptions>
+            >;
           } & ResourceLikeAsyncProcessExceptions<
             AsyncProcessExceptions,
             GroupIdentifier
@@ -931,7 +946,8 @@ export function asyncProcess<
     NoInfer<Exceptions>,
     Insertion1,
     {},
-    Insertion1Yielded
+    Insertion1Yielded,
+    Name
   >,
 ): NamedCraftPrimitiveGen<
   Name,
@@ -1548,7 +1564,7 @@ function createAsyncProcessRef<
               }
 
               const rawSelectStatus = resource.status;
-              return Object.assign(resource, {
+              const result = Object.assign(resource, {
                 status: computed(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
@@ -1562,6 +1578,8 @@ function createAsyncProcessRef<
                     }))
                   : selectExceptions,
               });
+              attachCraftSettledValue(name, result);
+              return result;
             })();
           },
           selectOrCreate: (id: GroupIdentifier) => {
@@ -1579,7 +1597,7 @@ function createAsyncProcessRef<
               id as unknown as string,
             );
             const rawSelectStatus = selected.status;
-            return Object.assign(selected, {
+            const result = Object.assign(selected, {
               status: computed(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
@@ -1593,6 +1611,8 @@ function createAsyncProcessRef<
                   }))
                 : selectExceptions,
             });
+            attachCraftSettledValue(name, result);
+            return result;
           },
         }
       : {},
@@ -1722,11 +1742,43 @@ function createAsyncProcessRef<
     MethodYielded
   >;
 
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, asyncOutput as object);
+  }
+
   const publicAsyncContext = createYieldableReactiveFacade(asyncOutput, {
     name,
     primitive: 'asyncProcess',
     path: name,
   }) as any;
+
+  const insertionSettledState = isUsingIdentifier
+    ? createYieldableSettledValue(
+        computed(() => {
+          const params = craftUse(
+            publicAsyncContext.resourceParamsSrc(),
+          ) as any;
+          if (params == null) throw new CraftNotSettled(name);
+          const id = AsyncProcessConfig.identifier?.(params);
+          if (id == null) throw new CraftNotSettled(name);
+          const selected = publicAsyncContext.select(id);
+          if (!selected) throw new CraftNotSettled(name);
+          return craftUse(selected.settledValue());
+        }),
+        {
+          primitive: 'asyncProcess',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      )
+    : createYieldableSettledValue(
+        computed(() => craftUse(publicAsyncContext.settledValue())),
+        {
+          primitive: 'asyncProcess',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      );
 
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
@@ -1770,8 +1822,18 @@ function createAsyncProcessRef<
               primitive: 'asyncProcess',
               path: `${name}.state`,
             }),
-            set: resourceTarget.set,
-            update: resourceTarget.update,
+            settledState: insertionSettledState,
+            set: (nextState: any) =>
+              yieldableInvocation(resourceTarget.set(nextState)),
+            update: (updateFn: (currentState: any) => any) =>
+              yieldableInvocation(resourceTarget.update(updateFn)),
+            patch: (patchFn: (currentState: any) => Partial<any>) =>
+              yieldableInvocation(
+                resourceTarget.update((current: any) => ({
+                  ...current,
+                  ...patchFn(current),
+                })),
+              ),
             __primitiveKind: 'asyncProcess',
           } as any,
         ],
@@ -1919,10 +1981,6 @@ function createAsyncProcessRef<
       });
   }
 
-  if (!isUsingIdentifier) {
-    attachCraftSettledValue(name, asyncOutput as object);
-  }
-
   if (!('resource' in asyncOutput)) {
     Object.defineProperty(asyncOutput, 'resource', {
       value: asyncOutput,
@@ -1930,9 +1988,12 @@ function createAsyncProcessRef<
       configurable: true,
     });
   }
-  return createYieldableReactiveFacade(asyncOutput, {
+  const publicAsyncProcess = createYieldableReactiveFacade(asyncOutput, {
     name,
     primitive: 'asyncProcess',
     path: name,
-  }) as typeof asyncOutput;
+  });
+  return (hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicAsyncProcess)
+    : publicAsyncProcess) as typeof asyncOutput;
 }
