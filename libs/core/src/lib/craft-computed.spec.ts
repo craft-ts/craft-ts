@@ -96,6 +96,40 @@ describe('craftComputed', () => {
     expect(angularConsumer()).toBe(12);
   });
 
+  it('retraces conditional Angular dependencies after a Craft branch switch', () => {
+    const useSecond = craftSignal(false);
+    const first = signal('first');
+    const second = signal('second');
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('conditional', () => (useSecond() ? second() : first())),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(angularConsumer()).toBe('first');
+
+    useSecond.set(true);
+    expect(angularConsumer()).toBe('second');
+
+    second.set('updated');
+
+    expect(angularConsumer()).toBe('updated');
+  });
+
+  it('stays lazy after an unread Craft invalidation', () => {
+    const source = craftSignal(1);
+    const computation = vi.fn(() => source() * 2);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('lazy', computation),
+    );
+
+    expect(craftUse(value())).toBe(2);
+    const callsAfterRead = computation.mock.calls.length;
+
+    source.set(2);
+
+    expect(computation).toHaveBeenCalledTimes(callsAfterRead);
+  });
+
   it('should work with a generator factory that resolves DI deps once', () => {
     const { Multiplier } = craftService(
       { name: 'Multiplier', scope: 'function' },

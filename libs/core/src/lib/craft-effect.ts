@@ -159,7 +159,7 @@ export function craftEffect(
     ownerDestroyRef.onDestroy(() => ref.destroy());
   }
 
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  const registry = ownerInjector.get(APP_SNAPSHOT_REGISTRY, null);
   if (registry) {
     const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     registry.triggerSnapshot$

@@ -173,45 +173,57 @@ export function craftComputed<T>(
       : (computation as () => T);
   }
 
-  const angularProbe = computed(() => ({ value: evaluate() }));
+  const angularProbeRevision = signal(0);
+  const angularProbe = computed(() => {
+    angularProbeRevision();
+    return { value: evaluate() };
+  });
   const angularRevision = craftSignal(0);
   const memoized = createComputedWithOptions(() => {
     angularRevision();
     return evaluate();
   }, options);
   const craftBridgeRevision = signal(0);
-  let synchronizingAngularDependency = false;
   let craftBridgeWatch: { destroy(): void } | undefined;
-  const ensureCraftBridge = (): void => {
-    if (craftBridgeWatch) return;
-    let initialized = false;
+  const installCraftBridge = (): object => {
+    craftBridgeWatch?.destroy();
+    untracked(() => angularProbeRevision.update((revision) => revision + 1));
+    let initialRun = true;
+    let probe!: object;
     craftBridgeWatch = craftWatch(() => {
-      memoized();
-      if (initialized && !synchronizingAngularDependency) {
-        untracked(() => craftBridgeRevision.update((revision) => revision + 1));
+      if (initialRun) {
+        probe = angularProbe();
+        return undefined;
       }
-      initialized = true;
+      untracked(() => craftBridgeRevision.update((revision) => revision + 1));
+      return undefined;
     });
-    computedInjector
-      .get(DestroyRef)
-      .onDestroy(() => craftBridgeWatch?.destroy());
+    initialRun = false;
+    return probe;
   };
+  computedInjector.get(DestroyRef).onDestroy(() => craftBridgeWatch?.destroy());
   let previousProbe: object | undefined;
+  let previousCraftBridgeRevision = -1;
   const result = (() => {
-    craftBridgeRevision();
-    const probe = angularProbe();
-    if (previousProbe !== undefined && probe !== previousProbe) {
-      synchronizingAngularDependency = true;
-      try {
-        angularRevision.update((revision) => revision + 1);
-      } finally {
-        synchronizingAngularDependency = false;
+    const currentCraftBridgeRevision = craftBridgeRevision();
+    let probe: object;
+    if (
+      !craftBridgeWatch ||
+      currentCraftBridgeRevision !== previousCraftBridgeRevision
+    ) {
+      probe = installCraftBridge();
+    } else {
+      probe = angularProbe();
+      if (previousProbe !== undefined && probe !== previousProbe) {
+        probe = installCraftBridge();
       }
     }
+    if (previousProbe !== undefined && probe !== previousProbe) {
+      angularRevision.update((revision) => revision + 1);
+    }
     previousProbe = probe;
-    const value = memoized();
-    ensureCraftBridge();
-    return value;
+    previousCraftBridgeRevision = currentCraftBridgeRevision;
+    return memoized();
   }) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });

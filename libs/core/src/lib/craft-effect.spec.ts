@@ -24,6 +24,7 @@ import {
 import { query } from './query';
 import {
   APP_SNAPSHOT_REGISTRY,
+  AppSnapshotRegistry,
   type ActiveEffectReport,
 } from './take-app-snapshot';
 import { craftSignal } from './host/craft-signal';
@@ -265,6 +266,33 @@ describe('craftEffect', () => {
     expect(reports).toHaveLength(1);
     expect(reports[0].source).toBe('effect:tracker');
     expect(reports[0].from[reports[0].from.length - 1]).toBe('effect:tracker');
+  });
+
+  it('resolves the snapshot registry from the injector option', () => {
+    const registry = new AppSnapshotRegistry();
+    const owner = createEnvironmentInjector(
+      [{ provide: APP_SNAPSHOT_REGISTRY, useValue: registry }],
+      TestBed.inject(EnvironmentInjector),
+    );
+    const reports: ActiveEffectReport[] = [];
+    registry.allActiveEffects$.subscribe((report) => reports.push(report));
+
+    TestBed.runInInjectionContext(() =>
+      craftEffect(
+        'custom-registry',
+        () => {
+          /* noop */
+        },
+        { injector: owner },
+      ),
+    );
+    TestBed.tick();
+
+    registry.triggerSnapshot$.next();
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0].source).toBe('effect:custom-registry');
+    owner.destroy();
   });
 
   it('should expose craftEffect dependencies through ExtractDeps', () => {
