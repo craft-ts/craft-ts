@@ -245,6 +245,7 @@ function createInsertSelectItemRuntime(
       const selectedStateSignal = angularLinkedSignal({
         source: () => select(id),
         computation: (selected) => selected,
+        injector,
       });
       const itemInjector = ɵcreateHostTaggedInjector(
         injector,
@@ -613,6 +614,7 @@ function createInsertSelectPropertyRuntime(
       const selectedPropertySignal = angularLinkedSignal({
         source: selectProperty,
         computation: (selected) => selected,
+        injector,
       });
 
       const { rawInsertionsOutput, exposedInsertionsOutput } =

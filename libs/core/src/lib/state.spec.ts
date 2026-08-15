@@ -2,16 +2,11 @@ import { computed, linkedSignal, Signal, signal } from '@angular/core';
 import { state, StateOutput } from './state';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
-import { TestBed } from '@angular/core/testing';
 import { Source$, source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
 import { craftPipe } from './craft-pipe';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { craftService } from './craft-service';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
 import {
   provideFnWrapObserver,
@@ -25,24 +20,26 @@ import {
 import { craftUse } from './craft-use';
 import type { YieldableInvocation } from './yieldable';
 import { craftSignal } from './host/craft-signal';
+import {
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
 
-const runInInjectionContext = <T>(fn: () => T): T =>
-  TestBed.runInInjectionContext(fn);
+const { StateSpecHost } = craftService(
+  { name: 'StateSpecHost', scope: 'global' },
+  () => ({}),
+);
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+const runInInjectionContext = <T>(
+  fn: () => T,
+  extraProviders: CraftServiceProvider[] = [],
+): T => {
+  const { injector } =
+    extraProviders.length === 0
+      ? setupCraftServiceTest()
+      : setupCraftServiceTest(StateSpecHost, {}, { providers: extraProviders });
+  return injector.run(fn);
+};
+
 
 describe('state', () => {
   beforeEach(() => {
@@ -51,10 +48,25 @@ describe('state', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
-  it('should expose the root state mutation context to method wrappers', () => {
+  it('should expose the root state mutation context to method wrappers', async () => {
     let runtimeContext: StateMethodRuntimeContext | undefined;
-    TestBed.configureTestingModule({
-      providers: [
+    runInInjectionContext(
+      () => {
+        const counter = craftUse(
+          state('counter', 0, ({ update }) => ({
+            increment: () => update((current) => current + 1),
+          })),
+        );
+
+        counter.increment();
+
+        expect(runtimeContext?.kind).toBe('state');
+        expect(runtimeContext?.get()).toBe(1);
+        expect(runtimeContext?.originalSource).toContain('current + 1');
+        runtimeContext?.update((current) => Number(current) + 9);
+        expect(craftUse(counter())).toBe(10);
+      },
+      [
         provideFnWrapper(
           'Warning: dependency injection here is not type-safe and may fail at runtime',
           function* (factory, thisArg, args) {
@@ -63,25 +75,9 @@ describe('state', () => {
           },
         ),
       ],
-    });
-
-    runInInjectionContext(() => {
-      const counter = craftUse(
-        state('counter', 0, ({ update }) => ({
-          increment: () => update((current) => current + 1),
-        })),
-      );
-
-      counter.increment();
-
-      expect(runtimeContext?.kind).toBe('state');
-      expect(runtimeContext?.get()).toBe(1);
-      expect(runtimeContext?.originalSource).toContain('current + 1');
-      runtimeContext?.update((current) => Number(current) + 9);
-      expect(craftUse(counter())).toBe(10);
-    });
+    );
   });
-  it('makes direct callbacks returning set yieldable', () => {
+  it('makes direct callbacks returning set yieldable', async () => {
     runInInjectionContext(() => {
       const dialog = craftUse(
         state('dialogOpen', false, ({ set }) => ({
@@ -98,7 +94,7 @@ describe('state', () => {
       expect(craftUse(dialog())).toBe(false);
     });
   });
-  it('should expose insertion methods to wrap observers before invocation', () => {
+  it('should expose insertion methods to wrap observers before invocation', async () => {
     const observedSources: string[] = [];
     const observer = provideFnWrapObserver((factory) => {
       const context = injectStateMethodRuntimeContext();
@@ -118,7 +114,7 @@ describe('state', () => {
     expect(observedSources).toHaveLength(1);
     expect(observedSources[0]).toContain('current + 1');
   });
-  it('should create a simple state', () => {
+  it('should create a simple state', async () => {
     runInInjectionContext(() => {
       const myState = craftUse(state('myState', 0));
 
@@ -131,7 +127,7 @@ describe('state', () => {
       expect(Reflect.get(myState, 'set')).toBeUndefined();
     });
   });
-  it('should create a signal state', () => {
+  it('should create a signal state', async () => {
     runInInjectionContext(() => {
       const origin = signal(5);
       const myState = craftUse(
@@ -147,7 +143,7 @@ describe('state', () => {
     });
   });
 
-  it('keeps an Angular readonly computed state live', () => {
+  it('keeps an Angular readonly computed state live', async () => {
     runInInjectionContext(() => {
       const origin = signal(5);
       const readonlyState = computed(() => origin() * 2);
@@ -161,7 +157,7 @@ describe('state', () => {
     });
   });
 
-  it('writes through when initialized from a Craft writable signal', () => {
+  it('writes through when initialized from a Craft writable signal', async () => {
     runInInjectionContext(() => {
       const origin = craftSignal(5);
       const myState = craftUse(
@@ -177,7 +173,7 @@ describe('state', () => {
     });
   });
 
-  it('should accept insertion, use to add methods and properties', () => {
+  it('should accept insertion, use to add methods and properties', async () => {
     runInInjectionContext(() => {
       const origin = signal(5);
       const myState = craftUse(
@@ -221,7 +217,7 @@ describe('state', () => {
     });
   });
 
-  it('typing: tracks generator dependencies from state config and insertions', () => {
+  it('typing: tracks generator dependencies from state config and insertions', async () => {
     const { CounterReader } = craftService(
       { name: 'CounterReader', scope: 'global' },
       () => ({
@@ -281,7 +277,7 @@ describe('state', () => {
     });
   });
 
-  it('should resolve generator state config and generator insertions', () => {
+  it('should resolve generator state config and generator insertions', async () => {
     const { CounterReaderRuntime } = craftService(
       { name: 'CounterReaderRuntime', scope: 'global' },
       () => ({
@@ -451,7 +447,7 @@ describe('state — $self config with providers', () => {
     vi.restoreAllMocks();
   });
 
-  it('should resolve $self plain value identically to the direct form', () => {
+  it('should resolve $self plain value identically to the direct form', async () => {
     runInInjectionContext(() => {
       const myState = craftUse(state('myState', { $self: 42 }));
 
@@ -460,7 +456,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('should resolve $self signal value', () => {
+  it('should resolve $self signal value', async () => {
     runInInjectionContext(() => {
       const src = signal(7);
       const myState = craftUse(state('myState', { $self: src }));
@@ -470,7 +466,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('should resolve $self generator factory', () => {
+  it('should resolve $self generator factory', async () => {
     runInInjectionContext(() => {
       const myState = craftUse(
         state('myState', {
@@ -485,7 +481,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('should work with insertions alongside $self', () => {
+  it('should work with insertions alongside $self', async () => {
     runInInjectionContext(() => {
       const myState = craftUse(
         state('myState', { $self: 0 }, ({ update }) => ({
@@ -527,7 +523,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('providers are applied to insertion methods', () => {
+  it('providers are applied to insertion methods', async () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('insertion-method');
@@ -561,7 +557,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('providers scoped to one state do not affect a sibling state', () => {
+  it('providers scoped to one state do not affect a sibling state', async () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('called');
@@ -600,7 +596,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('typing: $self unwraps to the correct state type', () => {
+  it('typing: $self unwraps to the correct state type', async () => {
     runInInjectionContext(() => {
       const plain = craftUse(state('plain', { $self: 'hello' }));
       expectTypeOf(craftUse(plain())).toEqualTypeOf<string>();
@@ -610,7 +606,7 @@ describe('state — $self config with providers', () => {
     });
   });
 
-  it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
+  it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', async () => {
     const { LocalCounter, provideLocalCounter } = craftService(
       { name: 'LocalCounter', scope: 'toProvide' },
       () => ({ value: () => 1 }),

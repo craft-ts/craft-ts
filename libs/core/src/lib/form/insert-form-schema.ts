@@ -1,4 +1,4 @@
-import { computed, Signal } from '@angular/core';
+import { computed, inject, Injector, type Signal } from '@angular/core';
 import {
   createSchemaValidationException,
   parseSchema,
@@ -91,6 +91,7 @@ export function insertFormSchema<Schema extends CraftSchema>(
     const stateValue = angularLinkedSignal({
       source: () => rawReactiveValue(context.state)(),
       computation: (value) => value,
+      injector: inject(Injector),
     });
     const errors = computed(() =>
       createSchemaErrorEntries(schema, stateValue(), context),

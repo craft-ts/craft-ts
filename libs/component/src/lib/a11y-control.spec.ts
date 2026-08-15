@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { Injector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { signal } from '@angular/core';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   button,
   buttonControl,
@@ -18,24 +13,9 @@ import {
   fieldIds,
   input,
   label,
-  mountCraftComponent,
   p,
 } from '../index';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import { renderCraftComponent } from './testing';
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -44,14 +24,14 @@ function host(): HTMLElement {
 }
 
 describe('fieldControl', () => {
-  it('derives descriptionId from the input id', () => {
+  it('derives descriptionId from the input id', async () => {
     expect(fieldIds('email')).toEqual({
       inputId: 'email',
       descriptionId: 'email-description',
     });
   });
 
-  it('wires label htmlFor, input id, and aria-describedby', () => {
+  it('wires label htmlFor, input id, and aria-describedby', async () => {
     const email = fieldControl('email');
     const root = craftComponent(
       'fieldControlBasic',
@@ -63,9 +43,7 @@ describe('fieldControl', () => {
         p(email.description, 'We never share your email.'),
       ],
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     const control = element.querySelector('input');
     const labelEl = element.querySelector('label');
     const hint = element.querySelector('#email-description');
@@ -76,7 +54,7 @@ describe('fieldControl', () => {
     expect(hint?.textContent).toBe('We never share your email.');
   });
 
-  it('clears the native for attribute when htmlFor is cleared', () => {
+  it('clears the native for attribute when htmlFor is cleared', async () => {
     const htmlFor = signal<string | null>('email');
     const root = craftComponent(
       'fieldControlHtmlForCleanup',
@@ -84,22 +62,20 @@ describe('fieldControl', () => {
       () => ({}),
       () => label({ htmlFor }, 'Email'),
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
 
     const labelEl = element.querySelector('label')!;
     expect(labelEl.htmlFor).toBe('email');
     expect(labelEl.getAttribute('for')).toBe('email');
 
     htmlFor.set(null);
-    TestBed.tick();
+    await flush();
 
     expect(labelEl.htmlFor).toBe('');
     expect(labelEl.hasAttribute('for')).toBe(false);
   });
 
-  it('sets aria-invalid and data-invalid when invalid is true', () => {
+  it('sets aria-invalid and data-invalid when invalid is true', async () => {
     const email = fieldControl('email', { invalid: true });
     const root = craftComponent(
       'fieldControlInvalid',
@@ -107,9 +83,7 @@ describe('fieldControl', () => {
       () => ({}),
       () => input({ ...email.input, type: 'email' }),
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     const control = element.querySelector('input');
     expect(control?.getAttribute('aria-invalid')).toBe('true');
     expect(control?.hasAttribute('data-invalid')).toBe(true);
@@ -121,7 +95,7 @@ afterEach(() => {
 });
 
 describe('disclosureControl', () => {
-  it('links aria-expanded and aria-controls to the panel id', () => {
+  it('links aria-expanded and aria-controls to the panel id', async () => {
     const faq = disclosureControl('faq-1', true);
     const root = craftComponent(
       'disclosureOpen',
@@ -132,9 +106,7 @@ describe('disclosureControl', () => {
         div(faq.panel, 'A typed Angular framework.'),
       ],
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     const toggle = element.querySelector('button');
     const panel = element.querySelector('#faq-1-panel');
     expect(toggle?.id).toBe('faq-1-button');
@@ -146,7 +118,7 @@ describe('disclosureControl', () => {
     expect(panel?.hasAttribute('hidden')).toBe(false);
   });
 
-  it('hides the panel and drops data-open when closed', () => {
+  it('hides the panel and drops data-open when closed', async () => {
     const faq = disclosureControl('faq-1', false);
     const root = craftComponent(
       'disclosureClosed',
@@ -154,9 +126,7 @@ describe('disclosureControl', () => {
       () => ({}),
       () => [button(faq.button, 'Q'), div(faq.panel, 'A')],
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     const toggle = element.querySelector('button');
     const panel = element.querySelector('#faq-1-panel');
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
@@ -165,7 +135,7 @@ describe('disclosureControl', () => {
     expect(panel?.hasAttribute('hidden')).toBe(true);
   });
 
-  it('marks the toggle aria-disabled when disabled', () => {
+  it('marks the toggle aria-disabled when disabled', async () => {
     const faq = disclosureControl('faq-1', false, { disabled: true });
     expect(faq.button['aria-disabled']).toBe(true);
     expect(faq.button['data-disabled']).toBe(true);
@@ -173,36 +143,32 @@ describe('disclosureControl', () => {
 });
 
 describe('buttonControl', () => {
-  it('defaults type to button', () => {
+  it('defaults type to button', async () => {
     const root = craftComponent(
       'buttonControlType',
       {},
       () => ({}),
       () => button(buttonControl(), 'Save'),
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     expect(element.querySelector('button')?.getAttribute('type')).toBe('button');
   });
 
-  it('uses native disabled by default', () => {
+  it('uses native disabled by default', async () => {
     const root = craftComponent(
       'buttonControlDisabled',
       {},
       () => ({}),
       () => button(buttonControl({ disabled: true }), 'Save'),
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     const el = element.querySelector('button');
     expect(el?.disabled).toBe(true);
     expect(el?.hasAttribute('data-disabled')).toBe(true);
     expect(el?.getAttribute('aria-disabled')).toBeNull();
   });
 
-  it('keeps the button focusable when keepFocusable is set', () => {
+  it('keeps the button focusable when keepFocusable is set', async () => {
     const root = craftComponent(
       'buttonControlKeepFocusable',
       {},
@@ -210,9 +176,7 @@ describe('buttonControl', () => {
       () =>
         button(buttonControl({ disabled: true, keepFocusable: true }), 'Save'),
     );
-    const element = host();
-    mountCraftComponent(root, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
     const el = element.querySelector('button') as HTMLButtonElement;
     expect(el.disabled).toBe(false);
     expect(el.getAttribute('aria-disabled')).toBe('true');
@@ -223,7 +187,7 @@ describe('buttonControl', () => {
 });
 
 describe('clickFocus', () => {
-  it('focuses the matching element inside the click gesture', () => {
+  it('focuses the matching element inside the click gesture', async () => {
     const calls: string[] = [];
     const warmup = document.createElement('input');
     warmup.id = 'search-warmup';

@@ -314,7 +314,7 @@ describe('AsyncProcess', () => {
 });
 
 describe('AsyncProcess types without identifier', () => {
-  it('should infer correctly the types of AsyncProcess', () => {
+  it('should infer correctly the types of AsyncProcess', async () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
@@ -443,7 +443,7 @@ describe('AsyncProcess types without identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
@@ -557,7 +557,7 @@ describe('AsyncProcess types without identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a method', () => {
+  it('should infer correctly the AsyncProcess bind to a method', async () => {
     TestBed.runInInjectionContext(() => {
       const _AsyncProcessOutput = craftUse(
         asyncProcess('_AsyncProcessOutput', {
@@ -594,7 +594,7 @@ describe('AsyncProcess types without identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(
         'searchSource',
@@ -658,7 +658,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the types of AsyncProcess', () => {
+  it('should infer correctly the types of AsyncProcess', async () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
@@ -790,7 +790,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
@@ -902,7 +902,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a method', () => {
+  it('should infer correctly the AsyncProcess bind to a method', async () => {
     TestBed.runInInjectionContext(() => {
       const _AsyncProcessOutput = craftUse(
         asyncProcess('_AsyncProcessOutput', {
@@ -934,7 +934,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(
         'searchSource',

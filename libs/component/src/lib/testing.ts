@@ -672,12 +672,16 @@ export async function renderCraftComponent<
     (options.props ?? {}) as PropsOf<Component>,
   );
   const detectChanges = () => parent.get(ɵEffectScheduler).flush();
+  let destroyed = false;
   const flush = async () => {
+    if (destroyed) return;
     for (let index = 0; index < 5; index += 1) {
       detectChanges();
       await Promise.resolve();
     }
-    detectChanges();
+    if (!destroyed) {
+      detectChanges();
+    }
   };
   await flush();
   return {
@@ -687,6 +691,7 @@ export async function renderCraftComponent<
     detectChanges,
     flush,
     destroy() {
+      destroyed = true;
       mounted.destroy();
       host.remove();
       parent.destroy();

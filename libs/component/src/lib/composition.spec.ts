@@ -1,13 +1,7 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
+import { signal } from '@angular/core';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { Injector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -24,7 +18,6 @@ import {
   catchTag,
   craftComponent,
   matchBlock,
-  mountCraftComponent,
   p,
   section,
   withProviders,
@@ -38,21 +31,7 @@ import type {
   CraftNodeChildrenExceptions,
   CraftNodeChildrenHandledExceptionCodes,
 } from './render/vnode';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import { renderCraftComponent } from './testing';
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -62,11 +41,10 @@ function host(): HTMLElement {
 
 describe('component composition', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
-  it('narrows catchTag handler codes', () => {
+  it('narrows catchTag handler codes', async () => {
     catchTag.exhaustive({
       NO_ACCESS: function* (exception) {
         expectTypeOf(exception.code).toEqualTypeOf<'NO_ACCESS'>();
@@ -83,7 +61,7 @@ describe('component composition', () => {
     catchTag.exhaustive({ NO_ACCESS: () => p('No access') });
   });
 
-  it('reactively recreates providers and transitions success → exception → success', () => {
+  it('reactively recreates providers and transitions success → exception → success', async () => {
     const state = signal<'ready' | 'denied'>('ready');
     let factoryCalls = 0;
     const noAccess = craftException({ code: 'NO_ACCESS' });
@@ -112,32 +90,27 @@ describe('component composition', () => {
         },
       }),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       restricted,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toBe('Content');
     expect(factoryCalls).toBe(1);
 
     state.set('denied');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('');
     expect(handled).toBe(1);
     expect(factoryCalls).toBe(1);
 
     state.set('ready');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('Content');
     expect(factoryCalls).toBe(2);
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('does not register a style scope for a styleless operator recreated by a template', () => {
+  it('does not register a style scope for a styleless operator recreated by a template', async () => {
     const renderVersion = signal(0);
     const base = craftComponent(
       'stylelessOperatorBase',
@@ -151,20 +124,15 @@ describe('component composition', () => {
       () => ({}),
       () => [p(String(renderVersion())), base.pipe(withProviders([]))({})],
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       page,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     renderVersion.set(1);
-    expect(() => TestBed.tick()).not.toThrow();
+    await expect(flush()).resolves.toBeUndefined();
     expect(element.textContent).toContain('1Content');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('does not bubble a query exception already handled by matchBlock', async () => {
@@ -210,22 +178,17 @@ describe('component composition', () => {
         { position: 'after' },
       ),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       caughtWithSource,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     await new Promise((resolve) => setTimeout(resolve, 10));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('source');
     expect(element.textContent).toContain('match fallback');
     expect(element.textContent).not.toContain('query fallback');
     expect(factoryRuns).toBe(1);
-    mounted.destroy();
+    destroy();
   });
 
   it('does not treat an empty query exception bucket as an exception', async () => {
@@ -254,30 +217,25 @@ describe('component composition', () => {
           ),
         ]),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       source,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     await new Promise((resolve) => setTimeout(resolve, 10));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('loaded');
     expect(element.textContent).not.toContain('fallback');
 
     shouldFail.set(true);
-    TestBed.tick();
+    await flush();
     await new Promise((resolve) => setTimeout(resolve, 10));
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('fallback');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('requires a component exception to be caught before it is emitted into a template', () => {
+  it('requires a component exception to be caught before it is emitted into a template', async () => {
     const noAccess = craftException({ code: 'NO_ACCESS' });
     const { Data, provideData } = craftService(
       { name: 'data', scope: 'abstract' },
@@ -307,7 +265,7 @@ describe('component composition', () => {
     section([restricted({})]);
   });
 
-  it('propagates query loader exceptions through a provided service', () => {
+  it('propagates query loader exceptions through a provided service', async () => {
     const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
     const { provideTodoStoreWithQueryException, TodoStoreWithQueryException } =
       craftService(
@@ -361,7 +319,7 @@ describe('component composition', () => {
     >().toEqualTypeOf<never>();
   });
 
-  it('advertises direct query loader exceptions on a component', () => {
+  it('advertises direct query loader exceptions on a component', async () => {
     const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
     const refresh = signal(0);
     const component = craftComponent(

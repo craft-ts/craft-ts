@@ -192,6 +192,7 @@ export function resourceById<
 
       const filteredRequestByGroup = linkedSignal({
         source: params as () => ResourceParams,
+        injector,
         computation: (incomingRequestValue, previousGroupRequestData) => {
           if (!incomingRequestValue) {
             return incomingRequestValue;
@@ -311,6 +312,7 @@ export function resourceById<
       const computedParam = computed(() => params() ?? resourceParams);
       const filteredGlobalParamsByGroup = linkedSignal({
         source: computedParam as () => ResourceParams,
+        injector,
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
             return incomingParamsValue;
@@ -375,6 +377,7 @@ export function resourceById<
               FromObjectResourceParams
             >,
           ),
+        injector,
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
             return incomingParamsValue ?? options?.defaultParam;

@@ -190,6 +190,7 @@ export function reactOnMutationEffect<
   >({
     //@ts-expect-error I do not understand why it is not satisfies
     source: mutationResources,
+    injector: _injector,
     computation: (currentSource, previous) => {
       if (!currentSource || !Object.keys(currentSource).length) {
         return undefined;

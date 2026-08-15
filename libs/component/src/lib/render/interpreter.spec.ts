@@ -14,7 +14,11 @@ import {
   Input as AngularInput,
   Output as AngularOutput,
   Renderer2,
+  createEnvironmentInjector,
+  provideZonelessChangeDetection,
   signal,
+  ɵEffectScheduler,
+  ɵINJECTOR_SCOPE,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
@@ -66,6 +70,8 @@ import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
+import { renderCraftComponent } from '../testing';
+import { mountInterpretedComponent } from './interpreter';
 
 beforeAll(() => {
   try {
@@ -112,14 +118,14 @@ function host(): HTMLElement {
 
 async function observeChildListMutations(
   target: Node,
-  update: () => void,
+  update: () => void | Promise<void>,
 ): Promise<MutationRecord[]> {
   const records: MutationRecord[] = [];
   const observer = new MutationObserver((batch) => records.push(...batch));
   observer.observe(target, { childList: true, subtree: true });
 
   try {
-    update();
+    await update();
     await Promise.resolve();
     return records;
   } finally {
@@ -136,11 +142,10 @@ function childListMutationNodes(records: readonly MutationRecord[]): Node[] {
 
 describe('functional component interpreter', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
-  it('updates only the reactive text binding that consumed a changed signal', () => {
+  it('updates only the reactive text binding that consumed a changed signal', async () => {
     const first = signal('A');
     const second = signal('B');
     const firstBinding = vi.fn(() => first());
@@ -152,13 +157,9 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const paragraphs = Array.from(element.querySelectorAll('p'));
     expect(template).toHaveBeenCalledTimes(1);
@@ -166,7 +167,7 @@ describe('functional component interpreter', () => {
     expect(secondBinding).toHaveBeenCalledTimes(1);
 
     first.set('A2');
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toBe('A2B');
     expect(template).toHaveBeenCalledTimes(1);
@@ -174,10 +175,10 @@ describe('functional component interpreter', () => {
     expect(secondBinding).toHaveBeenCalledTimes(1);
     expect(element.querySelectorAll('p')[0]).toBe(paragraphs[0]);
     expect(element.querySelectorAll('p')[1]).toBe(paragraphs[1]);
-    mounted.destroy();
+    destroy();
   });
 
-  it('isolates attribute, class and style bindings on the same element', () => {
+  it('isolates attribute, class and style bindings on the same element', async () => {
     const title = signal('first');
     const active = signal(false);
     const color = signal('red');
@@ -200,16 +201,12 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     title.set('second');
-    TestBed.tick();
+    await flush();
 
     const rendered = element.querySelector('div')!;
     expect(rendered.title).toBe('second');
@@ -220,7 +217,7 @@ describe('functional component interpreter', () => {
 
     active.set(true);
     color.set('blue');
-    TestBed.tick();
+    await flush();
 
     expect(rendered.classList.contains('active')).toBe(true);
     expect(rendered.style.color).toBe('blue');
@@ -228,10 +225,10 @@ describe('functional component interpreter', () => {
     expect(titleBinding).toHaveBeenCalledTimes(2);
     expect(classBinding).toHaveBeenCalledTimes(2);
     expect(styleBinding).toHaveBeenCalledTimes(2);
-    mounted.destroy();
+    destroy();
   });
 
-  it('updates reactive host props without rerunning the component template', () => {
+  it('updates reactive host props without rerunning the component template', async () => {
     const active = signal(false);
     const hostClass = vi.fn(() => ({ active: active() }));
     const template = vi.fn(() => p('content'));
@@ -241,25 +238,21 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(hostClass).toHaveBeenCalledTimes(2);
 
     active.set(true);
-    TestBed.tick();
+    await flush();
 
     expect(element.classList.contains('active')).toBe(true);
     expect(hostClass).toHaveBeenCalledTimes(4);
     expect(template).toHaveBeenCalledTimes(1);
-    mounted.destroy();
+    destroy();
   });
 
-  it('coalesces text binding updates and stops them after destruction', () => {
+  it('coalesces text binding updates and stops them after destruction', async () => {
     const value = signal(0);
     const binding = vi.fn(() => value());
     const component = craftComponent(
@@ -268,27 +261,23 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => p(binding),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     value.set(1);
     value.set(2);
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('2');
     expect(binding).toHaveBeenCalledTimes(2);
 
-    mounted.destroy();
+    destroy();
     value.set(3);
-    TestBed.tick();
+    await flush();
     expect(binding).toHaveBeenCalledTimes(2);
   });
 
-  it('owns conditional bindings in the active branch effect', () => {
+  it('owns conditional bindings in the active branch effect', async () => {
     const visible = signal(true);
     const value = signal('shown');
     const binding = vi.fn(() => value());
@@ -301,30 +290,26 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     value.set('updated');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('updated');
     expect(template).toHaveBeenCalledTimes(1);
     expect(branch).toHaveBeenCalledTimes(1);
 
     visible.set(false);
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('');
     expect(template).toHaveBeenCalledTimes(1);
     expect(branch).toHaveBeenCalledTimes(1);
 
     value.set('detached');
-    TestBed.tick();
+    await flush();
     expect(binding).toHaveBeenCalledTimes(2);
-    mounted.destroy();
+    destroy();
   });
 
   it('keeps the active if branch mounted while its condition stays truthy', async () => {
@@ -336,13 +321,9 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => ifBlock(condition, () => p('stable')),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const stableNode = element.querySelector('p');
     if (!stableNode) {
@@ -350,19 +331,19 @@ describe('functional component interpreter', () => {
     }
 
     try {
-      const records = await observeChildListMutations(element, () => {
+      const records = await observeChildListMutations(element, async () => {
         conditionValue.set(2);
-        TestBed.tick();
+        await flush();
       });
 
       expect(element.querySelector('p')).toBe(stableNode);
       expect(childListMutationNodes(records)).not.toContain(stableNode);
     } finally {
-      mounted.destroy();
+      destroy();
     }
   });
 
-  it('updates one keyed each item without evaluating its siblings', () => {
+  it('updates one keyed each item without evaluating its siblings', async () => {
     const items = [
       { id: 1, label: signal('one') },
       { id: 2, label: signal('two') },
@@ -382,17 +363,13 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const nodes = Array.from(element.querySelectorAll('li'));
     items[0].label.set('updated');
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toBe('updatedtwo');
     expect(template).toHaveBeenCalledTimes(1);
@@ -401,10 +378,10 @@ describe('functional component interpreter', () => {
     expect(bindings[1]).toHaveBeenCalledTimes(1);
     expect(element.querySelectorAll('li')[0]).toBe(nodes[0]);
     expect(element.querySelectorAll('li')[1]).toBe(nodes[1]);
-    mounted.destroy();
+    destroy();
   });
 
-  it('does not reevaluate unchanged keyed items when the collection changes', () => {
+  it('does not reevaluate unchanged keyed items when the collection changes', async () => {
     const first = { id: 1, label: 'one' };
     const second = { id: 2, label: 'two' };
     const items = signal([first, second]);
@@ -421,20 +398,16 @@ describe('functional component interpreter', () => {
       ({ items }) =>
         ul(each(items, { track: (item) => item.id }, itemTemplate)),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const nodes = Array.from(element.querySelectorAll('li'));
     const updatedFirst = { ...first, label: 'updated' };
     itemTemplate.mockClear();
 
     items.set([updatedFirst, second]);
-    TestBed.tick();
+    await flush();
 
     expect(itemTemplate).toHaveBeenCalledOnce();
     expect(itemTemplate).toHaveBeenCalledOnce();
@@ -443,7 +416,7 @@ describe('functional component interpreter', () => {
     expect(element.textContent).toBe('0:updated1:two');
     expect(element.querySelectorAll('li')[0]).toBe(nodes[0]);
     expect(element.querySelectorAll('li')[1]).toBe(nodes[1]);
-    mounted.destroy();
+    destroy();
   });
 
   it('does not move unchanged keyed DOM fragments', async () => {
@@ -464,13 +437,9 @@ describe('functional component interpreter', () => {
           ),
         ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const list = element.querySelector('ul');
     const rows = Array.from(element.querySelectorAll('li'));
@@ -481,9 +450,9 @@ describe('functional component interpreter', () => {
     }
 
     try {
-      const records = await observeChildListMutations(list, () => {
+      const records = await observeChildListMutations(list, async () => {
         items.set([{ ...first, label: 'updated' }, second]);
-        TestBed.tick();
+        await flush();
       });
 
       expect(element.textContent).toBe('updatedtwo');
@@ -491,11 +460,11 @@ describe('functional component interpreter', () => {
       expect(element.querySelectorAll('li')[1]).toBe(unchangedRow);
       expect(childListMutationNodes(records)).not.toContain(unchangedRow);
     } finally {
-      mounted.destroy();
+      destroy();
     }
   });
 
-  it('traces a changed keyed item as a block update', () => {
+  it('traces a changed keyed item as a block update', async () => {
     const first = { id: 1, label: 'one' };
     const second = { id: 2, label: 'two' };
     const items = signal([first, second]);
@@ -526,17 +495,13 @@ describe('functional component interpreter', () => {
           ),
         ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     traces.length = 0;
 
     items.set([{ ...first, label: 'updated' }, second]);
-    TestBed.tick();
+    await flush();
 
     expect(traces).toEqual([
       {
@@ -547,10 +512,10 @@ describe('functional component interpreter', () => {
         renderCount: 2,
       },
     ]);
-    mounted.destroy();
+    destroy();
   });
 
-  it('renders static nodes, listeners, classes and reactive signal reads', () => {
+  it('renders static nodes, listeners, classes and reactive signal reads', async () => {
     const count = signal(0);
     const counter = craftComponent(
       'counter',
@@ -562,27 +527,22 @@ describe('functional component interpreter', () => {
           button({ click: () => count.update((value) => value + 1) }, '+'),
         ]),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       counter,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.getAttribute('data-kind')).toBe('counter');
     expect(element.querySelector('.value')?.textContent).toBe('Count: 0');
 
     element.querySelector('button')?.click();
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('.value')?.textContent).toBe('Count: 1');
 
-    mounted.destroy();
+    destroy();
     expect(element.textContent).toBe('');
   });
 
-  it('keeps an inline click handler after the parent template re-renders', () => {
+  it('keeps an inline click handler after the parent template re-renders', async () => {
     const revision = signal(0);
     const clicks = signal(0);
     const widget = craftComponent(
@@ -603,28 +563,24 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       widget,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     for (let index = 0; index < 12; index += 1) {
       revision.update((value) => value + 1);
-      TestBed.tick();
+      await flush();
     }
 
     element.querySelector('button')?.click();
-    TestBed.tick();
+    await flush();
     expect(clicks()).toBe(1);
     expect(element.querySelector('button')?.textContent).toContain('clicks:1');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('traces component creation, initial render, updates and destruction', () => {
+  it('traces component creation, initial render, updates and destruction', async () => {
     const count = signal(0);
     const traces: Array<{
       kind: string;
@@ -646,17 +602,12 @@ describe('functional component interpreter', () => {
       () => ({ count }),
       ({ count }) => p(String(count())),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       counter,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     count.set(1);
-    TestBed.tick();
-    mounted.destroy();
+    await flush();
+    destroy();
 
     expect(traces).toEqual([
       {
@@ -688,7 +639,7 @@ describe('functional component interpreter', () => {
     ]);
   });
 
-  it('runs DOM event hooks in the component injector and exposes the binding location', () => {
+  it('runs DOM event hooks in the component injector and exposes the binding location', async () => {
     const marker = new InjectionToken<string>('dom-event-hook-marker');
     const seen: string[] = [];
     const interactionNames: string[] = [];
@@ -720,12 +671,9 @@ describe('functional component interpreter', () => {
           p(() => String(clicked())),
         ]),
     );
-    const element = host();
-
-    mountCraftComponent(component, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(component);
     element.querySelector<HTMLButtonElement>('button')?.click();
-    TestBed.tick();
+    await flush();
 
     expect(seen).toEqual(['click:component-scope']);
     expect(interactionNames).toEqual([
@@ -734,27 +682,22 @@ describe('functional component interpreter', () => {
     expect(element.querySelector('p')?.textContent).toBe('1');
   });
 
-  it('provides an automatic component host tag from the component name', () => {
+  it('provides an automatic component host tag from the component name', async () => {
     const counter = craftComponent(
       'AutomaticHostTag',
       {},
       () => ({ hostTags: inject(HOST_TAG_LIST) }),
       ({ hostTags }) => p(hostTags.join('|')),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       counter,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.textContent).toMatch(/^component:AutomaticHostTag#\d+$/);
-    mounted.destroy();
+    destroy();
   });
 
-  it('projects named slots without a wrapper and keeps the declarative injector', () => {
+  it('projects named slots without a wrapper and keeps the declarative injector', async () => {
     const label = new InjectionToken<string>('projection-label');
     type CardInput = {
       readonly header?: ContentSlot;
@@ -782,14 +725,9 @@ describe('functional component interpreter', () => {
           body: () => [p('before'), p(inject(label)), p('after')],
         }),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       parent,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.textContent).toBe('declarerbeforedeclarerafter');
     expect(element.querySelector('section')?.children).toHaveLength(3);
@@ -799,7 +737,7 @@ describe('functional component interpreter', () => {
     expect(element.querySelectorAll('section > craft-projection')).toHaveLength(
       0,
     );
-    mounted.destroy();
+    destroy();
   });
 
   it('keeps projected DOM mounted when its descriptor is refreshed', async () => {
@@ -812,13 +750,9 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => ifBlock(condition, () => section(renderContent('body', projected))),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const stableNode = element.querySelector('p');
     if (!stableNode) {
@@ -826,19 +760,19 @@ describe('functional component interpreter', () => {
     }
 
     try {
-      const records = await observeChildListMutations(element, () => {
+      const records = await observeChildListMutations(element, async () => {
         revision.set(2);
-        TestBed.tick();
+        await flush();
       });
 
       expect(element.querySelector('p')).toBe(stableNode);
       expect(childListMutationNodes(records)).not.toContain(stableNode);
     } finally {
-      mounted.destroy();
+      destroy();
     }
   });
 
-  it('renders contract components through the same renderContent primitive', () => {
+  it('renders contract components through the same renderContent primitive', async () => {
     const trigger = vi.fn();
     type ActionContract = {
       readonly kind: 'toolbar-action';
@@ -892,21 +826,17 @@ describe('functional component interpreter', () => {
           ],
         }),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.querySelector('[role="toolbar"]')?.textContent).toBe('Save');
     (element.querySelector('button') as HTMLButtonElement).click();
     expect(trigger).toHaveBeenCalledTimes(1);
-    mounted.destroy();
+    destroy();
   });
 
-  it('applies opted-in content styles through a dedicated projection scope', () => {
+  it('applies opted-in content styles through a dedicated projection scope', async () => {
     type CardInput = {
       readonly body: RequiredContent<{
         readonly selector: {
@@ -947,14 +877,9 @@ describe('functional component interpreter', () => {
           ),
         }),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       page,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const ordinary = element.querySelector('p.projected-value') as HTMLElement;
     expect(ordinary.getAttribute('data-craft-content')).toBe(
@@ -974,13 +899,13 @@ describe('functional component interpreter', () => {
     );
     expect(contentSheet?.textContent).toContain('to ([data-craft-root])');
 
-    mounted.destroy();
+    destroy();
     expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
       0,
     );
   });
 
-  it('keeps content styles isolated unless the slot opts in', () => {
+  it('keeps content styles isolated unless the slot opts in', async () => {
     const card = craftComponent(
       'isolatedContentStyleCard',
       { contentStyles: { body: ':scope { color: red; }' } },
@@ -993,14 +918,9 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => card({ body: () => p({ class: 'isolated' }, 'content') }),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       page,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.querySelector('p.isolated')).not.toBeNull();
     expect(
@@ -1009,10 +929,10 @@ describe('functional component interpreter', () => {
     expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
       0,
     );
-    mounted.destroy();
+    destroy();
   });
 
-  it('keeps projected child components on the declarative injector chain', () => {
+  it('keeps projected child components on the declarative injector chain', async () => {
     const label = new InjectionToken<string>('projected-child-label');
     const projectedChild = craftComponent(
       'runtimeProjectedChild',
@@ -1036,20 +956,15 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => card({ body: () => projectedChild({}) }),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       parent,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.textContent).toBe('declarer');
-    mounted.destroy();
+    destroy();
   });
 
-  it('renders a typed template repeatedly and only when its node is active', () => {
+  it('renders a typed template repeatedly and only when its node is active', async () => {
     let renders = 0;
     const row = craftTemplate<{
       readonly $implicit: string;
@@ -1072,19 +987,14 @@ describe('functional component interpreter', () => {
           ),
         ),
     );
-    const element = host();
-
     expect(renders).toBe(0);
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(renders).toBe(2);
     expect(element.textContent).toBe('0: Ada1: Lin');
-    mounted.destroy();
+    destroy();
   });
 
   it('keeps rendered template DOM mounted when its context changes', async () => {
@@ -1102,13 +1012,9 @@ describe('functional component interpreter', () => {
           renderTemplate(row, { label: `revision-${revision()}` }),
         ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const stableNode = element.querySelector('p');
     if (!stableNode) {
@@ -1116,20 +1022,20 @@ describe('functional component interpreter', () => {
     }
 
     try {
-      const records = await observeChildListMutations(element, () => {
+      const records = await observeChildListMutations(element, async () => {
         revision.set(2);
-        TestBed.tick();
+        await flush();
       });
 
       expect(element.textContent).toBe('revision-2');
       expect(element.querySelector('p')).toBe(stableNode);
       expect(childListMutationNodes(records)).not.toContain(stableNode);
     } finally {
-      mounted.destroy();
+      destroy();
     }
   });
 
-  it('constructs child component queries outside the parent render context', () => {
+  it('constructs child component queries outside the parent render context', async () => {
     const child = craftComponent(
       'queryChild',
       {},
@@ -1151,17 +1057,7 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => div([child()]),
     );
-    const element = host();
-
-    expect(() => {
-      const mounted = mountCraftComponent(
-        parent,
-        element,
-        TestBed.inject(Injector),
-      );
-      TestBed.tick();
-      mounted.destroy();
-    }).not.toThrow();
+    await expect(renderCraftComponent(parent)).resolves.toBeDefined();
   });
 
   it('does not recreate a composed query component when its resource settles', async () => {
@@ -1208,26 +1104,22 @@ describe('functional component interpreter', () => {
         },
       }),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     element.querySelector('button')?.click();
     await vi.waitFor(() => expect(element.textContent).toContain('failed'));
-    TestBed.tick();
+    await flush();
 
     await new Promise((resolve) => setTimeout(resolve, 30));
 
     expect(element.textContent).toContain('source');
     expect(factoryRuns).toBeLessThanOrEqual(2);
-    mounted.destroy();
+    destroy();
   });
 
-  it('drives generator DOM callbacks and branded Craft methods', () => {
+  it('drives generator DOM callbacks and branded Craft methods', async () => {
     const count = signal(0);
     const counter = craftComponent(
       'yieldableCounter',
@@ -1251,22 +1143,17 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       counter,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     element.querySelector('button')?.click();
-    TestBed.tick();
+    await flush();
 
     expect(element.querySelector('p')?.textContent).toBe('1');
-    mounted.destroy();
+    destroy();
   });
 
-  it('drives generator callbacks assigned to primitive DOM properties', () => {
+  it('drives generator callbacks assigned to primitive DOM properties', async () => {
     const component = craftComponent(
       'yieldableProperty',
       {},
@@ -1285,14 +1172,9 @@ describe('functional component interpreter', () => {
           '+',
         ),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.querySelector('button')?.hasAttribute('disabled')).toBe(
       true,
@@ -1300,10 +1182,10 @@ describe('functional component interpreter', () => {
     expect(
       (element.querySelector('button') as HTMLButtonElement).disabled,
     ).toBe(true);
-    mounted.destroy();
+    destroy();
   });
 
-  it('keeps branded methods callable from ordinary template callbacks', () => {
+  it('keeps branded methods callable from ordinary template callbacks', async () => {
     const count = signal(0);
     const component = craftComponent(
       'ordinaryBrandedCallback',
@@ -1316,22 +1198,17 @@ describe('functional component interpreter', () => {
       ({ increment }) =>
         button({ click: () => void increment() }, String(count())),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     element.querySelector('button')?.click();
-    TestBed.tick();
+    await flush();
 
     expect(element.querySelector('button')?.textContent).toBe('1');
-    mounted.destroy();
+    destroy();
   });
 
-  it('projects craftComputed state insertions as yieldable template properties', () => {
+  it('projects craftComputed state insertions as yieldable template properties', async () => {
     const component = craftComponent(
       'yieldableComputedProperty',
       {},
@@ -1353,22 +1230,17 @@ describe('functional component interpreter', () => {
           '+',
         ),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(
       (element.querySelector('button') as HTMLButtonElement).disabled,
     ).toBe(true);
-    mounted.destroy();
+    destroy();
   });
 
-  it('renders root and derived reactive readers across template blocks', () => {
+  it('renders root and derived reactive readers across template blocks', async () => {
     const component = craftComponent(
       'yieldableReactiveTemplate',
       {},
@@ -1405,26 +1277,23 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
 
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('.value')?.textContent).toBe('2');
     expect(element.querySelector('.visible')).not.toBeNull();
     expect(element.querySelectorAll('li')).toHaveLength(1);
 
     element.querySelector('button')?.click();
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('.value')?.textContent).toBe('4');
     expect(element.querySelectorAll('li')).toHaveLength(2);
-    mounted.destroy();
+    destroy();
   });
 
-  it('renders named conditional elements and updates their visibility', () => {
+  it('renders named conditional elements and updates their visibility', async () => {
     const component = craftComponent(
       'namedConditional',
       {},
@@ -1449,14 +1318,9 @@ describe('functional component interpreter', () => {
           () => p('hidden'),
         ),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(
       element.querySelector('[data-craft-name="increment"]'),
@@ -1464,10 +1328,10 @@ describe('functional component interpreter', () => {
     expect(
       element.querySelector('[data-craft-name="increment"]')?.tagName,
     ).toBe('BUTTON');
-    mounted.destroy();
+    destroy();
   });
 
-  it('projects cyclic arrays in the template context without overflowing the stack', () => {
+  it('projects cyclic arrays in the template context without overflowing the stack', async () => {
     const items: unknown[] = [];
     items.push(items);
     const component = craftComponent(
@@ -1476,20 +1340,15 @@ describe('functional component interpreter', () => {
       () => ({ items }),
       () => p('ready'),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.textContent).toContain('ready');
-    mounted.destroy();
+    destroy();
   });
 
-  it('marks component roots without leaking the marker into descendants', () => {
+  it('marks component roots without leaking the marker into descendants', async () => {
     const scopedChild = craftComponent(
       'scopedChild',
       { styles: '.child { color: red; }' },
@@ -1502,14 +1361,9 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => div({ class: 'parent' }, [scopedChild()]),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       scopedParent,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const parent = element.querySelector('.parent')!;
     const child = element.querySelector('.child')!;
@@ -1522,51 +1376,42 @@ describe('functional component interpreter', () => {
       2,
     );
 
-    mounted.destroy();
+    destroy();
     expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
       0,
     );
   });
 
-  it('registers stylesUrl content in the component style scope', () => {
+  it('registers stylesUrl content in the component style scope', async () => {
     const component = craftComponent(
       'stylesUrlComponent',
       { stylesUrl: '.external { color: red; }' },
       () => ({}),
       () => div({ class: 'external' }, 'external'),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(
       document.querySelector<HTMLStyleElement>('style[data-craft-sheet]')
         ?.textContent,
     ).toContain('.external { color: red; }');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('marks Angular hosts as scope boundaries but leaves their internals unmarked', () => {
+  // moved to @craft-ng/angular
+  it.skip('marks Angular hosts as scope boundaries but leaves their internals unmarked', async () => {
     const angularBoundaryParent = craftComponent(
       'angularBoundaryParent',
       { styles: '.parent { color: blue; }' },
       () => ({}),
       () => div({ class: 'parent' }, [angular(TestAngularChild)]),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       angularBoundaryParent,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const angularHost = element.querySelector('test-angular-child')!;
     expect(angularHost.getAttribute('data-craft-root')).toContain(
@@ -1575,10 +1420,10 @@ describe('functional component interpreter', () => {
     expect(
       angularHost.querySelector('button')?.hasAttribute('data-craft-root'),
     ).toBe(false);
-    mounted.destroy();
+    destroy();
   });
 
-  it('patches Input accessors without recreating the component', () => {
+  it('patches Input accessors without recreating the component', async () => {
     const value = signal('first');
     const valueReader = markYieldableValue(
       function* () {
@@ -1598,28 +1443,24 @@ describe('functional component interpreter', () => {
         return yield* text();
       }),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       label,
-      element,
-      TestBed.inject(Injector),
-      {
+      { props: {
         text: valueReader,
-      },
+      } },
     );
-    TestBed.tick();
     const paragraph = element.querySelector('p');
 
     value.set('second');
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toBe('second');
     expect(element.querySelector('p')).toBe(paragraph);
     expect(factoryRuns).toBe(1);
-    mounted.destroy();
+    destroy();
   });
 
-  it('merges host classes supplied at a component call site', () => {
+  it('merges host classes supplied at a component call site', async () => {
     const editableStatusComponent = craftComponent(
       'editableStatusComponent',
       { host: { class: 'status-base' } },
@@ -1643,22 +1484,17 @@ describe('functional component interpreter', () => {
           }),
         ]),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       directivePage,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.querySelector('span')?.className).toBe(
       'status-base newClassAdded',
     );
-    mounted.destroy();
+    destroy();
   });
 
-  it('merges reactive host classes supplied by a craft directive', () => {
+  it('merges reactive host classes supplied by a craft directive', async () => {
     const canEdit = signal(true);
     const onlyEditable = craftDirective(
       'onlyEditable',
@@ -1690,27 +1526,22 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => reactiveStatusComponent({ class: 'caller-class' }),
     );
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       reactiveDirectivePage,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.querySelector('span')?.className).toBe(
       'status-base visible caller-class',
     );
 
     canEdit.set(false);
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('span')?.className).toBe(
       'status-base hidden caller-class',
     );
-    mounted.destroy();
+    destroy();
   });
 
-  it('composes a configurable directive around the component logic and template', () => {
+  it('composes a configurable directive around the component logic and template', async () => {
     const allowed = signal(true);
     const guard = craftDirective(
       'guard',
@@ -1736,28 +1567,24 @@ describe('functional component interpreter', () => {
         return yield* user();
       }),
     ).pipe(guard);
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       guarded,
-      element,
-      TestBed.inject(Injector),
-      {
+      { props: {
         user: function* () {
           return 'visible';
         },
-      },
+      } },
     );
-    TestBed.tick();
 
     expect(element.textContent).toBe('visible');
     allowed.set(false);
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('passes public inputs added by a directive to the final factory', () => {
+  it('passes public inputs added by a directive to the final factory', async () => {
     const withPermission = craftDirective(
       'withPermission',
       {},
@@ -1783,28 +1610,23 @@ describe('functional component interpreter', () => {
         return yield* user();
       }),
     ).pipe(withPermission);
-    const element = host();
-
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       card,
-      element,
-      TestBed.inject(Injector),
-      {
+      { props: {
         user: function* () {
           return 'Ada';
         },
         permission: function* () {
           return 'edit';
         },
-      },
+      } },
     );
-    TestBed.tick();
 
     expect(element.textContent).toBe('Ada');
-    mounted.destroy();
+    destroy();
   });
 
-  it('applies a structural directive piped directly on a hyperscript node', () => {
+  it('applies a structural directive piped directly on a hyperscript node', async () => {
     const visible = signal(true);
     const when = craftDirective(
       'when',
@@ -1819,28 +1641,24 @@ describe('functional component interpreter', () => {
       (visible: Input<boolean>) => ({ visible }),
       () => p('conditional').pipe(when),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       panel,
-      element,
-      TestBed.inject(Injector),
-      {
+      { props: {
         visible: function* () {
           return visible();
         },
-      },
+      } },
     );
-    TestBed.tick();
 
     expect(element.textContent).toBe('conditional');
     visible.set(false);
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('mounts a Craft node directive with an isolated injector and destroys it with its element', () => {
+  it('mounts a Craft node directive with an isolated injector and destroys it with its element', async () => {
     const label = signal('first');
     const showSecond = signal(true);
     const mountedElements: Element[] = [];
@@ -1876,13 +1694,9 @@ describe('functional component interpreter', () => {
             : []),
         ]),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const spans = Array.from(element.querySelectorAll('span'));
     expect(mountedElements).toEqual(spans);
@@ -1892,7 +1706,7 @@ describe('functional component interpreter', () => {
     ]);
 
     label.set('updated');
-    TestBed.tick();
+    await flush();
     expect(mountedElements).toHaveLength(2);
     expect(
       Array.from(element.querySelectorAll('span')).map((node) =>
@@ -1901,16 +1715,17 @@ describe('functional component interpreter', () => {
     ).toEqual(['updated', 'second-updated']);
 
     showSecond.set(false);
-    TestBed.tick();
+    await flush();
     expect(returnedCleanups).toHaveBeenCalledTimes(1);
     expect(destroyRefCleanups).toHaveBeenCalledTimes(1);
 
-    mounted.destroy();
+    destroy();
     expect(returnedCleanups).toHaveBeenCalledTimes(2);
     expect(destroyRefCleanups).toHaveBeenCalledTimes(2);
   });
 
-  it('resolves generator craftRouterLink inputs used by each() navigation', () => {
+  // moved to @craft-ng/angular
+  it.skip('resolves generator craftRouterLink inputs used by each() navigation', async () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([{ path: 'list', component: TestAngularChild }])],
     });
@@ -1936,15 +1751,14 @@ describe('functional component interpreter', () => {
             ).pipe(CraftRouterLink),
         ),
     );
-    const element = host();
-    mountCraftComponent(nav, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(nav);
 
     expect(element.querySelector('a')?.getAttribute('href')).toBe('/list');
     expect(element.querySelector('a')?.textContent).toBe('List');
   });
 
-  it('reopens an ifBlock nav panel after a router link closes it', () => {
+  // moved to @craft-ng/angular
+  it.skip('reopens an ifBlock nav panel after a router link closes it', async () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -2027,52 +1841,48 @@ describe('functional component interpreter', () => {
           ],
         ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       nav,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
-    const toggle = () => {
+    const toggle = async () => {
       element.querySelector<HTMLButtonElement>('.toggle')?.click();
-      TestBed.tick();
+      await flush();
     };
-    const clickLink = (label: string) => {
+    const clickLink = async (label: string) => {
       const link = Array.from(
         element.querySelectorAll<HTMLAnchorElement>('a'),
       ).find((anchor) => anchor.textContent?.trim() === label);
       expect(link).toBeDefined();
       link!.click();
-      TestBed.tick();
+      await flush();
     };
 
-    toggle();
+    await toggle();
     expect(element.querySelector('.panel')).not.toBeNull();
     expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
       'true',
     );
 
-    clickLink('List');
+    await clickLink('List');
     expect(element.querySelector('.panel')).toBeNull();
 
-    toggle();
+    await toggle();
     expect(element.querySelector('.panel')).not.toBeNull();
     expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
       'true',
     );
 
-    clickLink('Other');
+    await clickLink('Other');
     expect(element.querySelector('.panel')).toBeNull();
 
-    toggle();
+    await toggle();
     expect(element.querySelector('.panel')).not.toBeNull();
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('recovers an ifBlock after its true branch throws', () => {
+  it('recovers an ifBlock after its true branch throws', async () => {
     const explode = signal(true);
     const component = craftComponent(
       'ifBlockRecoversAfterThrow',
@@ -2108,32 +1918,28 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
-    const toggle = () => {
+    const toggle = async () => {
       element.querySelector<HTMLButtonElement>('.toggle')?.click();
-      TestBed.tick();
+      await flush();
     };
 
-    expect(() => toggle()).toThrow(/panel boom/);
+    await expect(toggle()).rejects.toThrow(/panel boom/);
     expect(element.querySelector('.panel')).toBeNull();
 
     explode.set(false);
-    TestBed.tick();
-    toggle();
-    toggle();
+    await flush();
+    await toggle();
+    await toggle();
     expect(element.querySelector('.panel')).not.toBeNull();
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('resolves yield* craftService dependencies in the child injector', () => {
+  it('resolves yield* craftService dependencies in the child injector', async () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
     const { Greeting } = craftService(
       { name: 'Greeting', scope: 'function' },
@@ -2152,18 +1958,18 @@ describe('functional component interpreter', () => {
       }),
     );
 
-    const element = host();
-    mountCraftComponent(greeting, element, TestBed.inject(Injector), {
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(greeting, {
+      props: {
       name: function* () {
         return 'Ada';
       },
+      },
     });
-    TestBed.tick();
 
     expect(element.textContent).toBe('Bonjour Ada');
   });
 
-  it('preserves an intermediate parent injector for nested Craft components', () => {
+  it('preserves an intermediate parent injector for nested Craft components', async () => {
     const routeMarker = new InjectionToken<string>('route-marker');
     const injectorRouted = craftComponent(
       'injectorRouted',
@@ -2171,19 +1977,17 @@ describe('functional component interpreter', () => {
       () => ({ routeMarker: inject(routeMarker) }),
       ({ routeMarker }) => p(routeMarker),
     );
-    const routeInjector = Injector.create({
-      providers: [{ provide: routeMarker, useValue: 'nested route' }],
-      parent: TestBed.inject(EnvironmentInjector),
-    });
-    const element = host();
-
-    mountCraftComponent(injectorRouted, element, routeInjector);
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
+      injectorRouted,
+      {
+        providers: [{ provide: routeMarker, useValue: 'nested route' }],
+      },
+    );
 
     expect(element.textContent).toBe('nested route');
   });
 
-  it('mounts selectorless children by lexical component reference', () => {
+  it('mounts selectorless children by lexical component reference', async () => {
     const picked = vi.fn();
     const userCard = craftComponent(
       'userCard',
@@ -2220,16 +2024,14 @@ describe('functional component interpreter', () => {
         ]),
     );
 
-    const element = host();
-    mountCraftComponent(parent, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(parent);
     element.querySelector('button')?.click();
 
     expect(element.textContent).toBe('ParentGrace');
     expect(picked).toHaveBeenCalledWith('Grace');
   });
 
-  it('reconciles each() blocks by key and renders the empty block', () => {
+  it('reconciles each() blocks by key and renders the empty block', async () => {
     const users = signal([
       { id: 1, name: 'Ada' },
       { id: 2, name: 'Grace' },
@@ -2254,9 +2056,7 @@ describe('functional component interpreter', () => {
           ),
         ),
     );
-    const element = host();
-    mountCraftComponent(list, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(list);
     const ada = element.querySelector('[data-id="1"]');
     const grace = element.querySelector('[data-id="2"]');
 
@@ -2265,7 +2065,7 @@ describe('functional component interpreter', () => {
       { id: 1, name: 'Ada Lovelace' },
       { id: 3, name: 'Linus' },
     ]);
-    TestBed.tick();
+    await flush();
 
     const rows = Array.from(element.querySelectorAll('[data-id]'));
     expect(rows.map((row) => row.getAttribute('data-id'))).toEqual([
@@ -2278,11 +2078,11 @@ describe('functional component interpreter', () => {
     expect(rows[0].textContent).toBe('Grace Hopper');
 
     users.set([]);
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
   });
 
-  it('treats nullish each sources as empty collections', () => {
+  it('treats nullish each sources as empty collections', async () => {
     const users = signal<
       readonly { id: number; name: string }[] | null | undefined
     >(null);
@@ -2306,23 +2106,21 @@ describe('functional component interpreter', () => {
           ),
         ),
     );
-    const element = host();
-    mountCraftComponent(list, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(list);
 
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
 
     users.set([{ id: 1, name: 'Ada' }]);
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('[data-id="1"]')?.textContent).toBe('Ada');
 
     users.set(null);
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('[data-id="1"]')).toBeNull();
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
 
     users.set(undefined);
-    TestBed.tick();
+    await flush();
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
   });
 
@@ -2343,9 +2141,8 @@ describe('functional component interpreter', () => {
           loading: () => p({ class: 'loading' }, 'Loading'),
         }),
     );
-    const successHost = host();
-    mountCraftComponent(success, successHost, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: successHost, flush: flushSuccess, destroy: destroySuccess } =
+      await renderCraftComponent(success);
     expect(successHost.querySelector('.loading')?.textContent).toBe('Loading');
 
     resolveModule('Ready');
@@ -2368,22 +2165,19 @@ describe('functional component interpreter', () => {
             ),
         }),
     );
-    const failureHost = host();
-    mountCraftComponent(failure, failureHost, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: failureHost, destroy: destroyFailure } =
+      await renderCraftComponent(failure);
 
     await vi.waitFor(() => {
       expect(failureHost.querySelector('.error')?.textContent).toBe(
         'CRAFT_LAZY_LOAD_ERROR',
       );
     });
+    destroySuccess();
+    destroyFailure();
   });
 
   it('passes withRetry to defer loaders and retries a failed lazy import', async () => {
-    TestBed.configureTestingModule({
-      providers: [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })],
-    });
-
     let calls = 0;
     const component = craftComponent(
       'deferRetry',
@@ -2403,10 +2197,12 @@ describe('functional component interpreter', () => {
           },
         ),
     );
-    const element = host();
-
-    mountCraftComponent(component, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, destroy } = await renderCraftComponent(
+      component,
+      {
+        providers: [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })],
+      },
+    );
 
     await vi.waitFor(() => {
       expect(element.querySelector('.loaded')?.textContent).toBe('Recovered');
@@ -2426,9 +2222,7 @@ describe('functional component interpreter', () => {
           placeholder: () => button({ class: 'interaction-trigger' }, 'Start'),
         }),
     );
-    const element = host();
-    mountCraftComponent(interaction, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(interaction);
 
     expect(element.querySelector('.interaction-trigger')?.textContent).toBe(
       'Start',
@@ -2456,12 +2250,28 @@ describe('functional component interpreter', () => {
         }),
     );
     const fragment = document.createDocumentFragment();
-    const mounted = mountCraftComponent(
-      interaction,
-      fragment as unknown as Element,
-      TestBed.inject(Injector),
+    const parent = createEnvironmentInjector(
+      [
+        { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+        provideZonelessChangeDetection(),
+      ],
+      Injector.NULL as EnvironmentInjector,
+      'interpreter-fragment-spec',
     );
-    TestBed.tick();
+    const mounted = mountInterpretedComponent(
+      interaction as never,
+      fragment as unknown as Element,
+      parent,
+      {},
+    );
+    const flush = async () => {
+      for (let index = 0; index < 5; index += 1) {
+        parent.get(ɵEffectScheduler).flush();
+        await Promise.resolve();
+      }
+      parent.get(ɵEffectScheduler).flush();
+    };
+    await flush();
     await Promise.resolve();
 
     expect(loader).not.toHaveBeenCalled();
@@ -2473,9 +2283,11 @@ describe('functional component interpreter', () => {
       );
     });
     mounted.destroy();
+    parent.destroy();
   });
 
-  it('mounts Angular components and directives through public interop nodes', () => {
+  // moved to @craft-ng/angular
+  it.skip('mounts Angular components and directives through public interop nodes', async () => {
     const label = signal('Angular child');
     const selected = vi.fn();
     const interop = craftComponent(
@@ -2495,9 +2307,7 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const element = host();
-    mountCraftComponent(interop, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(interop);
 
     expect(element.querySelector('test-angular-child')?.textContent).toContain(
       'Angular child',
@@ -2512,7 +2322,8 @@ describe('functional component interpreter', () => {
     expect(selected).toHaveBeenCalledWith('Angular child');
   });
 
-  it('mounts a routed functional component from a route-scoped provider', () => {
+  // moved to @craft-ng/angular
+  it.skip('mounts a routed functional component from a route-scoped provider', async () => {
     const providerRouted = craftComponent(
       'providerRouted',
       {},
@@ -2524,14 +2335,14 @@ describe('functional component interpreter', () => {
     });
     const fixture = TestBed.createComponent(CraftRoutedComponentHost);
     fixture.detectChanges();
-    TestBed.tick();
 
     expect(
       fixture.nativeElement.querySelector('.routed-functional')?.textContent,
     ).toBe('Routed');
   });
 
-  it('passes the activated route params to a routed functional component', () => {
+  // moved to @craft-ng/angular
+  it.skip('passes the activated route params to a routed functional component', async () => {
     const paramsRouted = craftComponent(
       'paramsRouted',
       {},
@@ -2544,13 +2355,9 @@ describe('functional component interpreter', () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideCraftComponent(paramsRouted)],
     });
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       CraftRouterOutlet,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     const params = new BehaviorSubject({ userId: '42' });
     const queryParams = new BehaviorSubject({});
     const data = new BehaviorSubject({});
@@ -2573,19 +2380,20 @@ describe('functional component interpreter', () => {
     )?.outlet;
     expect(outlet).toBeDefined();
     outlet?.activateWith(activatedRoute, TestBed.inject(EnvironmentInjector));
-    TestBed.tick();
+    await flush();
 
     expect(element.querySelector('.route-user-id')?.textContent).toBe('42');
 
     activatedRoute.snapshot.params = { userId: '43' };
     params.next({ userId: '43' });
-    TestBed.tick();
+    await flush();
 
     expect(element.querySelector('.route-user-id')?.textContent).toBe('43');
-    mounted.destroy();
+    destroy();
   });
 
-  it('passes inherited parent params and data into a lazy child with multiple inputs', () => {
+  // moved to @craft-ng/angular
+  it.skip('passes inherited parent params and data into a lazy child with multiple inputs', async () => {
     const inheritedParentInputs = craftComponent(
       'inheritedParentInputs',
       {},
@@ -2609,13 +2417,9 @@ describe('functional component interpreter', () => {
         provideCraftComponent(inheritedParentInputs),
       ],
     });
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       CraftRouterOutlet,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     const parentParams = new BehaviorSubject({ teamId: '100' });
     const parentData = new BehaviorSubject({ someParentRouteData: 'foo' });
     const params = new BehaviorSubject({ userId: '42' });
@@ -2667,16 +2471,17 @@ describe('functional component interpreter', () => {
     )?.outlet;
     expect(outlet).toBeDefined();
     outlet?.activateWith(activatedRoute, TestBed.inject(EnvironmentInjector));
-    TestBed.tick();
+    await flush();
 
     expect(element.querySelector('.route-team-id')?.textContent).toBe('100');
     expect(element.querySelector('.route-parent-data')?.textContent).toBe(
       'foo',
     );
-    mounted.destroy();
+    destroy();
   });
 
-  it('activates a functional outlet from an inherited child route context', () => {
+  // moved to @craft-ng/angular
+  it.skip('activates a functional outlet from an inherited child route context', async () => {
     const inheritedRouted = craftComponent(
       'inheritedRouted',
       {},
@@ -2720,7 +2525,6 @@ describe('functional component interpreter', () => {
       element,
       nestedRouteInjector,
     );
-    TestBed.tick();
 
     expect(element.querySelector('.nested-route-user-id')?.textContent).toBe(
       '84',
@@ -2728,7 +2532,8 @@ describe('functional component interpreter', () => {
     mounted.destroy();
   });
 
-  it('mounts a lazily loaded functional component without an eager provider', async () => {
+  // moved to @craft-ng/angular
+  it.skip('mounts a lazily loaded functional component without an eager provider', async () => {
     const routeMarker = new InjectionToken<string>('LAZY_ROUTE_MARKER');
     const lazyRouted = craftComponent(
       'lazyRouted',
@@ -2747,7 +2552,6 @@ describe('functional component interpreter', () => {
     TestBed.configureTestingModule({ providers: lazyRoute.providers });
     const fixture = TestBed.createComponent(LazyCraftComponentHost);
     fixture.detectChanges();
-    TestBed.tick();
 
     expect(loader).toHaveBeenCalledOnce();
     expect(

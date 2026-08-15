@@ -158,10 +158,11 @@ export function craftResource<Value, Params>(
     startLoad(params, false);
   };
 
-  const angularParams = options.params
+    const angularParams = options.params
     ? angularLinkedSignal({
         source: () => options.params!(),
         computation: (current) => current,
+        injector,
       })
     : undefined;
   let craftParamsWatch: { destroy(): void } | undefined;

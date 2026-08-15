@@ -1,4 +1,7 @@
 import {
+  DestroyRef,
+  inject,
+  Injector,
   linkedSignal,
   signal,
   type ValueEqualityFn,
@@ -18,6 +21,17 @@ type PreviousValue<Source, Value> = {
  * synchronous Craft watch only increments an Angular revision when the source
  * reads an alien-signals value.
  */
+function optionalDestroyRef(injector?: Injector): DestroyRef | null {
+  if (injector) {
+    return injector.get(DestroyRef, null, { optional: true });
+  }
+  try {
+    return inject(DestroyRef, { optional: true });
+  } catch {
+    return null;
+  }
+}
+
 export function angularLinkedSignal<Source, Value>(options: {
   readonly source: () => Source;
   readonly computation: (
@@ -26,12 +40,15 @@ export function angularLinkedSignal<Source, Value>(options: {
   ) => Value;
   readonly equal?: ValueEqualityFn<Value>;
   readonly debugName?: string;
+  readonly injector?: Injector;
 }): WritableSignal<Value> {
+  const destroyRef = optionalDestroyRef(options.injector);
   const revision = signal(0);
   let initialized = false;
+  let destroyed = false;
   let watch: { destroy(): void } | undefined;
   const ensureWatch = () => {
-    if (watch) return;
+    if (watch || destroyed) return;
     watch = craftWatch(() => {
       options.source();
       if (initialized) {
@@ -41,6 +58,11 @@ export function angularLinkedSignal<Source, Value>(options: {
       }
     });
   };
+  destroyRef?.onDestroy(() => {
+    destroyed = true;
+    watch?.destroy();
+    watch = undefined;
+  });
 
   return linkedSignal<Source, Value>({
     source: () => {

@@ -2,6 +2,7 @@ import {
   computed,
   inject,
   Injector,
+  runInInjectionContext,
   Signal,
   untracked,
 } from '@angular/core';
@@ -109,6 +110,7 @@ function buildSimpleForm<Model>(
   const fieldState = angularLinkedSignal({
     source: rawState,
     computation: (current) => current,
+    injector,
   });
   const field = createCraftFieldTree<Model>({
     read: () => rawState(),
@@ -813,6 +815,7 @@ export function insertForm(...args: any[]): any {
       const itemState = angularLinkedSignal({
         source: () => selectItem(formIdentifier),
         computation: (current) => current,
+        injector: formInjector,
       });
       const itemContext: InsertionStateFactoryContext<
         unknown,
@@ -857,12 +860,14 @@ export function insertForm(...args: any[]): any {
       // We wrap construction in `untracked` to detach from the surrounding
       // reactive context.
       const form = untracked(() =>
-        buildSimpleForm(
-          itemContext,
-          formInsertions,
-          inheritedInsertions,
-          itemInjector,
-          formIdentifier,
+        runInInjectionContext(itemInjector, () =>
+          buildSimpleForm(
+            itemContext,
+            formInsertions,
+            inheritedInsertions,
+            itemInjector,
+            formIdentifier,
+          ),
         ),
       );
       const entry: ParallelEntry = { formIdentifier, form };
@@ -872,6 +877,7 @@ export function insertForm(...args: any[]): any {
 
     const formsSignal = angularLinkedSignal({
       source: () => rawReactiveValue(context.state)(),
+      injector: formInjector,
       computation: (currentState) => {
         if (!Array.isArray(currentState)) {
           formsByIdentifier.clear();

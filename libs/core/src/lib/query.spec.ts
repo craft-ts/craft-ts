@@ -1,4 +1,3 @@
-import { TestBed } from '@angular/core/testing';
 import { query, ResourceByIdLikeQueryRef } from './query';
 import { craftService } from './craft-service';
 import { craftPipe } from './craft-pipe';
@@ -6,10 +5,6 @@ import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { computed, signal } from '@angular/core';
 import { craftException, CraftExceptionResult } from './craft-exception';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';
 import {
@@ -31,27 +26,19 @@ import { catchTag, retry } from './craft-program-operators';
 import { craftUntilSettled } from './craft-until-settled';
 import type { YieldableReactiveProperties } from './reactive-read';
 import { craftSignal } from './host/craft-signal';
+import {
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T =>
+  setupCraftServiceTest().injector.run(fn);
 
 type User = {
   id: string;
   name: string;
   email: string;
 };
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('query', () => {
   beforeEach(() => {
@@ -60,8 +47,8 @@ describe('query', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
-  it('1- should accept signal param as source', () => {
-    TestBed.runInInjectionContext(() => {
+  it('1- should accept signal param as source', async () => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => '5',
@@ -82,7 +69,7 @@ describe('query', () => {
   });
 
   it('preserves the previous value while a new query is loading by default', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const currentId = signal('first');
       const queryRef = craftUse(
         query('queryRef', {
@@ -107,7 +94,7 @@ describe('query', () => {
   });
 
   it('can clear the previous query value while loading', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const currentId = signal('first');
       const queryRef = craftUse(
         query('queryRef', {
@@ -128,7 +115,7 @@ describe('query', () => {
   });
 
   it('should return undefined with value when status is error', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'error',
@@ -156,7 +143,7 @@ describe('query', () => {
   });
 
   it('settles a synchronous loader exception without Angular resource()', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'invalid',
@@ -178,7 +165,7 @@ describe('query', () => {
   });
 
   it('invalidates an Angular computed settledValue after a successful load', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'ready',
@@ -201,7 +188,7 @@ describe('query', () => {
   });
 
   it('reloads automatically when Craft signal params change', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const currentId = craftSignal('first');
       const loaded: string[] = [];
 
@@ -236,7 +223,7 @@ describe('query', () => {
     let readParamsSrc: (() => unknown) | undefined;
 
     // Construct inside an injection context (the normal case).
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -253,7 +240,7 @@ describe('query', () => {
     expect(readParamsSrc?.()).toBe('user-1');
   });
 
-  it('typing: tracks generator dependencies from params, loader and insertions', () => {
+  it('typing: tracks generator dependencies from params, loader and insertions', async () => {
     const { UserIdService } = craftService(
       { name: 'UserIdService', scope: 'global' },
       () => ({
@@ -278,7 +265,7 @@ describe('query', () => {
       }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query(
           'queryRef',
@@ -358,7 +345,7 @@ describe('query', () => {
       }),
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const autoQuery = craftUse(
         query(
           'autoQuery',
@@ -411,8 +398,8 @@ describe('query', () => {
 });
 
 describe('query with identifier>', () => {
-  it('selectOrCreate returns an idle resource without changing select', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selectOrCreate returns an idle resource without changing select', async () => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           method: (id: string) => id,
@@ -430,8 +417,8 @@ describe('query with identifier>', () => {
     });
   });
 
-  it('Retrieve returned types of queryByIdFn', () => {
-    TestBed.runInInjectionContext(() => {
+  it('Retrieve returned types of queryByIdFn', async () => {
+    runInInjectionContext(() => {
       const queryByIdFn = craftUse(
         query('queryByIdFn', {
           params: () => '5',
@@ -472,7 +459,7 @@ describe('query with identifier>', () => {
 });
 
 describe('craftService using query', () => {
-  it('1- Should expose a query resource', () => {
+  it('1- Should expose a query resource', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -491,7 +478,7 @@ describe('craftService using query', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
 
       expect(store.user).toBeDefined();
@@ -500,7 +487,7 @@ describe('craftService using query', () => {
 });
 
 describe('query Insertions output', () => {
-  it('should accept an Insertions output, that appear in the store', () => {
+  it('should accept an Insertions output, that appear in the store', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -526,14 +513,14 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
-  it('should accept an Insertion, with the correct resource infer', () => {
+  it('should accept an Insertion, with the correct resource infer', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -574,14 +561,14 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
-  it('should accept an Insertion, with the correct resourceById infer', () => {
+  it('should accept an Insertion, with the correct resourceById infer', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -624,14 +611,14 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
-  it('should accept an insertion output, that appear in the store', () => {
+  it('should accept an insertion output, that appear in the store', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -660,7 +647,7 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -668,7 +655,7 @@ describe('query Insertions output', () => {
       expect(store.user.pagination).toBeDefined();
     });
   });
-  it('should accept multiple insertions, that appear in the store', () => {
+  it('should accept multiple insertions, that appear in the store', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -712,7 +699,7 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       //insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
@@ -725,7 +712,7 @@ describe('query Insertions output', () => {
       expect(store.user.someOtherInfo).toBeDefined();
     });
   });
-  it('should accept seven insertions, all outputs appear in the store', () => {
+  it('should accept seven insertions, all outputs appear in the store', async () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
@@ -764,7 +751,7 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext2).toEqualTypeOf<number>();
@@ -792,8 +779,8 @@ describe('query exceptions', () => {
     vi.resetAllMocks();
   });
 
-  it('typing: exposes exceptions in insertions context', () => {
-    TestBed.runInInjectionContext(() => {
+  it('typing: exposes exceptions in insertions context', async () => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
 
       craftUse(
@@ -893,7 +880,7 @@ describe('query exceptions', () => {
   });
 
   it('typing: captures exception returned by params and loader ', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query('queryRef', {
@@ -945,7 +932,7 @@ describe('query exceptions', () => {
     });
   });
   it('typing with identifier: captures exception returned by params and loader ', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query('queryRef', {
@@ -1030,7 +1017,7 @@ describe('query exceptions', () => {
     });
   });
   it('typing with identifier: return a select exceptions for an identifier ', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query('queryRef', {
@@ -1129,7 +1116,7 @@ describe('query exceptions', () => {
   });
 
   it('captures exception returned by params and prevents loader execution', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const loader = vi.fn(async ({ params }: { params: string }) => ({
         id: params,
@@ -1172,7 +1159,7 @@ describe('query exceptions', () => {
   });
 
   it('captures exception returned by loader without exposing a value', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1202,7 +1189,7 @@ describe('query exceptions', () => {
   });
 
   it('captures exception returned by method and does not trigger loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const loader = vi.fn(async ({ params }: { params: string }) => ({
         id: params,
       }));
@@ -1232,7 +1219,7 @@ describe('query exceptions', () => {
   });
 
   it.todo('captures and auto-clears computedInsertion exceptions', () => {
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query(
@@ -1267,7 +1254,7 @@ describe('query exceptions', () => {
   });
 
   it.todo('captures and auto-clears methodInsertion exceptions', () => {
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query(
@@ -1303,7 +1290,7 @@ describe('query exceptions', () => {
   });
 
   it('maps loader exceptions by identifier only when identifier is provided on the exception', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = craftUse(
         query('queryRef', {
@@ -1339,7 +1326,7 @@ describe('query exceptions', () => {
   });
 
   it('keeps params exceptions global in parallel query', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = craftUse(
         query('queryRef', {
@@ -1362,8 +1349,8 @@ describe('query exceptions', () => {
     });
   });
 
-  it('exposes typed exception accessors from params and insertions', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes typed exception accessors from params and insertions', async () => {
+    runInInjectionContext(() => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = craftUse(
         query(
@@ -1409,7 +1396,7 @@ describe('query — providers', () => {
     vi.restoreAllMocks();
   });
 
-  it('exposes the query runtime context to insertion method wrappers', () => {
+  it('exposes the query runtime context to insertion method wrappers', async () => {
     let runtimeContext: QueryMethodRuntimeContext | undefined;
     let observedRuntimeContext: QueryMethodRuntimeContext | undefined;
     const runtimeContextWrapper = provideFnWrapper(
@@ -1420,7 +1407,7 @@ describe('query — providers', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query(
           'queryRef',
@@ -1452,10 +1439,10 @@ describe('query — providers', () => {
     });
   });
 
-  it('exposes the root query resource context to runtime observers', () => {
+  it('exposes the root query resource context to runtime observers', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           providers: [
@@ -1477,10 +1464,10 @@ describe('query — providers', () => {
     });
   });
 
-  it('exposes selected query resource instances to runtime observers', () => {
+  it('exposes selected query resource instances to runtime observers', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           providers: [
@@ -1514,10 +1501,10 @@ describe('query — providers', () => {
     });
   });
 
-  it('requires update rather than patch for an array query value', () => {
+  it('requires update rather than patch for an array query value', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       craftUse(
         query('user', {
           providers: [
@@ -1550,8 +1537,8 @@ describe('query — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    await TestBed.runInInjectionContext(async () => {
-      TestBed.runInInjectionContext(() =>
+    await runInInjectionContext(async () => {
+      runInInjectionContext(() =>
         craftUse(
           query('user', {
             providers: [
@@ -1580,7 +1567,7 @@ describe('query — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       // Create withoutProvider first — its load should NOT call trackingWrapper
       craftUse(
         query('user', {
@@ -1592,7 +1579,7 @@ describe('query — providers', () => {
       expect(callLog).toEqual([]);
 
       // Now create withProvider — its load SHOULD call trackingWrapper
-      TestBed.runInInjectionContext(() =>
+      runInInjectionContext(() =>
         craftUse(
           query('user', {
             providers: [
@@ -1611,13 +1598,13 @@ describe('query — providers', () => {
     });
   });
 
-  it('typing: query accepts BrandedServiceProvider in providers without type errors', () => {
+  it('typing: query accepts BrandedServiceProvider in providers without type errors', async () => {
     const { QueryService, provideQueryService } = craftService(
       { name: 'QueryService', scope: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const withoutProviders = craftUse(
         query('withoutProviders', {
           params: () => 'user-1',
@@ -1658,7 +1645,7 @@ describe('query — loader programs (async pump)', () => {
   });
 
   it('resolves a generator loader suspended on an craftUntilSettled promise await', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1685,7 +1672,7 @@ describe('query — loader programs (async pump)', () => {
   });
 
   it('surfaces an uncaught program short-circuit as the loader exception', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1710,7 +1697,7 @@ describe('query — loader programs (async pump)', () => {
   });
 
   it('recovers through .pipe(catchTag(...)) inside a generator loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1740,7 +1727,7 @@ describe('query — loader programs (async pump)', () => {
       return { id: userId, name: 'Jane Doe', email: 'jane@doe.com' };
     });
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',

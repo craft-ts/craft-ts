@@ -1,5 +1,6 @@
 import {
   createEnvironmentInjector,
+  ErrorHandler,
   type EnvironmentInjector,
   inject,
   Injector,
@@ -421,6 +422,7 @@ function createAngularHostCraftInjector(
     [
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
       provideZonelessChangeDetection(),
+      { provide: ErrorHandler, useClass: ErrorHandler },
       ...extraProviders,
     ],
     Injector.NULL as EnvironmentInjector,
