@@ -1,11 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import {
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -28,6 +22,10 @@ import {
 } from './insert-select-form-tree';
 import { cAsyncValidate, cMaxLength, cRequired } from './validator';
 import { craftUse } from '../craft-use';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
 
 type CheckoutForm = {
   delivery: {
@@ -46,21 +44,6 @@ type CheckoutForm = {
   coupon: { code: string };
 };
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
 describe('migrated checkout form', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -72,7 +55,8 @@ describe('migrated checkout form', () => {
   });
 
   it('composes nested validators, async coupon validation and mutation submit', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    const { injector } = setupCraftServiceTest();
+    await injector.run(async () => {
       const submitted = vi.fn();
       const couponQuery = craftUse(
         query('couponQuery', {
@@ -105,6 +89,7 @@ describe('migrated checkout form', () => {
         coupon: { code: '' },
       } as CheckoutForm satisfies CheckoutForm;
       let readModel: () => CheckoutForm = () => initial;
+      let usesSameAsBilling = () => true;
 
       const { insertDeliveryTree } = makeFormTreeInsert(
         'Delivery',
@@ -140,7 +125,7 @@ describe('migrated checkout form', () => {
                   insertFormAttributes(() => ({
                     validators: [
                       cRequired({
-                        when: () => !readModel().delivery.useSameAsBilling,
+                        when: () => !usesSameAsBilling(),
                       }),
                     ],
                   })),
@@ -187,6 +172,8 @@ describe('migrated checkout form', () => {
         ),
       );
       readModel = () => craftUse(checkout());
+      usesSameAsBilling = () =>
+        craftUse(checkout.form.delivery.useSameAsBilling.value());
 
       const deliveryForm = checkout.form.selectDelivery();
       deliveryForm?.selectStreet();
@@ -194,7 +181,7 @@ describe('migrated checkout form', () => {
       deliveryForm?.selectBillingStreet();
       const couponForm = checkout.form.selectCoupon();
       couponForm?.selectCode();
-      await Promise.resolve();
+      await flushCraftTest(injector);
 
       expect(craftUse(checkout.form.delivery.valid())).toBe(false);
       checkout.form.delivery.street.set('123 Main St');
@@ -202,23 +189,23 @@ describe('migrated checkout form', () => {
         city: 'Paris',
         country: 'France',
       });
-      TestBed.tick();
+      await flushCraftTest(injector);
       expect(craftUse(checkout.form.delivery.valid())).toBe(true);
 
       checkout.form.delivery.useSameAsBilling.set(false);
-      TestBed.tick();
+      await flushCraftTest(injector);
       expect(craftUse(checkout.form.delivery.valid())).toBe(false);
       checkout.form.delivery.billingStreet.set('456 Oak Ave');
-      TestBed.tick();
+      await flushCraftTest(injector);
       expect(craftUse(checkout.form.delivery.valid())).toBe(true);
 
       checkout.form.coupon.code.set('INVALID');
-      TestBed.tick();
+      await flushCraftTest(injector);
       await vi.runAllTimersAsync();
       expect(craftUse(checkout.form.coupon.code.invalid())).toBe(true);
 
       checkout.form.coupon.code.set('SAVE20');
-      TestBed.tick();
+      await flushCraftTest(injector);
       await vi.runAllTimersAsync();
       expect(craftUse(checkout.form.coupon.code.valid())).toBe(true);
 

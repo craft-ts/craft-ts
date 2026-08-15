@@ -3,11 +3,11 @@ import {
   Injector,
   effect,
   untracked,
-  linkedSignal,
   Signal,
   inject,
   computed,
 } from '@angular/core';
+import { angularLinkedSignal as linkedSignal } from '../host/angular-linked-signal';
 import {
   ResourceLikeMutationRef,
   ResourceByIdLikeMutationRef,

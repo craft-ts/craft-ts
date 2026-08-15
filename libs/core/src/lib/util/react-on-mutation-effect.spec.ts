@@ -1,10 +1,13 @@
-import { TestBed } from '@angular/core/testing';
 import { mutation } from '../mutation';
 import { query } from '../query';
 import { reactOnMutationEffect } from './react-on-mutation-effect';
 import { resourceById } from '../resource-by-id';
 import { craftUse } from '../craft-use';
 import { rawReactiveFacade } from '../reactive-read';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
 
 describe('reactOnMutation', () => {
   beforeEach(() => {
@@ -14,7 +17,8 @@ describe('reactOnMutation', () => {
     vi.resetAllMocks();
   });
   it('should enable to a query to react to a mutation change', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    const { injector } = setupCraftServiceTest();
+    await injector.run(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => '5',
@@ -54,6 +58,7 @@ describe('reactOnMutation', () => {
         email: '',
       });
       await vi.runAllTimersAsync();
+      await flushCraftTest(injector);
       expect(craftUse(queryRef.value())).toEqual({
         id: '5',
         name: 'Jane Doe',
@@ -63,7 +68,8 @@ describe('reactOnMutation', () => {
   });
 
   it('should enable to a query with identifier to react to a mutation change', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    const { injector } = setupCraftServiceTest();
+    await injector.run(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => '5',
@@ -100,12 +106,13 @@ describe('reactOnMutation', () => {
           optimisticUpdate: ({ mutationParams }: any) => mutationParams,
         } as any,
       );
+      await vi.runAllTimersAsync();
       mutationRef.mutate({
         id: '5',
         name: 'Jane Doe',
         email: '',
       });
-      await vi.runAllTimersAsync();
+      await flushCraftTest(injector);
       expect(craftUse(queryRef.select('5')?.value())).toEqual({
         id: '5',
         name: 'Jane Doe',
@@ -117,7 +124,8 @@ describe('reactOnMutation', () => {
   it.todo(
     'should enable to a query with identifier to react to a mutation change that rely on a fromResourceById',
     async () => {
-      await TestBed.runInInjectionContext(async () => {
+      const { injector } = setupCraftServiceTest();
+    await injector.run(async () => {
         const resourceByIdRef = resourceById({
           params: () => '1',
           identifier: (params) => params,

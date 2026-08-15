@@ -8,6 +8,7 @@ import {
 } from '../schema-validation';
 import type { StandardSchemaV1 } from '../standard-schema';
 import { rawReactiveValue } from '../reactive-read';
+import { angularLinkedSignal } from '../host/angular-linked-signal';
 import type {
   InsertionFormFactoryContext,
   InsertionsFormFactory,
@@ -87,12 +88,12 @@ export function insertFormSchema<Schema extends CraftSchema>(
   return (
     context: InsertionFormFactoryContext<SchemaInput<Schema>, {}, unknown>,
   ) => {
+    const stateValue = angularLinkedSignal({
+      source: () => rawReactiveValue(context.state)(),
+      computation: (value) => value,
+    });
     const errors = computed(() =>
-      createSchemaErrorEntries(
-        schema,
-        rawReactiveValue(context.state)(),
-        context,
-      ),
+      createSchemaErrorEntries(schema, stateValue(), context),
     ) as CraftFieldSchemaErrorSource;
 
     context.field.ɵregisterSchemaErrorSource(errors);

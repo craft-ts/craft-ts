@@ -18,6 +18,7 @@ import {
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
 import { craftUse } from './craft-use';
+import { markNonYieldableInsertionMethod } from './yieldable';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -151,7 +152,7 @@ describe('insertSelect', () => {
                 color: 'black',
                 paintCount: cell.paintCount + 1,
               })),
-            paintCountStr: computed(
+            paintCountStr: markNonYieldableInsertionMethod(
               () => `Painted ${craftUse(state()).paintCount} times`,
             ),
           })),
@@ -160,7 +161,6 @@ describe('insertSelect', () => {
       expectTypeOf(board.selectCell().paint).toBeFunction();
       expectTypeOf(board.selectCell().paintCountStr()).toEqualTypeOf<string>();
 
-      TestBed.tick();
       craftUse(board.selectCell().paint());
       craftUse(board.selectCell().paint());
       expect(craftUse(board()).cell.color).toBe('black');
@@ -203,7 +203,7 @@ describe('insertSelect', () => {
                 color: 'black',
                 paintCount: cell.paintCount + 1,
               })),
-            paintCountStr: computed(
+            paintCountStr: markNonYieldableInsertionMethod(
               () => `Painted ${craftUse(state()).paintCount} times`,
             ),
           })),
@@ -213,7 +213,6 @@ describe('insertSelect', () => {
         string | undefined
       >();
 
-      TestBed.tick();
       const paintInvocation = cells.selectCell(0)?.paint();
       if (paintInvocation) craftUse(paintInvocation);
       expect(cells.selectCell(0)?.color).toBe('black');

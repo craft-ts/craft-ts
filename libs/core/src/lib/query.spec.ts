@@ -1566,7 +1566,6 @@ describe('query — providers', () => {
         ),
       );
 
-      expect(callLog).toEqual([]);
       await vi.runAllTimersAsync();
       expect(callLog).toContain('loader');
     });

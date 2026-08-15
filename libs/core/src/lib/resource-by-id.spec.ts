@@ -1,6 +1,6 @@
 import { ResourceStatus, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { resourceById } from './resource-by-id';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('resourceById', () => {
   beforeEach(() => {
@@ -9,8 +9,12 @@ describe('resourceById', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
+  const runResource = <T>(fn: () => T | Promise<T>) => {
+    const { injector } = setupCraftServiceTest();
+    return injector.run(fn);
+  };
   it('should create a resource by id', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const rxResourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -39,7 +43,7 @@ describe('resourceById', () => {
   });
 
   it('should accepts a fromResourceById, that accepts another ResourceByIdRef', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const innerResourceByIdRef = resourceById({
         params: sourceParams,
@@ -102,7 +106,7 @@ describe('resourceById', () => {
   });
 
   it('should expose add/reset/restResource function', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -161,7 +165,7 @@ describe('resourceById', () => {
   });
 
   it('should expose changes property with correct ids', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -200,7 +204,7 @@ describe('resourceById', () => {
   });
 
   it('should expose a state signal that returns all resource values by id', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -263,7 +267,7 @@ describe('resourceById', () => {
   });
 
   it('should expose a set function to update multiple resource values', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -278,8 +282,6 @@ describe('resourceById', () => {
         { id: '1' },
         { defaultValue: { id: '1', data: 'Initial data' } },
       );
-      await vi.runAllTimersAsync();
-
       expect(resourceByIdRef.state()).toEqual({
         '1': { id: '1', data: 'Initial data' },
       });
@@ -317,7 +319,7 @@ describe('resourceById', () => {
   });
 
   it('should expose an updateState function that keeps existing values and updates by id', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -335,8 +337,6 @@ describe('resourceById', () => {
         { id: '2' },
         { defaultValue: { id: '2', data: 'Initial 2' } },
       );
-      await vi.runAllTimersAsync();
-
       expect(resourceByIdRef.state()).toEqual({
         '1': { id: '1', data: 'Initial 1' },
         '2': { id: '2', data: 'Initial 2' },

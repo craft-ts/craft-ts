@@ -174,6 +174,7 @@ export * from './lib/form/field-lens';
 export * from './lib/form/insert-form-submit';
 export * from './lib/form/validator';
 export * from './lib/insert-entities';
+export * from './lib/setup-craft-service-test';
 export * from './lib/setup-craft-service-testing-by-register';
 export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';

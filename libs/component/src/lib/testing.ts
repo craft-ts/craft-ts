@@ -19,7 +19,10 @@ import {
   type CompleteServiceDependencyMapFromYielded,
   type FlattenDependencyTree,
 } from '@craft-ng/core';
-import { mountInterpretedComponentTemplate } from './render/interpreter';
+import {
+  mountInterpretedComponent,
+  mountInterpretedComponentTemplate,
+} from './render/interpreter';
 import { craftComponent } from './component';
 import { executeCraftComponentFactory } from './factory-runtime';
 import {
@@ -31,6 +34,7 @@ import {
   type CraftDirective,
   type FactoryContext,
   type FactoryYielded,
+  type PropsOf,
   type TemplateDependencies,
 } from './types';
 import type { CraftTemplateLocatorApi } from './locator';
@@ -648,6 +652,47 @@ export const setupCraftComponentTemplateTest = Object.assign(
   setupCraftComponentTemplateTestImpl,
   { byRegister: setupCraftComponentTemplateTestImpl },
 );
+
+export async function renderCraftComponent<
+  Component extends CraftComponent<any>,
+>(
+  component: Component,
+  options: {
+    props?: PropsOf<Component>;
+    providers?: CraftServiceProvider[];
+  } = {},
+) {
+  const parent = createTestingInjector(options.providers);
+  const host = document.createElement('div');
+  document.body.append(host);
+  const mounted = mountInterpretedComponent(
+    component as never,
+    host,
+    parent,
+    (options.props ?? {}) as PropsOf<Component>,
+  );
+  const detectChanges = () => parent.get(ɵEffectScheduler).flush();
+  const flush = async () => {
+    for (let index = 0; index < 5; index += 1) {
+      detectChanges();
+      await Promise.resolve();
+    }
+    detectChanges();
+  };
+  await flush();
+  return {
+    nativeElement: host,
+    element: host,
+    mounted,
+    detectChanges,
+    flush,
+    destroy() {
+      mounted.destroy();
+      host.remove();
+      parent.destroy();
+    },
+  };
+}
 
 type DirectiveLogicOptions<
   BaseLogic extends ComponentFactory,

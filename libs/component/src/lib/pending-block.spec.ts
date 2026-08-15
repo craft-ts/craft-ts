@@ -1,14 +1,8 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { Injector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { signal } from '@angular/core';
 import {
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -30,38 +24,17 @@ import {
   catchBlock,
   craftComponent,
   div,
-  mountCraftComponent,
   p,
   pendingBlock,
   section,
   span,
   assertAccessible,
 } from '../index';
+import { renderCraftComponent } from './testing';
 import type {
   CraftNodeChildrenPendingSources,
   CraftNodeChildrenSettledExceptions,
 } from './render/vnode';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
-function host(): HTMLElement {
-  const element = document.createElement('div');
-  document.body.append(element);
-  return element;
-}
 
 interface User {
   readonly id: string;
@@ -71,7 +44,6 @@ interface User {
 describe('pendingBlock', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
@@ -105,13 +77,9 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.textContent).toContain('chargement');
     expect(element.textContent).not.toContain('Ada');
@@ -121,12 +89,12 @@ describe('pendingBlock', () => {
     await assertAccessible(element);
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('Ada');
     expect(element.textContent).not.toContain('chargement');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('renders a settledValue bound directly in the template', async () => {
@@ -151,20 +119,16 @@ describe('pendingBlock', () => {
         div([span(text)]).pipe(pendingBlock({ fallback: () => p('attente') })),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toContain('attente');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('prêt');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('shows the reloading slot while a settled source refetches', async () => {
@@ -203,21 +167,17 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toContain('vide');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Ada 0');
 
     (element.querySelector('button') as HTMLButtonElement).click();
-    TestBed.tick();
+    await flush();
 
     // A refetch keeps the stale value on screen and adds the indicator next
     // to it — it does not suspend.
@@ -226,11 +186,11 @@ describe('pendingBlock', () => {
     expect(element.textContent).not.toContain('vide');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Ada 1');
     expect(element.textContent).not.toContain('rafraichissement');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('routes a source exception to the catchBlock, not to the fallback', async () => {
@@ -262,15 +222,11 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('identifiant manquant');
     expect(element.textContent).not.toContain('chargement');
@@ -279,7 +235,7 @@ describe('pendingBlock', () => {
     );
     await assertAccessible(element);
 
-    mounted.destroy();
+    destroy();
   });
 
   it('picks the fallback of the pending source with the exhaustive form', async () => {
@@ -308,20 +264,16 @@ describe('pendingBlock', () => {
         ),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toContain('squelette utilisateurs');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Ada');
 
-    mounted.destroy();
+    destroy();
   });
 });
 

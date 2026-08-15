@@ -1,5 +1,4 @@
 import {
-  computed as ngComputed,
   DestroyRef,
   effect,
   inject,
@@ -22,6 +21,7 @@ import {
 } from './host/craft-signal';
 import { RAW_REACTIVE_VALUE } from './reactive-read';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import { angularLinkedSignal } from './host/angular-linked-signal';
 
 type CraftResourceOptions<Value, Params> = Omit<
   ResourceOptions<Value, Params>,
@@ -158,7 +158,12 @@ export function craftResource<Value, Params>(
     startLoad(params, false);
   };
 
-  const angularParams = options.params ? ngComputed(options.params) : undefined;
+  const angularParams = options.params
+    ? angularLinkedSignal({
+        source: () => options.params!(),
+        computation: (current) => current,
+      })
+    : undefined;
   let craftParamsWatch: { destroy(): void } | undefined;
   const paramsEffect = angularParams
     ? effect(
@@ -244,6 +249,10 @@ export function craftResource<Value, Params>(
     valueState.set(next);
     errorState.set(undefined);
     statusState.set('local');
+    if (angularParams) {
+      currentParams = ngUntracked(() => angularParams());
+      hasCurrentParams = true;
+    }
   };
   const update = (
     updater: (value: Value | undefined) => Value | undefined,

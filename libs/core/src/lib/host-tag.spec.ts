@@ -3,54 +3,47 @@ import {
   createEnvironmentInjector,
   EnvironmentInjector,
   inject,
+  Injector,
+  type Provider,
   runInInjectionContext,
+  ɵINJECTOR_SCOPE,
 } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { COMPONENT_REGISTER, createComponentRegister } from './component-register';
 import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
 import { craftUse } from './craft-use';
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+function createHostInjector(providers: Provider[] = []) {
+  const environmentInjector = createEnvironmentInjector(
+    [
+      { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+      {
+        provide: COMPONENT_REGISTER as never,
+        useValue: createComponentRegister(),
+      },
+      ...providers,
+    ],
+    Injector.NULL as EnvironmentInjector,
+    'host-tag-spec',
+  );
+  return ɵcraftInjectorFromHost(environmentInjector);
+}
 
 describe('host tags', () => {
-  beforeEach(() => {
-    TestBed.resetTestingModule();
-  });
-
   it('should provide HostName through the exported craftService helpers', () => {
-    TestBed.configureTestingModule({
-      providers: [provideHostName('A')],
-    });
-
-    TestBed.runInInjectionContext(() => {
+    createHostInjector([provideHostName('A')]).run(() => {
       expect(craftUse(HostName())).toBe('A');
       expect(inject(HOST_TAG_LIST)).toEqual(['A#1']);
     });
   });
 
   it('should append nested host names in parent-to-child order', () => {
-    TestBed.runInInjectionContext(() => {
-      const rootInjector = inject(EnvironmentInjector);
+    const rootInjector = createHostInjector();
+    rootInjector.run(() => {
       const parentInjector = createEnvironmentInjector(
         [provideHostName('A')],
-        rootInjector,
+        inject(EnvironmentInjector),
       );
       const childInjector = createEnvironmentInjector(
         [provideHostName('B')],
@@ -65,7 +58,7 @@ describe('host tags', () => {
   });
 
   it('should default the host tag list to an empty array', () => {
-    TestBed.runInInjectionContext(() => {
+    createHostInjector().run(() => {
       expect(inject(HOST_TAG_LIST)).toEqual([]);
     });
   });

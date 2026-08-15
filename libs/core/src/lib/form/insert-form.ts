@@ -2,7 +2,6 @@ import {
   computed,
   inject,
   Injector,
-  linkedSignal,
   Signal,
   untracked,
 } from '@angular/core';
@@ -12,6 +11,7 @@ import {
   InsertionsStateFactory,
 } from '../query.core';
 import { createCraftFieldTree, CraftFieldTree } from './craft-field';
+import { angularLinkedSignal } from '../host/angular-linked-signal';
 import {
   createFormExceptions,
   createSubmissionController,
@@ -106,10 +106,14 @@ function buildSimpleForm<Model>(
 ): FormWithInsertions<Model, Record<string, unknown>> {
   const submission = createSubmissionController();
   const rawState = rawReactiveValue(context.state);
+  const fieldState = angularLinkedSignal({
+    source: rawState,
+    computation: (current) => current,
+  });
   const field = createCraftFieldTree<Model>({
     read: () => rawState(),
     set: (next: Model) => context.set(next),
-    asReadonly: () => rawState,
+    asReadonly: () => fieldState,
   });
 
   const { rawInsertionsOutput, exposedInsertionsOutput } =
@@ -806,7 +810,10 @@ export function insertForm(...args: any[]): any {
       const existing = formsByIdentifier.get(formIdentifier);
       if (existing) return existing;
 
-      const itemState = linkedSignal(() => selectItem(formIdentifier));
+      const itemState = angularLinkedSignal({
+        source: () => selectItem(formIdentifier),
+        computation: (current) => current,
+      });
       const itemContext: InsertionStateFactoryContext<
         unknown,
         Record<string, unknown>
@@ -863,30 +870,32 @@ export function insertForm(...args: any[]): any {
       return entry;
     };
 
-    const formsSignal = linkedSignal(() => {
-      const currentState = rawReactiveValue(context.state)();
-      if (!Array.isArray(currentState)) {
-        formsByIdentifier.clear();
-        return [] as ParallelEntry[];
-      }
-
-      const seen = new Set<string | number>();
-      const entries = currentState.map((item, index) => {
-        const id = identifier({ item, index });
-        if (seen.has(id)) {
-          throw new Error(
-            `Duplicate form identifier "${String(id)}" in state.`,
-          );
+    const formsSignal = angularLinkedSignal({
+      source: () => rawReactiveValue(context.state)(),
+      computation: (currentState) => {
+        if (!Array.isArray(currentState)) {
+          formsByIdentifier.clear();
+          return [] as ParallelEntry[];
         }
-        seen.add(id);
-        return getOrCreateEntry(id);
-      });
 
-      for (const cachedId of formsByIdentifier.keys()) {
-        if (!seen.has(cachedId)) formsByIdentifier.delete(cachedId);
-      }
+        const seen = new Set<string | number>();
+        const entries = currentState.map((item, index) => {
+          const id = identifier({ item, index });
+          if (seen.has(id)) {
+            throw new Error(
+              `Duplicate form identifier "${String(id)}" in state.`,
+            );
+          }
+          seen.add(id);
+          return getOrCreateEntry(id);
+        });
 
-      return entries;
+        for (const cachedId of formsByIdentifier.keys()) {
+          if (!seen.has(cachedId)) formsByIdentifier.delete(cachedId);
+        }
+
+        return entries;
+      },
     });
 
     return {

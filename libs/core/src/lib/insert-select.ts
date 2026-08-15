@@ -3,7 +3,6 @@ import {
   Injector,
   inject,
   isSignal,
-  linkedSignal,
   runInInjectionContext,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -33,6 +32,7 @@ import {
   isYieldableReactiveValue,
   rawReactiveValue,
 } from './reactive-read';
+import { angularLinkedSignal } from './host/angular-linked-signal';
 
 function readInsertionState(state: () => unknown): unknown {
   return isYieldableReactiveValue(state) ? rawReactiveValue(state)() : state();
@@ -242,7 +242,10 @@ function createInsertSelectItemRuntime(
         return undefined;
       }
 
-      const selectedStateSignal = linkedSignal(() => select(id));
+      const selectedStateSignal = angularLinkedSignal({
+        source: () => select(id),
+        computation: (selected) => selected,
+      });
       const itemInjector = ɵcreateHostTaggedInjector(
         injector,
         `selectItem:${id}`,
@@ -427,7 +430,7 @@ function createInsertSelectItemRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                        { ...insertionContext, state: selectedStateSignal },
+                      { ...insertionContext, state: selectedStateSignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -607,7 +610,10 @@ function createInsertSelectPropertyRuntime(
         return selectedPropertyProxy;
       }
 
-      const selectedPropertySignal = linkedSignal(() => selectProperty());
+      const selectedPropertySignal = angularLinkedSignal({
+        source: selectProperty,
+        computation: (selected) => selected,
+      });
 
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         propertyInsertions.reduce(
@@ -738,7 +744,7 @@ function createInsertSelectPropertyRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                        { ...insertionContext, state: selectedPropertySignal },
+                      { ...insertionContext, state: selectedPropertySignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],

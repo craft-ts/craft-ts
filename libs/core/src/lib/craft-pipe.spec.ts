@@ -143,7 +143,7 @@ describe('craftPipe with state', () => {
             context,
             insertSelect('value', ({ state: st, update }) => ({
               increment: () => update((c) => c + 1),
-              isOdd: computed(() => craftUse(st()) % 2 === 1),
+              isOdd: () => craftUse(st()) % 2 === 1,
             })),
             insertSelect('nestedValue', ({ state: st }) => ({
               totalLength: computed(() => craftUse(st()).length),
@@ -153,10 +153,10 @@ describe('craftPipe with state', () => {
       );
 
       expectTypeOf(counter.selectValue().increment).toBeFunction();
-      expect(counter.selectValue().isOdd()).toBe(false);
+      expect(craftUse(counter.selectValue().isOdd())).toBe(false);
       craftUse(counter.selectValue().increment());
       expect(craftUse(counter()).value).toBe(1);
-      expect(counter.selectValue().isOdd()).toBe(true);
+      expect(craftUse(counter.selectValue().isOdd())).toBe(true);
       expect(counter.selectNestedValue().totalLength()).toBe(5);
     });
   });
@@ -174,7 +174,7 @@ describe('craftPipe with state', () => {
                 craftPipe(
                   cellContext,
                   ({ state: st }) => ({
-                    styleColor: computed(() => craftUse(st()).style.color),
+                    styleColor: () => craftUse(st()).style.color,
                   }),
                   insertSelect('style', ({ update }) => ({
                     paint: () =>
@@ -187,21 +187,19 @@ describe('craftPipe with state', () => {
                 ),
               ),
               ({ state: st }) => ({
-                paintCount: computed(
-                  () => craftUse(st()).cell.style.paintCount,
-                ),
+                paintCount: () => craftUse(st()).cell.style.paintCount,
               }),
             ),
         ),
       );
 
       expectTypeOf(board.selectCell().selectStyle().paint).toBeFunction();
-      expect(board.selectCell().styleColor()).toBe('white');
+      expect(craftUse(board.selectCell().styleColor())).toBe('white');
       craftUse(board.selectCell().selectStyle().paint());
       expect(craftUse(board()).cell.style.color).toBe('black');
       expect(craftUse(board()).cell.style.paintCount).toBe(1);
       expect(craftUse(board.paintCount())).toBe(1);
-      expect(board.selectCell().styleColor()).toBe('black');
+      expect(craftUse(board.selectCell().styleColor())).toBe('black');
     });
   });
 

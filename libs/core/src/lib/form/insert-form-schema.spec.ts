@@ -1,4 +1,3 @@
-import { TestBed } from '@angular/core/testing';
 import { craftUse } from '../craft-use';
 import { mutation } from '../mutation';
 import { state } from '../state';
@@ -6,6 +5,10 @@ import { insertForm } from './insert-form';
 import { insertFormSchema } from './insert-form-schema';
 import { insertFormSubmit } from './insert-form-submit';
 import type { YieldableReactiveValue } from '../reactive-read';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
 
 type UserForm = {
   email: string;
@@ -44,7 +47,8 @@ describe('insertFormSchema', () => {
           },
     );
 
-    const userForm = TestBed.runInInjectionContext(() =>
+    const { injector } = setupCraftServiceTest();
+    const userForm = injector.run(() =>
       craftUse(
         state(
           'userForm',
@@ -71,7 +75,7 @@ describe('insertFormSchema', () => {
     expect(craftUse(userForm.form.validatedFormValue())).toBeUndefined();
   });
 
-  it('projects nested issues, revalidates, and keeps schema input values', () => {
+  it('projects nested issues, revalidates, and keeps schema input values', async () => {
     const userSchema = schema<UserForm, UserForm>((value) => {
       const zip =
         value && typeof value === 'object' && 'address' in value
@@ -84,7 +88,8 @@ describe('insertFormSchema', () => {
           };
     });
 
-    const userForm = TestBed.runInInjectionContext(() =>
+    const { injector } = setupCraftServiceTest();
+    const userForm = injector.run(() =>
       craftUse(
         state(
           'userForm',
@@ -102,6 +107,8 @@ describe('insertFormSchema', () => {
     expect(craftUse(userForm.form.valid())).toBe(false);
 
     userForm.form.address.zip.set('75001');
+    void craftUse(userForm.form.address.zip.value());
+    await flushCraftTest(injector);
 
     expect(craftUse(userForm.form.valid())).toBe(true);
     expect(craftUse(userForm.form.hasSchemaExceptions())).toBe(false);
@@ -118,7 +125,8 @@ describe('insertFormSchema', () => {
         : { issues: [{ message: 'Age is invalid' }] },
     );
 
-    const userForm = TestBed.runInInjectionContext(() =>
+    const { injector } = setupCraftServiceTest();
+    const userForm = injector.run(() =>
       craftUse(
         state(
           'userForm',
@@ -139,7 +147,8 @@ describe('insertFormSchema', () => {
       issues: [{ message: 'Email is required', path: ['email'] }],
     }));
 
-    const userForm = TestBed.runInInjectionContext(() => {
+    const { injector } = setupCraftServiceTest();
+    const userForm = injector.run(() => {
       const saveUser = craftUse(
         mutation('saveUser', {
           method: (value: UserForm) => value,
@@ -176,7 +185,8 @@ describe('insertFormSchema', () => {
         : { issues: [{ message: 'Email is required', path: ['email'] }] };
     });
 
-    const usersForm = TestBed.runInInjectionContext(() =>
+    const { injector } = setupCraftServiceTest();
+    const usersForm = injector.run(() =>
       craftUse(
         state(
           'usersForm',
@@ -210,7 +220,8 @@ describe('insertFormSchema', () => {
       },
     } as unknown as TestSchema<UserForm>;
 
-    const userForm = TestBed.runInInjectionContext(() =>
+    const { injector } = setupCraftServiceTest();
+    const userForm = injector.run(() =>
       craftUse(
         state(
           'userForm',

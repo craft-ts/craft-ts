@@ -28,6 +28,15 @@ describe('setupCraftServiceTest without TestBed', () => {
     expect(injector.run(() => getCurrentCraftInjector())).toBe(injector);
   });
 
+  it('boots state from a host injector without TestBed', () => {
+    const { injector } = setupCraftServiceTest();
+    const count = injector.run(() => {
+      const counter = craftUse(state('boot', 3));
+      return craftUse(counter());
+    });
+    expect(count).toBe(3);
+  });
+
   it('creates a native CraftInjector from Craft providers', () => {
     const Answer = craftToken<number>('Answer');
 

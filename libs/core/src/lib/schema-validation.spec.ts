@@ -1,19 +1,23 @@
 import {
-  ApplicationRef,
   computed,
   ResourceStreamItem,
   Signal,
   signal,
 } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { asyncProcess } from './async-process';
+import { craftService } from './craft-service';
 import { craftUse } from './craft-use';
 import { mutation } from './mutation';
 import { query } from './query';
 import { state } from './state';
 import { provideCraftSchemaValidationPolicy } from './schema-validation';
 import type { YieldableReactiveValue } from './reactive-read';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
+import type { CraftInjector } from './host/craft-injector';
 
 type TestSchema<Input, Output> = {
   '~standard': {
@@ -38,7 +42,8 @@ const schema = <Input, Output>(
 describe('Standard Schema validation', () => {
   beforeEach(() => vi.useRealTimers());
 
-  const settle = () => TestBed.inject(ApplicationRef).whenStable();
+  const boot = () => setupCraftServiceTest();
+  const settle = (injector: CraftInjector) => flushCraftTest(injector);
 
   it('validates and transforms state values', () => {
     const numberSchema = schema<unknown, number>((value) =>
@@ -47,7 +52,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'number expected' }] },
     );
 
-    const value = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const value = injector.run(() =>
       craftUse(
         state('value', {
           $self: 2,
@@ -62,9 +68,8 @@ describe('Standard Schema validation', () => {
   });
 
   it('specializes hasSchema to false without a schema', () => {
-    const value = TestBed.runInInjectionContext(() =>
-      craftUse(state('value', 1)),
-    );
+    const { injector } = boot();
+    const value = injector.run(() => craftUse(state('value', 1)));
 
     expect(
       craftUse(
@@ -80,7 +85,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'number expected' }] },
     );
 
-    const label = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const label = injector.run(() =>
       craftUse(
         state('label', {
           $self: 1,
@@ -101,7 +107,8 @@ describe('Standard Schema validation', () => {
     );
     const source = signal(1);
 
-    const value = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const value = injector.run(() =>
       craftUse(
         state('value', {
           $self: source,
@@ -126,7 +133,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string expected' }] },
     );
 
-    const search = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const search = injector.run(() =>
       craftUse(
         query('search', {
           methodSchema: inputSchema,
@@ -137,7 +145,7 @@ describe('Standard Schema validation', () => {
     );
 
     search.call('  craft  ');
-    await settle();
+    await settle(injector);
 
     expect(craftUse(search.value())).toEqual(['craft']);
     expect(craftUse(search.hasSchema())).toBe(true);
@@ -154,7 +162,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'params expected' }] },
     );
 
-    const products = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const products = injector.run(() =>
       craftUse(
         query('products', {
           paramsSchema,
@@ -164,7 +173,7 @@ describe('Standard Schema validation', () => {
       ),
     );
 
-    await settle();
+    await settle(injector);
 
     expect(craftUse(products.value())).toEqual([2]);
   });
@@ -176,7 +185,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string array expected' }] },
     );
 
-    const products = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const products = injector.run(() =>
       craftUse(
         query('products', {
           loaderSchema: resultSchema,
@@ -187,7 +197,7 @@ describe('Standard Schema validation', () => {
     );
 
     products.call('craft');
-    await settle();
+    await settle(injector);
     const writableProducts = products as typeof products & {
       set(value: string[]): void;
     };
@@ -212,7 +222,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string array expected' }] },
     );
 
-    const live = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const live = injector.run(() =>
       craftUse(
         query('live', {
           loaderSchema: resultSchema,
@@ -223,10 +234,11 @@ describe('Standard Schema validation', () => {
     );
 
     live.call('craft');
-    await settle();
+    await settle(injector);
     expect(craftUse(live.value())).toEqual(['first']);
 
     values.set({ value: ['second'] });
+    await settle(injector);
     expect(craftUse(live.value())).toEqual(['second']);
   });
 
@@ -237,7 +249,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'resource expected' }] },
     );
 
-    const users = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const users = injector.run(() =>
       craftUse(
         query('users', {
           loaderSchema: resultSchema,
@@ -249,7 +262,7 @@ describe('Standard Schema validation', () => {
     );
 
     users.call('user-1');
-    await settle();
+    await settle(injector);
 
     const usersWithSelect = users as typeof users & {
       select(
@@ -268,7 +281,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'input expected' }] },
     );
 
-    const save = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const save = injector.run(() =>
       craftUse(
         mutation('save', {
           methodSchema: inputSchema,
@@ -279,7 +293,7 @@ describe('Standard Schema validation', () => {
     );
 
     save.mutate({ id: 'user-1' });
-    await settle();
+    await settle(injector);
 
     expect(craftUse(save.value())).toBe('user-1');
   });
@@ -291,7 +305,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string expected' }] },
     );
 
-    const load = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const load = injector.run(() =>
       craftUse(
         asyncProcess('load', {
           methodSchema: inputSchema,
@@ -302,7 +317,7 @@ describe('Standard Schema validation', () => {
     );
 
     load.method(' craft ');
-    await settle();
+    await settle(injector);
 
     expect(craftUse(load.value())).toBe('CRAFT');
     expect(craftUse(load.hasSchema())).toBe(true);
@@ -313,7 +328,8 @@ describe('Standard Schema validation', () => {
     const numberSchema = schema<number, number>(() => ({
       issues: [{ message: 'always invalid' }],
     }));
-    const value = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const value = injector.run(() =>
       craftUse(
         state('value', {
           $self: 1,
@@ -337,21 +353,29 @@ describe('Standard Schema validation', () => {
       issues: [{ message: 'always invalid' }],
     }));
 
-    TestBed.configureTestingModule({
-      providers: [
-        provideCraftSchemaValidationPolicy((context) => {
-          contexts.push({
-            primitive: context.primitive,
-            name: context.name,
-            stage: context.stage,
-            operation: context.operation,
-          });
-          return { action: 'reject' };
-        }),
-      ],
-    });
+    const { SchemaHost } = craftService(
+      { name: 'SchemaHost', scope: 'global' },
+      () => ({}),
+    );
+    const { injector } = setupCraftServiceTest(
+      SchemaHost,
+      {},
+      {
+        providers: [
+          provideCraftSchemaValidationPolicy((context) => {
+            contexts.push({
+              primitive: context.primitive,
+              name: context.name,
+              stage: context.stage,
+              operation: context.operation,
+            });
+            return { action: 'reject' };
+          }),
+        ],
+      },
+    );
 
-    TestBed.runInInjectionContext(() =>
+    injector.run(() =>
       craftUse(
         state('value', {
           $self: 1,
@@ -376,7 +400,8 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'non-negative number expected' }] },
     );
 
-    const total = TestBed.runInInjectionContext(() =>
+    const { injector } = boot();
+    const total = injector.run(() =>
       craftUse(
         state('total', {
           $self: computed(() => source() * 2),

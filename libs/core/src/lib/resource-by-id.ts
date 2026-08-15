@@ -9,8 +9,8 @@ import {
   WritableSignal,
   computed,
   Signal,
-  linkedSignal,
 } from '@angular/core';
+import { angularLinkedSignal as linkedSignal } from './host/angular-linked-signal';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
@@ -411,6 +411,9 @@ export function resourceById<
           defaultValue: options?.defaultValue,
         } as ResourceOptions<State, ResourceParams>,
       });
+      if (options?.defaultValue !== undefined) {
+        CraftResourceRef.set(options.defaultValue);
+      }
       resourceByGroup.update((state) => ({
         ...state,
         [group]: CraftResourceRef,
