@@ -227,6 +227,30 @@ describe('browser boundaries', () => {
     );
   });
 
+  it('reads and writes documentElement lang and dir', () => {
+    document.documentElement.lang = 'en';
+    document.documentElement.removeAttribute('dir');
+
+    const { BrowserDocumentFlow } = craftService(
+      { name: 'BrowserDocumentFlow', scope: 'global' },
+      function* () {
+        expect(yield* BrowserDocument.lang()).toBe('en');
+        yield* BrowserDocument.setLang('fr');
+        yield* BrowserDocument.setDir('rtl');
+        expect(yield* BrowserDocument.lang()).toBe('fr');
+        expect(yield* BrowserDocument.dir()).toBe('rtl');
+        yield* BrowserDocument.setDir('');
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      craftUse(BrowserDocumentFlow());
+    });
+
+    expect(document.documentElement.lang).toBe('fr');
+    expect(document.documentElement.hasAttribute('dir')).toBe(false);
+  });
+
   it('should propagate false from BrowserWindow.confirm', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
