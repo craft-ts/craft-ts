@@ -39,6 +39,7 @@ export const releasePackages = [
 
 export const releaseTrackedFiles = [
   'CHANGELOG.md',
+  'package-lock.json',
   ...releasePackages.map(({ sourceManifest }) => sourceManifest),
 ].sort();
 
