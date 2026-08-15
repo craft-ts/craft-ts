@@ -1,3 +1,14 @@
+## 0.7.0-beta.10 (2026-08-15)
+
+### 🩹 Fixes
+
+- **component:** keep DOM listeners across patches and inherit parent route props ([51d1ae7](https://github.com/ng-angular-stack/ng-craft/commit/51d1ae7))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Romain
+
 ## 0.7.0-beta.9 (2026-08-15)
 
 ### 🚀 Features
