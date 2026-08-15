@@ -88,3 +88,33 @@ export function disclosureControl(
     },
   };
 }
+
+export type ButtonControl = {
+  readonly type: 'button' | 'submit' | 'reset';
+  readonly disabled?: true;
+  readonly 'aria-disabled'?: true;
+  readonly 'data-disabled'?: true;
+};
+
+export function buttonControl(options?: {
+  readonly type?: 'button' | 'submit' | 'reset';
+  readonly disabled?: boolean;
+  readonly keepFocusable?: boolean;
+}): ButtonControl {
+  const type = options?.type ?? 'button';
+  if (!options?.disabled) {
+    return { type };
+  }
+  if (options.keepFocusable) {
+    return {
+      type,
+      'aria-disabled': true,
+      'data-disabled': true,
+    };
+  }
+  return {
+    type,
+    disabled: true,
+    'data-disabled': true,
+  };
+}

@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   button,
+  buttonControl,
   craftComponent,
   disclosureControl,
   div,
@@ -141,5 +142,55 @@ describe('disclosureControl', () => {
     const faq = disclosureControl('faq-1', false, { disabled: true });
     expect(faq.button['aria-disabled']).toBe(true);
     expect(faq.button['data-disabled']).toBe(true);
+  });
+});
+
+describe('buttonControl', () => {
+  it('defaults type to button', () => {
+    const root = craftComponent(
+      'buttonControlType',
+      {},
+      () => ({}),
+      () => button(buttonControl(), 'Save'),
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+    expect(element.querySelector('button')?.getAttribute('type')).toBe('button');
+  });
+
+  it('uses native disabled by default', () => {
+    const root = craftComponent(
+      'buttonControlDisabled',
+      {},
+      () => ({}),
+      () => button(buttonControl({ disabled: true }), 'Save'),
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+    const el = element.querySelector('button');
+    expect(el?.disabled).toBe(true);
+    expect(el?.hasAttribute('data-disabled')).toBe(true);
+    expect(el?.getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('keeps the button focusable when keepFocusable is set', () => {
+    const root = craftComponent(
+      'buttonControlKeepFocusable',
+      {},
+      () => ({}),
+      () =>
+        button(buttonControl({ disabled: true, keepFocusable: true }), 'Save'),
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+    const el = element.querySelector('button') as HTMLButtonElement;
+    expect(el.disabled).toBe(false);
+    expect(el.getAttribute('aria-disabled')).toBe('true');
+    expect(el.hasAttribute('data-disabled')).toBe(true);
+    el.focus();
+    expect(document.activeElement).toBe(el);
   });
 });
