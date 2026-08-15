@@ -99,7 +99,7 @@ when the decoding belongs to the endpoint's own contract.
 ## State
 
 State schemas are declared beside `$self` and validate initial values, writes,
-insertions and values produced by `computed`, `linkedSignal` or `Signal`:
+insertions and values produced by `craftComputed`:
 
 ```typescript
 const user = yield* state('user', {
@@ -108,26 +108,28 @@ const user = yield* state('user', {
 });
 ```
 
-The input type constrains `$self`; the exposed signal uses the schema output
+The input type constrains `$self`; the exposed reader uses the schema output
 type. Invalid derived values keep the last valid value when the policy rejects
 them.
 
 ### Derived state
 
-A schema also validates every new value produced by a `computed` or a
-`linkedSignal` while keeping the dependency reactive:
+A schema also validates every new value produced by a `craftComputed` while
+keeping the dependency reactive:
 
 ```typescript
-const price = signal(10);
-const quantity = signal(2);
+const price = yield* state('price', 10);
+const quantity = yield* state('quantity', 2, ({ set }) => ({ set }));
 
 const total = yield* state('total', {
-  $self: craftComputed('totalSelf', () => price() * quantity()),
+  $self: craftComputed('totalSelf', function* () {
+    return (yield* price()) * (yield* quantity());
+  }),
   schema: NonNegativeNumberSchema,
 });
 
 console.log(yield* total()); // 20
-quantity.set(3);
+yield* quantity.set(3);
 console.log(yield* total()); // 30
 ```
 

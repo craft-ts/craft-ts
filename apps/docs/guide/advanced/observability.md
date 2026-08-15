@@ -213,24 +213,8 @@ Every DOM event bound from a Craft template goes through the
 declared the element, and compose in registration order. A hook must call
 `next()` to preserve the component action.
 
-```ts
-import { craftComponent, button } from '@craft-ng/component';
-import { provideCraftDomEventHook } from '@craft-ng/core';
+<<< @/tests/snippets/guide/advanced/observability/savepanel.spec.ts#savepanel
 
-export const SavePanel = craftComponent(
-  'SavePanel',
-  {
-    providers: [
-      provideCraftDomEventHook((interaction, next) => {
-        console.debug(interaction.interactionName, interaction.event);
-        return next();
-      }),
-    ],
-  },
-  () => ({}),
-  () => button('save', { click: save }, 'Save'),
-);
-```
 
 The hook receives the native event, its normalized name, the element, the
 component name, and a descriptive `interactionName` such as

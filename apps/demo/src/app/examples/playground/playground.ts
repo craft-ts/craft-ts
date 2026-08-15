@@ -253,11 +253,14 @@ const PlaygroundComponent = craftComponent(
   },
   function* () {
     const pg = yield* Playground();
-    const add = craftMethod('add', function* (input: HTMLInputElement) {
-      const title = input.value.trim();
+    const titleInput = yield* state('titleInput', '', ({ set }) => ({
+      setTitle: (value: string) => set(value),
+    }));
+    const add = craftMethod('add', function* () {
+      const title = (yield* titleInput()).trim();
       if (!title) return;
       yield* pg.addTodo.mutate(title);
-      input.value = '';
+      yield* titleInput.setTitle('');
       return {};
     });
     const isAdding = craftComputed('isAdding', function* () {
@@ -268,10 +271,16 @@ const PlaygroundComponent = craftComponent(
       function* () {
           const _pgtodosvalue = yield* pg.todos.value(); return _pgtodosvalue ?? []; },
     );
-    return { pg, add, isAdding, todos };
+    return {
+      pg,
+      add,
+      isAdding,
+      todos,
+      titleInput,
+      setTitle: titleInput.setTitle,
+    };
   },
-  ({ pg, add, isAdding, todos }) => {
-    let field: HTMLInputElement | undefined;
+  ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
     return div({ class: 'playground' }, [
       heading('Playground'),
       p('Sandbox for testing @craft-ng — ready to share on StackBlitz'),
@@ -279,18 +288,19 @@ const PlaygroundComponent = craftComponent(
         input({
           type: 'text',
           placeholder: 'New todo title…',
-          input: (event) => {
-            field = event.target as HTMLInputElement;
+          value: titleInput,
+          *input(event) {
+            yield* setTitle(event.target.value);
           },
           *keydown(event) {
-            if (event.key === 'Enter' && field) yield* add(field);
+            if (event.key === 'Enter') yield* add();
           },
         }),
         button(
           { type: 'button',
             disabled: pg.addTodo.isLoading,
             *click() {
-              if (field) yield* add(field);
+              yield* add();
             },
           },
           ifBlock(

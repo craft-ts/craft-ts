@@ -4,6 +4,7 @@ import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   input,
   p,
@@ -103,6 +104,7 @@ const MutationDemoComponent = craftComponent(
   },
   ({ userQuery, updateUserName, update, goTo, nameInput, setName }) => {
     return div([
+      heading('Update user'),
       div([
         'User ',
         StatusComponent({ status: userQuery.status }),
@@ -127,8 +129,7 @@ const MutationDemoComponent = craftComponent(
           class: 'update-user-name',
           disabled: updateUserName.isLoading,
           click: function* () {
-            const currentName = yield* nameInput();
-            yield* update(currentName);
+            yield* update(yield* nameInput());
           },
         },
         [

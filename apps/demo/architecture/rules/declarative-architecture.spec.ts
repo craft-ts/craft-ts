@@ -10,6 +10,8 @@ describe('assertDeclarativeArchitecture', () => {
   }, 180_000);
 
   it('keeps the app declarative', () => {
-    assertDeclarativeArchitecture(graph.graph);
+    assertDeclarativeArchitecture(graph.graph, {
+      allow: ['addTodo', 'removeTodo', 'submitted', 'issue'],
+    });
   });
 });

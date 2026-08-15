@@ -1447,6 +1447,9 @@ describe('insertion architecture rules', () => {
     expect(() => assertMutationHasReactOn(graph.graph)).toThrow(
       /mutation save has no query reacting to it/i,
     );
+    expect(() => assertDeclarativeArchitecture(graph.graph)).toThrow(
+      /mutation save has no query reacting to it/i,
+    );
   });
 
   it('accepts a mutation that a query reacts to, and an allowlisted orphan', async () => {
@@ -1475,6 +1478,9 @@ describe('insertion architecture rules', () => {
     );
     expect(() =>
       assertMutationHasReactOn(graph.graph, { allow: ['logout'] }),
+    ).not.toThrow();
+    expect(() =>
+      assertDeclarativeArchitecture(graph.graph, { allow: ['logout'] }),
     ).not.toThrow();
   });
 

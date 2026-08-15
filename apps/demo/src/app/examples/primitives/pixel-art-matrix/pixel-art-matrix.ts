@@ -11,6 +11,10 @@ import {
   heading,
 } from '@craft-ng/component';
 import { state, craftUse } from '@craft-ng/core';
+import {
+  LONG_PRESS_DURATION_MS,
+  longPress,
+} from './long-press.directive';
 
 type Cell = {
   readonly id: number;
@@ -74,6 +78,20 @@ const PixelArtMatrix = craftComponent(
               : row,
           ),
         ),
+      paintColumn: (columnIndex: number, color: string) =>
+        update((rows) =>
+          rows.map((row) =>
+            row.map((cell, c) =>
+              c === columnIndex
+                ? {
+                    ...cell,
+                    color,
+                    count: cell.count + 1,
+                  }
+                : cell,
+            ),
+          ),
+        ),
       addRow: () =>
         update((rows) => [
           ...rows,
@@ -99,7 +117,9 @@ const PixelArtMatrix = craftComponent(
     section([
       header([
         heading('Pixel Art Workshop (Matrix)'),
-        p('2D matrix: click paints, right-click paints a row.'),
+        p(
+          '2D matrix: click paints, right-click paints a row, long-press paints a column.',
+        ),
       ]),
       div(
         { class: 'matrix-palette' },
@@ -132,14 +152,18 @@ const PixelArtMatrix = craftComponent(
                 'aria-label': function* () {
                   return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
                 },
+                longPressDuration: LONG_PRESS_DURATION_MS,
+                *onLongPress() {
+                  yield* grid.paintColumn(columnIndex, (yield* cell()).color);
+                },
                 *click() {
                   yield* grid.paint(rowIndex, columnIndex);
                 },
-                *contextmenu(event) {
+                *contextmenu(event: MouseEvent) {
                   event.preventDefault();
                   yield* grid.paintRow(rowIndex, (yield* cell()).color);
                 },
-              }),
+              }).pipe(longPress),
             ),
             button(
               { type: 'button',

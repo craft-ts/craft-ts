@@ -5,29 +5,7 @@ refresh and a copy-pasted link — without syncing anything by hand.
 
 ## `queryParams` is a state that lives in the URL
 
-```typescript
-import { queryParams } from '@craft-ng/core';
-
-const numberCodec = {
-  decode: (value: string) => parseInt(value, 10),
-  encode: (value: number) => String(value),
-};
-const booleanCodec = {
-  decode: (value: string) => value === 'true',
-  encode: (value: boolean) => String(value),
-};
-
-const filters = yield* queryParams(
-  'filters',
-  {
-    state: {
-      page: { fallbackValue: 1, codec: numberCodec },
-      showDone: { fallbackValue: false, codec: booleanCodec },
-    },
-  },
-  ({ set, patch, reset }) => ({ set, patch, reset }),
-);
-```
+<<< @/tests/snippets/learn/07-url-state/query-params.spec.ts#query-params
 
 Reading and writing look like any other state — the URL follows:
 

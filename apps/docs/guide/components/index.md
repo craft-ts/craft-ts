@@ -31,20 +31,8 @@ craftComponent(name, meta, factory, template);
 | `factory`  | the **logic**: builds and returns the context                     |
 | `template` | receives that context, returns nodes                              |
 
-```typescript
-import { craftComponent, div, each, h1, li, ul } from '@craft-ng/component';
-import { deepYieldable, state } from '@craft-ng/core';
+<<< @/tests/snippets/guide/components/index/tasks.spec.ts#tasks
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [] as Task[]);
-    return { tasks };
-  },
-  ({ tasks }) => [h1('Tasks'), ul(each(tasks, { track: (task) => task.id }, (task) => li(task.title)))],
-);
-```
 
 The split matters: the factory produces a context **without touching the DOM**,
 and the template renders a context **without running the factory**. That is what
@@ -76,25 +64,8 @@ exposed.
 They are **parameters of the factory**, typed with `Input<T>` and
 `Output<Handler>`:
 
-```typescript
-const UserCard = craftComponent(
-  'UserCard',
-  {},
-  (user: Input<User>, onRemove: Output<(user: User) => void>) => ({
-    user: deepYieldable(user),
-    onRemove,
-  }),
-  ({ user, onRemove }) =>
-    div([
-      span(user.name),
-      button({
-        *click() {
-          yield* onRemove(yield* user());
-        },
-      }, 'Remove'),
-    ]),
-);
-```
+<<< @/tests/snippets/guide/components/index/usercard.spec.ts#usercard
+
 
 An `Input<T>` **is a yieldable reader** — `yield* user()` reads the current
 value. An `Output<H>` is a yieldable callback; delegate to it with `yield*`.

@@ -20,6 +20,7 @@ import {
   type ProjectionSlot,
   type RequiredContent,
   heading,
+  headingSection,
 } from '@craft-ng/component';
 import type { Input } from '@craft-ng/component';
 import { craftComputed, state } from '@craft-ng/core';
@@ -210,9 +211,10 @@ export const contentProjectionDemo = craftComponent(
   }) =>
     section({ class: 'component-demo projection-demo' }, [
       heading('Projection de contenu et contrats logiques'),
-      p(
-        'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
-      ),
+      headingSection([
+        p(
+          'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
+        ),
       card({
         header: content(() => heading('Slot header fourni par la page')),
         body: content(
@@ -329,5 +331,6 @@ export const contentProjectionDemo = craftComponent(
           }),
         () => [],
       ),
+      ]),
     ]),
 );

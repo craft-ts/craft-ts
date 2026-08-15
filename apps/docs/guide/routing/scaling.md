@@ -193,7 +193,7 @@ export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
 ]).withParent<ParentRoutes<'view-transitions'>>();
 ```
 
-```ts
+```typescript
 // app.routes.ts — the parent enforces placement (scoped to this file)
 import { assertChildRouteMounts, craftRoutes } from '@craft-ng/core';
 
@@ -209,6 +209,8 @@ export const { demoRoutes } = craftRoutes('demo', [
 
 assertChildRouteMounts(demoRoutes);
 ```
+
+
 
 Mount the pinned collection under any other path and the **parent file** fails to compile:
 

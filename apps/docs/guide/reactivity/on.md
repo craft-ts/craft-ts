@@ -243,6 +243,8 @@ console.log(filters.search()); // ''
 console.log(filters.category()); // 'all'
 ```
 
+
+
 ### Conditional state updates
 
 ```typescript

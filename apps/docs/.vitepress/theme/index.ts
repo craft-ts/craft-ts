@@ -2,6 +2,7 @@
 import { h } from 'vue';
 import type { Theme } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
+import AuthorNote from './AuthorNote.vue';
 import CraftTemplateMigrator from './CraftTemplateMigrator.vue';
 import './style.css';
 
@@ -13,6 +14,7 @@ export default {
     });
   },
   enhanceApp({ app }) {
+    app.component('AuthorNote', AuthorNote);
     app.component('CraftTemplateMigrator', CraftTemplateMigrator);
   },
 } satisfies Theme;

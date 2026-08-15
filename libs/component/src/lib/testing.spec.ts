@@ -16,7 +16,7 @@ import {
 import { craftService, craftUse } from '@craft-ng/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
-import { div, button, input, p, span } from './hyperscript';
+import { div, button, input, label, p, span } from './hyperscript';
 import { ifBlock } from './if-block';
 import { each } from './each';
 import { markYieldableValue } from '@craft-ng/core';
@@ -117,6 +117,30 @@ describe('Craft component and directive testing utilities', () => {
     result.destroy();
     expect(result.nativeElement.textContent).toBe('');
     expect(document.querySelector('style[data-craft-sheet]')).toBeNull();
+  });
+
+  it('finds controls by role and accessible name', async () => {
+    const Page = craftComponent(
+      'roleLocatorPage',
+      {},
+      () => ({}),
+      () => [
+        label({ htmlFor: 'email' }, 'Email'),
+        input({ id: 'email', type: 'email' }),
+        button({ type: 'button' }, 'Save'),
+      ],
+    );
+    const result = await setupCraftComponentTemplateTest(Page, {
+      context: {},
+      register: {},
+    });
+    expect(result.getByRole('button', { name: 'Save' }).textContent).toBe('Save');
+    expect(result.getByLabel('Email').id).toBe('email');
+    expect(result.queryByRole('button', { name: 'Missing' })).toBeUndefined();
+    expect(() => result.getByRole('button', { name: 'Missing' })).toThrow(
+      /Unable to find/,
+    );
+    result.destroy();
   });
 
   it('locates statically identified elements with inferred DOM types', async () => {

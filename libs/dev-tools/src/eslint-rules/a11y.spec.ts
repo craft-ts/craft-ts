@@ -1,6 +1,9 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { ESLint } from 'eslint';
 import tsParser from '@typescript-eslint/parser';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -23,6 +26,40 @@ async function lint(code: string, rule: string) {
 
 function messages(result: ESLint.LintResult) {
   return result.messages.map((message) => message.message);
+}
+
+const tempDirectories: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    tempDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { force: true, recursive: true })),
+  );
+});
+
+async function lintTree(files: Record<string, string>, rule: string) {
+  const root = await mkdtemp(join(tmpdir(), 'craft-a11y-'));
+  tempDirectories.push(root);
+  for (const [relative, source] of Object.entries(files)) {
+    const filePath = join(root, relative);
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, source.trimStart(), 'utf8');
+  }
+  const eslint = new ESLint({
+    cwd: root,
+    overrideConfigFile: true,
+    overrideConfig: [
+      {
+        files: ['**/*.ts'],
+        languageOptions: { parser: tsParser },
+        plugins: { 'craft-ng': plugin },
+        rules: { [`craft-ng/${rule}`]: 'error' },
+      },
+    ],
+  });
+  const results = await eslint.lintFiles(['**/*.ts']);
+  return results.flatMap((result) => result.messages.map((message) => message.message));
 }
 
 describe('craft-ng a11y', () => {
@@ -236,7 +273,7 @@ describe('craft-ng a11y', () => {
   });
 
   describe('require-route-heading-outline', () => {
-    it('skips lazy import() factories', async () => {
+    it('does not report an unresolved lazy import in a virtual file', async () => {
       const [result] = await lint(
         `craftRoutes('demo', [{ path: 'x', loadComponent: () => import('./page').then(m => m.Page) }]);`,
         'require-route-heading-outline',
@@ -249,7 +286,102 @@ describe('craft-ng a11y', () => {
         `craftRoutes('demo', [{ path: 'x', loadComponent: () => div('page') }]);`,
         'require-route-heading-outline',
       );
-      expect(messages(result)[0]).toContain('heading outline');
+      expect(messages(result)[0]).toContain('heading(');
+    });
+
+    it('rejects headingSection-only inline factories', async () => {
+      const [result] = await lint(
+        `craftRoutes('demo', [{ path: 'x', loadComponent: () => headingSection([div('page')]) }]);`,
+        'require-route-heading-outline',
+      );
+      expect(messages(result)[0]).toContain('heading(');
+    });
+
+    it('accepts an inline factory that calls heading()', async () => {
+      const [result] = await lint(
+        `craftRoutes('demo', [{ path: 'x', loadComponent: () => heading('Page') }]);`,
+        'require-route-heading-outline',
+      );
+      expect(result.messages).toEqual([]);
+    });
+
+    it('rejects a lazy loadComponent whose module does not call heading()', async () => {
+      const found = await lintTree(
+        {
+          'app.routes.ts': `
+            export const { demoRoutes } = craftRoutes('demo', [
+              { path: 'x', loadComponent: () => import('./page').then((m) => m.Page) },
+            ]);
+          `,
+          'page.ts': `export const Page = craftComponent('Page', {}, () => ({}), () => div('page'));`,
+        },
+        'require-route-heading-outline',
+      );
+      expect(found.some((message) => message.includes('heading('))).toBe(true);
+    });
+
+    it('accepts a lazy loadCraftComponent whose module calls heading()', async () => {
+      const found = await lintTree(
+        {
+          'app.routes.ts': `
+            export const { demoRoutes } = craftRoutes('demo', [
+              { path: 'x', ...loadCraftComponent(() => import('./page').then((m) => m.Page)) },
+            ]);
+          `,
+          'page.ts': `export const Page = craftComponent('Page', {}, () => ({}), () => heading('Page'));`,
+        },
+        'require-route-heading-outline',
+      );
+      expect(found).toEqual([]);
+    });
+
+    it('rejects craftRoute(...loadCraftComponent) without heading()', async () => {
+      const found = await lintTree(
+        {
+          'app.routes.ts': `
+            export const { demoRoutes } = craftRoutes('demo', [
+              craftRoute('x', { ...loadCraftComponent(() => import('./page').then((m) => m.Page)) }),
+            ]);
+          `,
+          'page.ts': `export const Page = craftComponent('Page', {}, () => ({}), () => div('page'));`,
+        },
+        'require-route-heading-outline',
+      );
+      expect(found.some((message) => message.includes('heading('))).toBe(true);
+    });
+  });
+
+  describe('require-outlet-heading-section', () => {
+    it('allows a shell outlet without heading()', async () => {
+      const [result] = await lint(
+        `craftComponent('App', {}, () => ({}), () => main({ id: 'main' }, CraftRouterOutlet()));`,
+        'require-outlet-heading-section',
+      );
+      expect(result.messages).toEqual([]);
+    });
+
+    it('rejects heading() above an unwrapped outlet', async () => {
+      const [result] = await lint(
+        `craftComponent('App', {}, () => ({}), () => [heading('App'), main(CraftRouterOutlet())]);`,
+        'require-outlet-heading-section',
+      );
+      expect(messages(result)[0]).toContain('headingSection');
+    });
+
+    it('accepts a layout that wraps the outlet in headingSection', async () => {
+      const [result] = await lint(
+        `craftComponent('Layout', {}, () => ({}), () => [heading('Layout'), headingSection([CraftRouterOutlet()])]);`,
+        'require-outlet-heading-section',
+      );
+      expect(result.messages).toEqual([]);
+    });
+
+    it('rejects a headingSection around the outlet without heading()', async () => {
+      const [result] = await lint(
+        `craftComponent('Layout', {}, () => ({}), () => headingSection([CraftRouterOutlet()]));`,
+        'require-outlet-heading-section',
+      );
+      expect(messages(result)[0]).toContain('heading(');
     });
   });
 
@@ -266,5 +398,8 @@ describe('craft-ng a11y', () => {
   it('exports the a11y preset as error', () => {
     expect(plugin.configs.a11y.rules['craft-ng/img-has-alt']).toBe('error');
     expect(plugin.configs.a11y.rules['craft-ng/button-has-type']).toBe('error');
+    expect(plugin.configs.a11y.rules['craft-ng/require-outlet-heading-section']).toBe(
+      'error',
+    );
   });
 });

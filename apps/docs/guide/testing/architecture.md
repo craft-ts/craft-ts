@@ -264,8 +264,8 @@ string.
 
 ## Built-in helpers
 
-The declarative baseline is four graph-wide checks. Import them all, then
-either call each one or `assertDeclarativeArchitecture` for the four together.
+The declarative baseline is five graph-wide checks. Import them all, then
+either call each one or `assertDeclarativeArchitecture` for the five together.
 The demo suite keeps one file per rule in `apps/demo/architecture/rules/` —
 run it with `npx nx architecture demo`.
 
@@ -275,11 +275,11 @@ run it with `npx nx architecture demo`.
 | `assertHttpEndpointUnique` | the same HTTP verb+URL is called from more than one site |
 | `assertCraftComputedPure` | a `craftComputed` `calls` a method or `writes` a `source$` |
 | `assertNoDependencyCycles` | a directed cycle exists on `depends-on` (services, components, computeds) |
-| `assertDeclarativeArchitecture` | any of the four above fail |
+| `assertMutationHasReactOn` | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
+| `assertDeclarativeArchitecture` | any of the five above fail |
 | `assertRouteDiProofs` | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
 | `assertPathBoundaries` | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
 | `noExclusiveLink(a, b)` | the only path between two branches is a leak, not a shared kernel |
-| `assertMutationHasReactOn` | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
 | `assertPersistedPrimitiveHasUnique` | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
 | `assertInsertSelectUnique` | the same `insertSelect` key appears twice on one host primitive |
 | `assertCraftEffectNoNetwork` | a `craftEffect` `calls` HTTP or a `mutation` |
@@ -409,11 +409,12 @@ it('forbids depends-on cycles', () => {
 
 ### `assertDeclarativeArchitecture`
 
-Runs the four checks above and joins their messages.
+Runs the five checks above and joins their messages. Pass `{ allow }` through
+to `assertMutationHasReactOn` for fire-and-forget mutations.
 
 ```typescript
 it('keeps the app declarative', () => {
-  assertDeclarativeArchitecture(graph.graph);
+  assertDeclarativeArchitecture(graph.graph, { allow: ['logout'] });
 });
 ```
 

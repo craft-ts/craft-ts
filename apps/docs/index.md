@@ -63,3 +63,5 @@ The toolkit is split into focused packages. They are currently published on the
 | [`@craft-ng/core`](https://www.npmjs.com/package/@craft-ng/core)           | Reactive primitives, services, forms, routing and testing utilities |
 | [`@craft-ng/component`](https://www.npmjs.com/package/@craft-ng/component) | Selectorless functional components and typed hyperscript templates  |
 | [`@craft-ng/dev-tools`](https://www.npmjs.com/package/@craft-ng/dev-tools) | Codemods, generators, CLI commands and ESLint rules                 |
+
+<AuthorNote />

@@ -76,24 +76,43 @@ au shell applicatif :
 - `heading()` lit le niveau courant (1–6) et rend `h1`…`h6`.
 - `headingSection(...)` incrémente d’un cran pour le sous-arbre — fragments
   commentaires, pas de wrapper DOM, comme `ifBlock`.
-- `headingRoot(...)` repart à `h1` (page de route). Un `dialog` pose aussi sa
-  propre racine d’outline (titre du dialogue = niveau 1 **dans** le dialog).
+- `headingRoot(...)` repart à `h1` (dialog, reset explicite). Un `dialog` pose
+  aussi sa propre racine d’outline (titre du dialogue = niveau 1 **dans** le
+  dialog). Les SFC `loadComponent` restent sur `heading()`.
 - `h1()`…`h6()` restent pour le HTML brut. La règle `prefer-relative-heading`
   les interdit dans un `craftComponent` (hors specs).
 
 Un composant réutilisable expose `heading()` sans `headingSection` local : le
 besoin d’outline **remonte** au parent. Appeler ce composant hors d’un
-`headingSection` **ne compile pas** (même ADN que `pendingBlock`). La route
-établit le niveau 1 avec `heading()` / `headingRoot()`.
+`headingSection` **ne compile pas** (même ADN que `pendingBlock`).
+
+Toute SFC montée via `loadComponent` / `loadCraftComponent` appelle
+`heading()` — pas `headingRoot()`. Le rang (h1 vs h2+) vient du parent :
+
+- **Page** (sœur sous le shell) : `heading()` est le h1.
+- **Layout** (SFC avec `CraftRouterOutlet`) : `heading()` +
+  `headingSection([…, CraftRouterOutlet()])` pour que l’enfant hérite h2+.
+- **Shell** (`App`) : `skipLink` + `main` + `CraftRouterOutlet`, **sans**
+  `heading()` au-dessus de l’outlet. Sinon deux h1, ou des enfants coincés
+  au même niveau que le titre du chrome.
+
+`require-route-heading-outline` lit la cible lazy. `require-outlet-heading-section`
+distingue layout et shell. Les types ne relient pas l’outlet à l’enfant routé.
 
 ```ts
+// Shell — pas de heading() au-dessus de l’outlet
 skipLink('main', 'Aller au contenu');
-main({ id: 'main', tabIndex: -1 }, [
-  heading('Liste des tâches'),
-  headingSection([
-    heading('Détail'),
-    TaskCard(), // le heading() interne devient hN+1
-  ]),
+main({ id: 'main', tabIndex: -1 }, CraftRouterOutlet());
+
+// Layout — titre + outlet dans headingSection
+heading('Équipe');
+headingSection([CraftRouterOutlet()]);
+
+// Page (loadComponent) — heading() seulement ; h1 ou h2+ selon le parent
+heading('Liste des tâches');
+headingSection([
+  heading('Détail'),
+  TaskCard(),
 ]);
 ```
 

@@ -169,6 +169,8 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
 );
 ```
 
+
+
 Working source:
 [exception-query-params.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts).
 :::

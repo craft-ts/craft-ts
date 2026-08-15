@@ -14,4 +14,11 @@ describe('assertDeclarativeArchitecture', () => {
       /GET users/,
     );
   });
+
+  it('rejects a mutation that no query reacts to', () => {
+    const graph = loadArchitectureFixture('orphan-mutation');
+    expect(() => assertDeclarativeArchitecture(graph.graph)).toThrow(
+      /Mutation save has no query reacting to it/,
+    );
+  });
 });

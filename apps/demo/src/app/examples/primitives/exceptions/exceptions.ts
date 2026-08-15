@@ -158,22 +158,19 @@ const ExceptionsComponent = craftComponent(
             p([
               strong('ID: '),
               function* () {
-                const user = yield* userQuery.value();
-                return (user as { id: string }).id;
+                return ((yield* userQuery.value()) as { id: string }).id;
               },
             ]),
             p([
               strong('Name: '),
               function* () {
-                const user = yield* userQuery.value();
-                return (user as { name: string }).name;
+                return ((yield* userQuery.value()) as { name: string }).name;
               },
             ]),
             p([
               strong('Email: '),
               function* () {
-                const user = yield* userQuery.value();
-                return (user as { email: string }).email;
+                return ((yield* userQuery.value()) as { email: string }).email;
               },
             ]),
           ]),

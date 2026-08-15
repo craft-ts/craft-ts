@@ -82,6 +82,8 @@ export const Counter = craftComponent(
 );
 ```
 
+
+
 `counter` does not belong to `increment`, so the method yields
 `counter.update`. Pass the method to the template (`click: increment`) rather
 than wrapping `() => increment()`.

@@ -129,19 +129,8 @@ listener and does not alter dependency metadata.
 
 Event listeners are automatically removed when the injection context is destroyed:
 
-```typescript
-export const Demo = craftComponent(
-  'Demo',
-  {},
-  function* () {
-    const keydown$ = fromEventToSource$<KeyboardEvent>(document, 'keydown');
+<<< @/tests/snippets/guide/reactivity/from-event-to-source/demo.spec.ts#demo
 
-    // the listener is removed automatically when the component is destroyed
-    return { keydown$ };
-  },
-  () => p('Press any key'),
-);
-```
 
 ### Signal Integration
 
@@ -311,40 +300,8 @@ export const Responsive = craftComponent(
 
 ### Keyboard Shortcuts
 
-```typescript
-interface ShortcutEvent {
-  key: string;
-  ctrlKey: boolean;
-  shiftKey: boolean;
-  altKey: boolean;
-}
+<<< @/tests/snippets/guide/reactivity/from-event-to-source/shortcuts.spec.ts#shortcuts
 
-export const Shortcuts = craftComponent(
-  'Shortcuts',
-  {},
-  function* () {
-    const save = () => console.log('Save triggered');
-    const undo = () => console.log('Undo triggered');
-
-    const keydown$ = fromEventToSource$(document, 'keydown', {
-      computedValue: (event: KeyboardEvent) => ({
-        key: event.key,
-        ctrlKey: event.ctrlKey,
-        shiftKey: event.shiftKey,
-        altKey: event.altKey,
-      }),
-    });
-
-    keydown$.subscribe((shortcut) => {
-      if (shortcut.ctrlKey && shortcut.key === 's') save();
-      else if (shortcut.ctrlKey && shortcut.key === 'z') undo();
-    });
-
-    return {};
-  },
-  () => p('Try Ctrl+S or Ctrl+Z'),
-);
-```
 
 ### Dynamic Element Listening
 
@@ -416,40 +373,8 @@ export const CursorTracker = craftComponent(
 
 ### Form Submission
 
-```typescript
-export const SubmitDemo = craftComponent(
-  'SubmitDemo',
-  {},
-  function* () {
-    const submit$ = fromEventToSource$(document, 'submit', {
-      computedValue: (event: Event) => {
-        event.preventDefault();
-        const formData = new FormData(event.target as HTMLFormElement);
-        return Object.fromEntries(formData);
-      },
-    });
+<<< @/tests/snippets/guide/reactivity/from-event-to-source/submitdemo.spec.ts#submitdemo
 
-    const formData = yield* state(
-      'formData',
-      null as Record<string, unknown> | null,
-      ({ set }) => ({
-        // bound to the source, so NOT exposed on the ref
-        handleSubmit: on$(submit$, (data) => set(data)),
-      }),
-    );
-
-    return { formData };
-  },
-  ({ formData }) =>
-    form([
-      input({ type: 'text', name: 'username' }),
-      button({ type: 'submit' }, 'Submit'),
-      p(function* () {
-        return JSON.stringify(yield* formData());
-      }),
-    ]),
-);
-```
 
 ## Comparison with sourceFromEvent
 

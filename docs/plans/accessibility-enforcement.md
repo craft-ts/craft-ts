@@ -4,4 +4,5 @@ Cible : WCAG 2.2 AA. Couches : types hyperscript, ESLint `craft-ng/a11y`,
 runtime des blocs, primitives `dialog` / `liveRegion` / outline de titres,
 skip-link, titres de route, focus après navigation, tests.
 
-Voir `apps/docs/guide/components/accessibility.md`.
+Toute SFC `loadComponent` appelle `heading()`. Layout : `headingSection` autour
+de l’outlet. Shell : pas de `heading()` au-dessus de l’outlet.

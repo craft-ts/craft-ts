@@ -5,27 +5,7 @@ loading, error and exception state for free.
 
 ## The query primitive
 
-```typescript
-import { CraftHttpClient, craftService, query } from '@craft-ng/core';
-
-export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
-  function* () {
-    const tasksQuery = yield* query('tasksQuery', {
-      // The initial params value immediately triggers the loader.
-      params: () => ({ done: false }),
-      loader: function* ({ params }) {
-        return yield* CraftHttpClient.get(({ response }) => ({
-          url: `/api/tasks?done=${params.done}`,
-          success: response<Task[]>(),
-        }));
-      },
-    });
-
-    return tasksQuery;
-  },
-);
-```
+<<< @/tests/snippets/learn/05-load-data/task-list-query.spec.ts#task-list-query
 
 Three things to read here.
 
@@ -100,21 +80,7 @@ See [Exceptions as values](/guide/concepts/exceptions).
 `params` re-runs the loader automatically. When the trigger is a user action
 instead, use `method`:
 
-```typescript
-const { searchQuery } =
-  yield *
-  query('searchQuery', {
-    method: (term: string) => term,
-    loader: function* ({ params: term }) {
-      return yield* CraftHttpClient.get(({ response }) => ({
-        url: `/api/tasks?q=${term}`,
-        success: response<Task[]>(),
-      }));
-    },
-  });
-
-yield * searchQuery.call('angular');
-```
+<<< @/tests/snippets/learn/05-load-data/search-query.spec.ts#search-query
 
 ## Adding derived values
 

@@ -222,7 +222,7 @@ assertHttpEndpointUnique(graph.graph);
 assertCraftComputedPure(graph.graph);
 assertNoDependencyCycles(graph.graph);
 assertRouteDiProofs(graph.graph);
-// or the four declarative checks together:
+// or the five declarative checks together:
 assertDeclarativeArchitecture(graph.graph);
 ```
 

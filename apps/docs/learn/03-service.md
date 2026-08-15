@@ -6,27 +6,7 @@
 
 The factory body moves out almost unchanged — it was already a generator:
 
-```typescript
-import { craftComputed, craftService, state } from '@craft-ng/core';
-
-export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
-  function* () {
-    const tasks = yield* state('tasks', [] as Task[], ({ state, update }) => ({
-      add: (title: string) => update((current) => [...current, newTask(title)]),
-      toggle: (id: string) =>
-        update((current) =>
-          current.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
-        ),
-      remaining: craftComputed(function* () {
-        return (yield* state()).filter((t) => !t.done).length;
-      }),
-    }));
-
-    return tasks;
-  },
-);
-```
+<<< @/tests/snippets/learn/03-service/task-list.spec.ts#task-list
 
 A service is the same shape as a component's logic factory: a generator that
 yields what it needs and returns a context. The only additions are a **name** and

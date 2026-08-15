@@ -537,14 +537,14 @@ async function scaffoldMatches(
     const project = JSON.parse(await readFile(projectPath, 'utf8')) as {
       targets?: Record<string, { options?: { command?: string } }>;
     };
-    return Boolean(project.targets?.architecture?.options?.command);
+    return Boolean(project.targets?.['architecture']?.options?.command);
   }
   const packagePath = findPackageJson(context.appRoot, context.workspaceRoot);
   if (!packagePath) return false;
   const pkg = JSON.parse(await readFile(packagePath, 'utf8')) as {
     scripts?: Record<string, string>;
   };
-  return pkg.scripts?.architecture?.includes('vitest.architecture.config.ts') === true;
+  return pkg.scripts?.['architecture']?.includes('vitest.architecture.config.ts') === true;
 }
 
 function normalize(value: string): string {

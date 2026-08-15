@@ -829,6 +829,13 @@ export interface HeadingNode<
   readonly kind: 'heading';
   readonly props: Props;
   readonly children: Children;
+  readonly pipe: CraftNodePipe<
+    Dependencies,
+    CraftNodeChildrenExceptions<Children>,
+    CraftNodeChildrenRawFieldExceptions<Children>,
+    CraftNodeChildrenPendingSources<Children>,
+    CraftNodeChildrenSettledExceptions<Children>
+  >;
 }
 
 /**

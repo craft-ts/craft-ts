@@ -4,6 +4,7 @@ import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   input,
   p,
@@ -119,6 +120,7 @@ const MutationCraft = craftComponent(
   },
   ({ store, nameInput, setName, hasUser, updateUserNameFn, navigate }) => {
     return div([
+      heading('Update user'),
       div([
         'User ',
         StatusComponent({ status: store.user.status }),
@@ -143,8 +145,7 @@ const MutationCraft = craftComponent(
           class: 'update-user-name',
           disabled: store.updateUserName.isLoading,
           *click() {
-            const currentName = yield* nameInput();
-            yield* updateUserNameFn(currentName ?? '');
+            yield* updateUserNameFn((yield* nameInput()) ?? '');
           },
         },
         [

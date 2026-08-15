@@ -37,6 +37,7 @@ export default [
       'craft-ng/no-render-writes': 'error',
       'craft-ng/require-reactive-template-bindings': 'error',
       'craft-ng/no-craft-use-in-template': 'error',
+      'craft-ng/no-ephemeral-template-form-state': 'error',
       'craft-ng/no-craft-computed-side-effects': 'error',
       'craft-ng/require-craft-method-for-yieldable-callback': 'error',
       'craft-ng/prefer-direct-yieldable-callback': 'error',
@@ -76,6 +77,7 @@ What each rule does:
 - `craft-ng/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ng/require-reactive-template-bindings`: requires Angular Signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ng/no-craft-use-in-template`: forbids the synchronous `craftUse(...)` escape hatch in Craft templates; pass the reactive reader directly, such as `status: usersQuery.currentPageStatus`
+- `craft-ng/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
 - `craft-ng/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ng/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
@@ -112,7 +114,8 @@ factories extraites, `h('tag')`), not only `craftComponent` argument 3.
 - `control-has-accessible-name`, `label-has-associated-control`, `heading-has-content`
 - `no-noninteractive-element-interactions`, `no-positive-tabindex`
 - `valid-aria`, `role-has-required-aria`, `target-blank-noopener`
-- `prefer-relative-heading`, `require-route-heading-outline`, `no-heading-level-skip`
+- `prefer-relative-heading`, `require-route-heading-outline`,
+  `require-outlet-heading-section`, `no-heading-level-skip`
 - `require-focus-visible`, `require-reduced-motion` (CSS of `craftComponent`)
 
 See [Accessibilité](/guide/components/accessibility).

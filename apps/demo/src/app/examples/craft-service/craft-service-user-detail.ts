@@ -89,10 +89,11 @@ const CraftServiceUserDetailComponent = craftComponent(
     const userId = yield* state('userId', '1', ({ set }) => ({
       selectUser: (value: string) => set(value),
     }));
-    return { userId, user: yield* User({ userId }) };
-  },
-  ({ userId, user }) => {
+    const user = yield* User({ userId });
     const hasValue = craftComputed('hasValue', () => user.hasValue());
+    return { userId, user, hasValue };
+  },
+  ({ userId, user, hasValue }) => {
     return div([
       heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
@@ -100,7 +101,7 @@ const CraftServiceUserDetailComponent = craftComponent(
           {
             'aria-label': 'User',
             value: userId,
-            *change(event) {
+            *change(event: Event) {
               yield* userId.selectUser(
                 (event.target as HTMLSelectElement).value,
               );
@@ -116,18 +117,15 @@ const CraftServiceUserDetailComponent = craftComponent(
             h('dl', [
               h('dt', 'ID'),
               h('dd', function* () {
-                const value = yield* user.value();
-                return (value as User).id;
+                return ((yield* user.value()) as User).id;
               }),
               h('dt', 'Name'),
               h('dd', function* () {
-                const value = yield* user.value();
-                return (value as User).name;
+                return ((yield* user.value()) as User).name;
               }),
               h('dt', 'Email'),
               h('dd', function* () {
-                const value = yield* user.value();
-                return (value as User).email;
+                return ((yield* user.value()) as User).email;
               }),
             ]),
           () =>

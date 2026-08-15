@@ -52,7 +52,7 @@ const ViewTransitionsDetailComponent = craftComponent(
         {
           class: 'vt-back',
           href: '/view-transitions',
-          *click(event) {
+          *click(event: MouseEvent) {
             event.preventDefault();
             yield* back();
           },
@@ -67,10 +67,9 @@ const ViewTransitionsDetailComponent = craftComponent(
               {
                 class: 'vt-hero',
                 style: function* () {
-                  const photo = yield* currentPhoto();
                   return {
-                    background: photo.gradient,
-                    viewTransitionName: `photo-${photo.id}`,
+                    background: (yield* currentPhoto()).gradient,
+                    viewTransitionName: `photo-${(yield* currentPhoto()).id}`,
                   };
                 },
               },

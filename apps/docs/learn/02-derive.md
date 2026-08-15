@@ -8,33 +8,7 @@ them across the component.
 The last argument of a primitive is an **insertion**: a function that receives
 the primitive's internals and returns whatever you want exposed on it.
 
-```typescript
-import { craftComputed, state } from '@craft-ng/core';
-
-const tasks = yield* state('tasks', [] as Task[], ({ state, set, update }) => ({
-  add: (title: string) =>
-    update((current) => [
-      ...current,
-      { id: crypto.randomUUID(), title, done: false },
-    ]),
-
-  toggle: (id: string) =>
-    update((current) =>
-      current.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task,
-      ),
-    ),
-
-  remove: function* (id: string) {
-    const current = yield* state();
-    return yield* set(current.filter((task) => task.id !== id));
-  },
-
-  remaining: craftComputed(function* () {
-    return (yield* state()).filter((task) => !task.done).length;
-  }),
-}));
-```
+<<< @/tests/snippets/learn/02-derive/tasks-insertion.spec.ts#tasks-insertion
 
 Everything you return is now on the ref:
 
@@ -244,27 +218,7 @@ logic — a toast, a log — and produces no DOM.
 
 One insertion function gets crowded fast. Split it and compose with `insertStatePipe`:
 
-```typescript
-import { insertStatePipe, craftComputed, state } from '@craft-ng/core';
-
-const tasks = yield* state(
-  'tasks',
-  [] as Task[],
-  insertStatePipe(
-    ({ update }) => ({
-      add: (title: string) => update((c) => [...c, newTask(title)]),
-    }),
-    ({ state }) => ({
-      remaining: craftComputed(function* () {
-        return (yield* state()).filter((t) => !t.done).length;
-      }),
-      isEmpty: craftComputed(function* () {
-        return (yield* state()).length === 0;
-      }),
-    }),
-  ),
-);
-```
+<<< @/tests/snippets/learn/02-derive/insert-state-pipe.spec.ts#insert-state-pipe
 
 Each function in the pipe receives the same context and contributes its own
 slice. This is what makes behaviour **reusable**: an insertion is just a

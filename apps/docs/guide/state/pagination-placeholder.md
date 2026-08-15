@@ -19,9 +19,9 @@ It is a **higher-order insertion**: call it with a config and pass the result to
 which is why `currentPageData` is a `Signal<T>` that is **never `undefined`**.
 
 ```typescript
-const pagination = signal(1);
+const pagination = yield* state('pagination', 1);
 
-const { userQuery } = query(
+const { userQuery } = yield* query(
   'userQuery',
   {
     params: pagination,
@@ -70,7 +70,7 @@ looking at — other cached pages are left untouched.
 const { usersQuery } = query(
   'usersQuery',
   {
-    params: this.pagination,
+    params: pagination,
     identifier: (params) => `${params.page}-${params.pageSize}`,
     loader: function* ({ params }) {
       return yield* ApiService.getDataList(params);

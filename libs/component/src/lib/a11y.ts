@@ -1,11 +1,12 @@
 import type { Yieldable } from '@craft-ng/core';
 import { a, span } from './hyperscript';
-import type {
-  CraftNodeChildren,
-  CraftNodeChildrenDependencies,
-  ElementNode,
-  HeadingNode,
-  HeadingSectionNode,
+import {
+  pipeCraftNode,
+  type CraftNodeChildren,
+  type CraftNodeChildrenDependencies,
+  type ElementNode,
+  type HeadingNode,
+  type HeadingSectionNode,
 } from './render/vnode';
 
 type HeadingProps = {
@@ -27,9 +28,26 @@ function looksLikeChildren(value: unknown): boolean {
 }
 
 /**
- * A heading whose rank comes from the current outline (`h1`–`h6`).
- * Marks the component as an outline consumer — a parent must wrap the call
- * in `headingSection` (or be the route that starts the outline at level 1).
+ * Renders a heading whose rank comes from the current outline (`h1`–`h6`).
+ * The title does not pick `h2` vs `h3` — the parent outline does.
+ *
+ * A local `heading()` is allowed in this template (route page title = `h1`).
+ * A child component that renders `heading()` must be wrapped by **this**
+ * parent in {@link headingSection} (same DNA as `pendingBlock`). Otherwise
+ * the call does not compile:
+ * `ERROR_child_heading_rendered_outside_a_headingSection`.
+ *
+ * Prefer this over `h1()`…`h6()` inside a `craftComponent`.
+ *
+ * @example
+ * heading('Liste des tâches');
+ * headingSection([
+ *   heading('Détail'),
+ *   TaskCard(), // child's heading() becomes hN+1
+ * ]);
+ *
+ * @see headingSection
+ * @see headingRoot
  */
 export function heading<const Children extends CraftNodeChildren>(
   children?: Children,
@@ -53,16 +71,38 @@ export function heading(
   const children = looksLikeChildren(propsOrChildren)
     ? (propsOrChildren as CraftNodeChildren)
     : maybeChildren;
-  return {
-    kind: 'heading',
+  const node = {
+    kind: 'heading' as const,
     props,
     children: children ?? [],
   };
+  Object.defineProperty(node, 'pipe', {
+    value: (directive: unknown) =>
+      pipeCraftNode(node as never, directive as never),
+    enumerable: false,
+  });
+  return node as HeadingNode<any, any, HeadingProps, 'heading'>;
 }
 
 /**
- * Increments the heading outline for the subtree. Comment-bounded fragment —
- * no extra DOM node, same as `ifBlock`.
+ * Increments the heading outline by one rank for the subtree.
+ *
+ * Not a visual box and not a `<section>`: comment-bounded fragment, no extra
+ * DOM node (same as `ifBlock`). Nested {@link heading} calls become
+ * `hN+1`. Also absorbs a child's heading need so the parent compiles.
+ *
+ * Nest to build the document outline: page `heading()` → `h1`, first
+ * `headingSection` → `h2`, nested `headingSection` → `h3`, clamped at `h6`.
+ *
+ * @example
+ * heading('Page');
+ * headingSection([
+ *   heading('Section'),
+ *   headingSection([heading('Subsection')]),
+ * ]);
+ *
+ * @see heading
+ * @see headingRoot
  */
 export function headingSection<const Children extends CraftNodeChildren>(
   children?: Children,
@@ -74,8 +114,15 @@ export function headingSection<const Children extends CraftNodeChildren>(
 }
 
 /**
- * Starts the heading outline at level 1 for the subtree (route page, dialog
- * body already resets via `<dialog>`). Absorbs children's heading need.
+ * Starts the heading outline at level 1 for the subtree. Absorbs children's
+ * heading need. Use for a route page, or a nested root (a `<dialog>` already
+ * resets via the native element — its title is `h1` **inside** the dialog).
+ *
+ * Unlike {@link headingSection}, this does not increment: every {@link heading}
+ * below is `h1` again.
+ *
+ * @see heading
+ * @see headingSection
  */
 export function headingRoot<const Children extends CraftNodeChildren>(
   children?: Children,

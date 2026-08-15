@@ -67,6 +67,7 @@ export const craftDemoRules = {
   'craft-ng/heading-has-content': 'error',
   'craft-ng/prefer-relative-heading': 'error',
   'craft-ng/require-route-heading-outline': 'error',
+  'craft-ng/require-outlet-heading-section': 'error',
   'craft-ng/no-heading-level-skip': 'error',
   'craft-ng/no-positive-tabindex': 'error',
   'craft-ng/valid-aria': 'error',

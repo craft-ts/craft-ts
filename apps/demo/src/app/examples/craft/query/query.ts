@@ -4,6 +4,7 @@ import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   p,
   pre,
@@ -79,6 +80,7 @@ const CraftGlobalQuery = craftComponent(
   },
   ({ user, hasUser, navigate }) =>
     div({ class: 'query-shell' }, [
+      heading('User query'),
       div({ class: 'query-result' }, [
         'User ',
         StatusComponent({ status: user.status }),

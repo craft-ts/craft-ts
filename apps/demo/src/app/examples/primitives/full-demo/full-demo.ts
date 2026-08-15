@@ -97,7 +97,7 @@ const FullDemo = craftComponent(
           type: 'text',
           placeholder: 'New todo',
           value: titleInput,
-          *input(event) {
+          *input(event: Event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
         }),
@@ -106,9 +106,8 @@ const FullDemo = craftComponent(
           { type: 'button',
             disabled: addTodo.isLoading,
             *click() {
-              const trimmedTitle = (yield* titleInput()).trim() ?? ''; // todo handle that in the state
-              if (trimmedTitle) {
-                yield* addTodo.mutate(trimmedTitle);
+              if ((yield* titleInput()).trim()) {
+                yield* addTodo.mutate((yield* titleInput()).trim());
               }
             },
           },

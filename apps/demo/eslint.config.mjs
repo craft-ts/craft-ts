@@ -88,7 +88,6 @@ export default [
     files: [
       '**/src/app/function-registry-bridge.ts',
       '**/src/app/log-forwarder.ts',
-      '**/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts',
     ],
     rules: {
       'craft-ng/no-direct-temporal-globals': 'off',

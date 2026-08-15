@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import docsConfig from '../.vitepress/config.mts';
+import { readDoc } from './read-doc';
 
 type SidebarItem = {
   text?: string;
@@ -90,14 +90,8 @@ describe('docs sidebar', () => {
 });
 
 describe('forms overview', () => {
-  const content = readFileSync(
-    new URL('../guide/forms/index.md', import.meta.url),
-    'utf8',
-  );
-  const exceptions = readFileSync(
-    new URL('../guide/forms/exceptions.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/forms/index.md');
+  const exceptions = readDoc('../guide/forms/exceptions.md');
 
   it('renders the insertFormSubmit section with a link to its guide', () => {
     expect(content).toContain(
@@ -130,11 +124,8 @@ describe('forms overview', () => {
 });
 
 describe('fine-grained reactivity docs', () => {
-  const home = readFileSync(new URL('../index.md', import.meta.url), 'utf8');
-  const guide = readFileSync(
-    new URL('../guide/components/fine-grained-reactivity.md', import.meta.url),
-    'utf8',
-  );
+  const home = readDoc('../index.md');
+  const guide = readDoc('../guide/components/fine-grained-reactivity.md');
 
   it('presents the feature on the home page and documents its contract', () => {
     expect(home).toContain('Fine-grained reactivity');
@@ -144,13 +135,14 @@ describe('fine-grained reactivity docs', () => {
     expect(guide).toContain('require-reactive-template-bindings');
     expect(guide).toContain('component / update');
   });
+
+  it('closes the home page with a note from the author', () => {
+    expect(home.trimEnd().endsWith('<AuthorNote />')).toBe(true);
+  });
 });
 
 describe('craftGen doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/concepts/generators.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/concepts/generators.md');
 
   it('documents composable short-circuiting and the main reason to use it', () => {
     expect(content).toContain('# Generators and `yield*`');
@@ -169,10 +161,7 @@ describe('craftGen doc page', () => {
 });
 
 describe('onAppStart doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/app/app-start.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/app/app-start.md');
 
   it('documents plain and generator callbacks for startup hooks', () => {
     expect(content).toContain('# App start');
@@ -202,10 +191,7 @@ describe('onAppStart doc page', () => {
 });
 
 describe('Type-safe DI/Routes setup doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/routing/setup.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/routing/setup.md');
 
   it('documents the app-level DI check and crafted routes setup', () => {
     expect(content).toContain('# Routing setup');
@@ -242,10 +228,7 @@ describe('Type-safe DI/Routes setup doc page', () => {
 });
 
 describe('ESLint rules doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/routing/eslint-rules.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/routing/eslint-rules.md');
 
   it('documents the plugin entry point and the enforced rules', () => {
     expect(content).toContain('@craft-ng/dev-tools/eslint-rules');
@@ -266,10 +249,7 @@ describe('ESLint rules doc page', () => {
 });
 
 describe('Browser Boundaries doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/testing/browser-boundaries.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/testing/browser-boundaries.md');
 
   it('documents the implemented browser boundary surface', () => {
     expect(content).toContain('# Browser boundaries');
@@ -334,10 +314,7 @@ describe('Browser Boundaries doc page', () => {
 });
 
 describe('craftMethod doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/reactivity/craft-method.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/reactivity/craft-method.md');
 
   it('documents both overloads and the captured injection context', () => {
     expect(content).toContain('# craftMethod');
@@ -382,10 +359,7 @@ describe('craftMethod doc page', () => {
 });
 
 describe('craftComputed doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/reactivity/craft-computed.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/reactivity/craft-computed.md');
 
   it('documents plain and generator-based computed forms', () => {
     expect(content).toContain('# craftComputed');
@@ -417,10 +391,7 @@ describe('craftComputed doc page', () => {
 });
 
 describe('toCraftService doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/app/integrate-existing.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/app/integrate-existing.md');
 
   it('includes an HttpClient adaptation example', () => {
     expect(content).toContain('## `HttpClient` Example');
@@ -440,10 +411,7 @@ describe('toCraftService doc page', () => {
 });
 
 describe('craftService doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/app/craft-service.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/app/craft-service.md');
 
   it('documents app-start hooks and generator callbacks', () => {
     expect(content).toContain('## Startup work');
@@ -457,10 +425,7 @@ describe('craftService doc page', () => {
 });
 
 describe('Angular Brand Config doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/routing/angular-brand-config.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/routing/angular-brand-config.md');
 
   it('documents the project config entrypoint and the main rule shape', () => {
     expect(content).toContain('# Angular brand config');
@@ -495,10 +460,7 @@ describe('Angular Brand Config doc page', () => {
 });
 
 describe('architecture rules doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/testing/architecture.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/testing/architecture.md');
 
   it('documents the declarative baseline helpers and the demo Nx target', () => {
     expect(content).toContain('# Architecture rules');
@@ -527,10 +489,7 @@ describe('architecture rules doc page', () => {
 });
 
 describe('craft graph vs Nx doc page', () => {
-  const content = readFileSync(
-    new URL('../guide/testing/craft-graph-vs-nx.md', import.meta.url),
-    'utf8',
-  );
+  const content = readDoc('../guide/testing/craft-graph-vs-nx.md');
 
   it('states what each graph cannot see and how they complement', () => {
     expect(content).toContain('# Craft graph vs Nx');

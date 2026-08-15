@@ -15,21 +15,7 @@ This is where the dev tooling earns its keep.
 A Craft component is mounted with `loadCraftComponent(...)`, spread into the
 route:
 
-```typescript
-import { loadCraftComponent } from '@craft-ng/component';
-import { craftRoutes } from '@craft-ng/core';
-
-export const { appRoutes } = craftRoutes('app', [
-  {
-    path: 'tasks',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./tasks/tasks')).then(
-        ({ default: component }) => component,
-      ),
-    ),
-  },
-]);
-```
+<<< @/tests/snippets/learn/09-routing/app-routes.ts#app-routes
 
 `withRetry` wraps the dynamic import, so a chunk that fails to download is
 retried instead of dead-ending the navigation. Keep the import specifier
@@ -56,27 +42,11 @@ Two ways, both checked against the registry above.
 
 **As a link**, with the `CraftRouterLink` directive:
 
-```typescript
-import { a } from '@craft-ng/component';
-import { CraftRouterLink } from '@craft-ng/core';
-
-// in a template
-a({ craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink);
-```
+<<< @/tests/snippets/learn/09-routing/router-link.spec.ts#router-link
 
 **Imperatively**, by yielding the router:
 
-```typescript
-function* () {
-  const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
-
-  const goToTask = craftMethod('goToTask', function* (taskId: string) {
-    void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
-  });
-
-  return { goToTask };
-}
-```
+<<< @/tests/snippets/learn/09-routing/navigate.spec.ts#navigate
 
 The target is `{ to, params?, queryParams? }`, and all of it is checked:
 
@@ -104,30 +74,7 @@ component and path you provide.
 
 Declare one local alias for your app's context, then one `CanRun` per route:
 
-```typescript
-import type { ActivatedRoute, Router } from '@angular/router';
-import type { CanRun, ComponentDepsOf, RouteCheckedDI } from '@craft-ng/core';
-
-type AppRouteCheckedDI<
-  Component,
-  RouteInputs extends string = never,
-  Context extends string = 'app route component',
-> = RouteCheckedDI<
-  ComponentDepsOf<Component>,
-  'CraftRouter',
-  Router | ActivatedRoute,
-  Context,
-  RouteInputs
->;
-
-type _CanRunTasks = CanRun<
-  AppRouteCheckedDI<
-    (typeof import('./tasks/tasks'))['default'],
-    never,
-    'path: "tasks"'
-  >
->;
-```
+<<< @/tests/snippets/learn/09-routing/route-checked-di.spec.ts#route-checked-di
 
 The alias fixes the ambient context once — what the app provides by name
 (`'CraftRouter'`) and by value (`Router | ActivatedRoute`). Each route then
@@ -175,15 +122,7 @@ just disappear](/guide/concepts/exceptions). Everything else is on
 
 ## Wire it into the app
 
-```typescript
-import { craftAppConfig } from '@craft-ng/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
-
-export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
-  providers: [provideRouter(appRoutes.toRoutes(), withComponentInputBinding())],
-});
-```
+<<< @/tests/snippets/learn/09-routing/app-config.spec.ts#app-config
 
 `toRoutes()` hands Angular the real routes; `META_DATA` hands the compile-time
 graph to `craftAppConfig`.
@@ -212,21 +151,7 @@ page. Swap `provideRouter` for `provideCraftRouter` and render
 `CraftRouterOutlet()` instead of `<router-outlet>`, and the URL commits
 immediately while the chain runs behind it:
 
-```typescript
-import { CraftRouterOutlet } from '@craft-ng/component';
-import { provideCraftRouter, withTransitionTimings } from '@craft-ng/core';
-
-export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
-  providers: [
-    provideCraftRouter(
-      appRoutes.toRoutes(),
-      withComponentInputBinding(),
-      withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
-    ),
-  ],
-});
-```
+<<< @/tests/snippets/learn/09-routing/craft-router.spec.ts#craft-router
 
 Those three numbers are the whole waiting story, and they exist so a fast
 navigation shows **nothing at all**:

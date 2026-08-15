@@ -100,27 +100,8 @@ type ReadonlySource$<T> = {
 Use a `craftService` as the dependency handle when a source is shared by
 multiple consumers:
 
-```typescript
-const { Reset } = craftService(
-  { name: 'Reset', scope: 'global' },
-  function* () {
-    const reset$ = yield* source$<void>('reset$');
-    return reset$;
-  },
-);
+<<< @/tests/snippets/guide/reactivity/source/example-6.spec.ts#example-6
 
-const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
-  function* () {
-    const counter = yield* state('counter', 0, ({ set }) => ({
-      reset: on$(Reset, () => set(0)),
-    }));
-
-    const reset = yield* Reset();
-    return { counter, reset };
-  },
-);
-```
 
 `on$(Reset, ...)` records `Reset` as a dependency of the primitive. Calling
 `reset.emit()` only publishes an event; it does not create or modify the

@@ -96,6 +96,8 @@ craftComponent(
 );
 ```
 
+
+
 The sources bubble up through the node tree exactly like unhandled exception
 codes do, and the check fires on the `craftComponent` template argument, naming
 the sources that have nowhere to show their loading state. Several suspending

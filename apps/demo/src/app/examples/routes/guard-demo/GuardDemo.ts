@@ -1,10 +1,11 @@
 import {
   craftComponent,
+  heading,
 } from '@craft-ng/component';
 
 export const GuardDemo = craftComponent(
   'GuardDemo',
   {},
   () => ({}),
-  () => 'Should not be displayed',
+  () => [heading('Guard demo'), 'Should not be displayed'],
 );

@@ -30,21 +30,8 @@ DI is checked next to the routes it covers. Every file containing `craftRoutes(.
 collection with `ValidateCascadeRoutesFile` and `CanRun`; a parent check deliberately does not descend
 through `loadChildren`.
 
-```ts
-import {
-  craftRoutes,
-  type CanRun,
-  type ValidateCascadeRoutesFile,
-} from '@craft-ng/core';
-import type { Router } from '@angular/router';
+<<< @/tests/snippets/guide/routing/setup/approutes.spec.ts#approutes
 
-export const { appRoutes } = craftRoutes('app', [
-  /* routes */
-]);
-
-type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;
-type _CanRunApp = CanRun<_CheckAppDI>;
-```
 
 `ValidateCascadeRoutesFile` compares:
 

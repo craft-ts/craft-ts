@@ -103,6 +103,8 @@ craftUse(sut.increment());
 expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
 ```
 
+
+
 ## Register Semantics
 
 ### `'real'`

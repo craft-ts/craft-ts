@@ -19,28 +19,7 @@ primitives used by the component factory.
 A Craft component is a **function**, not a class. It takes a name, meta, a logic
 factory, and a template:
 
-```typescript
-import { craftComponent, div, each, h1, li, ul } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
-
-type Task = { id: string; title: string; done: boolean };
-
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [ // read yield* as "I need"
-      { id: '1', title: 'Read step 1', done: false },
-    ] as Task[]);
-
-    return { tasks };
-  },
-  ({ tasks }) => [
-    h1('Tasks'),
-    ul(each(tasks, { track: (task) => task.id }, (task) => li(task.title))),
-  ],
-);
-```
+<<< @/tests/snippets/learn/01-first-state/tasks-component.spec.ts#tasks-component
 
 Four arguments, and each has one job:
 
@@ -59,35 +38,7 @@ wrapped around your markup.
 A component's inputs and outputs are just **parameters of the logic factory**,
 typed with `Input<T>` and `Output<Handler>`:
 
-```typescript
-import {
-  Input,
-  Output,
-  button,
-  craftComponent,
-  div,
-  span,
-} from '@craft-ng/component';
-import { deepYieldable } from '@craft-ng/core';
-
-const UserCard = craftComponent(
-  'UserCard',
-  {},
-  (user: Input<User>, onRemove: Output<(user: User) => void>) => ({
-    user: deepYieldable(user),
-    onRemove,
-  }),
-  ({ user, onRemove }) =>
-    div([
-      span(user.name),
-      button({
-        *click() {
-          yield* onRemove(yield* user());
-        },
-      }, 'Remove'),
-    ]),
-);
-```
+<<< @/tests/snippets/learn/01-first-state/user-card.spec.ts#user-card
 
 An `Input<T>` **is a yieldable reader** — `yield* user()` reads the current
 value. Project nested fields with `deepYieldable` so `user.name` stays a

@@ -17,8 +17,9 @@ check and the test registers read.
 import { craftService } from '@craft-ng/core';
 ```
 
-Service inputs that can change should be consumed as yieldable readers. This
-keeps the input-to-service edge in the dependency graph:
+Service inputs that can change should be consumed as yieldable readers
+(`CraftServiceInput<T>`), the service counterpart of a component `Input<T>`.
+Yield them so the input-to-service edge stays in the dependency graph:
 
 ```typescript
 import { craftService, query, type CraftServiceInput } from '@craft-ng/core';
@@ -35,10 +36,9 @@ const { UserQuery } = craftService(
 );
 ```
 
-Static values remain accepted as ordinary inputs for legacy direct access;
-signals and existing Craft readers are adapted automatically at the service
-boundary. Use a signal or Craft reader when the factory consumes an input with
-`yield*`.
+The call site still accepts a resolved value, an Angular signal, or a Craft
+reader — the service boundary adapts it into that reader. Inside the factory,
+always `yield* inputs.x()`.
 
 ## What you get
 
@@ -71,29 +71,8 @@ Each scope and when to pick it: **[Service scopes](/guide/app/service-scopes)**.
 
 ## The common case
 
-```typescript
-import { craftService, state } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/craft-service/example-3.spec.ts#example-3
 
-const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
-  function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
-      increment: () => update((value) => value + 1),
-      decrement: () => update((value) => value - 1),
-    }));
-    return counter;
-  },
-);
-
-const { CounterConsumer } = craftService(
-  { name: 'CounterConsumer', scope: 'global' },
-  function* () {
-    const counter = yield* Counter();
-    yield* counter.increment();
-    return counter;
-  },
-);
-```
 
 ## Returning one primitive directly
 
@@ -181,33 +160,8 @@ This is separate from `provideUserFacade()`, which is only generated for provide
 
 ## Composing services
 
-```typescript
-const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
-  function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
-      increment: () => update((value) => value + 1),
-    }));
-    return counter;
-  },
-);
+<<< @/tests/snippets/guide/app/craft-service/example-7.spec.ts#example-7
 
-const { CounterFacade } = craftService(
-  { name: 'CounterFacade', scope: 'global' },
-  function* () {
-    const counter = yield* Counter();
-
-    return {
-      read: function* () {
-        return yield* counter();
-      },
-      increment: function* () {
-        return yield* counter.increment();
-      },
-    };
-  },
-);
-```
 
 ## Shaping the public API
 
@@ -225,40 +179,8 @@ single one. See **[Shaping a service's public API](/guide/app/expose-api)**.
 
 The callback can be a plain function or a generator function. Use the generator form when startup logic needs to `yield*` crafted dependencies:
 
-```typescript
-import { Console, craftService, onAppStart } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/craft-service/appconfig.spec.ts#appconfig
 
-const { AppStartLog } = craftService(
-  {
-    name: 'AppStartLog',
-    scope: 'global',
-    appStart: true,
-  },
-  function* () {
-    yield* onAppStart(function* () {
-      yield* Console.log('startup log');
-      return Promise.resolve();
-    });
-
-    return true;
-  },
-);
-
-// register the current service to the AppStartRegistry
-// it is auto-generated when used with the craft-ng ESLint plugin
-declare module '@craft-ng/core' {
-  interface CraftAppStartRegistry {
-    AppStartLog: typeof AppStartLog;
-  }
-}
-
-// inside craftAppConfig
-export const appConfig = craftAppConfig({
-  appStart: {
-    AppStartLog,
-  },
-});
-```
 
 Dependencies used only inside that callback are still tracked on the parent service.
 

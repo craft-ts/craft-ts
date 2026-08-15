@@ -17,16 +17,8 @@ resolved.
 
 Call the outlet inside a Craft component tree:
 
-```ts
-import { CraftRouterOutlet, craftComponent, main } from '@craft-ng/component';
+<<< @/tests/snippets/guide/routing/pending-ui/app.spec.ts#app
 
-export const App = craftComponent(
-  'App',
-  {},
-  () => ({}),
-  () => main({ class: 'content' }, CraftRouterOutlet()),
-);
-```
 
 Routes with no craft guard/resolve render immediately, exactly like `<router-outlet>`.
 

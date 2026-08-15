@@ -1,17 +1,38 @@
-const INPUT_EVENTS = new Set(['input', 'change', 'keyup']);
-const CONSUMER_EVENTS = new Set(['click', 'submit', 'keydown']);
+const TEMPLATE_HOSTS = new Set(['craftComponent', 'craftDirective']);
+
+function isFunctionNode(node) {
+  return (
+    node?.type === 'ArrowFunctionExpression' ||
+    node?.type === 'FunctionExpression' ||
+    node?.type === 'FunctionDeclaration'
+  );
+}
+
+function isTemplateHostCall(node) {
+  return (
+    node?.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    TEMPLATE_HOSTS.has(node.callee.name)
+  );
+}
+
+function declaratorName(declarator) {
+  return declarator.id.type === 'Identifier' ? declarator.id.name : undefined;
+}
 
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'Require form values shared by template event handlers to use Craft state.',
+        'Forbid let/const/var declarations in Craft component and directive templates; declare state in the logic factory.',
     },
     schema: [],
     messages: {
       useState:
-        "Template form value '{{name}}' is written by an input handler and read by another event handler. Store it with state() so it survives template re-evaluation.",
+        "Do not declare '{{name}}' with {{kind}} in a Craft template. Move it to the logic factory as state() or craftComputed().",
+      useStatePattern:
+        'Do not declare {{kind}} bindings in a Craft template. Move them to the logic factory as state() or craftComputed().',
     },
   },
 
@@ -20,233 +41,75 @@ module.exports = {
 
     return {
       CallExpression(node) {
-        if (
-          node.callee.type !== 'Identifier' ||
-          node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
-        ) {
+        if (!isTemplateHostCall(node) || node.arguments.length < 4) {
           return;
         }
 
-        inspectTemplate(node.arguments[3]);
+        const template = resolveTemplateFunction(node.arguments[3]);
+        if (!template) return;
+
+        inspectTemplate(template);
       },
     };
 
-    function inspectTemplate(template) {
-      if (!isFunctionNode(template)) return;
+    function resolveTemplateFunction(node) {
+      if (isFunctionNode(node)) return node;
+      if (node?.type !== 'Identifier') return null;
 
-      const declarations = collectLocalDeclarations(template);
-      if (declarations.size === 0) return;
-
-      const handlers = collectEventHandlers(template);
-      const inputHandlers = handlers.filter((handler) =>
-        INPUT_EVENTS.has(handler.name),
-      );
-      const consumerHandlers = handlers.filter((handler) =>
-        CONSUMER_EVENTS.has(handler.name),
-      );
-
-      for (const [name, declaration] of declarations) {
-        const writer = inputHandlers.find((handler) =>
-          handlerWrites(handler, name),
+      let scope = sourceCode.getScope(node);
+      while (scope) {
+        const variable = scope.variables.find(
+          (candidate) => candidate.name === node.name,
         );
-        if (!writer) continue;
-
-        const consumer = consumerHandlers.find(
-          (handler) =>
-            handler !== writer && handlerReads(handler, name),
-        );
-        if (!consumer) continue;
-
-        context.report({
-          node: declaration,
-          messageId: 'useState',
-          data: { name },
-        });
-      }
-    }
-
-    function collectLocalDeclarations(template) {
-      const declarations = new Map();
-
-      walkFunctionBody(template.body, (node) => {
-        if (node.type !== 'VariableDeclaration') return;
-        if (node.kind !== 'let' && node.kind !== 'var') return;
-
-        for (const declarator of node.declarations) {
-          if (declarator.id.type === 'Identifier') {
-            declarations.set(declarator.id.name, declarator.id);
+        if (variable) {
+          for (const definition of variable.defs) {
+            if (definition.type === 'ImportBinding') return null;
+            if (definition.type === 'FunctionName' && isFunctionNode(definition.node)) {
+              return definition.node;
+            }
+            if (
+              definition.type === 'Variable' &&
+              isFunctionNode(definition.node.init)
+            ) {
+              return definition.node.init;
+            }
           }
+          return null;
         }
-      });
+        scope = scope.upper;
+      }
 
-      return declarations;
+      return null;
     }
 
-    function collectEventHandlers(template) {
-      const handlers = [];
-
-      walkFunctionBody(template.body, (node) => {
-        if (isNestedCraftComponent(node)) return 'skip';
-
-        if (node.type !== 'Property' || node.computed) return;
-
-        const name = getStaticPropertyName(node);
-        if (!name || !isFunctionNode(node.value)) return;
-
-        if (INPUT_EVENTS.has(name) || CONSUMER_EVENTS.has(name)) {
-          handlers.push({ name, functionNode: node.value });
+    function inspectTemplate(template) {
+      walk(template, (node) => {
+        if (node !== template && isTemplateHostCall(node)) {
           return 'skip';
         }
-      });
 
-      return handlers;
-    }
+        if (node.type !== 'VariableDeclaration') return;
 
-    function handlerWrites(handler, name) {
-      let writes = false;
-      const bindings = collectFunctionBindings(handler.functionNode);
+        const named = node.declarations
+          .map(declaratorName)
+          .filter(Boolean);
 
-      walkFunctionBody(handler.functionNode.body, (node) => {
-        if (node.type === 'AssignmentExpression') {
-          if (
-            node.left.type === 'Identifier' &&
-            node.left.name === name &&
-            containsValueRead(node.right) &&
-            !bindings.has(name)
-          ) {
-            writes = true;
-          }
+        if (named.length === 0) {
+          context.report({
+            node,
+            messageId: 'useStatePattern',
+            data: { kind: node.kind },
+          });
           return;
         }
 
-        if (
-          node.type === 'UpdateExpression' &&
-          node.argument.type === 'Identifier' &&
-          node.argument.name === name &&
-          !bindings.has(name)
-        ) {
-          writes = true;
+        for (const name of named) {
+          context.report({
+            node,
+            messageId: 'useState',
+            data: { name, kind: node.kind },
+          });
         }
-      });
-
-      return writes;
-    }
-
-    function containsValueRead(node) {
-      let found = false;
-      walk(node, (child) => {
-        if (
-          child.type === 'MemberExpression' &&
-          !child.computed &&
-          child.property.type === 'Identifier' &&
-          child.property.name === 'value'
-        ) {
-          found = true;
-        }
-      });
-      return found;
-    }
-
-    function handlerReads(handler, name) {
-      let reads = false;
-      const bindings = collectFunctionBindings(handler.functionNode);
-
-      walkFunctionBody(handler.functionNode.body, (node) => {
-        if (node.type !== 'Identifier' || node.name !== name) return;
-        if (bindings.has(name) || isNonReferenceIdentifier(node)) return;
-        if (isWriteTarget(node)) return;
-        reads = true;
-      });
-
-      return reads;
-    }
-
-    function collectFunctionBindings(functionNode) {
-      const bindings = new Set();
-      for (const parameter of functionNode.params) {
-        collectPatternNames(parameter, bindings);
-      }
-
-      walkFunctionBody(functionNode.body, (node) => {
-        if (node.type === 'VariableDeclarator') {
-          collectPatternNames(node.id, bindings);
-        }
-        if (node.type === 'FunctionDeclaration' && node.id) {
-          bindings.add(node.id.name);
-        }
-      });
-
-      return bindings;
-    }
-
-    function collectPatternNames(node, names) {
-      if (!node) return;
-      if (node.type === 'Identifier') {
-        names.add(node.name);
-        return;
-      }
-      if (node.type === 'AssignmentPattern') {
-        collectPatternNames(node.left, names);
-        return;
-      }
-      if (node.type === 'RestElement') {
-        collectPatternNames(node.argument, names);
-        return;
-      }
-      if (node.type === 'ArrayPattern') {
-        node.elements.forEach((element) => collectPatternNames(element, names));
-        return;
-      }
-      if (node.type === 'ObjectPattern') {
-        node.properties.forEach((property) => {
-          if (property.type === 'RestElement') {
-            collectPatternNames(property.argument, names);
-          } else {
-            collectPatternNames(property.value, names);
-          }
-        });
-      }
-    }
-
-    function isWriteTarget(node) {
-      const parent = node.parent;
-      return (
-        (parent?.type === 'AssignmentExpression' && parent.left === node) ||
-        (parent?.type === 'UpdateExpression' && parent.argument === node)
-      );
-    }
-
-    function isNonReferenceIdentifier(node) {
-      const parent = node.parent;
-      return Boolean(
-        (parent?.type === 'MemberExpression' &&
-          parent.property === node &&
-          !parent.computed) ||
-          (parent?.type === 'Property' &&
-            parent.key === node &&
-            !parent.computed &&
-            parent.value !== node) ||
-          (parent?.type === 'MethodDefinition' && parent.key === node),
-      );
-    }
-
-    function getStaticPropertyName(property) {
-      if (property.key.type === 'Identifier') return property.key.name;
-      if (
-        (property.key.type === 'Literal' ||
-          property.key.type === 'StringLiteral') &&
-        typeof property.key.value === 'string'
-      ) {
-        return property.key.value;
-      }
-      return undefined;
-    }
-
-    function walkFunctionBody(node, visit) {
-      walk(node, (child) => {
-        if (child !== node && isFunctionNode(child)) return 'skip';
-        return visit(child);
       });
     }
 
@@ -263,22 +126,6 @@ module.exports = {
           walk(child, visit);
         }
       }
-    }
-
-    function isFunctionNode(node) {
-      return (
-        node?.type === 'ArrowFunctionExpression' ||
-        node?.type === 'FunctionExpression' ||
-        node?.type === 'FunctionDeclaration'
-      );
-    }
-
-    function isNestedCraftComponent(node) {
-      return (
-        node.type === 'CallExpression' &&
-        node.callee.type === 'Identifier' &&
-        node.callee.name === 'craftComponent'
-      );
     }
   },
 };

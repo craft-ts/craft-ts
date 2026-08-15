@@ -17,6 +17,13 @@ import {
   craftException,
 } from '@craft-ng/core';
 
+function formatParseException(exception: {
+  code: string;
+  payload: { error: unknown };
+}) {
+  return `${exception.code}: ${exception.payload.error}`;
+}
+
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
   {
@@ -132,12 +139,12 @@ const ExceptionQueryParamsComponent = craftComponent(
           p([
             strong('Exception: '),
             function* () {
-              const exception = (yield* modeQueryParams.exceptions()).parse
-                .mode as {
-                code: string;
-                payload: { error: unknown };
-              };
-              return `${exception.code}: ${exception.payload.error}`;
+              return formatParseException(
+                (yield* modeQueryParams.exceptions()).parse.mode as {
+                  code: string;
+                  payload: { error: unknown };
+                },
+              );
             },
           ]),
         () => p([strong('Exception: '), 'none']),

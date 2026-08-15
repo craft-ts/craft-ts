@@ -171,10 +171,12 @@ type ProjectTemplateSignalProperties<
   >;
 };
 
+// Brand-only check: `Value extends RenderableContent` expands CraftNodeChildren
+// and cycles back here through component nodes (TS2456).
 type ProjectTemplateValue<
   Value,
   ContextMethod extends string,
-> = Value extends RenderableContent
+> = Value extends { readonly [CONTENT_RENDERABLE]: true }
   ? Value
   : Value extends ProjectionUnit<any>
     ? Value

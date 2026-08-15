@@ -124,7 +124,7 @@ The canonical pattern: one `asyncProcess` owns the module, a second one awaits i
 [`craftUntilSettled`](/guide/routing/guards) and calls the loaded function. Wrapping both in a
 [`craftService`](/guide/app/craft-service) exposes a clean API:
 
-```ts
+```typescript
 import {
   asyncProcess,
   craftLazy,
@@ -156,6 +156,8 @@ const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
   return { searchModule, searchResult };
 });
 ```
+
+
 
 Exception propagation is fully typed, with **no** manual plumbing:
 

@@ -18,44 +18,12 @@ Here is the service under test — the one from [step 4](/learn/04-compose), wit
 its scope changed to `toProvide` so it has a `provideTaskStats()` to mount in
 the test:
 
-```typescript
-export const { TaskStats, provideTaskStats } = craftService(
-  { name: 'TaskStats', scope: 'toProvide' },
-  function* () {
-    const tasks = yield* TaskList();
-
-    return {
-      done: craftComputed('done', function* () {
-        return (yield* tasks()).filter((task) => task.done).length;
-      }),
-    };
-  },
-);
-```
+<<< @/tests/snippets/learn/10-testing/task-stats.spec.ts#task-stats
 
 It depends on one thing, `TaskList`, and exposes one thing, `done`. The test
 mirrors that exactly:
 
-```typescript
-import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ng/core';
-import { vi } from 'vitest';
-
-const { sut, mocks } = await setupCraftServiceTestingByRegister(TaskStats, {
-  // the SUT itself, mounted through its own provider
-  TaskStats: provideTaskStats(),
-
-  // its only dependency, replaced by a mock
-  TaskList: {
-    $self: vi.fn(() => [
-      { id: '1', title: 'a', done: true },
-      { id: '2', title: 'b', done: false },
-    ]),
-  },
-});
-
-expect(craftUse(sut.done())).toBe(1);
-expect(mocks.TaskList.$self).toHaveBeenCalled();
-```
+<<< @/tests/snippets/learn/10-testing/task-stats.spec.ts#task-stats-test
 
 `sut` is the service under test; `mocks` gives you back the mocks you supplied,
 already typed, so `mocks.TaskList.$self` is assertable.
@@ -81,28 +49,7 @@ asks for that. Had it yielded the whole `TaskApi`, the register would demand
 Here is the component under test, from steps 2 and 3 — a factory that yields
 `TaskList`, and a template that renders it:
 
-```typescript
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* TaskList();
-    return { tasks };
-  },
-  ({ tasks }) => [
-    h1(function* () {
-      return `Tasks — ${yield* tasks.remaining()} left`;
-    }),
-    ul(
-      each(
-        tasks,
-        { track: (task) => task.id },
-        (task) => li(task.title),
-      ),
-    ),
-  ],
-);
-```
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-component
 
 Those two halves are tested **independently**: the factory produces a context
 without touching the DOM, and the template renders a context without running the
@@ -110,44 +57,12 @@ factory.
 
 The logic test runs the factory only — no DOM:
 
-```typescript
-import { setupCraftComponentLogicTest } from '@craft-ng/component/testing';
-
-const { context, mocks, destroy } =
-  await setupCraftComponentLogicTest.byRegister(Tasks, {
-    register: {
-      TaskList: {
-        $self: () => [{ id: '1', title: 'a', done: false }],
-        remaining: () => 1,
-      },
-    },
-  });
-
-expect(context.tasks.remaining()).toBe(1);
-destroy();
-```
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-logic-test
 
 The template test does the opposite — it renders with a context you hand it, and
 never runs the factory:
 
-```typescript
-import { setupCraftComponentTemplateTest } from '@craft-ng/component/testing';
-
-const test = await setupCraftComponentTemplateTest.byRegister(Tasks, {
-  context: {
-    tasks: Object.assign(() => [{ id: '1', title: 'Write tests', done: false }], {
-      remaining: () => 1,
-      add: () => {},
-      toggle: () => {},
-      remove: () => {},
-    }),
-  },
-  register: {},
-});
-
-expect(test.nativeElement.textContent).toContain('Write tests');
-test.destroy();
-```
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-template-test
 
 That separation is why component tests stay fast: you only pay for the DOM when
 the DOM is what you're asserting on.

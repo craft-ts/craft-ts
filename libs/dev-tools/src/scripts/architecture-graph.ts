@@ -1411,7 +1411,10 @@ function isMutationTarget(
   return parent?.details?.['primitive'] === 'mutation';
 }
 
-export function assertDeclarativeArchitecture(graph: DependencyGraph): void {
+export function assertDeclarativeArchitecture(
+  graph: DependencyGraph,
+  options: MutationReactOnOptions = {},
+): void {
   const messages: string[] = [];
   for (const assert of [
     assertCraftUnique,
@@ -1424,6 +1427,11 @@ export function assertDeclarativeArchitecture(graph: DependencyGraph): void {
     } catch (error) {
       messages.push(error instanceof Error ? error.message : String(error));
     }
+  }
+  try {
+    assertMutationHasReactOn(graph, options);
+  } catch (error) {
+    messages.push(error instanceof Error ? error.message : String(error));
   }
   if (messages.length === 0) return;
   throw new Error(messages.join('\n'));

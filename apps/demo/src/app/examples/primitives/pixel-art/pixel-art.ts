@@ -17,6 +17,7 @@ import {
   insertSelect,
   insertStatePipe,
   craftComputed,
+  craftMethod,
   state,
 } from '@craft-ng/core';
 
@@ -97,9 +98,14 @@ const PixelArt = craftComponent(
         }),
       ),
     );
-    return { ui, cells };
+    const paintCell = craftMethod('paintCell', function* (index: number) {
+      const cell = cells.selectCell(index);
+      if (!cell) return;
+      yield* cell.paint();
+    });
+    return { ui, cells, paintCell };
   },
-  ({ ui, cells }) =>
+  ({ ui, cells, paintCell }) =>
     section([
       header([
         heading('Atelier Pixel Art'),
@@ -142,21 +148,20 @@ const PixelArt = craftComponent(
       ]),
       div(
         { class: 'pixel-grid', role: 'grid' },
-        each(INDEXES, { track: (index) => index }, (_item, currentIndex) => {
-          const cell = cells.selectCell(currentIndex);
-          return button({ type: 'button',
+        each(INDEXES, { track: (index) => index }, (_item, currentIndex) =>
+          button({ type: 'button',
             class: 'pixel-cell',
             style: function* () {
-              return { backgroundColor: cellColor(cell) };
+              return {
+                backgroundColor: cellColor(cells.selectCell(currentIndex)),
+              };
             },
             title: `Case ${currentIndex + 1}`,
             *click() {
-              if (cell) {
-                yield* cell.paint();
-              }
+              yield* paintCell(currentIndex);
             },
-          });
-        }),
+          }),
+        ),
       ),
     ]),
 );

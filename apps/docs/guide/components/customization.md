@@ -17,24 +17,8 @@ when the same customization needs to apply somewhere else too.
 The component meta `host` properties define defaults for the component’s root
 element. The caller can extend or override them:
 
-```ts
-const Card = craftComponent(
-  'Card',
-  {
-    host: {
-      class: 'card card--default',
-      attrs: { role: 'article' },
-    },
-  },
-  () => ({}),
-  () => div([h2('A card')]),
-);
+<<< @/tests/snippets/guide/components/customization/card.spec.ts#card
 
-Card({
-  class: 'card--featured',
-  attrs: { 'data-testid': 'featured-card' },
-});
-```
 
 Classes, attributes, styles, and events recognized as host properties are
 applied to the component root. Other properties remain factory props.
@@ -55,7 +39,7 @@ Card({
 Styles declared in `meta.styles` are shared across instances and encapsulated
 with `@scope`. The template root is written as `:scope`:
 
-```ts
+```typescript
 const Panel = craftComponent(
   'Panel',
   {
@@ -69,6 +53,8 @@ const Panel = craftComponent(
   () => div([h2({ class: 'title' }, 'Panel'), button('Save')]),
 );
 ```
+
+
 
 Styles do not leak into descendant components. Global rules such as
 `@keyframes` and `@font-face` cannot be nested in `@scope`, so their private
@@ -298,20 +284,8 @@ cleanup yourself. Craft keeps those responsibilities in the directive runtime.
 
 Inside `meta.styles`, `:scope` targets every root produced by the template:
 
-```ts
-const Card = craftComponent(
-  'Card',
-  {
-    styles: `
-      :scope { padding: 1rem; }
-      .title { color: navy; }
-      .title strong { font-weight: 700; }
-    `,
-  },
-  () => ({}),
-  () => div([h2({ class: 'title' }, [strong('Card')])]),
-);
-```
+<<< @/tests/snippets/guide/components/customization/card-2.spec.ts#card-2
+
 
 Craft puts an internal token on the roots and generates a scope equivalent to:
 

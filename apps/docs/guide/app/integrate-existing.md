@@ -211,6 +211,8 @@ const { UsersApi } = craftService(
 );
 ```
 
+
+
 This keeps `HttpClient` explicit in the dependency graph while still letting you expose only the methods your service actually needs.
 
 ## Method Binding Behavior

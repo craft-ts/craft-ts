@@ -74,49 +74,15 @@ There are two valid ways to use a browser boundary.
 
 Use the DSL when the browser interaction belongs to the generator itself.
 
-```typescript
-import { Console, craftService } from '@craft-ng/core';
+<<< @/tests/snippets/guide/testing/browser-boundaries/example-3.spec.ts#example-3
 
-const { BootLogger } = craftService(
-  { name: 'BootLogger', scope: 'global' },
-  function* () {
-    yield* Console.log('boot');
-    yield* Console.info('config loaded');
-
-    return {
-      ready: true,
-    };
-  },
-);
-```
 
 ### Derived Service Helper
 
 Use `XService(...)` when the browser method needs to stay callable later from a returned method.
 
-```typescript
-import { ConsoleService, craftService } from '@craft-ng/core';
+<<< @/tests/snippets/guide/testing/browser-boundaries/example-4.spec.ts#example-4
 
-const { AuditTrail } = craftService(
-  { name: 'AuditTrail', scope: 'global' },
-  function* () {
-    const consoleService = yield* ConsoleService(
-      undefined,
-      ({ log, error }) => ({
-        log,
-        error,
-      }),
-    );
-
-    return {
-      trackUserAction: (action: string) =>
-        consoleService.log('user action', action),
-      trackFailure: (error: unknown) =>
-        consoleService.error('unexpected failure', error),
-    };
-  },
-);
-```
 
 That second form is what preserves derivability while still tracking the browser dependency explicitly.
 

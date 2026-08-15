@@ -67,6 +67,7 @@ const iframeHasTitle = require('./iframe-has-title.cjs');
 const headingHasContent = require('./heading-has-content.cjs');
 const preferRelativeHeading = require('./prefer-relative-heading.cjs');
 const requireRouteHeadingOutline = require('./require-route-heading-outline.cjs');
+const requireOutletHeadingSection = require('./require-outlet-heading-section.cjs');
 const noHeadingLevelSkip = require('./no-heading-level-skip.cjs');
 const noPositiveTabindex = require('./no-positive-tabindex.cjs');
 const validAria = require('./valid-aria.cjs');
@@ -148,6 +149,7 @@ const plugin = {
     'heading-has-content': headingHasContent,
     'prefer-relative-heading': preferRelativeHeading,
     'require-route-heading-outline': requireRouteHeadingOutline,
+    'require-outlet-heading-section': requireOutletHeadingSection,
     'no-heading-level-skip': noHeadingLevelSkip,
     'no-positive-tabindex': noPositiveTabindex,
     'valid-aria': validAria,
@@ -170,6 +172,7 @@ const a11yRuleSeverity = {
   'craft-ng/heading-has-content': 'error',
   'craft-ng/prefer-relative-heading': 'error',
   'craft-ng/require-route-heading-outline': 'error',
+  'craft-ng/require-outlet-heading-section': 'error',
   'craft-ng/no-heading-level-skip': 'error',
   'craft-ng/no-positive-tabindex': 'error',
   'craft-ng/valid-aria': 'error',

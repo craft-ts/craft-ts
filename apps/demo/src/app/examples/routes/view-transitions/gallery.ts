@@ -62,11 +62,10 @@ const ViewTransitionsGalleryComponent = craftComponent(
               span(
                 {
                   class: 'vt-art',
-                  style: function* () {
-                    const current = yield* photo();
+                    style: function* () {
                     return {
-                      background: current.gradient,
-                      viewTransitionName: `photo-${current.id}`,
+                      background: (yield* photo()).gradient,
+                      viewTransitionName: `photo-${(yield* photo()).id}`,
                     };
                   },
                 },

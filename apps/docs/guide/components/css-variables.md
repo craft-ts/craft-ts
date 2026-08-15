@@ -9,25 +9,8 @@ The browser's native inheritance then carries them to descendants.
 
 An unguarded use is required. A declaration or inline fallback is optional:
 
-```ts
-const Card = craftComponent(
-  'Card',
-  {
-    styles: `
-      :scope { --card-radius: 1rem; }
-      .card {
-        color: var(--card-ink);
-        background: var(--card-bg, white);
-        border-radius: var(--card-radius);
-      }
-    `,
-  },
-  () => ({}),
-  () => article({ class: 'card' }, 'Card'),
-);
+<<< @/tests/snippets/guide/components/css-variables/card.spec.ts#card
 
-Card({ cssVars: { '--card-ink': 'navy' } });
-```
 
 `--card-ink` is required, while `--card-bg` and `--card-radius` are optional.
 Styles supplied through `cssVars` are written as custom properties on the
@@ -39,7 +22,7 @@ sharing one scoped stylesheet.
 An imported stylesheet is typed as `string`, so TypeScript cannot inspect it.
 Declare its contract explicitly with `required()`:
 
-```ts
+```typescript
 craftComponent(
   'ExternalCard',
   {
@@ -53,6 +36,8 @@ craftComponent(
   template,
 );
 ```
+
+
 
 The `craft-css-vars-contract` lint rule resolves the CSS import and checks that
 the explicit contract and file remain synchronized.
