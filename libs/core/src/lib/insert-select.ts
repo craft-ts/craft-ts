@@ -893,7 +893,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *
  * @example
  * ```ts
- * const board = craftUse(state(
+ * const board = yield* state(
  *   {
  *     cell: { color: 'white', paintCount: 0 },
  *   },
@@ -907,13 +907,13 @@ type IsArray<T> = T extends any[] ? true : false;
  *   })),
  * ));
  *
- * craftUse(board.selectCell().paintBlack());
+ * yield* board.selectCell().paintBlack();
  * console.log(board.selectCell().color); // 'black'
  * ```
  *
  * @example
  * ```ts
- * const cells = craftUse(state(
+ * const cells = yield* state(
  *   [{ color: 'white', paintCount: 0 }],
  *   insertSelect('cell', ({ update }) => ({
  *     paint: () =>
@@ -925,7 +925,8 @@ type IsArray<T> = T extends any[] ? true : false;
  *   })),
  * ));
  *
- * craftUse(cells.selectCell(0)?.paint());
+ * const cell = cells.selectCell(0);
+ * if (cell) yield* cell.paint();
  * console.log(cells.selectCell(0)?.paintCount); // 1
  * ```
  *
@@ -941,7 +942,9 @@ type IsArray<T> = T extends any[] ? true : false;
  *     gridContext,
  *     ({ state, update }) => ({
  *       addRow: () => update((grid) => [...grid, createNextRow(grid)]),
- *       rowIndexes: computed(() => state().map((_row, index) => index)),
+ *       rowIndexes: craftComputed(function* () {
+ *         return (yield* state()).map((_row, index) => index);
+ *       }),
  *     }),
  *     insertSelect('row', ({ update }) => ({
  *       // ...

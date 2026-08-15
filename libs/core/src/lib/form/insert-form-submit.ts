@@ -221,7 +221,7 @@ function normalizeExceptionList(
   return undefined;
 }
 
-function triggerSubmitResource<FormValue>(
+function* triggerSubmitResource<FormValue>(
   submitCraftResource: ResourceLikeMutationRef<
     any,
     any,
@@ -232,9 +232,9 @@ function triggerSubmitResource<FormValue>(
     any
   >,
   validatedFormValue: ValidatedFormValue<FormValue>,
-) {
+): Generator<unknown, void, unknown> {
   if ('mutate' in submitCraftResource && submitCraftResource.mutate) {
-    submitCraftResource.mutate(validatedFormValue);
+    yield* submitCraftResource.mutate(validatedFormValue);
   }
 }
 
@@ -485,7 +485,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       return merged;
     });
 
-    const submitForm = () => {
+    const submitForm = function* () {
       setAttemptedSubmit();
       const validatedFormValue = validatedFormValueSignal();
       if (!validatedFormValue) return;
@@ -496,7 +496,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
         );
         return;
       }
-      triggerSubmitResource(submitCraftResource, validatedFormValue);
+      yield* triggerSubmitResource(submitCraftResource, validatedFormValue);
     };
 
     return {

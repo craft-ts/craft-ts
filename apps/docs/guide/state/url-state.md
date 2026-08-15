@@ -89,9 +89,17 @@ yield* queryParams(
     state: { page: { fallbackValue: 1, codec: numberCodec } },
   },
   ({ state, patch }) => ({
-    nextPage: () => patch({ page: state().page + 1 }),
-    previousPage: () => patch({ page: state().page - 1 }),
-    setPageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+    nextPage: function* () {
+      const current = yield* state();
+      return yield* patch({ page: current.page + 1 });
+    },
+    previousPage: function* () {
+      const current = yield* state();
+      return yield* patch({ page: current.page - 1 });
+    },
+    setPageSize: function* (pageSize: number) {
+      return yield* patch({ pageSize, page: 1 });
+    },
   }),
 );
 ```
@@ -157,9 +165,17 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
             },
           },
           ({ patch, state }) => ({
-            nextPage: () => patch({ page: state().page + 1 }),
-            previousPage: () => patch({ page: state().page - 1 }),
-            updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+            nextPage: function* () {
+              const current = yield* state();
+              return yield* patch({ page: current.page + 1 });
+            },
+            previousPage: function* () {
+              const current = yield* state();
+              return yield* patch({ page: current.page - 1 });
+            },
+            updatePageSize: function* (pageSize: number) {
+              return yield* patch({ pageSize, page: 1 });
+            },
           }),
         );
         return pagination;
@@ -185,9 +201,10 @@ yield* queryParams(
   function* ({ patch, state }) {
     const maxPage = yield* PaginationRules.maxPage();
     return {
-      nextPage: () => {
-        if (state().page >= maxPage()) return;
-        patch(({ page }) => ({ page: page + 1 }));
+      nextPage: function* () {
+        const current = yield* state();
+        if (current.page >= maxPage()) return;
+        return yield* patch(({ page }) => ({ page: page + 1 }));
       },
     };
   },

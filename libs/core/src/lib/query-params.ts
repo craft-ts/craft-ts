@@ -312,12 +312,12 @@ export type QueryParamsConfig<
  *   - `_config`: The original configuration
  *
  *   Consume it with `yield*` inside a generator host (craftService factory,
- *   craftGen, …) or with `craftUse(...)` elsewhere (typically a component field).
+ *   craftGen, …).
  *
  * @example
  * Basic usage
  * ```ts
- * const myQueryParams = craftUse(queryParams(
+ * const myQueryParams = yield* queryParams(
  *   'myQueryParams',
  *   {
  *     state: {
@@ -338,23 +338,23 @@ export type QueryParamsConfig<
  *     },
  *   },
  *   ({ set, update, patch, reset }) => ({ set, update, patch, reset })
- * ));
+ * );
  *
  * // Access state
- * console.log(myQueryParams()); // { page: 1, pageSize: 10 }
- * console.log(myQueryParams.page()); // 1
+ * console.log(yield* myQueryParams()); // { page: 1, pageSize: 10 }
+ * console.log(yield* myQueryParams.page()); // 1
  *
  * // Update state (also updates URL)
- * myQueryParams.set({ page: 2, pageSize: 20 });
- * myQueryParams.update(current => ({ ...current, page: current.page + 1 }));
- * myQueryParams.patch({ pageSize: 50 });
- * myQueryParams.reset();
+ * yield* myQueryParams.set({ page: 2, pageSize: 20 });
+ * yield* myQueryParams.update(current => ({ ...current, page: current.page + 1 }));
+ * yield* myQueryParams.patch({ pageSize: 50 });
+ * yield* myQueryParams.reset();
  * ```
  *
  * @example
  * With custom methods via insertions
  * ```ts
- * const myQueryParams = craftUse(queryParams(
+ * const myQueryParams = yield* queryParams(
  *   'myQueryParams',
  *   {
  *     state: {
@@ -364,14 +364,15 @@ export type QueryParamsConfig<
  *       },
  *     },
  *   },
- *   ({ state, set }) => ({
- *     goTo: (newPage: number) => {
- *       set({ ...state(), page: newPage });
+ *   ({ state, patch }) => ({
+ *     goTo: function* (newPage: number) {
+ *       const current = yield* state();
+ *       return yield* patch({ ...current, page: newPage });
  *     },
  *   })
- * ));
+ * );
  *
- * myQueryParams.goTo(5); // Custom method from insertion
+ * yield* myQueryParams.goTo(5); // Custom method from insertion
  * ```
  *
  * @example
@@ -379,7 +380,7 @@ export type QueryParamsConfig<
  * ```ts
  * import { craftException, queryParams } from '@craft-ng/core';
  *
- * const mode = craftUse(queryParams('mode', {
+ * const mode = yield* queryParams('mode', {
  *   state: {
  *     mode: {
  *       fallbackValue: 'success' as const,
@@ -394,11 +395,11 @@ export type QueryParamsConfig<
  *       },
  *     },
  *   },
- * }));
+ * });
  *
- * console.log(mode.mode()); // fallbackValue when parse exception occurs
- * console.log(mode.hasException()); // true/false
- * console.log(mode.exceptions().parse.mode?.INVALID_MODE_FROM_URL);
+ * console.log(yield* mode.mode()); // fallbackValue when parse exception occurs
+ * console.log(yield* mode.hasException()); // true/false
+ * console.log((yield* mode.exceptions()).parse.mode?.INVALID_MODE_FROM_URL);
  * ```
  */
 export function queryParams<

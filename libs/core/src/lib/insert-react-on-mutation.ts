@@ -91,7 +91,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * @example
  * Basic optimistic update with patch
  * ```ts
- * const updateUserMutation = craftUse(mutation({
+ * const updateUserMutation = yield* mutation({
  *   method: (data: { id: string; name: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.id}`, {
@@ -102,7 +102,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  *   },
  * }));
  *
- * const userQuery = craftUse(query(
+ * const userQuery = yield* query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -123,7 +123,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * ));
  *
  * // When mutation is triggered, query updates immediately (optimistic)
- * updateUserMutation.mutate({ id: '123', name: 'New Name' });
+ * yield* updateUserMutation.mutate({ id: '123', name: 'New Name' });
  * // userQuery.value().name is now 'New Name' (optimistic)
  *
  * // When mutation completes, patch confirms the change
@@ -133,7 +133,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * @example
  * Full state update on mutation completion
  * ```ts
- * const deleteTodoMutation = craftUse(mutation({
+ * const deleteTodoMutation = yield* mutation({
  *   method: (todoId: string) => ({ todoId }),
  *   loader: async ({ params }) => {
  *     await fetch(`/api/todos/${params.todoId}`, { method: 'DELETE' });
@@ -141,7 +141,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  *   },
  * }));
  *
- * const todosQuery = craftUse(query(
+ * const todosQuery = yield* query(
  *   {
  *     params: () => ({}),
  *     loader: async () => {
@@ -167,7 +167,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * @example
  * Reload query after mutation
  * ```ts
- * const createPostMutation = craftUse(mutation({
+ * const createPostMutation = yield* mutation({
  *   method: (data: { title: string; content: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/posts', {
@@ -178,7 +178,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  *   },
  * }));
  *
- * const postsQuery = craftUse(query(
+ * const postsQuery = yield* query(
  *   {
  *     params: () => ({ page: 1 }),
  *     loader: async ({ params }) => {
@@ -195,13 +195,13 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * ));
  *
  * // When mutation completes, postsQuery automatically reloads
- * createPostMutation.mutate({ title: 'New Post', content: 'Content' });
+ * yield* createPostMutation.mutate({ title: 'New Post', content: 'Content' });
  * ```
  *
  * @example
  * Filtered updates with identifiers
  * ```ts
- * const updatePostMutation = craftUse(mutation({
+ * const updatePostMutation = yield* mutation({
  *   method: (data: { postId: string; title: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/posts/${params.postId}`, {
@@ -212,7 +212,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  *   },
  * }));
  *
- * const postsQuery = craftUse(query(
+ * const postsQuery = yield* query(
  *   {
  *     params: () => currentPostId(),
  *     identifier: (params) => params, // params is the postId
@@ -232,7 +232,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * ));
  *
  * // Only the query instance for post '123' will be updated
- * updatePostMutation.mutate({ postId: '123', title: 'Updated Title' });
+ * yield* updatePostMutation.mutate({ postId: '123', title: 'Updated Title' });
  * console.log(postsQuery.select('123')?.value()?.title); // 'Updated Title'
  * console.log(postsQuery.select('456')?.value()?.title); // unchanged
  * ```
@@ -240,7 +240,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * @example
  * Complex nested field updates
  * ```ts
- * const updateUserProfileMutation = craftUse(mutation({
+ * const updateUserProfileMutation = yield* mutation({
  *   method: (data: { userId: string; profile: { bio: string; avatar: string } }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}/profile`, {
@@ -251,7 +251,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  *   },
  * }));
  *
- * const userQuery = craftUse(query(
+ * const userQuery = yield* query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -268,7 +268,7 @@ type PublicMutationIdentifier<Mutation> = Mutation extends {
  * ));
  *
  * // Nested fields are updated optimistically
- * updateUserProfileMutation.mutate({
+ * yield* updateUserProfileMutation.mutate({
  *   userId: '123',
  *   profile: { bio: 'New bio', avatar: 'new-avatar.jpg' }
  * });

@@ -27,7 +27,7 @@ import {
 ## The common case — selecting an object property
 
 ```typescript
-const { board } = state(
+const board = yield* state(
   'board',
   {
     cell: {
@@ -42,18 +42,20 @@ const { board } = state(
         color: 'black',
         paintCount: cell.paintCount + 1,
       })),
-    paintCountStr: () => `Painted ${state().paintCount} times`,
+    paintCountStr: function* () {
+      return `Painted ${(yield* state()).paintCount} times`;
+    },
   })),
 );
 
-board.selectCell().paint();
-console.log(board.selectCell().paintCountStr()); // "Painted 1 times"
+yield* board.selectCell().paint();
+yield* board.selectCell().paintCountStr(); // "Painted 1 times"
 ```
 
 ## Selecting into an array
 
 ```typescript
-const { cells } = state(
+const cells = yield* state(
   'cells',
   [{ color: 'white', paintCount: 0 }],
   insertSelect('cell', ({ update }) => ({
@@ -66,7 +68,8 @@ const { cells } = state(
   })),
 );
 
-cells.selectCell(0)?.paint();
+const cell = cells.selectCell(0);
+if (cell) yield* cell.paint();
 console.log(cells.selectCell(0)?.paintCount); // 1
 ```
 

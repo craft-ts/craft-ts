@@ -5,6 +5,7 @@ import { settled, type CraftSettledBrand } from './craft-settled';
 import {
   InsertionByIdParams,
   ResourceExceptionConstraints,
+  YieldableInsertionWrite,
 } from './query.core';
 import type { CraftResourceRef } from './util/craft-resource-ref';
 import {
@@ -13,10 +14,10 @@ import {
 } from './util/craft-resource-status';
 import {
   createYieldableReactiveFacade,
+  rawReactiveFacade,
   type ReactiveReadRequest,
   type YieldableReactiveValue,
 } from './reactive-read';
-import { craftUse } from './craft-use';
 
 function* readPaginationReactive<T>(
   reader: () => T | Generator<ReactiveReadRequest<T>, T, unknown>,
@@ -115,11 +116,17 @@ export type PaginationBuildContext<
     Exceptions
   >['settledState'];
   /** Replace the current page data. No-op if the page is not loaded yet. */
-  set: (newValue: PageState) => PageState;
+  set: YieldableInsertionWrite<[newValue: PageState], PageState>;
   /** Update the current page data from its previous value. */
-  update: (updateFn: (current: PageState) => PageState) => PageState;
+  update: YieldableInsertionWrite<
+    [updateFn: (current: PageState) => PageState],
+    PageState
+  >;
   /** Patch the current page data with a partial value. */
-  patch: (patchFn: (current: PageState) => Partial<PageState>) => PageState;
+  patch: YieldableInsertionWrite<
+    [patchFn: (current: PageState) => Partial<PageState>],
+    PageState
+  >;
 } & PaginationContextPassthrough<PageState, PrimitiveName, Exceptions>;
 
 /**
@@ -132,7 +139,7 @@ export type PaginationBuildContext<
  * callback) and pass the result to `query(...)`.
  *
  * - `config.initialValue` is both the default value **and** the type of a page: thanks to
- *   it, `currentPageData` is `Signal<PageState>` and is never `undefined`.
+ *   it, `currentPageData` is a yieldable reader for `PageState` and is never `undefined`.
  * - The optional `build` callback lets you attach custom outputs (computed/methods)
  *   alongside the pagination outputs. Its helpers (`state`, `set`, `update`, `patch`)
  *   are scoped to the **current page** (the displayed data), never the global record.
@@ -141,7 +148,7 @@ export type PaginationBuildContext<
  * ```typescript
  * const pagination = signal(1);
  *
- * const userQuery = craftUse(query(
+ * const userQuery = yield* query(
  *   {
  *     params: pagination,
  *     identifier: (params) => '' + params,
@@ -151,13 +158,13 @@ export type PaginationBuildContext<
  * ));
  *
  * // Access the data (or placeholder during loading) — never undefined
- * const data = userQuery.currentPageData();
+ * const data = yield* userQuery.currentPageData();
  * ```
  *
  * @example
  * With custom outputs via `build`:
  * ```typescript
- * const usersQuery = craftUse(query(
+ * const usersQuery = yield* query(
  *   {
  *     params: pagination,
  *     identifier: (params) => `${params.page}-${params.pageSize}`,
@@ -168,11 +175,15 @@ export type PaginationBuildContext<
  *   insertPaginationPlaceholderData(
  *     { initialValue: [] as Data[] },
  *     ({ state, set }) => ({
- *       totalOfUnCompletedData: computed(
- *         () => state().filter((d) => !d.completed).length,
- *       ),
- *       markAsCompleted: (id: string) =>
- *         set(state().map((d) => (d.id === id ? { ...d, completed: true } : d))),
+ *       totalOfUnCompletedData: craftComputed(function* () {
+ *         return (yield* state()).filter((d) => !d.completed).length;
+ *       }),
+ *       markAsCompleted: function* (id: string) {
+ *         const current = yield* state();
+ *         return yield* set(
+ *           current.map((d) => (d.id === id ? { ...d, completed: true } : d)),
+ *         );
+ *       },
  *     }),
  *   ),
  * ));
@@ -352,7 +363,7 @@ export function insertPaginationPlaceholderData<
 
     // Helpers scoped to the current page (the displayed data), not the global record.
     const currentPageKey = (): string | undefined => {
-      const params = craftUse(resourceParamsSrc());
+      const params = rawReactiveFacade(resourceParamsSrc)();
       return params != null ? identifier(params) : undefined;
     };
     const state = craftComputed('state', function* () {
@@ -366,25 +377,36 @@ export function insertPaginationPlaceholderData<
       const res = key ? resources[key] : undefined;
       return res?.hasValue() ? (res.value() as PageState) : config.initialValue;
     });
-    const set = (newValue: PageState): PageState => {
+    const set: YieldableInsertionWrite<[PageState], PageState> = function* (
+      newValue,
+    ) {
       const key = currentPageKey();
       if (key) {
         // Use the page's CraftResourceRef directly. Do NOT use resourceById.set({...}),
         // which is destructive: it resets keys absent from the payload.
         // No-op if the page is not loaded yet (we only act on a displayed page).
-        craftUse(resourceById())[key]?.set(newValue as PageState & object);
+        const resources = rawReactiveFacade(resourceById)() as Partial<
+          Record<string, CraftResourceRef<PageState & object, unknown>>
+        >;
+        resources[key]?.set(newValue as PageState & object);
       }
       return newValue;
     };
-    const update = (updateFn: (current: PageState) => PageState): PageState =>
-      set(updateFn(craftUse(state())));
-    const patch = (
-      patchFn: (current: PageState) => Partial<PageState>,
-    ): PageState =>
-      update(
+    const update: YieldableInsertionWrite<
+      [(current: PageState) => PageState],
+      PageState
+    > = function* (updateFn) {
+      return yield* set(updateFn(rawReactiveFacade(state)()));
+    };
+    const patch: YieldableInsertionWrite<
+      [(current: PageState) => Partial<PageState>],
+      PageState
+    > = function* (patchFn) {
+      return yield* update(
         (current) =>
           ({ ...(current as object), ...patchFn(current) }) as PageState,
       );
+    };
 
     const publicBaseOutputs = createYieldableReactiveFacade(baseOutputs, {
       name: 'pagination',

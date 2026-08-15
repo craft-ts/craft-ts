@@ -104,11 +104,11 @@ The `build` context exposes:
 
 | Helper   | Type                                    | Description                                          |
 | -------- | --------------------------------------- | ---------------------------------------------------- |
-| `state`  | `Signal<T>`                             | The current page data (or `initialValue`)            |
+| `state`  | yieldable reader for `T`                 | The current page data (or `initialValue`)            |
 | `settledState` | generator reader for `T`             | The current page data only when loaded; suspends during the first load or a page transition |
-| `set`    | `(value: T) => T`                       | Replace the current page data (no-op if not loaded)  |
-| `update` | `(fn: (current: T) => T) => T`          | Update the current page data from its previous value |
-| `patch`  | `(fn: (current: T) => Partial<T>) => T` | Patch the current page data with a partial value     |
+| `set`    | yieldable write returning `T`            | Replace the current page data (no-op if not loaded)  |
+| `update` | yieldable write returning `T`            | Update the current page data from its previous value |
+| `patch`  | yieldable write returning `T`            | Patch the current page data with a partial value     |
 
 The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderData`,
 `currentIdentifier`) are also available in the `build` context.

@@ -73,9 +73,17 @@ queryParams(
     /* … */
   },
   ({ state, patch }) => ({
-    nextPage: () => patch({ page: state().page + 1 }),
-    previousPage: () => patch({ page: state().page - 1 }),
-    setPageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+    nextPage: function* () {
+      const current = yield* state();
+      return yield* patch({ page: current.page + 1 });
+    },
+    previousPage: function* () {
+      const current = yield* state();
+      return yield* patch({ page: current.page - 1 });
+    },
+    setPageSize: function* (pageSize: number) {
+      return yield* patch({ pageSize, page: 1 });
+    },
   }),
 );
 ```

@@ -50,7 +50,7 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  * nested insertions of `insertSelect`.
  *
  * ```typescript
- * const users = craftUse(query(
+ * const users = yield* query(
  *   config,
  *   (context) =>
  *     craftPipe(
