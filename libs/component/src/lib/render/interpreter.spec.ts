@@ -2009,7 +2009,7 @@ describe('functional component interpreter', () => {
     toggle();
     expect(element.querySelector('.panel')).not.toBeNull();
     expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
-      '',
+      'true',
     );
 
     clickLink('List');
@@ -2018,7 +2018,7 @@ describe('functional component interpreter', () => {
     toggle();
     expect(element.querySelector('.panel')).not.toBeNull();
     expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
-      '',
+      'true',
     );
 
     clickLink('Other');

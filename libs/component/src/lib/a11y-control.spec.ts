@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { Injector } from '@angular/core';
+import { Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -71,8 +71,32 @@ describe('fieldControl', () => {
     const hint = element.querySelector('#email-description');
     expect(control?.id).toBe('email');
     expect(labelEl?.htmlFor).toBe('email');
+    expect(labelEl?.getAttribute('for')).toBe('email');
     expect(control?.getAttribute('aria-describedby')).toBe('email-description');
     expect(hint?.textContent).toBe('We never share your email.');
+  });
+
+  it('clears the native for attribute when htmlFor is cleared', () => {
+    const htmlFor = signal<string | null>('email');
+    const root = craftComponent(
+      'fieldControlHtmlForCleanup',
+      {},
+      () => ({}),
+      () => label({ htmlFor }, 'Email'),
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    const labelEl = element.querySelector('label')!;
+    expect(labelEl.htmlFor).toBe('email');
+    expect(labelEl.getAttribute('for')).toBe('email');
+
+    htmlFor.set(null);
+    TestBed.tick();
+
+    expect(labelEl.htmlFor).toBe('');
+    expect(labelEl.hasAttribute('for')).toBe(false);
   });
 
   it('sets aria-invalid and data-invalid when invalid is true', () => {
@@ -119,6 +143,7 @@ describe('disclosureControl', () => {
     expect(toggle?.hasAttribute('data-open')).toBe(true);
     expect(panel?.hasAttribute('data-open')).toBe(true);
     expect(panel?.hasAttribute('aria-hidden')).toBe(false);
+    expect(panel?.hasAttribute('hidden')).toBe(false);
   });
 
   it('hides the panel and drops data-open when closed', () => {
@@ -137,6 +162,7 @@ describe('disclosureControl', () => {
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(toggle?.hasAttribute('data-open')).toBe(false);
     expect(panel?.getAttribute('aria-hidden')).toBe('true');
+    expect(panel?.hasAttribute('hidden')).toBe(true);
   });
 
   it('marks the toggle aria-disabled when disabled', () => {

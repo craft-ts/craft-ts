@@ -57,6 +57,7 @@ export type DisclosureControl = {
     readonly id: string;
     readonly 'data-open'?: true;
     readonly 'aria-hidden'?: true;
+    readonly hidden?: true;
   };
 };
 
@@ -84,7 +85,9 @@ export function disclosureControl(
     panel: {
       id: panelId,
       ...openAttrs,
-      ...(isOpen ? {} : { 'aria-hidden': true as const }),
+      ...(isOpen
+        ? {}
+        : { 'aria-hidden': true as const, hidden: true as const }),
     },
   };
 }

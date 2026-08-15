@@ -1170,7 +1170,6 @@ const EVENT_NAMES = new Set([
 const PROPERTY_NAMES = new Set([
   'checked',
   'disabled',
-  'htmlFor',
   'multiple',
   'selected',
   'value',
@@ -1421,6 +1420,13 @@ function applyAttribute(
         'data-craft-* attributes are reserved for the Craft renderer.',
       );
     }
+  }
+  if (key === 'htmlFor') {
+    renderer.setProperty(element, key, value ?? '');
+    if (value === null || value === undefined || value === false) {
+      renderer.removeAttribute(element, 'for');
+    }
+    return;
   }
   if (PROPERTY_NAMES.has(key)) {
     renderer.setProperty(element, key, value ?? false);
