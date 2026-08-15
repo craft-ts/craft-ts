@@ -7,6 +7,12 @@ import {
   type FunctionRegistryLog,
 } from './function-registry';
 import type { PrimitiveResourceRuntimeKind } from '@craft-ng/core';
+import {
+  applyPageActions,
+  captureDomStyles,
+  collectPageControls,
+  type PageAction,
+} from './page-actor';
 
 declare global {
   var __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__: string | undefined;
@@ -49,7 +55,8 @@ export type RegistryMethod =
   | 'registry/resource/patch'
   | 'registry/override'
   | 'registry/restore'
-  | 'registry/logs';
+  | 'registry/logs'
+  | 'page';
 
 export type RegistryBridgeRequest = Readonly<{
   type: 'request';
@@ -89,6 +96,14 @@ type JsonSender = { send(data: string): void };
 
 const SOCKET_OPEN = 1;
 
+type PageSurfaceMessage = Readonly<{
+  type: 'page/surface';
+  clientId: string;
+  url: string;
+  title?: string;
+  controls: ReturnType<typeof collectPageControls>;
+}>;
+
 export function startFunctionRegistryBridge({
   injector,
   url,
@@ -97,6 +112,8 @@ export function startFunctionRegistryBridge({
   createSocket = (socketUrl) => new WebSocket(socketUrl),
   reconnectDelayMs = 1_000,
   getPageInfo,
+  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  getDocument = () => globalThis.document,
 }: {
   injector: Injector;
   url: string;
@@ -105,10 +122,30 @@ export function startFunctionRegistryBridge({
   createSocket?: (url: string) => RegistryBridgeSocket;
   reconnectDelayMs?: number;
   getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }>;
+  getDocument?: () => Document;
 }): () => void {
   let socket: RegistryBridgeSocket | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
+  let publishScheduled = false;
+
+  const publishSurface = (): void => {
+    if (socket?.readyState !== SOCKET_OPEN) {
+      return;
+    }
+    sendJson(socket, createPageSurface(clientId, getPageInfo(), getDocument()));
+  };
+
+  const scheduleSurface = (): void => {
+    if (publishScheduled) {
+      return;
+    }
+    publishScheduled = true;
+    queueMicrotask(() => {
+      publishScheduled = false;
+      publishSurface();
+    });
+  };
 
   const snapshotEffect: EffectRef = craftEffect(
     'snapshotEffect',
@@ -120,6 +157,8 @@ export function startFunctionRegistryBridge({
     },
     { injector },
   );
+
+  const observer = new MutationObserver(scheduleSurface);
 
   const connect = (): void => {
     if (stopped) {
@@ -145,9 +184,19 @@ export function startFunctionRegistryBridge({
         ...pageInfo,
       });
       sendJson(currentSocket, createSnapshot(registry, clientId, pageInfo));
+      sendJson(
+        currentSocket,
+        createPageSurface(clientId, pageInfo, getDocument()),
+      );
     };
     currentSocket.onmessage = (event) => {
-      void respondToBridgeMessage(currentSocket, event.data, registry);
+      void respondToBridgeMessage(
+        currentSocket,
+        event.data,
+        registry,
+        getDocument,
+        getPageInfo,
+      );
     };
     currentSocket.onerror = () => {
       registry.logBridge(`WebSocket error for ${url}`);
@@ -163,6 +212,15 @@ export function startFunctionRegistryBridge({
     };
   };
 
+  observer.observe(getDocument().documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    characterData: true,
+  });
+  getDocument().addEventListener('input', scheduleSurface, true);
+  getDocument().addEventListener('change', scheduleSurface, true);
+
   connect();
 
   return () => {
@@ -171,6 +229,9 @@ export function startFunctionRegistryBridge({
       clearTimeout(reconnectTimer);
     }
     snapshotEffect.destroy();
+    observer.disconnect();
+    getDocument().removeEventListener('input', scheduleSurface, true);
+    getDocument().removeEventListener('change', scheduleSurface, true);
     socket?.close();
     socket = undefined;
   };
@@ -180,6 +241,14 @@ export function respondToBridgeMessage(
   socket: JsonSender,
   rawMessage: unknown,
   registry: FunctionRegistry = functionRegistry,
+  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  getDocument: () => Document = () => globalThis.document,
+  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }> = () => ({
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    pageUrl: globalThis.location?.href,
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    pageTitle: globalThis.document?.title,
+  }),
 ): Promise<void> {
   let request: RegistryBridgeRequest;
   try {
@@ -189,7 +258,7 @@ export function respondToBridgeMessage(
     return Promise.resolve();
   }
 
-  return handleFunctionRegistryRequest(request, registry)
+  return handleFunctionRegistryRequest(request, registry, getDocument, getPageInfo)
     .then((result) => {
       sendJson(socket, { type: 'response', callId: request.callId, result });
     })
@@ -205,7 +274,18 @@ export function respondToBridgeMessage(
 export function handleFunctionRegistryRequest(
   request: RegistryBridgeRequest,
   registry: FunctionRegistry = functionRegistry,
+  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  getDocument: () => Document = () => globalThis.document,
+  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }> = () => ({
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    pageUrl: globalThis.location?.href,
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    pageTitle: globalThis.document?.title,
+  }),
 ): Promise<unknown> {
+  if (request.method === 'page') {
+    return handlePageRequest(request.params ?? {}, getDocument(), getPageInfo());
+  }
   return Promise.resolve().then(() =>
     handleFunctionRegistryRequestSync(request, registry),
   );
@@ -295,7 +375,87 @@ function handleFunctionRegistryRequestSync(
         .logs()
         .filter((entry) => sinceId === undefined || entry.id > sinceId);
     }
+    case 'page':
+      throw new Error('page must be handled asynchronously');
   }
+}
+
+async function handlePageRequest(
+  params: Readonly<Record<string, unknown>>,
+  pageDocument: Document,
+  pageInfo: Readonly<{ pageUrl?: string; pageTitle?: string }>,
+): Promise<unknown> {
+  const act = params['act'];
+  const detail = params['detail'] === 'dom-styles' ? 'dom-styles' : 'controls';
+  let error: string | undefined;
+  if (act !== undefined) {
+    if (!Array.isArray(act)) {
+      throw new Error('params.act must be an array');
+    }
+    const actions = act as PageAction[];
+    const applied = applyPageActions(pageDocument, actions);
+    error = applied.error;
+    if (error === undefined) {
+      await waitForControlIds(
+        pageDocument,
+        actions.map((action) => action.id),
+      );
+    }
+  }
+  const url = pageInfo.pageUrl ?? pageDocument.defaultView?.location.href ?? '';
+  const title = pageInfo.pageTitle ?? pageDocument.title;
+  const controls = collectPageControls(pageDocument);
+  if (detail === 'dom-styles') {
+    const styles = params['styles'];
+    const whitelist = Array.isArray(styles)
+      ? styles.filter((value): value is string => typeof value === 'string')
+      : undefined;
+    return {
+      url,
+      ...(title === undefined || title.length === 0 ? {} : { title }),
+      status: 'ready',
+      controls,
+      dom: captureDomStyles(pageDocument.documentElement, whitelist),
+      ...(error === undefined ? {} : { error }),
+    };
+  }
+  return {
+    url,
+    ...(title === undefined || title.length === 0 ? {} : { title }),
+    status: 'ready',
+    controls,
+    ...(error === undefined ? {} : { error }),
+  };
+}
+
+async function waitForControlIds(
+  pageDocument: Document,
+  ids: readonly string[],
+): Promise<void> {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const present = new Set(
+      collectPageControls(pageDocument).map((control) => control.id),
+    );
+    if (ids.every((id) => present.has(id))) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 16));
+  }
+}
+
+function createPageSurface(
+  clientId: string,
+  pageInfo: Readonly<{ pageUrl?: string; pageTitle?: string }>,
+  pageDocument: Document,
+): PageSurfaceMessage {
+  return {
+    type: 'page/surface',
+    clientId,
+    url: pageInfo.pageUrl ?? '',
+    ...(pageInfo.pageTitle === undefined ? {} : { title: pageInfo.pageTitle }),
+    controls: collectPageControls(pageDocument),
+  };
 }
 
 function createSnapshot(
@@ -364,7 +524,8 @@ function isRegistryMethod(value: unknown): value is RegistryMethod {
     value === 'registry/resource/patch' ||
     value === 'registry/override' ||
     value === 'registry/restore' ||
-    value === 'registry/logs'
+    value === 'registry/logs' ||
+    value === 'page'
   );
 }
 

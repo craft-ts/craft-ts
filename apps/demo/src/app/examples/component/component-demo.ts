@@ -31,7 +31,7 @@ const userCard = craftComponent(
       'data-user-id': user.id,
     }, [
       span(user.name),
-      button(
+      button('removeUser',
         { type: 'button',
           class: 'component-demo__remove',
           *click() {
@@ -82,7 +82,7 @@ export const componentDemo = craftComponent(
     section({ class: 'component-demo' }, [
       heading('Composants fonctionnels SFC'),
       p('Rendu runtime, signaux inline, liste keyée et enfant selectorless.'),
-      button(
+      button('addUser',
         { type: 'button',
           class: 'component-demo__add',
           click: users.addUser,
@@ -114,7 +114,7 @@ export const componentDemo = craftComponent(
         {
           trigger: 'interaction',
           placeholder: () =>
-            button(
+            button('loadDeferred',
               { type: 'button',
                 class: 'component-demo__defer-trigger',
                 'data-testid': 'load-deferred',

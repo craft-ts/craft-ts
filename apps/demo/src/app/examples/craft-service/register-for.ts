@@ -49,8 +49,8 @@ const CounterChild = craftComponent(
     div([
       span({ class: 'value' }, counter),
       div({ class: 'actions' }, [
-        button({ type: 'button', 'aria-label': 'Decrement', click: counter.decrement }, '-'),
-        button({ type: 'button', 'aria-label': 'Increment', click: counter.increment }, '+'),
+        button('decrement', { type: 'button', 'aria-label': 'Decrement', click: counter.decrement }, '-'),
+        button('increment', { type: 'button', 'aria-label': 'Increment', click: counter.increment }, '+'),
       ]),
     ]),
 );
@@ -123,16 +123,16 @@ const RegisterForDemo = craftComponent(
         'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
       ),
       div({ class: 'toolbar' }, [
-        button(
+        button('incrementAll',
           { type: 'button', click: childComponents.incrementAllChildCounter },
           'Increment all',
         ),
-        button(
+        button('decrementAll',
           { type: 'button', click: childComponents.decrementAllChildCounter },
           'Decrement all',
         ),
-        button({ type: 'button', click: counterChildIds.addChild }, 'Add a child'),
-        button({ type: 'button', click: counterChildIds.removeChild }, 'Remove a child'),
+        button('addChild', { type: 'button', click: counterChildIds.addChild }, 'Add a child'),
+        button('removeChild', { type: 'button', click: counterChildIds.removeChild }, 'Remove a child'),
         span(
           { class: 'meta' },
           function* () {

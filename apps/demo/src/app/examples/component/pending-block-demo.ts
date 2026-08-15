@@ -97,7 +97,7 @@ export const pendingBlockDemo = craftComponent(
       p(
         'The template reads an always-resolved value; the pendingBlock owns the loading state.',
       ),
-      button(
+      button('reload',
         { type: 'button',
           class: 'pending-demo__reload',
           *click() {

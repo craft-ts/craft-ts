@@ -37,7 +37,7 @@ Decision page: `/guide/concepts/choose-primitive`.
 5. **Forms** derive from `state` + `insertForm`. Validators are `cRequired`, `cEmail`, `cMinLength`, … Submit through `insertFormSubmit` + a `mutation`. Failures are `craftException` values.
 6. **Services:** `craftService({ name, scope }, function* () { ... })`. Adapt Angular/third-party tokens once with `toCraftService`. Consume the generated `X()` helper, typically `yield* X(...)`.
 7. **Routes:** `craftRoutes(name, [...])`, every component route has `componentDeps: {} as import('./x').GenDeps_X`, and **every file** has its own `ValidateCascadeRoutesFile` / `CanRun` check. Parent checks do not cover `loadChildren`. On `TS2589`, split with `loadChildren` — never delete the check.
-8. **Templates:** `ifBlock` / `matchBlock` / `each` / `defer`, not `@if` / `@for`. `button({ type: 'button', ... })`.
+8. **Templates:** `ifBlock` / `matchBlock` / `each` / `defer`, not `@if` / `@for`. Interactive helpers take a unique literal local name: `button('save', { type: 'button', ... }, 'Save')`. The name is `data-craft-name` and must be unique in the app (`assertInteractiveElementNamed`).
 9. **Let ESLint keep generated aliases.** After DI or route edits, run `eslint --fix`. Do not hand-edit `GenDeps_*` or `_Check*` / `_CanRun*` blocks.
 
 Install `@craft-ng/dev-tools` and enable the `craft-ng/*` ESLint rules. They are the compiler's partner: a missing route check or a raw `inject()` should fail CI, not production.
@@ -61,3 +61,5 @@ The `architecture/` suite is the graph contract: unique HTTP, unique identities,
 5. Run the app's lint, typecheck, existing architecture tests, and tests. Do not claim success from filtered output.
 
 Confirm symbol names against the installed `@craft-ng/core` (and `@craft-ng/component`) in `node_modules`. If they disagree with this guide, the installed package wins.
+
+In local development, drive the already-open `ng serve` tab with the function-registry MCP tool `page` (see `/guide/ai/dev-page`). `@craft-ng/mcp` does not expose `page`; it is docs and skills for writing Craft.

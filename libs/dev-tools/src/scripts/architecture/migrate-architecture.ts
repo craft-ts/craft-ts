@@ -106,6 +106,13 @@ const RULES = [
     it: 'keeps craftEffect from pushing into state, sources, queries or mutations',
     call: 'assertCraftEffectNoImperativeSync(graph.graph)',
   },
+  {
+    file: 'interactive-element-named.spec.ts',
+    helper: 'assertInteractiveElementNamed',
+    describe: 'assertInteractiveElementNamed',
+    it: 'requires a unique literal data-craft-name on every interactive element',
+    call: 'assertInteractiveElementNamed(graph.graph)',
+  },
 ] as const;
 
 export async function runArchitectureMigration(

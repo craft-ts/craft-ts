@@ -29,7 +29,7 @@ const Counter = craftComponent(
     return { counter };
   },
   ({ counter }) =>
-    button(
+    button('increment',
       { type: 'button',
         disabled: counter.disabled,
         *click() {

@@ -124,7 +124,7 @@ const PixelArtMatrix = craftComponent(
       div(
         { class: 'matrix-palette' },
         each(COLORS, { track: (color) => color }, (color) =>
-          button({ type: 'button',
+          button('color', { type: 'button',
             class: 'matrix-color',
             style: function* () {
               return { backgroundColor: yield* color() };
@@ -138,13 +138,13 @@ const PixelArtMatrix = craftComponent(
           }),
         ),
       ),
-      button({ type: 'button', click: grid.reset }, 'Reset'),
+      button('reset', { type: 'button', click: grid.reset }, 'Reset'),
       div(
         { class: 'matrix-grid' },
         each(grid, { track: trackGridRow }, (row, rowIndex) =>
           div({ class: 'matrix-row' }, [
             each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-              button({ type: 'button',
+              button('cell', { type: 'button',
                 class: 'matrix-cell',
                 style: function* () {
                   return { backgroundColor: (yield* cell()).color };
@@ -165,7 +165,7 @@ const PixelArtMatrix = craftComponent(
                 },
               }).pipe(longPress),
             ),
-            button(
+            button('addCell',
               { type: 'button',
                 *click() {
                   yield* grid.addCell(rowIndex);
@@ -176,7 +176,7 @@ const PixelArtMatrix = craftComponent(
           ]),
         ),
       ),
-      button({ type: 'button', click: grid.addRow }, 'Add row'),
+      button('addRow', { type: 'button', click: grid.addRow }, 'Add row'),
     ]),
 );
 

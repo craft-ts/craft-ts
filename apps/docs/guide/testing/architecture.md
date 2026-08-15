@@ -34,6 +34,7 @@ import {
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
+  assertInteractiveElementNamed,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPathBoundaries,
@@ -284,6 +285,7 @@ run it with `npx nx architecture demo`.
 | `assertInsertSelectUnique` | the same `insertSelect` key appears twice on one host primitive |
 | `assertCraftEffectNoNetwork` | a `craftEffect` `calls` HTTP or a `mutation` |
 | `assertCraftEffectNoImperativeSync` | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
+| `assertInteractiveElementNamed` | an interactive helper (`button`, `a`, `input` except `hidden`, `textarea`, `select`, or any node with `click` / `input` / `change` / `submit`) is missing a literal first-argument name, the name is not static, or the same `data-craft-name` appears twice in the app |
 
 ### `noExclusiveLink`
 
@@ -518,6 +520,21 @@ state writes.
 ```typescript
 it('keeps craftEffect from pushing into other primitives', () => {
   assertCraftEffectNoImperativeSync(graph.graph);
+});
+```
+
+### `assertInteractiveElementNamed`
+
+`button('increment', {}, '+')` stamps `data-craft-name="increment"`. Type-level
+proofs and DOM tests already key off that name. This helper makes the first
+string **mandatory** on clickable and fillable elements, and **unique in the
+app**: two `button('save')` in two components fail, and so does
+`button({ click() {} }, 'Save')`. ESLint `craft-ng/require-interactive-local-name`
+is the editor counterpart for the missing / non-static cases.
+
+```typescript
+it('requires a unique literal data-craft-name on every interactive element', () => {
+  assertInteractiveElementNamed(graph.graph);
 });
 ```
 

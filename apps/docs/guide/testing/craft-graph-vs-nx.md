@@ -43,7 +43,7 @@ judge an **app**, not a workspace.
 | That `HttpClient` was imported | That `GET users` is called from two APIs | `assertHttpEndpointUnique` |
 | Nothing about storage keys | Two queries sharing a `craftUnique` identity | `assertCraftUnique` |
 | Nothing about unused type aliases | A commented-out `CanRun` that still compiles | `assertRouteDiProofs` |
-| Nothing about `computed` | A `craftComputed` that `calls` a method or `writes` a `source$` | `assertCraftComputedPure` |
+| Nothing about named buttons | Two interactive helpers sharing `data-craft-name` | `assertInteractiveElementNamed` |
 
 Three consequences follow.
 

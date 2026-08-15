@@ -39,7 +39,7 @@ export const CssVarsPageNav = craftComponent(
     nav(
       { 'aria-label': 'CSS variable examples' },
       CSS_VARS_LINKS.map(([label, link]) =>
-        a({ craftRouterLink: link }, label).pipe(CraftRouterLink),
+        a('link', { craftRouterLink: link }, label).pipe(CraftRouterLink),
       ),
     ),
 );

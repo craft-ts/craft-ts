@@ -14,6 +14,7 @@ and Agent Skills.
 | **LLM files** | [`/llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt), [`/llms-full.txt`](https://ng-angular-stack.github.io/craft/llms-full.txt), and a `.md` sibling for every docs page | Discovery on the internet, no install |
 | **MCP server** | [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp) — `get_best_practices`, `search_documentation`, `find_examples`, skills | Live lookup in Cursor, Claude Code, VS Code, Copilot |
 | **Agent Skills** | `skills/` inside `@craft-ng/mcp`, plus an [Agent Plugin](https://agent-plugins.org/) manifest | Multi-step workflows (architecture tests, routes, spec → primitives, migration) |
+| **Live page MCP** | Local `@ng-craft/function-registry-mcp` tool `page` — fill, click, and inspect the `ng serve` tab already open | Dev only, on the running app. Not shipped in `@craft-ng/mcp`. See [Live page MCP](/guide/ai/dev-page) |
 
 Do not scrape the HTML docs. Start from `llms.txt` or the MCP tools.
 
@@ -87,7 +88,8 @@ claude mcp add craft-ng -- npx -y @craft-ng/mcp@beta
 
 The server is **read-only**. It searches documentation bundled at publish time,
 so it works offline. It is not the runtime registry MCP used to mutate a live
-demo tab.
+demo tab, and it does not expose the `page` tool. Driving the open `ng serve`
+tab is [Live page MCP](/guide/ai/dev-page) (dev only, function-registry MCP).
 
 ## 3. Agent Skills
 

@@ -61,7 +61,7 @@ Use `registry.call` when the user wants to execute an existing registry entry on
 4. Call `registry.call` with `{ clientId, key, args }`.
 5. Read `registry.logs` and confirm `call-started` followed by `call-succeeded` or `call-failed`.
 
-Do not use `registry.call` to emulate an override. If the user asks to change what a button does on future clicks, use `registry.override`.
+Do not use `registry.call` to emulate an override. If the user asks to change what a button does on future clicks, use `registry.override`. To click or fill the open tab like a user, use the `page` tool (skill `ng-craft-dev-page-mcp`), not `registry.call` on a button.
 
 ## Override a method
 

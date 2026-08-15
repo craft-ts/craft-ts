@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import {
   createFunctionRegistryClientId,
   handleFunctionRegistryRequest,
@@ -178,6 +179,33 @@ describe('function registry WebSocket bridge', () => {
         registry,
       ),
     ).rejects.toThrow('exposes query capabilities, not mutation');
+  });
+
+  it('fills a named control through the page method and returns controls', async () => {
+    document.body.replaceChildren();
+    const email = document.createElement('input');
+    email.setAttribute('data-craft-name', 'email');
+    email.setAttribute('aria-label', 'Email');
+    email.type = 'email';
+    document.body.append(email);
+
+    const result = await handleFunctionRegistryRequest(
+      request('page-1', 'page', {
+        act: [{ id: 'email', fill: 'ada@example.com' }],
+      }),
+    );
+
+    expect(email.value).toBe('ada@example.com');
+    expect(result).toMatchObject({
+      status: 'ready',
+      controls: [
+        expect.objectContaining({
+          id: 'email',
+          role: 'textbox',
+          value: 'ada@example.com',
+        }),
+      ],
+    });
   });
 });
 

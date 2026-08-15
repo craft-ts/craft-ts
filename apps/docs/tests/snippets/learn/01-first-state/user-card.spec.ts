@@ -28,7 +28,7 @@ const UserCard = craftComponent(
   ({ user, onRemove }) =>
     div([
       span(user.name),
-      button({
+      button('remove', {
         type: 'button',
         *click() {
           yield* onRemove(yield* user());

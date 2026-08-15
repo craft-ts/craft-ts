@@ -118,7 +118,7 @@ const ExceptionsComponent = craftComponent(
         },
       ),
       div({ class: 'exception-actions' }, [
-        button(
+        button('success',
           { type: 'button',
             *click() {
               yield* scenario.select('success');
@@ -126,7 +126,7 @@ const ExceptionsComponent = craftComponent(
           },
           'Success',
         ),
-        button(
+        button('notFound',
           { type: 'button',
             *click() {
               yield* scenario.select('not-found');
@@ -134,7 +134,7 @@ const ExceptionsComponent = craftComponent(
           },
           'User not found',
         ),
-        button(
+        button('consentMissing',
           { type: 'button',
             *click() {
               yield* scenario.select('consent-missing');
@@ -142,7 +142,7 @@ const ExceptionsComponent = craftComponent(
           },
           'Consent missing',
         ),
-        button(
+        button('forbidden',
           { type: 'button',
             *click() {
               yield* scenario.select('forbidden');

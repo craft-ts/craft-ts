@@ -55,12 +55,14 @@ export default [
   {
     files: [
       '**/src/app/function-registry-bridge.ts',
+      '**/src/app/page-actor.ts',
       '**/src/app/query-params.utils.ts',
     ],
     rules: {
       // These adapters validate external protocol/URL values and preserve
       // their existing synchronous JavaScript error contracts.
       'craft-ng/no-throw': 'off',
+      'craft-ng/no-async-await': 'off',
     },
   },
   {

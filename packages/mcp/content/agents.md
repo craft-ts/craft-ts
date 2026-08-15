@@ -23,3 +23,4 @@ This application uses `@craft-ng/core`. Treat Craft APIs as the default. Do not 
 - Guide: https://ng-angular-stack.github.io/craft/guide/
 - API index: https://ng-angular-stack.github.io/craft/reference/
 - Coding agents: https://ng-angular-stack.github.io/craft/resources/ai-agents
+- Local dev: drive the open `ng serve` tab with the function-registry MCP tool `page` (https://ng-angular-stack.github.io/craft/guide/ai/dev-page). That tool is not part of `@craft-ng/mcp`.

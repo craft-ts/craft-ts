@@ -249,7 +249,7 @@ const DebouncedWebSearch = craftComponent(
       p(
         'Type a book title. The input waits 350 ms in an asyncProcess before the query calls the public Open Library API.',
       ),
-      input({
+      input('search', {
         type: 'search',
         value: searchInput,
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
@@ -303,7 +303,7 @@ const DebouncedWebSearch = craftComponent(
                   alt: '',
                 }),
                 div({ class: 'book__content' }, [
-                  a(
+                  a('book',
                     {
                       href: function* () {
                         return (yield* book()).url;

@@ -1411,6 +1411,90 @@ function isMutationTarget(
   return parent?.details?.['primitive'] === 'mutation';
 }
 
+export type InteractiveElementNamedViolation = {
+  kind: 'missing' | 'non-static' | 'duplicate';
+  id: string;
+  label: string;
+  tag?: string;
+  callSites: readonly { filePath?: string; line?: number }[];
+};
+
+export function interactiveElementNamedViolations(
+  graph: DependencyGraph,
+): InteractiveElementNamedViolation[] {
+  const violations: InteractiveElementNamedViolation[] = [];
+  const byName = new Map<string, DependencyGraphNode[]>();
+
+  for (const node of graph.nodes) {
+    if (node.kind !== 'template-element') continue;
+    const site = {
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    };
+    if (node.details?.['static'] === false) {
+      violations.push({
+        kind: 'non-static',
+        id: node.id,
+        label: node.label,
+        tag: String(node.details['tag'] ?? ''),
+        callSites: [site],
+      });
+      continue;
+    }
+    const localName = node.details?.['localName'];
+    if (node.details?.['missing'] || typeof localName !== 'string') {
+      violations.push({
+        kind: 'missing',
+        id: node.id,
+        label: node.label,
+        tag: String(node.details?.['tag'] ?? ''),
+        callSites: [site],
+      });
+      continue;
+    }
+    const list = byName.get(localName) ?? [];
+    list.push(node);
+    byName.set(localName, list);
+  }
+
+  for (const [name, nodes] of byName) {
+    if (nodes.length <= 1) continue;
+    violations.push({
+      kind: 'duplicate',
+      id: nodes[0]?.id ?? name,
+      label: name,
+      callSites: nodes.map((node) => ({
+        filePath: relativeGraphPath(graph, node.filePath),
+        line: node.line,
+      })),
+    });
+  }
+
+  return violations;
+}
+
+export function assertInteractiveElementNamed(graph: DependencyGraph): void {
+  const violations = interactiveElementNamedViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const sites = violation.callSites
+          .map((site) => [site.filePath, site.line].filter(Boolean).join(':'))
+          .filter(Boolean)
+          .join(', ');
+        if (violation.kind === 'non-static') {
+          return `Non-static interactive element name cannot be verified${sites ? ` (${sites})` : ''}.`;
+        }
+        if (violation.kind === 'missing') {
+          return `Interactive ${violation.tag} is missing a literal data-craft-name${sites ? ` (${sites})` : ''}.`;
+        }
+        return `Duplicate data-craft-name "${violation.label}" used twice${sites ? ` (${sites})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
 export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
   options: MutationReactOnOptions = {},

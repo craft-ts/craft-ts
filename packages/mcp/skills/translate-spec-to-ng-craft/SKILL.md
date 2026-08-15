@@ -59,7 +59,7 @@ Always structure the answer as:
 1. `Spec fragment -> utility`
 2. `Recommended composition`
 3. `Default behaviors`
-4. `Baseline helper already covering this` — the existing architecture-suite helper (`assertMutationHasReactOn`, `assertHttpEndpointUnique`, `assertCraftUnique`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertRouteDiProofs`, …). This is not a new `it()`. Do not add an architecture rule for the feature.
+4. `Baseline helper already covering this` — the existing architecture-suite helper (`assertMutationHasReactOn`, `assertHttpEndpointUnique`, `assertCraftUnique`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertInteractiveElementNamed`, `assertRouteDiProofs`, …). This is not a new `it()`. Do not add an architecture rule for the feature.
 5. `Open questions or assumptions`
 
 Propose a **new** custom architecture rule only when the spec states a product invariant the baseline helpers do not cover (this feature must not depend on that one). Then load `ng-craft-architecture-tests`.

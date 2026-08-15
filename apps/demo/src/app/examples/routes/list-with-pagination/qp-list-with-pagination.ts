@@ -110,7 +110,7 @@ const QpListWithPagination = craftComponent(
         ),
       ),
       div({ class: 'pagination' }, [
-        select(
+        select('pageSize',
           {
             'aria-label': 'Page size',
             value: pagination.pageSize,
@@ -118,9 +118,9 @@ const QpListWithPagination = craftComponent(
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
-        button({ type: 'button', click: pagination.previousPage }, 'Previous'),
+        button('previousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
         span({ class: 'current-page' }, pagination.page),
-        button({ type: 'button', click: pagination.nextPage }, 'Next'),
+        button('nextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
       ]),
     ]),
 );

@@ -82,7 +82,7 @@ const LoginFormComponent = craftComponent(
 
     return (
       // exceptions are volontary handled at different place for demo reasons
-      form(
+      form('login',
         {
           *submit(event) {
             event.preventDefault();
@@ -93,14 +93,14 @@ const LoginFormComponent = craftComponent(
           heading('Login form'),
           div({ class: 'login-field' }, [
             label(email.label, 'Email'),
-            input({ ...email.input, type: 'email' }).pipe(
+            input('email', { ...email.input, type: 'email' }).pipe(
               CraftFieldDirective(loginForm.form.selectEmail()),
             ),
             p(email.description, 'We never share your email.'),
           ]),
           div({ class: 'login-field' }, [
             label(password.label, 'Password'),
-            input({ ...password.input, type: 'password' })
+            input('password', { ...password.input, type: 'password' })
               .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
               .pipe(
                 fieldExceptionBlock.partial({
@@ -113,7 +113,7 @@ const LoginFormComponent = craftComponent(
           ifBlock(loginForm.form.showSuccess, () =>
             p('✅ Login form submitted.'),
           ),
-          button({ type: 'submit' }, 'Sign in'),
+          button('submit', { type: 'submit' }, 'Sign in'),
         ],
       ).pipe(
         fieldExceptionBlock.exhaustive({

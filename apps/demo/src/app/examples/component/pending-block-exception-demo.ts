@@ -114,7 +114,7 @@ export const pendingBlockExceptionDemo = craftComponent(
         'The same read suspends to the pendingBlock, then fails to the catchBlock.',
       ),
       div({ class: 'pending-exception__actions' }, [
-        button(
+        button('issueSuccess',
           { type: 'button',
             class: 'pending-exception__action',
             *click() {
@@ -126,7 +126,7 @@ export const pendingBlockExceptionDemo = craftComponent(
           },
           'Issue (success)',
         ),
-        button(
+        button('issueRejected',
           { type: 'button',
             class: 'pending-exception__action',
             *click() {

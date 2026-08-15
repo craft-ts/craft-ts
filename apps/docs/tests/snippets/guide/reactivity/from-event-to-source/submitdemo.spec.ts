@@ -39,8 +39,8 @@ export const SubmitDemo = craftComponent(
   },
   ({ formData }) =>
     form([
-      input({ type: 'text', name: 'username' }),
-      button({ type: 'submit' }, 'Submit'),
+      input('username', { type: 'text', name: 'username' }),
+      button('submit', { type: 'submit' }, 'Submit'),
       p(function* () {
         return JSON.stringify(yield* formData());
       }),

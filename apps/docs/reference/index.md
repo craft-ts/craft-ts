@@ -153,7 +153,7 @@ already receive those methods as arguments — see
 | `ComponentTemplateOf`, `ComponentLogicOutputOf`, `SetupTestComponentTemplate`                                                                                                  | Resolves component logic and validates a template at compile time | [Type-level tests](/guide/testing/type-level)           |
 | `TemplateHasElement`, `TemplateRendersNamedElementWhen`, `TemplateNamedElementRendersStateWhen`, `TemplateNamedElementDelegatesToContext`, `TemplateRenderAvailableActionWhen` | Proves what a template renders and uses                           | [Type-level tests](/guide/testing/type-level)           |
 | `Expect`, `Equal`                                                                                                                                                              | Turns a type-level result into a compile-time assertion           | [Type-level tests](/guide/testing/type-level)           |
-| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, `assertCraftEffectNoImperativeSync` | Typed lookups and declarative architecture helpers | [Architecture rules](/guide/testing/architecture) |
+| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, `assertCraftEffectNoImperativeSync`, `assertInteractiveElementNamed` | Typed lookups and declarative architecture helpers | [Architecture rules](/guide/testing/architecture) |
 
 ## Tooling
 
@@ -166,4 +166,5 @@ already receive those methods as arguments — see
 | `@craft-ng/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) · [Accessibilité](/guide/components/accessibility) |
 | `npx craft-graph`                  | Writes the static Craft graph               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | `npx nx architecture <app>`        | Runs the app's architecture Vitest suite    | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
+| Live page MCP `page`               | Drive the open `ng serve` tab (dev only)    | [Live page MCP](/guide/ai/dev-page)                                      |
 | Template migrator                  | Migrates templates to craft components      | [Template migrator](/guide/components/template-migrator)                 |

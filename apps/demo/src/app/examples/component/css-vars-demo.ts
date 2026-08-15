@@ -90,7 +90,7 @@ export const CssVarsDemo = craftComponent(
       section(
         { class: 'css-vars-demo__grid', 'aria-label': 'Examples' },
         CASES.map(({ path, title, description }) =>
-          a(
+          a('cardLink',
             {
               class: 'css-vars-demo__card',
               craftRouterLink: { to: path },

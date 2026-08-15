@@ -18,6 +18,7 @@ describe('registry MCP server', () => {
 
     const tools = await client.listTools();
     expect(tools.tools.map(({ name }) => name)).toEqual([
+      'page',
       'registry.clients',
       'registry.list',
       'registry.get',
@@ -42,6 +43,22 @@ describe('registry MCP server', () => {
       'registry.restore',
       'registry.logs',
     ]);
+
+    await client.callTool({
+      name: 'page',
+      arguments: {
+        clientId: 'browser-a',
+        act: [{ id: 'email', fill: 'a@b.c' }],
+        detail: 'controls',
+        timeoutMs: 5_000,
+      },
+    });
+    expect(request).toHaveBeenCalledWith('page', {
+      clientId: 'browser-a',
+      act: [{ id: 'email', fill: 'a@b.c' }],
+      detail: 'controls',
+      timeoutMs: 5_000,
+    });
 
     await client.callTool({
       name: 'registry.clients',

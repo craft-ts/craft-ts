@@ -8,13 +8,20 @@ npm run start --workspace @ng-craft/function-registry-mcp
 ```
 
 Set `REGISTRY_BRIDGE_HOST` and `REGISTRY_BRIDGE_PORT` to override the WebSocket
-listener. MCP tools are `registry.clients`, `registry.list`, `registry.get`,
+listener. MCP tools are `page`, `registry.clients`, `registry.list`, `registry.get`,
 `registry.call`, primitive-specific value tools such as `registry.query.get`,
 `registry.query.update`, `registry.mutation.patch`,
 `registry.asyncProcess.set`, `registry.queryParams.update`,
 `registry.override`, `registry.restore`, and `registry.logs`. Their WebSocket
-methods use slash forms internally (`registry/list`, `registry/resource/update`,
+methods use slash forms internally (`page`, `registry/list`, `registry/resource/update`,
 etc.), and each request and response carries a `callId`.
+
+`page` reads the named interactive surface (`data-craft-name`) on the connected
+tab and can `act` (fill, click, press) in the same round-trip. Omit `clientId`
+when exactly one tab is connected. Default `detail` is `controls`; `dom-styles`
+is opt-in debug. The broker keeps the client card while `ng serve` rebuilds and
+`page` waits until the tab is `ready` again. See the demo docs page
+`/guide/ai/dev-page`.
 
 Each browser tab keeps a stable `clientId` in `sessionStorage`. The broker keeps
 one socket and one snapshot per client instead of choosing a global "latest"

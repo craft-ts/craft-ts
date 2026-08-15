@@ -97,6 +97,11 @@ describe('architecture migration', () => {
         join(root, 'architecture/rules/craft-effect-no-imperative-sync.spec.ts'),
       ),
     ).toBe(true);
+    expect(
+      existsSync(
+        join(root, 'architecture/rules/interactive-element-named.spec.ts'),
+      ),
+    ).toBe(true);
     expect(existsSync(join(root, 'architecture/architecture.spec.ts'))).toBe(
       true,
     );

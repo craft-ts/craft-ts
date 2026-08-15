@@ -193,6 +193,7 @@ import {
   assertPathBoundaries,
   assertDeclarativeArchitecture,
   assertRouteDiProofs,
+  assertInteractiveElementNamed,
 } from '@craft-ng/dev-tools';
 import { architectureCatalog } from './craft-dependency-graph.architecture';
 
@@ -226,6 +227,7 @@ assertHttpEndpointUnique(graph.graph);
 assertCraftComputedPure(graph.graph);
 assertNoDependencyCycles(graph.graph);
 assertRouteDiProofs(graph.graph);
+assertInteractiveElementNamed(graph.graph);
 // or the five declarative checks together:
 assertDeclarativeArchitecture(graph.graph);
 ```
