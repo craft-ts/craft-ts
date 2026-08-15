@@ -26,6 +26,7 @@ export * from './lib/project';
 export * from './lib/template';
 export * from './lib/hyperscript';
 export * from './lib/a11y';
+export * from './lib/a11y-control';
 export * from './lib/render/style-registry';
 export * from './lib/testing';
 export type {
