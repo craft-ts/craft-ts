@@ -25,6 +25,8 @@ Sur une page déjà ouverte en développement :
    suivie du nouvel état.
 2. Le MCP **registry** existant : lire / muter / overrider les primitives
    (`query`, `state`, `mutation`, …). Pas de DOM.
+3. Le raconter : carte en tête de la home docs, page Guide, `llms.txt`
+   régénéré au build, skill local. Pas d’outil `page` dans `@craft-ng/mcp`.
 
 Le bus reste le WebSocket actuel (`ws://127.0.0.1:3333`), le même `clientId`
 `sessionStorage` que le registre et les logs.
@@ -43,6 +45,10 @@ Le bus reste le WebSocket actuel (`ws://127.0.0.1:3333`), le même `clientId`
   cohabiter sur le même broker).
 - Production. Compilation `new Function`, acteur in-page, dump de styles :
   **dev only**, listener localhost.
+- Ajouter l’outil `page` (ou un socket WS) au MCP **publié** `@craft-ng/mcp`.
+  Ce serveur est docs + skills pour **écrire** du Craft, sans navigateur.
+  `page` a besoin d’un onglet local : il reste sur
+  `@ng-craft/function-registry-mcp`.
 
 ## Deux canaux
 
@@ -245,6 +251,92 @@ Messages stables, actionnables, sans dump interne :
 - E2E demo login : `fill` email + password + `submit`, sans reload de page,
   formulaire soumis.
 
+## Documentation, skills, `llms.txt`, MCP publié
+
+La fonctionnalité se vend et s’enseigne. Elle ne se **télécharge** pas dans
+le MCP docs.
+
+### Page d’accueil
+
+Dans `apps/docs/index.md`, ajouter une carte `features` **en tête de liste**
+(c’est le différenciateur). Docs en anglais :
+
+```yaml
+- title: Agents drive the tab you already have open
+  details: In development the running app publishes its named controls. A coding agent fills, clicks and inspects that page — no second browser, no DOM reverse-engineering. Unique among frontend frameworks.
+  link: /guide/ai/dev-page
+```
+
+Le hero (`name` / `text` / `tagline`) ne change pas.
+
+### Guide
+
+Nouvelle page `apps/docs/guide/ai/dev-page.md` (English, forme Guide du skill
+doc-update) :
+
+- **Use it when** un agent Cursor doit piloter ou inspecter la page `ng serve`
+  déjà ouverte.
+- **Not when** on écrit du Craft hors runtime → `@craft-ng/mcp` ;
+  quand on mute une primitive sans l’UI → tools `registry.*`.
+- Brancher le MCP local (`registry:mcp` / function-registry-mcp).
+- Un outil `page` : lecture vs `act` puis état ; `detail: "controls"` vs
+  `"dom-styles"`.
+- Ciblage = nom local (`button('submit', …)`), unicité
+  `assertInteractiveElementNamed`.
+- Ready pendant le rebuild.
+
+Sidebar Guide : entrée sous une section courte « Coding agents » (ou à côté
+d’observability si la sidebar n’a pas encore ce groupe). Lien depuis
+`/resources/ai-agents` (tableau des couches : 4e ligne **Live page MCP**,
+dev only). Ligne dans `/reference/index.md` → cette page.
+
+Snippets testés seulement pour le hyperscript nommé (`button('save', …)`),
+pas pour un dump MCP.
+
+### `llms.txt`
+
+Pas d’édition à la main. `vitepress-plugin-llms` régénère l’index au build
+docs. La **page guide** doit y apparaître (titre + description). Vérifier
+après build.
+
+Le YAML `features` de la home n’est pas un article : si le plugin l’ignore,
+ajouter **une phrase** dans `llmstxt({ details: … })` de
+`apps/docs/.vitepress/config.mts` qui pointe vers `/guide/ai/dev-page`.
+`llms-full.txt` suit le même build.
+
+### Skills
+
+- **Local** (ce repo, à côté de `craft-ng-runtime-change-web-mcp`) : skill
+  opérationnel `page` — `clients` / `page` / `detail`, fill vs clic, ready,
+  quand basculer vers `registry.*`.
+- **Registry skill** : une ligne — l’UI se pilote avec `page`, pas avec
+  `registry.call` sur un bouton.
+- **`@craft-ng/mcp` skills publiés** : pas de skill qui appelle `page` (l’outil
+  n’existe pas dans ce serveur). Une phrase dans `craft-ng` / `best-practices.md`
+  / `content/agents.md` : en dev local, la page ouverte se pilote via le MCP
+  function-registry (lien guide).
+
+### MCP exposé (`@craft-ng/mcp`)
+
+**Pas nécessaire d’y exposer `page`.** `search_documentation` / le bundle
+`docs-index.json` suffisent une fois la page guide merge. Pas de nouveau tool,
+pas de WS dans ce process.
+
+Le MCP qui **expose** `page`, c’est `packages/function-registry-mcp`
+(README, liste des tools, annotations). Même binaire, même port.
+
+## Tests (docs / agent stack)
+
+En plus des tests runtime :
+
+- `apps/docs/index.md` contient la carte features ci-dessus et le lien
+  `/guide/ai/dev-page`.
+- La page guide existe, est dans la sidebar, et un spec
+  `apps/docs/tests/` (comme `ai-agents-docs.spec.ts`) vérifie le split
+  `page` vs `registry.*` vs `@craft-ng/mcp`.
+- `resources/ai-agents.md` mentionne le live page MCP comme couche **locale**.
+- Aucun tool `page` dans `packages/mcp/src/mcp-server.ts`.
+
 ## Fichiers probables
 
 - `apps/demo/src/app/function-registry-bridge.ts` : hello / surface / `page`.
@@ -253,5 +345,11 @@ Messages stables, actionnables, sans dump interne :
   `mcp-server.ts` : méthode `page`, tool `page`, états client
   `reloading|connecting|ready`.
 - Tests colocalisés aux couches actuelles (bridge, broker, e2e demo).
+- `apps/docs/index.md`, `apps/docs/guide/ai/dev-page.md`, sidebar
+  `.vitepress/config.mts`, `resources/ai-agents.md`, `reference/index.md`.
+- `.agents/skills/` (skill `page` + pointeur registry).
+- `packages/function-registry-mcp/README.md`.
+- Phrase dans `packages/mcp/content/best-practices.md` et `content/agents.md`.
 
-Pas de nouveau package npm. Pas de nouveau port.
+Pas de nouveau package npm. Pas de nouveau port. Pas de tool `page` dans
+`@craft-ng/mcp`.
