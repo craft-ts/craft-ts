@@ -444,7 +444,139 @@ type TemplateTestResult<Component extends CraftComponent<any>, Context> =
     updateContext(context: Context): void;
     destroy(): void;
     toBeAccessible(): Promise<void>;
+    getByRole(role: string, options?: { name?: string | RegExp }): HTMLElement;
+    queryByRole(
+      role: string,
+      options?: { name?: string | RegExp },
+    ): HTMLElement | undefined;
+    getByLabel(name: string | RegExp): HTMLElement;
+    queryByLabel(name: string | RegExp): HTMLElement | undefined;
   };
+
+function matchesName(actual: string, expected: string | RegExp | undefined): boolean {
+  if (expected === undefined) return true;
+  return typeof expected === 'string'
+    ? actual === expected
+    : expected.test(actual);
+}
+
+function findById(root: ParentNode, id: string): Element | undefined {
+  return Array.from(root.querySelectorAll<HTMLElement>('[id]')).find(
+    (element) => element.id === id,
+  );
+}
+
+function findLabelFor(root: ParentNode, id: string): Element | undefined {
+  return Array.from(root.querySelectorAll<HTMLLabelElement>('label')).find(
+    (label) => label.htmlFor === id,
+  );
+}
+
+function accessibleName(element: Element, root: ParentNode): string {
+  const labelledBy = element.getAttribute('aria-labelledby');
+  if (labelledBy) {
+    return labelledBy
+      .split(/\s+/)
+      .map((id) => findById(root, id)?.textContent ?? '')
+      .join(' ')
+      .trim();
+  }
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel) return ariaLabel.trim();
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
+    if (element.id) {
+      const label = findLabelFor(root, element.id);
+      if (label) return (label.textContent ?? '').trim();
+    }
+  }
+  return (element.textContent ?? '').trim();
+}
+
+function implicitRole(element: Element): string | null {
+  const explicit = element.getAttribute('role');
+  if (explicit) return explicit;
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'button') return 'button';
+  if (tag === 'a' && element.hasAttribute('href')) return 'link';
+  if (tag === 'textarea') return 'textbox';
+  if (tag === 'input') {
+    const type = (element as HTMLInputElement).type;
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'radio') return 'radio';
+    if (type === 'submit' || type === 'button' || type === 'reset') return 'button';
+    return 'textbox';
+  }
+  if (tag === 'img') return 'img';
+  if (tag === 'nav') return 'navigation';
+  if (tag === 'main') return 'main';
+  if (/^h[1-6]$/.test(tag)) return 'heading';
+  return null;
+}
+
+function queryAllByRole(
+  root: Element,
+  role: string,
+  options?: { name?: string | RegExp },
+): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('*')).filter((node) => {
+    if (implicitRole(node) !== role) return false;
+    return matchesName(accessibleName(node, root), options?.name);
+  });
+}
+
+function requireSingle(
+  elements: HTMLElement[],
+  query: string,
+  allowEmpty: boolean,
+): HTMLElement | undefined {
+  if (elements.length > 1) {
+    throw new Error(`Found ${elements.length} elements with ${query}`);
+  }
+  if (elements.length === 0) {
+    if (allowEmpty) return undefined;
+    throw new Error(`Unable to find ${query}`);
+  }
+  return elements[0];
+}
+
+function createAccessibleQueries(root: HTMLElement) {
+  return {
+    getByRole(role: string, options?: { name?: string | RegExp }) {
+      return requireSingle(
+        queryAllByRole(root, role, options),
+        `role "${role}"`,
+        false,
+      )!;
+    },
+    queryByRole(role: string, options?: { name?: string | RegExp }) {
+      return requireSingle(
+        queryAllByRole(root, role, options),
+        `role "${role}"`,
+        true,
+      );
+    },
+    getByLabel(name: string | RegExp) {
+      const labelled = Array.from(
+        root.querySelectorAll<HTMLElement>('input, textarea, select, button'),
+      ).filter(
+        (node) => matchesName(accessibleName(node, root), name),
+      );
+      return requireSingle(labelled, `label "${String(name)}"`, false)!;
+    },
+    queryByLabel(name: string | RegExp) {
+      const labelled = Array.from(
+        root.querySelectorAll<HTMLElement>('input, textarea, select, button'),
+      ).filter(
+        (node) => matchesName(accessibleName(node, root), name),
+      );
+      return requireSingle(labelled, `label "${String(name)}"`, true);
+    },
+  };
+}
 
 function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
@@ -484,6 +616,7 @@ async function setupCraftComponentTemplateTestImpl<
     nativeElement: host,
     element: host,
     mocks: mocks as Record<string, unknown>,
+    ...createAccessibleQueries(host),
     detectChanges,
     updateContext(context: Context) {
       mounted.updateContext(context);
@@ -627,6 +760,7 @@ async function setupCraftDirectiveTemplateTestImpl<
     nativeElement: host,
     element: host,
     mocks: mocks as Record<string, unknown>,
+    ...createAccessibleQueries(host),
     detectChanges,
     updateContext(context: Context) {
       mounted.updateContext(context);
