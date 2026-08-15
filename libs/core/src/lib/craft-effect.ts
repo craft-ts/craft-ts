@@ -5,12 +5,14 @@ import {
   inject,
   Injector,
   runInInjectionContext,
+  signal,
+  untracked,
   type CreateEffectOptions,
   type EffectCleanupRegisterFn,
   type EffectRef,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { craftSignal, craftWatch } from './host/craft-signal';
+import { craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -80,9 +82,10 @@ export function craftEffect(
 
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
-  const parentDestroyRef = inject(DestroyRef);
+  const ownerInjector = options?.injector ?? parentInjector;
+  const ownerDestroyRef = ownerInjector.get(DestroyRef);
   const effectInjector = ɵcreateHostTaggedInjector(
-    parentInjector,
+    ownerInjector,
     `effect:${name}`,
   );
 
@@ -115,14 +118,16 @@ export function craftEffect(
       : (plainFn as CraftEffectFn);
   }
 
-  const rerun = craftSignal(0);
+  const craftInvalidation = signal(0);
   let craftRef: { destroy(): void } | undefined;
   let destroyed = false;
   const angularRef = effect(
     () => {
-      if (!craftRef) {
-        craftRef = craftWatch(() => {
-          rerun();
+      craftInvalidation();
+      craftRef?.destroy();
+      let initialRun = true;
+      craftRef = craftWatch(() => {
+        if (initialRun) {
           const cleanups: (() => void)[] = [];
           effectBody((cleanup) => cleanups.push(cleanup));
           return cleanups.length === 0
@@ -130,14 +135,15 @@ export function craftEffect(
             : () => {
                 for (const cleanup of cleanups) cleanup();
               };
-        });
-      } else {
-        rerun.update((revision) => revision + 1);
-      }
+        }
+        untracked(() => craftInvalidation.update((revision) => revision + 1));
+        return undefined;
+      });
+      initialRun = false;
     },
     {
       ...options,
-      injector: parentInjector,
+      injector: ownerInjector,
       manualCleanup: true,
     },
   );
@@ -150,14 +156,14 @@ export function craftEffect(
     },
   } as EffectRef;
   if (!options?.manualCleanup) {
-    parentDestroyRef.onDestroy(() => ref.destroy());
+    ownerDestroyRef.onDestroy(() => ref.destroy());
   }
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {
     const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     registry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(parentDestroyRef))
+      .pipe(takeUntilDestroyed(ownerDestroyRef))
       .subscribe(() => {
         registry.allActiveEffects$.next({
           source: `effect:${name}`,

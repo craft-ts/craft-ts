@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -24,6 +24,7 @@ import {
 } from './craft-service';
 import type { YieldableReactiveValue } from './reactive-read';
 import { craftUse } from './craft-use';
+import { craftSignal } from './host/craft-signal';
 
 beforeAll(() => {
   try {
@@ -79,6 +80,20 @@ describe('craftComputed', () => {
     expect(craftUse(value())).toBe(42);
 
     expect(computation).toHaveBeenCalledTimes(callsAfterFirstRead);
+  });
+
+  it('invalidates an Angular computed when a Craft dependency changes', () => {
+    const source = craftSignal(2);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('value', () => source() * 3),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(angularConsumer()).toBe(6);
+
+    source.set(4);
+
+    expect(angularConsumer()).toBe(12);
   });
 
   it('should work with a generator factory that resolves DI deps once', () => {

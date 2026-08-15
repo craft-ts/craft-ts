@@ -5,6 +5,8 @@ import {
   inject,
   Injector,
   runInInjectionContext,
+  signal,
+  untracked,
   type CreateComputedOptions,
   type Signal,
 } from '@angular/core';
@@ -12,6 +14,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   craftComputed as createCraftComputed,
   craftSignal,
+  craftWatch,
 } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -176,14 +179,39 @@ export function craftComputed<T>(
     angularRevision();
     return evaluate();
   }, options);
+  const craftBridgeRevision = signal(0);
+  let synchronizingAngularDependency = false;
+  let craftBridgeWatch: { destroy(): void } | undefined;
+  const ensureCraftBridge = (): void => {
+    if (craftBridgeWatch) return;
+    let initialized = false;
+    craftBridgeWatch = craftWatch(() => {
+      memoized();
+      if (initialized && !synchronizingAngularDependency) {
+        untracked(() => craftBridgeRevision.update((revision) => revision + 1));
+      }
+      initialized = true;
+    });
+    computedInjector
+      .get(DestroyRef)
+      .onDestroy(() => craftBridgeWatch?.destroy());
+  };
   let previousProbe: object | undefined;
   const result = (() => {
+    craftBridgeRevision();
     const probe = angularProbe();
     if (previousProbe !== undefined && probe !== previousProbe) {
-      angularRevision.update((revision) => revision + 1);
+      synchronizingAngularDependency = true;
+      try {
+        angularRevision.update((revision) => revision + 1);
+      } finally {
+        synchronizingAngularDependency = false;
+      }
     }
     previousProbe = probe;
-    return memoized();
+    const value = memoized();
+    ensureCraftBridge();
+    return value;
   }) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });

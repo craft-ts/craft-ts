@@ -95,7 +95,61 @@ describe('craftEffect', () => {
     expect(seen).toEqual([0, 1]);
 
     craftCount.set(2);
+    TestBed.tick();
     expect(seen).toEqual([0, 1, 3]);
+  });
+
+  it('retraces conditional Angular dependencies after a Craft-triggered run', () => {
+    const useSecond = craftSignal(false);
+    const first = signal('first');
+    const second = signal('second');
+    const seen: string[] = [];
+
+    TestBed.runInInjectionContext(() =>
+      craftEffect('conditional-mixed', () => {
+        seen.push(useSecond() ? second() : first());
+      }),
+    );
+
+    TestBed.tick();
+    expect(seen).toEqual(['first']);
+
+    useSecond.set(true);
+    TestBed.tick();
+    expect(seen).toEqual(['first', 'second']);
+
+    second.set('updated');
+    TestBed.tick();
+
+    expect(seen).toEqual(['first', 'second', 'updated']);
+  });
+
+  it('uses the injector option as the effect owner', () => {
+    const source = craftSignal(0);
+    const seen: number[] = [];
+    const owner = createEnvironmentInjector(
+      [],
+      TestBed.inject(EnvironmentInjector),
+    );
+
+    TestBed.runInInjectionContext(() =>
+      craftEffect(
+        'custom-owner',
+        () => {
+          seen.push(source());
+        },
+        { injector: owner },
+      ),
+    );
+    TestBed.tick();
+    source.set(1);
+    TestBed.tick();
+    expect(seen).toEqual([0, 1]);
+
+    owner.destroy();
+    source.set(2);
+
+    expect(seen).toEqual([0, 1]);
   });
 
   it('stops with its owning DestroyRef', () => {
@@ -113,6 +167,7 @@ describe('craftEffect', () => {
     );
     TestBed.tick();
     source.set(1);
+    TestBed.tick();
     expect(seen).toEqual([0, 1]);
 
     injector.destroy();
