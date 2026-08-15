@@ -14,6 +14,26 @@ export type CraftWritableSignal<T> = CraftSignal<T> & {
   update(fn: (value: T) => T): void;
 };
 
+let activeCraftReadCollector: Set<CraftSignal<unknown>> | undefined;
+
+function trackCraftRead(value: CraftSignal<unknown>): void {
+  activeCraftReadCollector?.add(value);
+}
+
+export function captureCraftSignalReads<T>(fn: () => T): {
+  readonly value: T;
+  readonly reads: readonly CraftSignal<unknown>[];
+} {
+  const previous = activeCraftReadCollector;
+  const reads = new Set<CraftSignal<unknown>>();
+  activeCraftReadCollector = reads;
+  try {
+    return { value: fn(), reads: [...reads] };
+  } finally {
+    activeCraftReadCollector = previous;
+  }
+}
+
 type CraftSignalOptions<T> = {
   readonly equal?: (a: T, b: T) => boolean;
   readonly debugName?: string;
@@ -43,7 +63,10 @@ export function craftSignal<T>(
 ): CraftWritableSignal<T> {
   const raw = signal(initial);
   const equal = options?.equal ?? Object.is;
-  const value = (() => raw()) as CraftWritableSignal<T>;
+  const value = (() => {
+    trackCraftRead(value);
+    return raw();
+  }) as CraftWritableSignal<T>;
   value.set = (next) => {
     if (
       !equal(
@@ -69,13 +92,17 @@ export function craftComputed<T>(
 ): CraftSignal<T> {
   const equal = options?.equal ?? Object.is;
   let hasPrevious = false;
-  const value = computed<T>((previous) => {
+  const derived = computed<T>((previous) => {
     const next = compute();
     const result =
       hasPrevious && equal(previous as T, next) ? (previous as T) : next;
     hasPrevious = true;
     return result;
   });
+  const value = (() => {
+    trackCraftRead(value);
+    return derived();
+  }) as CraftSignal<T>;
   return brand(value) as CraftSignal<T>;
 }
 
@@ -114,7 +141,10 @@ export function craftLinkedSignal<T>(options: {
     hasComputedValue = true;
     return result;
   });
-  const value = (() => derived()) as CraftWritableSignal<T>;
+  const value = (() => {
+    trackCraftRead(value);
+    return derived();
+  }) as CraftWritableSignal<T>;
   value.set = (next) => {
     if (!hasSource) {
       previousSource = untracked(options.source);

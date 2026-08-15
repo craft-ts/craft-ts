@@ -82,6 +82,31 @@ describe('craftComputed', () => {
     expect(computation).toHaveBeenCalledTimes(callsAfterFirstRead);
   });
 
+  it('evaluates once per invalidation for an Angular computed consumer', () => {
+    const craftSource = craftSignal(2);
+    const angularSource = signal(3);
+    const computation = vi.fn(() => craftSource() * angularSource());
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('single-evaluation', computation),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(angularConsumer()).toBe(6);
+    expect(computation).toHaveBeenCalledTimes(1);
+
+    expect(angularConsumer()).toBe(6);
+    expect(computation).toHaveBeenCalledTimes(1);
+
+    craftSource.set(4);
+    expect(computation).toHaveBeenCalledTimes(1);
+    expect(angularConsumer()).toBe(12);
+    expect(computation).toHaveBeenCalledTimes(2);
+
+    angularSource.set(5);
+    expect(angularConsumer()).toBe(20);
+    expect(computation).toHaveBeenCalledTimes(3);
+  });
+
   it('invalidates an Angular computed when a Craft dependency changes', () => {
     const source = craftSignal(2);
     const value = TestBed.runInInjectionContext(() =>

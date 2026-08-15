@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  captureCraftSignalReads,
   craftComputed as createCraftComputed,
   craftSignal,
   craftWatch,
@@ -173,57 +174,61 @@ export function craftComputed<T>(
       : (computation as () => T);
   }
 
-  const angularProbeRevision = signal(0);
-  const angularProbe = computed(() => {
-    angularProbeRevision();
-    return { value: evaluate() };
-  });
   const angularRevision = craftSignal(0);
+  let capturedCraftReads: readonly (() => unknown)[] = [];
+  let evaluationVersion = 0;
   const memoized = createComputedWithOptions(() => {
     angularRevision();
-    return evaluate();
+    const captured = captureCraftSignalReads(evaluate);
+    capturedCraftReads = captured.reads;
+    evaluationVersion++;
+    return captured.value;
   }, options);
+  const angularMemoRevision = signal(0);
+  let angularMemoInitialized = false;
+  const angularMemo = computed(() => {
+    angularMemoRevision();
+    if (angularMemoInitialized) {
+      angularRevision.update((revision) => revision + 1);
+    }
+    angularMemoInitialized = true;
+    return memoized();
+  });
   const craftBridgeRevision = signal(0);
   let craftBridgeWatch: { destroy(): void } | undefined;
-  const installCraftBridge = (): object => {
+  let installedEvaluationVersion = -1;
+  const installCraftBridge = (): void => {
     craftBridgeWatch?.destroy();
-    untracked(() => angularProbeRevision.update((revision) => revision + 1));
     let initialRun = true;
-    let probe!: object;
     craftBridgeWatch = craftWatch(() => {
       if (initialRun) {
-        probe = angularProbe();
+        for (const read of capturedCraftReads) {
+          read();
+        }
         return undefined;
       }
       untracked(() => craftBridgeRevision.update((revision) => revision + 1));
       return undefined;
     });
     initialRun = false;
-    return probe;
+    installedEvaluationVersion = evaluationVersion;
   };
   computedInjector.get(DestroyRef).onDestroy(() => craftBridgeWatch?.destroy());
-  let previousProbe: object | undefined;
   let previousCraftBridgeRevision = -1;
   const result = (() => {
     const currentCraftBridgeRevision = craftBridgeRevision();
-    let probe: object;
     if (
-      !craftBridgeWatch ||
+      previousCraftBridgeRevision !== -1 &&
       currentCraftBridgeRevision !== previousCraftBridgeRevision
     ) {
-      probe = installCraftBridge();
-    } else {
-      probe = angularProbe();
-      if (previousProbe !== undefined && probe !== previousProbe) {
-        probe = installCraftBridge();
-      }
+      untracked(() => angularMemoRevision.update((revision) => revision + 1));
     }
-    if (previousProbe !== undefined && probe !== previousProbe) {
-      angularRevision.update((revision) => revision + 1);
+    const value = angularMemo();
+    if (!craftBridgeWatch || installedEvaluationVersion !== evaluationVersion) {
+      installCraftBridge();
     }
-    previousProbe = probe;
     previousCraftBridgeRevision = currentCraftBridgeRevision;
-    return memoized();
+    return value;
   }) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
