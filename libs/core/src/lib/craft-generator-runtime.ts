@@ -1,9 +1,4 @@
-import {
-  Injector,
-  InjectionToken,
-  runInInjectionContext,
-  type Provider,
-} from '@angular/core';
+import { Injector, InjectionToken, type Provider } from '@angular/core';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -17,6 +12,7 @@ import {
   ɵwithActiveReactiveReader,
   type ReactiveReadIdentity,
 } from './reactive-read';
+import { ɵcraftInjectorFromHost } from './host/craft-injector';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',
@@ -298,16 +294,15 @@ export function executeGeneratorCompatibleFactory<
   onAppStartNotSupportedErrorMessage?: string;
 }): ResolveGeneratorResult<Result> {
   const injector = getInjector();
-  const wrappedFactory = runInInjectionContext(injector, () =>
-    injectFnWrapper()(factory),
-  );
+  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const wrappedFactory = craftInjector.run(() => injectFnWrapper()(factory));
   const result = wrappedFactory.apply(thisArg, args);
 
   if (!isGenerator(result)) {
     return result as ResolveGeneratorResult<Result>;
   }
 
-  return runInInjectionContext(injector, () => {
+  return craftInjector.run(() => {
     return runCraftGenerator({
       iterator: result,
       injector,

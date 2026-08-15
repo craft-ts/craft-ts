@@ -68,6 +68,15 @@ export * from './lib/craft-method';
 export * from './lib/craft-computed';
 export * from './lib/craft-effect';
 export * from './lib/craft-service';
+export {
+  craftToken,
+  createCraftInjector,
+  getCurrentCraftInjector,
+  ɵcraftInjectorFromHost,
+  type CraftInjector,
+  type CraftProvider,
+  type CraftToken,
+} from './lib/host/craft-injector';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
 export * from './lib/yieldable';

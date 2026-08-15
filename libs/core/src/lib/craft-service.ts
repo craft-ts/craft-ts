@@ -1,6 +1,5 @@
 import {
   assertInInjectionContext,
-  createEnvironmentInjector,
   DestroyRef,
   EnvironmentInjector,
   EnvironmentProviders,
@@ -9,7 +8,6 @@ import {
   Injector,
   isSignal,
   Provider,
-  runInInjectionContext,
   Signal,
   Type,
   untracked,
@@ -66,6 +64,10 @@ import {
   type Yieldable,
 } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
+import {
+  ɵcraftInjectorFromHost,
+  ɵcreateAngularChildInjector,
+} from './host/craft-injector';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -3948,7 +3950,7 @@ function createConcreteServiceInstance(
     definition.providers ?? [],
   );
 
-  return runInInjectionContext(scopedInjector, () => {
+  return ɵcraftInjectorFromHost(scopedInjector).run(() => {
     const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
     const bindings = omitInputs
       ? {}
@@ -4651,13 +4653,13 @@ export function ɵcreateHostTaggedInjector(
         ]
       : [...envOnlyTags, hostName];
 
-  const envInjector = createEnvironmentInjector(
+  const envInjector = ɵcreateAngularChildInjector(
+    injector,
     [
       ɵprovideHostName(hostName),
       { provide: ɵHOST_TAG_LIST, useValue: mergedTags },
       ...extraProviders,
     ],
-    injector as EnvironmentInjector,
     `HostTag(${hostName})`,
   );
 

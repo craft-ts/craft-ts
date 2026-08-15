@@ -1,12 +1,10 @@
-import {
-  Injector,
-  runInInjectionContext,
-} from '@angular/core';
+import { Injector } from '@angular/core';
 import {
   executeGeneratorCompatibleFactory,
   executeGeneratorCompatibleFactoryAsync,
   type CraftProgramSettledStep,
   type ResolveGeneratorResult,
+  ɵcraftInjectorFromHost,
 } from '@craft-ng/core';
 import type { ComponentFactory } from './types';
 
@@ -22,8 +20,7 @@ export function executeCraftComponentFactory<Factory extends ComponentFactory>(
   args: Parameters<Factory>,
   injector: Injector,
 ): ResolveGeneratorResult<ReturnType<Factory>> {
-  return runInInjectionContext(
-    injector,
+  return ɵcraftInjectorFromHost(injector).run(
     () =>
       executeGeneratorCompatibleFactory({
         factory,
@@ -44,7 +41,7 @@ export function executeCraftComponentFactoryAsync<
   args: Parameters<Factory>,
   injector: Injector,
 ): Promise<CraftProgramSettledStep> {
-  return runInInjectionContext(injector, () =>
+  return ɵcraftInjectorFromHost(injector).run(() =>
     executeGeneratorCompatibleFactoryAsync({
       factory,
       thisArg: undefined,
