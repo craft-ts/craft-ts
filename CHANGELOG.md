@@ -1,3 +1,31 @@
+## 0.7.0-beta.9 (2026-08-15)
+
+### 🚀 Features
+
+- **component:** add fieldControl a11y prop bundles ([0b24c02](https://github.com/ng-angular-stack/ng-craft/commit/0b24c02))
+- **component:** add disclosureControl ARIA linking ([c775e33](https://github.com/ng-angular-stack/ng-craft/commit/c775e33))
+- **component:** add buttonControl with opt-in keepFocusable ([27f80e6](https://github.com/ng-angular-stack/ng-craft/commit/27f80e6))
+- **component:** keep liveRegion mounted as an optional landmark ([db7403e](https://github.com/ng-angular-stack/ng-craft/commit/db7403e))
+- **component:** add getByRole and getByLabel template queries ([d0aacf4](https://github.com/ng-angular-stack/ng-craft/commit/d0aacf4))
+- **component:** add clickFocus for gesture-sync focusing ([410cf00](https://github.com/ng-angular-stack/ng-craft/commit/410cf00))
+- **core:** sync document lang and dir through BrowserDocument ([b65847b](https://github.com/ng-angular-stack/ng-craft/commit/b65847b))
+
+### 🩹 Fixes
+
+- **component:** serialize htmlFor and boolean aria attributes ([2ddc6c2](https://github.com/ng-angular-stack/ng-craft/commit/2ddc6c2))
+- **component:** serialize boolean false on aria attributes ([594fc43](https://github.com/ng-angular-stack/ng-craft/commit/594fc43))
+- **component:** treat an explicit empty liveRegion label as provided ([1b6d4c1](https://github.com/ng-angular-stack/ng-craft/commit/1b6d4c1))
+- **component:** tighten getByRole errors and accessible names ([450eb2d](https://github.com/ng-angular-stack/ng-craft/commit/450eb2d))
+- **component:** restore RegExp lastIndex after getByRole name match ([85df08f](https://github.com/ng-angular-stack/ng-craft/commit/85df08f))
+- **component:** hide closed disclosure panels and clear label htmlFor ([5f04420](https://github.com/ng-angular-stack/ng-craft/commit/5f04420))
+- **core:** yield insertion state reads and writes ([83c9a18](https://github.com/ng-angular-stack/ng-craft/commit/83c9a18))
+- **core:** attach runtime meta to abstract inject helpers ([aeb0dc2](https://github.com/ng-angular-stack/ng-craft/commit/aeb0dc2))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Romain
+
 ## 0.7.0-beta.8 (2026-08-13)
 
 This was a version bump only, there were no code changes.
