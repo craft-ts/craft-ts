@@ -1,4 +1,7 @@
-import type { AnyCraftException } from '@craft-ng/core';
+import type {
+  AnyCraftException,
+  YieldableReactiveValue,
+} from '@craft-ng/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
@@ -16,49 +19,55 @@ type ExceptionHandlerMap<Value extends object, Key extends keyof Value> = {
   ) => CraftNodeChildren;
 };
 
-type MatchSource<Value extends object> = (() => Value | undefined) | Value;
-
 type MatchBlockDependencies<Handlers> =
   Handlers extends Record<string, (...args: any[]) => infer Output>
     ? CraftNodeChildrenDependencies<Output>
     : {};
 
-/** Reactive template counterpart of discriminated-union matching. */
-export const matchBlock = {
-  exhaustive<
-    Value extends object,
-    Key extends {
-      [K in keyof Value]-?: Value[K] extends string | number ? K : never;
-    }[keyof Value],
-    Handlers extends ExceptionHandlerMap<Value, Key>,
-  >(
-    source: MatchSource<Value>,
-    key: Key,
-    handlers: Handlers,
-  ): MatchBlockNode<
-    MatchBlockDependencies<Handlers>,
-    () => Value | undefined,
-    ReturnType<Handlers[ExceptionCode<Value, Key>]>,
-    Extract<ExceptionCode<Value, Key>, string>
-  > {
-    const read = (): Value | undefined =>
-      typeof source === 'function'
-        ? (source as () => Value | undefined)()
-        : (source as Value);
+type ExceptionKey<Value extends object> = {
+  [K in keyof Value]-?: Value[K] extends string | number ? K : never;
+}[keyof Value];
 
-    return {
-      kind: 'match-block',
-      source: read,
-      key,
-      handlers: handlers as unknown as Record<
-        string,
-        (exception: AnyCraftException) => CraftNodeChildren
-      >,
-    } as MatchBlockNode<
-      MatchBlockDependencies<Handlers>,
-      () => Value | undefined,
-      ReturnType<Handlers[ExceptionCode<Value, Key>]>,
-      Extract<ExceptionCode<Value, Key>, string>
-    >;
-  },
-};
+function exhaustive<
+  Value extends object,
+  Key extends ExceptionKey<Value>,
+  Handlers extends ExceptionHandlerMap<Value, Key>,
+>(
+  source: YieldableReactiveValue<Value>,
+  key: Key,
+  handlers: Handlers,
+): MatchBlockNode<
+  MatchBlockDependencies<Handlers>,
+  YieldableReactiveValue<Value>,
+  ReturnType<Handlers[ExceptionCode<Value, Key>]>,
+  Extract<ExceptionCode<Value, Key>, string>
+>;
+function exhaustive<
+  Value extends object,
+  Key extends ExceptionKey<Value>,
+  Handlers extends ExceptionHandlerMap<Value, Key>,
+>(
+  source: (() => Value | undefined) | Value,
+  key: Key,
+  handlers: Handlers,
+): MatchBlockNode<
+  MatchBlockDependencies<Handlers>,
+  (() => Value | undefined) | Value,
+  ReturnType<Handlers[ExceptionCode<Value, Key>]>,
+  Extract<ExceptionCode<Value, Key>, string>
+>;
+function exhaustive(
+  source: unknown,
+  key: PropertyKey,
+  handlers: Record<string, (exception: AnyCraftException) => CraftNodeChildren>,
+) {
+  return {
+    kind: 'match-block' as const,
+    source,
+    key,
+    handlers,
+  };
+}
+
+/** Reactive template counterpart of discriminated-union matching. */
+export const matchBlock = { exhaustive };

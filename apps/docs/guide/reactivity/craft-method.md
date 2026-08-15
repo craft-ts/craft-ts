@@ -70,21 +70,23 @@ export const Counter = craftComponent(
 
     const increment = craftMethod('increment', function* (step = 1) {
       yield* Console.log('increment is called');
-      counter.update((value) => value + step);
+      yield* counter.update((value) => value + step);
     });
 
     return { counter, increment };
   },
   ({ counter, increment }) => [
     p(counter),
-    button({ click: () => void increment() }, 'Increment'),
+    button({ click: increment }, 'Increment'),
   ],
 );
 ```
 
-The generator closes over `counter`, so nothing needs binding. When the method is
-consumed from a Craft template, the renderer drives it with the Craft generator
-runtime while preserving its injector and wrappers.
+
+
+`counter` does not belong to `increment`, so the method yields
+`counter.update`. Pass the method to the template (`click: increment`) rather
+than wrapping `() => increment()`.
 
 ## Composing crafted services
 

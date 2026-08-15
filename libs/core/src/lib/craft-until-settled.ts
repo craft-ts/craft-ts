@@ -17,6 +17,13 @@ import {
   type RuntimeGuardAwaitRequest,
 } from './craft-generator-runtime';
 import type { CraftHttpClientError } from './craft-http-client';
+import {
+  isYieldableReactiveValue,
+  rawReactiveValue,
+  type YieldableReactiveValue,
+} from './reactive-read';
+
+type ReactiveResourceValue<T> = Signal<T> | YieldableReactiveValue<T>;
 
 /**
  * The minimal shape a craft resource (`query` / `mutation` / `asyncProcess`)
@@ -30,36 +37,38 @@ import type { CraftHttpClientError } from './craft-http-client';
  * re-throw a residual technical failure while public refs still match this shape.
  */
 export type ResourceLike = {
-  status: Signal<string>;
-  value: Signal<unknown>;
+  status: ReactiveResourceValue<string>;
+  value: ReactiveResourceValue<unknown>;
   error?: Signal<Error | undefined>;
-  hasException: Signal<boolean>;
-  exceptions: Signal<{ list: readonly AnyCraftException[] }>;
+  hasException: ReactiveResourceValue<boolean>;
+  exceptions: ReactiveResourceValue<{ list: readonly AnyCraftException[] }>;
 };
 
 /** The union of `craftException`s a resource may carry (its loader/params exceptions). */
 export type ResourceExceptionUnion<R> = R extends {
-  exceptions: Signal<{ list: (infer Exception)[] }>;
+  exceptions: YieldableReactiveValue<{ list: (infer Exception)[] }>;
 }
   ? Extract<Exception, AnyCraftException>
-  : never;
+  : R extends { exceptions: Signal<{ list: (infer Exception)[] }> }
+    ? Extract<Exception, AnyCraftException>
+    : never;
 
 /** The settled (non-undefined) value a resource resolves to. */
 export type ResourceResolvedValue<R> = R extends {
-  value: Signal<infer Value>;
+  value: YieldableReactiveValue<infer Value>;
 }
   ? Exclude<Value, undefined>
-  : unknown;
+  : R extends { value: Signal<infer Value> }
+    ? Exclude<Value, undefined>
+    : unknown;
 
 /** The descriptor a `CraftHttpClient.*` call generator returns. */
-type HttpCallDescriptor<G> = G extends Generator<any, infer Descriptor, any>
-  ? Descriptor
-  : never;
+type HttpCallDescriptor<G> =
+  G extends Generator<any, infer Descriptor, any> ? Descriptor : never;
 
 /** The yields relayed by a `CraftHttpClient.*` call generator (its tracked request). */
-type HttpCallYielded<G> = G extends Generator<infer Yielded, any, any>
-  ? Yielded
-  : never;
+type HttpCallYielded<G> =
+  G extends Generator<infer Yielded, any, any> ? Yielded : never;
 
 /** What the HTTP descriptor resolves to: `Success | CustomException | CraftHttpClientError`. */
 type HttpResolved<G> = Awaited<HttpCallDescriptor<G>>;
@@ -82,28 +91,42 @@ function guardAwaitRequest(
     | { kind: 'settle'; resource: GuardAwaitResourceLike }
     | { kind: 'promise'; value: PromiseLike<unknown> },
 ): RuntimeGuardAwaitRequest {
-  return { [GUARD_AWAIT_REQUEST_MARKER]: true, ...request } as RuntimeGuardAwaitRequest;
+  return {
+    [GUARD_AWAIT_REQUEST_MARKER]: true,
+    ...request,
+  } as RuntimeGuardAwaitRequest;
 }
 
 function* craftUntilSettledResource(
   resource: ResourceLike,
 ): Generator<unknown, unknown, unknown> {
+  const adapter = {
+    status: () => readResourceValue(resource.status),
+    value: () => readResourceValue(resource.value),
+    error: () => resource.error?.(),
+    hasException: () => readResourceValue(resource.hasException),
+    exceptions: () => readResourceValue(resource.exceptions),
+  } satisfies GuardAwaitResourceLike;
   yield guardAwaitRequest({
     kind: 'settle',
-    resource: resource as unknown as GuardAwaitResourceLike,
+    resource: adapter,
   });
 
-  if (resource.hasException()) {
-    throw new CraftGenShortCircuit(resource.exceptions().list[0]);
+  if (adapter.hasException()) {
+    throw new CraftGenShortCircuit(adapter.exceptions().list[0]);
   }
 
-  if (resource.status() === 'exception') {
+  if (adapter.status() === 'exception') {
     // No business `craftException` present but the status is `'exception'` — a
     // residual technical failure. Rethrow the raw Angular error (internal channel).
     throw resource.error?.();
   }
 
-  return resource.value();
+  return adapter.value();
+}
+
+function readResourceValue<T>(value: ReactiveResourceValue<T>): T {
+  return isYieldableReactiveValue(value) ? rawReactiveValue(value)() : value();
 }
 
 function* craftUntilSettledHttp(

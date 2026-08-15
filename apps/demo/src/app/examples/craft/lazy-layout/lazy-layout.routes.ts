@@ -1,5 +1,7 @@
 import type { Router } from '@angular/router';
-import { loadCraftComponent } from '@craft-ng/component';
+import {
+  loadCraftComponent,
+} from '@craft-ng/component';
 import {
   assertExhaustiveRouteExceptions,
   craftRoutes,

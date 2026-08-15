@@ -1,4 +1,4 @@
-import { computed, Signal, signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftException } from '../craft-exception';
 import { state } from '../state';
@@ -9,6 +9,7 @@ import {
   validatedFormValueSymbol,
 } from './insert-form';
 import { craftUse } from '../craft-use';
+import type { YieldableReactiveValue } from '../reactive-read';
 
 type LoginData = {
   name: string;
@@ -18,7 +19,8 @@ type LoginData = {
 describe('insertForm', () => {
   it('creates a CraftFieldTree from a state and exposes insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: '1', password: '' } satisfies LoginData,
           insertForm(({ field, formIdentifier }) => {
@@ -32,15 +34,16 @@ describe('insertForm', () => {
       );
 
       expect(loginForm.form).toBeDefined();
-      expect(loginForm.form.name.value()).toBe('1');
-      expect(loginForm.form.password.value()).toBe('');
-      expect(loginForm.form.someInsertion()).toBe('test');
+      expect(craftUse(loginForm.form.name.value())).toBe('1');
+      expect(craftUse(loginForm.form.password.value())).toBe('');
+      expect(craftUse(loginForm.form.someInsertion())).toBe('test');
     });
   });
 
   it('chained insertions can read previous outputs via context.insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(
@@ -62,7 +65,8 @@ describe('insertForm', () => {
 
   it('creates a parallel form tree from an array state', () => {
     TestBed.runInInjectionContext(() => {
-      const usersForm = craftUse(state(
+      const usersForm = craftUse(
+        state(
           'usersForm',
           [
             { id: 'a', name: 'Alpha' },
@@ -74,13 +78,13 @@ describe('insertForm', () => {
         ),
       );
 
-      const list = usersForm.forms();
+      const list = craftUse(usersForm.forms());
       expect(list.length).toBe(2);
       expect(list[0].name.value()).toBe('Alpha');
       expect(list[1].name.value()).toBe('Beta');
 
       const a = usersForm.select('a');
-      expect(a?.name.value()).toBe('Alpha');
+      expect(craftUse(a?.name.value())).toBe('Alpha');
       const c = usersForm.select('c');
       expect(c).toBeUndefined();
     });
@@ -88,23 +92,25 @@ describe('insertForm', () => {
 
   it('applies set/update/patch through the form tree', () => {
     TestBed.runInInjectionContext(() => {
-      const userForm = craftUse(state('userForm', { name: 'a', count: 0 }, insertForm()),
+      const userForm = craftUse(
+        state('userForm', { name: 'a', count: 0 }, insertForm()),
       );
 
       userForm.form.name.set('b');
-      expect(userForm()).toEqual({ name: 'b', count: 0 });
+      expect(craftUse(userForm())).toEqual({ name: 'b', count: 0 });
 
       userForm.form.count.set(5);
-      expect(userForm()).toEqual({ name: 'b', count: 5 });
+      expect(craftUse(userForm())).toEqual({ name: 'b', count: 5 });
 
       userForm.form.patch(() => ({ name: 'c' }));
-      expect(userForm()).toEqual({ name: 'c', count: 5 });
+      expect(craftUse(userForm())).toEqual({ name: 'c', count: 5 });
     });
   });
 
   it('exposes hasAttemptedSubmit and submitting signals', () => {
     TestBed.runInInjectionContext(() => {
-      const userForm = craftUse(state(
+      const userForm = craftUse(
+        state(
           'userForm',
           { name: 'a' },
           insertForm(({ hasAttemptedSubmit, submitting }) => ({
@@ -114,21 +120,20 @@ describe('insertForm', () => {
         ),
       );
 
-      expectTypeOf(userForm.form.hasAttemptedSubmit).toEqualTypeOf<
-        Signal<boolean>
+      expectTypeOf(userForm.form.hasAttemptedSubmit).toMatchTypeOf<
+        YieldableReactiveValue<boolean>
       >();
-      expect(userForm.form.hasAttemptedSubmit()).toBe(false);
-      expect(userForm.form.submitting()).toBe(false);
+      expect(craftUse(userForm.form.hasAttemptedSubmit())).toBe(false);
+      expect(craftUse(userForm.form.submitting())).toBe(false);
     });
   });
 
   it('field is a CraftField at the root', () => {
     TestBed.runInInjectionContext(() => {
-      const userForm = craftUse(state('userForm', { name: 'a' }, insertForm()),
-      );
+      const userForm = craftUse(state('userForm', { name: 'a' }, insertForm()));
 
-      expectTypeOf(userForm.form.value).toEqualTypeOf<
-        Signal<{ name: string }>
+      expectTypeOf(userForm.form.value).toMatchTypeOf<
+        YieldableReactiveValue<{ name: string }>
       >();
       expect(typeof (userForm.form as unknown as CraftField<unknown>).set).toBe(
         'function',
@@ -138,20 +143,22 @@ describe('insertForm', () => {
 
   it('exposes validatedFormValue branded with the symbol when the form is valid', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(),
         ),
       );
 
-      expect(loginForm.form.validatedFormValue()).toEqual({
+      expect(craftUse(loginForm.form.validatedFormValue())).toEqual({
         name: 'romain',
         password: 'secret',
         [validatedFormValueSymbol]: true,
       });
 
-      const loginForms = craftUse(state(
+      const loginForms = craftUse(
+        state(
           'loginForms',
           [
             { name: '1', password: '' },
@@ -161,7 +168,10 @@ describe('insertForm', () => {
         ),
       );
 
-      expect(loginForms.select(0)?.validatedFormValue()?.name).toBe('1');
+      const selected = loginForms.select(0);
+      expect(
+        selected ? craftUse(selected.validatedFormValue())?.name : undefined,
+      ).toBe('1');
     });
   });
 
@@ -192,7 +202,8 @@ describe('insertForm', () => {
 
   it('keeps hasAttemptedSubmit sticky across setSubmitting toggles and clears it on reset', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ setSubmitting, setAttemptedSubmit }) => ({
@@ -203,29 +214,30 @@ describe('insertForm', () => {
       );
 
       expectTypeOf(
-        loginForm.form.hasAttemptedSubmit(),
+        craftUse(loginForm.form.hasAttemptedSubmit()),
       ).toEqualTypeOf<boolean>();
 
-      expect(loginForm.form.submitting()).toBe(false);
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(false);
 
       loginForm.form.setSubmitting(true);
-      expect(loginForm.form.submitting()).toBe(true);
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
+      expect(craftUse(loginForm.form.submitting())).toBe(true);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
 
       loginForm.form.setSubmitting(false);
-      expect(loginForm.form.submitting()).toBe(false);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
       // hasAttemptedSubmit stays true until reset
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
 
       loginForm.form.reset();
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(false);
     });
   });
 
   it('setAttemptedSubmit marks attempted without toggling submitting', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ setAttemptedSubmit }) => ({ setAttemptedSubmit })),
@@ -233,19 +245,20 @@ describe('insertForm', () => {
       );
 
       expectTypeOf(loginForm.form.setAttemptedSubmit).toBeFunction();
-      expect(loginForm.form.submitting()).toBe(false);
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(false);
 
       craftUse(loginForm.form.setAttemptedSubmit());
 
-      expect(loginForm.form.submitting()).toBe(false);
-      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
+      expect(craftUse(loginForm.form.submitting())).toBe(false);
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
     });
   });
 
   it('exposes setSubmitting for each parallel form independently', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForms = craftUse(state(
+      const loginForms = craftUse(
+        state(
           'loginForms',
           [
             { id: 1, name: 'a' },
@@ -264,12 +277,12 @@ describe('insertForm', () => {
       const f1 = loginForms.select(1)!;
       const f2 = loginForms.select(2)!;
 
-      expect(f1.submitting()).toBe(false);
-      expect(f2.submitting()).toBe(false);
+      expect(craftUse(f1.submitting())).toBe(false);
+      expect(craftUse(f2.submitting())).toBe(false);
 
       f1.setSubmitting(true);
-      expect(f1.submitting()).toBe(true);
-      expect(f2.submitting()).toBe(false);
+      expect(craftUse(f1.submitting())).toBe(true);
+      expect(craftUse(f2.submitting())).toBe(false);
 
       f1.setSubmitting(false);
     });
@@ -277,12 +290,14 @@ describe('insertForm', () => {
 
   it('exposes the form tree externally for direct sub-field access (simple and parallel)', () => {
     TestBed.runInInjectionContext(() => {
-      const myState = craftUse(state('myState', { id: 1, name: '1', password: '' }, insertForm()),
+      const myState = craftUse(
+        state('myState', { id: 1, name: '1', password: '' }, insertForm()),
       );
       expect(myState.form.password).toBeDefined();
-      expect(myState.form.password.value()).toBe('');
+      expect(craftUse(myState.form.password.value())).toBe('');
 
-      const forms = craftUse(state(
+      const forms = craftUse(
+        state(
           'forms',
           [{ id: 1, name: '1', password: 'myPassword' }],
           insertForm({ identifier: ({ item }) => item.id }),
@@ -291,7 +306,7 @@ describe('insertForm', () => {
 
       const selected = forms.select(1);
       expect(selected).toBeDefined();
-      expect(selected!.password.value()).toBe('myPassword');
+      expect(craftUse(selected!.password.value())).toBe('myPassword');
     });
   });
 
@@ -308,7 +323,8 @@ describe('insertForm', () => {
       const submitExceptions = signal<(typeof submitException)[]>([]);
       const validationExceptions = signal<(typeof validationException)[]>([]);
 
-      const loginForm = craftUse(state(
+      const loginForm = craftUse(
+        state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(() => ({
@@ -323,24 +339,26 @@ describe('insertForm', () => {
         ),
       );
 
-      expectTypeOf(loginForm.form.hasExceptions()).toEqualTypeOf<boolean>();
+      expectTypeOf(
+        craftUse(loginForm.form.hasExceptions()),
+      ).toEqualTypeOf<boolean>();
 
-      expect(loginForm.form.hasExceptions()).toBe(false);
-      expect(loginForm.form.exceptions()).toEqual({
+      expect(craftUse(loginForm.form.hasExceptions())).toBe(false);
+      expect(craftUse(loginForm.form.exceptions())).toEqual({
         submit: [],
         validation: [],
       });
 
       submitExceptions.set([submitException]);
-      expect(loginForm.form.hasExceptions()).toBe(true);
-      expect(loginForm.form.exceptions()).toEqual({
+      expect(craftUse(loginForm.form.hasExceptions())).toBe(true);
+      expect(craftUse(loginForm.form.exceptions())).toEqual({
         submit: [submitException],
         validation: [],
       });
 
       validationExceptions.set([validationException]);
-      expect(loginForm.form.hasExceptions()).toBe(true);
-      expect(loginForm.form.exceptions()).toEqual({
+      expect(craftUse(loginForm.form.hasExceptions())).toBe(true);
+      expect(craftUse(loginForm.form.exceptions())).toEqual({
         submit: [submitException],
         validation: [validationException],
       });

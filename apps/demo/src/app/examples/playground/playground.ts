@@ -1,13 +1,14 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
   div,
   each,
-  h2,
   ifBlock,
   input,
   p,
   span,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -50,11 +51,12 @@ const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
   function* () {
     const nextId = yield* state('nextId', 4, ({ state, update }) => ({
-      take: () => {
-        const id = state();
-        update((value) => value + 1);
-        return id;
-      },
+      take: function* () {
+            const _state = yield* state();
+                const id = _state;
+                yield* update((value) => value + 1);
+                return id;
+              },
     }));
 
     return {
@@ -245,42 +247,60 @@ const PlaygroundComponent = craftComponent(
       color: #9ca3af;
       font-style: italic;
     }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
     const pg = yield* Playground();
-    const add = craftMethod('add', function* (input: HTMLInputElement) {
-      const title = input.value.trim();
+    const titleInput = yield* state('titleInput', '', ({ set }) => ({
+      setTitle: (value: string) => set(value),
+    }));
+    const add = craftMethod('add', function* () {
+      const title = (yield* titleInput()).trim();
       if (!title) return;
       yield* pg.addTodo.mutate(title);
-      input.value = '';
+      yield* titleInput.setTitle('');
       return {};
     });
-    const isAdding = craftComputed('isAdding', () => pg.addTodo.isLoading());
-    const todos = craftComputed('todos', () => pg.todos.value() ?? []);
-    return { pg, add, isAdding, todos };
+    const isAdding = craftComputed('isAdding', function* () {
+        const _pgaddTodoisLoading = yield* pg.addTodo.isLoading(); return _pgaddTodoisLoading; },
+    );
+    const todos = craftComputed(
+      'todos',
+      function* () {
+          const _pgtodosvalue = yield* pg.todos.value(); return _pgtodosvalue ?? []; },
+    );
+    return {
+      pg,
+      add,
+      isAdding,
+      todos,
+      titleInput,
+      setTitle: titleInput.setTitle,
+    };
   },
-  ({ pg, add, isAdding, todos }) => {
-    let field: HTMLInputElement | undefined;
+  ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
     return div({ class: 'playground' }, [
-      h2('Playground'),
+      heading('Playground'),
       p('Sandbox for testing @craft-ng — ready to share on StackBlitz'),
       div({ class: 'add-form' }, [
         input({
           type: 'text',
           placeholder: 'New todo title…',
-          input: (event) => {
-            field = event.target as HTMLInputElement;
+          value: titleInput,
+          *input(event) {
+            yield* setTitle(event.target.value);
           },
           *keydown(event) {
-            if (event.key === 'Enter' && field) yield* add(field);
+            if (event.key === 'Enter') yield* add();
           },
         }),
         button(
-          {
-            disabled: () => pg.addTodo.isLoading(),
+          { type: 'button',
+            disabled: pg.addTodo.isLoading,
             *click() {
-              if (field) yield* add(field);
+              yield* add();
             },
           },
           ifBlock(
@@ -296,20 +316,34 @@ const PlaygroundComponent = craftComponent(
           todos,
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
-            div({ class: { 'todo-item': true, completed: todo.completed } }, [
+            div({
+              class: function* () {
+                return {
+                  'todo-item': true,
+                  completed: (yield* todo()).completed,
+                };
+              },
+            }, [
               button(
-                {
+                { type: 'button',
                   *click() {
-                    yield* pg.toggleTodo.mutate(todo.id);
+                    yield* pg.toggleTodo.mutate((yield* todo()).id);
                   },
                 },
-                TODO_ICONS[String(todo.completed)],
+                function* () {
+                  return TODO_ICONS[String((yield* todo()).completed)];
+                },
               ),
-              span({ class: 'title' }, todo.title),
+              span({ class: 'title' }, function* () {
+                return (yield* todo()).title;
+              }),
               button(
-                {
+                { type: 'button',
+                  'aria-label': function* () {
+                    return `Delete ${(yield* todo()).title}`;
+                  },
                   *click() {
-                    yield* pg.deleteTodo.mutate(todo.id);
+                    yield* pg.deleteTodo.mutate((yield* todo()).id);
                   },
                 },
                 '🗑️',

@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { setupCraftComponentLogicTest } from '@craft-ng/component';
 import { describe, expect, it, vi } from 'vitest';
 import FullDemo from './full-demo';
+import { craftUse } from '@craft-ng/core';
 
 describe('Full primitives demo logic', () => {
   async function createLogic() {
@@ -13,7 +14,7 @@ describe('Full primitives demo logic', () => {
 
     TestBed.tick();
     await vi.waitFor(() =>
-      expect(result.context.todos.value()).toEqual([
+      expect(craftUse(result.context.todos.value())).toEqual([
         { id: 1, title: 'Learn Craft primitives' },
         { id: 2, title: 'Build functional components' },
       ]),
@@ -26,11 +27,11 @@ describe('Full primitives demo logic', () => {
     const { context, destroy } = await createLogic();
 
     try {
-      expect(context.todos.value()).toEqual([
+      expect(craftUse(context.todos.value())).toEqual([
         { id: 1, title: 'Learn Craft primitives' },
         { id: 2, title: 'Build functional components' },
       ]);
-      expect(context.todos.status()).toBe('resolved');
+      expect(craftUse(context.todos.status())).toBe('resolved');
     } finally {
       destroy();
     }
@@ -43,16 +44,16 @@ describe('Full primitives demo logic', () => {
       context.addTodo.mutate('Write primitive tests');
 
       await vi.waitFor(() =>
-        expect(context.todos.value()).toContainEqual({
+        expect(craftUse(context.todos.value())).toContainEqual({
           id: 3,
           title: 'Write primitive tests',
         }),
       );
-      expect(context.addTodo.value()).toEqual({
+      expect(craftUse(context.addTodo.value())).toEqual({
         id: 3,
         title: 'Write primitive tests',
       });
-      expect(context.todos.value()).toHaveLength(3);
+      expect(craftUse(context.todos.value())).toHaveLength(3);
     } finally {
       destroy();
     }
@@ -63,16 +64,20 @@ describe('Full primitives demo logic', () => {
 
     try {
       context.addTodo.mutate('Third todo');
-      await vi.waitFor(() => expect(context.todos.value()).toHaveLength(3));
+      await vi.waitFor(() =>
+        expect(craftUse(context.todos.value())).toHaveLength(3),
+      );
 
       context.addTodo.mutate('Fourth todo');
-      await vi.waitFor(() => expect(context.todos.value()).toHaveLength(4));
+      await vi.waitFor(() =>
+        expect(craftUse(context.todos.value())).toHaveLength(4),
+      );
 
-      expect(context.todos.value()).toContainEqual({
+      expect(craftUse(context.todos.value())).toContainEqual({
         id: 3,
         title: 'Third todo',
       });
-      expect(context.todos.value()).toContainEqual({
+      expect(craftUse(context.todos.value())).toContainEqual({
         id: 4,
         title: 'Fourth todo',
       });
@@ -88,11 +93,11 @@ describe('Full primitives demo logic', () => {
       context.removeTodo.mutate(1);
 
       await vi.waitFor(() =>
-        expect(context.todos.value()).toEqual([
+        expect(craftUse(context.todos.value())).toEqual([
           { id: 2, title: 'Build functional components' },
         ]),
       );
-      expect(context.removeTodo.value()).toBe(1);
+      expect(craftUse(context.removeTodo.value())).toBe(1);
     } finally {
       destroy();
     }
@@ -102,14 +107,14 @@ describe('Full primitives demo logic', () => {
     const { context, destroy } = await createLogic();
 
     try {
-      const initialTodos = context.todos.value();
+      const initialTodos = craftUse(context.todos.value());
 
       context.removeTodo.mutate(999);
 
       await vi.waitFor(() =>
-        expect(context.removeTodo.status()).toBe('resolved'),
+        expect(craftUse(context.removeTodo.status())).toBe('resolved'),
       );
-      expect(context.todos.value()).toEqual(initialTodos);
+      expect(craftUse(context.todos.value())).toEqual(initialTodos);
     } finally {
       destroy();
     }

@@ -215,6 +215,8 @@ Here `payload` is inferred from `craftException({ code: 'RATE_LIMITED' }, { retr
 
 The descriptor is checked independently with the O(1)
 `RouteExceptionComponentCheckedDI`; it is not added to `ValidateCascadeRoutesFile`.
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) fail if
+that proof is missing or not armed with `CanRun`.
 
 ### Handler using a craft service
 
@@ -243,6 +245,9 @@ export const { demoRoutes } = craftRoutes('demo', [
 // Compile error if any route's handleExceptions misses — or over-covers — a reachable code.
 assertExhaustiveRouteExceptions(demoRoutes);
 ```
+
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) fail if a
+`craftRoutes(...)` collection has no `assertExhaustiveRouteExceptions`.
 
 A missing code (e.g. `resolve` can throw `USER_DISABLED` but no handler) **and** an extra code (a
 handler for a code nothing can produce) are both type errors, naming the offending route + codes.
@@ -281,3 +286,4 @@ reactive phase entirely with `noop()`.
 - [Exceptions as values](/guide/concepts/exceptions) — the concept
 - [Route guards](/guide/routing/guards) — where exceptions are raised
 - [Global error component](/guide/routing/global-error-component)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the exhaustiveness assert in place

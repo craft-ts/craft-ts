@@ -1,4 +1,4 @@
-import { computed } from '@angular/core';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
@@ -6,8 +6,6 @@ import {
   craftComponent,
   div,
   each,
-  h2,
-  h3,
   ifBlock,
   img,
   input,
@@ -16,6 +14,7 @@ import {
   small,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   asyncProcess,
@@ -136,8 +135,12 @@ const DebouncedWebSearch = craftComponent(
           setSearchInput: (value: string) => set(value),
         }),
         ({ state }) => ({
-          currentTerm: computed(() => state()?.trim() ?? ''),
-          tooShort: computed(() => state().trim().length < 2),
+          currentTerm: craftComputed('currentTerm', function* () {
+            return (yield* state())?.trim() ?? '';
+          }),
+          tooShort: craftComputed('tooShort', function* () {
+            return (yield* state()).trim().length < 2;
+          }),
         }),
       ),
     );
@@ -147,7 +150,8 @@ const DebouncedWebSearch = craftComponent(
     const debouncedSearch = yield* asyncProcess(
       'debouncedSearch',
       {
-        params: () => searchInput().trim(),
+        params: function* () {
+              const _searchInput = yield* searchInput(); return _searchInput.trim(); },
         loader: function* ({ params }) {
           if (!params) return { term: '' };
 
@@ -156,7 +160,9 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource }) => ({
-        isDebouncing: computed(() => resource.isLoading()),
+        isDebouncing: craftComputed('isDebouncing', function* () {
+          return yield* resource.isLoading();
+        }),
       }),
     );
 
@@ -165,7 +171,8 @@ const DebouncedWebSearch = craftComponent(
     const searchQuery = yield* query(
       'openLibrarySearch',
       {
-        params: () => debouncedSearch.value()?.term,
+        params: function* () {
+              const _debouncedSearchvalue = yield* debouncedSearch.value(); return _debouncedSearchvalue?.term; },
         loader: function* ({ params }) {
           if (!params) return EMPTY_RESULTS;
 
@@ -180,32 +187,46 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource, hasException }) => {
-        const hasResults = computed(
-          () => (resource.value()?.books.length ?? 0) > 0,
-        );
+        const hasResults = craftComputed('hasResults', function* () {
+          return ((yield* resource.value())?.books.length ?? 0) > 0;
+        });
 
         return {
           hasResults,
-          resultCount: computed(() => String(resource.value()?.total ?? 0)),
-          resultBooks: computed(() => resource.value()?.books ?? []),
-          hasSearchError: computed(() => hasException()),
-          showResults: computed(
-            () => !resource.isLoading() && !hasException() && hasResults(),
-          ),
-          showEmpty: computed(
-            () =>
-              searchInput.currentTerm().length >= 2 &&
-              !resource.isLoading() &&
-              !hasException() &&
-              !hasResults(),
-          ),
+          resultCount: craftComputed('resultCount', function* () {
+            return String((yield* resource.value())?.total ?? 0);
+          }),
+          resultBooks: craftComputed('resultBooks', function* () {
+            return (yield* resource.value())?.books ?? [];
+          }),
+          hasSearchError: craftComputed('hasSearchError', function* () {
+            return yield* hasException();
+          }),
+          showResults: craftComputed('showResults', function* () {
+            return (
+              !(yield* resource.isLoading()) &&
+              !(yield* hasException()) &&
+              (yield* hasResults())
+            );
+          }),
+          showEmpty: craftComputed('showEmpty', function* () {
+            return (
+              (yield* searchInput.currentTerm()).length >= 2 &&
+              !(yield* resource.isLoading()) &&
+              !(yield* hasException()) &&
+              !(yield* hasResults())
+            );
+          }),
         };
       },
     );
 
     const showDebouncing = craftComputed(
       'showDebouncing',
-      () => searchInput().trim().length >= 2 && debouncedSearch.isDebouncing(),
+      function* () {
+          const _debouncedSearchisDebouncing = yield* debouncedSearch.isDebouncing();
+          const _searchInput = yield* searchInput(); return _searchInput.trim().length >= 2 &&
+                _debouncedSearchisDebouncing; },
     );
 
     return {
@@ -224,13 +245,13 @@ const DebouncedWebSearch = craftComponent(
     setSearchInput,
   }) => {
     return section([
-      h2('Debounced web search'),
+      heading('Debounced web search'),
       p(
         'Type a book title. The input waits 350 ms in an asyncProcess before the query calls the public Open Library API.',
       ),
       input({
         type: 'search',
-        value: () => searchInput(),
+        value: searchInput,
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
@@ -240,9 +261,14 @@ const DebouncedWebSearch = craftComponent(
       div({ class: 'pipeline-status' }, [
         span([
           'Debounce: ',
-          StatusComponent({ status: debouncedSearch.status }),
+          StatusComponent({
+            status: debouncedSearch.status,
+          }),
         ]),
-        span(['HTTP query: ', StatusComponent({ status: searchQuery.status })]),
+        span([
+          'HTTP query: ',
+          StatusComponent({ status: searchQuery.status }),
+        ]),
       ]),
       ifBlock(searchInput.tooShort, () =>
         p({ class: 'hint' }, 'Enter at least two characters to search.'),
@@ -257,26 +283,41 @@ const DebouncedWebSearch = craftComponent(
         ),
       ),
       ifBlock(searchQuery.showResults, () => [
-        h3([
-          () => searchQuery.resultCount(),
+        heading([
+          searchQuery.resultCount,
           ' results for “',
-          () => searchInput(),
+          searchInput,
           '”',
         ]),
         ul(
           { class: 'results' },
           each(
-            () => searchQuery.resultBooks(),
+            searchQuery.resultBooks,
             { track: (book) => book.key },
             (book) =>
               article({ class: 'book' }, [
-                img({ src: book.coverUrl, alt: '' }),
+                img({
+                  src: function* () {
+                    return (yield* book()).coverUrl;
+                  },
+                  alt: '',
+                }),
                 div({ class: 'book__content' }, [
                   a(
-                    { href: book.url, target: '_blank', rel: 'noreferrer' },
-                    book.title,
+                    {
+                      href: function* () {
+                        return (yield* book()).url;
+                      },
+                      target: '_blank',
+                      rel: 'noreferrer',
+                    },
+                    function* () {
+                      return (yield* book()).title;
+                    },
                   ),
-                  small(book.metadata),
+                  small(function* () {
+                    return (yield* book()).metadata;
+                  }),
                 ]),
               ]),
           ),

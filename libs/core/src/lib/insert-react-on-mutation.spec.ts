@@ -13,13 +13,15 @@ describe('insertReactOnMutation', () => {
   });
   it('a query can use insertReactOnMutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (payload: { name: string }) => payload,
           loader: async ({ params }) => params,
         }),
       );
 
-      const queryRef = craftUse(query(
+      const queryRef = craftUse(
+        query(
           'queryRef',
           {
             params: () => '5',
@@ -41,19 +43,21 @@ describe('insertReactOnMutation', () => {
       mutationRef.mutate({ name: 'new name' });
 
       await vi.runAllTimersAsync();
-      expect(queryRef.value()?.name).toBe('new name');
+      expect(craftUse(queryRef.value())?.name).toBe('new name');
     });
   });
 
   it('a query with identifier can use insertReactOnMutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (payload: { name: string; id: string }) => payload,
           loader: async ({ params }) => params,
         }),
       );
 
-      const queryRef = craftUse(query(
+      const queryRef = craftUse(
+        query(
           'queryRef',
           {
             params: () => '5',
@@ -78,7 +82,10 @@ describe('insertReactOnMutation', () => {
       mutationRef.mutate({ name: 'new name', id: '5' });
 
       await vi.runAllTimersAsync();
-      expect(queryRef.select('5')?.value()?.name).toBe('new name');
+      const selected = queryRef.select('5');
+      expect(selected ? craftUse(selected.value())?.name : undefined).toBe(
+        'new name',
+      );
     });
   });
 });

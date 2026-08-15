@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   button,
@@ -8,6 +9,8 @@ import {
   ifBlock,
   main,
   nav,
+  skipLink,
+  span,
   strong,
 } from '@craft-ng/component';
 import {
@@ -20,6 +23,9 @@ import {
   state,
 } from '@craft-ng/core';
 import { demoEnabledRoutePaths } from './app.routes.runtime';
+
+const DOCS_URL = 'https://ng-angular-stack.github.io/craft/';
+const FEEDBACK_URL = 'https://github.com/ng-angular-stack/ng-craft/discussions';
 
 const NAV_GROUPS = [
   {
@@ -44,6 +50,7 @@ const NAV_GROUPS = [
       ['Debounced Web Search', { to: 'debounced-web-search' }],
       ['Mutation', { to: 'mutation/:userId', params: { userId: '1' } }],
       ['List Pagination', { to: 'list-with-pagination' }],
+      ['Query Params', { to: 'query-params' }],
       ['Granular Mutation', { to: 'granular-mutation' }],
       ['Full Demo', { to: 'full-demo' }],
       ['Slow Page', { to: 'slow-page' }],
@@ -100,6 +107,12 @@ export const App = craftComponent(
   {
     styles: `
       :scope{display:flex;flex-direction:column;height:100vh;background:#fafafa}
+      .skip-link{position:absolute;left:-9999px;z-index:10;padding:.5rem .75rem;background:#1d4ed8;color:#fff;border-radius:.3rem;font-weight:700}
+      .skip-link:focus,.skip-link:focus-visible{left:1rem;top:1rem}
+      a:focus-visible,button:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+      .demo-banner{display:grid;gap:.25rem;padding:.7rem 1.25rem;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:.85rem;line-height:1.45;flex-shrink:0}
+      .demo-banner__main{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .5rem}.demo-banner__main strong{font-weight:700}.demo-banner a{color:#1d4ed8;font-weight:700;text-decoration:underline;text-underline-offset:2px}.demo-banner a:hover{color:#1e3a8a}
+      .demo-banner__hint{color:#475569;font-size:.8rem}.demo-banner__hint strong{color:#1e293b}
       .demo-nav{position:relative;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1.25rem;background:#fff;border-bottom:1px solid #e5e7eb;z-index:2}
       .demo-nav__toggle{padding:.55rem .8rem;border:1px solid #d1d5db;border-radius:.45rem;background:#fff;color:#374151;font:inherit;font-weight:600;cursor:pointer}.demo-nav__toggle:hover{background:#f3f4f6}
       .demo-nav__panel{position:absolute;top:calc(100% + .5rem);left:1.25rem;right:1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1.25rem;padding:1rem;background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;box-shadow:0 12px 30px #1118271c}
@@ -130,58 +143,105 @@ export const App = craftComponent(
   },
   ({ clearCache, navOpen, toggleNav, closeNav }) =>
     div([
-      nav({ class: 'demo-nav' }, [
-        button(
-          {
-            class: 'demo-nav__toggle',
-            type: 'button',
-            click: toggleNav,
-            'aria-expanded': navOpen,
-          },
+        skipLink('main', 'Aller au contenu'),
+        div({ class: 'demo-banner' }, [
+          div({ class: 'demo-banner__main' }, [
+            strong('Beta demo'),
+            span(' — the API and documentation may still evolve.'),
+            a(
+              {
+                href: DOCS_URL,
+                target: '_blank',
+                rel: 'noreferrer',
+              },
+              'Read the documentation',
+            ),
+            span(' · '),
+            a(
+              {
+                href: FEEDBACK_URL,
+                target: '_blank',
+                rel: 'noreferrer',
+              },
+              'Your feedback is welcome',
+            ),
+          ]),
+          div({ class: 'demo-banner__hint' }, [
+            'Tip: read ',
+            strong('`yield*`'),
+            ' as “I need…”: each primitive or service becomes an explicit dependency.',
+          ]),
+        ]),
+        nav({ class: 'demo-nav' }, [
+          button(
+            {
+              class: 'demo-nav__toggle',
+              type: 'button',
+              click: function* (event: MouseEvent) {
+                event.stopPropagation();
+                yield* toggleNav();
+              },
+              'aria-expanded': navOpen,
+            },
+            ifBlock(
+              navOpen,
+              () => 'Close examples',
+              () => 'Browse examples',
+            ),
+          ),
           ifBlock(
             navOpen,
-            () => 'Fermer les exemples',
-            () => 'Parcourir les exemples',
-          ),
-        ),
-        ifBlock(
-          navOpen,
-          () =>
-            div(
-              { class: 'demo-nav__panel' },
-              each(
-                VISIBLE_NAV_GROUPS,
-                { track: (group) => group.label },
-                (group) =>
-                  div({ class: 'demo-nav__group' }, [
-                    strong(group.label),
-                    div(
-                      { class: 'demo-nav__links' },
-                      each(
-                        group.links,
-                        { track: ([, link]) => link.to },
-                        ([label, link]) =>
-                          a(
-                            { click: closeNav, craftRouterLink: link },
-                            label,
-                          ).pipe(CraftRouterLink),
+            () =>
+              div(
+                {
+                  class: 'demo-nav__panel',
+                },
+                each(
+                  VISIBLE_NAV_GROUPS,
+                  { track: (group) => group.label },
+                  (group) =>
+                    div({ class: 'demo-nav__group' }, [
+                      strong(function* () {
+                        return (yield* group()).label;
+                      }),
+                      div(
+                        { class: 'demo-nav__links' },
+                        each(
+                          function* () {
+                            return (yield* group()).links;
+                          },
+                          { track: ([, link]) => link.to },
+                          (entry) =>
+                            a(
+                              {
+                                click: closeNav,
+                                craftRouterLink: function* () {
+                                  return (yield* entry())[1];
+                                },
+                              },
+                              function* () {
+                                return (yield* entry())[0];
+                              },
+                            ).pipe(CraftRouterLink),
+                        ),
                       ),
-                    ),
-                  ]),
+                    ]),
+                ),
               ),
-            ),
-          () => [],
-        ),
-      ]),
-      main({ class: 'content' }, CraftRouterOutlet()),
-      button(
-        {
-          class: 'clear-cache-btn',
-          *click() {
-            yield* clearCache();
+            () => [],
+          ),
+        ]),
+        main({ id: 'main', class: 'content', tabIndex: -1 }, CraftRouterOutlet()),
+        button(
+          {
+            class: 'clear-cache-btn',
+            type: 'button',
+            *click() {
+              yield* clearCache();
+            },
           },
-        },
-        '🗑️ Clear Cache',
-      ),
-    ]),
+          '🗑️ Clear Cache',
+        ),
+      ],
+    ),
 );

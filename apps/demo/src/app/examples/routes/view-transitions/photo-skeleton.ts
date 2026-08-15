@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import type { Signal } from '@angular/core';
 import {
   article,
@@ -47,38 +48,42 @@ const ViewTransitionsSkeletonComponent = craftComponent(
     );
     return { photoId, viewTransition, hasImage, imageSrc };
   },
-  ({ photoId, hasImage, imageSrc }) => {
-    const heroContent = ifBlock(
-      hasImage,
-      () =>
-        img({
-          class: 'vt-hero-image',
-          src: imageSrc,
-          alt: '',
-        }),
-      () => span({ class: 'vt-emoji' }, () => findPhoto(photoId())?.emoji),
-    );
-    return [
-      span('← Back to gallery'),
-      article({ class: 'vt-detail' }, [
-        span(
-          {
-            class: 'vt-hero',
-            style: () => ({
-              background: photoGradient(findPhoto(photoId())),
-              viewTransitionName: `photo-${photoId()}`,
-            }),
+  ({ photoId, hasImage, imageSrc }) => [
+    span('← Back to gallery'),
+    article({ class: 'vt-detail' }, [
+      span(
+        {
+          class: 'vt-hero',
+          style: function* () {
+            return {
+              background: photoGradient(findPhoto(yield* photoId())),
+              viewTransitionName: `photo-${yield* photoId()}`,
+            };
           },
-          [heroContent],
-        ),
-        div({ class: 'vt-body' }, [
-          span({ class: 'vt-bar' }),
-          span({ class: 'vt-bar' }),
-          span({ class: 'vt-bar' }),
-        ]),
+        },
+        [
+          ifBlock(
+            hasImage,
+            () =>
+              img({
+                class: 'vt-hero-image',
+                src: imageSrc,
+                alt: '',
+              }),
+            () =>
+              span({ class: 'vt-emoji' }, function* () {
+                return findPhoto(yield* photoId())?.emoji;
+              }),
+          ),
+        ],
+      ),
+      div({ class: 'vt-body' }, [
+        span({ class: 'vt-bar' }),
+        span({ class: 'vt-bar' }),
+        span({ class: 'vt-bar' }),
       ]),
-    ];
-  },
+    ]),
+  ],
 );
 
 export default ViewTransitionsSkeletonComponent;

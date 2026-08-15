@@ -1,8 +1,10 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   input,
   p,
@@ -15,11 +17,13 @@ import {
   craftMethod,
   craftService,
   insertStoragePersister,
+  craftUnique,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
   query,
   state,
+  craftUse,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -47,10 +51,10 @@ export const { provideUserMutation, UserMutation } = craftService(
         preservePreviousValue: () => true,
       },
       insertQueryPipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app-craft',
           key: 'mutation',
-        }),
+        })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams: { name } }) => name,
@@ -70,7 +74,11 @@ const MutationCraft = craftComponent(
     providers: [provideUserMutation()],
   },
   function* (userId: Input<string | undefined>) {
-    const store = yield* UserMutation({ userId: () => userId() });
+    const store = yield* UserMutation({
+      userId: () => {
+        return craftUse(userId());
+      },
+    });
     const nameInput = yield* state('nameInput', '', ({ set }) => ({
       setName: (value: string) => set(value),
     }));
@@ -82,7 +90,8 @@ const MutationCraft = craftComponent(
           undefined,
           ({ user, updateUserName }) => ({ user, updateUserName }),
         );
-        const userValue = user.value();
+          const _uservalue = yield* user.value();
+        const userValue = _uservalue;
         if (userValue) {
           yield* updateUserName.mutate({
             userName: newName,
@@ -97,7 +106,7 @@ const MutationCraft = craftComponent(
     const navigate = craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/mutation/:userId',
-        params: { userId: String(Number(userId() ?? '0') + offset) },
+        params: { userId: String(Number((yield* userId()) ?? '0') + offset) },
       });
     });
     return {
@@ -111,44 +120,44 @@ const MutationCraft = craftComponent(
   },
   ({ store, nameInput, setName, hasUser, updateUserNameFn, navigate }) => {
     return div([
+      heading('Update user'),
       div([
         'User ',
-        StatusComponent({ status: () => store.user.status() }),
+        StatusComponent({ status: store.user.status }),
         ifBlock(hasUser, () =>
-          pre('UserValue', {}, () =>
-            JSON.stringify(store.user.value(), null, 2),
-          ),
+          pre('UserValue', {}, function* () {
+            return JSON.stringify(yield* store.user.value(), null, 2);
+          }),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: () => nameInput(),
+        value: nameInput,
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
       }),
       button(
         'UpdateUserNameButton',
-        {
+        { type: 'button',
           class: 'update-user-name',
-          disabled: () => store.updateUserName.isLoading(),
+          disabled: store.updateUserName.isLoading,
           *click() {
-            const currentName = yield* nameInput();
-            yield* updateUserNameFn(currentName ?? '');
+            yield* updateUserNameFn((yield* nameInput()) ?? '');
           },
         },
         [
           'Update name ',
           StatusComponent({
-            status: () => store.updateUserName.status(),
+            status: store.updateUserName.status,
           }),
         ],
       ),
       button(
         'PreviousUser',
-        {
+        { type: 'button',
           *click() {
             yield* navigate(-1);
           },
@@ -157,7 +166,7 @@ const MutationCraft = craftComponent(
       ),
       button(
         'NextUser',
-        {
+        { type: 'button',
           *click() {
             yield* navigate(1);
           },

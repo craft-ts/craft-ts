@@ -20,7 +20,7 @@ automatic cleanup and signal-based value tracking.
 ## Import
 
 ```typescript
-import { source$ } from '@craft-ng/core';
+import { craftComputed, source$ } from '@craft-ng/core';
 ```
 
 ## Signature
@@ -100,27 +100,8 @@ type ReadonlySource$<T> = {
 Use a `craftService` as the dependency handle when a source is shared by
 multiple consumers:
 
-```typescript
-const { Reset } = craftService(
-  { name: 'Reset', scope: 'global' },
-  function* () {
-    const reset$ = yield* source$<void>('reset$');
-    return reset$;
-  },
-);
+<<< @/tests/snippets/guide/reactivity/source/example-6.spec.ts#example-6
 
-const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
-  function* () {
-    const counter = yield* state('counter', 0, ({ set }) => ({
-      reset: on$(Reset, () => set(0)),
-    }));
-
-    const reset = yield* Reset();
-    return { counter, reset };
-  },
-);
-```
 
 `on$(Reset, ...)` records `Reset` as a dependency of the primitive. Calling
 `reset.emit()` only publishes an event; it does not create or modify the
@@ -147,8 +128,10 @@ const message$ = source$<string>('message$');
 message$.emit('Hello');
 console.log(message$.value()); // 'Hello'
 
-// Use in templates or computed signals
-const uppercased = computed(() => message$.value()?.toUpperCase());
+// Use in templates or craftComputed
+const uppercased = craftComputed('uppercased', function* () {
+  return (yield* message$.value())?.toUpperCase();
+});
 ```
 
 ### Last Value Preservation
@@ -236,7 +219,9 @@ export const Counter = craftComponent(
     return { counter, reset$ };
   },
   ({ counter, reset$ }) => [
-    p(() => `Count: ${counter()}`),
+    p(function* () {
+      return `Count: ${yield* counter()}`;
+    }),
     button({ click: counter.increment }, '+1'),
     button({ click: counter.decrement }, '-1'),
     button({ click: () => reset$.emit() }, 'Reset'),

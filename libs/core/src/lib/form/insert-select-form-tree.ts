@@ -9,6 +9,7 @@ import {
   type InsertionsFormFactory,
 } from './insert-form-internals';
 import type { NonYieldableInsertionMethod } from '../yieldable';
+import { rawReactiveValue } from '../reactive-read';
 
 type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
 
@@ -137,7 +138,7 @@ function createObjectRuntime(
         return cachedForm;
 
       const subState = () => {
-        const curr = context.state();
+        const curr = rawReactiveValue(context.state)();
         return curr && typeof curr === 'object'
           ? (curr as Record<string, unknown>)[propertyKey]
           : undefined;
@@ -201,7 +202,7 @@ function createArrayItemRuntime(
         `selectItem:${id}`,
       );
       const subState = () => {
-        const curr = context.state();
+        const curr = rawReactiveValue(context.state)();
         if (!Array.isArray(curr)) return undefined;
         return curr[id];
       };
@@ -228,7 +229,7 @@ function createArrayItemRuntime(
     };
 
     const items = () => {
-      const curr = context.state();
+      const curr = rawReactiveValue(context.state)();
       if (!Array.isArray(curr)) return [];
       return curr
         .map((_unused, index) => buildItemForm(index))
@@ -330,7 +331,7 @@ export function insertSelectFormTree(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
-    const currentState = context.state();
+    const currentState = rawReactiveValue(context.state)();
     if (Array.isArray(currentState)) {
       return createArrayItemRuntime(name, insertions)(context);
     }
@@ -381,7 +382,7 @@ export function selectFormTree(
   insertion1: InsertionsFormFactory<any, any, any, any>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
-  const currentState = context.state();
+  const currentState = rawReactiveValue(context.state)();
   if (Array.isArray(currentState)) {
     return createArrayItemRuntime(name, [insertion1])(context);
   }

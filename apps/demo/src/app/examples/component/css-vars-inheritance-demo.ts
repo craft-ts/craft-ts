@@ -1,4 +1,12 @@
-import { craftComponent, div, h1, inherit, p, span } from '@craft-ng/component';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+import {
+  craftComponent,
+  div,
+  inherit,
+  p,
+  span,
+  heading,
+} from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 const InheritedBadge = craftComponent(
@@ -19,7 +27,7 @@ const InheritedBadge = craftComponent(
     `,
   },
   () => ({}),
-  () => span('Hérité du parent'),
+  () => span('Inherited from parent'),
 );
 
 const InheritanceExample = craftComponent(
@@ -40,7 +48,7 @@ const InheritanceExample = craftComponent(
   () => ({}),
   () =>
     div([
-      p('Le parent déclare --inherited-badge-ink dans son propre scope.'),
+      p('The parent declares --inherited-badge-ink in its own scope.'),
       InheritedBadge({ cssVars: { '--inherited-badge-ink': inherit } }),
     ]),
 );
@@ -53,6 +61,8 @@ export const CssVarsInheritanceDemo = craftComponent(
       h1, p { margin: 0; }
       .css-vars-inheritance__intro { display: grid; gap: .5rem; }
       .css-vars-inheritance__intro p { color: #64748b; line-height: 1.55; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   () => ({}),
@@ -60,9 +70,9 @@ export const CssVarsInheritanceDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-inheritance__intro' }, [
-        h1('Héritage natif'),
+        heading('Native inheritance'),
         p(
-          'Le marqueur inherit ne produit aucun style inline : la cascade CSS résout la valeur depuis le parent.',
+          'The inherit marker produces no inline style: the CSS cascade resolves the value from the parent.',
         ),
       ]),
       InheritanceExample(),

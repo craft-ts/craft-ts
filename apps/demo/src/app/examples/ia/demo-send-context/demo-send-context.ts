@@ -1,4 +1,10 @@
-import { craftComponent, div, each } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  each,
+  heading,
+  headingSection,
+} from '@craft-ng/component';
 import { SendContextCounterComponent } from './counter';
 
 const DemoSendContextComponent = craftComponent(
@@ -7,9 +13,15 @@ const DemoSendContextComponent = craftComponent(
   () => ({ counters: Array.from({ length: 13 }, (_, index) => index) }),
   ({ counters }) =>
     div([
-      'Demo',
-      each(counters, { track: (index) => index }, () =>
-        SendContextCounterComponent({ initialValue: () => 1 }),
+      heading('Demo send context'),
+      headingSection(
+        each(counters, { track: (index) => index }, () =>
+          SendContextCounterComponent({
+            initialValue: function* () {
+              return 1;
+            },
+          }),
+        ),
       ),
     ]),
 );

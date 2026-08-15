@@ -9,8 +9,7 @@ import {
 import {
   craftSleep,
   type ExtractDeps,
-  type GetServiceDependencies,
-} from '@craft-ng/core';
+  type GetServiceDependencies, craftUse } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GranularMutation from './granular-mutation';
@@ -29,7 +28,7 @@ type _UsersQueryDependsOnApiService = Expect<
 
 type _UsersQueryDependsOnStoragePersister = Expect<
   Equal<
-      'StoragePersister' extends keyof ExtractDeps<GranularLogic['usersQuery']>
+    'StoragePersister' extends keyof ExtractDeps<GranularLogic['usersQuery']>
       ? true
       : false,
     true
@@ -260,9 +259,11 @@ describe('primitive granular mutation logic', () => {
 
     try {
       await vi.waitFor(() =>
-        expect(context.usersQuery.currentPageData()).toHaveLength(4),
+        expect(craftUse(context.usersQuery.currentPageData())).toHaveLength(
+          4,
+        ),
       );
-      const user = context.usersQuery.currentPageData()[0];
+      const user = craftUse(context.usersQuery.currentPageData())[0];
 
       context.updateUserName.mutate(user);
 
@@ -271,8 +272,10 @@ describe('primitive granular mutation logic', () => {
           ...user,
           name: `${user.name}-`,
         });
-        expect(context.updateUserName.select(user.id)?.isLoading()).toBe(true);
-        expect(context.usersQuery.currentPageData()[0]).toEqual({
+        expect(
+          craftUse(context.updateUserName.select(user.id)?.isLoading()),
+        ).toBe(true);
+        expect(craftUse(context.usersQuery.currentPageData())[0]).toEqual({
           ...user,
           name: `${user.name}-`,
         });

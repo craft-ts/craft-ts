@@ -38,7 +38,8 @@ describe('validator', () => {
   it('reports cRequired as a craft exception', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = craftUse(state(
+      const fieldForm = craftUse(
+        state(
           'fieldForm',
           model,
           insertForm(
@@ -49,14 +50,14 @@ describe('validator', () => {
         ),
       );
 
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         cRequired: expectedException('cRequired', 'required', undefined),
       });
 
       model.set('test');
       TestBed.tick();
 
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -66,7 +67,8 @@ describe('validator', () => {
   it('honors `when` to skip validation', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = craftUse(state(
+      const fieldForm = craftUse(
+        state(
           'fieldForm',
           model,
           insertForm(
@@ -76,7 +78,7 @@ describe('validator', () => {
           ),
         ),
       );
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -86,7 +88,8 @@ describe('validator', () => {
   it('reports cEmail when value does not match', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = craftUse(state(
+      const fieldForm = craftUse(
+        state(
           'fieldForm',
           model,
           insertForm(
@@ -97,7 +100,7 @@ describe('validator', () => {
         ),
       );
 
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -105,14 +108,14 @@ describe('validator', () => {
       model.set('invalid-email');
       TestBed.tick();
 
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         cEmail: expectedException('cEmail', 'email', undefined),
       });
 
       model.set('valid@email.dev');
       TestBed.tick();
 
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -122,7 +125,8 @@ describe('validator', () => {
   it('reports cMin and cMax when value is outside range', () => {
     TestBed.runInInjectionContext(() => {
       const minModel = signal('2');
-      const minForm = craftUse(state(
+      const minForm = craftUse(
+        state(
           'minForm',
           minModel,
           insertForm(
@@ -133,20 +137,21 @@ describe('validator', () => {
         ),
       );
 
-      expect(minForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(minForm.form.exceptions()).byValidator).toMatchObject({
         cMin: expectedException('cMin', 'min', 3),
       });
 
       minModel.set('3');
       TestBed.tick();
 
-      expect(minForm.form.exceptions()).toEqual({
+      expect(craftUse(minForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
 
       const maxModel = signal('11');
-      const maxForm = craftUse(state(
+      const maxForm = craftUse(
+        state(
           'maxForm',
           maxModel,
           insertForm(
@@ -157,7 +162,7 @@ describe('validator', () => {
         ),
       );
 
-      expect(maxForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(maxForm.form.exceptions()).byValidator).toMatchObject({
         cMax: expectedException('cMax', 'max', 10),
       });
     });
@@ -166,7 +171,8 @@ describe('validator', () => {
   it('reports cMinLength on an empty array', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal<string[]>([]);
-      const fieldForm = craftUse(state(
+      const fieldForm = craftUse(
+        state(
           'fieldForm',
           model,
           insertForm(
@@ -177,14 +183,14 @@ describe('validator', () => {
         ),
       );
 
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         cMinLength: expectedException('cMinLength', 'minLength', 1),
       });
 
       model.set(['first']);
       TestBed.tick();
 
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -193,7 +199,8 @@ describe('validator', () => {
 
   it('reports cMinLength, cMaxLength and cPattern errors', () => {
     TestBed.runInInjectionContext(() => {
-      const minLenForm = craftUse(state(
+      const minLenForm = craftUse(
+        state(
           'minLenForm',
           signal('ab'),
           insertForm(
@@ -203,11 +210,12 @@ describe('validator', () => {
           ),
         ),
       );
-      expect(minLenForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(minLenForm.form.exceptions()).byValidator).toMatchObject({
         cMinLength: expectedException('cMinLength', 'minLength', 3),
       });
 
-      const maxLenForm = craftUse(state(
+      const maxLenForm = craftUse(
+        state(
           'maxLenForm',
           signal('abcd'),
           insertForm(
@@ -217,11 +225,12 @@ describe('validator', () => {
           ),
         ),
       );
-      expect(maxLenForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(maxLenForm.form.exceptions()).byValidator).toMatchObject({
         cMaxLength: expectedException('cMaxLength', 'maxLength', 3),
       });
 
-      const patternForm = craftUse(state(
+      const patternForm = craftUse(
+        state(
           'patternForm',
           signal('abc'),
           insertForm(
@@ -231,16 +240,19 @@ describe('validator', () => {
           ),
         ),
       );
-      expect(patternForm.form.exceptions().byValidator).toMatchObject({
-        cPattern: expectedException('cPattern', 'pattern', /^\d+$/),
-      });
+      expect(craftUse(patternForm.form.exceptions()).byValidator).toMatchObject(
+        {
+          cPattern: expectedException('cPattern', 'pattern', /^\d+$/),
+        },
+      );
     });
   });
 
   it('supports custom sync validators with cValidate', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal('');
-      const fieldForm = craftUse(state(
+      const fieldForm = craftUse(
+        state(
           'fieldForm',
           fieldState,
           insertForm(
@@ -260,7 +272,7 @@ describe('validator', () => {
           ),
         ),
       );
-      expect(fieldForm.form.exceptions()).toEqual({
+      expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
         byValidator: {},
       });
@@ -268,7 +280,7 @@ describe('validator', () => {
       fieldState.set('blocked');
       TestBed.tick();
 
-      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+      expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         myCustomValidator: {
           ...craftException({ code: 'blockedValue' }, { reason: 'reserved' }),
           __brand: 'myCustomValidator',
@@ -287,13 +299,15 @@ describe('validator', () => {
     try {
       await TestBed.runInInjectionContext(async () => {
         const model = signal('');
-        const usernameQuery = craftUse(query('usernameQuery', {
+        const usernameQuery = craftUse(
+          query('usernameQuery', {
             method: (username: string) => username,
             loader: async ({ params }) => ({ available: params !== 'taken' }),
           }),
         );
 
-        const fieldForm = craftUse(state(
+        const fieldForm = craftUse(
+          state(
             'fieldForm',
             model,
             insertForm(
@@ -303,7 +317,7 @@ describe('validator', () => {
                     name: 'usernameAvailable',
                     when: () => model().length > 0,
                     exceptionsOnSuccess: ({ validateAsyncCraftResource }) =>
-                      validateAsyncCraftResource.value()?.available
+                      craftUse(validateAsyncCraftResource.value())?.available
                         ? undefined
                         : craftException(
                             { code: 'usernameTaken' },
@@ -317,7 +331,7 @@ describe('validator', () => {
         );
 
         // `when` is false while the field is empty: nothing is validated.
-        expect(fieldForm.form.exceptions()).toEqual({
+        expect(craftUse(fieldForm.form.exceptions())).toEqual({
           list: [],
           byValidator: {},
         });
@@ -328,16 +342,18 @@ describe('validator', () => {
         await vi.runAllTimersAsync();
         TestBed.tick();
 
-        expect(fieldForm.form.exceptions().byValidator).toMatchObject({
-          usernameAvailable: {
-            ...craftException(
-              { code: 'usernameTaken' },
-              { message: 'Username already taken' },
-            ),
-            __brand: 'usernameAvailable',
-            type: 'async',
+        expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject(
+          {
+            usernameAvailable: {
+              ...craftException(
+                { code: 'usernameTaken' },
+                { message: 'Username already taken' },
+              ),
+              __brand: 'usernameAvailable',
+              type: 'async',
+            },
           },
-        });
+        );
 
         // An available username clears the exception.
         model.set('available');
@@ -345,7 +361,7 @@ describe('validator', () => {
         await vi.runAllTimersAsync();
         TestBed.tick();
 
-        expect(fieldForm.form.exceptions()).toEqual({
+        expect(craftUse(fieldForm.form.exceptions())).toEqual({
           list: [],
           byValidator: {},
         });

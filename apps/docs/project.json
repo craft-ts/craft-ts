@@ -23,6 +23,12 @@
         "command": "vitepress build apps/docs"
       }
     },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    },
     "serve": {
       "executor": "nx:run-commands",
       "cache": false,

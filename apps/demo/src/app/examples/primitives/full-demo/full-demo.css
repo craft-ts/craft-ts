@@ -427,3 +427,11 @@
   border-radius: 8px;
   background: #fff;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :scope,
+  :scope * {
+    animation: none;
+    transition: none;
+  }
+}

@@ -64,7 +64,8 @@ function parseArgs(argv: string[]): MigrateOptions {
 function printHelp(): void {
   console.log(`Usage: craft-migrate [files...] [options]
 
-Runs the primitive, service, route and Craft component migrations in that order.
+Runs the primitive, service, route, Craft component and architecture-suite
+migrations in that order.
 
 Options:
   --project, --tsconfig <path> Application tsconfig.

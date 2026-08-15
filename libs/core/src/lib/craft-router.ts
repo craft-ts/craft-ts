@@ -7,9 +7,11 @@ import {
   type Provider,
 } from '@angular/core';
 import {
+  NavigationEnd,
   Router,
   RouterLink,
   provideRouter,
+  TitleStrategy,
   type NavigationBehaviorOptions,
   type NavigationExtras,
   type Params,
@@ -24,6 +26,7 @@ import {
   provideCraftLoading,
   type CraftLoadingFeature,
 } from './craft-pending';
+import { CraftTitleStrategy } from './craft-a11y';
 import {
   toCraftService,
   type GetServiceYields,
@@ -40,6 +43,7 @@ import {
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
 } from './craft-node-directive';
+import { executeYieldable } from './yieldable';
 
 export interface CraftRouterRoutesRegistry {}
 
@@ -411,6 +415,7 @@ export function provideCraftRouter(
 
   return [
     provideCraftRouterInternal(configuredRoutes, ...routerFeatures),
+    { provide: TitleStrategy, useClass: CraftTitleStrategy },
     ...provideCraftLoading(...loadingFeatures),
   ];
 }
@@ -534,18 +539,41 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
     let currentInput: CraftRouterLinkInput | null | undefined;
     let currentUrlTree: UrlTree | undefined;
 
+    const syncAriaCurrent = () => {
+      if (!currentUrlTree) {
+        context.renderer.removeAttribute(context.element, 'aria-current');
+        return;
+      }
+      const active = router.isActive(currentUrlTree, {
+        paths: 'exact',
+        queryParams: 'ignored',
+        fragment: 'ignored',
+        matrixParams: 'ignored',
+      });
+      if (active) {
+        context.renderer.setAttribute(context.element, 'aria-current', 'page');
+      } else {
+        context.renderer.removeAttribute(context.element, 'aria-current');
+      }
+    };
+
     const hrefEffect = context.injector.get(CRAFT_NODE_EFFECT_FACTORY)(
       'router-link-href',
       () => {
         const candidate = context.props.craftRouterLink;
         currentInput =
           typeof candidate === 'function'
-            ? (candidate as () => CraftRouterLinkInput | null | undefined)()
+            ? executeYieldable(
+                candidate as () => CraftRouterLinkInput | null | undefined,
+                [],
+                context.injector,
+              )
             : candidate;
 
         if (!currentInput) {
           currentUrlTree = undefined;
           context.renderer.removeAttribute(context.element, 'href');
+          syncAriaCurrent();
           return;
         }
 
@@ -558,8 +586,13 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
           'href',
           router.serializeUrl(currentUrlTree),
         );
+        syncAriaCurrent();
       },
     );
+
+    const navigation = router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) syncAriaCurrent();
+    });
 
     const removeClickListener = context.renderer.listen(
       context.element,
@@ -582,6 +615,7 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
     );
     return () => {
       removeClickListener();
+      navigation.unsubscribe();
       hrefEffect.destroy();
     };
   },

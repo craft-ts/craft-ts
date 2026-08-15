@@ -3,6 +3,7 @@ import type {
   CraftNodeChildrenDependencies,
   ProjectionNode,
 } from './render/vnode';
+import { isGeneratorFunction, isYieldableValue } from '@craft-ng/core';
 import { currentCraftRenderContext } from './render/vnode';
 import {
   CONTENT_DECLARATION_CONTEXT,
@@ -11,6 +12,7 @@ import {
   CONTENT_STYLE_POLICY,
   type ContentOptions,
   type ContentStylePolicy,
+  type InputValue,
   type ProjectionUnit,
   type RenderableContent,
 } from './types';
@@ -95,46 +97,61 @@ function isComponentUnit(value: unknown): value is ProjectionUnit {
 
 /** Renders either deferred DOM content or a component with a projection contract. */
 export function renderContent<Value extends RenderableContent>(
-  value: Value,
+  value: Value | InputValue<Value>,
 ): ProjectionNode<
   CraftNodeChildrenDependencies<RenderableContentOutput<Value>>,
   RenderableContentOutput<Value>
 >;
 export function renderContent<Value extends ProjectionUnit<any>>(
-  value: Value,
+  value: Value | InputValue<Value>,
 ): ProjectionNode<CraftNodeChildrenDependencies<Value>, Value>;
 export function renderContent<
   SlotName extends string,
   Value extends RenderableContent,
 >(
   slotName: SlotName,
-  value: Value,
+  value: Value | InputValue<Value>,
 ): ProjectionNode<
   CraftNodeChildrenDependencies<RenderableContentOutput<Value>>,
   RenderableContentOutput<Value>
 >;
 export function renderContent(
-  slotNameOrValue: string | RenderableContent | ProjectionUnit,
-  maybeValue?: RenderableContent,
+  slotNameOrValue:
+    | string
+    | RenderableContent
+    | ProjectionUnit
+    | InputValue<RenderableContent | ProjectionUnit>,
+  maybeValue?:
+    | RenderableContent
+    | ProjectionUnit
+    | InputValue<RenderableContent | ProjectionUnit>,
 ): ProjectionNode {
   const named = typeof slotNameOrValue === 'string';
   const slotName = named ? slotNameOrValue : undefined;
   const value = (named ? maybeValue : slotNameOrValue) as
     | RenderableContent
-    | ProjectionUnit;
+    | ProjectionUnit
+    | InputValue<RenderableContent | ProjectionUnit>;
+  const isYieldableReader =
+    isGeneratorFunction(value) || isYieldableValue(value);
   const declarationContext = isComponentUnit(value)
     ? (value.declarationContext ?? currentCraftRenderContext())
-    : typeof value === 'function'
+    : typeof value === 'function' && !isYieldableReader
       ? ((
           value as Partial<Record<typeof CONTENT_DECLARATION_CONTEXT, unknown>>
         )[CONTENT_DECLARATION_CONTEXT] ?? currentCraftRenderContext())
       : currentCraftRenderContext();
   const policy =
-    typeof value === 'function' ? contentStylePolicy(value) : 'isolated';
+    typeof value === 'function' && !isYieldableReader
+      ? contentStylePolicy(value)
+      : 'isolated';
 
   return {
     kind: 'projection',
-    render: () => (isComponentUnit(value) ? value : value()),
+    render: () =>
+      (isComponentUnit(value) || isYieldableReader ? value : value()) as
+        | ProjectionUnit
+        | CraftNodeChildren,
     ...(slotName ? { slotName } : {}),
     stylePolicy: policy,
     declarationContext,

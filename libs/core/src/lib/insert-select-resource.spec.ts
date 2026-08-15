@@ -19,6 +19,7 @@ import { insertQueryPipe } from './insert-typed-pipes';
 import { mutation } from './mutation';
 import { injectPrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
 import { query } from './query';
+import type { YieldableInvocation } from './yieldable';
 
 type User = {
   id: string;
@@ -30,11 +31,13 @@ type User = {
 
 type ProfileInsertions = {
   displayNameSignal: Signal<string>;
-  rename: (displayName: string) => User['profile'];
+  rename: (
+    displayName: string,
+  ) => YieldableInvocation<never, User['profile']>;
 };
 
 type UserInsertions = {
-  rename: (name: string) => User;
+  rename: (name: string) => YieldableInvocation<never, User>;
   currentName: Signal<string>;
 };
 
@@ -43,7 +46,9 @@ type UserRuntimeInsertions = UserInsertions & {
 };
 
 type ProfileRuntimeInsertions = {
-  rename: (displayName: string) => User['profile'];
+  rename: (
+    displayName: string,
+  ) => YieldableInvocation<never, User['profile']>;
   kind: () => string | undefined;
 };
 
@@ -86,7 +91,7 @@ describe('insertSelectResource types', () => {
             craftPipe(
               userContext,
               ({ state }) => ({
-                label: computed(() => state().name),
+                label: computed(() => craftUse(state()).name),
               }),
               insertSelect('profile', ({ update }) => ({
                 rename: (displayName: string) =>
@@ -118,7 +123,7 @@ describe('insertSelectResource types', () => {
           insertSelectResource<User, 'profile', ProfileInsertions>(
             'profile',
             ({ state, update }) => ({
-              displayNameSignal: computed(() => state().displayName),
+              displayNameSignal: computed(() => craftUse(state()).displayName),
               rename: (displayName: string) =>
                 update((profile) => ({ ...profile, displayName })),
             }),
@@ -147,7 +152,7 @@ describe('insertSelectResource types', () => {
             'user',
             ({ state, update }) => ({
               rename: (name: string) => update((user) => ({ ...user, name })),
-              currentName: computed(() => state().name),
+              currentName: computed(() => craftUse(state()).name),
             }),
           ),
         ),
@@ -204,7 +209,7 @@ describe('insertSelectResource types', () => {
       );
 
       users.initialize();
-      expect(users.value()).toEqual([
+      expect(craftUse(users.value())).toEqual([
         {
           id: '1',
           name: 'Ada',
@@ -217,7 +222,7 @@ describe('insertSelectResource types', () => {
       if (!selected) throw new Error('Expected a selected user');
       expect(craftUse(selected.kind())).toBe('query');
       craftUse(selected.rename('Grace'));
-      expect(users.value()?.[0].name).toBe('Grace');
+      expect(craftUse(users.value())?.[0].name).toBe('Grace');
     });
   });
 
@@ -247,11 +252,15 @@ describe('insertSelectResource types', () => {
         profile: { displayName: 'Ada Lovelace' },
       });
       await vi.runAllTimersAsync();
-      expect(saveUser.value()?.profile.displayName).toBe('Ada Lovelace');
+      expect(craftUse(saveUser.value())?.profile.displayName).toBe(
+        'Ada Lovelace',
+      );
       const selected = saveUser.selectProfile();
       expect(craftUse(selected.kind())).toBe('mutation');
       craftUse(selected.rename('Grace Hopper'));
-      expect(saveUser.value()?.profile.displayName).toBe('Grace Hopper');
+      expect(craftUse(saveUser.value())?.profile.displayName).toBe(
+        'Grace Hopper',
+      );
     });
   });
 

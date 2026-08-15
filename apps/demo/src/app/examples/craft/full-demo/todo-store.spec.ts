@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
 import { describe, expect, it, vi } from 'vitest';
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
+import {
+  setupCraftServiceTestingByRegister, craftUse } from '@craft-ng/core';
 import { TodoStore, provideTodoStore } from './full-demo';
 
 describe('TodoStore logic', () => {
@@ -11,7 +12,7 @@ describe('TodoStore logic', () => {
     });
 
     await vi.waitFor(() =>
-      expect(sut.todos.value()).toEqual([
+      expect(craftUse(sut.todos.value())).toEqual([
         { id: 1, title: 'Compose a craftService' },
         { id: 2, title: 'Expose query and mutations' },
       ]),
@@ -23,11 +24,11 @@ describe('TodoStore logic', () => {
   it('loads the initial todos', async () => {
     const store = await createStore();
 
-    expect(store.todos.value()).toEqual([
+    expect(craftUse(store.todos.value())).toEqual([
       { id: 1, title: 'Compose a craftService' },
       { id: 2, title: 'Expose query and mutations' },
     ]);
-    expect(store.todos.status()).toBe('resolved');
+    expect(craftUse(store.todos.status())).toBe('resolved');
   });
 
   it('adds todos through the mutation projection with a new id', async () => {
@@ -36,29 +37,39 @@ describe('TodoStore logic', () => {
     store.add.mutate('Write logic tests');
 
     await vi.waitFor(() =>
-      expect(store.todos.value()).toContainEqual({
+      expect(craftUse(store.todos.value())).toContainEqual({
         id: 3,
         title: 'Write logic tests',
       }),
     );
-    expect(store.add.value()).toEqual({
+    expect(craftUse(store.add.value())).toEqual({
       id: 3,
       title: 'Write logic tests',
     });
-    expect(store.todos.value()).toHaveLength(3);
+    expect(craftUse(store.todos.value())).toHaveLength(3);
   });
 
   it('allocates unique monotonic ids for successive additions', async () => {
     const store = await createStore();
 
     store.add.mutate('Third todo');
-    await vi.waitFor(() => expect(store.todos.value()).toHaveLength(3));
+    await vi.waitFor(() =>
+      expect(craftUse(store.todos.value())).toHaveLength(3),
+    );
 
     store.add.mutate('Fourth todo');
-    await vi.waitFor(() => expect(store.todos.value()).toHaveLength(4));
+    await vi.waitFor(() =>
+      expect(craftUse(store.todos.value())).toHaveLength(4),
+    );
 
-    expect(store.todos.value()).toContainEqual({ id: 3, title: 'Third todo' });
-    expect(store.todos.value()).toContainEqual({ id: 4, title: 'Fourth todo' });
+    expect(craftUse(store.todos.value())).toContainEqual({
+      id: 3,
+      title: 'Third todo',
+    });
+    expect(craftUse(store.todos.value())).toContainEqual({
+      id: 4,
+      title: 'Fourth todo',
+    });
   });
 
   it('removes only the requested todo', async () => {
@@ -67,20 +78,22 @@ describe('TodoStore logic', () => {
     store.remove.mutate(1);
 
     await vi.waitFor(() =>
-      expect(store.todos.value()).toEqual([
+      expect(craftUse(store.todos.value())).toEqual([
         { id: 2, title: 'Expose query and mutations' },
       ]),
     );
-    expect(store.remove.value()).toBe(1);
+    expect(craftUse(store.remove.value())).toBe(1);
   });
 
   it('keeps the list unchanged when removing an unknown id', async () => {
     const store = await createStore();
-    const initialTodos = store.todos.value();
+    const initialTodos = craftUse(store.todos.value());
 
     store.remove.mutate(999);
 
-    await vi.waitFor(() => expect(store.remove.status()).toBe('resolved'));
-    expect(store.todos.value()).toEqual(initialTodos);
+    await vi.waitFor(() =>
+      expect(craftUse(store.remove.status())).toBe('resolved'),
+    );
+    expect(craftUse(store.todos.value())).toEqual(initialTodos);
   });
 });

@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  assertNpmPackExcludesTests,
   bumpReleaseVersion,
   compareReleaseVersions,
   extractChangelogEntry,
   parseReleaseVersion,
-  resolveReleaseVersion,
   releaseTrackedFiles,
+  resolveReleaseVersion,
+  unpublishedNpmPackPaths,
 } from './release.mjs';
 
 test('maps supported versions to their release channel', () => {
@@ -137,4 +140,41 @@ test('release PRs are limited to manifests and changelog', () => {
     'libs/core/package.json',
     'libs/dev-tools/package.json',
   ]);
+});
+
+test('npm packs must not include the internal DevTools tests', () => {
+  assert.deepEqual(
+    unpublishedNpmPackPaths([
+      'package.json',
+      'src/index.js',
+      'src/scripts/architecture-graph.js',
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    unpublishedNpmPackPaths([
+      'src/index.js',
+      'tests/architecture/architecture.spec.ts',
+      'tests/architecture/fixtures/app/routes.ts',
+      'src/scripts/architecture-graph.spec.js',
+    ]),
+    [
+      'tests/architecture/architecture.spec.ts',
+      'tests/architecture/fixtures/app/routes.ts',
+      'src/scripts/architecture-graph.spec.js',
+    ],
+  );
+  assert.throws(
+    () =>
+      assertNpmPackExcludesTests('@craft-ng/dev-tools', [
+        'tests/architecture/architecture.spec.ts',
+      ]),
+    /must not include tests/,
+  );
+
+  const manifest = JSON.parse(
+    readFileSync(new URL('../libs/dev-tools/package.json', import.meta.url), 'utf8'),
+  );
+  assert.equal(manifest.files.includes('!tests/**'), true);
+  assert.equal(manifest.files.includes('!src/**/*.spec.ts'), true);
 });

@@ -1,13 +1,18 @@
-import { computed } from '@angular/core';
-import { abstract, craftException, craftService, state } from '@craft-ng/core';
+import {
+  abstract,
+  craftException,
+  craftService,
+  craftComputed,
+  state,
+} from '@craft-ng/core';
 import {
   button,
   catchTag,
   craftComponent,
-  h2,
   p,
   section,
   withProviders,
+  heading,
 } from '@craft-ng/component';
 
 const noAccess = craftException({ code: 'NO_ACCESS' });
@@ -37,7 +42,9 @@ export const componentCompositionDemo = craftComponent(
       'canReadRestrictedData',
       false,
       ({ update, state }) => ({
-        restriction: computed(() => (state() ? 'accessible' : noAccess)),
+        restriction: craftComputed('restriction', function* () {
+          return (yield* state()) ? 'accessible' : noAccess;
+        }),
         toggle: () => update((v) => !v),
       }),
     );
@@ -59,21 +66,23 @@ export const componentCompositionDemo = craftComponent(
   },
   ({ canReadRestrictedData, lastHandledException }) =>
     section({ class: 'component-demo component-demo__composition-page' }, [
-      h2('Composition réactive avec providers'),
+      heading('Composition réactive avec providers'),
       p(
         'Le provider fournit les données au composant. Cliquez pour passer par le handler NO_ACCESS, puis revenir au template.',
       ),
       button(
-        {
+        { type: 'button',
           class: 'component-demo__access-toggle',
           click: canReadRestrictedData.toggle,
         },
         'Changer les droits',
       ),
-      p(() => lastHandledException()),
+      p(lastHandledException),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(() => canReadRestrictedData.restriction()),
+          provideRestrictedData(function* () {
+            return yield* canReadRestrictedData.restriction();
+          }),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {

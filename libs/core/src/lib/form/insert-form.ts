@@ -25,8 +25,14 @@ import type {
 } from './insert-form-internals';
 import {
   markNonYieldableInsertionMethod,
+  yieldableInvocation,
   type NonYieldableInsertionMethod,
 } from '../yieldable';
+import type { YieldableInsertionWrite } from '../query.core';
+import {
+  createYieldableReactiveValue,
+  rawReactiveValue,
+} from '../reactive-read';
 
 export { validatedFormValueSymbol } from './insert-form-internals';
 export type {
@@ -99,16 +105,17 @@ function buildSimpleForm<Model>(
   formIdentifier: string | number | unknown,
 ): FormWithInsertions<Model, Record<string, unknown>> {
   const submission = createSubmissionController();
+  const rawState = rawReactiveValue(context.state);
   const field = createCraftFieldTree<Model>({
-    read: () => context.state(),
+    read: () => rawState(),
     set: (next: Model) => context.set(next),
-    asReadonly: () => context.state,
+    asReadonly: () => rawState,
   });
 
   const { rawInsertionsOutput, exposedInsertionsOutput } =
     executeFormInsertions(formInsertions, {
       field,
-      state: context.state,
+      state: rawState,
       submission,
       set: (newState: Model) => context.set(newState),
       update: (fn: (current: Model) => Model) => context.update(fn),
@@ -766,7 +773,7 @@ export function insertForm(...args: any[]): any {
     const identifier = parallelConfig.identifier;
 
     const selectItem = (formIdentifier: string | number) => {
-      const currentState = context.state();
+      const currentState = rawReactiveValue(context.state)();
       if (!Array.isArray(currentState)) return undefined;
       const index = findItemIndexByIdentifier(
         currentState,
@@ -804,12 +811,18 @@ export function insertForm(...args: any[]): any {
         unknown,
         Record<string, unknown>
       > = {
-        state: itemState,
-        set: (next: unknown) => setItem(formIdentifier, next),
+        state: createYieldableReactiveValue(itemState, 'state', {
+          primitive: 'form',
+          path: `form.${String(formIdentifier)}.state`,
+        }),
+        set: (next: unknown) => {
+          setItem(formIdentifier, next);
+          return yieldableInvocation(next);
+        },
         update: (fn: (curr: unknown) => unknown) => {
           const next = fn(selectItem(formIdentifier));
           setItem(formIdentifier, next);
-          return next;
+          return yieldableInvocation(next);
         },
         patch: (fn: (curr: unknown) => Partial<unknown>) => {
           const curr = selectItem(formIdentifier);
@@ -819,7 +832,7 @@ export function insertForm(...args: any[]): any {
               ? { ...(curr as object), ...partial }
               : partial;
           setItem(formIdentifier, next);
-          return next;
+          return yieldableInvocation(next);
         },
         insertions: inheritedInsertions as Record<string, unknown> as never,
       };
@@ -851,7 +864,7 @@ export function insertForm(...args: any[]): any {
     };
 
     const formsSignal = linkedSignal(() => {
-      const currentState = context.state();
+      const currentState = rawReactiveValue(context.state)();
       if (!Array.isArray(currentState)) {
         formsByIdentifier.clear();
         return [] as ParallelEntry[];

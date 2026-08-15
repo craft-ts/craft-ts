@@ -61,7 +61,7 @@ Scopes `function` and `abstract` are `craftService` scopes and are not available
 
 ```typescript
 import { Injectable, signal } from '@angular/core';
-import { craftService, toCraftService } from '@craft-ng/core';
+import { toCraftService } from '@craft-ng/core';
 
 @Injectable({ providedIn: 'root' })
 class RouterLike {
@@ -134,6 +134,28 @@ const { CounterDriver, provideCounterDriver } = toCraftService({
 // providers: [provideCounterDriver()]
 ```
 
+When an adaptation factory reads provider state, signal properties are exposed
+as yieldable readers and become dependency edges:
+
+```typescript
+import { craftService, toCraftService } from '@craft-ng/core';
+
+const { CounterValue } = toCraftService(
+  {
+    name: 'CounterValue',
+    scope: 'toProvide',
+    token: CounterDriver,
+    provide: () => [CounterDriver],
+  },
+  function* (counter) {
+    return yield* counter.total();
+  },
+);
+```
+
+Consume `counter.total()` with `yield*` in the adaptation factory; ordinary
+methods and non-reactive provider properties keep their existing contract.
+
 ## `$provided` in Adaptation Inputs
 
 For `toProvide` and `manuallyProvidedAtRoot`, the adaptation factory can consume `$provided` internally while public bindings remain clean.
@@ -188,6 +210,8 @@ const { UsersApi } = craftService(
   },
 );
 ```
+
+
 
 This keeps `HttpClient` explicit in the dependency graph while still letting you expose only the methods your service actually needs.
 

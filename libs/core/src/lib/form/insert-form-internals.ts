@@ -18,9 +18,15 @@ import { CraftField, CraftFieldTree } from './craft-field';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
+  yieldableInvocation,
   type NonYieldableInsertionMethod,
   type YieldableInsertionMethods,
 } from '../yieldable';
+import type { YieldableInsertionWrite } from '../query.core';
+import {
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+} from '../reactive-read';
 import {
   type CraftFieldExceptionSourceCarrier,
   type CraftFieldValidationCasesCarrier,
@@ -222,6 +228,7 @@ function createExposedInsertions(
       if (
         typeof value === 'function' &&
         !isSignal(value) &&
+        !isYieldableReactiveValue(value) &&
         !isNonYieldableInsertionMethod(value)
       ) {
         const methodInjector = ɵcreateHostTaggedInjector(
@@ -411,12 +418,12 @@ export function buildSubForm<Sub>(options: {
     state: stateSignal,
     set: (next: Sub) => {
       options.setSub(next);
-      return next;
+      return yieldableInvocation(next);
     },
     update: (fn: (curr: Sub) => Sub) => {
       const next = fn(options.subState());
       options.setSub(next);
-      return next;
+      return yieldableInvocation(next);
     },
     patch: (fn: (curr: Sub) => Partial<Sub>) => {
       const curr = options.subState();
@@ -426,7 +433,7 @@ export function buildSubForm<Sub>(options: {
           ? ({ ...(curr as object), ...partial } as Sub)
           : (partial as Sub);
       options.setSub(next);
-      return next;
+      return yieldableInvocation(next);
     },
     insertions: (options.parentContext.insertions ?? {}) as never,
   };
@@ -476,9 +483,13 @@ export function executeFormInsertions<Model>(
     field: CraftFieldTree<Model>;
     state: Signal<Model>;
     submission: SubmissionController;
-    set: (newState: Model) => Model;
-    update: (updateFn: (currentState: Model) => Model) => Model;
-    patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
+    set: YieldableInsertionWrite<[newState: Model], Model>;
+    update: YieldableInsertionWrite<[
+      updateFn: (currentState: Model) => Model,
+    ], Model>;
+    patch: YieldableInsertionWrite<[
+      patchFn: (currentState: Model) => Partial<Model>,
+    ], Model>;
     inheritedInsertions: Record<string, unknown>;
     injector: Injector;
     formIdentifier: string | number | unknown;
@@ -508,7 +519,10 @@ export function executeFormInsertions<Model>(
       );
       const insertionCallResult = runInInjectionContext(options.injector, () =>
         wrappedInsertion({
-          state: options.state,
+          state: createYieldableReactiveValue(options.state, 'state', {
+            primitive: 'form',
+            path: 'form.state',
+          }),
           set: options.set,
           update: options.update,
           patch: options.patch,

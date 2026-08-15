@@ -1,20 +1,26 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
   craftComponent,
   div,
-  h2,
   ifBlock,
   p,
   span,
   type Input,
+  heading,
 } from '@craft-ng/component';
-import {
-  craftComputed,
-  craftMethod,
-  CraftRouter,
-} from '@craft-ng/core';
-import { findPhoto } from './photos';
+import { craftComputed, craftMethod, CraftRouter } from '@craft-ng/core';
+import { findPhoto, type Photo } from './photos';
+
+const MISSING_PHOTO: Photo = {
+  id: '__missing__',
+  title: '',
+  subtitle: '',
+  description: '',
+  emoji: '',
+  gradient: 'transparent',
+};
 
 const ViewTransitionsDetailComponent = craftComponent(
   'ViewTransitionsDetailComponent',
@@ -32,19 +38,21 @@ const ViewTransitionsDetailComponent = craftComponent(
     const back = craftMethod('back', function* () {
       void router.navigate({ to: 'view-transitions' });
     });
-    const hasPhoto = craftComputed(
-      'hasPhoto',
-      () => findPhoto(photoId()) !== undefined,
-    );
-    return { photoId, back, hasPhoto };
+    const currentPhoto = craftComputed('currentPhoto', function* () {
+      return findPhoto(yield* photoId()) ?? MISSING_PHOTO;
+    });
+    const hasPhoto = craftComputed('hasPhoto', function* () {
+      return (yield* currentPhoto()).id !== MISSING_PHOTO.id;
+    });
+    return { photoId, back, currentPhoto, hasPhoto };
   },
-  ({ photoId, back, hasPhoto }) => {
+  ({ photoId, back, currentPhoto, hasPhoto }) => {
     return [
       a(
         {
           class: 'vt-back',
           href: '/view-transitions',
-          *click(event) {
+          *click(event: MouseEvent) {
             event.preventDefault();
             yield* back();
           },
@@ -53,25 +61,38 @@ const ViewTransitionsDetailComponent = craftComponent(
       ),
       ifBlock(
         hasPhoto,
-        () => {
-          const photo = findPhoto(photoId()) as NonNullable<
-            ReturnType<typeof findPhoto>
-          >;
-          return article({ class: 'vt-detail' }, [
+        () =>
+          article({ class: 'vt-detail' }, [
             span(
               {
                 class: 'vt-hero',
-                style: {
-                  background: photo.gradient,
-                  viewTransitionName: `photo-${photo.id}`,
+                style: function* () {
+                  return {
+                    background: (yield* currentPhoto()).gradient,
+                    viewTransitionName: `photo-${(yield* currentPhoto()).id}`,
+                  };
                 },
               },
-              span({ class: 'emoji' }, photo.emoji),
+              span({ class: 'emoji' }, function* () {
+                return (yield* currentPhoto()).emoji;
+              }),
             ),
-            div([p(photo.subtitle), h2(photo.title), p(photo.description)]),
-          ]);
-        },
-        () => p(`No artwork matches “${photoId()}”.`),
+            div([
+              p(function* () {
+                return (yield* currentPhoto()).subtitle;
+              }),
+              heading(function* () {
+                return (yield* currentPhoto()).title;
+              }),
+              p(function* () {
+                return (yield* currentPhoto()).description;
+              }),
+            ]),
+          ]),
+        () =>
+          p(function* () {
+            return `No artwork matches “${yield* photoId()}”.`;
+          }),
       ),
     ];
   },

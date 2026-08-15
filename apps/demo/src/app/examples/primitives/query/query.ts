@@ -1,9 +1,10 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './query.css' with { loader: 'text' };
-import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   p,
   pre,
@@ -13,8 +14,10 @@ import {
   craftMethod,
   CraftRouter,
   insertStoragePersister,
+  craftUnique,
   insertQueryPipe,
   query,
+  craftComputed,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
@@ -42,18 +45,20 @@ const GlobalQuery = craftComponent(
         },
       },
       insertQueryPipe(
-        ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
-        insertStoragePersister({
+        ({ resource }) => ({
+          hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        }),
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app',
           key: 'user-query',
-        }),
+        })),
       ),
     );
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
     const navigateNext = craftMethod('navigateNext', function* () {
-      const currentUserId = userId();
+      const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') + 1);
       void router.navigate({
         to: 'query/:userId',
@@ -61,7 +66,7 @@ const GlobalQuery = craftComponent(
       });
     });
     const navigatePrevious = craftMethod('navigatePrevious', function* () {
-      const currentUserId = userId();
+      const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') - 1);
       void router.navigate({
         to: 'query/:userId',
@@ -72,13 +77,14 @@ const GlobalQuery = craftComponent(
   },
   ({ userQuery, navigateNext, navigatePrevious }) =>
     div({ class: 'query-shell' }, [
+      heading('User query'),
       div({ class: 'query-result' }, [
         'User ',
-        StatusComponent({ status: () => userQuery.status() }),
+        StatusComponent({ status: userQuery.status }),
         ifBlock(userQuery.hasUser, () =>
-          pre('QueryValue', {}, () =>
-            JSON.stringify(userQuery.value(), null, 2),
-          ),
+          pre('QueryValue', {}, function* () {
+            return JSON.stringify(yield* userQuery.value(), null, 2);
+          }),
         ),
       ]),
       p(
@@ -88,7 +94,7 @@ const GlobalQuery = craftComponent(
       div({ class: 'query-actions' }, [
         button(
           'GoToPreviousUser',
-          {
+          { type: 'button',
             *click() {
               yield* navigatePrevious();
             },
@@ -97,7 +103,7 @@ const GlobalQuery = craftComponent(
         ),
         button(
           'GoToNextUser',
-          {
+          { type: 'button',
             *click() {
               yield* navigateNext();
             },

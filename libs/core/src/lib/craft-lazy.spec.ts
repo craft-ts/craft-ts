@@ -120,7 +120,8 @@ describe('craftLazy (inside an asyncProcess)', () => {
   it('resolves to the lazily-loaded module', async () => {
     await TestBed.runInInjectionContext(async () => {
       const moduleValue = { greet: () => 'hi' };
-      const ref = craftUse(asyncProcess('ref', {
+      const ref = craftUse(
+        asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy(({ withRetry }) =>
@@ -131,12 +132,12 @@ describe('craftLazy (inside an asyncProcess)', () => {
       );
 
       ref.method('go');
-      expect(ref.status()).toBe('loading');
+      expect(craftUse(ref.status())).toBe('loading');
       await vi.runAllTimersAsync();
 
-      expect(ref.status()).toBe('resolved');
-      expect(ref.value()).toBe(moduleValue);
-      expect(ref.hasException()).toBe(false);
+      expect(craftUse(ref.status())).toBe('resolved');
+      expect(craftUse(ref.value())).toBe(moduleValue);
+      expect(craftUse(ref.hasException())).toBe(false);
     });
   });
 
@@ -149,7 +150,8 @@ describe('craftLazy (inside an asyncProcess)', () => {
       const load = vi.fn(({ withRetry }: CraftLazyLoadHelpers) =>
         withRetry(Promise.reject<{ never: true }>(new Error('offline'))),
       );
-      const ref = craftUse(asyncProcess('ref', {
+      const ref = craftUse(
+        asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy(load);
@@ -162,15 +164,15 @@ describe('craftLazy (inside an asyncProcess)', () => {
 
       // Initial attempt + one retry.
       expect(load).toHaveBeenCalledTimes(2);
-      expect(ref.status()).toBe('exception');
-      expect(ref.hasException()).toBe(true);
-      expect(ref.exception()?.code).toBe(CRAFT_LAZY_LOAD_ERROR_CODE);
+      expect(craftUse(ref.status())).toBe('exception');
+      expect(craftUse(ref.hasException())).toBe(true);
+      expect(craftUse(ref.exception())?.code).toBe(CRAFT_LAZY_LOAD_ERROR_CODE);
       expect(
-        ref.exceptions().loader?.[CRAFT_LAZY_LOAD_ERROR_CODE],
+        craftUse(ref.exceptions()).loader?.[CRAFT_LAZY_LOAD_ERROR_CODE],
       ).toMatchObject({
         cause: expect.any(Error),
       });
-      expect(ref.value()).toBeUndefined();
+      expect(craftUse(ref.value())).toBeUndefined();
     });
   });
 
@@ -181,7 +183,8 @@ describe('craftLazy (inside an asyncProcess)', () => {
 
     await TestBed.runInInjectionContext(async () => {
       let calls = 0;
-      const ref = craftUse(asyncProcess('ref', {
+      const ref = craftUse(
+        asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy(({ withRetry }) =>
@@ -200,8 +203,8 @@ describe('craftLazy (inside an asyncProcess)', () => {
 
       // Initial attempt (fails), then two retries — the second succeeds.
       expect(calls).toBe(3);
-      expect(ref.status()).toBe('resolved');
-      expect(ref.value()).toEqual({ ok: true });
+      expect(craftUse(ref.status())).toBe('resolved');
+      expect(craftUse(ref.value())).toEqual({ ok: true });
     });
   });
 
@@ -211,7 +214,8 @@ describe('craftLazy (inside an asyncProcess)', () => {
     });
 
     await TestBed.runInInjectionContext(async () => {
-      const ref = craftUse(asyncProcess('ref', {
+      const ref = craftUse(
+        asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy<{ ok: boolean }>(({ withRetry }) =>
@@ -229,9 +233,9 @@ describe('craftLazy (inside an asyncProcess)', () => {
       await vi.runAllTimersAsync();
 
       // The lazy-load failure was caught: the resource resolves to the fallback.
-      expect(ref.status()).toBe('resolved');
-      expect(ref.value()).toEqual({ ok: false });
-      expect(ref.hasException()).toBe(false);
+      expect(craftUse(ref.status())).toBe('resolved');
+      expect(craftUse(ref.value())).toEqual({ ok: false });
+      expect(craftUse(ref.hasException())).toBe(false);
     });
   });
 });
@@ -258,13 +262,15 @@ describe('craftLazy (type propagation)', () => {
         return mod;
       };
 
-      const searchProcess = craftUse(asyncProcess('searchProcess', {
+      const searchProcess = craftUse(
+        asyncProcess('searchProcess', {
           method: (v: string) => v,
           loader: drive,
         }),
       );
 
-      const searchResult = craftUse(asyncProcess('searchResult', {
+      const searchResult = craftUse(
+        asyncProcess('searchResult', {
           method: (q: string) => q,
           loader: function* ({ params }) {
             const { search: loadedSearch } =
@@ -275,7 +281,9 @@ describe('craftLazy (type propagation)', () => {
       );
 
       // The success value survives the whole chain.
-      expectTypeOf(searchResult.value()).toEqualTypeOf<string[] | undefined>();
+      expectTypeOf(craftUse(searchResult.value())).toEqualTypeOf<
+        string[] | undefined
+      >();
 
       // Both the lazy-load failure and `search`'s business exceptions surface.
       type ResultCodes = NonNullable<
@@ -296,7 +304,8 @@ describe('craftLazy (type propagation)', () => {
     function _typeOnly() {
       // Catch the only exception (`CRAFT_LAZY_LOAD_ERROR`) at the source: the
       // resource's exception union becomes empty, so `exception()` is `undefined`.
-      const recovered = craftUse(asyncProcess('recovered', {
+      const recovered = craftUse(
+        asyncProcess('recovered', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy<{ ok: boolean }>(({ withRetry }) =>
@@ -310,8 +319,8 @@ describe('craftLazy (type propagation)', () => {
         }),
       );
 
-      expectTypeOf(recovered.exception()).toEqualTypeOf<undefined>();
-      expectTypeOf(recovered.value()).toEqualTypeOf<
+      expectTypeOf(craftUse(recovered.exception())).toEqualTypeOf<undefined>();
+      expectTypeOf(craftUse(recovered.value())).toEqualTypeOf<
         { ok: boolean } | undefined
       >();
 

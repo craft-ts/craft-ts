@@ -29,17 +29,53 @@ the dependency snapshot.
 
 ## The rule
 
-> Inside a `function*` craft factory, drive **everything** with `yield*` —
-> services and primitives alike.
+> Every named entity yields what it does not own. A factory, a `craftComputed`,
+> a `craftMethod`, a generator insertion member — each one records **its**
+> dependencies with `yield*`.
+
+Owning means: the primitive internals handed to **this** insertion
+(`state`, `set`, `update`, `patch`). Everything else — another primitive, a
+service, a sibling method, an input, a nested resource reader — is yielded.
+
+```typescript
+const counter = yield* state('counter', 0, ({ state, update }) => ({
+  increment: () => update((value) => value + 1),
+  doubled: craftComputed(function* () {
+    return (yield* state()) * 2;
+  }),
+}));
+
+const stats = craftComputed('stats', function* () {
+  return (yield* counter()) + (yield* counter.doubled());
+});
+```
+
+`increment` may return `update(...)` directly: it is not a generator, and the
+insertion wrapper consumes the write. `doubled` does not own `state()`, so it
+yields it. `stats` does not own `counter`, so it yields both readers.
+
+In a Craft template, pass the reader or the method instead of wrapping a
+synchronous call:
+
+```typescript
+p(counter);
+button({ click: counter.increment }, '+');
+```
 
 `craftUse(...)` is the Angular-interop path: in a `@Component` class there is no
 generator to yield from, so a class field drives the primitive with it instead.
 A class field is the end of the graph, which is why `craftUse` has nothing to
-track.
+track. Use it in tests and other synchronous boundaries too:
+`craftUse(counter.increment())`.
 
 Yield only what you use: `yield* TaskApi.fetchAll()` records one property
 instead of the whole service, which is what keeps test registers small. See
 [Shaping the public API](/guide/app/expose-api).
+
+The `craft-ng/require-yieldable-reactive-read`,
+`craft-ng/require-yieldable-insertion-write` and
+`craft-ng/require-yieldable-template-method` ESLint rules enforce this. See
+[ESLint rules](/guide/routing/eslint-rules).
 
 ## `craftGen` — a tracked generator outside a service
 
@@ -64,12 +100,13 @@ import { craftException, craftGen } from '@craft-ng/core';
 
 export const roleGuard = craftGen(function* (...roles: Role[]) {
   const { user } = yield* Auth(undefined, ({ user }) => ({ user }));
+  const currentUser = yield* user();
 
-  if (!user()) {
+  if (!currentUser) {
     return craftException({ code: 'NOT_AUTHENTICATED' });
   }
 
-  return roles.includes(user()!.role)
+  return roles.includes(currentUser.role)
     ? true
     : craftException({ code: 'FORBIDDEN_ROLE' });
 });
@@ -77,7 +114,9 @@ export const roleGuard = craftGen(function* (...roles: Role[]) {
 export const noPizzeriaGuard = craftGen(function* () {
   const { pizzeria } = yield* Auth(undefined, ({ pizzeria }) => ({ pizzeria }));
 
-  return pizzeria() ? craftException({ code: 'HAS_PIZZERIA' }) : true;
+  return (yield* pizzeria())
+    ? craftException({ code: 'HAS_PIZZERIA' })
+    : true;
 });
 ```
 
@@ -124,5 +163,6 @@ every check that makes this library worth using. The
 ## See Also
 
 - [Route guards](/guide/routing/guards)
+- [ESLint rules](/guide/routing/eslint-rules) — `require-yieldable-reactive-read` and siblings
 - [Program operators](/guide/advanced/program-operators) — `catchTag` and `retry`
 - [Exceptions as values](/guide/concepts/exceptions)

@@ -1,17 +1,22 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
   each,
-  h2,
   input,
   li,
   p,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
-import { mutation, query, state } from '@craft-ng/core';
+import {
+  mutation,
+  query,
+  state,
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };
@@ -23,11 +28,12 @@ const FullDemo = craftComponent(
   },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
-      take: () => {
-        const id = state();
-        update((value) => value + 1);
-        return id;
-      },
+      take: function* () {
+            const _state = yield* state();
+                const id = _state;
+              yield* update((value) => value + 1);
+                return id;
+              },
     }));
     const records = yield* state(
       'records',
@@ -47,7 +53,8 @@ const FullDemo = craftComponent(
     const todos = yield* query('todos', {
       params: refresh,
       loader: function* () {
-        return [...records()];
+          const _records = yield* records();
+        return [..._records];
       },
     });
     const addTodo = yield* mutation('addTodo', {
@@ -80,28 +87,27 @@ const FullDemo = craftComponent(
   },
   ({ todos, addTodo, removeTodo, titleInput, setTitle }) => {
     return div([
-      h2([
+      heading([
         'Full primitives demo ',
-        StatusComponent({ status: () => todos.status() }),
+        StatusComponent({ status: todos.status }),
       ]),
       p('Query, mutations, optimistic interaction and functional rendering.'),
       div([
         input('TodoNameToAddInput', {
           type: 'text',
           placeholder: 'New todo',
-          value: () => titleInput(),
-          *input(event) {
+          value: titleInput,
+          *input(event: Event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
         }),
         button(
           'AddTodoButton',
-          {
-            disabled: () => addTodo.isLoading(),
+          { type: 'button',
+            disabled: addTodo.isLoading,
             *click() {
-              const trimmedTitle = titleInput().trim() ?? ''; // todo handle that in the state
-              if (trimmedTitle) {
-                yield* addTodo.mutate(trimmedTitle);
+              if ((yield* titleInput()).trim()) {
+                yield* addTodo.mutate((yield* titleInput()).trim());
               }
             },
           },
@@ -114,13 +120,15 @@ const FullDemo = craftComponent(
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([
-              span('TodoTitle', {}, todo.title),
+              span('TodoTitle', {}, function* () {
+                return (yield* todo()).title;
+              }),
               button(
                 'RemoveTodoButton',
-                {
-                  disabled: () => removeTodo.isLoading(),
+                { type: 'button',
+                  disabled: removeTodo.isLoading,
                   *click() {
-                    yield* removeTodo.mutate(todo.id);
+                    yield* removeTodo.mutate((yield* todo()).id);
                   },
                 },
                 'Remove',

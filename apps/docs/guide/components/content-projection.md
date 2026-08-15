@@ -23,7 +23,7 @@ exposing a logical contract. There is **no runtime registry** like
 `ContentSlot` describes optional or free-form DOM content. `RequiredContent`
 adds a structural contract that TypeScript checks.
 
-```ts
+```typescript
 import {
   content,
   craftComponent,
@@ -64,6 +64,8 @@ Card({
 });
 ```
 
+
+
 The selector is analysed **statically**. This is rejected, because it does not
 contain `div.card-body[data-slot="body"]`:
 
@@ -102,53 +104,8 @@ ProjectionOf<Component>       → the logical capabilities of a component
 A component becomes projectable when its logic factory returns a `contract`
 property, built and checked with `satisfies`.
 
-```ts
-import {
-  button,
-  craftComponent,
-  renderContent,
-  type ContentSlot,
-  type ProjectionContractOf,
-  type ProjectionOf,
-} from '@craft-ng/component';
+<<< @/tests/snippets/guide/components/content-projection/toolbaraction.spec.ts#toolbaraction
 
-type ToolbarActionContract = {
-  readonly kind: 'toolbar-action';
-  readonly trigger: () => void;
-  readonly disabled: () => boolean;
-};
-
-const ToolbarAction = craftComponent(
-  'ToolbarAction',
-  {},
-  (input: {
-    readonly key: string;
-    readonly content: ContentSlot;
-    readonly trigger: () => void;
-    readonly disabled?: () => boolean;
-  }) => ({
-    key: input.key,
-    contract: {
-      kind: 'toolbar-action',
-      trigger: input.trigger,
-      disabled: input.disabled ?? (() => false),
-    } satisfies ToolbarActionContract,
-    content: input.content,
-  }),
-  ({ contract, content }) =>
-    button(
-      {
-        type: 'button',
-        disabled: contract.disabled,
-        click: contract.trigger,
-      },
-      renderContent(content),
-    ),
-);
-
-type ExtractedContract = ProjectionContractOf<typeof ToolbarAction>;
-type ToolbarActionUnit = ProjectionOf<typeof ToolbarAction>;
-```
 
 `ProjectionContractOf<Component>` extracts the type of `logicOutput.contract`.
 `ProjectionOf<Component>` adds the stable key the renderer expects. For generic
@@ -227,18 +184,8 @@ const Page = craftComponent(
 `contentStyles` is indexed by the content slot names the component declares. An
 unknown slot name is a type error.
 
-```ts
-const StyledCard = craftComponent(
-  'StyledCard',
-  {
-    contentStyles: {
-      body: ':scope { display: block; color: #344054; }',
-    },
-  },
-  (input: { readonly body: ContentSlot }) => input,
-  ({ body }) => renderContent('body', body),
-);
-```
+<<< @/tests/snippets/guide/components/content-projection/styledcard.spec.ts#styledcard
+
 
 The **caller** decides explicitly whether its content accepts those styles:
 
@@ -306,17 +253,8 @@ const invalidContract = {
 **Styling a slot that isn't one.** `contentStyles` can only reference declared
 content slots:
 
-```ts
-craftComponent(
-  'InvalidStyles',
-  {
-    // @ts-expect-error "footer" is not a declared content slot.
-    contentStyles: { footer: ':scope { color: red; }' },
-  },
-  (input: { readonly body: ContentSlot }) => input,
-  ({ body }) => renderContent('body', body),
-);
-```
+<<< @/tests/snippets/guide/components/content-projection/example-12.spec.ts#example-12
+
 
 ::: details Combining optional content and contractual actions — a dialog
 A component can mix optional DOM content with several logical slots in one

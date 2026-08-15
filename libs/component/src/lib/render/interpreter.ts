@@ -44,11 +44,17 @@ import {
   type CraftSettledReadObserver,
   isGeneratorFunction,
   isCraftField,
+  isGenerator,
   markYieldableValue,
+  markYieldableMethod,
   isYieldableValue,
   isYieldableMethod,
+  isYieldableReactiveValue,
   provideHostName,
+  rawReactiveFacade,
+  rawReactiveValue,
   toYieldable,
+  yieldableInvocation,
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
   type CraftServiceProvider,
@@ -87,6 +93,8 @@ import {
   type DeferNode,
   type EachNode,
   type IfBlockNode,
+  type HeadingNode,
+  type HeadingSectionNode,
   type ElementNodeBase,
   type CatchBlockNode,
   type MatchBlockNode,
@@ -162,6 +170,8 @@ interface RenderContext {
   readonly fieldExceptionBoundary?: FieldExceptionBoundaryRegistration;
   /** Lexical context of content declared by the parent component. */
   readonly declarationContext?: RenderContext;
+  /** Current heading outline level (1–6). `heading()` reads this; `headingSection` increments it. */
+  readonly headingLevel?: number;
   /** Directives composed around the current component. */
   readonly directiveNames?: readonly string[];
   /** Mutable render number shared by one component and its nested views. */
@@ -376,7 +386,11 @@ function findResourceException(
     readonly exceptions?: () => { readonly list?: readonly unknown[] };
   };
   if (typeof candidate.exceptions === 'function') {
-    const exceptions = candidate.exceptions();
+    const exceptions = (
+      isYieldableReactiveValue(candidate.exceptions)
+        ? rawReactiveValue(candidate.exceptions)()
+        : candidate.exceptions()
+    ) as { readonly list?: readonly unknown[] };
     const exception = exceptions.list?.find(isCraftException);
     if (exception) return exception;
   }
@@ -568,6 +582,38 @@ function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
   return typeof value === 'function'
     ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
     : value;
+}
+
+function resolveTemplateContext(
+  context: unknown,
+  renderContext: RenderContext,
+): unknown {
+  if (typeof context === 'function') {
+    return resolveTemplateValue(context, renderContext);
+  }
+  if (context === null || typeof context !== 'object' || Array.isArray(context)) {
+    return context;
+  }
+
+  return Object.fromEntries(
+    Object.entries(context).map(([key, value]) => [
+      key,
+      typeof value === 'function'
+        ? resolveTemplateValue(value, renderContext)
+        : value,
+    ]),
+  );
+}
+
+function resolveProjectionValue(
+  value: unknown,
+  renderContext: RenderContext,
+): unknown {
+  let current = value;
+  for (let depth = 0; depth < 3 && typeof current === 'function'; depth++) {
+    current = resolveTemplateValue(current, renderContext);
+  }
+  return current;
 }
 
 function projectYieldableTemplateContext(
@@ -1349,6 +1395,8 @@ function flattenAttributes(
       key !== 'class' &&
       key !== 'style' &&
       key !== 'directives' &&
+      key !== 'labelledBy' &&
+      key !== 'onClose' &&
       !eventNameFor(key, value)
     ) {
       attributes.set(key, value);
@@ -1373,6 +1421,13 @@ function applyAttribute(
       );
     }
   }
+  if (key === 'htmlFor') {
+    renderer.setProperty(element, key, value ?? '');
+    if (value === null || value === undefined || value === false) {
+      renderer.removeAttribute(element, 'for');
+    }
+    return;
+  }
   if (PROPERTY_NAMES.has(key)) {
     renderer.setProperty(element, key, value ?? false);
     if (value === null || value === undefined || value === false) {
@@ -1381,7 +1436,11 @@ function applyAttribute(
     return;
   }
 
-  if (value === null || value === undefined || value === false) {
+  if (value === null || value === undefined) {
+    renderer.removeAttribute(element, key);
+  } else if (key.startsWith('aria-') && typeof value === 'boolean') {
+    renderer.setAttribute(element, key, value ? 'true' : 'false');
+  } else if (value === false) {
     renderer.removeAttribute(element, key);
   } else {
     renderer.setAttribute(element, key, value === true ? '' : String(value));
@@ -1402,6 +1461,7 @@ class ElementRenderedNode implements RenderedNode {
   private craftNodeDirectiveTypes: readonly AppliedCraftNodeDirective[] = [];
   private craftNodeDirectiveMounts: CraftNodeDirectiveMount[] = [];
   private localName: string | undefined;
+  private dialogCleanup: (() => void) | undefined;
 
   constructor(
     private readonly node: Element,
@@ -1410,15 +1470,24 @@ class ElementRenderedNode implements RenderedNode {
     initial: ElementNodeBase<any, any, any, any, any, any, any, any>,
   ) {
     this.patchProperties(initial);
+    this.installDialog(initial);
+    const nested =
+      this.tag === 'dialog'
+        ? childContext(context, {
+            rootScope: undefined,
+            contentScope: undefined,
+            headingLevel: 1,
+          })
+        : childContext(context, {
+            rootScope: undefined,
+            contentScope: undefined,
+          });
     this.children = patchRenderedChildren(
       this.node,
       this.children,
       initial.children,
       null,
-      childContext(context, {
-        rootScope: undefined,
-        contentScope: undefined,
-      }),
+      nested,
     );
   }
 
@@ -1440,6 +1509,7 @@ class ElementRenderedNode implements RenderedNode {
     }
 
     this.patchProperties(node);
+    this.installDialog(node);
     this.children = patchRenderedChildren(
       this.node,
       this.children,
@@ -1699,7 +1769,49 @@ class ElementRenderedNode implements RenderedNode {
     this.bindings.delete(key);
   }
 
+  private installDialog(
+    nextNode: ElementNodeBase<any, any, any, any, any, any, any, any>,
+  ): void {
+    if (this.tag !== 'dialog') return;
+    const dialog = this.node as HTMLDialogElement;
+    const renderer = this.context.renderer;
+    if (!dialog.getAttribute('role')) {
+      renderer.setAttribute(dialog, 'role', 'dialog');
+    }
+    if (!dialog.getAttribute('aria-modal')) {
+      renderer.setAttribute(dialog, 'aria-modal', 'true');
+    }
+    const labelledBy = nextNode.props['labelledBy'];
+    const label = nextNode.props['label'] ?? nextNode.props['aria-label'];
+    if (typeof labelledBy === 'string' && labelledBy) {
+      renderer.setAttribute(dialog, 'aria-labelledby', labelledBy);
+    } else if (typeof label === 'string' && label) {
+      renderer.setAttribute(dialog, 'aria-label', label);
+    }
+    const onClose = nextNode.props['onClose'];
+    this.dialogCleanup?.();
+    const cancel = renderer.listen(dialog, 'cancel', (event: Event) => {
+      event.preventDefault();
+      if (typeof onClose === 'function') onClose(event);
+      if (typeof dialog.close === 'function') dialog.close();
+    });
+    const close = renderer.listen(dialog, 'close', (event: Event) => {
+      if (typeof onClose === 'function') onClose(event);
+    });
+    this.dialogCleanup = () => {
+      cancel();
+      close();
+    };
+    const open = nextNode.props['open'];
+    if (open && typeof dialog.showModal === 'function' && !dialog.open) {
+      dialog.showModal();
+    } else if (open === false && typeof dialog.close === 'function' && dialog.open) {
+      dialog.close();
+    }
+  }
+
   destroy(): void {
+    this.dialogCleanup?.();
     this.bindings.forEach(({ effectRef }) => effectRef.destroy());
     this.bindings.clear();
     this.listeners.forEach((dispose) => dispose());
@@ -1893,7 +2005,10 @@ class ProjectionRenderedNode implements RenderedNode {
       () =>
         runInInjectionContext(this.declarationContext.injector, () =>
           withCraftRenderContext(this.declarationContext, () =>
-            this.node.render(),
+            resolveProjectionValue(
+              this.node.render(),
+              this.projectionContext,
+            ) as CraftNodeChildren,
           ),
         ),
     );
@@ -1960,7 +2075,7 @@ class TemplateRenderedNode implements RenderedNode {
 
   private children(): CraftNodeChildren {
     return renderChildrenCallback(this.declarationContext, this.node.template, [
-      this.node.context,
+      resolveTemplateContext(this.node.context, this.declarationContext),
     ]);
   }
 
@@ -2031,11 +2146,10 @@ class EachRenderedNode implements RenderedNode {
   }
 
   private reconcile(itemTemplateChanged = false): void {
-    const items = (
-      typeof this.node.source === 'function'
-        ? this.node.source()
-        : this.node.source
-    ) as readonly unknown[] | null | undefined;
+    const items = resolveTemplateValue(this.node.source, this.context) as
+      | readonly unknown[]
+      | null
+      | undefined;
     const collection = items ?? [];
 
     if (collection.length === 0) {
@@ -2139,7 +2253,12 @@ class EachRenderedNode implements RenderedNode {
       childContext(this.context, { traceState }),
       'each',
       this.node.itemTemplate,
-      [item, index],
+      [
+        function* () {
+          return item;
+        },
+        index,
+      ],
     );
   }
 
@@ -2272,7 +2391,9 @@ class MatchBlockRenderedNode implements RenderedNode {
       );
       this.handledExceptionCode = undefined;
     }
-    const exception = this.node.source();
+    const exception = resolveTemplateValue(this.node.source, this.context) as
+      | AnyCraftException
+      | undefined;
     if (!exception) return [];
     const code = (exception as Record<PropertyKey, unknown>)[this.node.key];
     // Resource exception buckets use an empty object when no exception is
@@ -2307,7 +2428,6 @@ class MatchBlockRenderedNode implements RenderedNode {
     this.view.destroy();
   }
 }
-
 
 /**
  * Detaches a mounted DOM range into a holder fragment, keeping every node (and
@@ -2388,7 +2508,13 @@ class CatchBlockRenderedNode implements RenderedNode {
     // The fallback renders in the OUTER context: an exception thrown by a
     // fallback belongs to the next boundary up, never to this one.
     const createFallback = () =>
-      createFragment(parent, this.end, this.context, [], 'craft-catch-fallback');
+      createFragment(
+        parent,
+        this.end,
+        this.context,
+        [],
+        'craft-catch-fallback',
+      );
     const createSource = () =>
       createFragment(
         parent,
@@ -2475,7 +2601,15 @@ class CatchBlockRenderedNode implements RenderedNode {
         this.node.position,
       );
       this.applyPosition(resolved.position);
-      this.fallbackView.patchChildren(resolved.children);
+      this.fallbackView.patchChildren(
+        hasLiveRegion(resolved.children)
+          ? resolved.children
+          : a11yElement(
+              'div',
+              { role: 'alert' },
+              resolved.children,
+            ),
+      );
       if (resolved.showSource) {
         this.restoreSource();
       } else {
@@ -2584,7 +2718,9 @@ function componentFieldExceptionSources(
   const source = (
     value as Partial<Record<typeof CRAFT_FIELD_EXCEPTION_SOURCE, unknown>>
   )[CRAFT_FIELD_EXCEPTION_SOURCE];
-  if (source) return [source as CraftFieldExceptionSource];
+  if (source) {
+    return [rawReactiveFacade(source as CraftFieldExceptionSource)];
+  }
   const sources: CraftFieldExceptionSource[] = [];
   if (depth >= 4) return sources;
 
@@ -2642,6 +2778,32 @@ function fieldExceptionMessageNode(
   };
 }
 
+function a11yElement(
+  tag: string,
+  props: Readonly<Record<string, unknown>>,
+  children: CraftNodeChildren = [],
+): ElementNodeBase {
+  return { kind: 'element', tag, props, children };
+}
+
+function firstElementChild(value: CraftNodeChildren): ElementNodeBase | undefined {
+  const list = Array.isArray(value) ? value : [value];
+  for (const child of list) {
+    if (child && typeof child === 'object' && 'kind' in child && child.kind === 'element') {
+      return child as ElementNodeBase;
+    }
+  }
+  return undefined;
+}
+
+function hasLiveRegion(children: CraftNodeChildren): boolean {
+  const element = firstElementChild(children);
+  if (!element) return false;
+  const role = element.props['role'];
+  const live = element.props['aria-live'];
+  return role === 'alert' || role === 'status' || live === 'polite' || live === 'assertive';
+}
+
 /**
  * The `pendingBlock` boundary.
  *
@@ -2677,7 +2839,9 @@ class PendingBlockRenderedNode implements RenderedNode {
     private readonly context: RenderContext,
   ) {
     this.position = node.position;
-    this.start = context.renderer.createComment('craft-pending:start') as Comment;
+    this.start = context.renderer.createComment(
+      'craft-pending:start',
+    ) as Comment;
     this.end = context.renderer.createComment('craft-pending:end') as Comment;
     insertBefore(context.renderer, parent, this.start, before);
     insertBefore(context.renderer, parent, this.end, before);
@@ -2685,7 +2849,13 @@ class PendingBlockRenderedNode implements RenderedNode {
     // The fallback renders in the OUTER context: a fallback that suspends in
     // turn belongs to the next boundary up, never to this one.
     const createFallback = () =>
-      createFragment(parent, this.end, this.context, [], 'craft-pending-fallback');
+      createFragment(
+        parent,
+        this.end,
+        this.context,
+        [],
+        'craft-pending-fallback',
+      );
     const createSource = () =>
       createFragment(
         parent,
@@ -2831,15 +3001,37 @@ class PendingBlockRenderedNode implements RenderedNode {
     if (!source) return [];
 
     if (!handlers) {
-      return suspended
-        ? (this.node.fallback?.() ?? [])
-        : (this.node.reloading?.() ?? []);
+      return this.announceFallback(
+        suspended
+          ? (this.node.fallback?.() ?? [])
+          : (this.node.reloading?.() ?? []),
+        true,
+      );
     }
 
     const handler: PendingBlockHandler | undefined = handlers[source];
-    return handler
+    const inner = handler
       ? resolvePendingBlockHandler(handler, suspended ? 'pending' : 'reloading')
       : [];
+    return this.announceFallback(inner, true);
+  }
+
+  private announceFallback(
+    children: CraftNodeChildren,
+    busy: boolean,
+  ): CraftNodeChildren {
+    if (!children || (Array.isArray(children) && children.length === 0)) {
+      return [];
+    }
+    return a11yElement(
+      'span',
+      {
+        'aria-live': 'polite',
+        'aria-atomic': 'true',
+        'aria-busy': busy ? 'true' : 'false',
+      },
+      children,
+    );
   }
 
   /** Renders whatever the current state calls for: a suspension, a reload, or nothing. */
@@ -2861,13 +3053,32 @@ class PendingBlockRenderedNode implements RenderedNode {
     this.renderFallback();
   }
 
+  private focused: Element | undefined;
+
   private detachSource(): void {
     if (this.detached) return;
+    const documentRef = this.parent.ownerDocument;
+    const active = documentRef?.activeElement ?? null;
+    if (active && this.sourceContains(active)) {
+      this.focused = active;
+    }
     this.detached = detachRange(
       this.context.renderer,
       this.sourceView.firstNode(),
       this.sourceView.lastNode(),
     );
+  }
+
+  private sourceContains(node: Node): boolean {
+    let current: Node | null = this.sourceView.firstNode();
+    const end = this.sourceView.lastNode();
+    while (current) {
+      if (current === node) return true;
+      if (current instanceof Element && current.contains(node)) return true;
+      if (current === end) break;
+      current = current.nextSibling;
+    }
+    return false;
   }
 
   private restoreSource(): void {
@@ -2879,6 +3090,10 @@ class PendingBlockRenderedNode implements RenderedNode {
       this.position === 'before' ? this.end : this.fallbackView.firstNode();
     reattachRange(this.context.renderer, this.detached, anchor, this.parent);
     this.detached = undefined;
+    if (this.focused && 'focus' in this.focused && typeof (this.focused as HTMLElement).focus === 'function') {
+      (this.focused as HTMLElement).focus();
+    }
+    this.focused = undefined;
   }
 }
 
@@ -2951,12 +3166,13 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
     source: CraftFieldExceptionSource,
     element?: Element,
   ): () => void {
+    const rawSource = rawReactiveFacade(source);
     const unregisterParent = this.context.fieldExceptionBoundary?.register(
-      source,
+      rawSource,
       element,
     );
     const registered: RegisteredFieldExceptionSource = {
-      source,
+      source: rawSource,
       element,
       messageIds: new Map(),
     };
@@ -3342,23 +3558,20 @@ class ComponentRenderedNode implements RenderedNode {
     );
 
     const inputShells = this.propSources.map((source) => {
-      const input = (...callbackArgs: unknown[]) => {
+      const input = markYieldableMethod((...callbackArgs: unknown[]) => {
         const current = source();
-        if (typeof current === 'function') {
-          if (callbackArgs.length > 0) {
-            return toYieldable((...args: unknown[]) =>
-              (current as (...innerArgs: unknown[]) => unknown)(...args),
-            )(...callbackArgs);
-          }
-          return current(...callbackArgs);
+        if (callbackArgs.length > 0 && typeof current === 'function') {
+          return (current as (...args: unknown[]) => unknown)(...callbackArgs);
         }
-        if (callbackArgs.length > 0) {
-          throw new Error(
-            'An Input<T> component prop was invoked as an Output callback.',
-          );
-        }
-        return current;
-      };
+        const value =
+          typeof current === 'function'
+            ? (current as () => unknown)()
+            : current;
+
+        return isGenerator(value)
+          ? value
+          : yieldableInvocation<unknown, unknown>(value);
+      });
 
       // Content inputs are object-shaped at the call site but component
       // factories receive callable input shells. Expose object properties on
@@ -4298,7 +4511,31 @@ class DeferRenderedNode implements RenderedNode {
 
     if (this.node.trigger === 'interaction') {
       const target = this.firstElementInView() ?? this.parent;
-      const start = () => this.startLoad();
+      const start = (event?: Event) => {
+        if (event && event.type === 'keydown') {
+          const key = (event as KeyboardEvent).key;
+          if (key !== 'Enter' && key !== ' ') return;
+          event.preventDefault();
+        }
+        this.startLoad();
+      };
+      if (target instanceof Element) {
+        const tag = target.tagName.toLowerCase();
+        const interactive =
+          tag === 'button' ||
+          tag === 'a' ||
+          tag === 'input' ||
+          tag === 'select' ||
+          tag === 'textarea';
+        if (!interactive) {
+          if (!target.hasAttribute('tabindex')) {
+            this.context.renderer.setAttribute(target, 'tabindex', '0');
+          }
+          if (!target.getAttribute('role')) {
+            this.context.renderer.setAttribute(target, 'role', 'button');
+          }
+        }
+      }
       const clickCleanup = this.context.renderer.listen(target, 'click', start);
       const keyCleanup = this.context.renderer.listen(target, 'keydown', start);
       this.triggerCleanup = () => {
@@ -4328,6 +4565,16 @@ class DeferRenderedNode implements RenderedNode {
     return undefined;
   }
 
+  private setBusy(busy: boolean): void {
+    const target = this.firstElementInView();
+    if (!target) return;
+    if (busy) {
+      this.context.renderer.setAttribute(target, 'aria-busy', 'true');
+    } else {
+      this.context.renderer.removeAttribute(target, 'aria-busy');
+    }
+  }
+
   private startLoad(): void {
     if (this.state !== 'placeholder' || this.destroyed) {
       return;
@@ -4335,6 +4582,7 @@ class DeferRenderedNode implements RenderedNode {
     this.state = 'loading';
     this.triggerCleanup?.();
     this.triggerCleanup = undefined;
+    this.setBusy(true);
     this.view.patchChildren(
       this.node.loading
         ? renderDeferChildren(this.context, 'loading', this.node.loading)
@@ -4369,6 +4617,7 @@ class DeferRenderedNode implements RenderedNode {
                 ])
               : [],
           );
+          this.setBusy(false);
           return;
         }
 
@@ -4379,6 +4628,7 @@ class DeferRenderedNode implements RenderedNode {
             settled.value,
           ]),
         );
+        this.setBusy(false);
       })
       .catch((error: unknown) => {
         if (!this.destroyed) {
@@ -4391,6 +4641,7 @@ class DeferRenderedNode implements RenderedNode {
                 ])
               : [],
           );
+          this.setBusy(false);
         }
       });
   }
@@ -4399,6 +4650,93 @@ class DeferRenderedNode implements RenderedNode {
     this.destroyed = true;
     this.triggerCleanup?.();
     this.view.destroy();
+  }
+}
+
+class HeadingSectionRenderedNode implements RenderedNode {
+  readonly kind = 'heading-section';
+  private readonly view: FragmentRenderedNode;
+
+  constructor(
+    node: HeadingSectionNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    const level = node.reset
+      ? 1
+      : Math.min(6, (context.headingLevel ?? 1) + 1);
+    this.view = createFragment(
+      parent,
+      before,
+      childContext(context, { headingLevel: level }),
+      node.children,
+      'craft-heading-section',
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'heading-section') return false;
+    this.view.patchChildren(node.children);
+    return true;
+  }
+
+  destroy(): void {
+    this.view.destroy();
+  }
+}
+
+class HeadingRenderedNode implements RenderedNode {
+  readonly kind = 'heading';
+  private readonly elementView: ElementRenderedNode;
+  private readonly tag: string;
+
+  constructor(
+    node: HeadingNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    const level = Math.min(6, Math.max(1, context.headingLevel ?? 1));
+    this.tag = `h${level}`;
+    const element = context.renderer.createElement(this.tag) as Element;
+    insertBefore(context.renderer, parent, element, before);
+    this.elementView = new ElementRenderedNode(element, this.tag, context, {
+      kind: 'element',
+      tag: this.tag,
+      props: node.props,
+      children: node.children,
+    });
+  }
+
+  firstNode(): NativeNode {
+    return this.elementView.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.elementView.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'heading') return false;
+    return this.elementView.patch({
+      kind: 'element',
+      tag: this.tag,
+      props: node.props,
+      children: node.children,
+    } as ElementNodeBase);
+  }
+
+  destroy(): void {
+    this.elementView.destroy();
   }
 }
 
@@ -4467,6 +4805,12 @@ function mountNode(
     }
     case 'if': {
       return new IfBlockRenderedNode(node, parent, before, context);
+    }
+    case 'heading': {
+      return new HeadingRenderedNode(node, parent, before, context);
+    }
+    case 'heading-section': {
+      return new HeadingSectionRenderedNode(node, parent, before, context);
     }
     case 'pending-block': {
       return new PendingBlockRenderedNode(node, parent, before, context);

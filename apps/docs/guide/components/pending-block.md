@@ -96,6 +96,8 @@ craftComponent(
 );
 ```
 
+
+
 The sources bubble up through the node tree exactly like unhandled exception
 codes do, and the check fires on the `craftComponent` template argument, naming
 the sources that have nowhere to show their loading state. Several suspending
@@ -187,3 +189,6 @@ payload itself.
   enforced on each `craftComponent` template.
 - A settled read hidden inside a lambda loses its brand, and with it both
   compile-time obligations — the runtime backstops still fire.
+
+The pending fallback is announced to assistive tech (`aria-live`, `aria-busy`).
+See [Accessibilité](/guide/components/accessibility).

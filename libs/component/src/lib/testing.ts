@@ -443,7 +443,154 @@ type TemplateTestResult<Component extends CraftComponent<any>, Context> =
     detectChanges(): void;
     updateContext(context: Context): void;
     destroy(): void;
+    toBeAccessible(): Promise<void>;
+    getByRole(role: string, options?: { name?: string | RegExp }): HTMLElement;
+    queryByRole(
+      role: string,
+      options?: { name?: string | RegExp },
+    ): HTMLElement | undefined;
+    getByLabel(name: string | RegExp): HTMLElement;
+    queryByLabel(name: string | RegExp): HTMLElement | undefined;
   };
+
+function matchesName(actual: string, expected: string | RegExp | undefined): boolean {
+  if (expected === undefined) return true;
+  if (typeof expected === 'string') {
+    return actual === expected;
+  }
+  const lastIndex = expected.lastIndex;
+  try {
+    expected.lastIndex = 0;
+    return expected.test(actual);
+  } finally {
+    expected.lastIndex = lastIndex;
+  }
+}
+
+function findById(root: ParentNode, id: string): Element | undefined {
+  return Array.from(root.querySelectorAll<HTMLElement>('[id]')).find(
+    (element) => element.id === id,
+  );
+}
+
+function findLabelFor(root: ParentNode, id: string): Element | undefined {
+  return Array.from(root.querySelectorAll<HTMLLabelElement>('label')).find(
+    (label) => label.htmlFor === id,
+  );
+}
+
+function accessibleName(element: Element, root: ParentNode): string {
+  const labelledBy = element.getAttribute('aria-labelledby');
+  if (labelledBy) {
+    return labelledBy
+      .split(/\s+/)
+      .map((id) => findById(root, id)?.textContent ?? '')
+      .join(' ')
+      .trim();
+  }
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel) return ariaLabel.trim();
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLButtonElement
+  ) {
+    if (element.id) {
+      const label = findLabelFor(root, element.id);
+      if (label) return (label.textContent ?? '').trim();
+    }
+  }
+  return (element.textContent ?? '').trim();
+}
+
+function implicitRole(element: Element): string | null {
+  const explicit = element.getAttribute('role');
+  if (explicit) return explicit;
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'button') return 'button';
+  if (tag === 'a' && element.hasAttribute('href')) return 'link';
+  if (tag === 'textarea') return 'textbox';
+  if (tag === 'input') {
+    const type = (element as HTMLInputElement).type;
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'radio') return 'radio';
+    if (type === 'submit' || type === 'button' || type === 'reset') return 'button';
+    return 'textbox';
+  }
+  if (tag === 'img') return 'img';
+  if (tag === 'nav') return 'navigation';
+  if (tag === 'main') return 'main';
+  if (/^h[1-6]$/.test(tag)) return 'heading';
+  return null;
+}
+
+function queryAllByRole(
+  root: Element,
+  role: string,
+  options?: { name?: string | RegExp },
+): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('*')).filter((node) => {
+    if (implicitRole(node) !== role) return false;
+    return matchesName(accessibleName(node, root), options?.name);
+  });
+}
+
+function requireSingle(
+  elements: HTMLElement[],
+  query: string,
+  allowEmpty: boolean,
+): HTMLElement | undefined {
+  if (elements.length > 1) {
+    throw new Error(`Found ${elements.length} elements with ${query}`);
+  }
+  if (elements.length === 0) {
+    if (allowEmpty) return undefined;
+    throw new Error(`Unable to find ${query}`);
+  }
+  return elements[0];
+}
+
+function createAccessibleQueries(root: HTMLElement) {
+  return {
+    getByRole(role: string, options?: { name?: string | RegExp }) {
+      const query = `role "${role}"${
+        options?.name === undefined ? '' : ` with name "${String(options.name)}"`
+      }`;
+      return requireSingle(
+        queryAllByRole(root, role, options),
+        query,
+        false,
+      )!;
+    },
+    queryByRole(role: string, options?: { name?: string | RegExp }) {
+      const query = `role "${role}"${
+        options?.name === undefined ? '' : ` with name "${String(options.name)}"`
+      }`;
+      return requireSingle(
+        queryAllByRole(root, role, options),
+        query,
+        true,
+      );
+    },
+    getByLabel(name: string | RegExp) {
+      const labelled = Array.from(
+        root.querySelectorAll<HTMLElement>('input, textarea, select, button'),
+      ).filter(
+        (node) => matchesName(accessibleName(node, root), name),
+      );
+      return requireSingle(labelled, `label "${String(name)}"`, false)!;
+    },
+    queryByLabel(name: string | RegExp) {
+      const labelled = Array.from(
+        root.querySelectorAll<HTMLElement>('input, textarea, select, button'),
+      ).filter(
+        (node) => matchesName(accessibleName(node, root), name),
+      );
+      return requireSingle(labelled, `label "${String(name)}"`, true);
+    },
+  };
+}
 
 function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
@@ -483,11 +630,13 @@ async function setupCraftComponentTemplateTestImpl<
     nativeElement: host,
     element: host,
     mocks: mocks as Record<string, unknown>,
+    ...createAccessibleQueries(host),
     detectChanges,
     updateContext(context: Context) {
       mounted.updateContext(context);
     },
     locator,
+    toBeAccessible: () => assertAccessible(host),
     destroy() {
       mounted.destroy();
       host.remove();
@@ -625,6 +774,7 @@ async function setupCraftDirectiveTemplateTestImpl<
     nativeElement: host,
     element: host,
     mocks: mocks as Record<string, unknown>,
+    ...createAccessibleQueries(host),
     detectChanges,
     updateContext(context: Context) {
       mounted.updateContext(context);
@@ -640,3 +790,49 @@ export const setupCraftDirectiveTemplateTest = Object.assign(
   setupCraftDirectiveTemplateTestImpl,
   { byRegister: setupCraftDirectiveTemplateTestImpl },
 );
+
+/**
+ * WCAG 2.2 AA smoke checks on a mounted Craft tree. Complements axe/AccessLint
+ * in application CI: images have alt, controls have a name, tabindex is not
+ * positive, ARIA attributes are known.
+ */
+export async function assertAccessible(container: Element): Promise<void> {
+  const violations: string[] = [];
+
+  container.querySelectorAll('img').forEach((image) => {
+    if (!image.hasAttribute('alt')) {
+      violations.push(`<img src="${image.getAttribute('src') ?? ''}"> is missing alt`);
+    }
+  });
+
+  container.querySelectorAll('button, a, [role="button"]').forEach((control) => {
+    const name = (
+      control.getAttribute('aria-label') ||
+      control.getAttribute('aria-labelledby') ||
+      control.textContent ||
+      ''
+    ).trim();
+    if (!name && control.getAttribute('href') !== null && !(control.textContent ?? '').trim()) {
+      violations.push(`<${control.tagName.toLowerCase()}> has no accessible name`);
+    } else if (!name && control.tagName === 'BUTTON') {
+      violations.push('<button> has no accessible name');
+    }
+  });
+
+  container.querySelectorAll('[tabindex]').forEach((node) => {
+    const value = Number(node.getAttribute('tabindex'));
+    if (Number.isFinite(value) && value > 0) {
+      violations.push(`${node.tagName.toLowerCase()} has tabIndex=${value}`);
+    }
+  });
+
+  container.querySelectorAll('iframe').forEach((frame) => {
+    if (!frame.getAttribute('title')) {
+      violations.push('<iframe> is missing title');
+    }
+  });
+
+  if (violations.length > 0) {
+    throw new Error(`Accessibility violations:\n- ${violations.join('\n- ')}`);
+  }
+}

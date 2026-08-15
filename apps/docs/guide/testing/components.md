@@ -95,43 +95,8 @@ Template tests also expose `locator(tag, criteria)`. The tag determines the
 DOM element type, while `class`, `data-*`, and `aria-*` criteria are matched
 against the rendered element:
 
-```ts
-import { button, craftComponent, div } from '@craft-ng/component';
-import { setupCraftComponentTemplateTest } from '@craft-ng/component/testing';
+<<< @/tests/snippets/guide/testing/components/editor.spec.ts#editor
 
-const Editor = craftComponent(
-  'Editor',
-  {},
-  () => ({}),
-  () =>
-    div([
-      button(
-        'save',
-        {
-          class: 'save',
-          'data-testid': 'save',
-        },
-        'Save',
-      ),
-    ]),
-);
-
-it('finds the save button', async () => {
-  const test = await setupCraftComponentTemplateTest.byRegister(Editor, {
-    context: {},
-    register: {},
-  });
-
-  const saveButton = test.locator('button', {
-    class: 'save',
-    'data-testid': 'save',
-  });
-
-  expect(saveButton?.textContent).toBe('Save');
-  saveButton?.click();
-  test.destroy();
-});
-```
 
 The notation `tag('name', props, children)` is generic: `tag` means the HTML
 helper for the element you want. There is no separate `tag` function. For a
@@ -162,7 +127,7 @@ When an element directly renders a branded Craft value, use the brand name as
 the `content` criterion. The locator does not inspect the rendered value, so
 this also works for non-text values and remains independent of formatting:
 
-```ts
+```typescript
 import { signal } from '@angular/core';
 import { span, craftComponent } from '@craft-ng/component';
 import { markYieldableValue, state } from '@craft-ng/core';
@@ -190,6 +155,8 @@ const brandedStatusElement = test.locator('span', {
 expect(brandedStatusElement.textContent).toBe('ready');
 test.destroy();
 ```
+
+
 
 This template has no `ifBlock`, `each`, or `defer`, so
 `brandedStatusElement` is an `HTMLSpanElement`, never `undefined`; optional
@@ -225,69 +192,8 @@ the singular locator should remain reserved for one expected element.
 To verify that a DOM property is connected to the correct context member, add a
 contract assertion next to the template test:
 
-```ts
-import { computed } from '@angular/core';
-import { state } from '@craft-ng/core';
-import { craftComponent, button } from '@craft-ng/component';
-import type {
-  ComponentTemplateOf,
-  TemplateRendersStateWhen,
-} from '@craft-ng/component';
-import type { Equal, Expect } from 'test-type';
+<<< @/tests/snippets/guide/testing/components/counter.spec.ts#counter
 
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const counter = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: computed(() => state() % 2 === 0),
-      increment: () => update((value) => value + 1),
-    }));
-
-    return { counter };
-  },
-  ({ counter }) =>
-    button(
-      {
-        disabled: () => counter.disabled(),
-        *click() {
-          yield* counter.increment();
-        },
-      },
-      '+',
-    ),
-);
-
-it('tests the derived disabled state', async () => {
-  const { context, destroy } = await setupCraftComponentLogicTest.byRegister(
-    Counter,
-    {
-      register: {},
-    },
-  );
-
-  try {
-    expect(context.counter.disabled()).toBe(true);
-
-    context.counter.increment();
-
-    expect(context.counter()).toBe(1);
-    expect(context.counter.disabled()).toBe(false);
-  } finally {
-    destroy();
-  }
-});
-
-type _DisabledBindingIsCorrect = Expect<
-  Equal<
-    TemplateRendersStateWhen<
-      ReturnType<ComponentTemplateOf<typeof Counter>>,
-      'counter.disabled'
-    >,
-    true
-  >
->;
-```
 
 TypeScript performs this check. It fails if the branded `counter.disabled` read
 is no longer exposed by the rendered template. It does not replace the
@@ -388,4 +294,5 @@ you think, that a list item renders its label. That is its own page:
 
 - [Testing services](/guide/testing/services)
 - [Browser boundaries](/guide/testing/browser-boundaries)
+- [Architecture rules](/guide/testing/architecture) — constraints on the whole app graph
 - [Routing setup](/guide/routing/setup) — where `GenDeps_*` comes from

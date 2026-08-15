@@ -1,32 +1,4 @@
-const HTML_HELPERS = new Set([
-  'a',
-  'article',
-  'aside',
-  'button',
-  'div',
-  'footer',
-  'form',
-  'h1',
-  'h2',
-  'h3',
-  'header',
-  'img',
-  'input',
-  'label',
-  'li',
-  'main',
-  'nav',
-  'ol',
-  'option',
-  'p',
-  'section',
-  'select',
-  'small',
-  'span',
-  'strong',
-  'textarea',
-  'ul',
-]);
+const { NAMED_HTML_HELPER_SET: HTML_HELPERS } = require('./html-helpers.cjs');
 
 module.exports = {
   meta: {

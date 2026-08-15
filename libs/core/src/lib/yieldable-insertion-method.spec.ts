@@ -31,7 +31,8 @@ beforeAll(() => {
 describe('yieldable insertion methods', () => {
   it('returns a yieldable invocation for state methods and source adapters', () => {
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(state('counter', 0, ({ set }) => ({
+      const counter = craftUse(
+        state('counter', 0, ({ set }) => ({
           increment: () => set(1),
           read: () => 1,
           reset$: source$<void>('reset$'),
@@ -40,8 +41,8 @@ describe('yieldable insertion methods', () => {
 
       const increment = counter.increment();
       expect(isGenerator(increment)).toBe(true);
-      expect(counter()).toBe(1);
-      expect(craftUse(increment)).toBeUndefined();
+      expect(craftUse(counter())).toBe(1);
+      expect(craftUse(increment)).toBe(1);
       expect(craftUse(counter.read())).toBe(1);
 
       const reset = counter.reset$();
@@ -52,7 +53,8 @@ describe('yieldable insertion methods', () => {
 
   it('allows a later pipe member to delegate to an earlier method', () => {
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(state('counter', 0, (context) =>
+      const counter = craftUse(
+        state('counter', 0, (context) =>
           craftPipe(
             context,
             ({ update }) => ({
@@ -70,14 +72,15 @@ describe('yieldable insertion methods', () => {
         ),
       );
 
-      expect(craftUse(counter.incrementTwice())).toBeUndefined();
-      expect(counter()).toBe(2);
+      expect(craftUse(counter.incrementTwice())).toBe(2);
+      expect(craftUse(counter())).toBe(2);
     });
   });
 
   it('wraps methods added to query, mutation and asyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const queryRef = craftUse(query(
+      const queryRef = craftUse(
+        query(
           'queryRef',
           {
             params: () => 'initial',
@@ -86,7 +89,8 @@ describe('yieldable insertion methods', () => {
           ({ set }) => ({ mark: () => set({ value: 1 }) }),
         ),
       );
-      const mutationRef = craftUse(mutation(
+      const mutationRef = craftUse(
+        mutation(
           'mutationRef',
           {
             method: (value: number) => value,
@@ -95,7 +99,8 @@ describe('yieldable insertion methods', () => {
           ({ set }) => ({ mark: () => set({ value: 2 }) }),
         ),
       );
-      const processRef = craftUse(asyncProcess(
+      const processRef = craftUse(
+        asyncProcess(
           'processRef',
           {
             method: (value: number) => value,

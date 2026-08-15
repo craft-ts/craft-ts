@@ -4,6 +4,7 @@ import { query } from '../query';
 import { reactOnMutationEffect } from './react-on-mutation-effect';
 import { resourceById } from '../resource-by-id';
 import { craftUse } from '../craft-use';
+import { rawReactiveFacade } from '../reactive-read';
 
 describe('reactOnMutation', () => {
   beforeEach(() => {
@@ -14,7 +15,8 @@ describe('reactOnMutation', () => {
   });
   it('should enable to a query to react to a mutation change', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const queryRef = craftUse(query('queryRef', {
+      const queryRef = craftUse(
+        query('queryRef', {
           params: () => '5',
           loader: async ({ params }) => {
             return {
@@ -25,7 +27,8 @@ describe('reactOnMutation', () => {
           },
         }),
       );
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (payload: { id: string; name: string; email: string }) =>
             payload,
           loader: async ({ params }) => {
@@ -38,12 +41,12 @@ describe('reactOnMutation', () => {
       );
       reactOnMutationEffect(
         {
-          queryTargeted: queryRef,
-          mutationTargeted: mutationRef,
-        },
+          queryTargeted: rawReactiveFacade(queryRef),
+          mutationTargeted: rawReactiveFacade(mutationRef),
+        } as any,
         {
-          optimisticUpdate: ({ mutationParams }) => mutationParams,
-        },
+          optimisticUpdate: ({ mutationParams }: any) => mutationParams,
+        } as any,
       );
       mutationRef.mutate({
         id: '5',
@@ -51,7 +54,7 @@ describe('reactOnMutation', () => {
         email: '',
       });
       await vi.runAllTimersAsync();
-      expect(queryRef.value()).toEqual({
+      expect(craftUse(queryRef.value())).toEqual({
         id: '5',
         name: 'Jane Doe',
         email: '',
@@ -61,7 +64,8 @@ describe('reactOnMutation', () => {
 
   it('should enable to a query with identifier to react to a mutation change', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const queryRef = craftUse(query('queryRef', {
+      const queryRef = craftUse(
+        query('queryRef', {
           params: () => '5',
           identifier: (params) => params,
           loader: async ({ params }) => {
@@ -73,7 +77,8 @@ describe('reactOnMutation', () => {
           },
         }),
       );
-      const mutationRef = craftUse(mutation('mutationRef', {
+      const mutationRef = craftUse(
+        mutation('mutationRef', {
           method: (payload: { id: string; name: string; email: string }) =>
             payload,
           loader: async ({ params }) => {
@@ -86,14 +91,14 @@ describe('reactOnMutation', () => {
       );
       reactOnMutationEffect(
         {
-          queryTargeted: queryRef,
-          mutationTargeted: mutationRef,
-        },
+          queryTargeted: rawReactiveFacade(queryRef),
+          mutationTargeted: rawReactiveFacade(mutationRef),
+        } as any,
         {
-          filter: ({ queryIdentifier, mutationParams }) =>
+          filter: ({ queryIdentifier, mutationParams }: any) =>
             mutationParams.id === queryIdentifier,
-          optimisticUpdate: ({ mutationParams }) => mutationParams,
-        },
+          optimisticUpdate: ({ mutationParams }: any) => mutationParams,
+        } as any,
       );
       mutationRef.mutate({
         id: '5',
@@ -101,7 +106,7 @@ describe('reactOnMutation', () => {
         email: '',
       });
       await vi.runAllTimersAsync();
-      expect(queryRef.select('5')?.value()).toEqual({
+      expect(craftUse(queryRef.select('5')?.value())).toEqual({
         id: '5',
         name: 'Jane Doe',
         email: '',
@@ -131,7 +136,8 @@ describe('reactOnMutation', () => {
           defaultValue: { id: '2', name: 'Jane Doe2', email: '' },
         });
 
-        const mutationRef = craftUse(mutation('mutationRef', {
+        const mutationRef = craftUse(
+          mutation('mutationRef', {
             fromResourceById: resourceByIdRef,
             params: (resource) => {
               if (!resource) {
@@ -147,7 +153,8 @@ describe('reactOnMutation', () => {
           }),
         );
 
-        const queryRef = craftUse(query('queryRef', {
+        const queryRef = craftUse(
+          query('queryRef', {
             params: () => '1',
             identifier: (params) => params,
             loader: async ({ params }) => {
@@ -163,25 +170,25 @@ describe('reactOnMutation', () => {
         );
         reactOnMutationEffect(
           {
-            queryTargeted: queryRef,
-            mutationTargeted: mutationRef,
-          },
+            queryTargeted: rawReactiveFacade(queryRef),
+            mutationTargeted: rawReactiveFacade(mutationRef),
+          } as any,
           {
-            filter: ({ queryIdentifier, mutationParams, queryResource }) =>
+            filter: ({ queryIdentifier, mutationParams, queryResource }: any) =>
               queryResource
                 .value()
-                ?.some((item) => item.id === mutationParams.id) === true &&
+                ?.some((item: any) => item.id === mutationParams.id) === true &&
               mutationParams.id === queryIdentifier,
-            optimisticUpdate: ({ mutationParams, queryResource }) => [
+            optimisticUpdate: ({ mutationParams, queryResource }: any) => [
               ...(queryResource.value() ?? []),
               mutationParams,
             ],
-          },
+          } as any,
         );
 
         await vi.runAllTimersAsync();
-        console.log('queryRef.select(.value()', queryRef.select('1')?.value());
-        expect(queryRef.select('1')?.value()).toEqual({
+        console.log('queryRef.select(.value()', craftUse(queryRef.select('1')?.value()));
+        expect(craftUse(queryRef.select('1')?.value())).toEqual({
           id: '1',
           name: 'Jane Doe',
           email: '',

@@ -272,8 +272,13 @@ npx nx lint your-app --fix
 
 Do not hand-maintain the generated `_Check*DI` blocks.
 
+[Architecture tests](/guide/testing/architecture#assertroutediproofs)
+(`assertRouteDiProofs`) fail if a registered route-load error screen has no
+armed `RouteExceptionComponentCheckedDI`.
+
 ## See Also
 
 - [Routing setup](/guide/routing/setup) — `withRetry` on lazy imports
 - [Global error component](/guide/routing/global-error-component)
 - [Non-blocking navigation](/guide/routing/pending-ui)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the error-screen proof armed

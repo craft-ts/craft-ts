@@ -8,12 +8,14 @@ import type { ExtractDeps } from './branded-component/branded-component';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import { provideFnWrapObserver, provideFnWrapper } from './fn-wrapper';
+import { craftUnique } from './craft-unique';
 import { insertStoragePersister } from './insert-storage-persister';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { insertReactOnMutation } from './insert-react-on-mutation';
 import { insertSelect } from './insert-select';
 import { mutation } from './mutation';
 import { craftPipe } from './craft-pipe';
+import type { YieldableInsertionWrite } from './query.core';
 import { query } from './query';
 import { state } from './state';
 import { craftUse } from './craft-use';
@@ -71,7 +73,8 @@ describe('craftPipe with state', () => {
   it('merges outputs on the state ref, identically to the direct form', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           computed(() => origin() * 2),
           (context) =>
@@ -82,7 +85,7 @@ describe('craftPipe with state', () => {
                 reset: () => set(0),
               }),
               ({ state: stateSignal }) => ({
-                isOdd: computed(() => stateSignal() % 2 === 1),
+                isOdd: computed(() => craftUse(stateSignal()) % 2 === 1),
               }),
             ),
         ),
@@ -91,20 +94,21 @@ describe('craftPipe with state', () => {
       expectTypeOf(myState.increment).toBeFunction();
       expectTypeOf(myState.reset).toBeFunction();
       expectTypeOf(myState.isOdd).toMatchTypeOf<Signal<boolean>>();
-      expect(myState()).toBe(10);
-      expect(myState.isOdd()).toBe(false);
+      expect(craftUse(myState())).toBe(10);
+      expect(craftUse(myState.isOdd())).toBe(false);
       craftUse(myState.increment());
-      expect(myState()).toBe(11);
-      expect(myState.isOdd()).toBe(true);
+      expect(craftUse(myState())).toBe(11);
+      expect(craftUse(myState.isOdd())).toBe(true);
       craftUse(myState.reset());
-      expect(myState()).toBe(0);
+      expect(craftUse(myState())).toBe(0);
     });
   });
 
   it('runs members left to right and threads previous outputs through context.insertions', () => {
     runInInjectionContext(() => {
       const executionOrder: string[] = [];
-      const myState = craftUse(state('myState', 0, (context) =>
+      const myState = craftUse(
+        state('myState', 0, (context) =>
           craftPipe(
             context,
             () => {
@@ -124,8 +128,8 @@ describe('craftPipe with state', () => {
       );
 
       expect(executionOrder).toEqual(['first', 'second']);
-      expect(myState.a()).toBe(1);
-      expect(myState.b()).toBe(2);
+      expect(craftUse(myState.a())).toBe(1);
+      expect(craftUse(myState.b())).toBe(2);
       // outputs merge left to right: the last member wins on conflicts
       expect(craftUse(myState.shared())).toBe('second');
     });
@@ -133,15 +137,16 @@ describe('craftPipe with state', () => {
 
   it('supports insertSelect as a member', () => {
     runInInjectionContext(() => {
-      const counter = craftUse(state('counter', { value: 0, nestedValue: 'hello' }, (context) =>
+      const counter = craftUse(
+        state('counter', { value: 0, nestedValue: 'hello' }, (context) =>
           craftPipe(
             context,
             insertSelect('value', ({ state: st, update }) => ({
               increment: () => update((c) => c + 1),
-              isOdd: computed(() => st() % 2 === 1),
+              isOdd: computed(() => craftUse(st()) % 2 === 1),
             })),
             insertSelect('nestedValue', ({ state: st }) => ({
-              totalLength: computed(() => st().length),
+              totalLength: computed(() => craftUse(st()).length),
             })),
           ),
         ),
@@ -150,7 +155,7 @@ describe('craftPipe with state', () => {
       expectTypeOf(counter.selectValue().increment).toBeFunction();
       expect(counter.selectValue().isOdd()).toBe(false);
       craftUse(counter.selectValue().increment());
-      expect(counter().value).toBe(1);
+      expect(craftUse(counter()).value).toBe(1);
       expect(counter.selectValue().isOdd()).toBe(true);
       expect(counter.selectNestedValue().totalLength()).toBe(5);
     });
@@ -158,7 +163,8 @@ describe('craftPipe with state', () => {
 
   it('supports a pipe INSIDE insertSelect (each level re-passes its context)', () => {
     runInInjectionContext(() => {
-      const board = craftUse(state(
+      const board = craftUse(
+        state(
           'board',
           { cell: { style: { color: 'white', paintCount: 0 } } },
           (context) =>
@@ -168,7 +174,7 @@ describe('craftPipe with state', () => {
                 craftPipe(
                   cellContext,
                   ({ state: st }) => ({
-                    styleColor: computed(() => st().style.color),
+                    styleColor: computed(() => craftUse(st()).style.color),
                   }),
                   insertSelect('style', ({ update }) => ({
                     paint: () =>
@@ -181,7 +187,9 @@ describe('craftPipe with state', () => {
                 ),
               ),
               ({ state: st }) => ({
-                paintCount: computed(() => st().cell.style.paintCount),
+                paintCount: computed(
+                  () => craftUse(st()).cell.style.paintCount,
+                ),
               }),
             ),
         ),
@@ -190,9 +198,9 @@ describe('craftPipe with state', () => {
       expectTypeOf(board.selectCell().selectStyle().paint).toBeFunction();
       expect(board.selectCell().styleColor()).toBe('white');
       craftUse(board.selectCell().selectStyle().paint());
-      expect(board().cell.style.color).toBe('black');
-      expect(board().cell.style.paintCount).toBe(1);
-      expect(board.paintCount()).toBe(1);
+      expect(craftUse(board()).cell.style.color).toBe('black');
+      expect(craftUse(board()).cell.style.paintCount).toBe(1);
+      expect(craftUse(board.paintCount())).toBe(1);
       expect(board.selectCell().styleColor()).toBe('black');
     });
   });
@@ -212,7 +220,8 @@ describe('craftPipe with state', () => {
     );
 
     runInInjectionContext(() => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           function* () {
             const counter = yield* PipeCounterReader(undefined, ({ read }) => ({
@@ -231,16 +240,16 @@ describe('craftPipe with state', () => {
                 };
               },
               ({ state: stateSignal }) => ({
-                doubled: computed(() => stateSignal() * 2),
+                doubled: computed(() => craftUse(stateSignal()) * 2),
               }),
             ),
         ),
       );
 
-      expect(myState()).toBe(2);
+      expect(craftUse(myState())).toBe(2);
       craftUse(myState.increment());
-      expect(myState()).toBe(5);
-      expect(myState.doubled()).toBe(10);
+      expect(craftUse(myState())).toBe(5);
+      expect(craftUse(myState.doubled())).toBe(10);
 
       expectTypeOf<ExtractDeps<typeof myState>>().toEqualTypeOf<{
         PipeCounterReader: {
@@ -279,42 +288,42 @@ describe('craftPipe with query', () => {
       { name: 'QueryPipeStore', scope: 'global' },
       function* () {
         return {
-          user: (yield* query(
-                        'user',
-                        {
-                          params: () => '5',
-                          loader: async ({ params }) => {
-                            return {
-                              id: params,
-                              name: 'John Doe',
-                              email: 'test@a.com',
-                            } satisfies User;
-                          },
-                        },
-                        (context) =>
-                          craftPipe(
-                            context,
-                            // insert 1
-                            () => {
-                              return {
-                                pagination: {
-                                  page: 1,
-                                },
-                              };
-                            },
-                            // insert 2
-                            ({ insertions: inserts }) => {
-                              expectTypeOf(inserts).toEqualTypeOf<{
-                                pagination: {
-                                  page: number;
-                                };
-                              }>();
-                              return {
-                                someOtherInfo: true,
-                              };
-                            },
-                          ),
-                      )),
+          user: yield* query(
+            'user',
+            {
+              params: () => '5',
+              loader: async ({ params }) => {
+                return {
+                  id: params,
+                  name: 'John Doe',
+                  email: 'test@a.com',
+                } satisfies User;
+              },
+            },
+            (context) =>
+              craftPipe(
+                context,
+                // insert 1
+                () => {
+                  return {
+                    pagination: {
+                      page: 1,
+                    },
+                  };
+                },
+                // insert 2
+                ({ insertions: inserts }) => {
+                  expectTypeOf(inserts).toEqualTypeOf<{
+                    pagination: {
+                      page: number;
+                    };
+                  }>();
+                  return {
+                    someOtherInfo: true,
+                  };
+                },
+              ),
+          ),
         };
       },
     );
@@ -337,30 +346,30 @@ describe('craftPipe with query', () => {
       { name: 'QueryPipeSevenStore', scope: 'global' },
       function* () {
         return {
-          user: (yield* query(
-                        'user',
-                        {
-                          params: () => '5',
-                          loader: async ({ params }) => {
-                            return {
-                              id: params,
-                              name: 'John Doe',
-                              email: 'test@a.com',
-                            } satisfies User;
-                          },
-                        },
-                        (context) =>
-                          craftPipe(
-                            context,
-                            () => ({ ext1: 1 }),
-                            ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
-                            ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
-                            ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
-                            ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
-                            ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
-                            ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
-                          ),
-                      )),
+          user: yield* query(
+            'user',
+            {
+              params: () => '5',
+              loader: async ({ params }) => {
+                return {
+                  id: params,
+                  name: 'John Doe',
+                  email: 'test@a.com',
+                } satisfies User;
+              },
+            },
+            (context) =>
+              craftPipe(
+                context,
+                () => ({ ext1: 1 }),
+                ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
+                ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
+                ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
+                ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
+                ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
+                ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
+              ),
+          ),
         };
       },
     );
@@ -382,7 +391,8 @@ describe('craftPipe with query', () => {
     runInInjectionContext(() => {
       const shouldFail = signal(true);
 
-      const del = craftUse(mutation('del', {
+      const del = craftUse(
+        mutation('del', {
           method: (id: string) => id,
           identifier: (id) => id,
           loader: async ({ params }) =>
@@ -390,7 +400,8 @@ describe('craftPipe with query', () => {
         }),
       );
 
-      const q = craftUse(query(
+      const q = craftUse(
+        query(
           'q',
           {
             params: () =>
@@ -406,7 +417,10 @@ describe('craftPipe with query', () => {
           (context) =>
             craftPipe(
               context,
-              insertStoragePersister({ storeName: 'probe', key: 'probe' }),
+              insertStoragePersister(craftUnique({
+                storeName: 'probe',
+                key: 'probe',
+              })),
               insertPaginationPlaceholderData({ initialValue: [] as User[] }),
               insertReactOnMutation(del, {
                 filter: ({ mutationIdentifier, queryResource }) =>
@@ -424,8 +438,8 @@ describe('craftPipe with query', () => {
       );
 
       // higher-order insertion outputs survive the pipe and land on the ref
-      expectTypeOf(q.currentPageData()).toEqualTypeOf<User[]>();
-      expectTypeOf(q.isPlaceHolderData()).toEqualTypeOf<boolean>();
+      expectTypeOf(craftUse(q.currentPageData())).toEqualTypeOf<User[]>();
+      expectTypeOf(craftUse(q.isPlaceHolderData())).toEqualTypeOf<boolean>();
 
       // the Exceptions anchor is preserved: the params exception keeps its
       // literal code (a collapse would degrade it to never / a broad type)
@@ -463,7 +477,8 @@ describe('craftPipe with query', () => {
     );
 
     runInInjectionContext(() => {
-      const queryRef = craftUse(query(
+      const queryRef = craftUse(
+        query(
           'queryRef',
           {
             params: function* () {
@@ -524,7 +539,8 @@ describe('craftPipe with query', () => {
 
   it('craftPipe works with mutation too (universal pipe)', () => {
     runInInjectionContext(() => {
-      const save = craftUse(mutation(
+      const save = craftUse(
+        mutation(
           'save',
           {
             method: (user: User) => user,
@@ -560,7 +576,9 @@ describe('craftPipe — fn-wrapper interaction', () => {
     const m1 = ({
       update,
     }: {
-      update: (fn: (c: number) => number) => number;
+      update: YieldableInsertionWrite<[
+        fn: (c: number) => number,
+      ], number>;
     }) => ({
       increment: () => update((c) => c + 1),
     });
@@ -598,34 +616,33 @@ describe('craftPipe — fn-wrapper interaction', () => {
         ),
       ],
     });
-    const myState = runInInjectionContext(
-      () =>
-        craftUse(
-                      state('myState', 0, (context) =>
-                        craftPipe(
-                          context,
-                          (memberContext) =>
-                            (function* () {
-                              return {
-                                inc: () => memberContext.update((current) => current + 1),
-                              };
-                            })(),
-                          ({ insertions }) => ({
-                            incTwice: () => {
-                              insertions.inc();
-                              return insertions.inc();
-                            },
-                          }),
-                        ),
-                      ),
-                    ),
+    const myState = runInInjectionContext(() =>
+      craftUse(
+        state('myState', 0, (context) =>
+          craftPipe(
+            context,
+            (memberContext) =>
+              (function* () {
+                return {
+                  inc: () => memberContext.update((current) => current + 1),
+                };
+              })(),
+            ({ insertions }) => ({
+              incTwice: () => {
+                insertions.inc();
+                return insertions.inc();
+              },
+            }),
+          ),
+        ),
+      ),
     );
 
     expect(typeof myState.inc).toBe('function');
     myState.inc();
-    expect(myState()).toBe(1);
+    expect(craftUse(myState())).toBe(1);
     myState.incTwice();
-    expect(myState()).toBe(3);
+    expect(craftUse(myState())).toBe(3);
   });
 
   it('a throwing member propagates at construction and wrappers observe it', () => {
@@ -682,23 +699,22 @@ describe('craftPipe — injector capture timing', () => {
   });
 
   it('constructed inside a context, insertion methods stay callable outside any context', () => {
-    const s = runInInjectionContext(
-      () =>
-        craftUse(
-                      state('s', 0, (context) =>
-                        craftPipe(
-                          context,
-                          function* ({ update }) {
-                            return { inc: () => update((c) => c + 1) };
-                          },
-                          ({ state: st }) => ({ double: computed(() => st() * 2) }),
-                        ),
-                      ),
-                    ),
+    const s = runInInjectionContext(() =>
+      craftUse(
+        state('s', 0, (context) =>
+          craftPipe(
+            context,
+            function* ({ update }) {
+              return { inc: () => update((c) => c + 1) };
+            },
+            ({ state: st }) => ({ double: computed(() => craftUse(st()) * 2) }),
+          ),
+        ),
+      ),
     );
     // outside any injection context now
     s.inc();
-    expect(s()).toBe(1);
-    expect(s.double()).toBe(2);
+    expect(craftUse(s())).toBe(1);
+    expect(craftUse(s.double())).toBe(2);
   });
 });

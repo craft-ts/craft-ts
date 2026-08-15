@@ -39,7 +39,8 @@ describe('yieldable source services', () => {
       { name: 'Counter', scope: 'global' },
       function* () {
         const counter = yield* state('counter', 0, ({ set, state }) => ({
-          increment: () => set(state() + 1),
+          increment: function* () {
+                const _state = yield* state(); return set(_state + 1); },
           reset: on$(Reset, (value) => {
             expectTypeOf(value).toEqualTypeOf<void>();
             return set(0);
@@ -58,7 +59,7 @@ describe('yieldable source services', () => {
       counter.counter.increment();
       counter.reset.emit();
 
-      expect(counter.counter()).toBe(0);
+      expect(craftUse(counter.counter())).toBe(0);
     });
 
     type CounterDependencies = GetServiceDependencies<typeof Counter>;

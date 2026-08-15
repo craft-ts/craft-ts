@@ -37,6 +37,21 @@
       ],
       "cache": true
     },
+    "typecheck-architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo",
+        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/architecture/**/*.ts",
+        "{workspaceRoot}/libs/dev-tools/src/**/*.ts"
+      ],
+      "cache": true
+    },
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
@@ -117,6 +132,21 @@
       "options": {
         "tsConfig": "apps/demo/tsconfig.spec.json"
       }
+    },
+    "architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.architecture.config.ts",
+        "cwd": "apps/demo"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/architecture/**/*.ts",
+        "{projectRoot}/tsconfig.graph.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{workspaceRoot}/libs/dev-tools/src/**/*.ts"
+      ],
+      "cache": true
     },
     "serve-static": {
       "continuous": true,

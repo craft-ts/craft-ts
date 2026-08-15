@@ -17,16 +17,8 @@ resolved.
 
 Call the outlet inside a Craft component tree:
 
-```ts
-import { CraftRouterOutlet, craftComponent, main } from '@craft-ng/component';
+<<< @/tests/snippets/guide/routing/pending-ui/app.spec.ts#app
 
-export const App = craftComponent(
-  'App',
-  {},
-  () => ({}),
-  () => main({ class: 'content' }, CraftRouterOutlet()),
-);
-```
 
 Routes with no craft guard/resolve render immediately, exactly like `<router-outlet>`.
 
@@ -118,6 +110,7 @@ provideCraftLoading(
 | `withErrorComponent`       | `CRAFT_ERROR_COMPONENT`                                               | `null`                            |
 | `withRouteLoadError`       | `CRAFT_ROUTE_LOAD_ERROR_COMPONENT` / `CRAFT_ROUTE_LOAD_RETRY`         | `null` / one retry after 250 ms   |
 | `withCraftViewTransitions` | `CRAFT_VIEW_TRANSITIONS_ENABLED` / `CRAFT_VIEW_TRANSITION_SKIP_BLANK` | `false` / `false`                 |
+| `withA11yNavigationFocus`  | `CRAFT_A11Y_NAVIGATION_FOCUS`                                         | `false`                           |
 
 The default pending component renders `CRAFT_LOADING_TEXT`, which reads `LOCALE_ID` and picks a
 built-in translation (`Loading…` / `Chargement…`).
@@ -272,8 +265,12 @@ from `pendingComponent` on `--fix` — resolving the skeleton's `GenDeps_*`, der
 service names from the route's path params + payload, and borrowing the parent context from the
 collection's own `ValidateCascadeRoutesFile` — so you never hand-write or stale it.
 
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) (`assertRouteDiProofs`) fail
+if that pending proof is missing or not armed with `CanRun`.
+
 ## See Also
 
 - [Route exception handling](/guide/routing/exception-handling)
 - [Route guards](/guide/routing/guards) — what the outlet is waiting on
 - [Global error component](/guide/routing/global-error-component)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the pending-component proof armed

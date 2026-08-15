@@ -6,6 +6,7 @@ import type {
   CraftServiceProvider,
   ExtractCraftGenExceptions,
   ResolveGeneratorResult,
+  Yieldable,
   YieldableMethod,
   NamedYieldableValue,
   CatchTagExhaustiveCodesCheck,
@@ -13,9 +14,16 @@ import type {
   CraftNodeDirectiveMount,
   CRAFT_FIELD_VALIDATION_CASES,
   CraftFieldValidationCasesCarrier,
+  ReactiveReadRequest,
+  DEEP_YIELDABLE,
+  YIELDABLE_DEPENDENCY,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
-import type { YIELDABLE_VALUE } from '@craft-ng/core';
+import type {
+  RAW_REACTIVE_VALUE,
+  REACTIVE_VALUE_TYPE,
+  YIELDABLE_VALUE,
+} from '@craft-ng/core';
 import type { Signal } from '@angular/core';
 import type { HostProps } from './hyperscript';
 import type { StaticLocatorCriteria } from './locator';
@@ -24,6 +32,7 @@ import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildrenCssVars,
   CraftNodeChildrenPendingSources,
+  CraftNodeChildrenHeadingNeed,
   CraftNodeChildrenSettledExceptions,
   CraftNodeChildrenExceptions,
   CraftNodeChildrenFieldExceptions,
@@ -82,8 +91,15 @@ export type CraftInputExceptionsCarrier<Exceptions extends string = string> = {
   readonly [CRAFT_INPUT_EXCEPTIONS]?: Exceptions;
 };
 
-export type Input<T> = (() => T) & {
-  readonly [INPUT_BRAND]: T;
+/**
+ * A component input is a yieldable reader.
+ *
+ * Inputs deliberately use the same read contract as Craft primitives: callers
+ * can pass a primitive reader directly and component logic/templates consume
+ * it with `yield* input()`.
+ */
+export type Input<T> = Yieldable<[], T> & {
+  readonly [INPUT_BRAND]?: T;
 };
 
 export type Output<Handler extends (...args: any[]) => unknown> = Handler & {
@@ -106,7 +122,8 @@ export type TemplateMethodUse<ContextMethod extends string> = {
 
 /**
  * Projects branded Craft methods and outputs to generator callbacks only while
- * a template is type-checked. Inputs and render-time functions stay unchanged.
+ * a template is type-checked. Inputs already use the generator reader
+ * contract, while ordinary render-time functions stay unchanged.
  */
 type ContextPathKey<
   Prefix extends string,
@@ -123,7 +140,17 @@ type ProjectTemplateObject<
 > = {
   [Key in keyof Value as Key extends typeof YIELDABLE_VALUE
     ? never
-    : Key]: Key extends typeof CRAFT_FIELD_VALIDATION_CASES
+    : Key extends typeof RAW_REACTIVE_VALUE
+      ? never
+      : Key extends typeof REACTIVE_VALUE_TYPE
+        ? never
+        : Key extends typeof YIELDABLE_DEPENDENCY
+          ? never
+        : Key extends typeof DEEP_YIELDABLE
+            ? never
+            : Key extends '__craftDeepYieldable'
+              ? never
+        : Key]: Key extends typeof CRAFT_FIELD_VALIDATION_CASES
     ? Value[Key]
     : ProjectTemplateValue<Value[Key], ContextPathKey<ContextMethod, Key>>;
 };
@@ -134,97 +161,129 @@ type ProjectTemplateSignalProperties<
 > = {
   [Key in keyof Value as Key extends typeof YIELDABLE_VALUE
     ? never
-    : Key extends keyof Signal<any>
+    : Key extends typeof REACTIVE_VALUE_TYPE
       ? never
-      : Key]: ProjectTemplateValue<
+      : Key extends keyof Signal<any>
+        ? never
+        : Key]: ProjectTemplateValue<
     Value[Key],
     ContextPathKey<ContextMethod, Key>
   >;
 };
 
+// Brand-only check: `Value extends RenderableContent` expands CraftNodeChildren
+// and cycles back here through component nodes (TS2456).
 type ProjectTemplateValue<
   Value,
   ContextMethod extends string,
-> = Value extends RenderableContent
+> = Value extends { readonly [CONTENT_RENDERABLE]: true }
   ? Value
   : Value extends ProjectionUnit<any>
     ? Value
-    : Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
-      ? Value extends NamedYieldableValue<
-          infer _Name extends string,
-          infer _Value
-        >
-        ? NamedYieldableValue<
-            ContextMethod,
-            YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
-          >
-        : YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
-      : Value extends NamedYieldableValue<
+    : Value extends { readonly __craftDeepYieldable: true }
+      ? ProjectTemplateDeepYieldableValue<Value, ContextMethod>
+    : Value extends {
+          readonly [RAW_REACTIVE_VALUE]: Signal<any>;
+          readonly [REACTIVE_VALUE_TYPE]: infer ReactiveState;
+        }
+      ? YieldableTemplateCallback<
+          [],
+          ReactiveState,
+          ReactiveReadRequest<ReactiveState>,
+          ContextMethod
+        > & {
+          readonly [YIELDABLE_VALUE]: ContextMethod;
+        } & ProjectTemplateObject<Value & object, ContextMethod>
+      : Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
+        ? Value extends NamedYieldableValue<
             infer _Name extends string,
             infer _Value
           >
-        ? Value extends Signal<infer State>
           ? NamedYieldableValue<
               ContextMethod,
-              () => State & TemplateMethodUse<ContextMethod>
-            > &
-              ProjectTemplateSignalProperties<Value & object, ContextMethod>
-          : Value extends object
-            ? ProjectTemplateObject<Value & object, ContextMethod>
-            : Value
-        : Value extends {
-              readonly [OUTPUT_BRAND]: infer Handler extends (
-                ...args: any[]
-              ) => unknown;
-            }
-          ? YieldableTemplateCallback<
-              Parameters<Handler>,
-              ReturnType<Handler>,
-              unknown,
-              ContextMethod
+              YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
             >
-          : Value extends Signal<infer State>
+          : YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
+        : Value extends NamedYieldableValue<
+              infer _Name extends string,
+              infer _Value
+            >
+          ? Value extends Signal<infer State>
             ? NamedYieldableValue<
                 ContextMethod,
                 () => State & TemplateMethodUse<ContextMethod>
               > &
-                ProjectTemplateObject<Value, ContextMethod>
-            : Value extends readonly (infer Item)[]
-              ? readonly ProjectTemplateValue<Item, ContextMethod>[]
-              : Value extends (
-                    ...args: infer Args
-                  ) => Generator<infer Yielded, infer Result, any>
-                ? (
-                    ...args: Args
-                  ) => Generator<
-                    Yielded | TemplateMethodUse<ContextMethod>,
-                    Result,
-                    unknown
-                  >
-                : Value extends (...args: infer Args) => infer Result
+                ProjectTemplateSignalProperties<Value & object, ContextMethod>
+            : Value extends object
+              ? ProjectTemplateObject<Value & object, ContextMethod>
+              : Value
+          : Value extends {
+                readonly [OUTPUT_BRAND]: infer Handler extends (
+                  ...args: any[]
+                ) => unknown;
+              }
+            ? YieldableTemplateCallback<
+                Parameters<Handler>,
+                ReturnType<Handler>,
+                unknown,
+                ContextMethod
+              >
+            : Value extends Signal<infer State>
+              ? NamedYieldableValue<
+                  ContextMethod,
+                  () => State & TemplateMethodUse<ContextMethod>
+                > &
+                  ProjectTemplateObject<Value, ContextMethod>
+              : Value extends readonly (infer Item)[]
+                ? readonly ProjectTemplateValue<Item, ContextMethod>[]
+                : Value extends (
+                      ...args: infer Args
+                    ) => Generator<infer Yielded, infer Result, any>
                   ? (
                       ...args: Args
-                    ) => ProjectTemplateValue<Result, ContextMethod>
-                  : Value extends object
-                    ? ProjectTemplateObject<Value, ContextMethod>
+                    ) => Generator<
+                      Yielded | TemplateMethodUse<ContextMethod>,
+                      Result,
+                      unknown
+                    >
+                  : Value extends (...args: infer Args) => infer Result
+                    ? (
+                        ...args: Args
+                      ) => ProjectTemplateValue<Result, ContextMethod>
+                    : Value extends object
+                      ? ProjectTemplateObject<Value, ContextMethod>
                     : Value;
+
+type ProjectTemplateDeepYieldableValue<
+  Value,
+  ContextMethod extends string,
+> = Value extends (
+  ...args: infer Args
+) => Generator<infer Yielded, infer Result, any>
+  ? ((
+      ...args: Args
+    ) => Generator<Yielded | TemplateMethodUse<ContextMethod>, Result, unknown>) &
+      ProjectTemplateObject<Value & object, ContextMethod>
+  : ProjectTemplateObject<Value & object, ContextMethod>;
 
 type DirectTemplateContextMethod<Context> =
   Context extends NamedYieldableValue<infer Name extends string, any>
     ? Name
     : '';
 
-export type YieldableTemplateContext<Context> =
-  Context extends Signal<any>
-    ? ProjectTemplateValue<Context, DirectTemplateContextMethod<Context>>
-    : {
-        [Key in keyof Context]: ProjectTemplateValue<
-          Context[Key],
-          ContextPathKey<'', Key>
-        >;
-      };
+export type YieldableTemplateContext<Context> = Context extends {
+  readonly [REACTIVE_VALUE_TYPE]: unknown;
+}
+  ? ProjectTemplateValue<Context, DirectTemplateContextMethod<Context>>
+  : {
+      [Key in keyof Context]: ProjectTemplateValue<
+        Context[Key],
+        ContextPathKey<'', Key>
+      >;
+    };
 
-export type InputValue<T> = () => T;
+/** Public call-site shape of an {@link Input}. */
+export type InputValue<T> = Yieldable<[], T>;
 
 export type ContentStylePolicy = 'isolated' | 'allow-container-styles';
 
@@ -399,6 +458,16 @@ export type TemplatePendingSources<Template> = Template extends (
   : never;
 
 /**
+ * Heading outline a template still exposes. Local `heading()` is `'heading'`.
+ * A child component with an uncovered `heading()` is `'heading-from-child'`.
+ */
+export type TemplateHeadingNeed<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenHeadingNeed<Output>
+  : never;
+
+/**
  * Exception codes a template can reach through a settled read without covering
  * them with a `catchBlock`.
  */
@@ -460,8 +529,20 @@ export function isCraftDirective(value: unknown): value is CraftDirective {
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
+type IsInputContextValue<Value> = Value extends object
+  ? typeof INPUT_BRAND extends keyof Value
+    ? true
+    : false
+  : false;
+
+type InputValueOfContextValue<Value> = IsInputContextValue<Value> extends true
+  ? Value extends Yieldable<[], infer Result>
+    ? Result
+    : never
+  : never;
+
 export type PropsFromContext<Context> = Simplify<{
-  [Key in keyof Context as Context[Key] extends Input<unknown>
+  [Key in keyof Context as IsInputContextValue<Context[Key]> extends true
     ? Key
     : Context[Key] extends RenderableContent
       ? Key
@@ -469,8 +550,8 @@ export type PropsFromContext<Context> = Simplify<{
         ? Context[Key] extends Output<(...args: any[]) => unknown>
           ? Key
           : never
-        : Key]: Context[Key] extends Input<infer Value>
-    ? InputValue<Value>
+        : Key]: IsInputContextValue<Context[Key]> extends true
+    ? InputValue<InputValueOfContextValue<Context[Key]>>
     : Context[Key] extends RenderableContent
       ? Context[Key]
       : ContentRequirementOf<Context[Key]> extends never

@@ -63,9 +63,9 @@ describe('craftService', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -115,16 +115,14 @@ describe('craftService', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const directQuery = craftUse(
-        DirectUserQuery({ userId: () => 'user-1' }),
-      );
-      expect(directQuery.status()).toBe('loading');
+      const directQuery = craftUse(DirectUserQuery({ userId: () => 'user-1' }));
+      expect(craftUse(directQuery.status())).toBe('loading');
 
       const resolved = craftUse(UserQueryWithState());
-      expect(resolved.userQuery.status()).toBe('loading');
-      expect(resolved.refresh()).toBe(0);
+      expect(craftUse(resolved.userQuery.status())).toBe('loading');
+      expect(craftUse(resolved.refresh())).toBe(0);
       resolved.refresh.increment();
-      expect(resolved.refresh()).toBe(1);
+      expect(craftUse(resolved.refresh())).toBe(1);
     });
   });
 
@@ -376,11 +374,11 @@ describe('craftService', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
       counter.incrementTwice();
-      expect(counter()).toBe(3);
+      expect(craftUse(counter())).toBe(3);
     });
   });
 
@@ -400,9 +398,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -436,9 +434,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -459,9 +457,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -492,12 +490,12 @@ describe('scope', () => {
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter({ step: 2 }));
 
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       expect(craftUse(counter.readStep())).toBe(2);
       expect(craftUse(counter.readProvidedInitialValue())).toBe(10);
 
       counter.increment();
-      expect(counter()).toBe(12);
+      expect(craftUse(counter())).toBe(12);
     });
   });
 
@@ -522,9 +520,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -553,7 +551,7 @@ describe('scope', () => {
       const providedCounter = inject(CounterToProvide);
 
       expect(counter).toBe(providedCounter);
-      expect(counter()).toBe(7);
+      expect(craftUse(counter())).toBe(7);
       expect(craftUse(counter.readProvidedInitialValue())).toBe(7);
     });
   });
@@ -585,9 +583,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       counter.increment();
-      expect(counter()).toBe(11);
+      expect(craftUse(counter())).toBe(11);
     });
   });
 
@@ -604,9 +602,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -743,11 +741,9 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state(
-          'counterImpl',
-          0,
-          ({ update }) => ({ increment: () => update((v) => v + 1) }),
-        );
+        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
         return counterImpl;
       },
     );
@@ -760,12 +756,12 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
 
       const counterImpl = craftUse(CounterImpl());
-      expect(counterImpl()).toBe(1);
+      expect(craftUse(counterImpl())).toBe(1);
     });
   });
 
@@ -782,11 +778,9 @@ describe('scope', () => {
         requirement: craftRequirement<Counter>(),
       },
       function* () {
-        const counterImpl = yield* state(
-          'counterImpl',
-          0,
-          ({ update }) => ({ increment: () => update((v) => v + 1) }),
-        );
+        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
         return counterImpl;
       },
     );
@@ -797,9 +791,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counterImpl = craftUse(CounterImpl());
-      expect(counterImpl()).toBe(0);
+      expect(craftUse(counterImpl())).toBe(0);
       counterImpl.increment();
-      expect(counterImpl()).toBe(1);
+      expect(craftUse(counterImpl())).toBe(1);
     });
   });
 
@@ -845,11 +839,9 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state(
-          'counterImpl',
-          0,
-          ({ update }) => ({ increment: () => update((v) => v + 1) }),
-        );
+        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
         return counterImpl;
       },
     );
@@ -866,7 +858,7 @@ describe('scope', () => {
 
       expect(counter).toBe(counterImpl);
       counter.increment();
-      expect(counterImpl()).toBe(1);
+      expect(craftUse(counterImpl())).toBe(1);
     });
   });
 
@@ -887,11 +879,9 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state(
-          'counterImpl',
-          0,
-          ({ update }) => ({ increment: () => update((v) => v + 1) }),
-        );
+        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
         return counterImpl;
       },
     );
@@ -1000,9 +990,9 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(GlobalCounter());
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 });
@@ -1050,9 +1040,9 @@ describe('injectService should enable to binding inputs', () => {
         ]) as ReturnType<typeof Counter>,
       ) as { (): number; increment(): void };
 
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       counter.increment();
-      expect(counter()).toBe(12);
+      expect(craftUse(counter())).toBe(12);
     });
   });
 
@@ -1076,9 +1066,9 @@ describe('injectService should enable to binding inputs', () => {
     TestBed.runInInjectionContext(() => {
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       const counter = craftUse(Counter({ initialValue: 0 }));
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -1107,9 +1097,9 @@ describe('injectService should enable to binding inputs', () => {
       const counter = craftUse(
         Counter({ initialValue: 0, optionalProperty1: 0 }),
       );
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -1135,9 +1125,9 @@ describe('injectService should enable to binding inputs', () => {
       const initialValue = signal(0);
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       const counter = craftUse(Counter({ initialValue }));
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -1185,9 +1175,9 @@ describe('injectService should enable to binding inputs', () => {
       const initialValue = signal(0);
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       const counter = craftUse(Counter({ initialValue }));
-      expect(counter()).toBe(0);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
     });
 
     TestBed.runInInjectionContext(() => {
@@ -1197,9 +1187,9 @@ describe('injectService should enable to binding inputs', () => {
           initialValue: 'Provided elsewhere #warn-check-docs:inputs',
         }),
       );
-      expect(counter()).toBe(1);
+      expect(craftUse(counter())).toBe(1);
       counter.increment();
-      expect(counter()).toBe(2);
+      expect(craftUse(counter())).toBe(2);
     });
   });
 });
@@ -1230,7 +1220,7 @@ describe('service should enable to binding inputs', () => {
         const counter = yield* Counter({ step: 2 });
 
         return {
-          read: () => counter(),
+          read: () => craftUse(counter()),
           increment: () => counter.increment(),
         };
       },
@@ -1294,11 +1284,11 @@ describe('service should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended());
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       counter.increment();
-      expect(counter()).toBe(11);
+      expect(craftUse(counter())).toBe(11);
       counter.incrementTwice();
-      expect(counter()).toBe(13);
+      expect(craftUse(counter())).toBe(13);
     });
   });
 
@@ -1333,11 +1323,11 @@ describe('service should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended());
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       counter.increment();
-      expect(counter()).toBe(11);
+      expect(craftUse(counter())).toBe(11);
       counter.incrementTwice();
-      expect(counter()).toBe(13);
+      expect(craftUse(counter())).toBe(13);
     });
   });
 
@@ -1379,11 +1369,11 @@ describe('service should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended());
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       counter.increment();
-      expect(counter()).toBe(11);
+      expect(craftUse(counter())).toBe(11);
       counter.incrementTwice();
-      expect(counter()).toBe(13);
+      expect(craftUse(counter())).toBe(13);
     });
   });
 
@@ -1451,11 +1441,11 @@ describe('service should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended());
-      expect(counter()).toBe(10);
+      expect(craftUse(counter())).toBe(10);
       counter.increment();
-      expect(counter()).toBe(11);
+      expect(craftUse(counter())).toBe(11);
       counter.incrementTwice();
-      expect(counter()).toBe(13);
+      expect(craftUse(counter())).toBe(13);
     });
   });
 
@@ -1493,12 +1483,12 @@ describe('service should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       const counterHandler = craftUse(CounterExtended());
-      expect(counterHandler.counter1()).toBe(10);
+      expect(craftUse(counterHandler.counter1())).toBe(10);
       counterHandler.counter1.increment();
-      expect(counterHandler.counter1()).toBe(11);
-      expect(counterHandler.counter2()).toBe(20);
+      expect(craftUse(counterHandler.counter1())).toBe(11);
+      expect(craftUse(counterHandler.counter2())).toBe(20);
       counterHandler.counter2.increment();
-      expect(counterHandler.counter2()).toBe(21);
+      expect(craftUse(counterHandler.counter2())).toBe(21);
     });
   });
 });
@@ -1532,9 +1522,9 @@ describe('injectService/Service should expose an optional parameter that can be 
 
       expect('decrement' in counterHandler).toBe(false);
       expect('$self' in counterHandler).toBe(false);
-      expect(counterHandler()).toBe(10);
+      expect(craftUse(counterHandler())).toBe(10);
       counterHandler.increment();
-      expect(counterHandler()).toBe(11);
+      expect(craftUse(counterHandler())).toBe(11);
     });
   });
 
@@ -1542,7 +1532,8 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () => {
-        const counter = craftUse(state('counter', 10, ({ update }) => ({
+        const counter = craftUse(
+          state('counter', 10, ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
           })),
@@ -1574,11 +1565,11 @@ describe('injectService/Service should expose an optional parameter that can be 
       expect(counterHandler.decrement).toBeUndefined();
 
       expect('decrement' in counterHandler).toBe(false);
-      expect(counterHandler.state()).toBe(10);
+      expect(craftUse(counterHandler.state())).toBe(10);
       counterHandler.increment();
-      expect(counterHandler.state()).toBe(11);
+      expect(craftUse(counterHandler.state())).toBe(11);
       triggerDecrementObservable.next();
-      expect(counterHandler.state()).toBe(10);
+      expect(craftUse(counterHandler.state())).toBe(10);
     });
   });
 
@@ -1588,7 +1579,8 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) => {
-        const counter = craftUse(state('counter', toValue(inputs.initialValue), ({ update }) => ({
+        const counter = craftUse(
+          state('counter', toValue(inputs.initialValue), ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
           })),
@@ -1629,11 +1621,11 @@ describe('injectService/Service should expose an optional parameter that can be 
       expect(counterHandler.decrement).toBeUndefined();
 
       expect('decrement' in counterHandler).toBe(false);
-      expect(counterHandler.state()).toBe(10);
+      expect(craftUse(counterHandler.state())).toBe(10);
       counterHandler.increment();
-      expect(counterHandler.state()).toBe(11);
+      expect(craftUse(counterHandler.state())).toBe(11);
       triggerDecrementObservable.next();
-      expect(counterHandler.state()).toBe(10);
+      expect(craftUse(counterHandler.state())).toBe(10);
     });
   });
 
@@ -2224,9 +2216,9 @@ describe('injectService/Service should expose an optional parameter that can be 
       expect(counterHandler.$self).toBeUndefined();
 
       expect('$self' in counterHandler).toBe(false);
-      expect(counterHandler()).toBe(10);
+      expect(craftUse(counterHandler())).toBe(10);
       counterHandler.incrementCounter();
-      expect(counterHandler()).toBe(11);
+      expect(craftUse(counterHandler())).toBe(11);
     });
   });
 
@@ -2260,7 +2252,7 @@ describe('injectService/Service should expose an optional parameter that can be 
             const decrementRef = yield* decrement();
 
             triggerDecrementObservable.subscribe(() => {
-              stateRef();
+              craftUse(stateRef());
               decrementRef();
             });
 
@@ -2276,11 +2268,11 @@ describe('injectService/Service should expose an optional parameter that can be 
     TestBed.runInInjectionContext(() => {
       const counterHandler = craftUse(CounterExtended());
 
-      expect(counterHandler()).toBe(10);
+      expect(craftUse(counterHandler())).toBe(10);
       counterHandler.incrementCounter();
-      expect(counterHandler()).toBe(11);
+      expect(craftUse(counterHandler())).toBe(11);
       triggerDecrementObservable.next();
-      expect(counterHandler()).toBe(10);
+      expect(craftUse(counterHandler())).toBe(10);
     });
   });
 });
@@ -2662,7 +2654,7 @@ describe('typing can track all derived dependencies (only the properties that ar
             const triggerDecrementRef = yield* decrement();
 
             triggerDecrementObservable.subscribe(() => {
-              stateRef();
+              craftUse(stateRef());
               triggerDecrementRef();
             });
 

@@ -3,7 +3,7 @@ import {
   craftService,
   craftSleep,
   state,
-  craftException,
+  craftException
 } from '@craft-ng/core';
 
 export type User = {
@@ -30,17 +30,20 @@ export const { ApiService } = craftService(
       ] as User[],
       ({ state, update }) => ({
         addItem: (newItem: User) => update((items) => [newItem, ...items]),
-        deleteItem: (itemId: User['id']) => {
-          const deletedItem = state().find((item) => item.id === itemId);
-          if (!deletedItem) {
-            return craftException(
-              { code: 'UNEXPECTED_ERROR' },
-              { error: new Error('Item not found') },
-            );
-          }
-          update((items) => items.filter((item) => item.id !== itemId));
-          return deletedItem;
-        },
+        deleteItem: function* (itemId: User['id']) {
+            const _state = yield* state();
+                  const deletedItem = _state.find(
+                    (item) => item.id === itemId,
+                  );
+                  if (!deletedItem) {
+                    return craftException(
+                      { code: 'UNEXPECTED_ERROR' },
+                      { error: new Error('Item not found') },
+                    );
+                  }
+                  yield* update((items) => items.filter((item) => item.id !== itemId));
+                  return deletedItem;
+                },
         updateItem: (updatedItem: User) =>
           update((items) =>
             items.map((item) =>
@@ -58,7 +61,8 @@ export const { ApiService } = craftService(
         page: number;
         pageSize: number;
       }) {
-        const list = dataList();
+          const _dataList = yield* dataList();
+        const list = _dataList;
         const result = list.slice(
           (data.page - 1) * data.pageSize,
           data.page * data.pageSize,
@@ -67,7 +71,8 @@ export const { ApiService } = craftService(
         return result;
       }),
       getItemById: craftGen(function* (itemId: User['id']) {
-        const list = dataList();
+          const _dataList = yield* dataList();
+        const list = _dataList;
         const item = list.find((dataItem) => dataItem.id === itemId);
         if (!item) {
           return craftException(
@@ -89,7 +94,8 @@ export const { ApiService } = craftService(
         return deletedItem;
       }),
       updateItem: craftGen(function* (updatedItem: User) {
-        if (updateError()) {
+          const _updateError = yield* updateError();
+        if (_updateError) {
           yield* craftSleep(5000);
           return craftException(
             { code: 'UNEXPECTED_ERROR' },

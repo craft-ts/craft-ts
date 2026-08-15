@@ -14,7 +14,7 @@ instead. A registry trades explicitness for reach.
 The registry is typed from the Craft targets it accepts:
 
 ```ts
-import { craftRegisterFor } from '@craft-ng/core';
+import { craftComputed, craftRegisterFor } from '@craft-ng/core';
 
 const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
@@ -33,12 +33,16 @@ const { RegisterForCounter } = craftRegisterFor(
   'Counter',
   Counter,
   ({ Counter }) => ({
-    total: computed(() => Counter()?.length ?? 0),
+    total: craftComputed('total', function* () {
+      return (yield* Counter())?.length ?? 0;
+    }),
   }),
 );
 
 const counters = yield* RegisterForCounter();
-const total = computed(() => counters()?.length ?? 0);
+const total = craftComputed('total', function* () {
+  return (yield* counters())?.length ?? 0;
+});
 ```
 
 If a projection uses several groups, every target must be declared:
@@ -48,8 +52,14 @@ craftRegisterFor(
   'Counter',
   [Counter, CounterChild],
   ({ Counter, CounterChild }) => ({
-    total: computed(() => Counter()?.length ?? 0),
-    incrementAll: () => CounterChild()?.forEach(({ ref }) => ref.increment()),
+    total: craftComputed('total', function* () {
+      return (yield* Counter())?.length ?? 0;
+    }),
+    incrementAll: function* () {
+      for (const { ref } of (yield* CounterChild()) ?? []) {
+        yield* ref.increment();
+      }
+    },
   }),
 );
 ```
@@ -120,14 +130,22 @@ const CounterBoard = craftComponent(
     const children = yield* RegisterForCounter.CounterChild();
 
     return {
-      incrementAll: () => counters()?.forEach(({ ref }) => ref.increment()),
-      childCount: computed(() => children()?.length ?? 0),
+      incrementAll: function* () {
+        for (const { ref } of (yield* counters()) ?? []) {
+          yield* ref.increment();
+        }
+      },
+      childCount: craftComputed('childCount', function* () {
+        return (yield* children())?.length ?? 0;
+      }),
     };
   },
   ({ incrementAll, childCount }) =>
     section([
       button({ click: incrementAll }, 'Increment every child'),
-      p(() => `Active children: ${childCount()}`),
+      p(function* () {
+        return `Active children: ${yield* childCount()}`;
+      }),
       each([1, 2, 3], () => CounterChild({})),
     ]),
 );
@@ -145,8 +163,10 @@ destroyed:
 ```ts
 const counters = yield* RegisterForCounter();
 
-const incrementAll = () => {
-  counters()?.forEach(({ ref }) => ref.increment());
+const incrementAll = function* () {
+  for (const { ref } of (yield* counters()) ?? []) {
+    yield* ref.increment();
+  }
 };
 ```
 
@@ -169,9 +189,19 @@ first argument stays `undefined` to keep the yieldable-helper syntax, and
 const childComponents = yield* RegisterForCounter.CounterChild(
   undefined,
   ({ $self }) => ({
-    total: computed(() => $self()?.length ?? 0),
-    incrementAll: () => $self()?.forEach(({ ref }) => ref.increment()),
-    decrementAll: () => $self()?.forEach(({ ref }) => ref.decrement()),
+    total: craftComputed(function* () {
+      return (yield* $self())?.length ?? 0;
+    }),
+    incrementAll: function* () {
+      for (const { ref } of (yield* $self()) ?? []) {
+        yield* ref.increment();
+      }
+    },
+    decrementAll: function* () {
+      for (const { ref } of (yield* $self()) ?? []) {
+        yield* ref.decrement();
+      }
+    },
   }),
 );
 ```
@@ -190,11 +220,19 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
   [Counter, CounterChild],
   ({ Counter, CounterChild }) => ({
-    totalCounter: computed(() => Counter()?.length ?? 0),
-    incrementAllCounterChild: () =>
-      CounterChild()?.forEach(({ ref }) => ref.increment()),
-    decrementAllCounterChild: () =>
-      CounterChild()?.forEach(({ ref }) => ref.decrement()),
+    totalCounter: craftComputed('totalCounter', function* () {
+      return (yield* Counter())?.length ?? 0;
+    }),
+    incrementAllCounterChild: function* () {
+      for (const { ref } of (yield* CounterChild()) ?? []) {
+        yield* ref.increment();
+      }
+    },
+    decrementAllCounterChild: function* () {
+      for (const { ref } of (yield* CounterChild()) ?? []) {
+        yield* ref.decrement();
+      }
+    },
   }),
 );
 ```
@@ -205,8 +243,8 @@ Each derived property becomes a yieldable helper:
 const totalCounter = yield* RegisterForCounter.totalCounter();
 const incrementAll = yield* RegisterForCounter.incrementAllCounterChild();
 
-console.log(totalCounter());
-incrementAll();
+console.log(yield* totalCounter());
+yield* incrementAll();
 ```
 
 For a single-target registry, the main call also returns the signal enriched
@@ -216,10 +254,10 @@ while exposing `total` and the added methods:
 ```ts
 const childComponents = yield* RegisterForCounterChild();
 
-const entries = childComponents();
-const total = childComponents.total();
-childComponents.incrementAllChildCounter();
-childComponents.decrementAllChildCounter();
+const entries = yield* childComponents();
+const total = yield* childComponents.total();
+yield* childComponents.incrementAllChildCounter();
+yield* childComponents.decrementAllChildCounter();
 ```
 
 In a Craft template, pass a method straight to an event and call signals inside
@@ -227,7 +265,9 @@ a reactive callback:
 
 ```ts
 button({ click: childComponents.incrementAllChildCounter }, 'Increment all');
-span(() => `Children: ${childComponents.total()}`);
+span(function* () {
+  return `Children: ${yield* childComponents.total()}`;
+});
 ```
 
 The main group, the additional groups and the derived properties can all be used

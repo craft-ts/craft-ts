@@ -10,6 +10,14 @@ import {
   runCraftGenerator,
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
+import {
+  YIELDABLE_VALUE,
+  type NamedYieldableValue,
+  type YieldableReactiveProperties,
+  type YieldableReactiveValue,
+} from './reactive-read';
+
+export { YIELDABLE_VALUE, type NamedYieldableValue } from './reactive-read';
 
 /** Shared brand used by Craft methods that are safe to delegate with `yield*`. */
 export const YIELDABLE_METHOD = Symbol('craft-yieldable-method');
@@ -19,38 +27,14 @@ export const NON_YIELDABLE_INSERTION_METHOD = Symbol(
   'craft-non-yieldable-insertion-method',
 );
 
-/** Runtime/type brand carried by named reactive values exposed to templates. */
-export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
-
-export type NamedYieldableValue<
-  Name extends string = string,
-  Value = unknown,
-> = Value & {
-  readonly [YIELDABLE_VALUE]: Name;
-};
-
 /** A signal whose template projection can be consumed with `yield*`. */
 export type YieldableSignal<Name extends string, Value> = NamedYieldableValue<
   Name,
   Signal<Value>
 >;
 
-type BrandReactiveProperty<Key extends PropertyKey, Value> = Value extends {
-  readonly [YIELDABLE_VALUE]: string;
-}
-  ? Value
-  : Value extends Signal<infer State>
-    ? Value & YieldableSignal<Key extends string ? Key : string, State>
-    : Value;
-
-/** Brands direct signal properties while leaving methods and plain values intact. */
-export type BrandReactiveProperties<Shape> = [Shape] extends [object]
-  ? {
-      [Key in keyof Shape as Shape[Key] extends Signal<any>
-        ? Key
-        : never]: BrandReactiveProperty<Key, Shape[Key]>;
-    } & Shape
-  : Shape;
+/** Projects every exposed reactive property to the public reader contract. */
+export type BrandReactiveProperties<Shape> = YieldableReactiveProperties<Shape>;
 
 export type Yieldable<
   Args extends unknown[] = unknown[],
@@ -104,20 +88,20 @@ export type NonYieldableInsertionMethod<
   readonly [NON_YIELDABLE_INSERTION_METHOD]: true;
 };
 
-type YieldableInsertionMethodOf<Fn> = Fn extends NonYieldableInsertionMethod<
-  any,
-  any
->
-  ? Fn
-  : Fn extends Signal<any>
-  ? Fn
-  : Fn extends YieldableInsertionMethod<any, any, any>
+type YieldableInsertionMethodOf<Fn> =
+  Fn extends NonYieldableInsertionMethod<any, any>
     ? Fn
-    : Fn extends (...args: infer Args) => infer Result
-      ? Result extends Generator<infer Yielded, infer Output, unknown>
-        ? YieldableInsertionMethod<Args, Output, Yielded>
-        : YieldableInsertionMethod<Args, Result>
-      : Fn;
+    : Fn extends YieldableReactiveValue<any, any>
+      ? Fn
+      : Fn extends Signal<any>
+        ? Fn
+        : Fn extends YieldableInsertionMethod<any, any, any>
+          ? Fn
+          : Fn extends (...args: infer Args) => infer Result
+            ? Result extends Generator<infer Yielded, infer Output, unknown>
+              ? YieldableInsertionMethod<Args, Output, Yielded>
+              : YieldableInsertionMethod<Args, Result>
+            : Fn;
 
 /** Maps callable insertion outputs to methods consumed with `yield*`. */
 export type YieldableInsertionMethods<Shape> = Shape extends (
@@ -136,7 +120,7 @@ export type YieldableInsertionMethods<Shape> = Shape extends (
  * imperative triggers keep their execution timing; the returned invocation is
  * the dependency-tracking boundary consumed by generator hosts.
  */
-export function yieldableInvocation<Yielded, Result>(
+export function yieldableInvocation<Yielded = never, Result = unknown>(
   result: Result,
 ): YieldableInvocation<Yielded, Result> {
   return (function* () {
@@ -174,8 +158,7 @@ export function createYieldableInsertionMethod<
         injector: options.injector,
         hostScope: 'function',
         invalidYieldErrorMessage: options.invalidYieldErrorMessage,
-        multipleAppStartErrorMessage:
-          options.multipleAppStartErrorMessage,
+        multipleAppStartErrorMessage: options.multipleAppStartErrorMessage,
         onAppStartNotSupportedErrorMessage:
           options.onAppStartNotSupportedErrorMessage,
       }).value;
@@ -184,7 +167,9 @@ export function createYieldableInsertionMethod<
     return yieldableInvocation(result);
   };
 
-  return markYieldableMethod(method) as unknown as YieldableInsertionMethodOf<Fn>;
+  return markYieldableMethod(
+    method,
+  ) as unknown as YieldableInsertionMethodOf<Fn>;
 }
 
 export type YieldableMethodOf<Fn> = Fn extends (
@@ -259,9 +244,7 @@ export function isYieldableMethod(value: unknown): boolean {
 }
 
 export function isNonYieldableInsertionMethod(value: unknown): boolean {
-  return (
-    typeof value === 'function' && NON_YIELDABLE_INSERTION_METHOD in value
-  );
+  return typeof value === 'function' && NON_YIELDABLE_INSERTION_METHOD in value;
 }
 
 /** Wraps a sync callback while relaying an already-yieldable result unchanged. */

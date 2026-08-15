@@ -8,13 +8,13 @@ read it. It does not need to execute the surrounding component template again.
 ({ counter }) =>
   div([
     h2('Counter'),
-    p({ class: 'value' }, () => counter()),
+    p({ class: 'value' }, counter),
     button({ click: counter.increment }, '+'),
   ]);
 ```
 
-Here, `counter()` is read by the callback passed to `p`. That callback owns a
-small reactive effect. Incrementing the counter evaluates that effect and
+Here, `counter` is passed to `p` as a yieldable reader. The renderer drives the
+read for that text binding. Incrementing the counter evaluates that binding and
 patches its text node; the `div`, heading, button, and component template remain
 untouched.
 
@@ -25,27 +25,27 @@ values already derived by the primitive layer; comparisons, formatting, and UI
 decisions stay out of the template:
 
 ```ts
-p(() => items.totalLabel());
+p(items.totalLabel);
 
 button(
   {
-    disabled: () => items.isEmpty(),
-    title: () => items.clearTitle(),
+    disabled: items.isEmpty,
+    title: items.clearTitle,
   },
   'Clear',
 );
 
 div({
-  class: () => items.emptyClass(),
-  style: () => items.emptyStyle(),
+  class: items.emptyClass,
+  style: items.emptyStyle,
 });
 ```
 
 `totalLabel`, `isEmpty`, `clearTitle`, `emptyClass`, and `emptyStyle` are named
 derived values exposed by the state, query, insertion, or component context.
-Each callback tracks its own dependencies. If only an item-related dependency
-changes, Craft evaluates only the affected callbacks. A sibling binding
-depending on another signal does not run.
+Pass the reader. If only an item-related dependency changes, Craft evaluates
+only the affected bindings. A sibling binding depending on another reader does
+not run.
 
 Static values do not need callbacks:
 
@@ -70,28 +70,32 @@ div({ class: items.emptyClass() });
 Move each read into the binding that consumes it:
 
 ```ts
-p(() => items.totalLabel());
-button({ disabled: () => items.isEmpty() }, 'Clear');
-div({ class: () => items.emptyClass() });
+p(items.totalLabel);
+button({ disabled: items.isEmpty }, 'Clear');
+div({ class: items.emptyClass });
 ```
 
-This is also the rule for component inputs. Pass a callback when the child must
-observe a changing value:
+This is also the rule for component inputs. Pass a yieldable reader directly
+when the child must observe a changing value. When the child needs fields of
+an object, explicitly adapt the input with `deepYieldable`:
 
 ```ts
-UserCard({ user: () => selectedUser() });
+UserCard({ user: selectedUser });
 ```
 
-The callback is lazy: constructing the parent template does not read
-`selectedUser()`. Craft installs the callback as the source of the child's
-`user` input. The child then decides which granular binding observes it:
+The reader is lazy: constructing the parent template does not read
+`selectedUser`. Craft installs it as the source of the child's `user` input.
+The child then decides which granular binding observes it:
 
 ```ts
-const UserCard = craftComponent(({ user }) => h2(() => user().displayName));
+const UserCard = craftComponent(
+  (user: Input<User>) => ({ user: deepYieldable(user) }),
+  ({ user }) => h2(user.displayName),
+);
 ```
 
-When the `h2` binding first evaluates, `user()` invokes the parent callback,
-which reads `selectedUser()`. That text binding becomes the signal consumer.
+When the `h2` binding first evaluates, `yield* user()` invokes the reader,
+which reads `selectedUser`. That text binding becomes the signal consumer.
 When the selected user changes, only the binding evaluates again and patches
 the existing `h2`; neither the parent template nor the child component template
 runs again.
@@ -100,8 +104,8 @@ Reading the input eagerly in the child would move the dependency back to the
 component boundary and is rejected by `require-reactive-template-bindings`:
 
 ```ts
-// Avoid: user() is read while the child template is built.
-h2(user().displayName);
+// Avoid: resolving the input while the child template is built.
+h2(craftUse(user()).displayName);
 ```
 
 ## Structure has its own reactive scopes
@@ -129,13 +133,13 @@ A binding reads a value already derived by the primitive layer. It does not
 format data, make business decisions, or write state:
 
 ```ts
-// Correct: the primitive exposes the render-ready value.
-p(() => cart.formattedTotal());
+// Correct: the primitive exposes the render-ready reader.
+p(cart.formattedTotal);
 
 // Incorrect: rendering changes application state.
-p(() => {
-  counter.update((value) => value + 1);
-  return counter();
+p(function* () {
+  yield* counter.update((value) => value + 1);
+  return yield* counter();
 });
 ```
 
@@ -191,11 +195,13 @@ the DOM they served.
 ## Migration checklist
 
 1. Move comparisons, formatting, and display decisions into named derived
-   primitive values such as `items.isEmpty()`.
-2. Wrap reactive text in `() => value()`.
-3. Wrap reactive DOM properties such as `value`, `disabled`, and `title`.
-4. Return complete reactive class and style values from callbacks.
-5. Pass changing component inputs as callbacks.
+   primitive values such as `items.isEmpty`.
+2. Pass yieldable readers to text bindings (`p(counter)`), or use a generator
+   when the binding must format: `p(function* () { return \`Count: ${yield* counter()}\`; })`.
+3. Pass yieldable readers to DOM properties such as `value`, `disabled`, and
+   `title`.
+4. Return complete reactive class and style readers from the primitive.
+5. Pass changing component inputs as yieldable readers.
 6. Express structural changes with `ifBlock`, `each`,
    `matchBlock.exhaustive`, or `defer`.
 7. Enable the two ESLint rules and remove every direct reactive template read.

@@ -48,25 +48,8 @@ function onAppStart<Yielded>(
 
 Use a plain callback when startup logic does not need to `yield*` crafted dependencies.
 
-```typescript
-import { craftService, onAppStart } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/app-start/startupflag.spec.ts#startupflag
 
-export const { StartupFlag } = craftService(
-  {
-    name: 'StartupFlag',
-    scope: 'global',
-    appStart: true,
-  },
-  function* () {
-    yield* onAppStart(() => {
-      console.log('app started');
-      return Promise.resolve();
-    });
-
-    return true;
-  },
-);
-```
 
 ## Generator Callback
 
@@ -91,6 +74,8 @@ export const { AppStartLog } = craftService(
   },
 );
 ```
+
+
 
 The callback generator supports the same dependency-yield semantics as a normal crafted generator for:
 
@@ -133,35 +118,8 @@ application initialization, and the app renders once they have settled.
 
 Here it is end to end:
 
-```typescript
-import { Console, craftAppConfig, craftService, onAppStart } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/app-start/appconfig.spec.ts#appconfig
 
-const { AppStartLog } = craftService(
-  {
-    name: 'AppStartLog',
-    scope: 'global',
-    appStart: true,
-  },
-  function* () {
-    yield* onAppStart(function* () {
-      yield* Console.log('startup log');
-      return Promise.resolve();
-    });
-
-    return true;
-  },
-);
-
-declare module '@craft-ng/core' {
-  interface CraftAppStartRegistry {
-    AppStartLog: typeof AppStartLog;
-  }
-}
-
-export const appConfig = craftAppConfig({
-  appStart: { AppStartLog },
-});
-```
 
 ::: tip The registry augmentation is generated
 The `declare module` block is written for you by the craft-ng ESLint plugin —

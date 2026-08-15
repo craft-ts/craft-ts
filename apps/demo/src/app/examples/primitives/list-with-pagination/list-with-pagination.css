@@ -225,3 +225,11 @@
 .status-emoji.success {
   animation: ListWithPagination-pulse 0.5s ease-in-out;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :scope,
+  :scope * {
+    animation: none;
+    transition: none;
+  }
+}

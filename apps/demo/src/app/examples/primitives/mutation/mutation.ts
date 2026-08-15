@@ -1,8 +1,10 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   input,
   p,
@@ -12,16 +14,17 @@ import {
 import {
   CraftRouter,
   insertStoragePersister,
+  craftUnique,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
   query,
   state,
   craftMethod,
+  craftComputed,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
-import { computed } from '@angular/core';
 
 const MutationDemoComponent = craftComponent(
   'MutationDemoComponent',
@@ -51,11 +54,13 @@ const MutationDemoComponent = craftComponent(
         preservePreviousValue: () => true,
       },
       insertQueryPipe(
-        ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
-        insertStoragePersister({
+        ({ resource }) => ({
+          hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        }),
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app',
           key: 'mutation',
-        }),
+        })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams: { name } }) => name,
@@ -68,17 +73,18 @@ const MutationDemoComponent = craftComponent(
       navigate,
     }));
 
-    const goTo = (offset: number) => {
+    const goTo = craftMethod('goTo', function* (offset: number) {
       void router.navigate({
         to: 'mutation/:userId',
-        params: { userId: String(Number(userId() ?? '0') + offset) },
+        params: { userId: String(Number((yield* userId()) ?? '0') + offset) },
       });
-    };
+    });
     const update = craftMethod('update', function* (name: string | undefined) {
       if (!name) {
         return;
       }
-      const user = userQuery.value();
+        const _userQueryvalue = yield* userQuery.value();
+      const user = _userQueryvalue;
       if (user) {
         yield* updateUserName.mutate({
           userName: name,
@@ -98,41 +104,51 @@ const MutationDemoComponent = craftComponent(
   },
   ({ userQuery, updateUserName, update, goTo, nameInput, setName }) => {
     return div([
+      heading('Update user'),
       div([
         'User ',
-        StatusComponent({ status: () => userQuery.status() }),
+        StatusComponent({ status: userQuery.status }),
         ifBlock(userQuery.hasUser, () =>
-          pre('UserValue', {}, () =>
-            JSON.stringify(userQuery.value(), null, 2),
-          ),
+          pre('UserValue', {}, function* () {
+            return JSON.stringify(yield* userQuery.value(), null, 2);
+          }),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: () => nameInput(),
+        value: nameInput,
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
       }),
       button(
         'UpdateUserNameButton',
-        {
+        { type: 'button',
           class: 'update-user-name',
-          disabled: () => updateUserName.isLoading(),
+          disabled: updateUserName.isLoading,
           click: function* () {
-            const currentName = yield* nameInput();
-            yield* update(currentName);
+            yield* update(yield* nameInput());
           },
         },
         [
           'Update name ',
-          StatusComponent({ status: () => updateUserName.status() }),
+          StatusComponent({
+            status: updateUserName.status,
+          }),
         ],
       ),
-      button('PreviousUser', { click: () => goTo(-1) }, 'Previous user'),
-      button('NextUser', { click: () => goTo(1) }, 'Next user'),
+      button(
+        'PreviousUser',
+        { type: 'button', click: function* () { yield* goTo(-1); } },
+        'Previous user',
+      ),
+      button(
+        'NextUser',
+        { type: 'button', click: function* () { yield* goTo(1); } },
+        'Next user',
+      ),
     ]);
   },
 );

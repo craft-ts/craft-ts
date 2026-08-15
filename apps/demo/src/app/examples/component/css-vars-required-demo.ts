@@ -1,12 +1,13 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
   craftComponent,
   div,
-  h1,
   omit,
   p,
   span,
   type Input,
+  heading,
 } from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
@@ -52,6 +53,8 @@ export const CssVarsRequiredDemo = craftComponent(
       .css-vars-required__intro p { color: #64748b; line-height: 1.55; }
       .css-vars-required__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
       code { padding: .15rem .35rem; border-radius: .35rem; background: #e2e8f0; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   () => ({}),
@@ -59,11 +62,11 @@ export const CssVarsRequiredDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-required__intro' }, [
-        h1('Valeurs requises et optionnelles'),
+        heading('Required and optional values'),
         p([
-          'Sans fallback, ',
+          'Without a fallback, ',
           span('var(--token-card-ink)'),
-          ' devient requis. Les autres tokens restent optionnels.',
+          ' becomes required. The other tokens remain optional.',
         ]),
       ]),
       div({ class: 'css-vars-required__grid' }, [
@@ -72,7 +75,9 @@ export const CssVarsRequiredDemo = craftComponent(
             '--token-card-ink': '#1e3a8a',
             '--token-card-bg': '#eff6ff',
           },
-          label: () => 'Bleu calme',
+          label: function* () {
+            return 'Calm blue';
+          },
         }),
         TokenCard({
           cssVars: {
@@ -80,14 +85,18 @@ export const CssVarsRequiredDemo = craftComponent(
             '--token-card-bg': '#fff1f2',
             '--token-card-radius': '2rem',
           },
-          label: () => 'Rose arrondi',
+          label: function* () {
+            return 'Rounded pink';
+          },
         }),
         TokenCard({
           cssVars: {
             '--token-card-ink': '#166534',
             '--token-card-bg': omit,
           },
-          label: () => 'Optionnel omis',
+          label: function* () {
+            return 'Optional token omitted';
+          },
         }),
       ]),
     ]),

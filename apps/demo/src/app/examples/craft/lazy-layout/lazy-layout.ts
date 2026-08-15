@@ -1,16 +1,17 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
   craftComponent,
   CraftRouterOutlet,
   div,
-  h1,
-  h2,
   header,
   p,
   section,
   span,
   strong,
   type Input,
+  heading,
+  headingSection,
 } from '@craft-ng/component';
 
 const LazyLayoutComponent = craftComponent(
@@ -26,18 +27,31 @@ const LazyLayoutComponent = craftComponent(
     section([
       header({ class: 'lazy-hero' }, [
         span('Inherited parent bindings'),
-        h1('Parent route values inside a lazy feature'),
+        heading('Parent route values inside a lazy feature'),
         p('This lazy route displays inherited params and data as SFC inputs.'),
       ]),
+      headingSection(
       div({ class: 'lazy-grid' }, [
         article([
-          h2('Layout component'),
-          p([strong('Layout route: '), `/craft/lazy-layout/${teamId()}`]),
-          p([strong('Parent route input: '), teamId()]),
-          p([strong('Parent route data: '), someParentRouteData()]),
+          heading('Layout component'),
+          p([
+            strong('Layout route: '),
+            function* () {
+              return `/craft/lazy-layout/${yield* teamId()}`;
+            },
+          ]),
+          p([
+            strong('Parent route input: '),
+            teamId,
+          ]),
+          p([
+            strong('Parent route data: '),
+            someParentRouteData,
+          ]),
         ]),
         CraftRouterOutlet(),
       ]),
+      ),
     ]),
 );
 

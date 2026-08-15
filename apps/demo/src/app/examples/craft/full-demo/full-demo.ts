@@ -1,3 +1,4 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
@@ -5,12 +6,12 @@ import {
   craftComponent,
   div,
   each,
-  h2,
   input,
   li,
   p,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   craftException,
@@ -30,11 +31,12 @@ export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
-      take: () => {
-        const id = state();
-        update((value) => value + 1);
-        return id;
-      },
+      take: function* () {
+            const _state = yield* state();
+                const id = _state;
+                yield* update((value) => value + 1);
+                return id;
+              },
     }));
     const records = yield* state(
       'records',
@@ -76,7 +78,8 @@ export const { provideTodoStore, TodoStore } = craftService(
             // add an exception to the query signature, it will force this component or his host to handle this exception
             return craftException({ code: 'FAILED_TO_LOAD' });
           }
-          return [...records()];
+          const _records = yield* records();
+          return [..._records];
         }),
       },
       insertQueryPipe(
@@ -117,26 +120,25 @@ const FullDemoCraft = craftComponent(
   },
   ({ store, titleInput, setTitle }) => {
     return div([
-      h2([
+      heading([
         'Full craftService demo ',
-        StatusComponent({ status: () => store.todos.status() }),
+        StatusComponent({ status: store.todos.status }),
       ]),
       p('A toProvide service composed from a query and two mutations.'),
       div([
         input('TodoNameToAddInput', {
           placeholder: 'New todo',
-          value: () => titleInput(),
-          *input(event) {
+          value: titleInput,
+          *input(event: Event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
         }),
         button(
           'AddTodoButton',
-          {
-            disabled: () => store.add.isLoading(),
+          { type: 'button',
+            disabled: store.add.isLoading,
             *click() {
-              const title = yield* titleInput();
-              yield* store.add.mutate((title ?? '').trim());
+              yield* store.add.mutate(((yield* titleInput()) ?? '').trim());
             },
           },
           'Add',
@@ -148,13 +150,15 @@ const FullDemoCraft = craftComponent(
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([
-              span('TodoTitle', {}, todo.title),
+              span('TodoTitle', {}, function* () {
+                return (yield* todo()).title;
+              }),
               button(
                 'RemoveTodoButton',
-                {
-                  disabled: () => store.remove.isLoading(),
+                { type: 'button',
+                  disabled: store.remove.isLoading,
                   *click() {
-                    yield* store.remove.mutate(todo.id);
+                    yield* store.remove.mutate((yield* todo()).id);
                   },
                 },
                 'Remove',

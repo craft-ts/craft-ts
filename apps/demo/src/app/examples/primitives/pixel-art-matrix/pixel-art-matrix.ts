@@ -1,15 +1,20 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './pixel-art-matrix.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
   each,
-  h1,
   header,
   p,
   section,
+  heading,
 } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { state, craftUse } from '@craft-ng/core';
+import {
+  LONG_PRESS_DURATION_MS,
+  longPress,
+} from './long-press.directive';
 
 type Cell = {
   readonly id: number;
@@ -51,7 +56,9 @@ const PixelArtMatrix = craftComponent(
                     ? {
                         ...cell,
                         color:
-                          cell.color === activeColor() ? EMPTY : activeColor(),
+                          cell.color === craftUse(activeColor())
+                            ? EMPTY
+                            : craftUse(activeColor()),
                         count: cell.count + 1,
                       }
                     : cell,
@@ -69,6 +76,20 @@ const PixelArtMatrix = craftComponent(
                   count: cell.count + 1,
                 }))
               : row,
+          ),
+        ),
+      paintColumn: (columnIndex: number, color: string) =>
+        update((rows) =>
+          rows.map((row) =>
+            row.map((cell, c) =>
+              c === columnIndex
+                ? {
+                    ...cell,
+                    color,
+                    count: cell.count + 1,
+                  }
+                : cell,
+            ),
           ),
         ),
       addRow: () =>
@@ -95,41 +116,57 @@ const PixelArtMatrix = craftComponent(
   ({ activeColor, grid }) =>
     section([
       header([
-        h1('Pixel Art Workshop (Matrix)'),
-        p('2D matrix: click paints, right-click paints a row.'),
+        heading('Pixel Art Workshop (Matrix)'),
+        p(
+          '2D matrix: click paints, right-click paints a row, long-press paints a column.',
+        ),
       ]),
       div(
         { class: 'matrix-palette' },
         each(COLORS, { track: (color) => color }, (color) =>
-          button({
+          button({ type: 'button',
             class: 'matrix-color',
-            style: { backgroundColor: color },
+            style: function* () {
+              return { backgroundColor: yield* color() };
+            },
+            'aria-label': function* () {
+              return `Color ${yield* color()}`;
+            },
             *click() {
-              yield* activeColor.setColor(color);
+              yield* activeColor.setColor(yield* color());
             },
           }),
         ),
       ),
-      button({ click: grid.reset }, 'Reset'),
+      button({ type: 'button', click: grid.reset }, 'Reset'),
       div(
         { class: 'matrix-grid' },
         each(grid, { track: trackGridRow }, (row, rowIndex) =>
           div({ class: 'matrix-row' }, [
             each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-              button({
+              button({ type: 'button',
                 class: 'matrix-cell',
-                style: { backgroundColor: cell.color },
+                style: function* () {
+                  return { backgroundColor: (yield* cell()).color };
+                },
+                'aria-label': function* () {
+                  return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
+                },
+                longPressDuration: LONG_PRESS_DURATION_MS,
+                *onLongPress() {
+                  yield* grid.paintColumn(columnIndex, (yield* cell()).color);
+                },
                 *click() {
                   yield* grid.paint(rowIndex, columnIndex);
                 },
-                *contextmenu(event) {
+                *contextmenu(event: MouseEvent) {
                   event.preventDefault();
-                  yield* grid.paintRow(rowIndex, cell.color);
+                  yield* grid.paintRow(rowIndex, (yield* cell()).color);
                 },
-              }),
+              }).pipe(longPress),
             ),
             button(
-              {
+              { type: 'button',
                 *click() {
                   yield* grid.addCell(rowIndex);
                 },
@@ -139,7 +176,7 @@ const PixelArtMatrix = craftComponent(
           ]),
         ),
       ),
-      button({ click: grid.addRow }, 'Add row'),
+      button({ type: 'button', click: grid.addRow }, 'Add row'),
     ]),
 );
 

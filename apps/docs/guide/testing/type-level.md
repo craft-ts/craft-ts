@@ -117,45 +117,8 @@ The available assertions can verify elements, their exact props, event
 arguments, generator callbacks, and outputs. For example, start with a
 component whose `disabled` property is nested inside the `counter` state:
 
-```ts
-import { computed } from '@angular/core';
-import { state } from '@craft-ng/core';
-import { button, craftComponent, div } from '@craft-ng/component';
-import type {
-  ComponentTemplateOf,
-  TemplateRendersStateWhen,
-  TemplateHasElement,
-  TemplateHasElementWithProps,
-  TemplateHasYieldableEvent,
-} from '@craft-ng/component';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+<<< @/tests/snippets/guide/testing/type-level/counter-nested.spec.ts#counter-nested
 
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const counter = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: computed(() => state() === 0),
-      increment: () => update((value) => value + 1),
-    }));
-
-    return { counter };
-  },
-  ({ counter }) =>
-    div(
-      { class: 'counter' },
-      button(
-        {
-          disabled: () => counter.disabled(),
-          *click(_event: MouseEvent) {
-            yield* counter.increment();
-          },
-        },
-        '+',
-      ),
-    ),
-);
-```
 
 The type assertions inspect the template returned by `Counter`; they do not
 instantiate the component or render a DOM fixture:
@@ -198,28 +161,10 @@ member makes the corresponding assertion fail. The `TemplateHasElementWithProps`
 check also catches an unexpected extra, missing, or differently typed prop.
 
 Primitive properties follow the same contract as events. For derived state, use
-`computed` in the `state` insertion:
+`craftComputed` in the `state` insertion:
 
-```ts
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const counter = yield* state('counter', 0, ({ state }) => ({
-      disabled: computed(() => state() % 2 === 0),
-    }));
+<<< @/tests/snippets/guide/testing/type-level/counter-derived.spec.ts#counter-derived
 
-    return { counter };
-  },
-  (context) =>
-    button(
-      {
-        disabled: () => context.counter.disabled(),
-      },
-      '+',
-    ),
-);
-```
 
 Here, `counter` is created by the component factory and returned in its
 context. The template receives that context, and the branded
@@ -288,40 +233,9 @@ name in the template type. They remain synchronously readable in templates,
 while their name brand is available to `ifBlock` and the visibility contract.
 Use `ifBlock` to retain the condition and its branches in the VNode contract:
 
-```ts
-import { computed, signal } from '@angular/core';
-import { markYieldableValue, state } from '@craft-ng/core';
-import {
-  button,
-  craftComponent,
-  div,
-  ifBlock,
-  span,
-} from '@craft-ng/component';
+<<< @/tests/snippets/guide/testing/type-level/counter-auth.spec.ts#counter-auth
 
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const isAuth = yield* state(
-      'isAuth',
-      computed(() => true),
-    );
-    const brandedStatus = yield* state('brandedStatus', 'ready');
-    return { isAuth, brandedStatus };
-  },
-  ({ isAuth, brandedStatus }) =>
-    ifBlock(
-      isAuth,
-      () =>
-        div([
-          button('increment', { click: function* () {} }, '+'),
-          span(brandedStatus),
-        ]),
-      () => [],
-    ),
-);
-```
+
 
 The local name is rendered as `data-craft-name`; `data-craft-root` remains an
 internal tracking attribute.
@@ -417,7 +331,7 @@ same locator returns `undefined` while the branch is absent.
 assert what every item renders — here a translated label exposed by an
 `insertSelect` insertion:
 
-```ts
+```typescript
 import { computed } from '@angular/core';
 import { insertSelect, state } from '@craft-ng/core';
 import { craftComponent, each, span } from '@craft-ng/component';
@@ -436,7 +350,9 @@ const ItemList = craftComponent(
       'items',
       [{ key: 'first' }, { key: 'second' }],
       insertSelect('item', ({ state: selectedItem }) => ({
-        translatedLabel: computed(() => `translated:${selectedItem().key}`),
+        translatedLabel: craftComputed(function* () {
+          return `translated:${(yield* selectedItem()).key}`;
+        }),
       })),
     );
     return { items };
@@ -476,13 +392,15 @@ type RendersTranslatedLabel = Expect<
 >;
 ```
 
+
+
 ### Proving a property is used on a named element
 
 The same visibility paths verify that a state really feeds a rendered binding,
 and that a yieldable action is available on a named element — `'click:increment'`
 reads as "the `click` action on the element named `increment`":
 
-```ts
+```typescript
 import { craftMethod, state } from '@craft-ng/core';
 import { button, craftComponent, ifBlock } from '@craft-ng/component';
 import type {
@@ -538,6 +456,8 @@ type CanIncrementWhenAuthenticated = Expect<
 >;
 ```
 
+
+
 `TemplateRendersStateWhen` recognizes branded reads that contribute to visible
 text or other render bindings such as `class` and `style`. Both assertions
 return `false` when the state or action exists only under a visibility branch
@@ -583,7 +503,7 @@ the context marker remains visible to the template contract:
 
 ```ts
 button('RemoveTodoButton', {
-  disabled: () => store.remove.isLoading(),
+  disabled: store.remove.isLoading,
 });
 ```
 
@@ -655,4 +575,5 @@ type Assert<T extends true> = Expect<T>;
 
 - [Testing components](/guide/testing/components) — the runtime half
 - [Testing services](/guide/testing/services)
+- [Architecture rules](/guide/testing/architecture) — constraints on the whole app graph
 - [Learn: test what you wrote](/learn/10-testing)

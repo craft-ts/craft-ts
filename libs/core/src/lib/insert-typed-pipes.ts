@@ -6,6 +6,7 @@ import type {
   InsertionsStateFactory,
   ResourceExceptionConstraints,
 } from './query.core';
+import { DEEP_YIELDABLE_INSERTION } from './reactive-read';
 
 type QueryPipeFactory<
   GroupIdentifier,
@@ -28,12 +29,22 @@ type QueryPipeFactory<
 type AnyInsertionFactory = (context: any) => any;
 
 function createTypedInsertionPipe(...members: AnyInsertionFactory[]) {
-  return (context: any) => {
+  const pipe = (context: any) => {
     // The public overloads cap the member count at seven. The implementation
     // delegates to craftPipe so all runtime wrapping and generator handling
     // stays in one place.
     return (craftPipe as any)(context, ...members);
   };
+  if (
+    members.some(
+      (member) =>
+        typeof member === 'function' &&
+        DEEP_YIELDABLE_INSERTION in member,
+    )
+  ) {
+    Object.defineProperty(pipe, DEEP_YIELDABLE_INSERTION, { value: true });
+  }
+  return pipe;
 }
 
 /**

@@ -2,9 +2,10 @@
 
 Three words describe everything `@craft-ng` does: **declare, yield, derive.**
 
-You declare state with a name. You pull dependencies in with `yield*` so the
-compiler can see them. Everything else — validity, loading flags, form trees,
-error unions — is derived rather than restated.
+You declare state with a name. Every named entity — a factory, a computed, a
+method — pulls in with `yield*` what it does not own, so the compiler can see
+that entity's dependencies. Everything else — validity, loading flags, form
+trees, error unions — is derived rather than restated.
 
 This page is the *why*. If you want the *how*, the [Learn
 path](/learn/) walks the same ideas through a working app.
@@ -15,7 +16,7 @@ State is declared where it is used, close to the component or service that owns
 it, with a name that the tooling can see:
 
 ```typescript
-const { counter } = state('counter', 0, ({ update }) => ({
+const counter = yield* state('counter', 0, ({ update }) => ({
   increment: () => update((value) => value + 1),
 }));
 ```
@@ -32,16 +33,31 @@ Classic injection hides the dependency graph. `inject(TaskApi)` is invisible fro
 the outside, so the compiler cannot tell you when a provider is missing, and a
 test cannot tell you what to mock.
 
-Yielding makes the same call visible **in the type**:
+Yielding makes the same call visible **in the type** of the entity that yielded
+it:
 
 ```typescript
 const api = yield* TaskApi();
 ```
 
-Everything downstream reads that type: the route DI check, the testing register,
-the dependency snapshot. And because you can yield *part* of a service —
-`yield* TaskApi.fetchAll()` — the graph records only what you actually used,
-which is what keeps test setups small.
+A factory that yields `TaskApi` has `TaskApi` in its graph. A computed that
+reads another primitive must yield that primitive too — otherwise the
+dependency is invisible on the computed, even if the surrounding factory
+already yielded it:
+
+```typescript
+const doneCount = craftComputed('doneCount', function* () {
+  return (yield* tasks()).filter((task) => task.done).length;
+});
+```
+
+`tasks` does not belong to `doneCount`. Closing over `tasks()` would read the
+value and skip the graph. Everything downstream — the route DI check, the
+testing register, the dependency snapshot — reads the type of **that** entity.
+
+And because you can yield *part* of a service — `yield* TaskApi.fetchAll()` —
+the graph records only what you actually used, which is what keeps test setups
+small.
 
 That is the whole trade: one keyword, in exchange for a dependency graph the
 compiler can check. See [Generators and `yield*`](/guide/concepts/generators).
@@ -51,7 +67,8 @@ compiler can check. See [Generators and `yield*`](/guide/concepts/generators).
 The third principle is the one that removes the most code: **if a value is a
 function of another value, don't store it — derive it.**
 
-- Derived values are `computed`, inside an insertion.
+- Derived values are `craftComputed`, inside an insertion, and they `yield*`
+  the readers they depend on.
 - Loading and error state is derived by the async primitives, not tracked by
   hand.
 - A form's field tree, validity and error types are derived from its state and
@@ -76,13 +93,19 @@ persistence uses the backend selected through DI:
 const { myState } = state(
   'myState',
   0,
-  insertStoragePersister({ storeName: 'myStore', key: 'myState' }),
+  insertStoragePersister(craftUnique({
+    storeName: 'myStore',
+    key: 'myState',
+  })),
 );
 
 const { myQuery } = query(
   'myQuery',
   { params: () => 1, loader: /* … */ },
-  insertStoragePersister({ storeName: 'myStore', key: 'myUserQuery' }),
+  insertStoragePersister(craftUnique({
+    storeName: 'myStore',
+    key: 'myUserQuery',
+  })),
 );
 ```
 
@@ -98,7 +121,7 @@ Both coexist in the same declaration:
 ```typescript
 const resetSource$ = source$<void>('resetSource$');
 
-const { counter } = state('counter', 0, ({ set, update }) => ({
+const counter = yield* state('counter', 0, ({ set, update }) => ({
   increment: () => update((v) => v + 1), // called
   reset: on$(resetSource$, () => set(0)), // driven by an event, not exposed
 }));
@@ -108,12 +131,12 @@ This is what makes one `resetSource$.emit()` reset several independent states at
 once, without any of them knowing about the others:
 
 ```typescript
-const { search } = state('search', '', ({ set }) => ({
+const search = yield* state('search', '', ({ set }) => ({
   set,
   reset: on$(resetSource$, () => set('')),
 }));
 
-const { page } = state('page', 1, ({ set, update }) => ({
+const page = yield* state('page', 1, ({ set, update }) => ({
   increment: () => update((v) => v + 1),
   reset: on$(resetSource$, () => set(1)),
 }));

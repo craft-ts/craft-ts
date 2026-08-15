@@ -1,12 +1,13 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
   h,
-  h2,
   ifBlock,
   option,
   p,
   select,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -15,8 +16,7 @@ import {
   craftSleep,
   query,
   state,
-  toValue,
-  type MaybeSignal,
+  type CraftServiceInput,
   craftException,
 } from '@craft-ng/core';
 
@@ -50,10 +50,12 @@ const { UsersApi } = craftService(
 
 const { provideUser, User } = craftService(
   { name: 'User', scope: 'toProvide' },
-  function* (inputs: { userId: MaybeSignal<string> }) {
+  function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
     const user = yield* query('user', {
-      params: () => toValue(inputs.userId),
+      params: function* () {
+        return yield* inputs.userId();
+      },
       loader: function* ({ params }) {
         return yield* api.getUser(params);
       },
@@ -79,23 +81,27 @@ const CraftServiceUserDetailComponent = craftComponent(
       dd{margin:0;color:#6b7280}
       .loading{color:#6b7280;font-style:italic}
       .error{color:#dc2626}
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
     const userId = yield* state('userId', '1', ({ set }) => ({
       selectUser: (value: string) => set(value),
     }));
-    return { userId, user: yield* User({ userId }) };
-  },
-  ({ userId, user }) => {
+    const user = yield* User({ userId });
     const hasValue = craftComputed('hasValue', () => user.hasValue());
+    return { userId, user, hasValue };
+  },
+  ({ userId, user, hasValue }) => {
     return div([
-      h2('craftService User Detail (query)'),
+      heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
         select(
           {
-            value: () => userId(),
-            *change(event) {
+            'aria-label': 'User',
+            value: userId,
+            *change(event: Event) {
               yield* userId.selectUser(
                 (event.target as HTMLSelectElement).value,
               );
@@ -110,11 +116,17 @@ const CraftServiceUserDetailComponent = craftComponent(
           () =>
             h('dl', [
               h('dt', 'ID'),
-              h('dd', () => (user.value() as User).id),
+              h('dd', function* () {
+                return ((yield* user.value()) as User).id;
+              }),
               h('dt', 'Name'),
-              h('dd', () => (user.value() as User).name),
+              h('dd', function* () {
+                return ((yield* user.value()) as User).name;
+              }),
               h('dt', 'Email'),
-              h('dd', () => (user.value() as User).email),
+              h('dd', function* () {
+                return ((yield* user.value()) as User).email;
+              }),
             ]),
           () =>
             ifBlock(

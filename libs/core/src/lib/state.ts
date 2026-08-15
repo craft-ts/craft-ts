@@ -47,6 +47,7 @@ import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-conte
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
+  yieldableInvocation,
   type BrandReactiveProperties,
   type YieldableInsertionMethods,
 } from './yieldable';
@@ -61,6 +62,17 @@ import {
   useSchemaValidationPolicy,
 } from './schema-validation';
 import type { AnyCraftException } from './craft-exception';
+import {
+  createYieldableReactiveFacade,
+  createYieldableReactiveValue,
+  deepYieldable,
+  hasDeepYieldableInsertion,
+  DEEP_YIELDABLE_INSERTION,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type DeepYieldableReaderOf,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -88,29 +100,50 @@ export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   >
 >;
 
+type StateReader<
+  StateType,
+  Insertions,
+  Deep extends boolean = false,
+  Name extends string = string,
+> = Deep extends true
+  ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+  : Insertions extends {
+  readonly [DEEP_YIELDABLE_INSERTION]: true;
+}
+  ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+  : YieldableReactiveValue<StateType, Name>;
+
 export type StateOutput<
   StateType,
   Insertions,
   Dependencies = {},
   HasSchema extends boolean = false,
+  Deep extends boolean = false,
+  Name extends string = string,
 > = HasSchema extends true
   ? MergeObject<
-      Signal<StateType>,
+      StateReader<StateType, Insertions, Deep, Name>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         {
-          readonly hasSchema: Signal<true>;
-          readonly hasException: Signal<boolean>;
-          readonly exceptions: Signal<{
-            list: AnyCraftException[];
-            parse: { state?: AnyCraftException };
-          }>;
+          readonly hasSchema: YieldableReactiveValue<true, 'hasSchema'>;
+          readonly hasException: YieldableReactiveValue<
+            boolean,
+            'hasException'
+          >;
+          readonly exceptions: YieldableReactiveValue<
+            {
+              list: AnyCraftException[];
+              parse: { state?: AnyCraftException };
+            },
+            'exceptions'
+          >;
           readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
         }
       >
     >
   : MergeObject<
-      Signal<StateType>,
+      StateReader<StateType, Insertions, Deep, Name>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
@@ -350,7 +383,7 @@ export function state<Name extends string, Schema extends CraftSchema>(
 ): CraftPrimitiveGen<
   NamedPrimitive<
     Name,
-    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true>
+    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true, false, Name>
   >
 >;
 export function state<Name extends string, StateInput>(
@@ -362,7 +395,10 @@ export function state<Name extends string, StateInput>(
     StateOutput<
       ResolvedStateType<StateInput>,
       {},
-      StateTrackedDependencies<StateInput>
+      StateTrackedDependencies<StateInput>,
+      false,
+      false,
+      Name
     >
   >
 >;
@@ -386,7 +422,10 @@ export function state<
     StateOutput<
       ResolvedStateType<StateInput>,
       Insertion1,
-      StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>
+      StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>,
+      false,
+      false,
+      Name
     >
   >
 >;
@@ -516,10 +555,7 @@ function createStateRef<StateType>(
       : isSignalState
         ? linkedSignal(
             () =>
-              applySchema(
-                (resolvedStateConfig as Signal<unknown>)(),
-                'source',
-              ),
+              applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
             { equal: () => false },
           )
         : signal(initialStateValue);
@@ -527,26 +563,34 @@ function createStateRef<StateType>(
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
+  const publicStateReader = createYieldableReactiveValue(
+    readonlyStateSignal,
+    name,
+    { primitive: 'state', path: name },
+  );
   const originalSet = stateSignal.set.bind(stateSignal);
   const setState = (newState: StateType) => {
     if (!schema) {
       originalSet(newState);
-      return;
+      return newState;
     }
     const next = applySchema(newState, 'set');
     if (!latestStateException) {
       originalSet(next);
     }
+    return next;
   };
   const updateState = (updateFn: (currentState: StateType) => StateType) => {
     if (!schema) {
-      stateSignal.update(updateFn);
-      return;
+      const next = updateFn(stateSignal());
+      originalSet(next);
+      return next;
     }
     const next = applySchema(updateFn(stateSignal()), 'update');
     if (!latestStateException) {
       originalSet(next);
     }
+    return next;
   };
   if (schema) {
     stateSignal.set = setState;
@@ -557,15 +601,18 @@ function createStateRef<StateType>(
   ).reduce(
     (acc, insert) => {
       const insertionContext = {
-        state: readonlyStateSignal,
-        set: (newState: StateType) => setState(newState),
+        state: publicStateReader,
+        set: (newState: StateType) =>
+          yieldableInvocation(setState(newState)),
         update: (updateFn: (currentState: StateType) => StateType) =>
-          updateState(updateFn),
+          yieldableInvocation(updateState(updateFn)),
         patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
-          updateState((current) => ({
-            ...current,
-            ...patchFn(current),
-          })),
+          yieldableInvocation(
+            updateState((current) => ({
+              ...current,
+              ...patchFn(current),
+            })),
+          ),
         insertions: Object.entries(acc.rawInsertionsOutput).reduce(
           (previous, [key, value]) => {
             if (isSource$(value)) previous[key] = value;
@@ -611,9 +658,20 @@ function createStateRef<StateType>(
             return exposedAcc;
           }
 
+          if (isYieldableReactiveValue(value)) {
+            exposedAcc[key] = nameInsertedReactiveValue(
+              value,
+              key,
+              'state',
+              `${name}.${key}`,
+            );
+            return exposedAcc;
+          }
+
           if (
             typeof value === 'function' &&
             !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
             const methodInjector = ɵcreateHostTaggedInjector(
@@ -633,8 +691,7 @@ function createStateRef<StateType>(
               injector: methodInjector,
               invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage:
-                STATE_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
             });
           } else {
             exposedAcc[key] = value;
@@ -737,5 +794,12 @@ function createStateRef<StateType>(
       });
   }
 
-  return stateOutput;
+  const publicState = createYieldableReactiveFacade(stateOutput, {
+    name,
+    primitive: 'state',
+    path: name,
+  });
+  return hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicState)
+    : publicState;
 }

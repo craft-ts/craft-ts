@@ -54,7 +54,7 @@ export type AssertDefinedInput<Value> = Input<Exclude<Value, undefined>> &
   CraftInputExceptionsCarrier<typeof CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE> &
   Pick<PipeableInput<Exclude<Value, undefined>>, 'pipe'>;
 
-function pipeableInput<Value>(source: () => Value): PipeableInput<Value> {
+function pipeableInput<Value>(source: Input<Value>): PipeableInput<Value> {
   const input = source as PipeableInput<Value>;
   if (Object.prototype.hasOwnProperty.call(input, 'pipe')) {
     return input;
@@ -71,11 +71,11 @@ function pipeableInput<Value>(source: () => Value): PipeableInput<Value> {
 
 /** Creates an input which narrows away undefined and short-circuits when absent. */
 export function assertDefinedInput<Value>(
-  source: () => Value | undefined,
+  source: Input<Value | undefined>,
   options: { readonly property?: string } = {},
 ): AssertDefinedInput<Value> {
-  return pipeableInput(() => {
-    const value = source();
+  return pipeableInput(function* () {
+    const value = yield* source();
     if (value !== undefined) {
       return value as Exclude<Value, undefined>;
     }
@@ -83,7 +83,7 @@ export function assertDefinedInput<Value>(
     throw new CraftGenShortCircuit(
       craftUndefinedPropertyException(options.property),
     );
-  }) as AssertDefinedInput<Value>;
+  } as Input<Exclude<Value, undefined>>) as AssertDefinedInput<Value>;
 }
 
 export const catchInput = {
@@ -99,9 +99,9 @@ export const catchInput = {
     ): PipeableInput<
       Exclude<Value, undefined> | HandlerOutput<Handlers>
     > =>
-      pipeableInput(() => {
+      pipeableInput(function* () {
         try {
-          return source() as Exclude<Value, undefined>;
+          return (yield* source()) as Exclude<Value, undefined>;
         } catch (error) {
           if (!isCraftGenShortCircuit(error)) {
             throw error;
@@ -118,6 +118,6 @@ export const catchInput = {
             error.exception as CraftUndefinedPropertyException,
           ) as Exclude<Value, undefined> | HandlerOutput<Handlers>;
         }
-      });
+      } as Input<Exclude<Value, undefined> | HandlerOutput<Handlers>>);
   },
 };

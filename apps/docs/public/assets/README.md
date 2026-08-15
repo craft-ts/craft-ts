@@ -4,5 +4,6 @@ This directory should contain:
 
 - `craft-ng-logo.png` - Main logo for the homepage
 - `favicon.png` - Favicon for the site
+- `romain-geffrault.png` - Author portrait on the homepage (transparent background)
 
 Please add these image files to make the site complete.

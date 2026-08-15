@@ -217,6 +217,91 @@ html.dark {
   opacity: 25%;
 }
 
+.VPHome .author-note {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  margin: 3.5rem 0 1.5rem;
+  padding: 1.75rem 2rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
+  background: var(--vp-c-bg-soft);
+}
+
+.VPHome .author-note__photo-frame {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+  box-shadow:
+    0 0 0 2px var(--vp-c-bg-soft),
+    0 0 0 3px var(--vp-c-divider);
+}
+
+.VPHome .author-note__photo {
+  display: block;
+  width: 132px;
+  height: 132px;
+  object-fit: cover;
+  object-position: center center;
+  transform: translateX(20px);
+}
+
+.VPHome .author-note__body {
+  margin: 0;
+  min-width: 0;
+}
+
+.VPHome .author-note blockquote {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.VPHome .author-note blockquote p {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--vp-c-text-1);
+}
+
+.VPHome .author-note blockquote p + p {
+  margin-top: 0.7rem;
+}
+
+.VPHome .author-note figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 1rem;
+}
+
+.VPHome .author-note figcaption strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.VPHome .author-note figcaption span {
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+}
+
+@media (max-width: 639px) {
+  .VPHome .author-note {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem 1.25rem;
+  }
+
+  .VPHome .author-note figcaption {
+    align-items: center;
+  }
+}
+
 /**
  * Component: Custom Block
  * -------------------------------------------------------------------------- */

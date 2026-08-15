@@ -1,20 +1,23 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './pixel-art.css' with { loader: 'text' };
-import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
   div,
   each,
-  h1,
   header,
   p,
   section,
   span,
+  heading,
 } from '@craft-ng/component';
 import {
   insertStoragePersister,
+  craftUnique,
   insertSelect,
   insertStatePipe,
+  craftComputed,
+  craftMethod,
   state,
 } from '@craft-ng/core';
 
@@ -40,10 +43,10 @@ const PixelArt = craftComponent(
           setActiveColor: (activeColor: string) =>
             update(() => ({ activeColor })),
         }),
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           key: 'pixel-art-ui-state',
           storeName: 'pixel-art-ui',
-        }),
+        })),
       ),
     );
     const cells = yield* state(
@@ -54,58 +57,79 @@ const PixelArt = craftComponent(
         paintCount: 0,
       })),
       insertStatePipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           key: 'pixel-art-cells-state',
           storeName: 'pixel-art-cells',
-        }),
-        insertSelect('cell', ({ update }) => ({
-          paint: () =>
-            update((cell) => ({
-              ...cell,
-              color:
-                cell.color === ui().activeColor
-                  ? EMPTY_COLOR
-                  : ui().activeColor,
-              paintCount: cell.paintCount + 1,
-            })),
         })),
+        insertSelect('cell', function* ({ update }) {
+          return {
+            paint: function* () {
+              const currentUi = yield* ui();
+              return yield* update((cell) => ({
+                ...cell,
+                color:
+                  cell.color === currentUi.activeColor
+                    ? EMPTY_COLOR
+                    : currentUi.activeColor,
+                paintCount: cell.paintCount + 1,
+              }));
+            },
+          };
+        }),
         ({ state, update }) => ({
           clearAll: () =>
             update((current) =>
               current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
             ),
-          paintedCount: computed(
-            () => state().filter(({ color }) => color !== EMPTY_COLOR).length,
-          ),
-          totalPaintActions: computed(() =>
-            state().reduce((total, { paintCount }) => total + paintCount, 0),
+          paintedCount: craftComputed('paintedCount', function* () {
+            return (yield* state()).filter(
+              ({ color }) => color !== EMPTY_COLOR,
+            ).length;
+          }),
+          totalPaintActions: craftComputed(
+            'totalPaintActions',
+            function* () {
+              return (yield* state()).reduce(
+                (total, { paintCount }) => total + paintCount,
+                0,
+              );
+            },
           ),
         }),
       ),
     );
-    return { ui, cells };
+    const paintCell = craftMethod('paintCell', function* (index: number) {
+      const cell = cells.selectCell(index);
+      if (!cell) return;
+      yield* cell.paint();
+    });
+    return { ui, cells, paintCell };
   },
-  ({ ui, cells }) =>
+  ({ ui, cells, paintCell }) =>
     section([
       header([
-        h1('Atelier Pixel Art'),
+        heading('Atelier Pixel Art'),
         p('Grille 16×16 avec state simple et insertions par case.'),
       ]),
       div(
         { class: 'pixel-palette' },
         each(COLORS, { track: (color) => color }, (color) =>
-          button({
+          button({ type: 'button',
             class: 'pixel-color',
-            style: { backgroundColor: color },
-            'aria-label': `Choisir ${color}`,
+            style: function* () {
+              return { backgroundColor: yield* color() };
+            },
+            'aria-label': function* () {
+              return `Choisir ${yield* color()}`;
+            },
             *click() {
-              yield* ui.setActiveColor(color);
+              yield* ui.setActiveColor(yield* color());
             },
           }),
         ),
       ),
       button(
-        {
+        { type: 'button',
           *click() {
             yield* cells.clearAll();
           },
@@ -113,20 +137,31 @@ const PixelArt = craftComponent(
         'Effacer',
       ),
       p([
-        span(() => `Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
-        span(() => ` · Clics: ${cells.totalPaintActions()}`),
+        span(
+          function* () {
+            return `Cases peintes: ${yield* cells.paintedCount()}/${INDEXES.length}`;
+          },
+        ),
+        span(function* () {
+          return ` · Clics: ${yield* cells.totalPaintActions()}`;
+        }),
       ]),
       div(
         { class: 'pixel-grid', role: 'grid' },
-        each(INDEXES, { track: (index) => index }, (index) => {
-          const cell = cells.selectCell(index);
-          return button({
+        each(INDEXES, { track: (index) => index }, (_item, currentIndex) =>
+          button({ type: 'button',
             class: 'pixel-cell',
-            style: { backgroundColor: cellColor(cell) },
-            title: `Case ${index + 1}`,
-            click: () => cell?.paint(),
-          });
-        }),
+            style: function* () {
+              return {
+                backgroundColor: cellColor(cells.selectCell(currentIndex)),
+              };
+            },
+            title: `Case ${currentIndex + 1}`,
+            *click() {
+              yield* paintCell(currentIndex);
+            },
+          }),
+        ),
       ),
     ]),
 );

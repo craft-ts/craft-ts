@@ -68,12 +68,15 @@ export const KeyCounter = craftComponent(
 
     return { keys };
   },
-  ({ keys }) => p(() => `Keys pressed: ${keys()}`),
+  ({ keys }) =>
+    p(function* () {
+      return `Keys pressed: ${yield* keys()}`;
+    }),
 );
 ```
 
 ::: tip For the component's own elements, use an event prop
-`button({ click: () => counter.increment() }, 'Click me')` is simpler and needs
+`button({ click: counter.increment }, 'Click me')` is simpler and needs
 no target. Reach for `sourceFromEvent` when the event comes from outside the
 component's own markup, or when several states must react to the same event.
 :::

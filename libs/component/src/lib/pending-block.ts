@@ -5,8 +5,10 @@ export const PENDING_BLOCK_DIRECTIVE = Symbol('craft-pending-block-directive');
 
 /**
  * Where the fallback is inserted relative to the suspended subtree. The subtree
- * itself is kept mounted but hidden while it is pending, so its state (and the
- * state of the components inside it) survives the wait.
+ * itself is kept mounted but **detached from the document** while it is
+ * pending (its nodes live in a DocumentFragment — they are not `hidden` via
+ * CSS), so its state survives the wait. Assistive tech is told via
+ * `aria-busy` / `aria-live` on the fallback, not via the detached source.
  */
 export type PendingBlockPosition = 'before' | 'after';
 
@@ -171,8 +173,9 @@ interface PendingBlockFactory {
    * )
    * ```
    *
-   * The suspended subtree stays mounted (hidden) so nothing below it is torn
-   * down and rebuilt when the data arrives.
+   * The suspended subtree stays mounted (detached from the document, not
+   * CSS-hidden) so nothing below it is torn down and rebuilt when the data
+   * arrives. The fallback is announced with `aria-live="polite"`.
    */
   <Fallback extends PendingFallback>(
     options?: PendingBlockOptions<Fallback>,

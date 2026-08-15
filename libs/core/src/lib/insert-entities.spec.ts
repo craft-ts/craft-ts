@@ -16,7 +16,8 @@ describe('insertEntities', () => {
   });
   it('should enable to insert entities util to a state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           [] as string[],
           insertEntities({
@@ -35,7 +36,8 @@ describe('insertEntities', () => {
       providers: [provideRouter([])],
     }).compileComponents();
     await TestBed.runInInjectionContext(async () => {
-      const myState = craftUse(queryParams(
+      const myState = craftUse(
+        queryParams(
           'myState',
           {
             state: {
@@ -62,7 +64,8 @@ describe('insertEntities', () => {
 
   it('should enable to insert entities util to a query', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => '1',
@@ -77,12 +80,13 @@ describe('insertEntities', () => {
       myQuery.addMany({
         newEntities: ['4', '5', '6'],
       });
-      expect(myQuery.value()).toEqual(['1', '2', '3', '4', '5', '6']);
+      expect(craftUse(myQuery.value())).toEqual(['1', '2', '3', '4', '5', '6']);
     });
   });
   it('should enable to insert entities util to a query that run in paralllel', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => '1',
@@ -99,7 +103,7 @@ describe('insertEntities', () => {
         select: '1',
         newEntities: ['4', '5', '6'],
       });
-      expect(myQuery.select('1')?.value()).toEqual([
+      expect(craftUse(myQuery.select('1')?.value())).toEqual([
         '1',
         '2',
         '3',
@@ -112,7 +116,8 @@ describe('insertEntities', () => {
 
   it('should enable to insert entities util to a query that return an object', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => '1',
@@ -149,7 +154,7 @@ describe('insertEntities', () => {
           },
         ],
       });
-      expect(myQuery.value()).toEqual({
+      expect(craftUse(myQuery.value())).toEqual({
         total: 1,
         products: [
           {
@@ -174,7 +179,8 @@ describe('insertEntities', () => {
   });
   it('should enable to insert entities util to parallel queries that return an object', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => '1',
@@ -213,7 +219,7 @@ describe('insertEntities', () => {
           },
         ],
       });
-      expect(myQuery.select('1')?.value()).toEqual({
+      expect(craftUse(myQuery.select('1')?.value())).toEqual({
         total: 1,
         products: [
           {
@@ -239,7 +245,8 @@ describe('insertEntities', () => {
 
   it('should update a nested dotted path on state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           {
             catalog: {
@@ -268,7 +275,7 @@ describe('insertEntities', () => {
         ],
       });
 
-      expect(myState()).toEqual({
+      expect(craftUse(myState())).toEqual({
         catalog: {
           products: [
             {
@@ -288,7 +295,8 @@ describe('insertEntities', () => {
 
   it('should forward a custom identifier to helper methods', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = craftUse(state(
+      const myState = craftUse(
+        state(
           'myState',
           [] as Array<{ uuid: string; name: string }>,
           insertEntities({
@@ -311,7 +319,7 @@ describe('insertEntities', () => {
         },
       });
 
-      expect(myState()).toEqual([
+      expect(craftUse(myState())).toEqual([
         {
           uuid: '1',
           name: 'Product 1 updated',

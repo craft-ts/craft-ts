@@ -80,14 +80,18 @@ type GraphNodeKind =
   | 'service'
   | 'property'
   | 'primitive'
-  | 'source';
+  | 'source'
+  | 'http-endpoint'
+  | 'unique';
 
 type GraphEdgeKind =
   | 'loads'
   | 'renders'
   | 'contains'
   | 'depends-on'
+  | 'provides'
   | 'uses-property'
+  | 'calls'
   | 'reads'
   | 'writes'
   | 'subscribes'
@@ -762,7 +766,9 @@ const EDGE_KINDS: GraphEdgeKind[] = [
   'renders',
   'contains',
   'depends-on',
+  'provides',
   'uses-property',
+  'calls',
   'reads',
   'writes',
   'subscribes',
@@ -777,6 +783,8 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
   primitive: 3,
   source: 2,
   property: 4,
+  'http-endpoint': 4,
+  unique: 4,
 };
 
 @Component({
@@ -1057,6 +1065,10 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
       .graph-node.node-source {
         border-color: #06b6d4;
         background: #ecfeff;
+      }
+      .graph-node.node-unique {
+        border-color: #c026d3;
+        background: #fae8ff;
       }
       .graph-node.is-http-client {
         border-color: #f59e0b;
@@ -1505,6 +1517,12 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         border-color: #22d3ee;
         background: linear-gradient(145deg, #103e4bee, #0c2539ee);
         box-shadow: 0 0 0 1px #22d3ee22, 0 0 18px #22d3ee55, 0 8px 20px #02061766;
+      }
+
+      .graph-node.node-unique {
+        border-color: #e879f9;
+        background: linear-gradient(145deg, #43154bee, #241536ee);
+        box-shadow: 0 0 0 1px #e879f922, 0 0 18px #e879f955, 0 8px 20px #02061766;
       }
 
       .graph-node.is-constellation {
@@ -2762,6 +2780,7 @@ class GraphEdgeTemplate implements NgDiagramEdgeTemplate<DiagramEdgeData> {
       contains: '#64748b',
       'depends-on': '#5eead4',
       'uses-property': '#e9d5ff',
+      calls: '#fb923c',
       reads: '#67e8f9',
       writes: '#fb923c',
       subscribes: '#22d3ee',
@@ -4284,12 +4303,18 @@ export class App implements OnInit {
     };
   }
 
+  private isTemplateSourcedEdge(edge: GraphEdge): boolean {
+    if (edge.kind !== 'uses-property' && edge.kind !== 'calls') return false;
+    const usage = edge.details?.['usage'];
+    return typeof usage === 'string' && usage.split('+').includes('template');
+  }
+
   private toDiagramEdge(
     edge: GraphEdge,
     layoutResult: DiagramLayoutResult,
   ): DiagramGraphEdge {
     const sourceId =
-      edge.kind === 'renders'
+      edge.kind === 'renders' || this.isTemplateSourcedEdge(edge)
         ? (layoutResult.templateIdByComponent.get(edge.from) ?? edge.from)
         : edge.from;
     const source =
@@ -4313,7 +4338,10 @@ export class App implements OnInit {
       );
     } else if (
       !this.constellation() &&
-      (edge.kind === 'renders' || edge.kind === 'depends-on')
+      (edge.kind === 'renders' ||
+        edge.kind === 'depends-on' ||
+        edge.kind === 'uses-property' ||
+        edge.kind === 'calls')
     ) {
       const isMostlyVertical =
         Math.abs(target.y - source.y) >= Math.abs(target.x - source.x);
@@ -4987,12 +5015,22 @@ export class App implements OnInit {
         if (child.kind === 'property') {
           members.push(child);
           propertiesGroupedByPrimitive.add(child.id);
+          pending.push(...(containsChildrenByParent.get(child.id) ?? []));
+        } else if (child.kind === 'primitive') {
+          members.push(child);
         }
-        pending.push(...(containsChildrenByParent.get(child.id) ?? []));
       }
 
       if (members.length > 0) childrenByPrimitive.set(primitive.id, members);
     }
+
+    const nestedPrimitiveIds = new Set(
+      [...childrenByPrimitive.values()].flatMap((members) =>
+        members
+          .filter((member) => member.kind === 'primitive')
+          .map((member) => member.id),
+      ),
+    );
 
     for (const host of nodes) {
       if (
@@ -5014,7 +5052,7 @@ export class App implements OnInit {
 
         if (
           child.kind === 'route-hook' ||
-          child.kind === 'primitive' ||
+          (child.kind === 'primitive' && !nestedPrimitiveIds.has(child.id)) ||
           (child.kind === 'property' &&
             !propertiesGroupedByPrimitive.has(child.id))
         ) {
@@ -5589,6 +5627,14 @@ export class App implements OnInit {
         return incoming.length || outgoing.length
           ? 'source utilisée par le graphe'
           : 'source sans utilisation détectée';
+      case 'http-endpoint':
+        return incoming.length
+          ? 'endpoint HTTP appelé par le graphe'
+          : 'endpoint HTTP sans appel détecté';
+      case 'unique':
+        return incoming.length
+          ? 'identité unique utilisée par le graphe'
+          : 'identité unique sans appel détecté';
     }
   }
 

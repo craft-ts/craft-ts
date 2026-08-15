@@ -13,8 +13,6 @@
   "include": [
     "vitest.config.mts",
     ".vitepress/config.mts",
-    "tests/**/*.test.ts",
-    "tests/**/*.spec.ts",
-    "tests/**/*.d.ts"
+    "tests/**/*.ts"
   ]
 }

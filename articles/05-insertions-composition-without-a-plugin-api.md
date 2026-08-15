@@ -173,7 +173,10 @@ const users = yield* query(
     },
   },
   insertQueryPipe(
-    insertStoragePersister({ storeName: 'app', key: 'users' }),
+    insertStoragePersister(craftUnique({
+      storeName: 'app',
+      key: 'users',
+    })),
     insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>

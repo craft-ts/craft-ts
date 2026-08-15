@@ -30,6 +30,86 @@ async function fixture(files: Record<string, string>): Promise<string> {
 }
 
 describe('primitives migration', () => {
+  it('yields reactive reads in insertion methods instead of introducing __craftRead', async () => {
+    const root = await fixture({
+      'tsconfig.json': '{}',
+      'api.service.ts': `
+        import {
+          craftService,
+          state,
+          craftUse as __craftRead,
+        } from '@craft-ng/core';
+
+        export const { ApiService } = craftService(
+          { name: 'ApiService', scope: 'global' },
+          function* () {
+            const dataList = yield* state('dataList', [], ({ state }) => ({
+              deleteItem: (itemId: string) => {
+                const deletedItem = __craftRead(state()).find(
+                  (item) => item.id === itemId,
+                );
+                return deletedItem;
+              },
+            }));
+
+            return { dataList };
+          },
+        );
+      `,
+    });
+
+    await runPrimitivesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'api.service.ts'), 'utf8');
+    expect(output).toContain(
+      'deleteItem: function* (itemId: string) {',
+    );
+    expect(output).toContain('const _state = yield* state();');
+    expect(output).toContain('const deletedItem = _state.find(');
+    expect(output).not.toContain('__craftRead');
+    expect(output).not.toContain('craftUse as');
+  });
+
+  it('keeps craftUse at non-generator boundaries and is idempotent', async () => {
+    const root = await fixture({
+      'readers.ts': `
+        import { craftUse as __craftRead, state } from '@craft-ng/core';
+
+        export const readOutsideGenerator = () => __craftRead(state());
+        export function* readNested(queryRef: { value: () => unknown }) {
+          return __craftRead(queryRef.value());
+        }
+      `,
+    });
+
+    await runPrimitivesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+    const first = await readFile(join(root, 'readers.ts'), 'utf8');
+
+    await runPrimitivesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+    const second = await readFile(join(root, 'readers.ts'), 'utf8');
+
+    expect(first).toContain('export const readOutsideGenerator = () => craftUse(state());');
+    expect(first).toContain('const _queryRefvalue = yield* queryRef.value();');
+    expect(first).toContain('return _queryRefvalue;');
+    expect(first).not.toContain('__craftRead');
+    expect(second).toBe(first);
+  });
+
   it('converts Angular signal calls to craft state', async () => {
     const root = await fixture({
       'tsconfig.json': JSON.stringify({
@@ -54,9 +134,9 @@ describe('primitives migration', () => {
     const output = await readFile(join(root, 'wizard.ts'), 'utf8');
     expect(result.diagnostics).toEqual([]);
     expect(output).toContain("import { computed } from '@angular/core'");
-    expect(output).toContain("import { state } from '@craft-ng/core'");
+    expect(output).toContain("import { craftUse, state } from '@craft-ng/core'");
     expect(output).toContain(
-      "activeStep = state('delivery', ({ set, update }) => ({ set, update }))",
+      "activeStep = craftUse(state('activeStep', 'delivery', ({ set, update }) => ({ set, update })))",
     );
     expect(output).toContain(
       '// CRAFT_IMPERATIVE_CODE_DETECTED: imperative code detected, prefer a declarative approach.',
@@ -88,10 +168,11 @@ describe('primitives migration', () => {
 
     const output = await readFile(join(root, 'wizard.ts'), 'utf8');
     expect(output).toContain(
-      "state('delivery' as WizardStep satisfies WizardStep, ({ set, update }) => ({ set, update }))",
+      "state('activeStep', 'delivery' as WizardStep satisfies WizardStep, ({ set, update }) => ({ set, update }))",
     );
+    expect(output).toContain("state('stepStatus', {");
     expect(output).toContain(
-      "} as Record<WizardStep, 'success' | 'error' | null> satisfies Record<WizardStep, 'success' | 'error' | null>, ({ set, update }) => ({ set, update }))",
+      "as Record<WizardStep, 'success' | 'error' | null> satisfies Record<WizardStep, 'success' | 'error' | null>",
     );
     expect(output).not.toContain('state<WizardStep>');
     expect(output).not.toContain('state<Record<');
@@ -184,9 +265,9 @@ describe('primitives migration', () => {
 
     const output = await readFile(join(root, 'checkout-wizard.ts'), 'utf8');
     expect(output).toContain(
-      'state(0, ({ set, update }) => ({ set, update }))',
+      "craftUse(state('discount', 0, ({ set, update }) => ({ set, update })))",
     );
-    expect(output).toContain('state({ coupon: { code:');
+    expect(output).toContain("craftUse(state('checkoutForm', { coupon: { code:");
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       'SIGNAL_FORM_REQUIRES_INSERT_FORM',
       'ASYNC_VALIDATOR_REQUIRES_QUERY',
@@ -239,7 +320,7 @@ describe('primitives migration', () => {
     });
 
     const output = await readFile(join(root, 'location-field.ts'), 'utf8');
-    expect(output).toContain('readonly suggestions = query({');
+    expect(output).toContain('readonly suggestions = craftUse(query({');
     expect(output).toContain('loader: async ({ params }) =>');
     expect(output).toContain('return [];');
     expect(output).toContain(

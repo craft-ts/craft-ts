@@ -280,7 +280,11 @@ describe('craft mutation logic', () => {
     const result = await setupCraftComponentLogicTest.byRegister(
       MutationCraft,
       {
-        args: [(() => user.id) as Input<string | undefined>],
+        args: [
+          (function* () {
+            return user.id;
+          }) as Input<string | undefined>,
+        ],
         register: {
           UserMutation: provideUserMutation(),
           ApiService: { getItemById, updateItem },

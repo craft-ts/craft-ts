@@ -7,6 +7,7 @@ import {
   type SchemaValidationException,
 } from '../schema-validation';
 import type { StandardSchemaV1 } from '../standard-schema';
+import { rawReactiveValue } from '../reactive-read';
 import type {
   InsertionFormFactoryContext,
   InsertionsFormFactory,
@@ -87,7 +88,11 @@ export function insertFormSchema<Schema extends CraftSchema>(
     context: InsertionFormFactoryContext<SchemaInput<Schema>, {}, unknown>,
   ) => {
     const errors = computed(() =>
-      createSchemaErrorEntries(schema, context.state(), context),
+      createSchemaErrorEntries(
+        schema,
+        rawReactiveValue(context.state)(),
+        context,
+      ),
     ) as CraftFieldSchemaErrorSource;
 
     context.field.ɵregisterSchemaErrorSource(errors);

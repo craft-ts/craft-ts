@@ -18,8 +18,7 @@ read the outputs of the members before it through `insertions`.
 ## State
 
 ```typescript
-import { computed } from '@angular/core';
-import { insertStatePipe, state } from '@craft-ng/core';
+import { craftComputed, insertStatePipe, state } from '@craft-ng/core';
 
 const { counter } =
   yield *
@@ -31,10 +30,12 @@ const { counter } =
         increment: () => update((value) => value + 1),
       }),
       ({ state, insertions }) => ({
-        isOdd: computed(() => state() % 2 === 1),
-        incrementAndReport: () => {
-          insertions.increment();
-          return state();
+        isOdd: craftComputed(function* () {
+          return (yield* state()) % 2 === 1;
+        }),
+        incrementAndReport: function* () {
+          yield* insertions.increment();
+          return yield* state();
         },
       }),
     ),
@@ -59,9 +60,14 @@ const { users } =
       loader: ({ params }) => api.getUsers(params),
     },
     insertQueryPipe(
-      insertStoragePersister({ storeName: 'app', key: 'users' }),
+      insertStoragePersister(craftUnique({
+        storeName: 'app',
+        key: 'users',
+      })),
       ({ resource }) => ({
-        reloadUsers: () => resource.reload(),
+        reloadUsers: function* () {
+          return yield* resource.reload();
+        },
       }),
     ),
   );
@@ -82,12 +88,14 @@ const { saveUser } =
     },
   insertMutationPipe(
     ({ resource }) => ({
-      reload: () => resource.reload(),
+      reload: function* () {
+        return yield* resource.reload();
+      },
     }),
     ({ insertions }) => ({
-      reloadTwice: () => {
-        insertions.reload();
-        insertions.reload();
+      reloadTwice: function* () {
+        yield* insertions.reload();
+        yield* insertions.reload();
       },
       }),
     ),
@@ -97,8 +105,7 @@ const { saveUser } =
 ## URL state
 
 ```typescript
-import { computed } from '@angular/core';
-import { insertQueryParamsPipe, queryParams } from '@craft-ng/core';
+import { craftComputed, insertQueryParamsPipe, queryParams } from '@craft-ng/core';
 
 const { filters } =
   yield *
@@ -112,10 +119,15 @@ const { filters } =
     },
     insertQueryParamsPipe(
       ({ state }) => ({
-        hasSearch: computed(() => state().search.length > 0),
+        hasSearch: craftComputed(function* () {
+          return (yield* state()).search.length > 0;
+        }),
       }),
       ({ state, patch }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
+        nextPage: function* () {
+          const current = yield* state();
+          return yield* patch({ page: current.page + 1 });
+        },
       }),
     ),
   );
@@ -165,7 +177,11 @@ state('board', initialBoard, (context) =>
         reset: () => update(() => []),
       })),
     ),
-    ({ state }) => ({ rowCount: computed(() => state().grid.length) }),
+    ({ state }) => ({
+      rowCount: craftComputed(function* () {
+        return (yield* state()).grid.length;
+      }),
+    }),
   ),
 );
 ```

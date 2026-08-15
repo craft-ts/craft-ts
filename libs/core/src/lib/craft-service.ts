@@ -24,6 +24,13 @@ import {
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
 import { registerResolvedService } from './craft-register-for-runtime';
+import {
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+  rawReactiveValue,
+  type YieldableReactiveProperties,
+  type YieldableReactiveValue,
+} from './reactive-read';
 export {
   SERVICE_APP_START_REQUEST_MARKER,
   SERVICE_DEPENDENCY_ACCESS_MARKER,
@@ -52,7 +59,12 @@ import type {
   UnionToTuple,
 } from './craft-service.shared';
 import type { ServiceTrackedDepsRequest } from './craft-primitive-gen';
-import { markNamedReactiveProperties } from './yieldable';
+import {
+  markNamedReactiveProperties,
+  markYieldableMethod,
+  yieldableInvocation,
+  type Yieldable,
+} from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
@@ -227,7 +239,7 @@ type NormalizeProvidedInput<Args extends unknown[]> = Args extends []
 
 type ProvideArguments<ProvidedInput> = [ProvidedInput] extends [never]
   ? []
-  : [ProvidedInput];
+  : [PublicInputValue<ProvidedInput>];
 
 export type CraftServiceProvider =
   | Provider
@@ -483,8 +495,17 @@ type InputBindings<
 > = keyof Inputs extends never
   ? {}
   : {
-      [Key in keyof Inputs]: Inputs[Key] | AllowedProvidedElsewhere<Scope>;
+      [Key in keyof Inputs]: PublicInputValue<Inputs[Key]> |
+        AllowedProvidedElsewhere<Scope>;
     };
+
+type PublicInputValue<Value> = Value extends Yieldable<
+  [],
+  infer Resolved,
+  any
+>
+  ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
+  : Value;
 
 type PublicInputBindings<
   Inputs extends object,
@@ -2017,10 +2038,10 @@ type AbstractHelper<Name extends string, Contract> = {
   >;
 };
 
-export type AbstractServiceApi<Name extends string, Contract> = RequirementHelper<
-  Name,
-  Contract
-> &
+export type AbstractServiceApi<
+  Name extends string,
+  Contract,
+> = RequirementHelper<Name, Contract> &
   AbstractProvideHelper<Name, Contract> &
   AbstractHelper<Name, Contract>;
 
@@ -2324,10 +2345,69 @@ export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
   factory: () => new Map(),
 });
 
-export type MaybeSignal<T> = T | Signal<T>;
+/**
+ * A value supplied to a craft service factory.
+ *
+ * Service inputs are consumed as readers so a service can preserve the
+ * reactive-read edge of the value it was given:
+ *
+ * ```ts
+ * function* (inputs: { userId: CraftServiceInput<string> }) {
+ *   const userId = yield* inputs.userId();
+ *   // ...
+ * }
+ * ```
+ *
+ * The public service helper still accepts the resolved value, an Angular
+ * signal, or another Craft reader for this input.
+ */
+export type CraftServiceInput<Value, Yielded = unknown> = Yieldable<
+  [],
+  Value,
+  Yielded
+>;
+
+export type MaybeSignal<T> =
+  | T
+  | Signal<T>
+  | YieldableReactiveValue<T>
+  | CraftServiceInput<T>;
+
+const SERVICE_INPUT_SOURCE = Symbol('craft-service-input-source');
+
+type ServiceInputReader = CraftServiceInput<unknown> & {
+  readonly [SERVICE_INPUT_SOURCE]?: unknown;
+};
 
 export function toValue<T>(value: MaybeSignal<T>): T {
-  return isSignal(value) ? value() : value;
+  if (isServiceInputReader(value)) {
+    return resolveServiceInputSource(value[SERVICE_INPUT_SOURCE]) as T;
+  }
+  if (isYieldableReactiveValue(value)) {
+    return rawReactiveValue(value)() as T;
+  }
+  if (isSignal(value)) return value() as T;
+  return value as T;
+}
+
+function isServiceInputReader(value: unknown): value is ServiceInputReader {
+  return (
+    typeof value === 'function' &&
+    SERVICE_INPUT_SOURCE in value
+  );
+}
+
+function resolveServiceInputSource(value: unknown): unknown {
+  if (isYieldableReactiveValue(value)) {
+    return rawReactiveValue(value)();
+  }
+  if (isSignal(value)) {
+    return value();
+  }
+  if (typeof value === 'function') {
+    return value();
+  }
+  return value;
 }
 
 export function onAppStart(
@@ -2682,7 +2762,8 @@ export function toCraftService<
     browserBoundary: true;
   },
   adaptFactory: ((
-    dependency: DependencySourceOutput<Token>,
+    dependency: YieldableReactiveProperties<DependencySourceOutput<Token>> &
+      DependencySourceOutput<Token>,
     inputs: WithDependencyProvidedInput<Inputs, Provide>,
   ) => FactoryResult) &
     ValidateYieldedScope<
@@ -2725,7 +2806,8 @@ export function toCraftService<
     browserBoundary?: false;
   },
   adaptFactory: ((
-    dependency: DependencySourceOutput<Token>,
+    dependency: YieldableReactiveProperties<DependencySourceOutput<Token>> &
+      DependencySourceOutput<Token>,
     inputs: WithDependencyProvidedInput<Inputs, Provide>,
   ) => FactoryResult) &
     ValidateYieldedScope<
@@ -2780,6 +2862,8 @@ export function toCraftService(
           (inputs: Record<string, unknown>) => {
             const dependencyValue = adaptExternalDependencyValue(
               'inject' in options ? options.inject() : inject(options.token),
+              options.name,
+              true,
             );
 
             return adaptFactory(dependencyValue, inputs);
@@ -3162,6 +3246,7 @@ export function craftService(
     abstractApi[metaDataName] = abstractMetaData;
 
     attachServiceRuntimeMeta(abstractHelper, abstractMetaData);
+    attachServiceRuntimeMeta(abstractInjectHelper, abstractMetaData);
 
     REGISTERED_SERVICES.set(
       options.name,
@@ -3692,13 +3777,18 @@ function normalizeProvidedConfig(providedArgs: unknown[]): unknown {
   return providedArgs.length === 1 ? providedArgs[0] : providedArgs;
 }
 
-function adaptExternalDependencyValue<Value>(value: Value): Value {
+function adaptExternalDependencyValue<Value>(
+  value: Value,
+  dependencyName = 'externalDependency',
+  trackReactiveProperties = false,
+): Value {
   if (!isObjectLike(value)) {
     return value;
   }
 
   const target = value as object;
   const boundMethods = new Map<PropertyKey, unknown>();
+  const reactiveProperties = new Map<PropertyKey, unknown>();
 
   return new Proxy(target, {
     get(_proxyTarget, property) {
@@ -3712,6 +3802,23 @@ function adaptExternalDependencyValue<Value>(value: Value): Value {
         }
 
         return boundMethods.get(property);
+      }
+
+      if (
+        trackReactiveProperties &&
+        isSignal(entry) &&
+        !isYieldableReactiveValue(entry)
+      ) {
+        if (!reactiveProperties.has(property)) {
+          reactiveProperties.set(
+            property,
+            createYieldableReactiveValue(entry, `${dependencyName}.${String(property)}`, {
+              primitive: 'toCraftService',
+              path: `${dependencyName}.${String(property)}`,
+            }),
+          );
+        }
+        return reactiveProperties.get(property);
       }
 
       return entry;
@@ -3846,7 +3953,12 @@ function createConcreteServiceInstance(
     const bindings = omitInputs
       ? {}
       : (bindingsOverride ?? definition.initialBindings ?? {});
-    const inputs = createInputProxy(bindings, providedConfig, omitInputs);
+    const inputs = createInputProxy(
+      bindings,
+      providedConfig,
+      omitInputs,
+      definition.name,
+    );
     const wrappedFactory = injectFnWrapper()(definition.factory);
     const result =
       definition.factory.length > 0 ? wrappedFactory(inputs) : wrappedFactory();
@@ -3865,6 +3977,11 @@ function createConcreteServiceInstance(
         'craftService generators can only declare onAppStart(...) once.',
       createAppStartHook: (run) => () =>
         runAppStartCallback(run, scopedInjector, definition.scope),
+      reactiveReader: {
+        name: definition.name,
+        primitive: 'craftService',
+        path: `service:${definition.name}`,
+      },
     });
 
     if (resolved.appStartHook) {
@@ -3902,6 +4019,11 @@ function runAppStartCallback(
       'craftService generators can only declare onAppStart(...) once.',
     onAppStartNotSupportedErrorMessage:
       'onAppStart(...) generator callbacks cannot declare onAppStart(...) recursively.',
+    reactiveReader: {
+      name: `${hostScope}:appStart`,
+      primitive: 'craftService',
+      path: `appStart:${hostScope}`,
+    },
   }).value as AppStartResult;
 }
 
@@ -3909,6 +4031,7 @@ function createInputProxy(
   bindings: Record<string, unknown>,
   providedConfig?: unknown,
   allowMissing = false,
+  serviceName = 'craftService',
 ): Record<string, unknown> {
   const resolvedBindings =
     providedConfig === undefined
@@ -3937,9 +4060,52 @@ function createInputProxy(
         throw new Error(`Inputs Error, ${property} is not provided`);
       }
 
-      return value;
+      return isReactiveServiceInput(value)
+        ? createServiceInputReader(value, serviceName, property)
+        : value;
     },
   });
+}
+
+function isReactiveServiceInput(value: unknown): boolean {
+  return (
+    isSignal(value) ||
+    isYieldableReactiveValue(value) ||
+    typeof value === 'function'
+  );
+}
+
+function createServiceInputReader(
+  source: unknown,
+  serviceName: string,
+  property: string,
+): ServiceInputReader {
+  const reactiveSource =
+    isSignal(source) && !isYieldableReactiveValue(source)
+      ? createYieldableReactiveValue(source, `${serviceName}.${property}`, {
+          primitive: 'craftService',
+          path: `service:${serviceName}.input.${property}`,
+        })
+      : source;
+
+  const reader = markYieldableMethod((...args: unknown[]) => {
+    const value =
+      typeof reactiveSource === 'function'
+        ? (reactiveSource as (...args: unknown[]) => unknown)(...args)
+        : reactiveSource;
+
+    return isGenerator(value)
+      ? value
+      : yieldableInvocation<unknown, unknown>(value);
+  }) as unknown as ServiceInputReader;
+
+  Object.defineProperty(reader, SERVICE_INPUT_SOURCE, {
+    value: reactiveSource,
+    enumerable: false,
+    configurable: false,
+  });
+
+  return reader;
 }
 
 function resolveExposedService(

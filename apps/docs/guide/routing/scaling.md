@@ -35,7 +35,8 @@ cause is the overflowing check, not those routes.
 reads only the _current_ collection's metadata; it does **not** descend into `loadChildren`. So move
 the extra routes into their own `craftRoutes(...)` file and reference it via `loadChildren`. That
 keeps the parent file under budget — **but a child collection ships with _no_ DI checking unless you
-add one**, so re-declare the check in the child file to keep DI sound:
+add one**, so re-declare the check in the child file to keep DI sound. [Architecture
+tests](/guide/testing/architecture#assertroutediproofs) fail if that child proof is missing.
 
 ```ts
 // feature.routes.ts — its own lazy collection
@@ -192,7 +193,7 @@ export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
 ]).withParent<ParentRoutes<'view-transitions'>>();
 ```
 
-```ts
+```typescript
 // app.routes.ts — the parent enforces placement (scoped to this file)
 import { assertChildRouteMounts, craftRoutes } from '@craft-ng/core';
 
@@ -208,6 +209,8 @@ export const { demoRoutes } = craftRoutes('demo', [
 
 assertChildRouteMounts(demoRoutes);
 ```
+
+
 
 Mount the pinned collection under any other path and the **parent file** fails to compile:
 
@@ -255,4 +258,5 @@ resolves the child's pin through the existing `loadChildren` instead.
 ## See Also
 
 - [Setup](/guide/routing/setup)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` catches a split file with no check
 - [Route providers](/guide/routing/route-providers)

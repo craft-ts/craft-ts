@@ -18,6 +18,7 @@ import type {
   ComponentFieldExceptionsOf,
   CraftTemplate,
   ContentStylePolicy,
+  InputValue,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
 import type { CssVarContract, EmptyCssVarContract } from '../css-vars.type';
@@ -59,6 +60,7 @@ declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
 declare const CRAFT_NODE_HANDLED_EXCEPTIONS: unique symbol;
 declare const CRAFT_NODE_PENDING: unique symbol;
 declare const CRAFT_NODE_SETTLED_EXCEPTIONS: unique symbol;
+declare const CRAFT_NODE_HEADING_NEED: unique symbol;
 export declare const CRAFT_NODE_FIELD_EXCEPTIONS: unique symbol;
 
 let activeCraftRenderContext: unknown;
@@ -132,6 +134,28 @@ export type CraftNodePendingCarrier<Sources extends string = string> = {
 export type CraftNodeSettledExceptionsCarrier<Codes extends string = string> = {
   readonly [CRAFT_NODE_SETTLED_EXCEPTIONS]?: Codes;
 };
+
+/**
+ * Type-only carrier for a relative heading outline. `heading()` marks a
+ * subtree as needing a parent `headingSection` (or the route-level outline).
+ * `headingSection` absorbs that need for its children.
+ *
+ * `'heading'` is a local `heading()` in this template (allowed on the
+ * component that declares it). `'heading-from-child'` is a nested component
+ * that still exposes an uncovered heading — the parent must wrap that call in
+ * `headingSection`.
+ */
+export type CraftNodeHeadingNeedCarrier<Need extends string = never> = {
+  readonly [CRAFT_NODE_HEADING_NEED]?: Need;
+};
+
+export type ChildHeadingNeed = 'heading-from-child';
+
+export type RemapToChildHeadingNeed<Need> = [Need] extends [never]
+  ? never
+  : string extends Need
+    ? never
+    : ChildHeadingNeed;
 
 type UnionToIntersection<Union> = (
   Union extends any ? (value: Union) => void : never
@@ -284,6 +308,7 @@ export interface ElementNodeBase<
     CraftNodeSettledExceptionsCarrier<
       ElementNodeSettledExceptions<Props, Children, SettledExceptions>
     >,
+    CraftNodeHeadingNeedCarrier<CraftNodeChildrenHeadingNeed<Children>>,
     CraftNodeFieldExceptionsCarrier<
       FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>
     > {
@@ -596,6 +621,12 @@ export interface ComponentNode<
     CraftNodeSettledExceptionsCarrier<
       SettledExceptions | ContentSettledExceptionsFromProps<Props>
     >,
+    CraftNodeHeadingNeedCarrier<
+      RemapToChildHeadingNeed<
+        | ComponentHeadingNeedOf<Component>
+        | ContentHeadingNeedFromProps<Props>
+      >
+    >,
     CraftNodeFieldExceptionsCarrier<
       | ComponentFieldExceptionsOf<Component>
       | ContentFieldExceptionsFromProps<Props>
@@ -688,7 +719,8 @@ export interface FieldExceptionBlockNode<
 
 export interface MatchBlockNode<
   Dependencies extends object = {},
-  Source extends () => object | undefined = () => object | undefined,
+  Source extends ((...args: any[]) => unknown) | object =
+    () => object | undefined,
   Children extends CraftNodeChildren = CraftNodeChildren,
   HandledExceptions extends string = string,
 > extends CraftNodeDepsCarrier<Dependencies>,
@@ -722,6 +754,10 @@ export interface EachNode<
       | CraftNodeChildrenSettledExceptions<ItemChildren>
       | CraftNodeChildrenSettledExceptions<EmptyChildren>
     >,
+    CraftNodeHeadingNeedCarrier<
+      | CraftNodeChildrenHeadingNeed<ItemChildren>
+      | CraftNodeChildrenHeadingNeed<EmptyChildren>
+    >,
     CraftNodeFieldExceptionsCarrier<
       | CraftNodeChildrenRawFieldExceptions<ItemChildren>
       | CraftNodeChildrenRawFieldExceptions<EmptyChildren>
@@ -736,7 +772,7 @@ export interface EachNode<
   readonly sourceName?: SourceName;
   readonly track: (item: Item, index: number) => Key;
   readonly empty?: () => EmptyChildren;
-  readonly itemTemplate: (item: Item, index: number) => ItemChildren;
+  readonly itemTemplate: (item: InputValue<Item>, index: number) => ItemChildren;
 }
 
 export interface IfBlockNode<
@@ -756,6 +792,10 @@ export interface IfBlockNode<
       | CraftNodeChildrenSettledExceptions<TrueChildren>
       | CraftNodeChildrenSettledExceptions<FalseChildren>
     >,
+    CraftNodeHeadingNeedCarrier<
+      | CraftNodeChildrenHeadingNeed<TrueChildren>
+      | CraftNodeChildrenHeadingNeed<FalseChildren>
+    >,
     CraftNodeFieldExceptionsCarrier<
       | CraftNodeChildrenRawFieldExceptions<TrueChildren>
       | CraftNodeChildrenRawFieldExceptions<FalseChildren>
@@ -765,6 +805,61 @@ export interface IfBlockNode<
   readonly conditionName: ConditionName;
   readonly whenTrue: () => TrueChildren;
   readonly whenFalse?: () => FalseChildren;
+}
+
+/**
+ * Relative heading. The runtime picks `h1`–`h6` from the current outline
+ * level. The node brands the subtree as needing a parent outline.
+ */
+export interface HeadingNode<
+  Dependencies extends object = {},
+  Children extends CraftNodeChildren = CraftNodeChildren,
+  Props extends object = Readonly<Record<string, unknown>>,
+  Need extends string = never,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
+    CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
+    CraftNodeSettledExceptionsCarrier<
+      CraftNodeChildrenSettledExceptions<Children>
+    >,
+    CraftNodeHeadingNeedCarrier<Need>,
+    CraftNodeFieldExceptionsCarrier<
+      CraftNodeChildrenRawFieldExceptions<Children>
+    > {
+  readonly kind: 'heading';
+  readonly props: Props;
+  readonly children: Children;
+  readonly pipe: CraftNodePipe<
+    Dependencies,
+    CraftNodeChildrenExceptions<Children>,
+    CraftNodeChildrenRawFieldExceptions<Children>,
+    CraftNodeChildrenPendingSources<Children>,
+    CraftNodeChildrenSettledExceptions<Children>
+  >;
+}
+
+/**
+ * Increments the heading outline for its subtree without a DOM wrapper.
+ * Absorbs children's heading need — the parent established the outline.
+ * `reset: true` (`headingRoot`) starts the outline at level 1 instead of
+ * incrementing — used by route pages and skip-link shells.
+ */
+export interface HeadingSectionNode<
+  Dependencies extends object = {},
+  Children extends CraftNodeChildren = CraftNodeChildren,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
+    CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
+    CraftNodeSettledExceptionsCarrier<
+      CraftNodeChildrenSettledExceptions<Children>
+    >,
+    CraftNodeHeadingNeedCarrier<never>,
+    CraftNodeFieldExceptionsCarrier<
+      CraftNodeChildrenRawFieldExceptions<Children>
+    > {
+  readonly kind: 'heading-section';
+  readonly reset?: boolean;
+  readonly children: Children;
 }
 
 export type DeferTrigger = 'immediate' | 'idle' | 'viewport' | 'interaction';
@@ -779,6 +874,7 @@ export interface DeferNode<
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
     >,
+    CraftNodeHeadingNeedCarrier<CraftNodeChildrenHeadingNeed<Children>>,
     CraftNodeFieldExceptionsCarrier<
       CraftNodeChildrenRawFieldExceptions<Children>
     > {
@@ -831,6 +927,8 @@ export type CraftNode =
   | CraftDirectiveNode<any>
   | EachNode<any, any, any, any, any, any>
   | IfBlockNode<any, any, any, any>
+  | HeadingNode<any, any, any>
+  | HeadingSectionNode<any, any>
   | DeferNode<any, any, any>
   | CatchBlockNode<any, any>
   | PendingBlockNode<any, any, any, any>
@@ -880,6 +978,23 @@ export type ContentPendingSourcesFromProps<Props extends object> =
 /** Settled exceptions reachable through content a caller projects in. */
 export type ContentSettledExceptionsFromProps<Props extends object> =
   CraftNodeChildrenSettledExceptions<ContentChildrenFromProps<Props>>;
+
+export type ContentHeadingNeedFromProps<Props extends object> =
+  CraftNodeChildrenHeadingNeed<ContentChildrenFromProps<Props>>;
+
+export type ComponentHeadingNeedOf<Component> = Component extends CraftComponent<
+  any,
+  any,
+  any,
+  any,
+  any,
+  any,
+  infer Template
+>
+  ? Template extends (...args: any[]) => infer Output
+    ? CraftNodeChildrenHeadingNeed<Output>
+    : never
+  : never;
 
 export interface ProjectionNode<
   Dependencies extends object = {},
@@ -988,6 +1103,21 @@ export type CraftNodeChildrenSettledExceptions<Value> = Value extends unknown
     : CraftNodeDirectSettledExceptions<Value>
   : never;
 
+type CraftNodeDirectHeadingNeed<Value> =
+  IsAny<Value> extends true
+    ? never
+    : Value extends CraftNodeHeadingNeedCarrier<infer Need>
+      ? string extends Need
+        ? never
+        : Need
+      : never;
+
+export type CraftNodeChildrenHeadingNeed<Value> = Value extends unknown
+  ? Value extends readonly (infer Child)[]
+    ? CraftNodeDirectHeadingNeed<Child>
+    : CraftNodeDirectHeadingNeed<Value>
+  : never;
+
 type CraftNodeDirectFieldExceptions<Value> =
   IsAny<Value> extends true
     ? never
@@ -1081,6 +1211,8 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'directive' ||
     value.kind === 'each' ||
     value.kind === 'if' ||
+    value.kind === 'heading' ||
+    value.kind === 'heading-section' ||
     value.kind === 'defer' ||
     value.kind === 'catch-block' ||
     value.kind === 'pending-block' ||

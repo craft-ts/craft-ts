@@ -12,6 +12,51 @@ import {
 import { ResourceByIdRef } from './resource-by-id';
 import { reactOnMutationEffect } from './util/react-on-mutation-effect';
 import { InternalType } from './util/types/util.type';
+import {
+  rawReactiveFacade,
+  type YieldableReactiveSignal,
+  type YieldableReactiveValue,
+} from './reactive-read';
+
+type PublicMutation = {
+  readonly kind: 'mutation';
+  readonly resourceParamsSrc: YieldableReactiveValue<any>;
+  readonly value?: YieldableReactiveValue<any>;
+  readonly mutate?: (...args: any[]) => unknown;
+  readonly select?: (...args: any[]) => unknown;
+};
+
+type PublicMutationState<Mutation> = Mutation extends {
+  readonly value: YieldableReactiveValue<infer Value>;
+}
+  ? Exclude<Value, undefined>
+  : Mutation extends {
+        readonly select: (...args: any[]) => infer Selected;
+      }
+    ? NonNullable<Selected> extends {
+        readonly value: YieldableReactiveValue<infer Value>;
+      }
+      ? Exclude<Value, undefined>
+      : unknown
+    : unknown;
+
+type PublicMutationParams<Mutation> = Mutation extends {
+  readonly resourceParamsSrc: YieldableReactiveValue<infer Params>;
+}
+  ? Exclude<Params, undefined>
+  : unknown;
+
+type PublicMutationArgs<Mutation> = Mutation extends {
+  readonly mutate: (args: infer Args) => unknown;
+}
+  ? Args
+  : PublicMutationParams<Mutation>;
+
+type PublicMutationIdentifier<Mutation> = Mutation extends {
+  readonly select: (identifier: infer Identifier) => unknown;
+}
+  ? Identifier
+  : unknown;
 
 /**
  * Creates an insertion function that makes a query react to mutation state changes.
@@ -46,7 +91,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Basic optimistic update with patch
  * ```ts
- * const updateUserMutation = craftUse(mutation({
+ * const updateUserMutation = yield* mutation({
  *   method: (data: { id: string; name: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.id}`, {
@@ -57,7 +102,7 @@ import { InternalType } from './util/types/util.type';
  *   },
  * }));
  *
- * const userQuery = craftUse(query(
+ * const userQuery = yield* query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -78,7 +123,7 @@ import { InternalType } from './util/types/util.type';
  * ));
  *
  * // When mutation is triggered, query updates immediately (optimistic)
- * updateUserMutation.mutate({ id: '123', name: 'New Name' });
+ * yield* updateUserMutation.mutate({ id: '123', name: 'New Name' });
  * // userQuery.value().name is now 'New Name' (optimistic)
  *
  * // When mutation completes, patch confirms the change
@@ -88,7 +133,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Full state update on mutation completion
  * ```ts
- * const deleteTodoMutation = craftUse(mutation({
+ * const deleteTodoMutation = yield* mutation({
  *   method: (todoId: string) => ({ todoId }),
  *   loader: async ({ params }) => {
  *     await fetch(`/api/todos/${params.todoId}`, { method: 'DELETE' });
@@ -96,7 +141,7 @@ import { InternalType } from './util/types/util.type';
  *   },
  * }));
  *
- * const todosQuery = craftUse(query(
+ * const todosQuery = yield* query(
  *   {
  *     params: () => ({}),
  *     loader: async () => {
@@ -122,7 +167,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Reload query after mutation
  * ```ts
- * const createPostMutation = craftUse(mutation({
+ * const createPostMutation = yield* mutation({
  *   method: (data: { title: string; content: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/posts', {
@@ -133,7 +178,7 @@ import { InternalType } from './util/types/util.type';
  *   },
  * }));
  *
- * const postsQuery = craftUse(query(
+ * const postsQuery = yield* query(
  *   {
  *     params: () => ({ page: 1 }),
  *     loader: async ({ params }) => {
@@ -150,13 +195,13 @@ import { InternalType } from './util/types/util.type';
  * ));
  *
  * // When mutation completes, postsQuery automatically reloads
- * createPostMutation.mutate({ title: 'New Post', content: 'Content' });
+ * yield* createPostMutation.mutate({ title: 'New Post', content: 'Content' });
  * ```
  *
  * @example
  * Filtered updates with identifiers
  * ```ts
- * const updatePostMutation = craftUse(mutation({
+ * const updatePostMutation = yield* mutation({
  *   method: (data: { postId: string; title: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/posts/${params.postId}`, {
@@ -167,7 +212,7 @@ import { InternalType } from './util/types/util.type';
  *   },
  * }));
  *
- * const postsQuery = craftUse(query(
+ * const postsQuery = yield* query(
  *   {
  *     params: () => currentPostId(),
  *     identifier: (params) => params, // params is the postId
@@ -187,7 +232,7 @@ import { InternalType } from './util/types/util.type';
  * ));
  *
  * // Only the query instance for post '123' will be updated
- * updatePostMutation.mutate({ postId: '123', title: 'Updated Title' });
+ * yield* updatePostMutation.mutate({ postId: '123', title: 'Updated Title' });
  * console.log(postsQuery.select('123')?.value()?.title); // 'Updated Title'
  * console.log(postsQuery.select('456')?.value()?.title); // unchanged
  * ```
@@ -195,7 +240,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Complex nested field updates
  * ```ts
- * const updateUserProfileMutation = craftUse(mutation({
+ * const updateUserProfileMutation = yield* mutation({
  *   method: (data: { userId: string; profile: { bio: string; avatar: string } }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}/profile`, {
@@ -206,7 +251,7 @@ import { InternalType } from './util/types/util.type';
  *   },
  * }));
  *
- * const userQuery = craftUse(query(
+ * const userQuery = yield* query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -223,7 +268,7 @@ import { InternalType } from './util/types/util.type';
  * ));
  *
  * // Nested fields are updated optimistically
- * updateUserProfileMutation.mutate({
+ * yield* updateUserProfileMutation.mutate({
  *   userId: '123',
  *   profile: { bio: 'New bio', avatar: 'new-avatar.jpg' }
  * });
@@ -237,36 +282,24 @@ export function insertReactOnMutation<
   QuerySourceParams,
   QueryGroupIdentifier,
   QueryInsertions,
-  MutationResourceState,
-  MutationResourceParams,
-  MutationResourceArgsParams,
-  MutationIsMethod,
-  MutationSourceParams,
-  MutationGroupIdentifier,
-  MutationInsertions,
-  MutationExceptions extends ResourceExceptionConstraints,
-  QueryExceptions extends ResourceExceptionConstraints,
+  Mutation extends PublicMutation,
+  MutationResourceState = PublicMutationState<Mutation>,
+  MutationResourceParams = PublicMutationParams<Mutation>,
+  MutationResourceArgsParams = PublicMutationArgs<Mutation>,
+  MutationIsMethod = Mutation extends {
+    readonly mutate: (...args: any[]) => unknown;
+  }
+    ? true
+    : false,
+  MutationSourceParams = unknown,
+  MutationGroupIdentifier = PublicMutationIdentifier<Mutation>,
+  MutationInsertions = unknown,
+  MutationExceptions extends
+    ResourceExceptionConstraints = ResourceExceptionConstraints,
+  QueryExceptions extends
+    ResourceExceptionConstraints = ResourceExceptionConstraints,
 >(
-  mutation:
-    | ResourceLikeMutationRef<
-        MutationResourceState,
-        MutationResourceParams,
-        MutationIsMethod,
-        MutationResourceArgsParams,
-        MutationSourceParams,
-        MutationInsertions,
-        MutationExceptions
-      >
-    | ResourceByIdLikeMutationRef<
-        MutationResourceState,
-        MutationResourceParams,
-        MutationIsMethod,
-        MutationResourceArgsParams,
-        MutationSourceParams,
-        MutationInsertions,
-        MutationGroupIdentifier,
-        MutationExceptions
-      >,
+  mutation: Mutation,
   mutationEffectOptions: QueryDeclarativeEffect<{
     query: InternalType<
       NoInfer<QueryResourceState>,
@@ -302,12 +335,18 @@ export function insertReactOnMutation<
         >
       | {
           // ! avoid to use InsertionByIdParams it is broking the typing inference
-          resourceById: ResourceByIdRef<
-            QueryGroupIdentifier & string,
-            QueryResourceState,
-            QueryResourceParams
+          resourceById: YieldableReactiveSignal<
+            ResourceByIdRef<
+              QueryGroupIdentifier & string,
+              QueryResourceState,
+              QueryResourceParams
+            >,
+            'resourceById'
           >;
-          resourceParamsSrc: WritableSignal<QueryResourceParams | undefined>;
+          resourceParamsSrc: YieldableReactiveSignal<
+            WritableSignal<QueryResourceParams | undefined>,
+            'resourceParamsSrc'
+          >;
           identifier: (
             params: NonNullable<QueryResourceParams>,
           ) => QueryGroupIdentifier;
@@ -318,9 +357,9 @@ export function insertReactOnMutation<
   ) => {
     return reactOnMutationEffect(
       {
-        queryTargeted: ('resource' in context
-          ? context.resource
-          : context.resourceById) as unknown as
+        queryTargeted: rawReactiveFacade(
+          'resource' in context ? context.resource : context.resourceById,
+        ) as unknown as
           | ResourceLikeQueryRef<
               QueryResourceState,
               QueryResourceParams,
@@ -340,7 +379,26 @@ export function insertReactOnMutation<
               QueryGroupIdentifier,
               QueryExceptions
             >,
-        mutationTargeted: mutation,
+        mutationTargeted: rawReactiveFacade(mutation) as unknown as
+          | ResourceLikeMutationRef<
+              MutationResourceState,
+              MutationResourceParams,
+              MutationIsMethod,
+              MutationResourceArgsParams,
+              MutationSourceParams,
+              MutationInsertions,
+              MutationExceptions
+            >
+          | ResourceByIdLikeMutationRef<
+              MutationResourceState,
+              MutationResourceParams,
+              MutationIsMethod,
+              MutationResourceArgsParams,
+              MutationSourceParams,
+              MutationInsertions,
+              MutationGroupIdentifier,
+              MutationExceptions
+            >,
       },
       mutationEffectOptions,
     );

@@ -6,7 +6,6 @@ import {
   div,
   each,
   footer,
-  h2,
   ifBlock,
   li,
   p,
@@ -20,9 +19,11 @@ import {
   type ProjectionOf,
   type ProjectionSlot,
   type RequiredContent,
+  heading,
+  headingSection,
 } from '@craft-ng/component';
 import type { Input } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -44,7 +45,7 @@ const userBadge = craftComponent(
   'userBadge',
   {},
   (role: Input<string>) => ({ role }),
-  ({ role }) => span({ class: 'projection-demo__badge' }, role()),
+  ({ role }) => span({ class: 'projection-demo__badge' }, role),
 );
 
 type ToolbarActionContract = {
@@ -134,7 +135,7 @@ const card = craftComponent(
     header:
       input.header ??
       content(() =>
-        h2({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
+        heading({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
       ),
     body: input.body,
   }),
@@ -151,7 +152,11 @@ const userRow = craftTemplate<{
 }>(({ $implicit: user, index }) =>
   li({ class: 'projection-demo__row' }, [
     span(`${index + 1}. ${user.name}`),
-    userBadge({ role: () => user.role }),
+    userBadge({
+      role: function* () {
+        return user.role;
+      },
+    }),
   ]),
 );
 
@@ -169,7 +174,12 @@ export const contentProjectionDemo = craftComponent(
     const lastAction = yield* state(
       'lastAction',
       'Aucune action déclenchée.',
-      ({ set }) => ({ record: (label: string) => set(label) }),
+      ({ state, set }) => ({
+        record: (label: string) => set(label),
+        lastActionLabel: craftComputed('lastActionLabel', function* () {
+          return `Dernière action : ${yield* state()}`;
+        }),
+      }),
     );
     const users = [
       { id: 1, name: 'Ada Lovelace', role: 'Pionnière des algorithmes' },
@@ -182,6 +192,7 @@ export const contentProjectionDemo = craftComponent(
       showToolbar,
       dialogOpen,
       lastAction,
+      lastActionLabel: lastAction.lastActionLabel,
       toggleToolbar: showToolbar.toggle,
       openDialog: dialogOpen.open,
       closeDialog: dialogOpen.close,
@@ -192,19 +203,20 @@ export const contentProjectionDemo = craftComponent(
     users,
     showToolbar,
     dialogOpen,
-    lastAction,
+    lastActionLabel,
     toggleToolbar,
     openDialog,
     closeDialog,
     recordAction,
   }) =>
     section({ class: 'component-demo projection-demo' }, [
-      h2('Projection de contenu et contrats logiques'),
-      p(
-        'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
-      ),
+      heading('Projection de contenu et contrats logiques'),
+      headingSection([
+        p(
+          'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
+        ),
       card({
-        header: content(() => h2('Slot header fourni par la page')),
+        header: content(() => heading('Slot header fourni par la page')),
         body: content(
           () => [
             p(
@@ -214,7 +226,10 @@ export const contentProjectionDemo = craftComponent(
             ul(
               { class: 'projection-demo__list' },
               each(users, { track: (user) => user.id }, (user, index) =>
-                renderTemplate(userRow, { $implicit: user, index }),
+                renderTemplate(userRow, {
+                  $implicit: user,
+                  index,
+                }),
               ),
             ),
           ],
@@ -229,14 +244,11 @@ export const contentProjectionDemo = craftComponent(
           ),
       }),
       section({ class: 'projection-demo__case' }, [
-        h2('Projection logique et collection keyée'),
+        heading('Projection logique et collection keyée'),
         p(
           'ToolbarAction expose un contract. Toolbar reçoit une collection explicite, la rend avec renderContent() et la réconcilie par key.',
         ),
-        p(
-          { class: 'projection-demo__status' },
-          () => `Dernière action : ${lastAction()}`,
-        ),
+        p({ class: 'projection-demo__status' }, lastActionLabel),
         button(
           {
             class: 'projection-demo__toggle',
@@ -295,7 +307,7 @@ export const contentProjectionDemo = craftComponent(
           dialog({
             body: content(() =>
               div([
-                h2('Dialog avec contenu optionnel'),
+                heading('Dialog avec contenu optionnel'),
                 p(
                   'Le corps est un ContentSlot libre, les actions sont contractuelles.',
                 ),
@@ -319,5 +331,6 @@ export const contentProjectionDemo = craftComponent(
           }),
         () => [],
       ),
+      ]),
     ]),
 );

@@ -17,10 +17,28 @@ check and the test registers read.
 import { craftService } from '@craft-ng/core';
 ```
 
-::: warning API still moving
-This API will be aligned with the others — made yieldable, so `source$` is
-tracked as a dependency.
-:::
+Service inputs that can change should be consumed as yieldable readers
+(`CraftServiceInput<T>`), the service counterpart of a component `Input<T>`.
+Yield them so the input-to-service edge stays in the dependency graph:
+
+```typescript
+import { craftService, query, type CraftServiceInput } from '@craft-ng/core';
+
+const { UserQuery } = craftService(
+  { name: 'UserQuery', scope: 'global' },
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
+    query('userQuery', {
+      params: function* () {
+        return yield* inputs.userId();
+      },
+      loader: ({ params }) => ApiService.getItemById(params),
+    }),
+);
+```
+
+The call site still accepts a resolved value, an Angular signal, or a Craft
+reader — the service boundary adapts it into that reader. Inside the factory,
+always `yield* inputs.x()`.
 
 ## What you get
 
@@ -53,29 +71,8 @@ Each scope and when to pick it: **[Service scopes](/guide/app/service-scopes)**.
 
 ## The common case
 
-```typescript
-import { craftService, state } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/craft-service/example-3.spec.ts#example-3
 
-const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
-  function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
-      increment: () => update((value) => value + 1),
-      decrement: () => update((value) => value - 1),
-    }));
-    return counter;
-  },
-);
-
-const { CounterConsumer } = craftService(
-  { name: 'CounterConsumer', scope: 'global' },
-  function* () {
-    const counter = yield* Counter();
-    counter.increment();
-    return counter;
-  },
-);
-```
 
 ## Returning one primitive directly
 
@@ -84,13 +81,19 @@ directly. `craftService` drives it and the generated service helper returns the
 primitive reference:
 
 ```typescript
-import { craftService, query } from '@craft-ng/core';
+import {
+  craftService,
+  query,
+  type CraftServiceInput,
+} from '@craft-ng/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
-  (inputs: { userId: () => string | undefined }) =>
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     query('userQuery', {
-      params: inputs.userId,
+      params: function* () {
+        return yield* inputs.userId();
+      },
       loader: ({ params }) => ApiService.getItemById(params),
     }),
 );
@@ -105,14 +108,17 @@ import {
   craftYieldRecord,
   query,
   state,
+  type CraftServiceInput,
 } from '@craft-ng/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQueryWithState', scope: 'global' },
-  (inputs: { userId: () => string | undefined }) =>
+  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     craftYieldRecord({
       userQuery: query('userQuery', {
-        params: inputs.userId,
+        params: function* () {
+          return yield* inputs.userId();
+        },
         loader: ({ params }) => ApiService.getItemById(params),
       }),
       refresh: state('refresh', 0, ({ update }) => ({
@@ -154,29 +160,8 @@ This is separate from `provideUserFacade()`, which is only generated for provide
 
 ## Composing services
 
-```typescript
-const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
-  function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
-      increment: () => update((value) => value + 1),
-    }));
-    return counter;
-  },
-);
+<<< @/tests/snippets/guide/app/craft-service/example-7.spec.ts#example-7
 
-const { CounterFacade } = craftService(
-  { name: 'CounterFacade', scope: 'global' },
-  function* () {
-    const counter = yield* Counter();
-
-    return {
-      read: () => counter(),
-      increment: () => counter.increment(),
-    };
-  },
-);
-```
 
 ## Shaping the public API
 
@@ -194,40 +179,8 @@ single one. See **[Shaping a service's public API](/guide/app/expose-api)**.
 
 The callback can be a plain function or a generator function. Use the generator form when startup logic needs to `yield*` crafted dependencies:
 
-```typescript
-import { Console, craftService, onAppStart } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/craft-service/appconfig.spec.ts#appconfig
 
-const { AppStartLog } = craftService(
-  {
-    name: 'AppStartLog',
-    scope: 'global',
-    appStart: true,
-  },
-  function* () {
-    yield* onAppStart(function* () {
-      yield* Console.log('startup log');
-      return Promise.resolve();
-    });
-
-    return true;
-  },
-);
-
-// register the current service to the AppStartRegistry
-// it is auto-generated when used with the craft-ng ESLint plugin
-declare module '@craft-ng/core' {
-  interface CraftAppStartRegistry {
-    AppStartLog: typeof AppStartLog;
-  }
-}
-
-// inside craftAppConfig
-export const appConfig = craftAppConfig({
-  appStart: {
-    AppStartLog,
-  },
-});
-```
 
 Dependencies used only inside that callback are still tracked on the parent service.
 
@@ -240,6 +193,9 @@ whole app, whether or not that was intended. Start at `function` — see
 **`toProvide` without the provider.** Angular does not report a missing provider
 at compile time; the failure appears at runtime. The
 [route DI check](/guide/routing/setup) is what closes that hole.
+[Architecture tests](/guide/testing/architecture#assertroutediproofs) keep that
+check from quietly disappearing — a `CanRun` alias that nobody references still
+compiles.
 
 **Returning the whole world.** What a service returns is its API. Return the
 narrow thing; consumers that need more can yield more.

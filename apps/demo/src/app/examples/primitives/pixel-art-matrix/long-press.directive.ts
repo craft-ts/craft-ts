@@ -1,21 +1,16 @@
+import { DestroyRef } from '@angular/core';
 import {
-  craftDirective,
-  type HostRequiredLogic,
-  type HostTemplate,
-  type Input,
-  type YieldableTemplateContext,
-} from '@craft-ng/component';
+  CRAFT_TEMPORAL_RUNTIME,
+  craftNodeDirective,
+  executeYieldable,
+  type TemporalTaskHandle,
+} from '@craft-ng/core';
 
-type PressHandlers = {
-  start: (event: PointerEvent) => void;
-  end: () => void;
-  click: (event: MouseEvent) => void;
-};
+export const LONG_PRESS_DURATION_MS = 450;
 
-type LongPressContext = {
-  longPressDuration: Input<number>;
-  onLongPress: Input<(event: PointerEvent) => void>;
-  press: PressHandlers;
+type LongPressProps = {
+  readonly longPressDuration: number;
+  readonly onLongPress: (event: PointerEvent) => unknown;
 };
 
 /**
@@ -23,62 +18,93 @@ type LongPressContext = {
  * `longPressDuration` ms, and swallows the click that ends the press so the
  * host's own click handler does not fire on release.
  */
-export const longPress = craftDirective(
+export const longPress = craftNodeDirective<LongPressProps>(
   'longPress',
-  {},
-  (baseLogic: HostRequiredLogic<Record<never, never>>) =>
-    (
-      longPressDuration: Input<number>,
-      onLongPress: Input<(event: PointerEvent) => void>,
-    ) => {
+  ['longPressDuration', 'onLongPress'],
+  (context) => {
+    const temporalRuntime = context.injector.get(CRAFT_TEMPORAL_RUNTIME);
+    const destroyRef = context.injector.get(DestroyRef);
+    let timer: TemporalTaskHandle | null = null;
+    let suppressClickOnce = false;
+    let longPressTriggered = false;
 
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let suppressClickOnce = false;
-      let longPressTriggered = false;
+    const cancelTimer = () => {
+      timer?.cancel();
+      timer = null;
+    };
 
-      const end = () => {
-        if (timer === null) {
-          return;
-        }
-        clearTimeout(timer);
-        timer = null;
-      };
+    const durationMs = () => {
+      const value = context.props.longPressDuration;
+      const resolved =
+        typeof value === 'function'
+          ? executeYieldable(value as () => number, [], context.injector)
+          : value;
+      return typeof resolved === 'number' ? resolved : LONG_PRESS_DURATION_MS;
+    };
 
-      const press: PressHandlers = {
-        start: (event) => {
-          end();
-          longPressTriggered = false;
-          suppressClickOnce = false;
-
-          timer = setTimeout(() => {
-            longPressTriggered = true;
-            suppressClickOnce = true;
-            onLongPress()(event);
-          }, longPressDuration());
-        },
-        end,
-        click: (event) => {
-          if (!suppressClickOnce && !longPressTriggered) {
-            return;
+    const start = (event: Event) => {
+      cancelTimer();
+      longPressTriggered = false;
+      suppressClickOnce = false;
+      timer = temporalRuntime.schedule(
+        () => {
+          timer = null;
+          longPressTriggered = true;
+          suppressClickOnce = true;
+          const handler = context.props.onLongPress;
+          if (typeof handler === 'function') {
+            executeYieldable(handler, [event as PointerEvent], context.injector);
           }
-
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          suppressClickOnce = false;
-          longPressTriggered = false;
         },
-      };
+        durationMs(),
+        {
+          kind: 'long-press',
+          owner: 'longPress',
+          destroyRef,
+        },
+      );
+    };
 
-      return { ...baseLogic(), longPressDuration, onLongPress, press };
-    },
+    const suppressClick = (event: Event) => {
+      if (!suppressClickOnce && !longPressTriggered) {
+        return;
+      }
 
-  (baseTemplate: HostTemplate<LongPressContext>) =>
-    (context: YieldableTemplateContext<LongPressContext>) =>
-      baseTemplate(context, {
-        pointerdown: context.press.start,
-        pointerup: context.press.end,
-        pointercancel: context.press.end,
-        pointerleave: context.press.end,
-        click: context.press.click,
-      }),
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      suppressClickOnce = false;
+      longPressTriggered = false;
+    };
+
+    const unlistenStart = context.renderer.listen(
+      context.element,
+      'pointerdown',
+      start,
+    );
+    const unlistenEnd = context.renderer.listen(
+      context.element,
+      'pointerup',
+      cancelTimer,
+    );
+    const unlistenCancel = context.renderer.listen(
+      context.element,
+      'pointercancel',
+      cancelTimer,
+    );
+    const unlistenLeave = context.renderer.listen(
+      context.element,
+      'pointerleave',
+      cancelTimer,
+    );
+    context.element.addEventListener('click', suppressClick, true);
+
+    return () => {
+      cancelTimer();
+      unlistenStart();
+      unlistenEnd();
+      unlistenCancel();
+      unlistenLeave();
+      context.element.removeEventListener('click', suppressClick, true);
+    };
+  },
 );

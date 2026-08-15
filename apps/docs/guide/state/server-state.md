@@ -10,12 +10,14 @@ run a one-off async action that isn't a fetch
 
 ::: warning One source of truth
 Don't copy a query's result into a `state`. The query _is_ the state.
+Don't reload it from a `craftEffect` either — put the inputs in `params` so
+the loader re-runs when they change.
 :::
 
 ## The common case
 
 ```typescript
-import { CraftHttpClient, query } from '@craft-ng/core';
+import { CraftHttpClient, craftComputed, craftUse, query, settled } from '@craft-ng/core';
 
 const { userQuery } =
   yield *
@@ -44,6 +46,25 @@ userQuery.exception(); // craftException | undefined
 `value()` is safe to read in templates and computed signals: it returns
 `undefined` when the query has no resolved value.
 :::
+
+## Reading only settled data
+
+Use `settledValue` when a template or derived computation requires a real
+value. It suspends to the nearest `pendingBlock` while the first value is
+unavailable, propagates query exceptions to a `catchBlock`, and keeps the
+previous value during a reload.
+
+```typescript
+const userName = craftComputed('userName', function* () {
+  return (yield* settled(userQuery)).name;
+});
+
+const user = craftUse(userQuery.settledValue());
+```
+
+Insertion contexts keep the existing fallback behaviour of `state()`. Use
+`settledState()` when `yield*` (or `craftUse`) should return a non-nullable
+value and suspend until the current resource is available.
 
 ## Triggering it yourself
 
@@ -86,12 +107,16 @@ const { todosQuery } =
         (await fetch(`/api/todos?completed=${params.completed}`)).json(),
     },
     ({ value, isLoading }) => ({
-      count: computed(() => value()?.length ?? 0),
-      isEmpty: computed(() => !isLoading() && value()?.length === 0),
+      count: craftComputed(function* () {
+        return (yield* value())?.length ?? 0;
+      }),
+      isEmpty: craftComputed(function* () {
+        return !(yield* isLoading()) && (yield* value())?.length === 0;
+      }),
     }),
   );
 
-todosQuery.count();
+yield* todosQuery.count();
 ```
 
 An insertion can also be a `function*` when it needs to yield services.
@@ -127,17 +152,20 @@ const { usersQuery } =
       },
     },
     insertQuerySelect('user', ({ state }) => ({
-      displayName: computed(() => `${state().firstName} ${state().lastName}`),
-      roleLabel: computed(() =>
-        state().role === 'admin' ? 'Administrator' : 'Member',
-      ),
+      displayName: craftComputed(function* () {
+        const user = yield* state();
+        return `${user.firstName} ${user.lastName}`;
+      }),
+      roleLabel: craftComputed(function* () {
+        return (yield* state()).role === 'admin' ? 'Administrator' : 'Member';
+      }),
     })),
   );
 
 // `selectUser` targets one item in the returned array.
 const firstUser = usersQuery.selectUser(0);
-firstUser?.displayName(); // 'Ada Lovelace'
-firstUser?.roleLabel(); // 'Administrator'
+yield* firstUser?.displayName(); // 'Ada Lovelace'
+yield* firstUser?.roleLabel(); // 'Administrator'
 ```
 
 The same pattern supports selecting a nested object property with
@@ -192,10 +220,10 @@ const userQuery = yield* query(
         // and go get the truth back if the mutation failed
         reload: { onMutationException: true },
       }),
-      insertStoragePersister({
+      insertStoragePersister(craftUnique({
         storeName: 'demo-app',
         key: 'user-query',
-      }),
+      })),
     ),
 );
 ```
@@ -341,6 +369,15 @@ const { userQuery } =
   );
 ```
 
+:::
+
+::: tip Advanced — injectable writes
+Insertion methods provide `injectQueryMethodRuntimeContext()`, and the query
+value itself is published to `providePrimitiveResourceRuntimeObserver`. Both
+expose `get`, `set`, `update`, and `patch`, so wrappers, WebMCP tools, and
+other advanced patterns can seed or replace a result without going through the
+insertion callback. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
 :::
 
 ## See Also

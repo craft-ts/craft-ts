@@ -4,8 +4,12 @@ import {
   type CraftGenExceptionMarker,
 } from './craft-gen';
 import type { AnyCraftException } from './craft-exception';
-import type { ResourceLike } from './craft-until-settled';
 import type { CraftResourceStatus } from './util/craft-resource-status';
+import type {
+  ReactiveReadRequest,
+  YieldableReactiveValue,
+} from './reactive-read';
+import { createYieldableReactiveValue } from './reactive-read';
 
 const CRAFT_NOT_SETTLED = Symbol('craft-not-settled');
 
@@ -79,6 +83,23 @@ export type CraftSettledSignal<
   Exceptions = never,
 > = Signal<Value> & CraftSettledBrand<Source, Exceptions>;
 
+/** Type-only yields carried by a direct settled reader in a generator. */
+export type CraftSettledReadMarkers<Source extends string, Exceptions> =
+  | CraftPendingMarker<Source>
+  | CraftGenExceptionMarker<Exceptions>;
+
+/** A settled reader that can be consumed directly with `yield* reader()`. */
+export type CraftSettledYieldableValue<
+  Value,
+  Source extends string = string,
+  Exceptions = never,
+> = YieldableReactiveValue<
+  Value,
+  'settledState',
+  CraftSettledReadMarkers<Source, Exceptions>
+> &
+  CraftSettledBrand<Source, Exceptions>;
+
 /** The async source names a value depends on (`never` when it depends on none). */
 export type CraftSettledSourcesOf<Value> =
   Value extends CraftSettledBrand<infer Source, any>
@@ -114,10 +135,9 @@ export type ExtractCraftPendingSources<Yielded> = [
   Extract<Yielded, CraftPendingMarker<any>>,
 ] extends [never]
   ? never
-  : Extract<
-        Yielded,
-        CraftPendingMarker<any>
-      > extends CraftPendingMarker<infer Source>
+  : Extract<Yielded, CraftPendingMarker<any>> extends CraftPendingMarker<
+        infer Source
+      >
     ? Source
     : never;
 
@@ -159,8 +179,12 @@ export function ɵwithSettledReadObserver<T>(
 }
 
 /** The minimal shape {@link craftSettledValue} needs to build a settled read. */
-export type SettleableResource = ResourceLike & {
+export type SettleableResource = {
   status: Signal<CraftResourceStatus | string>;
+  value: Signal<unknown>;
+  error?: Signal<Error | undefined>;
+  hasException: Signal<boolean>;
+  exceptions: Signal<{ list: readonly AnyCraftException[] }>;
 };
 
 /**
@@ -214,10 +238,11 @@ export function craftSettledValue<Value>(
   }) as CraftSettledSignal<Value>;
 }
 
-type SettledSignalOf<Ref> = Ref extends {
-  settledValue: CraftSettledSignal<infer Value, infer Source, infer Exceptions>;
+type SettledReaderOf<Ref> = Ref extends {
+  settledValue: YieldableReactiveValue<infer Value, any, any> &
+    CraftSettledBrand<infer Source, infer Exceptions>;
 }
-  ? CraftSettledSignal<Value, Source, Exceptions>
+  ? YieldableReactiveValue<Value> & CraftSettledBrand<Source, Exceptions>
   : never;
 
 /**
@@ -227,34 +252,47 @@ type SettledSignalOf<Ref> = Ref extends {
  * ```ts
  * readonly activeUserName = craftComputed('activeUserName', function* () {
  *   const users = yield* settled(this.users);
- *   // `users()` is `User[]` here — never undefined, never in exception
- *   return () => users().filter((user) => user.active).length;
+ *   // `users` is `User[]` here — never undefined, never in exception
+ *   return users.filter((user) => user.active).length;
  * });
  * ```
  *
- * The returned signal is the primitive's own `settledValue`: nothing is awaited
- * and nothing is yielded at runtime. The yielded markers are type-only and make
- * the enclosing `craftComputed`:
+ * The primitive's `settledValue` reader is executed immediately by the Craft
+ * generator runtime. The additional yielded markers are type-only and make the
+ * enclosing `craftComputed`:
  *
  * - depend on the source's pending state — a `pendingBlock` becomes mandatory in
  *   any template rendering it;
  * - carry the source's exceptions — a `catchBlock` becomes mandatory too.
  */
 export function* settled<
-  const Ref extends { readonly settledValue: CraftSettledSignal<any, any, any> },
+  const Ref extends {
+    readonly settledValue: YieldableReactiveValue<any, any, any> &
+      CraftSettledBrand<any, any>;
+  },
 >(
   resource: Ref,
 ): Generator<
   | CraftPendingMarker<
-      SettledSignalOf<Ref> extends CraftSettledSignal<any, infer Source, any>
+      SettledReaderOf<Ref> extends CraftSettledBrand<infer Source, any>
         ? Source
         : never
     >
-  | CraftGenExceptionMarker<CraftSettledExceptionsOf<SettledSignalOf<Ref>>>,
-  SettledSignalOf<Ref>,
+  | CraftGenExceptionMarker<CraftSettledExceptionsOf<SettledReaderOf<Ref>>>
+  | ReactiveReadRequest,
+  SettledReaderOf<Ref> extends YieldableReactiveValue<infer Value>
+    ? Value
+    : never,
   unknown
 > {
-  return resource.settledValue as SettledSignalOf<Ref>;
+  type Value =
+    SettledReaderOf<Ref> extends YieldableReactiveValue<infer T> ? T : never;
+  const read = resource.settledValue as () => Generator<
+    ReactiveReadRequest<Value>,
+    Value,
+    unknown
+  >;
+  return yield* read();
 }
 
 /**
@@ -272,8 +310,31 @@ export function attachCraftSettledValue(name: string, ref: object): void {
   let cached: CraftSettledSignal<unknown> | undefined;
   Object.defineProperty(ref, 'settledValue', {
     get: () =>
-      (cached ??= craftSettledValue(name, ref as unknown as SettleableResource)),
+      (cached ??= craftSettledValue(
+        name,
+        ref as unknown as SettleableResource,
+      )),
     enumerable: true,
     configurable: true,
   });
+}
+
+/** Creates an insertion-facing generator reader over a settled raw signal. */
+export function createYieldableSettledValue<
+  Value,
+  Source extends string,
+  Exceptions,
+>(
+  source: Signal<Value>,
+  identity: {
+    readonly primitive?: string;
+    readonly insertion?: string;
+    readonly path?: string;
+  },
+): CraftSettledYieldableValue<Value, Source, Exceptions> {
+  return createYieldableReactiveValue(
+    source,
+    'settledState',
+    identity,
+  ) as CraftSettledYieldableValue<Value, Source, Exceptions>;
 }

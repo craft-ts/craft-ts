@@ -1,23 +1,29 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './list-with-pagination.css' with { loader: 'text' };
-import { computed } from '@angular/core';
 import {
   button,
   ifBlock,
   craftComponent,
   div,
   each,
-  h,
-  h2,
   main,
   option,
   select,
   span,
+  table,
+  thead,
+  th,
+  td,
+  heading,
+  tr,
+  tbody,
 } from '@craft-ng/component';
 import {
   craftComputed,
   craftMethod,
   craftService,
   insertStoragePersister,
+  craftUnique,
   insertPaginationPlaceholderData,
   insertQueryPipe,
   query,
@@ -34,9 +40,17 @@ export const { provideUserList, UserList } = craftService(
       'pagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
-        updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+        nextPage: function* () {
+          const current = yield* state();
+          return yield* patch({ page: current.page + 1 });
+        },
+        previousPage: function* () {
+          const current = yield* state();
+          return yield* patch({ page: Math.max(1, current.page - 1) });
+        },
+        updatePageSize: function* (pageSize: number) {
+          return yield* patch({ pageSize, page: 1 });
+        },
       }),
     );
     const users = yield* query(
@@ -49,14 +63,16 @@ export const { provideUserList, UserList } = craftService(
         },
       },
       insertQueryPipe(
-        insertStoragePersister({
+        insertStoragePersister(craftUnique({
           storeName: 'demo-app-craft',
           key: 'list-with-pagination',
-        }),
+        })),
         insertPaginationPlaceholderData(
           { initialValue: [] as User[] },
           ({ state }) => ({
-            total: computed(() => state().length),
+            total: craftComputed('total', function* () {
+              return (yield* state()).length;
+            }),
           }),
         ),
       ),
@@ -75,7 +91,8 @@ const ListWithPaginationCraft = craftComponent(
     const store = yield* UserList();
     const isCurrentPageResolved = craftComputed(
       'isCurrentPageResolved',
-      () => store.users.currentPageStatus() === 'resolved',
+      function* () {
+          const _storeuserscurrentPageStatus = yield* store.users.currentPageStatus(); return _storeuserscurrentPageStatus === 'resolved'; },
     );
     const updatePageSize = craftMethod(
       'updatePageSize',
@@ -92,31 +109,30 @@ const ListWithPaginationCraft = craftComponent(
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
-            h2({ class: 'card-title' }, [
+            heading({ class: 'card-title' }, [
               'User Management: ',
               StatusComponent({
-                status: () => store.users.currentPageStatus(),
+                status: store.users.currentPageStatus,
               }),
               span(
                 'TotalUsers',
                 { class: 'current-page' },
-                () => ` ${store.users.total()} on page`,
+                function* () {
+                  return ` ${yield* store.users.total()} on page`;
+                },
               ),
             ]),
             div({ class: 'table-container' }, [
-              h('table', { class: 'table' }, [
-                h('thead', h('tr', [h('th', 'ID'), h('th', 'Name')])),
-                h(
-                  'tbody',
+              table( { class: 'table' }, [
+                thead( tr( [th( 'ID'), th( 'Name')])),
+                tbody(
                   each(
                     store.users.currentPageData,
                     {
                       track: (user) => user.id,
                       empty: () =>
-                        h(
-                          'tr',
-                          h(
-                            'td',
+                        tr(
+                          td(
                             {
                               colSpan: 2,
                               style: {
@@ -132,7 +148,15 @@ const ListWithPaginationCraft = craftComponent(
                           ),
                         ),
                     },
-                    (user) => h('tr', [h('td', user.id), h('td', user.name)]),
+                    (user) =>
+                      tr( [
+                        td( function* () {
+                          return (yield* user()).id;
+                        }),
+                        td( function* () {
+                          return (yield* user()).name;
+                        }),
+                      ]),
                   ),
                 ),
               ]),
@@ -141,7 +165,10 @@ const ListWithPaginationCraft = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: () => String(store.pagination().pageSize),
+                  'aria-label': 'Page size',
+                  value: function* () {
+                    return String((yield* store.pagination()).pageSize);
+                  },
                   style: { marginRight: '8px' },
                   *change(event) {
                     yield* updatePageSize(event);
@@ -151,7 +178,9 @@ const ListWithPaginationCraft = craftComponent(
                   option(
                     {
                       value: String(size),
-                      selected: () => size === store.pagination().pageSize,
+                      selected: function* () {
+                        return size === (yield* store.pagination()).pageSize;
+                      },
                     },
                     size,
                   ),
@@ -159,17 +188,19 @@ const ListWithPaginationCraft = craftComponent(
               ),
               button(
                 'PreviousPage',
-                { class: 'btn', click: store.pagination.previousPage },
+                { type: 'button', class: 'btn', click: store.pagination.previousPage },
                 'Previous',
               ),
               span(
                 'CurrentPage',
                 { class: 'current-page' },
-                () => store.pagination().page,
+                function* () {
+                  return (yield* store.pagination()).page;
+                },
               ),
               button(
                 'NextPage',
-                { class: 'btn', click: store.pagination.nextPage },
+                { type: 'button', class: 'btn', click: store.pagination.nextPage },
                 'Next',
               ),
             ]),

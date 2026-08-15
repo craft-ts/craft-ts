@@ -1,4 +1,8 @@
-import { craftComponent, div, p } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  p,
+} from '@craft-ng/component';
 import {
   craftException,
   CraftHttpClient,
@@ -58,6 +62,8 @@ export const OtherComponent = craftComponent(
   ({ other, users }) =>
     div([
       p(() => other.getValue()),
-      p(() => `Query status: ${users.query.status()}`),
+      p(function* () {
+        return `Query status: ${yield* users.query.status()}`;
+      }),
     ]),
 );

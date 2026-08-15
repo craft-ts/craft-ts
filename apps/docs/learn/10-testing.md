@@ -18,45 +18,12 @@ Here is the service under test — the one from [step 4](/learn/04-compose), wit
 its scope changed to `toProvide` so it has a `provideTaskStats()` to mount in
 the test:
 
-```typescript
-export const { TaskStats, provideTaskStats } = craftService(
-  { name: 'TaskStats', scope: 'toProvide' },
-  function* () {
-    const tasks = yield* TaskList();
-
-    return {
-      done: craftComputed(
-        'done',
-        () => tasks().filter((task) => task.done).length,
-      ),
-    };
-  },
-);
-```
+<<< @/tests/snippets/learn/10-testing/task-stats.spec.ts#task-stats
 
 It depends on one thing, `TaskList`, and exposes one thing, `done`. The test
 mirrors that exactly:
 
-```typescript
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
-import { vi } from 'vitest';
-
-const { sut, mocks } = await setupCraftServiceTestingByRegister(TaskStats, {
-  // the SUT itself, mounted through its own provider
-  TaskStats: provideTaskStats(),
-
-  // its only dependency, replaced by a mock
-  TaskList: {
-    $self: vi.fn(() => [
-      { id: '1', title: 'a', done: true },
-      { id: '2', title: 'b', done: false },
-    ]),
-  },
-});
-
-expect(sut.done()).toBe(1);
-expect(mocks.TaskList.$self).toHaveBeenCalled();
-```
+<<< @/tests/snippets/learn/10-testing/task-stats.spec.ts#task-stats-test
 
 `sut` is the service under test; `mocks` gives you back the mocks you supplied,
 already typed, so `mocks.TaskList.$self` is assertable.
@@ -82,26 +49,7 @@ asks for that. Had it yielded the whole `TaskApi`, the register would demand
 Here is the component under test, from steps 2 and 3 — a factory that yields
 `TaskList`, and a template that renders it:
 
-```typescript
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* TaskList();
-    return { tasks };
-  },
-  ({ tasks }) => [
-    h1(() => `Tasks — ${tasks.remaining()} left`),
-    ul(
-      each(
-        () => tasks(),
-        { track: (task) => task.id },
-        (task) => li(task.title),
-      ),
-    ),
-  ],
-);
-```
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-component
 
 Those two halves are tested **independently**: the factory produces a context
 without touching the DOM, and the template renders a context without running the
@@ -109,44 +57,12 @@ factory.
 
 The logic test runs the factory only — no DOM:
 
-```typescript
-import { setupCraftComponentLogicTest } from '@craft-ng/component/testing';
-
-const { context, mocks, destroy } =
-  await setupCraftComponentLogicTest.byRegister(Tasks, {
-    register: {
-      TaskList: {
-        $self: () => [{ id: '1', title: 'a', done: false }],
-        remaining: () => 1,
-      },
-    },
-  });
-
-expect(context.tasks.remaining()).toBe(1);
-destroy();
-```
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-logic-test
 
 The template test does the opposite — it renders with a context you hand it, and
 never runs the factory:
 
-```typescript
-import { setupCraftComponentTemplateTest } from '@craft-ng/component/testing';
-
-const test = await setupCraftComponentTemplateTest.byRegister(Tasks, {
-  context: {
-    tasks: Object.assign(() => [{ id: '1', title: 'Write tests', done: false }], {
-      remaining: () => 1,
-      add: () => {},
-      toggle: () => {},
-      remove: () => {},
-    }),
-  },
-  register: {},
-});
-
-expect(test.nativeElement.textContent).toContain('Write tests');
-test.destroy();
-```
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-template-test
 
 That separation is why component tests stay fast: you only pay for the DOM when
 the DOM is what you're asserting on.
@@ -195,10 +111,57 @@ const { sut } = await setupCraftServiceTestingByRegister(TaskList, register, {
 Everything in between runs for real. See
 [Browser boundaries](/guide/testing/browser-boundaries).
 
+## Architecture of the whole app
+
+The register proves one service's graph is complete. Architecture rules prove
+invariants **across** services: this feature must not depend on that one, this
+HTTP endpoint is owned once, this `craftUnique` storage key appears once.
+
+They live next to `e2e/`, analyze TypeScript without booting Angular, and are
+ordinary Vitest assertions on a typed graph. Look a node up, walk its edges,
+assert. A precise rule — HTTP may only be called from a `browserBoundary`
+service — is an `it()`:
+
+```typescript
+it('only browser-boundary services call HTTP', () => {
+  const boundaryIds = new Set(
+    graph.services({ browserBoundary: true }).map((node) => node.id),
+  );
+  const leaked = graph
+    .usingHttp()
+    .filter((node) => node.kind === 'service' && !boundaryIds.has(node.id));
+  expect(leaked.map((node) => node.label)).toEqual([]);
+});
+```
+
+Anything you can see on the graph is a rule you can write: folder lanes,
+exclusive feature branches, a method that must not both be called and write a
+`source$`. Built-in helpers cover unique `craftUnique` identities, unique HTTP
+verb+URL, pure `craftComputed`, no `depends-on` cycles, `assertPathBoundaries`,
+`noExclusiveLink`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`,
+`assertInsertSelectUnique`, `assertCraftEffectNoNetwork`,
+`assertCraftEffectNoImperativeSync`, and the route DI
+proofs from [step 9](/learn/09-routing).
+
+Those proofs (`CanRun`, `RouteCheckedDI`) are unused type aliases — omit one
+and the project still compiles. `assertRouteDiProofs` fails the suite unless
+every routed component and every `app.config` error screen stays hooked to an
+armed mapper. TypeScript still judges injection; the architecture suite judges
+whether that judgement was invoked.
+
+Full setup: [Architecture rules](/guide/testing/architecture). Why that graph
+is not Nx's project graph: [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx).
+The demo app already imports the helpers. From the repository root:
+
+```shell
+npx nx architecture demo
+```
+
 ## What you gained
 
 Tests whose setup is derived from the real dependency graph, so "I forgot to
-mock that" becomes a compile error.
+mock that" becomes a compile error — and architecture rules on that same graph,
+so the app can be taught its boundaries.
 
 <div style="display: flex; justify-content: space-between; margin-top: 2rem">
 

@@ -12,24 +12,29 @@ async action ([`asyncProcess`](/guide/state/async-process)).
 ## The common case
 
 ```typescript
-import { state } from '@craft-ng/core';
-import { computed } from '@angular/core';
+import { craftComputed, state } from '@craft-ng/core';
 
 const counter = yield* state('counter', 0, ({ state, update, set }) => ({
   increment: () => update((value) => value + 1),
   decrement: () => update((value) => value - 1),
   reset: () => set(0),
-  isEven: computed(() => state() % 2 === 0),
+  isEven: craftComputed(function* () {
+    return (yield* state()) % 2 === 0;
+  }),
 }));
 
-counter(); // 0 — the ref is a signal
-counter.increment();
-counter.isEven(); // false
-counter.reset();
+yield* counter(); // 0
+yield* counter.increment();
+yield* counter.isEven(); // false
+yield* counter.reset();
 ```
 
-The insertion context gives you `state` (the current value as a signal), `set`
-and `update`. Everything you return is exposed on the ref.
+The insertion context gives you `state` (the current value as a yieldable
+reader), `set` and `update`. Non-generator methods may return `update(...)`
+directly — the insertion wrapper consumes the write. `isEven` yields `state()`
+because the computed does not own that reader. In a template, pass the reader
+or the method: `p(counter)`, `button({ click: counter.increment }, '+')`. At a
+synchronous boundary, `craftUse(counter.increment())`.
 
 ::: tip New to the shape?
 The name, the destructuring, the `yield*` driver and the single-use rule are
@@ -37,20 +42,21 @@ the same for all five primitives — see
 [Anatomy of a primitive](/guide/concepts/primitive-anatomy).
 :::
 
-## Deriving from another signal
+## Deriving from another reader
 
-The initial value can be a signal or a `computed`, in which case the state
-follows it:
+The initial value can be a Craft reader, in which case the state follows it:
 
 ```typescript
-const origin = signal(5);
+const origin = yield* state('origin', 5);
 
 const doubled = yield* state(
   'doubled',
-  computed(() => origin() * 2),
+  craftComputed('originDoubled', function* () {
+    return (yield* origin()) * 2;
+  }),
 );
 
-doubled(); // 10
+yield* doubled(); // 10
 ```
 
 ## Composing several insertions
@@ -58,7 +64,7 @@ doubled(); // 10
 One insertion function gets crowded. Split it and compose with `insertStatePipe`:
 
 ```typescript
-import { insertStatePipe } from '@craft-ng/core';
+import { craftComputed, insertStatePipe, state } from '@craft-ng/core';
 
 const counter = yield* state(
   'counter',
@@ -69,13 +75,15 @@ const counter = yield* state(
       reset: () => set(0),
     }),
     ({ state }) => ({
-      isOdd: computed(() => state() % 2 === 1),
+      isOdd: craftComputed(function* () {
+        return (yield* state()) % 2 === 1;
+      }),
     }),
   ),
 );
 
-counter.increment();
-counter.isOdd(); // true
+yield* counter.increment();
+yield* counter.isOdd(); // true
 ```
 
 Each function receives the same context and contributes its own slice. See
@@ -95,8 +103,8 @@ const myState = yield* state('myState', 0, ({ update, set }) => ({
   onReset: on$(reset, () => set(0)),
 }));
 
-increment.emit(); // myState() === 1
-reset.emit(); // myState() === 0
+increment.emit(); // after yield* / craftUse, myState is 1
+reset.emit(); // after yield* / craftUse, myState is 0
 ```
 
 Like every craft primitive, a source is **named**, and the name must match the
@@ -113,8 +121,11 @@ An insertion can be a `function*`, so it can pull in services:
 ```typescript
 yield* state('counter', 0, function* ({ state }) {
     const log = yield* Console.log;
-    effect(() => log(`State value changed: ${state()}`));
-    return {};
+    return {
+      logValue: function* () {
+        yield* log(`State value: ${yield* state()}`);
+      },
+    };
   });
 ```
 
@@ -124,7 +135,10 @@ what makes the dependency visible to the route DI check and to test registers.
 ## Pitfalls
 
 **Don't duplicate derived state.** If a value is a function of another, it is a
-`computed` inside an insertion, not a second `state` kept in sync by an effect.
+`craftComputed` inside an insertion that `yield*`s its readers, or a `state`
+whose second argument is that source — not a second `state` kept in sync by an
+effect. [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync)
+fails the architecture suite when an effect writes another primitive.
 
 **Keep slices granular.** One `state` per coherent concern. A single object
 holding five unrelated things makes every consumer depend on all five.
@@ -144,12 +158,20 @@ const counter = yield* state(
   ({ update }) => ({
     increment: function* () {
       yield* CounterAnalytics.track('increment');
-      update((value) => value + 1);
+      return yield* update((value) => value + 1);
     },
   }),
 );
 ```
 
+:::
+
+::: tip Advanced — injectable writes
+Insertion methods also provide `injectStateMethodRuntimeContext()`, which
+recovers `get`, `set`, `update`, and `patch` from DI. Use it from wrappers,
+WebMCP tools, and other advanced patterns — everyday insertions already
+receive those methods as arguments. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
 :::
 
 ## See Also

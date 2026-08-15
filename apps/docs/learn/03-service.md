@@ -6,25 +6,7 @@
 
 The factory body moves out almost unchanged — it was already a generator:
 
-```typescript
-import { craftService, state } from '@craft-ng/core';
-
-export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
-  function* () {
-    const tasks = yield* state('tasks', [] as Task[], ({ state, update }) => ({
-      add: (title: string) => update((current) => [...current, newTask(title)]),
-      toggle: (id: string) =>
-        update((current) =>
-          current.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
-        ),
-      remaining: computed(() => state().filter((t) => !t.done).length),
-    }));
-
-    return tasks;
-  },
-);
-```
+<<< @/tests/snippets/learn/03-service/task-list.spec.ts#task-list
 
 A service is the same shape as a component's logic factory: a generator that
 yields what it needs and returns a context. The only additions are a **name** and
@@ -82,7 +64,9 @@ export const Tasks = craftComponent(
 
 ::: warning `toProvide` fails at runtime, not compile time
 Angular does not error when a provider is missing. That is exactly the hole the
-[route DI check](/learn/09-routing) closes.
+[route DI check](/learn/09-routing) closes — and that
+[architecture tests](/guide/testing/architecture#assertroutediproofs) keep in
+place.
 :::
 
 The two remaining scopes (`manuallyProvidedAtRoot`, and the details of
@@ -91,22 +75,23 @@ The two remaining scopes (`manuallyProvidedAtRoot`, and the details of
 ## Parameterising an instance
 
 A service can take **inputs**: the factory's first parameter is an object the
-call site supplies. Keep them callable (signals or getters) so the service stays
-reactive to them:
+call site supplies. Changing inputs are yieldable readers
+(`CraftServiceInput<T>`) — yield them so the input-to-service edge stays in
+the graph:
 
 ```typescript
 export const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },
-  function* (inputs: { projectId: () => string }) {
+  function* (inputs: { projectId: CraftServiceInput<string> }) {
     const tasks = yield* state('tasks', [] as Task[] /* … */);
-    // inputs.projectId() is reactive — read it wherever you need it
+    const projectId = yield* inputs.projectId();
     return tasks;
   },
 );
 ```
 
 ```typescript
-const tasks = yield* TaskList({ projectId: () => currentProjectId() });
+const tasks = yield* TaskList({ projectId: currentProjectId });
 ```
 
 Inputs are how you get several configured instances out of one `function`-scoped

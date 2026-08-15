@@ -12,6 +12,7 @@ export * from './lib/craft-program-operators';
 export * from './lib/temporal-runtime';
 export * from './lib/craft-match';
 export * from './lib/insert-storage-persister';
+export * from './lib/craft-unique';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';
 export * from './lib/insert-select-resource';
@@ -38,6 +39,7 @@ export type {
   InsertionsQueryParamsFactory,
   // shared constraint used by the resource-based generics above
   ResourceExceptionConstraints,
+  YieldableInsertionWrite,
 } from './lib/query.core';
 export * from './lib/source-from-event';
 export * from './lib/signal-source';
@@ -69,6 +71,7 @@ export * from './lib/craft-service';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
 export * from './lib/yieldable';
+export * from './lib/reactive-read';
 export * from './lib/correlation-id';
 export * from './lib/correlation-id-plugin';
 export * from './lib/dom-event-hook';
@@ -127,6 +130,7 @@ export * from './lib/craft-route-exceptions';
 export * from './lib/craft-route-meta';
 export * from './lib/craft-route-target';
 export * from './lib/craft-pending';
+export * from './lib/craft-a11y';
 export * from './lib/craft-load-retry';
 export * from './lib/craft-route-load-error';
 export * from './lib/craft-lazy';

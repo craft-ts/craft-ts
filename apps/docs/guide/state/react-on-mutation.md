@@ -105,7 +105,10 @@ const { users } = query(
     },
   },
   insertQueryPipe(
-      insertStoragePersister({ storeName: 'app', key: 'users' }),
+      insertStoragePersister(craftUnique({
+        storeName: 'app',
+        key: 'users',
+      })),
       insertReactOnMutation(deleteUser, {
         filter: ({ mutationIdentifier, queryResource }) =>
           !!queryResource.value()?.some((u) => u.id === mutationIdentifier),
@@ -150,3 +153,4 @@ handle that case inside a `filter`.
 - [query](/guide/state/server-state) — the read side
 - [Mutations](/guide/state/mutations) — the write side
 - [Insertions](/guide/concepts/insertions) — composing several reactions
+- [Architecture rules](/guide/testing/architecture) — `assertMutationHasReactOn` flags a mutation no query reacts to

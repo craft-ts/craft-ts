@@ -9,19 +9,8 @@ test — instead of a hard import.
 
 Use `scope: 'abstract'` to declare a contract that must be implemented elsewhere.
 
-```typescript
-import { abstract, craftService } from '@craft-ng/core';
+<<< @/tests/snippets/guide/app/abstract-services/example-1.spec.ts#example-1
 
-type CounterContract = {
-  (): number;
-  increment(): void;
-};
-
-const { CounterRequirement } = craftService(
-  { name: 'Counter', scope: 'abstract' },
-  abstract<CounterContract>(),
-);
-```
 
 Concrete services can then depend on `CounterRequirement`.
 

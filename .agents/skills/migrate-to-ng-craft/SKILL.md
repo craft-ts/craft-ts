@@ -55,9 +55,10 @@ cannot be inferred safely. Preserve unrelated user changes.
      --fail-on-manual
    ```
 
-8. Run targeted tests first, then lint, application type-check, full tests, and
-   production build. Report command exit codes separately; filtered output is
-   not proof that the complete command succeeded.
+8. Run targeted tests first, then lint, application type-check, architecture
+   tests (`npx nx architecture <app>` or `npx vitest run --config vitest.architecture.config.ts`),
+   full tests, and production build. Report command exit codes separately;
+   filtered output is not proof that the complete command succeeded.
 
 ## Manual Migration Rules
 
@@ -123,7 +124,7 @@ cannot be inferred safely. Preserve unrelated user changes.
 - HTTP mutations retain their intended callback and lifecycle behavior.
 - Route pending/error UI and exception exhaustiveness compile.
 - Targeted regression tests cover semantic rewrites.
-- Lint, type-check, tests, and production build all pass.
+- Lint, type-check, architecture tests, tests, and production build all pass.
 
 If a diagnostic requires a business decision, stop before guessing and present
 the exact file, diagnostic, available options, and behavioral tradeoff.

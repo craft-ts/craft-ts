@@ -130,3 +130,11 @@
     width: 100%;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :scope,
+  :scope * {
+    animation: none;
+    transition: none;
+  }
+}

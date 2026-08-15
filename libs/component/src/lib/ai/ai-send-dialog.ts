@@ -1,6 +1,7 @@
 import {
   CRAFT_TEMPORAL_RUNTIME,
   craftMethod,
+  craftUse,
   fromEventToSource$,
   state,
   toCraftService,
@@ -8,9 +9,11 @@ import {
   type TemporalTaskHandle,
   type SendContextPayload,
 } from '@craft-ng/core';
+import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {
   button,
+  dialog,
   div,
   footer,
   header,
@@ -75,11 +78,9 @@ export const AiSendDialog = craftComponent(
     styles: `
       .craft-ai-overlay {
         position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        inset: unset;
+        border: none;
+        background: transparent;
         padding: 24px;
         font-family:
           system-ui,
@@ -87,6 +88,9 @@ export const AiSendDialog = craftComponent(
           sans-serif;
         font-size: 13px;
         color: #111827;
+      }
+      .craft-ai-overlay::backdrop {
+        background: rgba(15, 23, 42, 0.5);
       }
       .craft-ai-card {
         background: #ffffff;
@@ -178,6 +182,11 @@ export const AiSendDialog = craftComponent(
         font-weight: 500;
         transition: background 0.15s;
       }
+      @media (prefers-reduced-motion: reduce) {
+        .craft-ai-copy {
+          transition: none;
+        }
+      }
       .craft-ai-copy--done {
         background: #059669;
       }
@@ -234,7 +243,10 @@ export const AiSendDialog = craftComponent(
       const text = instruction().trim();
       if (!text) return;
 
-      const content = formatPrompt({ ...payload(), instruction: text });
+      const content = formatPrompt({
+        ...craftUse(payload()),
+        instruction: text,
+      });
       void navigator.clipboard.writeText(content).then(() => {
         setCopied(true);
         copiedTimer?.cancel();
@@ -263,16 +275,20 @@ export const AiSendDialog = craftComponent(
     };
   },
   ({ payload, onClose, instruction, writeInstruction, copied, copy }) =>
-    div(
-      { class: 'craft-ai-overlay', click: () => onClose() },
+    dialog(
+      {
+        class: 'craft-ai-overlay',
+        open: true,
+        labelledBy: 'craft-ai-dialog-title',
+        onClose: () => onClose(),
+      },
       div(
         {
           class: 'craft-ai-card',
-          click: (event: MouseEvent) => event.stopPropagation(),
         },
         [
           header({ class: 'craft-ai-header' }, [
-            strong('Send context to AI'),
+            strong({ id: 'craft-ai-dialog-title' }, 'Send context to AI'),
             button(
               {
                 type: 'button',
@@ -287,15 +303,22 @@ export const AiSendDialog = craftComponent(
           section({ class: 'craft-ai-context' }, [
             div([
               span({ class: 'label' }, 'Component:'),
-              () => payload().hostName,
+              function* () {
+                return (yield* payload()).hostName;
+              },
             ]),
             div([
               span({ class: 'label' }, 'Coords:'),
-              () => `(${payload().coords.x}, ${payload().coords.y})`,
+              function* () {
+                const value = yield* payload();
+                return `(${value.coords.x}, ${value.coords.y})`;
+              },
             ]),
             div([
               span({ class: 'label' }, 'Snapshot:'),
-              () => `${payload().snapshot.length} report(s)`,
+              function* () {
+                return `${(yield* payload()).snapshot.length} report(s)`;
+              },
             ]),
           ]),
 
@@ -315,12 +338,15 @@ export const AiSendDialog = craftComponent(
 
           // Toggled by style rather than `ifBlock`, which needs a *named* craft
           // value and would leak the same internal symbols into the type.
-          div(
-            {
-              class: 'craft-ai-success',
-              style: () => (copied() ? null : { display: 'none' }),
-            },
-            'Copié dans le presse-papier ✓',
+          liveRegion(
+            { politeness: 'polite' },
+            div(
+              {
+                class: 'craft-ai-success',
+                style: () => (copied() ? null : { display: 'none' }),
+              },
+              'Copié dans le presse-papier ✓',
+            ),
           ),
 
           footer({ class: 'craft-ai-footer' }, [

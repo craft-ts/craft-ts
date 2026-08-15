@@ -9,6 +9,7 @@ import {
   type Input,
 } from '@craft-ng/component';
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
+import { craftUse } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GlobalQuery from './query';
@@ -27,7 +28,7 @@ describe('Query template', () => {
     >
   >;
 
-type _UserQueryDependsOnStoragePersister = Expect<
+  type _UserQueryDependsOnStoragePersister = Expect<
     Equal<
       'StoragePersister' extends keyof ExtractDeps<QueryLogic['userQuery']>
         ? true
@@ -38,9 +39,9 @@ type _UserQueryDependsOnStoragePersister = Expect<
 
   type _ApiServiceDependencyIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends GetServiceDependencies<
-        typeof ApiService
-      >
+      ExtractDeps<
+        QueryLogic['userQuery']
+      >['ApiService'] extends GetServiceDependencies<typeof ApiService>
         ? true
         : false,
       true
@@ -167,7 +168,11 @@ describe('Query logic', () => {
       length: vi.fn(() => values.size),
     };
     const result = await setupCraftComponentLogicTest(GlobalQuery, {
-      args: [(() => currentUserId) as Input<string | undefined>],
+      args: [
+        (function* () {
+          return currentUserId;
+        }) as Input<string | undefined>,
+      ],
       register: {
         ApiService: { getItemById },
         CraftRouter: { navigate },
@@ -203,7 +208,7 @@ describe('Query logic', () => {
     try {
       expect(getItemById).toHaveBeenCalledTimes(1);
       await vi.waitFor(() =>
-        expect(context.userQuery.value()).toEqual({
+        expect(craftUse(context.userQuery.value())).toEqual({
           id: '3',
           name: 'User 3',
         }),

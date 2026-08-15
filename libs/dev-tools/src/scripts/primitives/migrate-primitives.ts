@@ -15,6 +15,12 @@ import type {
   PrimitiveMigrationDiagnostic,
   PrimitiveMigrationDiagnosticCode,
 } from './migration-diagnostic.js';
+import { migrateYieldableReactiveReads } from './migrate-yieldable-reactive-reads.js';
+import {
+  migrateNamedPrimitivesInFile,
+  type UnmigratedCall,
+} from './migrate-named-primitives.js';
+import { migratePrimitiveGeneratorsInFile } from './migrate-primitive-generators.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -79,6 +85,23 @@ export async function runPrimitivesMigration(
   const diagnostics: PrimitiveMigrationDiagnostic[] = [];
 
   for (const sourceFile of sourceFiles) {
+    // Name existing Craft primitive creations before Angular APIs are
+    // converted. A string-valued Angular signal config is otherwise
+    // indistinguishable from the first argument of a named `state(...)`.
+    const unmigratedNames: UnmigratedCall[] = [];
+    const changedNamedPrimitives = migrateNamedPrimitivesInFile(
+      sourceFile,
+      unmigratedNames,
+    );
+    for (const unmigrated of unmigratedNames) {
+      if (unmigrated.reason === 'already takes a name argument') continue;
+      diagnose(
+        diagnostics,
+        'PRIMITIVE_NAME_REQUIRES_REVIEW',
+        sourceFile,
+        `${unmigrated.primitive}(${unmigrated.text}) ne peut pas recevoir un nom déterministe automatiquement: ${unmigrated.reason}.`,
+      );
+    }
     const changedSignals = migrateSignalsToState(sourceFile);
     const changedResources = migrateSingleEmissionRxResources(
       sourceFile,
@@ -92,19 +115,29 @@ export async function runPrimitivesMigration(
       sourceFile,
       diagnostics,
     );
+    const changedPrimitiveGenerators = migratePrimitiveGeneratorsInFile(
+      sourceFile,
+    );
+    const changedYieldableReads = migrateYieldableReactiveReads(sourceFile).changed;
     diagnoseSignalForms(sourceFile, diagnostics);
     if (
       changedSignals ||
       changedResources ||
       changedWorkflows ||
-      changedFormTreeInserts
+      changedFormTreeInserts ||
+      changedNamedPrimitives ||
+      changedPrimitiveGenerators ||
+      changedYieldableReads
     )
       touched.add(sourceFile);
     if (
       changedSignals ||
       changedResources ||
       changedWorkflows ||
-      changedFormTreeInserts
+      changedFormTreeInserts ||
+      changedNamedPrimitives ||
+      changedPrimitiveGenerators ||
+      changedYieldableReads
     )
       getFileReport(files, sourceFile.getFilePath()).changed = true;
   }
@@ -174,8 +207,12 @@ function migrateSignalsToState(sourceFile: SourceFile): boolean {
       : initialValue.getText();
     const declaration = findImperativeStateDeclaration(call);
     if (declaration) declarationsToAnnotate.add(declaration);
+    const bindingName = readStateBindingName(call);
+    const stateCall = bindingName
+      ? `state('${bindingName}', ${value}, ({ set, update }) => ({ set, update }))`
+      : `state(${value}, ({ set, update }) => ({ set, update }))`;
     call.replaceWithText(
-      `state(${value}, ({ set, update }) => ({ set, update }))`,
+      stateCall,
     );
     changed = true;
   }
@@ -199,6 +236,23 @@ function migrateSignalsToState(sourceFile: SourceFile): boolean {
     angularCore.remove();
   ensureCoreImports(sourceFile, ['state']);
   return true;
+}
+
+function readStateBindingName(call: CallExpression): string | undefined {
+  const property = call.getFirstAncestor((ancestor) =>
+    Node.isPropertyDeclaration(ancestor),
+  );
+  if (property) {
+    const name = property.getNameNode();
+    if (Node.isIdentifier(name)) return name.getText();
+  }
+  const declaration = call.getFirstAncestor((ancestor) =>
+    Node.isVariableDeclaration(ancestor),
+  );
+  if (!declaration) return undefined;
+  const name = declaration.getNameNode();
+  if (Node.isIdentifier(name)) return name.getText();
+  return undefined;
 }
 
 const IMPERATIVE_STATE_COMMENT =

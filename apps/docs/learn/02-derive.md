@@ -8,41 +8,21 @@ them across the component.
 The last argument of a primitive is an **insertion**: a function that receives
 the primitive's internals and returns whatever you want exposed on it.
 
-```typescript
-import { computed } from '@angular/core';
-import { state } from '@craft-ng/core';
-
-const tasks = yield* state('tasks', [] as Task[], ({ state, set, update }) => ({
-  add: (title: string) =>
-    update((current) => [
-      ...current,
-      { id: crypto.randomUUID(), title, done: false },
-    ]),
-
-  toggle: (id: string) =>
-    update((current) =>
-      current.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task,
-      ),
-    ),
-
-  remove: (id: string) => set(state().filter((task) => task.id !== id)),
-
-  remaining: computed(() => state().filter((task) => !task.done).length),
-}));
-```
+<<< @/tests/snippets/learn/02-derive/tasks-insertion.spec.ts#tasks-insertion
 
 Everything you return is now on the ref:
 
 ```typescript
-tasks(); // the array
-tasks.add('Learn insertions');
-tasks.remaining(); // 1
+yield* tasks(); // the array
+yield* tasks.add('Learn insertions');
+yield* tasks.remaining(); // 1
 ```
 
-The context gives you `state` (the current value as a signal), `set` and
-`update`. `remaining` is a plain Angular `computed` — craft doesn't replace
-Angular's reactivity, it hosts it.
+The context gives you `state` (the current value as a yieldable reader), `set`
+and `update`. Non-generator insertion methods may return `update(...)` directly
+— the wrapper consumes the write. `remaining` is a `craftComputed`: it does not
+own `state()`, so it yields it. That is how the computed's own dependency graph
+records the read.
 
 ## The whole component
 
@@ -65,32 +45,40 @@ export const Tasks = craftComponent(
     return { tasks };
   },
   ({ tasks }) => [
-    h1(() => `Tasks — ${tasks.remaining()} left`),
+    h1(function* () {
+      return `Tasks — ${yield* tasks.remaining()} left`;
+    }),
 
     input({
       type: 'text',
       placeholder: 'New task…',
-      keydown: (event) => {
+      *keydown(event) {
         if (event.key !== 'Enter') return;
         const field = event.target as HTMLInputElement;
-        tasks.add(field.value);
+        yield* tasks.add(field.value);
         field.value = '';
       },
     }),
 
     ul(
       each(
-        () => tasks(),
+        tasks,
         { track: (task) => task.id, empty: () => li('Nothing to do 🎉') },
         (task) =>
           li([
             input({
               type: 'checkbox',
               checked: task.done,
-              change: () => tasks.toggle(task.id),
+              *change() {
+                yield* tasks.toggle(task.id);
+              },
             }),
             task.title,
-            button({ click: () => tasks.remove(task.id) }, '×'),
+            button({
+              *click() {
+                yield* tasks.remove(task.id);
+              },
+            }, '×'),
           ]),
       ),
     ),
@@ -100,9 +88,9 @@ export const Tasks = craftComponent(
 
 Two template things worth noting. `each(source, options, render)` takes a
 `track` — the stable identity the renderer uses to reuse, move and remove
-nodes — and an optional `empty` branch. And passing a **callback** to a node
-(`h1(() => …)`) is what makes that node re-render when the signals it reads
-change.
+nodes — and an optional `empty` branch. Pass the reader itself (`tasks`) rather
+than `() => tasks()`. When a binding must format or call a method, use a
+generator and `yield*`.
 
 The logic factory is now three lines. That's the point: **behaviour lives on the
 state, not around it.**
@@ -171,8 +159,8 @@ logic factory and its template, and you attach it with `.pipe(...)`:
 export const Card = craftComponent(
   'Card',
   {},
-  (user: Input<User>) => ({ user }),
-  ({ user }) => div(user().name),
+  (user: Input<User>) => ({ user: deepYieldable(user) }),
+  ({ user }) => div(user.name),
 ).pipe(InteractivePermissions);
 ```
 
@@ -230,23 +218,7 @@ logic — a toast, a log — and produces no DOM.
 
 One insertion function gets crowded fast. Split it and compose with `insertStatePipe`:
 
-```typescript
-import { insertStatePipe, state } from '@craft-ng/core';
-
-const tasks = yield* state(
-  'tasks',
-  [] as Task[],
-  insertStatePipe(
-    ({ update }) => ({
-      add: (title: string) => update((c) => [...c, newTask(title)]),
-    }),
-    ({ state }) => ({
-      remaining: computed(() => state().filter((t) => !t.done).length),
-      isEmpty: computed(() => state().length === 0),
-    }),
-  ),
-);
-```
+<<< @/tests/snippets/learn/02-derive/insert-state-pipe.spec.ts#insert-state-pipe
 
 Each function in the pipe receives the same context and contributes its own
 slice. This is what makes behaviour **reusable**: an insertion is just a

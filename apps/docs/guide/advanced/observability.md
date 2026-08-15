@@ -146,6 +146,15 @@ But it has two consequences:
 Use `provideFnWrapper` mostly for **side effects** — logging, metrics, snapshots, correlation propagation. Avoid pulling business state through it.
 :::
 
+When the wrapped function is an insertion method, the wrapper can inject the
+matching runtime context — `injectQueryMethodRuntimeContext()`,
+`injectStateMethodRuntimeContext()`, and the siblings for `mutation`,
+`queryParams`, and `asyncProcess` — and call `get` / `set` / `update` /
+`patch` on the owning primitive. That is how registries, WebMCP tools, and
+other advanced patterns seed or replace a query result, a mutation value, a
+`state`, and so on. See
+[Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
+
 ### Example: timing every craft function
 
 ```ts
@@ -204,24 +213,8 @@ Every DOM event bound from a Craft template goes through the
 declared the element, and compose in registration order. A hook must call
 `next()` to preserve the component action.
 
-```ts
-import { craftComponent, button } from '@craft-ng/component';
-import { provideCraftDomEventHook } from '@craft-ng/core';
+<<< @/tests/snippets/guide/advanced/observability/savepanel.spec.ts#savepanel
 
-export const SavePanel = craftComponent(
-  'SavePanel',
-  {
-    providers: [
-      provideCraftDomEventHook((interaction, next) => {
-        console.debug(interaction.interactionName, interaction.event);
-        return next();
-      }),
-    ],
-  },
-  () => ({}),
-  () => button('save', { click: save }, 'Save'),
-);
-```
 
 The hook receives the native event, its normalized name, the element, the
 component name, and a descriptive `interactionName` such as

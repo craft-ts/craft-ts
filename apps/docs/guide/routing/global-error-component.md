@@ -98,6 +98,10 @@ resolves the typed exception object for a code on a route from the collection's 
 (no type checker required — the rule builds the reference from the collection variable and the
 path/code literals).
 
+The screen itself still needs an armed `RouteExceptionComponentCheckedDI` in
+`app.config.ts`. [Architecture tests](/guide/testing/architecture#assertroutediproofs)
+fail if that proof is missing.
+
 ## Default behaviour
 
 If no `withErrorComponent` is configured, `globalError()` and unhandled thrown errors leave the
@@ -109,3 +113,4 @@ fallback UI.
 - [Route exception handling](/guide/routing/exception-handling) — where `globalError()` is returned
 - [Route load errors](/guide/routing/route-load-errors)
 - [Non-blocking navigation](/guide/routing/pending-ui)
+- [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` keeps the error-screen proof armed

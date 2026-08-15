@@ -23,6 +23,32 @@ test('navigates to Craft Full Demo from the navbar without freezing', async ({
   expect(pageErrors).toEqual([]);
 });
 
+test('closes the examples navbar when clicking outside the panel', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+
+  await expect(page.locator('.demo-nav__panel')).toBeVisible();
+  await page.locator('.demo-banner').click();
+
+  await expect(page.locator('.demo-nav__panel')).toHaveCount(0);
+});
+
+test('shows the beta documentation and feedback banner', async ({ page }) => {
+  await page.goto('/');
+
+  const banner = page.locator('.demo-banner');
+  await expect(banner).toContainText('Démo en bêta');
+  await expect(banner).toContainText('Vos retours sont les bienvenus');
+  await expect(banner).toContainText(
+    'lisez `yield*` comme « j’ai besoin de… »',
+  );
+  await expect(
+    banner.getByRole('link', { name: 'Lire la documentation' }),
+  ).toHaveAttribute('href', 'https://ng-angular-stack.github.io/craft/');
+});
+
 test('does not activate Guard demo after its guard redirects', async ({
   page,
 }) => {
@@ -100,4 +126,29 @@ test('applies the list with pagination styles', async ({ page }) => {
   await expect(root.locator('table')).toHaveClass(/table/);
   await expect(root.locator('td').first()).toHaveCSS('padding', '16px');
   await expect(root.locator('.pagination')).toBeVisible();
+});
+
+test('exposes the query params demo in the navbar and applies its styles', async ({
+  page,
+}) => {
+  test.setTimeout(10_000);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+
+  const link = page.getByRole('link', {
+    name: 'Query Params',
+    exact: true,
+  });
+  await expect(link).toHaveCount(1);
+  await link.click();
+
+  await expect(page).toHaveURL(/\/query-params(?:\?.*)?$/, {
+    timeout: 3_000,
+  });
+  const root = page.locator('[data-craft-root="QpListWithPagination"]');
+  await expect(root).toBeVisible({ timeout: 3_000 });
+  await expect(root.locator('table')).toHaveClass(/table/);
+  await expect(root.locator('td').first()).toHaveCSS('padding', '16px');
+  await expect(root.locator('.pagination')).toBeVisible();
+  await expect(root.locator('.current-page')).toHaveCSS('font-weight', '600');
 });

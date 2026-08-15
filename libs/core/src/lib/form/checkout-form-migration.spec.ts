@@ -74,7 +74,8 @@ describe('migrated checkout form', () => {
   it('composes nested validators, async coupon validation and mutation submit', async () => {
     await TestBed.runInInjectionContext(async () => {
       const submitted = vi.fn();
-      const couponQuery = craftUse(query('couponQuery', {
+      const couponQuery = craftUse(
+        query('couponQuery', {
           method: (code: string) => code.trim(),
           loader: async ({ params: code }) => ({
             valid: code === 'SAVE20',
@@ -82,7 +83,8 @@ describe('migrated checkout form', () => {
           }),
         }),
       );
-      const submitMutation = craftUse(mutation('submitMutation', {
+      const submitMutation = craftUse(
+        mutation('submitMutation', {
           method: (value: CheckoutForm) => value,
           loader: async ({ params }) => {
             submitted(params);
@@ -160,7 +162,7 @@ describe('migrated checkout form', () => {
                     name: 'couponValidation',
                     when: () => readModel().coupon.code.length > 0,
                     exceptionsOnSuccess: ({ validateAsyncCraftResource }) =>
-                      validateAsyncCraftResource.value()?.valid
+                      craftUse(validateAsyncCraftResource.value())?.valid
                         ? undefined
                         : craftException(
                             { code: 'couponInvalid' },
@@ -173,7 +175,8 @@ describe('migrated checkout form', () => {
           ),
       );
 
-      const checkout = craftUse(state(
+      const checkout = craftUse(
+        state(
           'checkout',
           initial,
           insertForm(
@@ -183,7 +186,7 @@ describe('migrated checkout form', () => {
           ),
         ),
       );
-      readModel = checkout;
+      readModel = () => craftUse(checkout());
 
       const deliveryForm = checkout.form.selectDelivery();
       deliveryForm?.selectStreet();
@@ -193,31 +196,31 @@ describe('migrated checkout form', () => {
       couponForm?.selectCode();
       await Promise.resolve();
 
-      expect(checkout.form.delivery.valid()).toBe(false);
+      expect(craftUse(checkout.form.delivery.valid())).toBe(false);
       checkout.form.delivery.street.set('123 Main St');
       checkout.form.delivery.location.set({
         city: 'Paris',
         country: 'France',
       });
       TestBed.tick();
-      expect(checkout.form.delivery.valid()).toBe(true);
+      expect(craftUse(checkout.form.delivery.valid())).toBe(true);
 
       checkout.form.delivery.useSameAsBilling.set(false);
       TestBed.tick();
-      expect(checkout.form.delivery.valid()).toBe(false);
+      expect(craftUse(checkout.form.delivery.valid())).toBe(false);
       checkout.form.delivery.billingStreet.set('456 Oak Ave');
       TestBed.tick();
-      expect(checkout.form.delivery.valid()).toBe(true);
+      expect(craftUse(checkout.form.delivery.valid())).toBe(true);
 
       checkout.form.coupon.code.set('INVALID');
       TestBed.tick();
       await vi.runAllTimersAsync();
-      expect(checkout.form.coupon.code.invalid()).toBe(true);
+      expect(craftUse(checkout.form.coupon.code.invalid())).toBe(true);
 
       checkout.form.coupon.code.set('SAVE20');
       TestBed.tick();
       await vi.runAllTimersAsync();
-      expect(checkout.form.coupon.code.valid()).toBe(true);
+      expect(craftUse(checkout.form.coupon.code.valid())).toBe(true);
 
       checkout.form.submit();
       await vi.runAllTimersAsync();

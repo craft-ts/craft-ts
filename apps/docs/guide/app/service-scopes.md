@@ -42,7 +42,7 @@ same instance. Use `global` only for genuinely app-wide state.
 
 - Prefer `function` for a service owned by a single component. It avoids an explicit provider and makes it clear the instance is not meant to be shared with other components or child components.
 - Move to `toProvide` when the same instance must be shared with child components, or across several components through a common parent or route. In that case, provide it at the component boundary, a parent component, or the route.
-- Be careful with `toProvide`: Angular does not report a compilation error when the provider is missing, so the failure usually appears at runtime instead.
+- Be careful with `toProvide`: Angular does not report a compilation error when the provider is missing, so the failure usually appears at runtime instead. The [route DI check](/guide/routing/setup) closes that hole; [architecture tests](/guide/testing/architecture#assertroutediproofs) keep the check armed.
 - Use `global` when the instance is intentionally shared application-wide.
 - For startup-only logic that should run when the app boots but is not injected elsewhere, prefer `function` together with `provideAppInitializer(...)`. If the same instance also needs to be injected by other services, use `global` instead.
 

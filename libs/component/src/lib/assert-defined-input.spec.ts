@@ -61,10 +61,14 @@ describe('assertDefinedInput', () => {
       'assertDefinedInputTypeChild',
       {},
       (sourceValue: Input<'ready'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(sourceValue()),
+      ({ sourceValue }) => span(function* () {
+        return yield* sourceValue();
+      }),
     );
     const source = child({
-      sourceValue: assertDefinedInput(() => value(), {
+      sourceValue: assertDefinedInput(function* () {
+        return value();
+      }, {
         property: 'child.input',
       }),
     });
@@ -96,7 +100,9 @@ describe('assertDefinedInput', () => {
       'assertDefinedInputRuntimeChild',
       {},
       (sourceValue: Input<'ready'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(sourceValue()),
+      ({ sourceValue }) => span(function* () {
+        return yield* sourceValue();
+      }),
     );
     const root = craftComponent(
       'assertDefinedInputRuntimeRoot',
@@ -105,7 +111,9 @@ describe('assertDefinedInput', () => {
       () =>
         section([
           child({
-            sourceValue: assertDefinedInput(() => value()),
+            sourceValue: assertDefinedInput(function* () {
+              return value();
+            }),
           }).pipe(
             catchBlock.exhaustive({
               CraftUndefinedPropertyException: {
@@ -137,7 +145,7 @@ describe('assertDefinedInput', () => {
 
     value.set(undefined);
     TestBed.tick();
-    expect(element.textContent).toBe('fallback');
+    expect(element.textContent).toBe('readyfallback');
 
     mounted.destroy();
   });
@@ -148,9 +156,13 @@ describe('assertDefinedInput', () => {
       'assertDefinedInputValueCatchChild',
       {},
       (sourceValue: Input<'ready' | 'idle'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(sourceValue()),
+      ({ sourceValue }) => span(function* () {
+        return yield* sourceValue();
+      }),
     );
-    const status = assertDefinedInput(() => value()).pipe(
+    const status = assertDefinedInput(function* () {
+      return value();
+    }).pipe(
       catchInput.exhaustive({
         CraftUndefinedPropertyException: () => 'idle' as const,
       }),
@@ -191,7 +203,9 @@ describe('assertDefinedInput', () => {
       'assertDefinedInputUnhandledChild',
       {},
       (sourceValue: Input<'ready'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(sourceValue()),
+      ({ sourceValue }) => span(function* () {
+        return yield* sourceValue();
+      }),
     );
     const root = craftComponent(
       'assertDefinedInputUnhandledRoot',
@@ -199,7 +213,9 @@ describe('assertDefinedInput', () => {
       () => ({}),
       () => {
         const unhandled = child({
-          sourceValue: assertDefinedInput(() => value()),
+          sourceValue: assertDefinedInput(function* () {
+            return value();
+          }),
         });
         return section(unhandled as unknown as CraftNodeChildren);
       },

@@ -23,7 +23,7 @@ import {
   settled,
   state,
   type CraftExceptionResult,
-  type CraftSettledSignal,
+  type CraftSettledSignal
 } from '@craft-ng/core';
 import {
   button,
@@ -35,6 +35,7 @@ import {
   pendingBlock,
   section,
   span,
+  assertAccessible,
 } from '../index';
 import type {
   CraftNodeChildrenPendingSources,
@@ -92,7 +93,7 @@ describe('pendingBlock', () => {
         });
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName };
       },
@@ -114,6 +115,10 @@ describe('pendingBlock', () => {
 
     expect(element.textContent).toContain('chargement');
     expect(element.textContent).not.toContain('Ada');
+    const live = element.querySelector('[aria-live="polite"][aria-busy="true"]');
+    expect(live?.getAttribute('aria-live')).toBe('polite');
+    expect(live?.getAttribute('aria-busy')).toBe('true');
+    await assertAccessible(element);
 
     await vi.runAllTimersAsync();
     TestBed.tick();
@@ -138,7 +143,7 @@ describe('pendingBlock', () => {
         });
         const text = craftComputed('text', function* () {
           const settledLabel = yield* settled(label);
-          return () => settledLabel().text;
+          return settledLabel.text;
         });
         return { label, text };
       },
@@ -171,7 +176,8 @@ describe('pendingBlock', () => {
           again: () => update((current) => current + 1),
         }));
         const users = yield* query('users', {
-          params: () => reload(),
+          params: function* () {
+                const _reload = yield* reload(); return _reload; },
           loader: async ({ params }): Promise<User[]> => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return [{ id: String(params), name: `Ada ${params}` }];
@@ -179,7 +185,7 @@ describe('pendingBlock', () => {
         });
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName, reload };
       },
@@ -240,7 +246,7 @@ describe('pendingBlock', () => {
         });
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName };
       },
@@ -268,6 +274,10 @@ describe('pendingBlock', () => {
 
     expect(element.textContent).toContain('identifiant manquant');
     expect(element.textContent).not.toContain('chargement');
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+      'identifiant manquant',
+    );
+    await assertAccessible(element);
 
     mounted.destroy();
   });
@@ -288,7 +298,7 @@ describe('pendingBlock', () => {
         // ever sees the computed derived from it.
         const firstName = craftComputed('firstName', function* () {
           const list = yield* settled(users);
-          return () => list()[0].name;
+          return list[0].name;
         });
         return { firstName };
       },
@@ -421,7 +431,7 @@ describe('pendingBlock type-level contract', () => {
         });
         const label = craftComputed('label', function* () {
           const settledUsers = yield* settled(users);
-          return () => settledUsers().text;
+          return settledUsers.text;
         });
         return { label };
       },

@@ -31,20 +31,8 @@ craftComponent(name, meta, factory, template);
 | `factory`  | the **logic**: builds and returns the context                     |
 | `template` | receives that context, returns nodes                              |
 
-```typescript
-import { craftComponent, div, h1, li, ul } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+<<< @/tests/snippets/guide/components/index/tasks.spec.ts#tasks
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [] as Task[]);
-    return { tasks };
-  },
-  ({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))],
-);
-```
 
 The split matters: the factory produces a context **without touching the DOM**,
 and the template renders a context **without running the factory**. That is what
@@ -76,64 +64,44 @@ exposed.
 They are **parameters of the factory**, typed with `Input<T>` and
 `Output<Handler>`:
 
-```typescript
-const UserCard = craftComponent(
-  'UserCard',
-  {},
-  (user: Input<User>, onRemove: Output<(user: User) => void>) => ({
-    user,
-    onRemove,
-  }),
-  ({ user, onRemove }) =>
-    div([
-      span(user().name),
-      button({ click: () => onRemove(user()) }, 'Remove'),
-    ]),
-);
-```
+<<< @/tests/snippets/guide/components/index/usercard.spec.ts#usercard
 
-An `Input<T>` **is callable** — `user()` reads the current value. An `Output<H>`
-is the handler itself; calling it is emitting.
+
+An `Input<T>` **is a yieldable reader** — `yield* user()` reads the current
+value. An `Output<H>` is a yieldable callback; delegate to it with `yield*`.
 
 Rendering a child is a function call, so there is no binding layer to get wrong:
 
 ```typescript
-UserCard({ user: () => currentUser, onRemove: removeUser });
+UserCard({ user: currentUser, onRemove: removeUser });
 ```
 
 | Angular                                     | Craft                                       |
 | ------------------------------------------- | ------------------------------------------- |
 | `@Input()` / `input()` / `input.required()` | an `Input<T>` factory parameter             |
 | `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: () => u, onRemove: fn })` |
+| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: u, onRemove: fn })` |
 | Missing required input → runtime            | missing parameter → **compile error**       |
 
 ## The template
 
 Nodes are built with hyperscript helpers — `div`, `ul`, `button`, and `h(tag, …)`
-for anything without one. Passing a **callback** is what makes a node reactive:
+for anything without one. Pass a yieldable reader to a binding. Use a generator
+when the binding must format or call a method:
 
 ```typescript
 ({ tasks }) => [
-  h1(() => `Tasks — ${tasks.remaining()} left`), // patches only this text node
-  h1(`Tasks — ${tasks.remaining()} left`), // structural template dependency
+  h1(function* () {
+    return `Tasks — ${yield* tasks.remaining()} left`;
+  }),
+  h1(`Tasks — static`); // static text needs no reader
 ];
 ```
 
 The same binding boundary applies to attributes, DOM properties, classes,
-styles, and host props:
-
-```typescript
-button({ disabled: () => tasks.remaining() === 0 }, 'Clear');
-div({ class: () => ({ empty: tasks.remaining() === 0 }) });
-div({ style: () => ({ opacity: tasks.remaining() ? 1 : 0.5 }) });
-```
-
-Each callback has its own effect. A signal change only evaluates the bindings
-that read it; sibling bindings and the component template are left alone. A
-value calculated before creating the node cannot be assigned to that precise
-binding, so Craft keeps the compatible structural rerender behaviour for that
-form.
+styles, and host props. Prefer exposing a derived reader on the primitive
+(`tasks.isEmpty`) and passing it (`disabled: tasks.isEmpty`) over wrapping a
+synchronous call.
 
 See [Fine-grained reactivity](/guide/components/fine-grained-reactivity) for
 the complete rendering model, structural scopes, observability expectations,
@@ -207,8 +175,9 @@ rest of your bootstrap is unchanged.
 
 ## Pitfalls
 
-**Reading a signal outside a callback.** `h1(tasks().length)` evaluates once at
-build time. Wrap it: `h1(() => tasks().length)`.
+**Reading a reader outside a binding.** `h1(tasks().length)` evaluates once at
+build time. Pass the reader (`p(tasks.remaining)`) or use a generator:
+`h1(function* () { return yield* tasks.remaining(); })`.
 
 **Forgetting `track` in `each`.** Without a stable identity the renderer cannot
 reuse, move or remove the right node.
@@ -225,4 +194,5 @@ with `.pipe(catchBlock.exhaustive(...))` — see
 
 - [Learn: your first state](/learn/01-first-state) — the guided version
 - [Directives and `.pipe(...)`](/guide/components/directives)
+- [Accessibilité](/guide/components/accessibility)
 - [Testing components](/guide/testing/components)

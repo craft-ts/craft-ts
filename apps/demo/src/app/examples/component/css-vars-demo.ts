@@ -1,9 +1,10 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   craftComponent,
   div,
-  h1,
-  h2,
+  heading,
+  headingSection,
   p,
   section,
 } from '@craft-ng/component';
@@ -13,26 +14,26 @@ import { CssVarsPageNav } from './css-vars-demo.shared';
 const CASES = [
   {
     path: 'css-vars/required',
-    title: 'Valeurs requises et optionnelles',
+    title: 'Required and optional values',
     description:
-      'Comparer plusieurs instances, les fallbacks et le marqueur omit.',
+      'Compare multiple instances, fallbacks, and the omit marker.',
   },
   {
     path: 'css-vars/inheritance',
-    title: 'Héritage natif',
+    title: 'Native inheritance',
     description:
-      'Observer inherit et la résolution de la variable depuis un parent.',
+      'Observe inherit and how the variable resolves from a parent.',
   },
   {
     path: 'css-vars/forwarding',
-    title: 'Forwarding et surcharge',
+    title: 'Forwarding and overrides',
     description:
-      'Transformer les tokens d’un enfant en API optionnelle du parent.',
+      "Turn a child's tokens into an optional parent API.",
   },
   {
     path: 'css-vars/property',
     title: '@property',
-    description: 'Enregistrer un token numérique possédé par le composant.',
+    description: 'Register a numeric token owned by the component.',
   },
 ] as const;
 
@@ -69,6 +70,10 @@ export const CssVarsDemo = craftComponent(
       }
       .css-vars-demo__card:hover { transform: translateY(-2px); box-shadow: 0 .8rem 2rem #17203314; }
       .css-vars-demo__card p { color: var(--css-vars-demo-muted); line-height: 1.45; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+    
+      @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
     `,
   },
   () => ({}),
@@ -76,22 +81,24 @@ export const CssVarsDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-demo__intro' }, [
-        h1('Variables CSS typées'),
+        heading('Typed CSS variables'),
         p(
-          'Chaque mécanisme dispose maintenant de sa propre page pour isoler son comportement et son contrat.',
+          'Each mechanism now has its own page to isolate its behavior and contract.',
         ),
       ]),
+      headingSection(
       section(
-        { class: 'css-vars-demo__grid', 'aria-label': 'Cas illustrés' },
+        { class: 'css-vars-demo__grid', 'aria-label': 'Examples' },
         CASES.map(({ path, title, description }) =>
           a(
             {
               class: 'css-vars-demo__card',
               craftRouterLink: { to: path },
             },
-            [h2(title), p(description)],
+            [heading(title), p(description)],
           ).pipe(CraftRouterLink),
         ),
+      ),
       ),
     ]),
 );

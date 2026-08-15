@@ -10,6 +10,9 @@ export default [
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],
   {
+    ignores: ['**/architecture/catalog.ts'],
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
@@ -17,6 +20,7 @@ export default [
           './tsconfig.app.json',
           './tsconfig.spec.json',
           './tsconfig.e2e.json',
+          './tsconfig.architecture.json',
         ],
         tsconfigRootDir: import.meta.dirname,
       },
@@ -45,6 +49,7 @@ export default [
     files: ['**/src/app/function-registry.spec.ts'],
     rules: {
       'craft-ng/prefer-craft-computed': 'off',
+      'craft-ng/no-craft-computed-side-effects': 'off',
     },
   },
   {
@@ -64,6 +69,17 @@ export default [
     files: ['**/src/app/template-trace-demo.ts'],
     rules: {
       'craft-ng/no-angular-inject': 'off',
+      // These wrappers rethrow Craft's control-flow sentinels so the runtime
+      // can handle them at the correct boundary.
+      'craft-ng/no-throw': 'off',
+    },
+  },
+  {
+    // The application exception boundary must preserve Craft's control-flow
+    // sentinels instead of converting them into user-facing exceptions.
+    files: ['**/src/app/app.config.ts'],
+    rules: {
+      'craft-ng/no-throw': 'off',
     },
   },
   {
@@ -72,7 +88,6 @@ export default [
     files: [
       '**/src/app/function-registry-bridge.ts',
       '**/src/app/log-forwarder.ts',
-      '**/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts',
     ],
     rules: {
       'craft-ng/no-direct-temporal-globals': 'off',
@@ -94,7 +109,12 @@ export default [
   },
   {
     // Playwright files are test-boundary code, not authored Craft modules.
-    files: ['**/e2e/**/*.ts', '**/playwright.config.ts'],
+    files: [
+      '**/e2e/**/*.ts',
+      '**/playwright.config.ts',
+      '**/architecture/**/*.ts',
+      '**/vitest.architecture.config.ts',
+    ],
     rules: {
       'craft-ng/craft-method-name-match': 'off',
       'craft-ng/craft-computed-name-match': 'off',
@@ -118,6 +138,8 @@ export default [
       'craft-ng/no-imperative-craft-resource-trigger': 'off',
       'craft-ng/require-craft-resource-trigger-yield': 'off',
       'craft-ng/require-yieldable-template-method': 'off',
+      'craft-ng/require-craft-method-for-yieldable-callback': 'off',
+      'craft-ng/require-yieldable-reactive-read': 'off',
       'craft-ng/no-ephemeral-template-form-state': 'off',
       'craft-ng/template-element-name-unique': 'off',
       'craft-ng/require-primitive-context': 'off',

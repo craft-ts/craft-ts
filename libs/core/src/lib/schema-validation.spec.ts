@@ -13,6 +13,7 @@ import { mutation } from './mutation';
 import { query } from './query';
 import { state } from './state';
 import { provideCraftSchemaValidationPolicy } from './schema-validation';
+import type { YieldableReactiveValue } from './reactive-read';
 
 type TestSchema<Input, Output> = {
   '~standard': {
@@ -55,9 +56,9 @@ describe('Standard Schema validation', () => {
       ),
     );
 
-    expect(value()).toBe(4);
-    expect(value.hasSchema()).toBe(true);
-    expectTypeOf(value.hasSchema).toEqualTypeOf<Signal<true>>();
+    expect(craftUse(value())).toBe(4);
+    expect(craftUse(value.hasSchema())).toBe(true);
+    expectTypeOf(value.hasSchema).toMatchTypeOf<YieldableReactiveValue<true>>();
   });
 
   it('specializes hasSchema to false without a schema', () => {
@@ -66,7 +67,9 @@ describe('Standard Schema validation', () => {
     );
 
     expect(
-      (value as typeof value & { hasSchema: Signal<false> }).hasSchema(),
+      craftUse(
+        (value as typeof value & { hasSchema: Signal<false> }).hasSchema(),
+      ),
     ).toBe(false);
   });
 
@@ -86,7 +89,7 @@ describe('Standard Schema validation', () => {
       ),
     );
 
-    expect(label()).toBe('value-1');
+    expect(craftUse(label())).toBe('value-1');
     expectTypeOf(label).toMatchTypeOf<Signal<string>>();
   });
 
@@ -107,11 +110,11 @@ describe('Standard Schema validation', () => {
       ),
     );
 
-    expect(value()).toBe(1);
+    expect(craftUse(value())).toBe(1);
     source.set(-1);
 
-    expect(value()).toBe(1);
-    expect(value.exceptions().parse.state?.code).toBe(
+    expect(craftUse(value())).toBe(1);
+    expect(craftUse(value.exceptions()).parse.state?.code).toBe(
       'SCHEMA_VALIDATION_ERROR',
     );
   });
@@ -136,9 +139,11 @@ describe('Standard Schema validation', () => {
     search.call('  craft  ');
     await settle();
 
-    expect(search.value()).toEqual(['craft']);
-    expect(search.hasSchema()).toBe(true);
-    expectTypeOf(search.hasSchema).toEqualTypeOf<Signal<true>>();
+    expect(craftUse(search.value())).toEqual(['craft']);
+    expect(craftUse(search.hasSchema())).toBe(true);
+    expectTypeOf(search.hasSchema).toMatchTypeOf<
+      YieldableReactiveValue<true>
+    >();
     expectTypeOf(search.call).parameter(0).toEqualTypeOf<string>();
   });
 
@@ -161,7 +166,7 @@ describe('Standard Schema validation', () => {
 
     await settle();
 
-    expect(products.value()).toEqual([2]);
+    expect(craftUse(products.value())).toEqual([2]);
   });
 
   it('validates loader results and local resource writes independently', async () => {
@@ -187,14 +192,16 @@ describe('Standard Schema validation', () => {
       set(value: string[]): void;
     };
     writableProducts.set(['local']);
-    expect(products.value()).toEqual(['local']);
+    expect(craftUse(products.value())).toEqual(['local']);
 
     writableProducts.set([123] as unknown as string[]);
-    expect(products.value()).toEqual(['local']);
+    expect(craftUse(products.value())).toEqual(['local']);
     const parseExceptions = products.exceptions as unknown as Signal<{
       parse: { loader?: { payload: { value: unknown } } };
     }>;
-    expect(parseExceptions().parse.loader?.payload.value).toEqual([123]);
+    expect(craftUse(parseExceptions()).parse.loader?.payload.value).toEqual([
+      123,
+    ]);
   });
 
   it('validates stream values and keeps the stream reactive', async () => {
@@ -217,10 +224,10 @@ describe('Standard Schema validation', () => {
 
     live.call('craft');
     await settle();
-    expect(live.value()).toEqual(['first']);
+    expect(craftUse(live.value())).toEqual(['first']);
 
     values.set({ value: ['second'] });
-    expect(live.value()).toEqual(['second']);
+    expect(craftUse(live.value())).toEqual(['second']);
   });
 
   it('validates resources with identifiers', async () => {
@@ -249,7 +256,9 @@ describe('Standard Schema validation', () => {
         id: string,
       ): { value: Signal<{ id: string } | undefined> } | undefined;
     };
-    expect(usersWithSelect.select('user-1')?.value()).toEqual({ id: 'user-1' });
+    expect(craftUse(usersWithSelect.select('user-1')?.value())).toEqual({
+      id: 'user-1',
+    });
   });
 
   it('validates mutation method arguments', async () => {
@@ -272,7 +281,7 @@ describe('Standard Schema validation', () => {
     save.mutate({ id: 'user-1' });
     await settle();
 
-    expect(save.value()).toBe('user-1');
+    expect(craftUse(save.value())).toBe('user-1');
   });
 
   it('validates asyncProcess method arguments', async () => {
@@ -295,9 +304,9 @@ describe('Standard Schema validation', () => {
     load.method(' craft ');
     await settle();
 
-    expect(load.value()).toBe('CRAFT');
-    expect(load.hasSchema()).toBe(true);
-    expectTypeOf(load.hasSchema).toEqualTypeOf<Signal<true>>();
+    expect(craftUse(load.value())).toBe('CRAFT');
+    expect(craftUse(load.hasSchema())).toBe(true);
+    expectTypeOf(load.hasSchema).toMatchTypeOf<YieldableReactiveValue<true>>();
   });
 
   it('allows a local policy to accept invalid values', () => {
@@ -314,7 +323,7 @@ describe('Standard Schema validation', () => {
       ),
     );
 
-    expect(value()).toBe(1);
+    expect(craftUse(value())).toBe(1);
   });
 
   it('uses the injected policy and exposes the full validation context', () => {
@@ -376,8 +385,8 @@ describe('Standard Schema validation', () => {
       ),
     );
 
-    expect(total()).toBe(4);
+    expect(craftUse(total())).toBe(4);
     source.set(3);
-    expect(total()).toBe(6);
+    expect(craftUse(total())).toBe(6);
   });
 });

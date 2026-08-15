@@ -10,7 +10,7 @@ import type {
   GetServiceDependencies,
   ResolvedServiceOutput,
 } from '@craft-ng/core';
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
+import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {
@@ -260,8 +260,8 @@ describe('list with pagination logic', () => {
   it('loads the first page through ApiService.getDataList', async () => {
     const { sut, getDataList } = await setupStore();
 
-    expect(sut.pagination()).toEqual({ page: 1, pageSize: 4 });
-    expect(sut.users.currentPageData()).toEqual([
+    expect(craftUse(sut.pagination())).toEqual({ page: 1, pageSize: 4 });
+    expect(craftUse(sut.users.currentPageData())).toEqual([
       { id: '1', name: 'Romain' },
       { id: '2', name: 'Geffrault' },
       { id: '3', name: 'Rom1' },
@@ -277,17 +277,17 @@ describe('list with pagination logic', () => {
     await vi.waitFor(() =>
       expect(getDataList).toHaveBeenCalledWith({ page: 2, pageSize: 4 }),
     );
-    expect(sut.pagination()).toEqual({ page: 2, pageSize: 4 });
-    expect(sut.users.currentPageData()).toEqual([
+    expect(craftUse(sut.pagination())).toEqual({ page: 2, pageSize: 4 });
+    expect(craftUse(sut.users.currentPageData())).toEqual([
       { id: '5', name: 'Toto' },
       { id: '6', name: 'Julien' },
     ]);
 
     sut.pagination.previousPage();
     await vi.waitFor(() =>
-      expect(sut.pagination()).toEqual({ page: 1, pageSize: 4 }),
+      expect(craftUse(sut.pagination())).toEqual({ page: 1, pageSize: 4 }),
     );
-    expect(sut.users.currentPageData()).toEqual([
+    expect(craftUse(sut.users.currentPageData())).toEqual([
       { id: '1', name: 'Romain' },
       { id: '2', name: 'Geffrault' },
       { id: '3', name: 'Rom1' },
@@ -298,8 +298,8 @@ describe('list with pagination logic', () => {
     await vi.waitFor(() =>
       expect(getDataList).toHaveBeenCalledWith({ page: 1, pageSize: 2 }),
     );
-    expect(sut.pagination()).toEqual({ page: 1, pageSize: 2 });
-    expect(sut.users.currentPageData()).toEqual([
+    expect(craftUse(sut.pagination())).toEqual({ page: 1, pageSize: 2 });
+    expect(craftUse(sut.users.currentPageData())).toEqual([
       { id: '1', name: 'Romain' },
       { id: '2', name: 'Geffrault' },
     ]);

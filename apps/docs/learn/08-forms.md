@@ -8,38 +8,7 @@ state, not declared next to it.
 There is no `FormBuilder` here. You start from the state you already know, and
 `insertForm` derives the form from it:
 
-```typescript
-import { state } from '@craft-ng/core';
-import {
-  cRequired,
-  cMaxLength,
-  insertForm,
-  insertFormAttributes,
-  insertFormSchema,
-  insertNoopTypingAnchor,
-  insertSelectFormTree,
-} from '@craft-ng/core';
-
-const taskForm = yield* state(
-  'taskForm',
-  { title: '', notes: '' },
-  insertForm(
-    insertSelectFormTree(
-      'title',
-      insertNoopTypingAnchor,
-      insertFormAttributes(() => ({
-        validators: [cRequired(), cMaxLength(80)],
-      })),
-    ),
-    insertSelectFormTree(
-      'notes',
-      insertNoopTypingAnchor,
-      insertFormAttributes(() => ({ validators: [] })),
-    ),
-  ),
-);
-```
-
+<<< @/tests/snippets/learn/08-forms/task-form.spec.ts#task-form
 Read it as: *the form is this shape, and here is what each field requires.* The
 field tree, the validity, and the exception types are all derived from the state
 type — you never restate them.

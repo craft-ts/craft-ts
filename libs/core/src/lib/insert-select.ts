@@ -24,9 +24,19 @@ import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
   markNonYieldableInsertionMethod,
+  yieldableInvocation,
   type NonYieldableInsertionMethod,
   type YieldableInsertionMethods,
 } from './yieldable';
+import {
+  createYieldableReactiveValue,
+  isYieldableReactiveValue,
+  rawReactiveValue,
+} from './reactive-read';
+
+function readInsertionState(state: () => unknown): unknown {
+  return isYieldableReactiveValue(state) ? rawReactiveValue(state)() : state();
+}
 
 export type SelectedTarget<
   StateType,
@@ -214,7 +224,7 @@ function createInsertSelectItemRuntime(
       (previousInsertions as Record<string, unknown> | undefined) ?? {};
 
     const select = (id: number) => {
-      const currentState = state();
+      const currentState = readInsertionState(state);
       if (!Array.isArray(currentState)) {
         return undefined;
       }
@@ -245,85 +255,98 @@ function createInsertSelectItemRuntime(
               injectFnWrapper()(insertion),
             );
             const insertionContext = {
-              state: selectedStateSignal,
+              state: createYieldableReactiveValue(
+                selectedStateSignal,
+                'state',
+                { primitive: 'insertSelect', path: `${name}.state` },
+              ),
               __primitiveKind: primitiveKind,
-              set: (newState: unknown) => {
-                update((currentState: unknown) => {
-                  if (!Array.isArray(currentState)) {
-                    return currentState;
-                  }
+              set: (newState: unknown) =>
+                yieldableInvocation(
+                  (() => {
+                    update((currentState: unknown) => {
+                      if (!Array.isArray(currentState)) {
+                        return currentState;
+                      }
 
-                  if (
-                    id < 0 ||
-                    id >= currentState.length ||
-                    !Number.isInteger(id)
-                  ) {
-                    return currentState;
-                  }
+                      if (
+                        id < 0 ||
+                        id >= currentState.length ||
+                        !Number.isInteger(id)
+                      ) {
+                        return currentState;
+                      }
 
-                  const nextState = [...currentState];
-                  nextState[id] = newState;
-                  return nextState;
-                });
-                return newState;
-              },
-              update: (updateFn: (currentState: unknown) => unknown) => {
-                const currentSelectedState = select(id);
-                if (currentSelectedState === undefined) {
-                  return undefined;
-                }
+                      const nextState = [...currentState];
+                      nextState[id] = newState;
+                      return nextState;
+                    });
+                    return newState;
+                  })(),
+                ),
+              update: (updateFn: (currentState: unknown) => unknown) =>
+                yieldableInvocation(
+                  (() => {
+                    const currentSelectedState = select(id);
+                    if (currentSelectedState === undefined) {
+                      return undefined;
+                    }
 
-                const nextState = updateFn(currentSelectedState);
-                update((currentState: unknown) => {
-                  if (!Array.isArray(currentState)) {
-                    return currentState;
-                  }
+                    const nextState = updateFn(currentSelectedState);
+                    update((currentState: unknown) => {
+                      if (!Array.isArray(currentState)) {
+                        return currentState;
+                      }
 
-                  if (
-                    id < 0 ||
-                    id >= currentState.length ||
-                    !Number.isInteger(id)
-                  ) {
-                    return currentState;
-                  }
+                      if (
+                        id < 0 ||
+                        id >= currentState.length ||
+                        !Number.isInteger(id)
+                      ) {
+                        return currentState;
+                      }
 
-                  const nextRootState = [...currentState];
-                  nextRootState[id] = nextState;
-                  return nextRootState;
-                });
+                      const nextRootState = [...currentState];
+                      nextRootState[id] = nextState;
+                      return nextRootState;
+                    });
 
-                return nextState;
-              },
-              patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
-                const currentSelectedState = select(id);
-                if (currentSelectedState === undefined) {
-                  return undefined;
-                }
+                    return nextState;
+                  })(),
+                ),
+              patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+                yieldableInvocation(
+                  (() => {
+                    const currentSelectedState = select(id);
+                    if (currentSelectedState === undefined) {
+                      return undefined;
+                    }
 
-                const nextState = {
-                  ...(currentSelectedState as object),
-                  ...patchFn(currentSelectedState),
-                };
-                update((currentState: unknown) => {
-                  if (!Array.isArray(currentState)) {
-                    return currentState;
-                  }
+                    const nextState = {
+                      ...(currentSelectedState as object),
+                      ...patchFn(currentSelectedState),
+                    };
+                    update((currentState: unknown) => {
+                      if (!Array.isArray(currentState)) {
+                        return currentState;
+                      }
 
-                  if (
-                    id < 0 ||
-                    id >= currentState.length ||
-                    !Number.isInteger(id)
-                  ) {
-                    return currentState;
-                  }
+                      if (
+                        id < 0 ||
+                        id >= currentState.length ||
+                        !Number.isInteger(id)
+                      ) {
+                        return currentState;
+                      }
 
-                  const nextRootState = [...currentState];
-                  nextRootState[id] = nextState;
-                  return nextRootState;
-                });
+                      const nextRootState = [...currentState];
+                      nextRootState[id] = nextState;
+                      return nextRootState;
+                    });
 
-                return nextState;
-              },
+                    return nextState;
+                  })(),
+                ),
               insertions: Object.entries(acc.rawInsertionsOutput).reduce(
                 (previous, [key, value]) => {
                   if (isSource$(value)) previous[key] = value;
@@ -395,6 +418,7 @@ function createInsertSelectItemRuntime(
                 if (
                   typeof value === 'function' &&
                   !isSignal(value) &&
+                  !isYieldableReactiveValue(value) &&
                   !isNonYieldableInsertionMethod(value)
                 ) {
                   const methodInjector = ɵcreateHostTaggedInjector(
@@ -403,7 +427,7 @@ function createInsertSelectItemRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                        insertionContext,
+                        { ...insertionContext, state: selectedStateSignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -465,7 +489,7 @@ function createInsertSelectItemRuntime(
     };
 
     const items = () => {
-      const currentState = state();
+      const currentState = readInsertionState(state);
       if (!Array.isArray(currentState)) {
         return [];
       }
@@ -479,7 +503,7 @@ function createInsertSelectItemRuntime(
       }, []);
     };
 
-    const currentState = state();
+    const currentState = readInsertionState(state);
     if (Array.isArray(currentState) && currentState.length > 0) {
       selectItem(0);
     }
@@ -489,7 +513,7 @@ function createInsertSelectItemRuntime(
       insertionSnapshotRegistry.trigger$
         .pipe(takeUntilDestroyed(destroyRef))
         .subscribe(() => {
-          const rawState = state();
+          const rawState = readInsertionState(state);
           if (!Array.isArray(rawState)) return;
           const snapshot = rawState.map((rawItem, i) => {
             const proxy = selectItem(i);
@@ -549,7 +573,7 @@ function createInsertSelectPropertyRuntime(
     };
 
     const selectProperty = () => {
-      const currentState = state();
+      const currentState = readInsertionState(state);
       if (!currentState || typeof currentState !== 'object') {
         return undefined;
       }
@@ -592,15 +616,24 @@ function createInsertSelectPropertyRuntime(
               injectFnWrapper()(insertion),
             );
             const insertionContext = {
-              state: selectedPropertySignal,
+              state: createYieldableReactiveValue(
+                selectedPropertySignal,
+                'state',
+                { primitive: 'insertSelect', path: `${name}.state` },
+              ),
               __primitiveKind: primitiveKind,
-              set: setProperty,
-              update: updateProperty,
+              set: (newState: unknown) => {
+                setProperty(newState);
+                return yieldableInvocation(newState);
+              },
+              update: (updateFn: (currentState: unknown) => unknown) => {
+                return yieldableInvocation(updateProperty(updateFn));
+              },
               patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
-                return updateProperty((current) => ({
+                return yieldableInvocation(updateProperty((current) => ({
                   ...(current as object),
                   ...patchFn(current),
-                }));
+                })));
               },
               insertions: Object.entries(acc.rawInsertionsOutput).reduce(
                 (previous, [key, value]) => {
@@ -696,6 +729,7 @@ function createInsertSelectPropertyRuntime(
                 if (
                   typeof value === 'function' &&
                   !isSignal(value) &&
+                  !isYieldableReactiveValue(value) &&
                   !isNonYieldableInsertionMethod(value)
                 ) {
                   const methodInjector = ɵcreateHostTaggedInjector(
@@ -704,7 +738,7 @@ function createInsertSelectPropertyRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                        insertionContext,
+                        { ...insertionContext, state: selectedPropertySignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -773,7 +807,10 @@ function createInsertSelectPropertyRuntime(
         .pipe(takeUntilDestroyed(destroyRef))
         .subscribe(() => {
           const proxy = selectPropertyItem();
-          const rawPropertyValue = state() as Record<string, unknown>;
+          const rawPropertyValue = readInsertionState(state) as Record<
+            string,
+            unknown
+          >;
           const rawPropValue =
             rawPropertyValue &&
             typeof rawPropertyValue === 'object' &&
@@ -811,7 +848,7 @@ function createDeferredInsertSelectRuntime(
     let activeRuntime: any;
 
     const getActiveRuntime = () => {
-      const isArray = Array.isArray(context.state());
+      const isArray = Array.isArray(readInsertionState(context.state));
       if (activeRuntime && activeIsArray === isArray) {
         return activeRuntime;
       }
@@ -856,7 +893,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *
  * @example
  * ```ts
- * const board = craftUse(state(
+ * const board = yield* state(
  *   {
  *     cell: { color: 'white', paintCount: 0 },
  *   },
@@ -870,13 +907,13 @@ type IsArray<T> = T extends any[] ? true : false;
  *   })),
  * ));
  *
- * craftUse(board.selectCell().paintBlack());
+ * yield* board.selectCell().paintBlack();
  * console.log(board.selectCell().color); // 'black'
  * ```
  *
  * @example
  * ```ts
- * const cells = craftUse(state(
+ * const cells = yield* state(
  *   [{ color: 'white', paintCount: 0 }],
  *   insertSelect('cell', ({ update }) => ({
  *     paint: () =>
@@ -888,7 +925,8 @@ type IsArray<T> = T extends any[] ? true : false;
  *   })),
  * ));
  *
- * craftUse(cells.selectCell(0)?.paint());
+ * const cell = cells.selectCell(0);
+ * if (cell) yield* cell.paint();
  * console.log(cells.selectCell(0)?.paintCount); // 1
  * ```
  *
@@ -904,7 +942,9 @@ type IsArray<T> = T extends any[] ? true : false;
  *     gridContext,
  *     ({ state, update }) => ({
  *       addRow: () => update((grid) => [...grid, createNextRow(grid)]),
- *       rowIndexes: computed(() => state().map((_row, index) => index)),
+ *       rowIndexes: craftComputed(function* () {
+ *         return (yield* state()).map((_row, index) => index);
+ *       }),
  *     }),
  *     insertSelect('row', ({ update }) => ({
  *       // ...
@@ -919,7 +959,10 @@ type IsArray<T> = T extends any[] ? true : false;
  * @example
  * ```ts
  * state(initialCells, insertStatePipe(
- *     insertStoragePersister({ storeName: 'app', key: 'cells' }),
+ *     insertStoragePersister(craftUnique({
+ *       storeName: 'app',
+ *       key: 'cells',
+ *     })),
  *     insertSelect('cell', ({ update }) => ({
  *       paint: () => update((cell) => ({ ...cell, painted: true })),
  *     })),
@@ -960,7 +1003,7 @@ export function insertSelect(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: any,
   ) => {
-    const currentState = context.state();
+    const currentState = readInsertionState(context.state);
     if (
       currentState === undefined &&
       context.__primitiveKind &&

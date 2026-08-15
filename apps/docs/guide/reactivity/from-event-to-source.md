@@ -129,19 +129,8 @@ listener and does not alter dependency metadata.
 
 Event listeners are automatically removed when the injection context is destroyed:
 
-```typescript
-export const Demo = craftComponent(
-  'Demo',
-  {},
-  function* () {
-    const keydown$ = fromEventToSource$<KeyboardEvent>(document, 'keydown');
+<<< @/tests/snippets/guide/reactivity/from-event-to-source/demo.spec.ts#demo
 
-    // the listener is removed automatically when the component is destroyed
-    return { keydown$ };
-  },
-  () => p('Press any key'),
-);
-```
 
 ### Signal Integration
 
@@ -153,7 +142,9 @@ const input$ = fromEventToSource$(inputElement, 'input', {
 });
 
 // Use in template or computed
-const trimmedValue = computed(() => input$.value()?.trim() ?? '');
+const trimmedValue = craftComputed('trimmedValue', function* () {
+  return (yield* input$.value())?.trim() ?? '';
+});
 ```
 
 ### Event Transformation
@@ -207,7 +198,10 @@ export const Clicker = craftComponent(
 
     return { clicks };
   },
-  ({ clicks }) => p(() => `Clicks: ${clicks()}`),
+  ({ clicks }) =>
+    p(function* () {
+      return `Clicks: ${yield* clicks()}`;
+    }),
 );
 ```
 
@@ -227,7 +221,9 @@ export const Search = craftComponent(
   },
   ({ searchTerm }) => [
     input({ type: 'text', placeholder: 'Search…' }),
-    p(() => `You typed: ${searchTerm() || 'nothing yet'}`),
+    p(function* () {
+      return `You typed: ${(yield* searchTerm()) || 'nothing yet'}`;
+    }),
   ],
 );
 ```
@@ -260,7 +256,11 @@ export const InfiniteScroll = craftComponent(
     return { scrollPosition: scroll$.value };
   },
   ({ scrollPosition }) =>
-    div(p(() => `Scroll position: ${scrollPosition()?.scrollY}`)),
+    div(
+      p(function* () {
+        return `Scroll position: ${(yield* scrollPosition())?.scrollY}`;
+      }),
+    ),
 );
 ```
 
@@ -282,53 +282,26 @@ export const Responsive = craftComponent(
 
     return {
       dimensions,
-      isMobile: computed(() => {
-        const dims = dimensions();
+      isMobile: craftComputed('isMobile', function* () {
+        const dims = yield* dimensions();
         return dims ? dims.width < 768 : false;
       }),
     };
   },
   ({ dimensions }) =>
-    div(p(() => `Viewport: ${dimensions()?.width} x ${dimensions()?.height}`)),
+    div(
+      p(function* () {
+        const dims = yield* dimensions();
+        return `Viewport: ${dims?.width} x ${dims?.height}`;
+      }),
+    ),
 );
 ```
 
 ### Keyboard Shortcuts
 
-```typescript
-interface ShortcutEvent {
-  key: string;
-  ctrlKey: boolean;
-  shiftKey: boolean;
-  altKey: boolean;
-}
+<<< @/tests/snippets/guide/reactivity/from-event-to-source/shortcuts.spec.ts#shortcuts
 
-export const Shortcuts = craftComponent(
-  'Shortcuts',
-  {},
-  function* () {
-    const save = () => console.log('Save triggered');
-    const undo = () => console.log('Undo triggered');
-
-    const keydown$ = fromEventToSource$(document, 'keydown', {
-      computedValue: (event: KeyboardEvent) => ({
-        key: event.key,
-        ctrlKey: event.ctrlKey,
-        shiftKey: event.shiftKey,
-        altKey: event.altKey,
-      }),
-    });
-
-    keydown$.subscribe((shortcut) => {
-      if (shortcut.ctrlKey && shortcut.key === 's') save();
-      else if (shortcut.ctrlKey && shortcut.key === 'z') undo();
-    });
-
-    return {};
-  },
-  () => p('Try Ctrl+S or Ctrl+Z'),
-);
-```
 
 ### Dynamic Element Listening
 
@@ -389,44 +362,19 @@ export const CursorTracker = craftComponent(
     return { position: mouseMove$.value };
   },
   ({ position }) =>
-    div(p(() => `Mouse position: ${position()?.x}, ${position()?.y}`)),
+    div(
+      p(function* () {
+        const pos = yield* position();
+        return `Mouse position: ${pos?.x}, ${pos?.y}`;
+      }),
+    ),
 );
 ```
 
 ### Form Submission
 
-```typescript
-export const SubmitDemo = craftComponent(
-  'SubmitDemo',
-  {},
-  function* () {
-    const submit$ = fromEventToSource$(document, 'submit', {
-      computedValue: (event: Event) => {
-        event.preventDefault();
-        const formData = new FormData(event.target as HTMLFormElement);
-        return Object.fromEntries(formData);
-      },
-    });
+<<< @/tests/snippets/guide/reactivity/from-event-to-source/submitdemo.spec.ts#submitdemo
 
-    const formData = yield* state(
-      'formData',
-      null as Record<string, unknown> | null,
-      ({ set }) => ({
-        // bound to the source, so NOT exposed on the ref
-        handleSubmit: on$(submit$, (data) => set(data)),
-      }),
-    );
-
-    return { formData };
-  },
-  ({ formData }) =>
-    form([
-      input({ type: 'text', name: 'username' }),
-      button({ type: 'submit' }, 'Submit'),
-      p(() => JSON.stringify(formData())),
-    ]),
-);
-```
 
 ## Comparison with sourceFromEvent
 

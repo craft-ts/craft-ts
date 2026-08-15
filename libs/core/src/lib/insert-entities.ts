@@ -102,14 +102,14 @@ type EntitiesUtilsToMap<
  *
  * @example
  * // Basic usage with primitives
- * const tags = craftUse(state(
+ * const tags = yield* state(
  *   [] as string[],
  *   insertEntities({
  *     methods: [addOne, addMany, removeOne],
  *   })
  * ));
- * tags.addOne({ entity: 'typescript' });
- * tags.addMany({ newEntities: ['angular', 'signals'] });
+ * yield* tags.addOne({ entity: 'typescript' });
+ * yield* tags.addMany({ newEntities: ['angular', 'signals'] });
  *
  * @example
  * // With objects having default id property
@@ -118,13 +118,13 @@ type EntitiesUtilsToMap<
  *   name: string;
  *   price: number;
  * }
- * const products = craftUse(state(
+ * const products = yield* state(
  *   [] as Product[],
  *   insertEntities({
  *     methods: [addOne, setOne, removeOne],
  *   })
  * ));
- * products.addOne({ entity: { id: '1', name: 'Laptop', price: 999 } });
+ * yield* products.addOne({ entity: { id: '1', name: 'Laptop', price: 999 } });
  *
  * @example
  * // With custom identifier
@@ -132,7 +132,7 @@ type EntitiesUtilsToMap<
  *   uuid: string;
  *   name: string;
  * }
- * const users = craftUse(state(
+ * const users = yield* state(
  *   [] as User[],
  *   insertEntities({
  *     methods: [setOne, removeOne],
@@ -146,18 +146,18 @@ type EntitiesUtilsToMap<
  *   total: number;
  *   products: Array<{ id: string; name: string }>;
  * }
- * const catalog = craftUse(state(
+ * const catalog = yield* state(
  *   { total: 0, products: [] } as Catalog,
  *   insertEntities({
  *     methods: [addMany, removeOne],
  *     path: 'products',
  *   })
  * ));
- * catalog.productsAddMany({ newEntities: [{ id: '1', name: 'Item' }] });
+ * yield* catalog.productsAddMany({ newEntities: [{ id: '1', name: 'Item' }] });
  *
  * @example
  * // With parallel queries
- * const userQuery = craftUse(query(
+ * const userQuery = yield* query(
  *   {
  *     params: () => 'userId',
  *     identifier: (params) => params,
@@ -167,7 +167,7 @@ type EntitiesUtilsToMap<
  *     methods: [addOne],
  *   })
  * ));
- * userQuery.addOne({
+ * yield* userQuery.addOne({
  *   select: 'user-123', // Target specific query instance
  *   entity: { id: 'post-1', title: 'New Post' },
  * });

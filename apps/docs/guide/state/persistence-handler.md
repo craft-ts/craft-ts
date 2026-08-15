@@ -36,20 +36,8 @@ complete cleanup of all data cached by `@craft-ng`, including:
 
 ## The common case — clearing on logout
 
-```typescript
-import { craftService, GlobalPersisterHandlerService } from '@craft-ng/core';
+<<< @/tests/snippets/guide/state/persistence-handler/example-2.spec.ts#example-2
 
-const { LogoutHandler } = craftService(
-  { name: 'LogoutHandler', scope: 'toProvide' },
-  function* () {
-    const persister = yield* GlobalPersisterHandlerService();
-
-    return {
-      logout: () => persister.clearAllCache(),
-    };
-  },
-);
-```
 
 ## Force refresh all data
 
@@ -65,21 +53,8 @@ const { CacheActions } = craftService(
 
 ## Clear cache when switching accounts
 
-```typescript
-const { AccountSwitcher } = craftService(
-  { name: 'AccountSwitcher', scope: 'toProvide' },
-  function* () {
-    const persister = yield* GlobalPersisterHandlerService();
-    return {
-      switchAccount: (accountId: string) => {
-        persister.clearAllCache();
-        // Load the selected account...
-        return accountId;
-      },
-    };
-  },
-);
-```
+<<< @/tests/snippets/guide/state/persistence-handler/example-3.spec.ts#example-3
+
 
 ::: details Other situations where this comes up
 

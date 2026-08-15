@@ -15,21 +15,7 @@ This is where the dev tooling earns its keep.
 A Craft component is mounted with `loadCraftComponent(...)`, spread into the
 route:
 
-```typescript
-import { loadCraftComponent } from '@craft-ng/component';
-import { craftRoutes } from '@craft-ng/core';
-
-export const { appRoutes } = craftRoutes('app', [
-  {
-    path: 'tasks',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./tasks/tasks')).then(
-        ({ default: component }) => component,
-      ),
-    ),
-  },
-]);
-```
+<<< @/tests/snippets/learn/09-routing/app-routes.ts#app-routes
 
 `withRetry` wraps the dynamic import, so a chunk that fails to download is
 retried instead of dead-ending the navigation. Keep the import specifier
@@ -56,27 +42,11 @@ Two ways, both checked against the registry above.
 
 **As a link**, with the `CraftRouterLink` directive:
 
-```typescript
-import { a } from '@craft-ng/component';
-import { CraftRouterLink } from '@craft-ng/core';
-
-// in a template
-a({ craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink);
-```
+<<< @/tests/snippets/learn/09-routing/router-link.spec.ts#router-link
 
 **Imperatively**, by yielding the router:
 
-```typescript
-function* () {
-  const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
-
-  const goToTask = craftMethod('goToTask', function* (taskId: string) {
-    void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
-  });
-
-  return { goToTask };
-}
-```
+<<< @/tests/snippets/learn/09-routing/navigate.spec.ts#navigate
 
 The target is `{ to, params?, queryParams? }`, and all of it is checked:
 
@@ -104,30 +74,7 @@ component and path you provide.
 
 Declare one local alias for your app's context, then one `CanRun` per route:
 
-```typescript
-import type { ActivatedRoute, Router } from '@angular/router';
-import type { CanRun, ComponentDepsOf, RouteCheckedDI } from '@craft-ng/core';
-
-type AppRouteCheckedDI<
-  Component,
-  RouteInputs extends string = never,
-  Context extends string = 'app route component',
-> = RouteCheckedDI<
-  ComponentDepsOf<Component>,
-  'CraftRouter',
-  Router | ActivatedRoute,
-  Context,
-  RouteInputs
->;
-
-type _CanRunTasks = CanRun<
-  AppRouteCheckedDI<
-    (typeof import('./tasks/tasks'))['default'],
-    never,
-    'path: "tasks"'
-  >
->;
-```
+<<< @/tests/snippets/learn/09-routing/route-checked-di.spec.ts#route-checked-di
 
 The alias fixes the ambient context once — what the app provides by name
 (`'CraftRouter'`) and by value (`Router | ActivatedRoute`). Each route then
@@ -142,7 +89,10 @@ Input "taskId" is not provided in path: "tasks"
 ```
 
 Remember step 3, where `toProvide` was flagged as failing only at runtime? This
-is what closes that hole.
+is what closes that hole — **provided the proof stays in the file**. A `CanRun`
+alias that nobody references still compiles; [architecture
+tests](/guide/testing/architecture#assertroutediproofs) are what turn omitting
+it into a failing suite.
 
 ::: tip Why one check per route
 `RouteCheckedDI` validates a single component with no recursion between routes,
@@ -172,39 +122,27 @@ just disappear](/guide/concepts/exceptions). Everything else is on
 
 ## Wire it into the app
 
-```typescript
-import { craftAppConfig } from '@craft-ng/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
-
-export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
-  providers: [provideRouter(appRoutes.toRoutes(), withComponentInputBinding())],
-});
-```
+<<< @/tests/snippets/learn/09-routing/app-config.spec.ts#app-config
 
 `toRoutes()` hands Angular the real routes; `META_DATA` hands the compile-time
 graph to `craftAppConfig`.
 
-## Validate the routing safety net
+## Make the DI contract enforceable
 
-After wiring the routes into `craftAppConfig`, add the verification script:
+The proofs above look ceremonial: unused type aliases, a `CanRun` wrapper, a
+cascade that does not descend into `loadChildren`, a separate check for pending
+and error screens, another for `app.config`. Each piece is small; omitting one
+is silent. TypeScript still compiles.
 
-```json
-{
-  "scripts": {
-    "craft:verify-routes": "craft route verify --project tsconfig.app.json"
-  }
-}
-```
+Architecture tests collapse that checklist into a single assertion.
+`assertRouteDiProofs` walks the static graph and fails unless every routed
+component — including lazy child collections — and every `craftAppConfig` error
+screen is hooked to an armed mapper. TypeScript still judges whether a
+dependency is provided; the architecture suite judges whether that judgement
+was invoked.
 
-Then run `npm run craft:verify-routes`. The command first audits the routes you
-just created: commenting or forgetting a `CanRun`/`RouteCheckedDI` proof is
-reported even though an unused type alias would otherwise compile. It also
-checks existing exception, pending-component and lazy-retry bookkeeping.
-Temporary valid and invalid examples then confirm that the compiler catches
-missing DI providers, template dependencies, route inputs, pending/error
-component contracts and unhandled route exceptions. Fixtures are deleted when
-the command ends; use `--json` for CI or `--keep-fixtures` to inspect a failure.
+Add it next to `e2e/`, in `architecture/`, then run it in CI. Full setup:
+[Architecture rules](/guide/testing/architecture).
 
 ## What the user sees while a route loads
 
@@ -213,21 +151,7 @@ page. Swap `provideRouter` for `provideCraftRouter` and render
 `CraftRouterOutlet()` instead of `<router-outlet>`, and the URL commits
 immediately while the chain runs behind it:
 
-```typescript
-import { CraftRouterOutlet } from '@craft-ng/component';
-import { provideCraftRouter, withTransitionTimings } from '@craft-ng/core';
-
-export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
-  providers: [
-    provideCraftRouter(
-      appRoutes.toRoutes(),
-      withComponentInputBinding(),
-      withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
-    ),
-  ],
-});
-```
+<<< @/tests/snippets/learn/09-routing/craft-router.spec.ts#craft-router
 
 Those three numbers are the whole waiting story, and they exist so a fast
 navigation shows **nothing at all**:
@@ -296,12 +220,14 @@ loader, the check block and the registry entry, then runs ESLint and `tsc`. Use
 ## What you gained
 
 Routing where a forgotten provider, a misspelled input, an unhandled exception or
-a route pointing at nothing stops the build instead of reaching production.
+a route pointing at nothing stops the build instead of reaching production — and
+architecture tests keep those proofs from quietly disappearing.
 
 ::: details The parts you'll want later
 Route-scoped providers, guards as bare generators and centralised exception
 handling all live under [Routing](/guide/routing/setup). Splitting a growing collection across lazy
-child files is [Scaling routes](/guide/routing/scaling).
+child files is [Scaling routes](/guide/routing/scaling). Architecture tests that keep the DI proofs
+armed are [Architecture rules](/guide/testing/architecture).
 :::
 
 <div style="display: flex; justify-content: space-between; margin-top: 2rem">

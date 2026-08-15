@@ -11,18 +11,18 @@ If you are looking for a specific answer instead, go to the
 A task list. It starts as three lines in a component and ends up with server
 data, optimistic updates, URL state, a validated form, a typed route and tests.
 
-| Step                                                    | What you add                        |
-| ------------------------------------------------------- | ----------------------------------- |
-| [1. Your first state](/learn/01-first-state)            | `craftComponent`, `state`           |
-| [2. Derive instead of duplicate](/learn/02-derive)      | computed + methods                  |
-| [3. Move logic out of the component](/learn/03-service) | `craftService`                      |
-| [4. Compose services](/learn/04-compose)                | generators, `yield*`                |
-| [5. Load server data](/learn/05-load-data)              | `query`                             |
-| [6. Write server data](/learn/06-mutate-data)           | `mutation`, optimistic updates      |
-| [7. Put state in the URL](/learn/07-url-state)          | `queryParams`                       |
-| [8. Build a form](/learn/08-forms)                      | `insertForm`, validators            |
-| [9. Wire up routing](/learn/09-routing)                 | `craftRoute`, compile-time DI check |
-| [10. Test what you wrote](/learn/10-testing)            | testing by register                 |
+| Step                                                    | What you add                                |
+| ------------------------------------------------------- | ------------------------------------------- |
+| [1. Your first state](/learn/01-first-state)            | `craftComponent`, `state`                   |
+| [2. Derive instead of duplicate](/learn/02-derive)      | computed + methods                          |
+| [3. Move logic out of the component](/learn/03-service) | `craftService`                              |
+| [4. Compose services](/learn/04-compose)                | generators, `yield*`                        |
+| [5. Load server data](/learn/05-load-data)              | `query`                                     |
+| [6. Write server data](/learn/06-mutate-data)           | `mutation`, optimistic updates              |
+| [7. Put state in the URL](/learn/07-url-state)          | `queryParams`                               |
+| [8. Build a form](/learn/08-forms)                      | `insertForm`, validators                    |
+| [9. Wire up routing](/learn/09-routing)                 | `craftRoute`, compile-time DI check         |
+| [10. Test what you wrote](/learn/10-testing)            | testing by register, architecture rules     |
 
 Then: [Where to go next](/learn/next).
 

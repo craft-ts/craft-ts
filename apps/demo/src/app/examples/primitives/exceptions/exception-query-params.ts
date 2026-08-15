@@ -1,20 +1,28 @@
-import { computed } from '@angular/core';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
   div,
-  h,
   ifBlock,
   p,
   section,
   strong,
+  heading,
 } from '@craft-ng/component';
 import {
   craftMethod,
   CraftRouter,
   queryParams,
+  craftComputed,
   craftException,
 } from '@craft-ng/core';
+
+function formatParseException(exception: {
+  code: string;
+  payload: { error: unknown };
+}) {
+  return `${exception.code}: ${exception.payload.error}`;
+}
 
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
@@ -47,6 +55,8 @@ const ExceptionQueryParamsComponent = craftComponent(
       }
       :scope button:hover { background: #f1f5f9; }
       :scope p { margin: 0.5rem 0; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -78,8 +88,11 @@ const ExceptionQueryParamsComponent = craftComponent(
         },
       },
       ({ exceptions }) => ({
-        hasParseException: computed(
-          () => exceptions().parse.mode !== undefined,
+        hasParseException: craftComputed(
+          'hasParseException',
+          function* () {
+            return (yield* exceptions()).parse.mode !== undefined;
+          },
         ),
       }),
     );
@@ -95,10 +108,10 @@ const ExceptionQueryParamsComponent = craftComponent(
   },
   ({ modeQueryParams, navigate }) => {
     return section([
-      h('h4', 'QueryParams decode exception'),
+      heading( 'QueryParams decode exception'),
       div([
         button(
-          {
+          { type: 'button',
             *click() {
               yield* navigate('success');
             },
@@ -106,7 +119,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate success',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* navigate('exception');
             },
@@ -114,18 +127,24 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate exception',
         ),
       ]),
-      p([strong('Parsed value: '), () => String(modeQueryParams().mode)]),
+      p([
+        strong('Parsed value: '),
+        function* () {
+          return String((yield* modeQueryParams()).mode);
+        },
+      ]),
       ifBlock(
         modeQueryParams.hasParseException,
         () =>
           p([
             strong('Exception: '),
-            () => {
-              const exception = modeQueryParams.exceptions().parse.mode as {
-                code: string;
-                payload: { error: unknown };
-              };
-              return `${exception.code}: ${exception.payload.error}`;
+            function* () {
+              return formatParseException(
+                (yield* modeQueryParams.exceptions()).parse.mode as {
+                  code: string;
+                  payload: { error: unknown };
+                },
+              );
             },
           ]),
         () => p([strong('Exception: '), 'none']),

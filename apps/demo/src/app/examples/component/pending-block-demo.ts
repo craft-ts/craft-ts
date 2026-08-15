@@ -1,14 +1,15 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
   div,
-  h2,
   li,
   p,
   pendingBlock,
   section,
   span,
   ul,
+  heading,
 } from '@craft-ng/component';
 import { craftComputed, craftSleep, query, settled } from '@craft-ng/core';
 
@@ -73,30 +74,31 @@ export const pendingBlockDemo = craftComponent(
 
     yield* users.call(undefined); // trigger first call
 
-    // The computed consumes the resolved value: inside the callback `list()` is
+    // The computed consumes the resolved value: inside the callback `list` is
     // an `{ items }`, never `undefined`. In exchange the computed is tagged as
     // depending on the async source "users".
     const teams = craftComputed('teams', function* () {
       const list = yield* settled(users);
-      return () =>
-        [...new Set(list().items.map((user) => user.team))].sort().join(' · ');
+      return [...new Set(list.items.map((user) => user.team))]
+        .sort()
+        .join(' · ');
     });
 
     const total = craftComputed('total', function* () {
       const list = yield* settled(users);
-      return () => `${list().items.length} people`;
+      return `${list.items.length} people`;
     });
 
     return { users, teams, total };
   },
   ({ teams, total, users }) =>
     section({ class: 'pending-demo' }, [
-      h2('settledValue + pendingBlock'),
+      heading('settledValue + pendingBlock'),
       p(
         'The template reads an always-resolved value; the pendingBlock owns the loading state.',
       ),
       button(
-        {
+        { type: 'button',
           class: 'pending-demo__reload',
           *click() {
             yield* users.call(undefined);

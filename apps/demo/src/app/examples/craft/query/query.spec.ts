@@ -154,7 +154,11 @@ describe('Craft query logic', () => {
     };
     const userQuery = vi.fn((_: { userId: () => string | undefined }) => user);
     const result = await setupCraftComponentLogicTest(CraftGlobalQuery, {
-      args: [(() => currentUserId) as Input<string | undefined>],
+      args: [
+        (function* () {
+          return currentUserId;
+        }) as Input<string | undefined>,
+      ],
       register: {
         UserQuery: { $self: userQuery },
         ApiService: 'notReached',

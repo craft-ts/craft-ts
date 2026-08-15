@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal, type Signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -21,7 +21,8 @@ import {
   onAppStart,
   type GetServiceDependencies,
 } from './craft-service';
-import { isYieldableMethod, type YieldableMethod } from './yieldable';
+import type { YieldableReactiveValue } from './reactive-read';
+import { craftUse } from './craft-use';
 
 beforeAll(() => {
   try {
@@ -61,9 +62,9 @@ describe('craftComputed', () => {
       () => new CounterComponent(),
     );
 
-    expect(component.doubled()).toBe(0);
+    expect(craftUse(component.doubled())).toBe(0);
     component.count.set(5);
-    expect(component.doubled()).toBe(10);
+    expect(craftUse(component.doubled())).toBe(10);
   });
 
   it('should work with a generator factory that resolves DI deps once', () => {
@@ -79,7 +80,7 @@ describe('craftComputed', () => {
       // it returns) to the component instance.
       readonly tripled = craftComputed('tripled', this, function* () {
         const multiplier = yield* Multiplier();
-        return () => this.count() * multiplier.factor;
+        return this.count() * multiplier.factor;
       });
     }
 
@@ -87,22 +88,23 @@ describe('craftComputed', () => {
       () => new CounterComponent(),
     );
 
-    expect(component.tripled()).toBe(0);
+    expect(craftUse(component.tripled())).toBe(0);
     component.count.set(4);
-    expect(component.tripled()).toBe(12);
+    expect(craftUse(component.tripled())).toBe(12);
   });
 
   it('should reject onAppStart inside craftComputed generators', () => {
     class InvalidComponent {
       readonly value = craftComputed('value', function* () {
         yield* onAppStart(() => undefined);
-        return () => 42;
+        return 42;
       });
     }
 
-    expect(() =>
-      TestBed.runInInjectionContext(() => new InvalidComponent()),
-    ).toThrow(
+    const component = TestBed.runInInjectionContext(
+      () => new InvalidComponent(),
+    );
+    expect(() => craftUse(component.value())).toThrow(
       'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
     );
   });
@@ -118,7 +120,7 @@ describe('craftComputed', () => {
       readonly doubled = craftComputed('doubled', () => this.count() * 2);
       readonly tripled = craftComputed('tripled', this, function* () {
         const m = yield* Multiplier4();
-        return () => this.count() * m.factor;
+        return this.count() * m.factor;
       });
     }
 
@@ -126,18 +128,20 @@ describe('craftComputed', () => {
       () => new CounterComponent(),
     );
 
-    expectTypeOf(component.doubled).toMatchTypeOf<Signal<number>>();
-    expectTypeOf(component.tripled).toMatchTypeOf<Signal<number>>();
-    expect(isYieldableMethod(component.doubled)).toBe(true);
-    expect(isYieldableMethod(component.tripled)).toBe(true);
+    expectTypeOf(component.doubled).toMatchTypeOf<
+      YieldableReactiveValue<number>
+    >();
+    expectTypeOf(component.tripled).toMatchTypeOf<
+      YieldableReactiveValue<number>
+    >();
 
     type _PlainComputedIsYieldable = Expect<
-      CounterComponent['doubled'] extends YieldableMethod<[], number>
+      CounterComponent['doubled'] extends YieldableReactiveValue<number>
         ? true
         : false
     >;
     type _GeneratorComputedIsYieldable = Expect<
-      CounterComponent['tripled'] extends YieldableMethod<[], number>
+      CounterComponent['tripled'] extends YieldableReactiveValue<number>
         ? true
         : false
     >;
@@ -153,7 +157,7 @@ describe('craftComputed', () => {
       readonly count = signal(0);
       readonly value = craftComputed('value', this, function* () {
         const m = yield* Multiplier5();
-        return () => this.count() * m.factor;
+        return this.count() * m.factor;
       });
     }
 

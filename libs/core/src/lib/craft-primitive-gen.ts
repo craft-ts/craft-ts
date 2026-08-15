@@ -11,6 +11,10 @@ import {
   markYieldableValue,
   YIELDABLE_VALUE,
 } from './yieldable';
+import {
+  DEEP_YIELDABLE,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
 /**
  * Dependency map carried by a primitive (`mutation`, `query`, `asyncProcess`,
@@ -92,9 +96,14 @@ export type NamedPrimitive<Name extends string, Ref> = Ref extends {
   kind: string;
 }
   ? Ref
-  : Ref extends Signal<any>
-    ? Ref & { readonly [YIELDABLE_VALUE]: Name }
-    : Ref;
+  : Ref extends { readonly [DEEP_YIELDABLE]: true }
+    ? Ref
+  : Ref extends YieldableReactiveValue<infer State, any>
+    ? Omit<Ref, keyof YieldableReactiveValue<State, any>> &
+        YieldableReactiveValue<State, Name>
+    : Ref extends Signal<any>
+      ? Ref & { readonly [YIELDABLE_VALUE]: Name }
+      : Ref;
 
 /**
  * Return type of the named craft primitives: a {@link CraftPrimitiveGen}
@@ -105,24 +114,19 @@ export type NamedCraftPrimitiveGen<
   Ref,
 > = CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref>;
 
-type YieldRecordValue<Value> = Value extends Generator<
-  any,
-  infer Output,
-  any
->
-  ? Output
-  : Value;
+type YieldRecordValue<Value> =
+  Value extends Generator<any, infer Output, any> ? Output : Value;
 
 type YieldRecordOutput<Record extends object> = {
   [Key in keyof Record]: YieldRecordValue<Record[Key]>;
 };
 
-type YieldRecordYielded<Record extends object> = Record[keyof Record] extends
-  infer Value
-  ? Value extends Generator<infer Yielded, any, any>
-    ? Yielded
-    : never
-  : never;
+type YieldRecordYielded<Record extends object> =
+  Record[keyof Record] extends infer Value
+    ? Value extends Generator<infer Yielded, any, any>
+      ? Yielded
+      : never
+    : never;
 
 /**
  * Resolves a record of generator-compatible values while preserving its keys.
@@ -147,11 +151,7 @@ type YieldRecordYielded<Record extends object> = Record[keyof Record] extends
  */
 export function craftYieldRecord<Record extends object>(
   record: Record,
-): Generator<
-  YieldRecordYielded<Record>,
-  YieldRecordOutput<Record>,
-  unknown
-> {
+): Generator<YieldRecordYielded<Record>, YieldRecordOutput<Record>, unknown> {
   return (function* () {
     const output = {} as YieldRecordOutput<Record>;
 

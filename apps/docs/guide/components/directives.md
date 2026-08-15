@@ -29,35 +29,8 @@ The examples below use a directive that adds a `permissions` object to the
 component context. Its configuration is internal to the directive; the
 component caller only provides the original `user` input.
 
-```ts
-type RequiresUser = {
-  user: Input<User>;
-};
+<<< @/tests/snippets/guide/components/directives/interactivepermissions.spec.ts#interactivepermissions
 
-type ProvidesPermissions = RequiresUser & {
-  permissions: {
-    canEdit: () => boolean;
-  };
-};
-
-const InteractivePermissions = craftDirective(
-  'InteractivePermissions',
-  {},
-  (baseLogic: HostRequiredLogic<RequiresUser>) => (user: Input<User>) => {
-    const context = baseLogic(user);
-
-    return {
-      ...context,
-      permissions: {
-        canEdit: () => user().permissions.includes('edit'),
-      },
-    };
-  },
-
-  (baseTemplate: HostTemplate<ProvidesPermissions>) => (context) =>
-    baseTemplate(context),
-);
-```
 
 ## Basic composition
 
@@ -175,35 +148,8 @@ existing convention for functional component factories.
 
 A structural directive decides whether the template produces nodes:
 
-```ts
-const whenDirective = craftDirective(
-  'whenDirective',
-  {},
-  (
-    baseLogic: HostRequiredLogic<{
-      when: Input<boolean>;
-    }>,
-  ) => baseLogic,
+<<< @/tests/snippets/guide/components/directives/whendirective.spec.ts#whendirective
 
-  (
-    baseTemplate: HostTemplate<{
-      when: Input<boolean>;
-    }>,
-  ) =>
-    (context) => (context.when() ? baseTemplate(context) : []),
-);
-
-const Panel = craftComponent(
-  'Panel',
-  {},
-  (when: Input<boolean>) => ({ when }),
-  () => div(p('Conditional content')),
-).pipe(whenDirective);
-
-Panel({
-  when: () => isVisible(),
-});
-```
 
 When `when()` becomes false, the renderer removes the template output. When it
 becomes true again, the template is rendered again.

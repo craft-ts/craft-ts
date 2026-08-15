@@ -130,3 +130,4 @@ close to the code that uses it.
 - [Shaping a service's public API](/guide/app/expose-api) — expose only what a
   consumer needs
 - [Testing services](/guide/testing/services) — test the same dependency graph
+- [Architecture rules](/guide/testing/architecture) — constraints across that graph

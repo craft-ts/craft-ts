@@ -11,6 +11,12 @@ import {
   isTemporalAwaitRequest,
   type RuntimeTemporalAwaitRequest,
 } from './temporal-runtime';
+import {
+  isReactiveReadRequest,
+  REACTIVE_READ_OBSERVERS,
+  ɵwithActiveReactiveReader,
+  type ReactiveReadIdentity,
+} from './reactive-read';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',
@@ -161,6 +167,8 @@ type RunCraftGeneratorOptions = {
   ) => () => AppStartResult;
   onAppStartNotSupportedErrorMessage?: string;
   guardAwaitNotSupportedErrorMessage?: string;
+  /** Identity of the computation currently consuming reactive values. */
+  reactiveReader?: ReactiveReadIdentity;
 };
 
 export function runCraftGenerator({
@@ -172,6 +180,7 @@ export function runCraftGenerator({
   createAppStartHook,
   onAppStartNotSupportedErrorMessage,
   guardAwaitNotSupportedErrorMessage,
+  reactiveReader,
 }: RunCraftGeneratorOptions): {
   value: unknown;
   appStartHook?: () => AppStartResult;
@@ -181,6 +190,16 @@ export function runCraftGenerator({
 
   while (!current.done) {
     const yielded = current.value;
+
+    if (isReactiveReadRequest(yielded)) {
+      for (const observer of injector.get(REACTIVE_READ_OBSERVERS, [])) {
+        observer({ reader: reactiveReader, dependency: yielded.identity });
+      }
+      current = iterator.next(
+        ɵwithActiveReactiveReader(yielded.identity, yielded.read),
+      );
+      continue;
+    }
 
     if (isServiceYieldRequest(yielded)) {
       current = iterator.next(
@@ -313,6 +332,16 @@ export function resolveCraftGeneratorYield(
   injector: Injector,
   hostScope: ConcreteServiceScope,
 ): { handled: true; value: unknown } | { handled: false } {
+  if (isReactiveReadRequest(yielded)) {
+    for (const observer of injector.get(REACTIVE_READ_OBSERVERS, [])) {
+      observer({ dependency: yielded.identity });
+    }
+    return {
+      handled: true,
+      value: ɵwithActiveReactiveReader(yielded.identity, yielded.read),
+    };
+  }
+
   if (isServiceYieldRequest(yielded)) {
     return {
       handled: true,

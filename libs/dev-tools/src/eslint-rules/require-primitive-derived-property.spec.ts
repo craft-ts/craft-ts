@@ -142,7 +142,9 @@ describe('require-primitive-derived-property', () => {
           import { craftComponent, craftComputed, insertStoragePersister, query } from '@craft-ng/core';
 
           const Demo = craftComponent('Demo', {}, function* () {
-            const userQuery = yield* query('userQuery', {}, insertStoragePersister({ key: 'user' }));
+            const userQuery = yield* query('userQuery', {}, insertStoragePersister(craftUnique({
+              key: 'user',
+            })));
             const total = craftComputed('total', () => userQuery.value()?.length ?? 0);
             return { userQuery, total };
           }, () => null);
@@ -156,7 +158,7 @@ describe('require-primitive-derived-property', () => {
       "import { craftComponent, craftComputed, insertStoragePersister, query, insertQueryPipe } from '@craft-ng/core';",
     );
     expect(output).toContain(
-      "insertQueryPipe(insertStoragePersister({ key: 'user' }), ({ state }) => ({ total: computed(() => state()?.length ?? 0) }))",
+      "insertQueryPipe(insertStoragePersister(craftUnique({\n              key: 'user',\n            })), ({ state }) => ({ total: computed(() => state()?.length ?? 0) }))",
     );
     expect(output).toContain("import { computed } from '@angular/core';");
   });

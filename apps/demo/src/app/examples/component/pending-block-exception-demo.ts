@@ -1,15 +1,16 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   catchBlock,
   craftComponent,
   div,
-  h2,
   li,
   p,
   pendingBlock,
   section,
   strong,
   ul,
+  heading,
 } from '@craft-ng/component';
 import {
   craftComputed,
@@ -98,24 +99,23 @@ export const pendingBlockExceptionDemo = craftComponent(
     });
 
     // Reading through `settled(...)` keeps the happy path free of both
-    // `undefined` and the exception: `invoice()` is the resolved invoice, always.
+    // `undefined` and the exception: `invoice` is the resolved invoice, always.
     const summary = craftComputed('summary', function* () {
       const invoice = yield* settled(issue);
-      return () =>
-        `${invoice().reference} — ${(invoice().amount / 100).toFixed(2)} €`;
+      return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
     });
 
     return { issue, summary };
   },
   ({ issue, summary }) =>
     section({ class: 'pending-exception' }, [
-      h2('settledValue — the failing path'),
+      heading('settledValue — the failing path'),
       p(
         'The same read suspends to the pendingBlock, then fails to the catchBlock.',
       ),
       div({ class: 'pending-exception__actions' }, [
         button(
-          {
+          { type: 'button',
             class: 'pending-exception__action',
             *click() {
               yield* issue.mutate({
@@ -127,7 +127,7 @@ export const pendingBlockExceptionDemo = craftComponent(
           'Issue (success)',
         ),
         button(
-          {
+          { type: 'button',
             class: 'pending-exception__action',
             *click() {
               yield* issue.mutate({

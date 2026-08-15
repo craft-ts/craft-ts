@@ -32,9 +32,11 @@ import {
   craftComputed,
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
+  CraftRouterLink,
   craftException,
   craftMethod,
   craftService,
+  craftUse,
   HOST_TAG_LIST,
   mutation,
   markYieldableValue,
@@ -60,7 +62,7 @@ import { defer } from '../defer';
 import { each } from '../each';
 import { ifBlock } from '../if-block';
 import { catchBlock } from '../block';
-import { button, div, h2, li, p, section, span, ul } from '../hyperscript';
+import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
@@ -366,8 +368,10 @@ describe('functional component interpreter', () => {
       { id: 2, label: signal('two') },
     ];
     const bindings = items.map((item) => vi.fn(() => item.label()));
-    const itemTemplate = vi.fn((item: (typeof items)[number]) =>
-      li(bindings[item.id - 1]),
+    const itemTemplate = vi.fn((item) =>
+      li(function* () {
+        return bindings[(yield* item()).id - 1]();
+      }),
     );
     const template = vi.fn(() =>
       ul(each(items, { track: (item) => item.id }, itemTemplate)),
@@ -404,9 +408,11 @@ describe('functional component interpreter', () => {
     const first = { id: 1, label: 'one' };
     const second = { id: 2, label: 'two' };
     const items = signal([first, second]);
-    const itemTemplate = vi.fn(
-      (item: typeof first | typeof second, index: number) =>
-        li({ 'data-id': item.id }, `${index}:${item.label}`),
+    const itemTemplate = vi.fn((item, index: number) =>
+      li(
+        { 'data-id': function* () { return (yield* item()).id; } },
+        function* () { return `${index}:${(yield* item()).label}`; },
+      ),
     );
     const component = craftComponent(
       'granularEachCollection',
@@ -431,7 +437,9 @@ describe('functional component interpreter', () => {
     TestBed.tick();
 
     expect(itemTemplate).toHaveBeenCalledOnce();
-    expect(itemTemplate).toHaveBeenCalledWith(updatedFirst, 0);
+    expect(itemTemplate).toHaveBeenCalledOnce();
+    expect(craftUse(itemTemplate.mock.calls[0][0]())).toEqual(updatedFirst);
+    expect(itemTemplate.mock.calls[0][1]).toBe(0);
     expect(element.textContent).toBe('0:updated1:two');
     expect(element.querySelectorAll('li')[0]).toBe(nodes[0]);
     expect(element.querySelectorAll('li')[1]).toBe(nodes[1]);
@@ -449,7 +457,10 @@ describe('functional component interpreter', () => {
       ({ items }) =>
         ul(
           each(items, { track: (item) => item.id }, (item) =>
-            li({ 'data-id': item.id }, item.label),
+            li(
+              { 'data-id': function* () { return (yield* item()).id; } },
+              function* () { return (yield* item()).label; },
+            ),
           ),
         ),
     );
@@ -507,7 +518,13 @@ describe('functional component interpreter', () => {
       },
       () => ({ items }),
       ({ items }) =>
-        ul(each(items, { track: (item) => item.id }, (item) => li(item.label))),
+        ul(
+          each(items, { track: (item) => item.id }, (item) =>
+            li(function* () {
+              return (yield* item()).label;
+            }),
+          ),
+        ),
     );
     const element = host();
     const mounted = mountCraftComponent(
@@ -1004,10 +1021,14 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        ul([
-          renderTemplate(row, { $implicit: 'Ada', index: 0 }),
-          renderTemplate(row, { $implicit: 'Lin', index: 1 }),
-        ]),
+        ul(
+          each(
+            ['Ada', 'Lin'],
+            { track: (value) => value },
+            (value, index) =>
+              renderTemplate(row, { $implicit: value, index }),
+          ),
+        ),
     );
     const element = host();
 
@@ -1077,7 +1098,10 @@ describe('functional component interpreter', () => {
         });
         return { value };
       },
-      ({ value }) => p(value.value()?.status ?? 'loading'),
+      ({ value }) =>
+        p(function* () {
+          return (yield* value.value())?.status ?? 'loading';
+        }),
     );
     const parent = craftComponent(
       'queryParent',
@@ -1128,7 +1152,9 @@ describe('functional component interpreter', () => {
       ({ todos, add }) =>
         section([
           p('source'),
-          p(() => todos.status()),
+          p(function* () {
+            return yield* todos.status();
+          }),
           button({ click: () => add.mutate('new todo') }, 'Add'),
         ]),
     ).pipe(
@@ -1269,7 +1295,9 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         const counter = yield* state('counter', 0, ({ state }) => ({
-          disabled: craftComputed('disabled', () => state() % 2 === 0),
+          disabled: craftComputed('disabled', function* () {
+            return (yield* state()) % 2 === 0;
+          }),
         }));
         return { counter };
       },
@@ -1295,6 +1323,62 @@ describe('functional component interpreter', () => {
     expect(
       (element.querySelector('button') as HTMLButtonElement).disabled,
     ).toBe(true);
+    mounted.destroy();
+  });
+
+  it('renders root and derived reactive readers across template blocks', () => {
+    const component = craftComponent(
+      'yieldableReactiveTemplate',
+      {},
+      function* () {
+        const counter = yield* state('counter', 1, ({ state, set }) => ({
+          doubled: craftComputed(function* () {
+            return (yield* state()) * 2;
+          }),
+          items: craftComputed(function* () {
+            return Array.from({ length: yield* state() }, (_, index) => index);
+          }),
+          increment: function* () {
+            set((yield* state()) + 1);
+          },
+        }));
+        return { counter };
+      },
+      ({ counter }) =>
+        section([
+          span({ class: 'value' }, function* () {
+            return yield* counter.doubled();
+          }),
+          ifBlock(counter.doubled, () => p({ class: 'visible' }, 'visible')),
+          each(counter.items, { track: (item) => item }, (item) =>
+            li(String(item)),
+          ),
+          button(
+            {
+              click: function* () {
+                yield* counter.increment();
+              },
+            },
+            '+',
+          ),
+        ]),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+
+    TestBed.tick();
+    expect(element.querySelector('.value')?.textContent).toBe('2');
+    expect(element.querySelector('.visible')).not.toBeNull();
+    expect(element.querySelectorAll('li')).toHaveLength(1);
+
+    element.querySelector('button')?.click();
+    TestBed.tick();
+    expect(element.querySelector('.value')?.textContent).toBe('4');
+    expect(element.querySelectorAll('li')).toHaveLength(2);
     mounted.destroy();
   });
 
@@ -1454,6 +1538,12 @@ describe('functional component interpreter', () => {
 
   it('patches Input accessors without recreating the component', () => {
     const value = signal('first');
+    const valueReader = markYieldableValue(
+      function* () {
+        return value();
+      },
+      'inputText',
+    );
     let factoryRuns = 0;
     const label = craftComponent(
       'label',
@@ -1462,14 +1552,18 @@ describe('functional component interpreter', () => {
         factoryRuns += 1;
         return { text };
       },
-      ({ text }) => p(text()),
+      ({ text }) => p(function* () {
+        return yield* text();
+      }),
     );
     const element = host();
     const mounted = mountCraftComponent(
       label,
       element,
       TestBed.inject(Injector),
-      { text: value },
+      {
+        text: valueReader,
+      },
     );
     TestBed.tick();
     const paragraph = element.querySelector('p');
@@ -1488,7 +1582,9 @@ describe('functional component interpreter', () => {
       'editableStatusComponent',
       { host: { class: 'status-base' } },
       (status: Input<string>) => ({ status }),
-      ({ status }) => span(status()),
+      ({ status }) => span(function* () {
+        return yield* status();
+      }),
     );
     const directivePage = craftComponent(
       'directivePage',
@@ -1498,7 +1594,9 @@ describe('functional component interpreter', () => {
         h2([
           'Full craftService demo ',
           editableStatusComponent({
-            status: () => 'ready',
+            status: function* () {
+              return 'ready';
+            },
             class: 'newClassAdded',
           }),
         ]),
@@ -1592,14 +1690,20 @@ describe('functional component interpreter', () => {
       'guarded',
       {},
       (user: Input<string>) => ({ user }),
-      ({ user }) => p(user()),
+      ({ user }) => p(function* () {
+        return yield* user();
+      }),
     ).pipe(guard);
     const element = host();
     const mounted = mountCraftComponent(
       guarded,
       element,
       TestBed.inject(Injector),
-      { user: () => 'visible' },
+      {
+        user: function* () {
+          return 'visible';
+        },
+      },
     );
     TestBed.tick();
 
@@ -1633,7 +1737,9 @@ describe('functional component interpreter', () => {
       'card',
       {},
       (user: Input<string>) => ({ user }),
-      ({ user }) => p(user()),
+      ({ user }) => p(function* () {
+        return yield* user();
+      }),
     ).pipe(withPermission);
     const element = host();
 
@@ -1642,8 +1748,12 @@ describe('functional component interpreter', () => {
       element,
       TestBed.inject(Injector),
       {
-        user: () => 'Ada',
-        permission: () => 'edit',
+        user: function* () {
+          return 'Ada';
+        },
+        permission: function* () {
+          return 'edit';
+        },
       },
     );
     TestBed.tick();
@@ -1659,7 +1769,7 @@ describe('functional component interpreter', () => {
       {},
       (baseLogic: HostRequiredLogic<{ visible: Input<boolean> }>) => baseLogic,
       (baseTemplate: HostTemplate<{ visible: Input<boolean> }>) => (context) =>
-        context.visible() ? baseTemplate(context) : [],
+        craftUse(context.visible()) ? baseTemplate(context) : [],
     );
     const panel = craftComponent(
       'panel',
@@ -1672,7 +1782,11 @@ describe('functional component interpreter', () => {
       panel,
       element,
       TestBed.inject(Injector),
-      { visible },
+      {
+        visible: function* () {
+          return visible();
+        },
+      },
     );
     TestBed.tick();
 
@@ -1754,6 +1868,229 @@ describe('functional component interpreter', () => {
     expect(destroyRefCleanups).toHaveBeenCalledTimes(2);
   });
 
+  it('resolves generator craftRouterLink inputs used by each() navigation', () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([{ path: 'list', component: TestAngularChild }])],
+    });
+    const links = [['List', { to: 'list' }]] as const;
+    const nav = craftComponent(
+      'generatorRouterLinkNav',
+      {},
+      () => ({}),
+      () =>
+        each(
+          links,
+          { track: ([, link]) => link.to },
+          (entry) =>
+            a(
+              {
+                craftRouterLink: function* () {
+                  return (yield* entry())[1];
+                },
+              },
+              function* () {
+                return (yield* entry())[0];
+              },
+            ).pipe(CraftRouterLink),
+        ),
+    );
+    const element = host();
+    mountCraftComponent(nav, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    expect(element.querySelector('a')?.getAttribute('href')).toBe('/list');
+    expect(element.querySelector('a')?.textContent).toBe('List');
+  });
+
+  it('reopens an ifBlock nav panel after a router link closes it', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: '', component: TestAngularChild },
+          { path: 'list', component: TestAngularChild },
+          { path: 'other', component: TestAngularChild },
+        ]),
+      ],
+    });
+    const links = [
+      ['List', { to: 'list' }],
+      ['Other', { to: 'other' }],
+    ] as const;
+    const nav = craftComponent(
+      'reopenNavPanel',
+      {},
+      function* () {
+        const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
+          toggle: () => update((open) => !open),
+          close: () => set(false),
+        }));
+        return {
+          navOpen,
+          toggleNav: navOpen.toggle,
+          closeNav: navOpen.close,
+        };
+      },
+      ({ navOpen, toggleNav, closeNav }) =>
+        div(
+          {
+            click: function* () {
+              if (yield* navOpen()) {
+                yield* closeNav();
+              }
+            },
+          },
+          [
+            button(
+              {
+                class: 'toggle',
+                click: function* (event: MouseEvent) {
+                  event.stopPropagation();
+                  yield* toggleNav();
+                },
+                'aria-expanded': navOpen,
+              },
+              ifBlock(
+                navOpen,
+                () => 'Close',
+                () => 'Open',
+              ),
+            ),
+            ifBlock(
+              navOpen,
+              () =>
+                div(
+                  {
+                    class: 'panel',
+                    click: (event: MouseEvent) => event.stopPropagation(),
+                  },
+                  each(
+                    links,
+                    { track: ([, link]) => link.to },
+                    (entry) =>
+                      a(
+                        {
+                          click: closeNav,
+                          craftRouterLink: function* () {
+                            return (yield* entry())[1];
+                          },
+                        },
+                        function* () {
+                          return (yield* entry())[0];
+                        },
+                      ).pipe(CraftRouterLink),
+                  ),
+                ),
+              () => [],
+            ),
+          ],
+        ),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      nav,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const toggle = () => {
+      element.querySelector<HTMLButtonElement>('.toggle')?.click();
+      TestBed.tick();
+    };
+    const clickLink = (label: string) => {
+      const link = Array.from(
+        element.querySelectorAll<HTMLAnchorElement>('a'),
+      ).find((anchor) => anchor.textContent?.trim() === label);
+      expect(link).toBeDefined();
+      link!.click();
+      TestBed.tick();
+    };
+
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+    expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
+      'true',
+    );
+
+    clickLink('List');
+    expect(element.querySelector('.panel')).toBeNull();
+
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+    expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
+      'true',
+    );
+
+    clickLink('Other');
+    expect(element.querySelector('.panel')).toBeNull();
+
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+
+    mounted.destroy();
+  });
+
+  it('recovers an ifBlock after its true branch throws', () => {
+    const explode = signal(true);
+    const component = craftComponent(
+      'ifBlockRecoversAfterThrow',
+      {},
+      function* () {
+        const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
+          toggle: () => update((open) => !open),
+          close: () => set(false),
+        }));
+        return { navOpen, toggleNav: navOpen.toggle };
+      },
+      ({ navOpen, toggleNav }) =>
+        div([
+          button(
+            {
+              class: 'toggle',
+              click: function* (event: MouseEvent) {
+                event.stopPropagation();
+                yield* toggleNav();
+              },
+            },
+            'toggle',
+          ),
+          ifBlock(
+            navOpen,
+            () => {
+              if (explode()) {
+                throw new Error('panel boom');
+              }
+              return div({ class: 'panel' }, 'ok');
+            },
+            () => [],
+          ),
+        ]),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const toggle = () => {
+      element.querySelector<HTMLButtonElement>('.toggle')?.click();
+      TestBed.tick();
+    };
+
+    expect(() => toggle()).toThrow(/panel boom/);
+    expect(element.querySelector('.panel')).toBeNull();
+
+    explode.set(false);
+    TestBed.tick();
+    toggle();
+    toggle();
+    expect(element.querySelector('.panel')).not.toBeNull();
+
+    mounted.destroy();
+  });
+
   it('resolves yield* craftService dependencies in the child injector', () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
     const { Greeting } = craftService(
@@ -1768,12 +2105,16 @@ describe('functional component interpreter', () => {
         const service = yield* Greeting();
         return { name, service };
       },
-      ({ name, service }) => p(`${service.prefix} ${name()}`),
+      ({ name, service }) => p(function* () {
+        return `${service.prefix} ${yield* name()}`;
+      }),
     );
 
     const element = host();
     mountCraftComponent(greeting, element, TestBed.inject(Injector), {
-      name: () => 'Ada',
+      name: function* () {
+        return 'Ada';
+      },
     });
     TestBed.tick();
 
@@ -1809,7 +2150,17 @@ describe('functional component interpreter', () => {
         name,
         onPick,
       }),
-      ({ name, onPick }) => button({ click: () => onPick(name()) }, name()),
+      ({ name, onPick }) =>
+        button(
+          {
+            *click() {
+              yield* onPick(yield* name());
+            },
+          },
+          function* () {
+            return yield* name();
+          },
+        ),
     );
     const parent = craftComponent(
       'parent',
@@ -1819,7 +2170,9 @@ describe('functional component interpreter', () => {
         div([
           span('Parent'),
           userCard({
-            name: () => 'Grace',
+            name: function* () {
+              return 'Grace';
+            },
             onPick: picked,
           }),
         ]),
@@ -1851,7 +2204,11 @@ describe('functional component interpreter', () => {
               track: (user) => user.id,
               empty: () => p({ class: 'empty' }, 'Nobody'),
             },
-            (user) => p({ 'data-id': user.id }, user.name),
+            (user) =>
+              p(
+                { 'data-id': function* () { return (yield* user()).id; } },
+                function* () { return (yield* user()).name; },
+              ),
           ),
         ),
     );
@@ -1899,7 +2256,11 @@ describe('functional component interpreter', () => {
               track: (user) => user.id,
               empty: () => p({ class: 'empty' }, 'Nobody'),
             },
-            (user) => p({ 'data-id': user.id }, user.name),
+            (user) =>
+              p(
+                { 'data-id': function* () { return (yield* user()).id; } },
+                function* () { return (yield* user()).name; },
+              ),
           ),
         ),
     );
@@ -2101,7 +2462,10 @@ describe('functional component interpreter', () => {
       'paramsRouted',
       {},
       (userId: Input<string>) => ({ userId }),
-      ({ userId }) => p({ class: 'route-user-id' }, userId()),
+      ({ userId }) =>
+        p({ class: 'route-user-id' }, function* () {
+          return yield* userId();
+        }),
     );
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideCraftComponent(paramsRouted)],
@@ -2151,7 +2515,10 @@ describe('functional component interpreter', () => {
       'inheritedRouted',
       {},
       (userId: Input<string>) => ({ userId }),
-      ({ userId }) => p({ class: 'nested-route-user-id' }, userId()),
+      ({ userId }) =>
+        p({ class: 'nested-route-user-id' }, function* () {
+          return yield* userId();
+        }),
     );
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideCraftComponent(inheritedRouted)],

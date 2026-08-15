@@ -19,6 +19,8 @@ import {
   type Data,
   type RouterOutletContract,
 } from '@angular/router';
+import { DOCUMENT } from '@angular/common';
+import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
 import { isCraftException, type AnyCraftException } from './craft-exception';
 import {
   evaluateCraftGuardSync,
@@ -137,6 +139,9 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private readonly viewTransitionSink = inject(
     CRAFT_VIEW_TRANSITION,
   ) as WritableSignal<CraftViewTransitionInput>;
+  private readonly a11yNavigationFocus = inject(CRAFT_A11Y_NAVIGATION_FOCUS);
+  private readonly document = inject(DOCUMENT);
+  private a11yHasCompletedInitialActivation = false;
 
   // --- What the template actually renders (single, stable outlet) ---
   readonly displayedComponent = signal<Type<unknown> | null>(null);
@@ -475,6 +480,7 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
     if (!this.viewTransitionsEnabled) {
       commit();
+      this.scheduleA11yNavigationFocus();
       return;
     }
 
@@ -486,6 +492,29 @@ export class CraftRouterOutletController implements RouterOutletContract {
       // callback. Do not force a nested ApplicationRef.tick here: when the
       // browser invokes the callback during router activation, that nested tick
       // can re-enter the outlet and create an unbounded navigation/render loop.
+    });
+    this.scheduleA11yNavigationFocus();
+  }
+
+  private scheduleA11yNavigationFocus(): void {
+    if (!this.a11yNavigationFocus) {
+      return;
+    }
+    if (!this.a11yHasCompletedInitialActivation) {
+      this.a11yHasCompletedInitialActivation = true;
+      return;
+    }
+    queueMicrotask(() => {
+      const target =
+        this.document.getElementById('main') ??
+        this.document.querySelector('main');
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      if (!target.hasAttribute('tabindex')) {
+        target.tabIndex = -1;
+      }
+      target.focus();
     });
   }
 

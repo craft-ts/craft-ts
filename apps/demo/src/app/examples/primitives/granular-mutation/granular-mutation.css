@@ -248,3 +248,11 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :scope,
+  :scope * {
+    animation: none;
+    transition: none;
+  }
+}

@@ -4,14 +4,14 @@ import {
   defer,
   div,
   each,
-  h2,
   p,
   section,
   span,
   type Input,
   type Output,
+  heading,
 } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { craftComputed, deepYieldable, state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -22,19 +22,24 @@ const userCard = craftComponent(
   'userCard',
   {},
   (user: Input<DemoUser>, onRemove: Output<(user: DemoUser) => void>) => ({
-    user,
+    user: deepYieldable(user),
     onRemove,
   }),
   ({ user, onRemove }) =>
-    div({ class: 'component-demo__user', 'data-user-id': user().id }, [
-      span(user().name),
+    div({
+      class: 'component-demo__user',
+      'data-user-id': user.id,
+    }, [
+      span(user.name),
       button(
-        {
+        { type: 'button',
           class: 'component-demo__remove',
           *click() {
-            yield* onRemove(user());
+            yield* onRemove(yield* user());
           },
-          'aria-label': `Retirer ${user().name}`,
+          'aria-label': function* () {
+            return `Retirer ${(yield* user()).name}`;
+          },
         },
         'Retirer',
       ),
@@ -54,7 +59,10 @@ export const componentDemo = craftComponent(
           { id: 2, name: 'Grace Hopper' },
         ] satisfies DemoUser[],
       },
-      ({ update }) => ({
+      ({ state, update }) => ({
+        items: craftComputed(function* () {
+          return (yield* state()).items;
+        }),
         addUser: () =>
           update((current) => {
             const id = current.nextId;
@@ -72,10 +80,10 @@ export const componentDemo = craftComponent(
     ),
   (users) =>
     section({ class: 'component-demo' }, [
-      h2('Composants fonctionnels SFC'),
+      heading('Composants fonctionnels SFC'),
       p('Rendu runtime, signaux inline, liste keyée et enfant selectorless.'),
       button(
-        {
+        { type: 'button',
           class: 'component-demo__add',
           click: users.addUser,
           'data-testid': 'add-user',
@@ -85,17 +93,17 @@ export const componentDemo = craftComponent(
       div(
         { class: 'component-demo__list' },
         each(
-          () => users().items,
+          users.items,
           {
             track: (user) => user.id,
             empty: () =>
               p({ class: 'component-demo__empty' }, 'Aucun utilisateur'),
-          },
-          (user) =>
-            userCard({
-              user: () => user,
-              onRemove: users.remove,
-            }),
+            },
+            (user) =>
+              userCard({
+                user,
+                onRemove: users.remove,
+              }),
         ),
       ),
       defer(
@@ -107,7 +115,7 @@ export const componentDemo = craftComponent(
           trigger: 'interaction',
           placeholder: () =>
             button(
-              {
+              { type: 'button',
                 class: 'component-demo__defer-trigger',
                 'data-testid': 'load-deferred',
               },

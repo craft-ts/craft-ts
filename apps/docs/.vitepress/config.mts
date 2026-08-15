@@ -144,6 +144,7 @@ const guideSidebar = [
         text: 'settledValue & pendingBlock',
         link: '/guide/components/pending-block',
       },
+      { text: 'Accessibility', link: '/guide/components/accessibility' },
       { text: 'Customization', link: '/guide/components/customization' },
       {
         text: 'Content projection',
@@ -176,6 +177,8 @@ const guideSidebar = [
       { text: 'Testing components', link: '/guide/testing/components' },
       { text: 'Type-level tests', link: '/guide/testing/type-level' },
       { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
+      { text: 'Architecture rules', link: '/guide/testing/architecture' },
+      { text: 'Craft graph vs Nx', link: '/guide/testing/craft-graph-vs-nx' },
     ],
   },
   {

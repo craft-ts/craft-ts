@@ -31,6 +31,8 @@ import {
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import {
   attachCraftSettledValue,
+  createYieldableSettledValue,
+  CraftNotSettled,
   type CraftSettledSignal,
 } from './craft-settled';
 import type { ExtractCraftGenExceptions } from './craft-gen';
@@ -105,6 +107,15 @@ import type {
   BrandReactiveProperties,
   YieldableInsertionMethods,
 } from './yieldable';
+import {
+  createYieldableReactiveFacade,
+  deepYieldable,
+  hasDeepYieldableInsertion,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  type YieldableReactiveProperties,
+} from './reactive-read';
+import { craftUse } from './craft-use';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -545,6 +556,12 @@ export type ResourceLikeMutationRef<
 } & MergeObjects<
     [
       {
+        readonly resource: CraftResourceRef<
+          Value,
+          Params,
+          Name,
+          ResourceLikeMutationExceptionUnion<MutationException>
+        >;
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
@@ -592,6 +609,7 @@ export type ResourceByIdLikeMutationRef<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  Name extends string = string,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceByGroupLike';
   kind: 'mutation';
@@ -611,6 +629,11 @@ export type ResourceByIdLikeMutationRef<
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
+        readonly settledValue: CraftSettledSignal<
+          Exclude<Value, undefined>,
+          Name,
+          ResourceLikeMutationExceptionUnion<MutationException>
+        >;
       } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>)
     | undefined;
   /**
@@ -622,6 +645,11 @@ export type ResourceByIdLikeMutationRef<
     readonly status: Signal<CraftResourceStatus>;
     readonly isLoading: Signal<boolean>;
     hasValue(): boolean;
+    readonly settledValue: CraftSettledSignal<
+      Exclude<Value, undefined>,
+      Name,
+      ResourceLikeMutationExceptionUnion<MutationException>
+    >;
   } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>;
 } & MergeObjects<
     [
@@ -682,7 +710,8 @@ export type MutationRef<
       MutationExceptions,
       Dependencies,
       HasSchema,
-      MethodYielded
+      MethodYielded,
+      Name
     >;
 //     & {
 //   // ! Otherwise TS erases the types
@@ -715,23 +744,25 @@ export type MutationOutput<
   MethodYielded = never,
   IsMethod extends boolean | undefined = undefined,
   Name extends string = string,
-> = MutationRef<
-  StripCraftException<State>,
-  StripCraftException<Params>,
-  ArgParams,
-  YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
-  IsMethod extends boolean
-    ? IsMethod
-    : [unknown] extends [ArgParams]
-      ? false
-      : true,
-  SourceParams,
-  GroupIdentifier,
-  MutationExceptions,
-  Dependencies,
-  HasSchema,
-  MethodYielded,
-  Name
+> = YieldableReactiveProperties<
+  MutationRef<
+    StripCraftException<State>,
+    StripCraftException<Params>,
+    ArgParams,
+    YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
+    IsMethod extends boolean
+      ? IsMethod
+      : [unknown] extends [ArgParams]
+        ? false
+        : true,
+    SourceParams,
+    GroupIdentifier,
+    MutationExceptions,
+    Dependencies,
+    HasSchema,
+    MethodYielded,
+    Name
+  >
 >;
 
 type SchemaMutationConfig<
@@ -993,7 +1024,8 @@ export function mutation<
     NoInfer<Exceptions>,
     Insertion1,
     {},
-    Insertion1Yielded
+    Insertion1Yielded,
+    Name
   >,
 ): NamedCraftPrimitiveGen<
   Name,
@@ -1242,7 +1274,7 @@ export function mutation<
  * console.log(processed?.value()); // { userId: 'user-123', processed: true, ... }
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export function mutation(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1836,7 +1868,7 @@ function createMutationRef<
               }
 
               const rawSelectStatus = resource.status;
-              return Object.assign(resource, {
+              const result = Object.assign(resource, {
                 status: computed(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
@@ -1850,6 +1882,8 @@ function createMutationRef<
                     }))
                   : selectExceptions,
               });
+              attachCraftSettledValue(name, result);
+              return result;
             })();
           },
           selectOrCreate: (id: GroupIdentifier) => {
@@ -1867,7 +1901,7 @@ function createMutationRef<
               id as unknown as string,
             );
             const rawSelectStatus = selected.status;
-            return Object.assign(selected, {
+            const result = Object.assign(selected, {
               status: computed(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
@@ -1881,6 +1915,8 @@ function createMutationRef<
                   }))
                 : selectExceptions,
             });
+            attachCraftSettledValue(name, result);
+            return result;
           },
         }
       : {},
@@ -2012,6 +2048,44 @@ function createMutationRef<
     MutationIsMethod<Config, MutationArgsParams>
   >;
 
+  if (!isUsingIdentifier) {
+    attachCraftSettledValue(name, output);
+  }
+
+  const publicMutationContext = createYieldableReactiveFacade(output, {
+    name,
+    primitive: 'mutation',
+    path: name,
+  }) as any;
+
+  const insertionSettledState = isUsingIdentifier
+    ? createYieldableSettledValue(
+        computed(() => {
+          const params = craftUse(
+            publicMutationContext.resourceParamsSrc(),
+          ) as any;
+          if (params == null) throw new CraftNotSettled(name);
+          const id = mutationConfig.identifier?.(params);
+          if (id == null) throw new CraftNotSettled(name);
+          const selected = publicMutationContext.select(id);
+          if (!selected) throw new CraftNotSettled(name);
+          return craftUse(selected.settledValue());
+        }),
+        {
+          primitive: 'mutation',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      )
+    : createYieldableSettledValue(
+        computed(() => craftUse(publicMutationContext.settledValue())),
+        {
+          primitive: 'mutation',
+          insertion: 'settledState',
+          path: `${name}.settledState`,
+        },
+      );
+
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
       NoInfer<GroupIdentifier>,
@@ -2031,24 +2105,31 @@ function createMutationRef<
           {
             ...(isUsingIdentifier
               ? {
-                  resourceById: resourceTarget,
+                  resourceById: createYieldableReactiveFacade(resourceTarget, {
+                    name: 'resourceById',
+                    primitive: 'mutation',
+                    path: `${name}.resourceById`,
+                  }),
                   identifier: mutationConfig.identifier,
                 }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<MutationParams>
-            >,
-            hasException,
-            exceptions,
+              : { resource: publicMutationContext }),
+            resourceParamsSrc: publicMutationContext.resourceParamsSrc,
+            hasException: publicMutationContext.hasException,
+            exceptions: publicMutationContext.exceptions,
             insertions: acc as {},
-            state: resourceTarget.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
+            state: publicMutationContext.state,
+            settledState: insertionSettledState,
+            set: (nextState: any) =>
+              yieldableInvocation(resourceTarget.set(nextState)),
+            update: (updateFn: (currentState: any) => any) =>
+              yieldableInvocation(resourceTarget.update(updateFn)),
             patch: (patchFn: (currentState: any) => Partial<any>) =>
-              resourceTarget.update((current: any) => ({
-                ...current,
-                ...patchFn(current),
-              })),
+              yieldableInvocation(
+                resourceTarget.update((current: any) => ({
+                  ...current,
+                  ...patchFn(current),
+                })),
+              ),
             __primitiveKind: 'mutation',
           } as any,
         ],
@@ -2061,6 +2142,7 @@ function createMutationRef<
           if (
             typeof value === 'function' &&
             !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
             const injector = getInjector();
@@ -2095,7 +2177,18 @@ function createMutationRef<
                 MUTATION_APP_START_ERROR_MESSAGE,
             });
           } else {
-            wrappedAcc[key] = value;
+            const namedValue = nameInsertedReactiveValue(
+              value,
+              key,
+              'mutation',
+              `${name}.${key}`,
+            );
+            wrappedAcc[key] = createYieldableReactiveFacade(namedValue, {
+              name: key,
+              primitive: 'mutation',
+              insertion: key,
+              path: `${name}.${key}`,
+            });
           }
           return wrappedAcc;
         },
@@ -2181,9 +2274,19 @@ function createMutationRef<
       });
   }
 
-  if (!isUsingIdentifier) {
-    attachCraftSettledValue(name, output);
+  if (!('resource' in output)) {
+    Object.defineProperty(output, 'resource', {
+      value: output,
+      enumerable: false,
+      configurable: true,
+    });
   }
-
-  return output;
+  const publicMutation = createYieldableReactiveFacade(output, {
+    name,
+    primitive: 'mutation',
+    path: name,
+  });
+  return (hasDeepYieldableInsertion(insertions)
+    ? deepYieldable(publicMutation)
+    : publicMutation) as typeof output;
 }

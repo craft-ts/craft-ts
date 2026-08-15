@@ -1,4 +1,11 @@
-import { craftComponent, div, forward, h1, p } from '@craft-ng/component';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+import {
+  craftComponent,
+  div,
+  forward,
+  p,
+  heading,
+} from '@craft-ng/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { TokenCard } from './css-vars-required-demo';
 
@@ -18,11 +25,13 @@ const ForwardingExample = craftComponent(
           '--token-card-ink': forward('#155e75'),
           '--token-card-bg': forward('#ecfeff'),
         },
-        label: () => 'Valeurs forward par défaut',
+        label: function* () {
+          return 'Default forwarded values';
+        },
       }),
       p(
         { class: 'forwarding-example__note' },
-        'Ces valeurs deviennent l’API optionnelle du composant parent.',
+        "These values become the parent component's optional API.",
       ),
     ]),
 );
@@ -36,6 +45,8 @@ export const CssVarsForwardingDemo = craftComponent(
       .css-vars-forwarding__intro { display: grid; gap: .5rem; }
       .css-vars-forwarding__intro p { color: #64748b; line-height: 1.55; }
       .css-vars-forwarding__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   () => ({}),
@@ -43,9 +54,9 @@ export const CssVarsForwardingDemo = craftComponent(
     div([
       CssVarsPageNav(),
       div({ class: 'css-vars-forwarding__intro' }, [
-        h1('Forwarding et surcharge'),
+        heading('Forwarding and overrides'),
         p(
-          'À gauche, les valeurs par défaut sont forwardées. À droite, le parent est surchargé par son appelant.',
+          'On the left, default values are forwarded. On the right, the parent is overridden by its caller.',
         ),
       ]),
       div({ class: 'css-vars-forwarding__grid' }, [

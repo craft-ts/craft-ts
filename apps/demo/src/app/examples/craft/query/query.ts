@@ -1,8 +1,10 @@
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './query.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
+  heading,
   ifBlock,
   p,
   pre,
@@ -15,7 +17,9 @@ import {
   CraftRouter,
   craftService,
   insertStoragePersister,
+  craftUnique,
   query,
+  craftUse,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
@@ -32,10 +36,10 @@ const { UserQuery } = craftService(
           return yield* ApiService.getItemById(params);
         },
       },
-      insertStoragePersister({
+      insertStoragePersister(craftUnique({
         storeName: 'demo-app-craft',
         key: 'user-query',
-      }),
+      })),
     );
   },
 );
@@ -53,7 +57,11 @@ const CraftGlobalQuery = craftComponent(
     },
   },
   function* (userId: Input<string | undefined>) {
-    const user = yield* UserQuery({ userId: () => userId() });
+    const user = yield* UserQuery({
+      userId: () => {
+        return craftUse(userId());
+      },
+    });
 
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
@@ -63,7 +71,7 @@ const CraftGlobalQuery = craftComponent(
       void router.navigate({
         to: 'craft/query/:userId',
         params: {
-          userId: String(Number(userId() ?? '0') + offset),
+          userId: String(Number((yield* userId()) ?? '0') + offset),
         },
       });
     });
@@ -72,11 +80,14 @@ const CraftGlobalQuery = craftComponent(
   },
   ({ user, hasUser, navigate }) =>
     div({ class: 'query-shell' }, [
+      heading('User query'),
       div({ class: 'query-result' }, [
         'User ',
-        StatusComponent({ status: () => user.status() }),
+        StatusComponent({ status: user.status }),
         ifBlock(hasUser, () =>
-          pre('QueryValue', {}, () => JSON.stringify(user.value(), null, 2)),
+          pre('QueryValue', {}, function* () {
+            return JSON.stringify(yield* user.value(), null, 2);
+          }),
         ),
       ]),
       p(
@@ -86,7 +97,7 @@ const CraftGlobalQuery = craftComponent(
       div({ class: 'query-actions' }, [
         button(
           'GoToPreviousUser',
-          {
+          { type: 'button',
             *click() {
               yield* navigate(-1);
             },
@@ -95,7 +106,7 @@ const CraftGlobalQuery = craftComponent(
         ),
         button(
           'GoToNextUser',
-          {
+          { type: 'button',
             *click() {
               yield* navigate(1);
             },

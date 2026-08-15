@@ -1,24 +1,31 @@
-import { computed } from '@angular/core';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   catchTag,
   craftComponent,
   div,
-  h3,
   ifBlock,
   matchBlock,
   p,
   strong,
+  heading,
 } from '@craft-ng/component';
 import {
   craftException,
   craftGen,
   craftSleep,
   query,
+  craftComputed,
   state,
 } from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
+type UserExceptionLoader = {
+  readonly code:
+    | 'UserNotFoundException'
+    | 'UserConsentMissingException'
+    | 'UserAccessForbiddenException';
+};
 
 const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
@@ -51,6 +58,8 @@ const ExceptionsComponent = craftComponent(
       }
       :scope .exception-actions button:hover { background: #f1f5f9; }
       :scope p { margin: 0.5rem 0; }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   function* () {
@@ -87,20 +96,30 @@ const ExceptionsComponent = craftComponent(
         }),
       },
       ({ resource }) => ({
-        hasUser: computed(() => resource.hasValue()),
-        isLoading: computed(() => resource.isLoading()),
+        hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        isLoading: craftComputed('isLoading', function* () {
+          return yield* resource.isLoading();
+        }),
       }),
     );
-    return { scenario, userQuery };
+    const userExceptionLoader = craftComputed(
+      'userExceptionLoader',
+      function* () {
+        return (yield* userQuery.exceptions()).loader;
+      },
+    );
+    return { scenario, userQuery, userExceptionLoader };
   },
-  ({ scenario, userQuery }) => {
-    const currentUser = () =>
-      userQuery.value() as { id: string; name: string; email: string };
+  ({ scenario, userQuery, userExceptionLoader }) => {
     return div([
-      h3(() => `Query user with business exceptions (${userQuery.status()})`),
+      heading(
+        function* () {
+          return `Query user with business exceptions (${yield* userQuery.status()})`;
+        },
+      ),
       div({ class: 'exception-actions' }, [
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('success');
             },
@@ -108,7 +127,7 @@ const ExceptionsComponent = craftComponent(
           'Success',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('not-found');
             },
@@ -116,7 +135,7 @@ const ExceptionsComponent = craftComponent(
           'User not found',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('consent-missing');
             },
@@ -124,7 +143,7 @@ const ExceptionsComponent = craftComponent(
           'Consent missing',
         ),
         button(
-          {
+          { type: 'button',
             *click() {
               yield* scenario.select('forbidden');
             },
@@ -136,21 +155,40 @@ const ExceptionsComponent = craftComponent(
         userQuery.hasUser,
         () =>
           div([
-            p([strong('ID: '), () => currentUser().id]),
-            p([strong('Name: '), () => currentUser().name]),
-            p([strong('Email: '), () => currentUser().email]),
+            p([
+              strong('ID: '),
+              function* () {
+                return ((yield* userQuery.value()) as { id: string }).id;
+              },
+            ]),
+            p([
+              strong('Name: '),
+              function* () {
+                return ((yield* userQuery.value()) as { name: string }).name;
+              },
+            ]),
+            p([
+              strong('Email: '),
+              function* () {
+                return ((yield* userQuery.value()) as { email: string }).email;
+              },
+            ]),
           ]),
         () => [
-          matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
-            UserNotFoundException: () =>
-              p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
-            UserConsentMissingException: () =>
-              p(
-                '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
-              ),
-            UserAccessForbiddenException: () =>
-              p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
-          }),
+          matchBlock.exhaustive(
+            userExceptionLoader as unknown as () => UserExceptionLoader,
+            'code',
+            {
+              UserNotFoundException: () =>
+                p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
+              UserConsentMissingException: () =>
+                p(
+                  '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
+                ),
+              UserAccessForbiddenException: () =>
+                p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
+            },
+          ),
           ifBlock(userQuery.isLoading, () => p('Loading user…')),
         ],
       ),

@@ -7,28 +7,7 @@ request even comes back.
 
 `mutation` is `query`'s counterpart for writes. Same shape, triggered explicitly.
 
-```typescript
-import { CraftHttpClient, mutation } from '@craft-ng/core';
-
-const { createTask } =
-  yield *
-  mutation('createTask', {
-    method: (payload: { title: string }) => payload,
-    loader: function* ({ params }) {
-      return yield* CraftHttpClient.post(({ response }) => ({
-        url: '/api/tasks',
-        body: params,
-        success: response<Task>(),
-      }));
-    },
-  });
-
-yield * createTask.mutate({ title: 'Write step 6' });
-
-createTask.isLoading();
-createTask.value();
-createTask.exception();
-```
+<<< @/tests/snippets/learn/06-mutate-data/create-task.spec.ts#create-task
 
 `method` is the entry point: it takes what the caller passes and returns what
 the loader receives as `params`. It is also where you can reject input before any
@@ -39,27 +18,7 @@ request happens (see below).
 The interesting part is not the mutation, it's wiring it to the query. That's an
 insertion — `insertReactOnMutation`:
 
-```typescript
-import { insertReactOnMutation, query } from '@craft-ng/core';
-
-const { tasksQuery } =
-  yield *
-  query(
-    'tasksQuery',
-    {
-      params: () => ({ done: false }),
-      loader: function* () {
-        return yield* CraftHttpClient.get(({ response }) => ({
-          url: '/api/tasks',
-          success: response<Task[]>(),
-        }));
-      },
-    },
-    insertReactOnMutation(createTask, {
-      reload: { onMutationSuccess: true },
-    }),
-  );
-```
+<<< @/tests/snippets/learn/06-mutate-data/react-on-mutation.spec.ts#react-on-mutation
 
 The query now reloads itself whenever `createTask` succeeds. No subscription, no
 event bus, no manual `refetch()` call at the call site.

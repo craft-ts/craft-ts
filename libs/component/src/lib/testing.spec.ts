@@ -13,10 +13,10 @@ import {
   expectTypeOf,
   it,
 } from 'vitest';
-import { craftService } from '@craft-ng/core';
+import { craftService, craftUse } from '@craft-ng/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
-import { div, button, input, p, span } from './hyperscript';
+import { div, button, input, label, p, span } from './hyperscript';
 import { ifBlock } from './if-block';
 import { each } from './each';
 import { markYieldableValue } from '@craft-ng/core';
@@ -68,13 +68,17 @@ describe('Craft component and directive testing utilities', () => {
     );
 
     const result = await setupCraftComponentLogicTest.byRegister(component, {
-      args: [(() => 'logic') as Input<string>],
+      args: [
+        (function* () {
+          return 'logic';
+        }) as Input<string>,
+      ],
       register: {
         LogicDependency: { value: 'mock' },
       },
     });
 
-    expect(result.context.label()).toBe('logic');
+    expect(craftUse(result.context.label())).toBe('logic');
     expect(result.context.dependency.value).toBe('mock');
     expect(result.mocks.LogicDependency).toBeDefined();
     result.destroy();
@@ -113,6 +117,36 @@ describe('Craft component and directive testing utilities', () => {
     result.destroy();
     expect(result.nativeElement.textContent).toBe('');
     expect(document.querySelector('style[data-craft-sheet]')).toBeNull();
+  });
+
+  it('finds controls by role and accessible name', async () => {
+    const Page = craftComponent(
+      'roleLocatorPage',
+      {},
+      () => ({}),
+      () => [
+        label({ htmlFor: 'email' }, 'Email'),
+        input({ id: 'email', type: 'email' }),
+        label({ htmlFor: 'save-button' }, 'Save'),
+        button({ id: 'save-button', type: 'button' }, 'Save'),
+        button({ type: 'button' }, 'Cancel'),
+      ],
+    );
+    const result = await setupCraftComponentTemplateTest(Page, {
+      context: {},
+      register: {},
+    });
+    expect(result.getByRole('button', { name: 'Save' }).textContent).toBe('Save');
+    expect(result.getByRole('button', { name: /Save/g }).textContent).toBe(
+      'Save',
+    );
+    expect(result.getByLabel('Email').id).toBe('email');
+    expect(result.getByLabel('Save').id).toBe('save-button');
+    expect(result.queryByRole('button', { name: 'Missing' })).toBeUndefined();
+    expect(() => result.getByRole('button', { name: 'Missing' })).toThrow(
+      /Unable to find role "button" with name "Missing"/,
+    );
+    result.destroy();
   });
 
   it('locates statically identified elements with inferred DOM types', async () => {
@@ -334,11 +368,15 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftDirectiveLogicTest.byRegister(directive, {
       baseLogic: (value: Input<string>) => ({ value }),
-      args: [(() => 'directive') as Input<string>],
+      args: [
+        (function* () {
+          return 'directive';
+        }) as Input<string>,
+      ],
       register: {},
     });
 
-    expect(result.context.value()).toBe('directive');
+    expect(craftUse(result.context.value())).toBe('directive');
     expect(result.context.decorated).toBe(true);
     result.destroy();
   });
@@ -348,14 +386,16 @@ describe('Craft component and directive testing utilities', () => {
       'conditionalTestDirective',
       { styles: '.directive-root { color: blue; }' },
       (baseLogic) => baseLogic,
-      (baseTemplate: HostTemplate<{ visible: () => boolean }>) => (_context) =>
-        _context.visible() ? baseTemplate(_context) : p('hidden'),
+      (baseTemplate: HostTemplate<{ visible: Input<boolean> }>) => (context) =>
+        craftUse(context.visible()) ? baseTemplate(context) : p('hidden'),
     );
-    const baseTemplate: HostTemplate<{ visible: () => boolean }> = (_context) =>
+    const baseTemplate: HostTemplate<{ visible: Input<boolean> }> = (_context) =>
       div({ class: 'directive-root' }, 'visible');
 
-    const initialContext: { visible: () => boolean } = {
-      visible: () => true,
+    const initialContext: { visible: Input<boolean> } = {
+      visible: function* () {
+        return true;
+      },
     };
     const result = await setupCraftDirectiveTemplateTest.byRegister(directive, {
       baseTemplate,
@@ -364,7 +404,11 @@ describe('Craft component and directive testing utilities', () => {
     });
 
     expect(result.nativeElement.textContent).toBe('visible');
-    result.updateContext({ visible: () => false });
+    result.updateContext({
+      visible: function* () {
+        return false;
+      },
+    });
     expect(result.nativeElement.textContent).toBe('hidden');
     result.destroy();
   });

@@ -55,9 +55,8 @@ ESLint rules used by the type-safe DI and routing workflow.
 Create granular state and derive its public API directly from it:
 
 ```ts
-import { computed } from '@angular/core';
 import { button, craftComponent, p } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ng/core';
 
 export const Counter = craftComponent(
   'Counter',
@@ -66,12 +65,16 @@ export const Counter = craftComponent(
     const counter = yield* state('counter', 0, ({ state, update, set }) => ({
       increment: () => update((value) => value + 1),
       reset: () => set(0),
-      doubled: computed(() => state() * 2),
+      doubled: craftComputed(function* () {
+        return (yield* state()) * 2;
+      }),
     }));
     return { counter };
   },
   ({ counter }) => [
-    p(() => `Count: ${counter()} (doubled: ${counter.doubled()})`),
+    p(function* () {
+      return `Count: ${yield* counter()} (doubled: ${yield* counter.doubled()})`;
+    }),
     button({ click: counter.increment }, 'Increment'),
   ],
 );
@@ -117,6 +120,7 @@ This repository is an npm workspace managed with Nx.
 ```text
 apps/
 ├── demo/          Angular application used for examples and integration checks
+│                  (`architecture/` — static graph Vitest suite)
 └── docs/          VitePress documentation and documentation tests
 libs/
 ├── core/          Published @craft-ng/core package
@@ -187,7 +191,12 @@ npx nx lint ng-craft-core
 npx nx build ng-craft-core
 npx nx test docs
 npx nx build docs
+npx nx architecture demo
 ```
+
+`npx nx architecture demo` runs the Vitest suite in `apps/demo/architecture/`.
+See [apps/demo/README.md](apps/demo/README.md) for the commands and the rules
+it imports.
 
 Inspect all targets available for a project with:
 

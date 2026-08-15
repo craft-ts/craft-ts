@@ -27,7 +27,7 @@ import {
 ## The common case — selecting an object property
 
 ```typescript
-const { board } = state(
+const board = yield* state(
   'board',
   {
     cell: {
@@ -42,18 +42,20 @@ const { board } = state(
         color: 'black',
         paintCount: cell.paintCount + 1,
       })),
-    paintCountStr: () => `Painted ${state().paintCount} times`,
+    paintCountStr: function* () {
+      return `Painted ${(yield* state()).paintCount} times`;
+    },
   })),
 );
 
-board.selectCell().paint();
-console.log(board.selectCell().paintCountStr()); // "Painted 1 times"
+yield* board.selectCell().paint();
+yield* board.selectCell().paintCountStr(); // "Painted 1 times"
 ```
 
 ## Selecting into an array
 
 ```typescript
-const { cells } = state(
+const cells = yield* state(
   'cells',
   [{ color: 'white', paintCount: 0 }],
   insertSelect('cell', ({ update }) => ({
@@ -66,7 +68,8 @@ const { cells } = state(
   })),
 );
 
-cells.selectCell(0)?.paint();
+const cell = cells.selectCell(0);
+if (cell) yield* cell.paint();
 console.log(cells.selectCell(0)?.paintCount); // 1
 ```
 
@@ -130,7 +133,10 @@ state(
 
 ```ts
 state('cells', initialCells, insertStatePipe(
-    insertStoragePersister({ storeName: 'app', key: 'cells' }),
+    insertStoragePersister(craftUnique({
+      storeName: 'app',
+      key: 'cells',
+    })),
     insertSelect('cell', ({ update }) => ({
       paint: () => update((cell) => ({ ...cell, painted: true })),
     })),
@@ -150,3 +156,4 @@ Two demos built almost entirely on nested selects:
 - [Insertions](/guide/concepts/insertions) — composing several on one primitive
 - [Local state](/guide/state/local-state)
 - [Collections](/guide/state/collections) — for entity lists specifically
+- [Architecture rules](/guide/testing/architecture) — `assertInsertSelectUnique` when two selects share a key on one host

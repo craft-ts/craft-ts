@@ -12,6 +12,7 @@ import { insertSelectFormTree } from './insert-select-form-tree';
 import { craftPipe } from '../craft-pipe';
 import { cRequired } from './validator';
 import { craftUse } from '../craft-use';
+import { rawReactiveValue } from '../reactive-read';
 
 type User = { id: string; name: string };
 
@@ -48,7 +49,7 @@ class ParallelSelectedFieldBindingsComponent {
   standalone: true,
   imports: [CraftFieldDirective],
   template: `
-    @for (user of usersForm(); track user.id) {
+    @for (user of users(); track user.id) {
       @let userForm = usersForm.select(user.id);
       @let nameField = userForm?.selectName();
       @if (nameField; as nf) {
@@ -93,6 +94,7 @@ class ParallelLazySubFormComponent {
       ),
     ),
   );
+  protected readonly users = rawReactiveValue(this.usersForm);
 }
 
 describe('parallel form DOM bindings', () => {
@@ -119,11 +121,13 @@ describe('parallel form DOM bindings', () => {
     }).not.toThrow();
 
     expect(
-      (
-        fixture.componentInstance as unknown as {
-          usersForm: () => Array<{ name: string }>;
-        }
-      ).usersForm()[0]?.name,
+      craftUse(
+        (
+          fixture.componentInstance as unknown as {
+            usersForm: () => Generator<unknown, Array<{ name: string }>>;
+          }
+        ).usersForm(),
+      )[0]?.name,
     ).toBe('');
   });
 

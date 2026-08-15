@@ -16,6 +16,7 @@
           "LICENSE",
           "libs/dev-tools/*.md",
           "libs/dev-tools/generators.json",
+          "libs/dev-tools/.npmignore",
           {
             "input": "libs/dev-tools/src/eslint",
             "glob": "**/*.mjs",
@@ -44,7 +45,7 @@
           {
             "input": "libs/dev-tools/src/scripts",
             "glob": "**/*.ts",
-            "ignore": ["**/*.spec.ts", "**/*.test.ts"],
+            "ignore": ["**/*.spec.ts", "**/*.test.ts", "**/tests/**"],
             "output": "src/scripts"
           }
         ]

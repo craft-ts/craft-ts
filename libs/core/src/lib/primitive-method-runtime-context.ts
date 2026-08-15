@@ -4,6 +4,7 @@ import {
   type Provider,
   type Signal,
 } from '@angular/core';
+import { rawReactiveFacade } from './reactive-read';
 
 export type PrimitiveMethodRuntimeKind =
   | 'state'
@@ -84,7 +85,7 @@ export function ɵprovidePrimitiveMethodRuntimeContext(
     provide: PRIMITIVE_METHOD_RUNTIME_CONTEXT,
     useValue: {
       kind,
-      get: () => context.state(),
+      get: () => rawReactiveFacade(context.state)(),
       set: (value: unknown) => context.set(value),
       update: (updater: (current: unknown) => unknown) =>
         context.update(updater),

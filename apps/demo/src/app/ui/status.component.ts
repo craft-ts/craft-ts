@@ -1,4 +1,9 @@
-import { craftComponent, span, type Input } from '@craft-ng/component';
+/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+import {
+  craftComponent,
+  span,
+  type Input,
+} from '@craft-ng/component';
 import type { CraftResourceStatus } from '@craft-ng/core';
 
 const STATUS_VIEW = {
@@ -35,16 +40,27 @@ export const StatusComponent = craftComponent(
       .badge-orange { background:var(--status-orange-bg); color:var(--status-orange-ink); }
       .badge-green { background:var(--status-green-bg); color:var(--status-green-ink); }
       .badge-blue { background:var(--status-blue-bg); color:var(--status-blue-ink); }
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
   (status: Input<CraftResourceStatus>) => ({ status }),
-  ({ status }) => {
-    const [emoji, label, color] = STATUS_VIEW[status()];
-    return span({ class: 'badge-container' }, [
-      span({ class: 'status-emoji' }, emoji),
-      span({ class: `badge badge-${color}` }, label),
-    ]);
-  },
+  ({ status }) =>
+    span({ class: 'badge-container' }, [
+      span({ class: 'status-emoji' }, function* () {
+        return STATUS_VIEW[yield* status()][0];
+      }),
+      span(
+        {
+          class: function* () {
+            return `badge badge-${STATUS_VIEW[yield* status()][2]}`;
+          },
+        },
+        function* () {
+          return STATUS_VIEW[yield* status()][1];
+        },
+      ),
+    ]),
 );
 
 export type StatusComponent = typeof StatusComponent;

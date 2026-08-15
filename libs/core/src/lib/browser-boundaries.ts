@@ -188,6 +188,10 @@ export interface BrowserCryptoServiceApi {
 export interface BrowserDocumentServiceApi {
   title(): string;
   setTitle(value: string): void;
+  lang(): string;
+  setLang(value: string): void;
+  dir(): 'ltr' | 'rtl' | 'auto' | '';
+  setDir(value: 'ltr' | 'rtl' | 'auto' | ''): void;
   visibilityState(): DocumentVisibilityState;
   hasFocus(): boolean;
 }
@@ -359,6 +363,11 @@ function getBrowserWindow() {
 
 function getBrowserDocument() {
   return requireBrowserValue(globalThis.document, 'document');
+}
+
+/** @internal Angular TitleStrategy writes the document title through the same boundary as `BrowserDocument.setTitle`. */
+export function ɵapplyBrowserDocumentTitle(value: string): void {
+  getBrowserDocument().title = value;
 }
 
 function createInMemoryStorage(): StorageLike {
@@ -827,7 +836,25 @@ const browserDocumentService: BrowserBoundaryService<
   (): BrowserDocumentServiceApi => ({
     title: () => getBrowserDocument().title,
     setTitle: (value) => {
-      getBrowserDocument().title = value;
+      ɵapplyBrowserDocumentTitle(value);
+    },
+    lang: () => getBrowserDocument().documentElement.lang,
+    setLang: (value) => {
+      getBrowserDocument().documentElement.lang = value;
+    },
+    dir: () =>
+      (getBrowserDocument().documentElement.getAttribute('dir') ?? '') as
+        | 'ltr'
+        | 'rtl'
+        | 'auto'
+        | '',
+    setDir: (value) => {
+      const el = getBrowserDocument().documentElement;
+      if (value) {
+        el.setAttribute('dir', value);
+      } else {
+        el.removeAttribute('dir');
+      }
     },
     visibilityState: () => getBrowserDocument().visibilityState,
     hasFocus: () => getBrowserDocument().hasFocus(),
@@ -1052,6 +1079,10 @@ export const BrowserDocument: BrowserBoundaryDsl<
 > = {
   title: callBrowserDocument('title'),
   setTitle: callBrowserDocument('setTitle'),
+  lang: callBrowserDocument('lang'),
+  setLang: callBrowserDocument('setLang'),
+  dir: callBrowserDocument('dir'),
+  setDir: callBrowserDocument('setDir'),
   visibilityState: callBrowserDocument('visibilityState'),
   hasFocus: callBrowserDocument('hasFocus'),
 };

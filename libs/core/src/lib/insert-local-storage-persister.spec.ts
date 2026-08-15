@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asyncProcess } from './async-process';
+import { craftUnique } from './craft-unique';
 import { insertStoragePersister } from './insert-storage-persister';
 import { mutation } from './mutation';
 import { query } from './query';
@@ -18,16 +19,14 @@ import {
   type StoragePersisterApi,
 } from './storage-persister.service';
 
-type _LocalStoragePersisterMatchesContract = GetServiceOutput<
-  typeof LocalStoragePersister
-> extends StoragePersisterApi
-  ? true
-  : never;
-type _SessionStoragePersisterMatchesContract = GetServiceOutput<
-  typeof SessionStoragePersister
-> extends StoragePersisterApi
-  ? true
-  : never;
+type _LocalStoragePersisterMatchesContract =
+  GetServiceOutput<typeof LocalStoragePersister> extends StoragePersisterApi
+    ? true
+    : never;
+type _SessionStoragePersisterMatchesContract =
+  GetServiceOutput<typeof SessionStoragePersister> extends StoragePersisterApi
+    ? true
+    : never;
 const storagePersisterContractChecks: [
   _LocalStoragePersisterMatchesContract,
   _SessionStoragePersisterMatchesContract,
@@ -85,7 +84,8 @@ describe('insertStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>(undefined);
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: paramsSrc,
@@ -94,19 +94,21 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myTestQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
           }),
         ),
       );
 
       expect(myQuery.persister).toBeDefined();
-      expect(myQuery.status()).toBe('local');
-      expect(myQuery.value()).toEqual({ data: 'cached' });
+      expect(craftUse(myQuery.status())).toBe('local');
+      expect(craftUse(myQuery.value())).toEqual({ data: 'cached' });
 
-      const myQueryById = craftUse(query(
+      const myQueryById = craftUse(
+        query(
           'myQueryById',
           {
             params: () => 'id-1',
@@ -116,18 +118,18 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myTestQueryById',
-          }),
+          })),
         ),
       );
 
       await vi.runAllTimersAsync();
 
       expect(myQueryById.persister).toBeDefined();
-      expect(myQueryById.select('id-1')?.status()).toBe('resolved');
-      expect(myQueryById.select('id-1')?.value()).toEqual({
+      expect(craftUse(myQueryById.select('id-1')?.status())).toBe('resolved');
+      expect(craftUse(myQueryById.select('id-1')?.value())).toEqual({
         data: 'server:id-1',
       });
 
@@ -148,7 +150,8 @@ describe('insertStoragePersister', () => {
 
   it('persists mutation results at runtime for resource and resourceById modes', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myMutation = craftUse(mutation(
+      const myMutation = craftUse(
+        mutation(
           'myMutation',
           {
             method: (id: string) => id,
@@ -157,14 +160,15 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myMutation',
-          }),
+          })),
         ),
       );
 
-      const myMutationById = craftUse(mutation(
+      const myMutationById = craftUse(
+        mutation(
           'myMutationById',
           {
             method: (id: string) => id,
@@ -174,10 +178,10 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myMutationById',
-          }),
+          })),
         ),
       );
 
@@ -189,10 +193,10 @@ describe('insertStoragePersister', () => {
 
       await vi.runAllTimersAsync();
 
-      expect(myMutation.status()).toBe('resolved');
-      expect(myMutation.value()).toEqual({ data: 'm-1' });
-      expect(myMutationById.select('m-2')?.status()).toBe('resolved');
-      expect(myMutationById.select('m-2')?.value()).toEqual({ data: 'm-2' });
+      expect(craftUse(myMutation.status())).toBe('resolved');
+      expect(craftUse(myMutation.value())).toEqual({ data: 'm-1' });
+      expect(craftUse(myMutationById.select('m-2')?.status())).toBe('resolved');
+      expect(craftUse(myMutationById.select('m-2')?.value())).toEqual({ data: 'm-2' });
 
       expect(localStorage.setItem).toHaveBeenCalledWith(
         'ng-craft-myTestStore-resource-myMutation',
@@ -207,7 +211,8 @@ describe('insertStoragePersister', () => {
 
   it('persists async process results at runtime for resource and resourceById modes', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = craftUse(asyncProcess(
+      const myAsyncProcess = craftUse(
+        asyncProcess(
           'myAsyncProcess',
           {
             method: (id: string) => id,
@@ -216,14 +221,15 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myAsyncProcess',
-          }),
+          })),
         ),
       );
 
-      const myAsyncProcessById = craftUse(asyncProcess(
+      const myAsyncProcessById = craftUse(
+        asyncProcess(
           'myAsyncProcessById',
           {
             method: (id: string) => id,
@@ -233,10 +239,10 @@ describe('insertStoragePersister', () => {
               return { data: params };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myAsyncProcessById',
-          }),
+          })),
         ),
       );
 
@@ -248,10 +254,10 @@ describe('insertStoragePersister', () => {
 
       await vi.runAllTimersAsync();
 
-      expect(myAsyncProcess.status()).toBe('resolved');
-      expect(myAsyncProcess.value()).toEqual({ data: 'a-1' });
-      expect(myAsyncProcessById.select('a-2')?.status()).toBe('resolved');
-      expect(myAsyncProcessById.select('a-2')?.value()).toEqual({
+      expect(craftUse(myAsyncProcess.status())).toBe('resolved');
+      expect(craftUse(myAsyncProcess.value())).toEqual({ data: 'a-1' });
+      expect(craftUse(myAsyncProcessById.select('a-2')?.status())).toBe('resolved');
+      expect(craftUse(myAsyncProcessById.select('a-2')?.value())).toEqual({
         data: 'a-2',
       });
 
@@ -278,7 +284,8 @@ describe('insertStoragePersister', () => {
         }),
       );
 
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: signal<string | undefined>(undefined),
@@ -287,9 +294,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myStaleQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             cacheTime: 60000,
             staleTime: 5000,
@@ -298,8 +306,8 @@ describe('insertStoragePersister', () => {
       );
 
       // Fresh: restored without reload
-      expect(myQuery.status()).toBe('local');
-      expect(myQuery.value()).toEqual({ data: 'cached' });
+      expect(craftUse(myQuery.status())).toBe('local');
+      expect(craftUse(myQuery.value())).toEqual({ data: 'cached' });
     });
   });
 
@@ -314,7 +322,8 @@ describe('insertStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>('p1');
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: paramsSrc,
@@ -323,9 +332,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'mySWRQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             cacheTime: 60000,
             staleTime: 5000,
@@ -338,8 +348,8 @@ describe('insertStoragePersister', () => {
       expect(myQuery).toBeDefined();
 
       await vi.runAllTimersAsync();
-      expect(myQuery.status()).toBe('resolved');
-      expect(myQuery.value()).toEqual({ data: 'server:p1' });
+      expect(craftUse(myQuery.status())).toBe('resolved');
+      expect(craftUse(myQuery.value())).toEqual({ data: 'server:p1' });
     });
   });
 
@@ -361,7 +371,8 @@ describe('insertStoragePersister', () => {
         }),
       );
 
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => 'id-1',
@@ -371,9 +382,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myStaleQueryById',
+          }), {
             cacheTime: 60000,
             staleTime: 5000,
           }),
@@ -382,12 +394,12 @@ describe('insertStoragePersister', () => {
 
       // Resource was restored but reload triggered
       expect(['loading', 'reloading']).toContain(
-        myQuery.select('id-1')?.status(),
+        craftUse(myQuery.select('id-1')?.status()),
       );
 
       await vi.runAllTimersAsync();
-      expect(myQuery.select('id-1')?.status()).toBe('resolved');
-      expect(myQuery.select('id-1')?.value()).toEqual({ data: 'server:id-1' });
+      expect(craftUse(myQuery.select('id-1')?.status())).toBe('resolved');
+      expect(craftUse(myQuery.select('id-1')?.value())).toEqual({ data: 'server:id-1' });
     });
   });
 
@@ -409,7 +421,8 @@ describe('insertStoragePersister', () => {
         }),
       );
 
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => 'id-1',
@@ -419,9 +432,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myFreshQueryById',
+          }), {
             cacheTime: 60000,
             staleTime: 5000,
           }),
@@ -429,8 +443,8 @@ describe('insertStoragePersister', () => {
       );
 
       // Fresh: no reload, status stays local
-      expect(myQuery.select('id-1')?.status()).toBe('local');
-      expect(myQuery.select('id-1')?.value()).toEqual({ data: 'cached-1' });
+      expect(craftUse(myQuery.select('id-1')?.status())).toBe('local');
+      expect(craftUse(myQuery.select('id-1')?.value())).toEqual({ data: 'cached-1' });
     });
   });
 
@@ -447,7 +461,8 @@ describe('insertStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>('p1');
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: paramsSrc,
@@ -456,9 +471,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}`, version: 2 };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myValidatedQuery',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             // validate rejects the old shape (missing 'version' field)
             validate: (v): v is { data: string; version: number } =>
@@ -468,14 +484,17 @@ describe('insertStoragePersister', () => {
       );
 
       // Cache discarded — should be loading fresh
-      expect(myQuery.status()).not.toBe('local');
+      expect(craftUse(myQuery.status())).not.toBe('local');
       expect(localStorage.removeItem).toHaveBeenCalledWith(
         'ng-craft-myTestStore-resource-myValidatedQuery',
       );
 
       await vi.runAllTimersAsync();
-      expect(myQuery.status()).toBe('resolved');
-      expect(myQuery.value()).toEqual({ data: 'server:p1', version: 2 });
+      expect(craftUse(myQuery.status())).toBe('resolved');
+      expect(craftUse(myQuery.value())).toEqual({
+        data: 'server:p1',
+        version: 2,
+      });
     });
   });
 
@@ -489,7 +508,8 @@ describe('insertStoragePersister', () => {
         }),
       );
 
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: signal<string | undefined>(undefined),
@@ -498,9 +518,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}`, version: 1 };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myValidatedQuery2',
+          }), {
             waitForParamsSrcToBeEqualToPreviousValue: false,
             validate: (v): v is { data: string; version: number } =>
               typeof (v as any)?.version === 'number',
@@ -508,8 +529,8 @@ describe('insertStoragePersister', () => {
         ),
       );
 
-      expect(myQuery.status()).toBe('local');
-      expect(myQuery.value()).toEqual({ data: 'cached', version: 1 });
+      expect(craftUse(myQuery.status())).toBe('local');
+      expect(craftUse(myQuery.value())).toEqual({ data: 'cached', version: 1 });
     });
   });
 
@@ -531,7 +552,8 @@ describe('insertStoragePersister', () => {
         }),
       );
 
-      const myQuery = craftUse(query(
+      const myQuery = craftUse(
+        query(
           'myQuery',
           {
             params: () => 'id-1',
@@ -541,9 +563,10 @@ describe('insertStoragePersister', () => {
               return { data: `server:${params}`, version: 2 };
             },
           },
-          insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myValidatedQueryById',
+          }), {
             validate: (v): v is { data: string; version: number } =>
               typeof (v as any)?.version === 'number',
           }),
@@ -551,11 +574,11 @@ describe('insertStoragePersister', () => {
       );
 
       // validate failed → no defaultValue → resource loads fresh
-      expect(myQuery.select('id-1')?.status()).not.toBe('local');
+      expect(craftUse(myQuery.select('id-1')?.status())).not.toBe('local');
 
       await vi.runAllTimersAsync();
-      expect(myQuery.select('id-1')?.status()).toBe('resolved');
-      expect(myQuery.select('id-1')?.value()).toEqual({
+      expect(craftUse(myQuery.select('id-1')?.status())).toBe('resolved');
+      expect(craftUse(myQuery.select('id-1')?.value())).toEqual({
         data: 'server:id-1',
         version: 2,
       });
@@ -564,22 +587,23 @@ describe('insertStoragePersister', () => {
 
   it('persists and restores state at runtime', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = craftUse(state('myState', 0, (context) =>
+      const myState = craftUse(
+        state('myState', 0, (context) =>
           craftPipe(
             context,
             ({ set }) => ({
               setValue: (value: number) => set(value),
             }),
-            insertStoragePersister({
+            insertStoragePersister(craftUnique({
               storeName: 'myTestStore',
               key: 'myState',
-            }),
+            })),
           ),
         ),
       );
 
       expect(myState.persister).toBeDefined();
-      expect(myState()).toBe(0);
+      expect(craftUse(myState())).toBe(0);
 
       myState.setValue(42);
       await vi.runAllTimersAsync();
@@ -604,18 +628,19 @@ describe('insertStoragePersister', () => {
         }),
       );
 
-      const restoredState = craftUse(state(
+      const restoredState = craftUse(
+        state(
           'restoredState',
           0,
-            insertStoragePersister({
+          insertStoragePersister(craftUnique({
             storeName: 'myTestStore',
             key: 'myStateRestored',
-          }),
+          })),
         ),
       );
 
       expect(restoredState.persister).toBeDefined();
-      expect(restoredState()).toBe(7);
+      expect(craftUse(restoredState())).toBe(7);
     });
   });
 });

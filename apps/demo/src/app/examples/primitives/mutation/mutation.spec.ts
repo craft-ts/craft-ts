@@ -265,7 +265,11 @@ describe('primitive mutation logic', () => {
     const result = await setupCraftComponentLogicTest.byRegister(
       MutationDemoComponent,
       {
-        args: [(() => user.id) as Input<string | undefined>],
+        args: [
+          (function* () {
+            return user.id;
+          }) as Input<string | undefined>,
+        ],
         register: {
           ApiService: { getItemById, updateItem },
           StoragePersister: storage,
