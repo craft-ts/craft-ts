@@ -14,10 +14,26 @@ import { SourceBranded } from './util/util';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import { injectFnWrapper } from './fn-wrapper';
+import {
+  RAW_REACTIVE_VALUE,
+  REACTIVE_VALUE_TYPE,
+  YIELDABLE_VALUE,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
-export type SignalSource<T> = Signal<T | undefined> & {
+type YieldableSignalSourceMetadata<T> = Omit<
+  YieldableReactiveValue<T | undefined, string>,
+  | typeof RAW_REACTIVE_VALUE
+  | typeof REACTIVE_VALUE_TYPE
+  | typeof YIELDABLE_VALUE
+>;
+
+type SignalSourceReader<T> = (() => T | undefined) &
+  YieldableSignalSourceMetadata<T>;
+
+export type SignalSource<T> = SignalSourceReader<T> & {
   set: (value: T) => void;
-  preserveLastValue: Signal<T | undefined>;
+  preserveLastValue: SignalSourceReader<T>;
 } & SourceBranded;
 
 /**

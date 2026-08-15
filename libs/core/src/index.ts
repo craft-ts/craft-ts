@@ -71,7 +71,49 @@ export * from './lib/craft-service';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
 export * from './lib/yieldable';
-export * from './lib/reactive-read';
+export {
+  DEEP_YIELDABLE,
+  DEEP_YIELDABLE_INSERTION,
+  REACTIVE_DEPENDENCIES,
+  REACTIVE_READ_OBSERVERS,
+  REACTIVE_READ_REQUEST,
+  REACTIVE_VALUE_TYPE,
+  RAW_REACTIVE_VALUE as ɵRAW_REACTIVE_VALUE,
+  YIELDABLE_DEPENDENCY,
+  YIELDABLE_VALUE,
+  createYieldableReactiveFacade,
+  createYieldableReactiveValue,
+  deepYieldable,
+  hasDeepYieldableInsertion,
+  insertDeepYieldable,
+  isReactiveReadRequest,
+  isYieldableReactiveValue,
+  nameInsertedReactiveValue,
+  provideReactiveReadObserver,
+  rawReactiveFacade,
+  rawReactiveValue,
+  ɵactiveReactiveReader,
+  ɵwithActiveReactiveReader,
+} from './lib/reactive-read';
+export type {
+  DeepYieldableInsertion,
+  DeepYieldableMarker,
+  DeepYieldableReaderOf,
+  DeepYieldableValue,
+  NamedYieldableValue,
+  RawReactiveProperties,
+  ReactiveDependencyMap,
+  ReactiveDependencyMapFromYielded,
+  ReactiveReadEdge,
+  ReactiveReadIdentity,
+  ReactiveReadObserver,
+  ReactiveReadRequest,
+  YieldableDependency,
+  YieldableReactiveAction,
+  YieldableReactiveProperties,
+  YieldableReactiveSignal,
+  YieldableReactiveValue,
+} from './lib/reactive-read';
 export * from './lib/correlation-id';
 export * from './lib/correlation-id-plugin';
 export * from './lib/dom-event-hook';

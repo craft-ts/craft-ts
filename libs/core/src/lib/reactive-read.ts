@@ -11,7 +11,7 @@ export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
 /** Internal marker used by the synchronous Craft generator driver. */
 export const REACTIVE_READ_REQUEST = Symbol('craft-reactive-read-request');
 
-/** Internal escape hatch used by Craft itself to retain the raw Angular signal. */
+/** Internal escape hatch used by Craft itself to retain the raw host signal. */
 export const RAW_REACTIVE_VALUE = Symbol('craft-raw-reactive-value');
 const RAW_REACTIVE_ACTION = Symbol('craft-raw-reactive-action');
 
@@ -37,10 +37,7 @@ export type ReactiveDependencyMap = Readonly<{
   readonly path: string;
 }>;
 
-export type YieldableDependency<
-  Source,
-  Path extends string,
-> = {
+export type YieldableDependency<Source, Path extends string> = {
   readonly [YIELDABLE_DEPENDENCY]?: {
     readonly source: Source;
     readonly path: Path;
@@ -76,9 +73,7 @@ type DeepYieldableObject<
             Value[Key],
             Source,
             `${Path}.${Extract<Key, string>}`,
-            Depth extends readonly [unknown, ...infer Rest]
-              ? Rest
-              : readonly []
+            Depth extends readonly [unknown, ...infer Rest] ? Rest : readonly []
           >;
         };
 
@@ -97,30 +92,25 @@ export type DeepYieldableValue<
     unknown,
     unknown,
   ],
-> = (() =>
-  Generator<DeepYieldableReadRequest<Value, Source, Path>, Value, unknown>) &
+> = (() => Generator<
+  DeepYieldableReadRequest<Value, Source, Path>,
+  Value,
+  unknown
+>) &
   YieldableDependency<Source, Path> &
-  (Value extends object
-    ? DeepYieldableObject<Value, Source, Path, Depth>
-    : {});
+  (Value extends object ? DeepYieldableObject<Value, Source, Path, Depth> : {});
 
-type ReaderValue<Reader> = Reader extends YieldableReactiveValue<
-  infer Value,
-  any,
-  any
->
-  ? Value
-  : Reader extends (...args: any[]) => Generator<any, infer Value, any>
+type ReaderValue<Reader> =
+  Reader extends YieldableReactiveValue<infer Value, any, any>
     ? Value
-    : never;
+    : Reader extends (...args: any[]) => Generator<any, infer Value, any>
+      ? Value
+      : never;
 
-type ReaderName<Reader> = Reader extends YieldableReactiveValue<
-  any,
-  infer Name extends string,
-  any
->
-  ? Name
-  : string;
+type ReaderName<Reader> =
+  Reader extends YieldableReactiveValue<any, infer Name extends string, any>
+    ? Name
+    : string;
 
 /** Type returned by {@link deepYieldable}. */
 export type DeepYieldableReaderOf<Reader> = Reader &
@@ -176,8 +166,7 @@ export function hasDeepYieldableInsertion(
 ): boolean {
   return insertions.some(
     (insertion) =>
-      typeof insertion === 'function' &&
-      DEEP_YIELDABLE_INSERTION in insertion,
+      typeof insertion === 'function' && DEEP_YIELDABLE_INSERTION in insertion,
   );
 }
 
@@ -472,7 +461,10 @@ function createDeepProjection(
     if (rootSignal) {
       const value = yield {
         [REACTIVE_READ_REQUEST]: true,
-        identity: { name: String(path[path.length - 1] ?? pathText), path: pathText },
+        identity: {
+          name: String(path[path.length - 1] ?? pathText),
+          path: pathText,
+        },
         read: () => readProjectedPath(rootSignal, path),
       };
       return value;
@@ -480,16 +472,15 @@ function createDeepProjection(
 
     const rootValue =
       typeof root === 'function'
-        ? yield* (root as unknown as () => Generator<
-            ReactiveReadRequest<unknown>,
-            unknown,
-            unknown
-          >)()
+        ? yield* (
+            root as unknown as () => Generator<
+              ReactiveReadRequest<unknown>,
+              unknown,
+              unknown
+            >
+          )()
         : root;
-    return readProjectedPath(
-      () => rootValue,
-      path,
-    );
+    return readProjectedPath(() => rootValue, path);
   };
 
   Object.defineProperty(reader, YIELDABLE_VALUE, {
@@ -518,7 +509,10 @@ function createDeepProjection(
   });
 }
 
-function getDeepProjection(root: object, path: readonly PropertyKey[]): unknown {
+function getDeepProjection(
+  root: object,
+  path: readonly PropertyKey[],
+): unknown {
   const cacheKey = path.map(String).join('.');
   const cached = deepYieldableCache.get(root);
   if (cached && cached instanceof Map && cached.has(cacheKey)) {
@@ -553,7 +547,9 @@ export function deepYieldable<Reader>(
       (typeof reader !== 'object' || reader === null)) ||
     deepYieldableRoots.has(reader as object)
   ) {
-    return reader as Reader extends object ? DeepYieldableReaderOf<Reader> : Reader;
+    return reader as Reader extends object
+      ? DeepYieldableReaderOf<Reader>
+      : Reader;
   }
 
   const root = reader as unknown as object;
@@ -592,7 +588,9 @@ export function deepYieldable<Reader>(
     enumerable: false,
   });
   deepYieldableRoots.add(facade);
-  return facade as Reader extends object ? DeepYieldableReaderOf<Reader> : Reader;
+  return facade as Reader extends object
+    ? DeepYieldableReaderOf<Reader>
+    : Reader;
 }
 
 const facadeCache = new WeakMap<object, Map<string, unknown>>();
