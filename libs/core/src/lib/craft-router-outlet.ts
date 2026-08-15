@@ -63,6 +63,78 @@ import {
 } from './craft-route-target';
 import { combineLatest, type Subscription } from 'rxjs';
 
+const ROUTE_PROP_SKIP = new Set([
+  'craftComponent',
+  'craftPendingComponent',
+]);
+
+/**
+ * Flatten params, data and query params from the activated route **and its
+ * ancestors**. Leaf `ActivatedRoute.params` only contain that segment, so a
+ * lazy child that declares parent inputs (`teamId`, route `data`, …) would
+ * otherwise receive the child's own params in the wrong positional slots.
+ */
+export function collectActivatedRouteProps(
+  route:
+    | Pick<ActivatedRoute, 'snapshot'>
+    | null
+    | undefined,
+): Record<string, unknown> {
+  if (!route?.snapshot) {
+    return {};
+  }
+
+  const snapshots = route.snapshot.pathFromRoot ?? [route.snapshot];
+  const props: Record<string, unknown> = {};
+  for (const snapshot of snapshots) {
+    assignRoutePropBag(props, snapshot.params);
+    assignRoutePropBag(
+      props,
+      snapshot.data as Record<string, unknown> | undefined,
+    );
+  }
+  assignRoutePropBag(props, route.snapshot.queryParams);
+  return props;
+}
+
+function assignRoutePropBag(
+  target: Record<string, unknown>,
+  bag: Record<string, unknown> | undefined,
+): void {
+  if (!bag) {
+    return;
+  }
+  for (const [key, value] of Object.entries(bag)) {
+    if (ROUTE_PROP_SKIP.has(key) || typeof value === 'function') {
+      continue;
+    }
+    target[key] = value;
+  }
+}
+
+function subscribeActivatedRouteProps(
+  route: ActivatedRoute,
+  sink: (props: Record<string, unknown>) => void,
+): Subscription | undefined {
+  const routes =
+    route.pathFromRoot && route.pathFromRoot.length > 0
+      ? route.pathFromRoot
+      : [route];
+  const sources = [
+    ...routes.flatMap((segment) =>
+      [segment.params, segment.data].filter(Boolean),
+    ),
+    route.queryParams,
+  ].filter(Boolean);
+  if (sources.length === 0) {
+    sink(collectActivatedRouteProps(route));
+    return undefined;
+  }
+  return combineLatest(sources).subscribe(() => {
+    sink(collectActivatedRouteProps(route));
+  });
+}
+
 /**
  * Outlet lifecycle for one navigation. While a route's chain is in flight the
  * outlet walks three phases: `'stay'` (keep the previous page) → `'blank'` →
@@ -272,13 +344,10 @@ export class CraftRouterOutletController implements RouterOutletContract {
       activatedRoute.queryParams &&
       activatedRoute.data
     ) {
-      this._routePropsSubscription = combineLatest([
-        activatedRoute.params,
-        activatedRoute.queryParams,
-        activatedRoute.data,
-      ]).subscribe(([params, queryParams, data]) => {
-        this.displayedProps.set({ ...params, ...queryParams, ...data });
-      });
+      this._routePropsSubscription = subscribeActivatedRouteProps(
+        activatedRoute,
+        (props) => this.displayedProps.set(props),
+      ) ?? null;
     }
 
     // Republish this navigation's view-transition payload before mounting
@@ -712,14 +781,7 @@ export class CraftRouterOutletController implements RouterOutletContract {
   }
 
   private routeProps(): Readonly<Record<string, unknown>> {
-    const snapshot = this._activatedRoute?.snapshot;
-    return snapshot
-      ? {
-          ...snapshot.params,
-          ...snapshot.queryParams,
-          ...snapshot.data,
-        }
-      : {};
+    return collectActivatedRouteProps(this._activatedRoute);
   }
 
   private clearTimers(): void {

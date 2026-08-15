@@ -16,6 +16,7 @@ import {
 import { ActivatedRoute, type Route } from '@angular/router';
 import {
   CRAFT_ROUTE_TARGET,
+  collectActivatedRouteProps,
   craftRouteTarget,
   type ComponentDepsCarrier,
   type ComponentDepsOf,
@@ -133,23 +134,19 @@ export class CraftRoutedComponentHost implements OnDestroy {
       component,
       this.elementRef.nativeElement,
       this.injector,
-      {
-        ...this.route?.snapshot.params,
-        ...this.route?.snapshot.queryParams,
-        ...this.route?.snapshot.data,
-      },
+      collectActivatedRouteProps(this.route),
     );
     this.routeSubscription = this.route
-      ? combineLatest([
-          this.route.params,
-          this.route.queryParams,
-          this.route.data,
-        ]).subscribe(([params, queryParams, data]) => {
-          this.mounted.updateProps({
-            ...params,
-            ...queryParams,
-            ...data,
-          });
+      ? combineLatest(
+          [
+            ...(this.route.pathFromRoot ?? [this.route]).flatMap((segment) => [
+              segment.params,
+              segment.data,
+            ]),
+            this.route.queryParams,
+          ].filter(Boolean),
+        ).subscribe(() => {
+          this.mounted.updateProps(collectActivatedRouteProps(this.route));
         })
       : undefined;
   }
@@ -431,11 +428,7 @@ export class CraftPendingComponentHost implements OnDestroy {
       component,
       this.elementRef.nativeElement,
       this.injector,
-      {
-        ...this.route?.snapshot.params,
-        ...this.route?.snapshot.queryParams,
-        ...this.route?.snapshot.data,
-      },
+      collectActivatedRouteProps(this.route),
     );
   }
 

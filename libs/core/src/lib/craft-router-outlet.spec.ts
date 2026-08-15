@@ -28,6 +28,7 @@ import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
 import { CRAFT_ROUTE_TARGET, craftRouteTarget } from './craft-route-target';
 import {
   CRAFT_ROUTE_CHAIN_RUNNER,
+  collectActivatedRouteProps,
   createCraftRouterOutletController,
   type CraftRouterOutletController,
   resolveComponentInput,
@@ -548,6 +549,53 @@ describe('CraftRouterOutlet (view transitions)', () => {
 
     vi.advanceTimersByTime(300);
     expect(outlet.state()).toBe('pending');
+  });
+});
+
+describe('collectActivatedRouteProps', () => {
+  it('merges parent params and data before the leaf segment', () => {
+    const leaf = {
+      snapshot: {
+        params: { userId: '42' },
+        data: { craftComponent: () => undefined },
+        queryParams: { tab: 'info' },
+        pathFromRoot: [
+          { params: {}, data: {}, queryParams: {} },
+          {
+            params: { teamId: '100' },
+            data: { someParentRouteData: 'foo' },
+            queryParams: {},
+          },
+          {
+            params: { userId: '42' },
+            data: { craftComponent: () => undefined },
+            queryParams: { tab: 'info' },
+          },
+        ],
+      },
+    } as unknown as ActivatedRoute;
+
+    expect(collectActivatedRouteProps(leaf)).toEqual({
+      teamId: '100',
+      someParentRouteData: 'foo',
+      userId: '42',
+      tab: 'info',
+    });
+  });
+
+  it('falls back to the leaf snapshot when pathFromRoot is absent', () => {
+    const leaf = {
+      snapshot: {
+        params: { userId: '7' },
+        data: { label: 'solo' },
+        queryParams: {},
+      },
+    } as unknown as ActivatedRoute;
+
+    expect(collectActivatedRouteProps(leaf)).toEqual({
+      userId: '7',
+      label: 'solo',
+    });
   });
 });
 

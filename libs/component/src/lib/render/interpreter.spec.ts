@@ -582,6 +582,48 @@ describe('functional component interpreter', () => {
     expect(element.textContent).toBe('');
   });
 
+  it('keeps an inline click handler after the parent template re-renders', () => {
+    const revision = signal(0);
+    const clicks = signal(0);
+    const widget = craftComponent(
+      'inlineClickSurvivesRenders',
+      {},
+      () => ({ revision, clicks }),
+      ({ revision, clicks }) =>
+        div([
+          span(() => String(revision())),
+          button(
+            {
+              class: 'toggle',
+              click: function* () {
+                clicks.update((value) => value + 1);
+              },
+            },
+            () => `clicks:${clicks()} r:${revision()}`,
+          ),
+        ]),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      widget,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    for (let index = 0; index < 12; index += 1) {
+      revision.update((value) => value + 1);
+      TestBed.tick();
+    }
+
+    element.querySelector('button')?.click();
+    TestBed.tick();
+    expect(clicks()).toBe(1);
+    expect(element.querySelector('button')?.textContent).toContain('clicks:1');
+
+    mounted.destroy();
+  });
+
   it('traces component creation, initial render, updates and destruction', () => {
     const count = signal(0);
     const traces: Array<{
@@ -2503,10 +2545,102 @@ describe('functional component interpreter', () => {
 
     expect(element.querySelector('.route-user-id')?.textContent).toBe('42');
 
+    activatedRoute.snapshot.params = { userId: '43' };
     params.next({ userId: '43' });
     TestBed.tick();
 
     expect(element.querySelector('.route-user-id')?.textContent).toBe('43');
+    mounted.destroy();
+  });
+
+  it('passes inherited parent params and data into a lazy child with multiple inputs', () => {
+    const inheritedParentInputs = craftComponent(
+      'inheritedParentInputs',
+      {},
+      (teamId: Input<string>, someParentRouteData: Input<string>) => ({
+        teamId,
+        someParentRouteData,
+      }),
+      ({ teamId, someParentRouteData }) =>
+        div([
+          p({ class: 'route-team-id' }, function* () {
+            return yield* teamId();
+          }),
+          p({ class: 'route-parent-data' }, function* () {
+            return yield* someParentRouteData();
+          }),
+        ]),
+    );
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        provideCraftComponent(inheritedParentInputs),
+      ],
+    });
+    const element = host();
+    const mounted = mountCraftComponent(
+      CraftRouterOutlet,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    const parentParams = new BehaviorSubject({ teamId: '100' });
+    const parentData = new BehaviorSubject({ someParentRouteData: 'foo' });
+    const params = new BehaviorSubject({ userId: '42' });
+    const queryParams = new BehaviorSubject({});
+    const data = new BehaviorSubject({});
+    const parentSnapshot = {
+      params: { teamId: '100' },
+      data: { someParentRouteData: 'foo' },
+      queryParams: {},
+    };
+    const leafSnapshot = {
+      component: CraftRoutedComponentHost,
+      data: {},
+      params: { userId: '42' },
+      queryParams: {},
+      routeConfig: { component: CraftRoutedComponentHost },
+    };
+    const activatedRoute = {
+      component: CraftRoutedComponentHost,
+      data,
+      params,
+      queryParams,
+      pathFromRoot: [
+        {
+          params: parentParams,
+          data: parentData,
+          queryParams,
+          snapshot: parentSnapshot,
+        },
+        {
+          params,
+          data,
+          queryParams,
+          snapshot: leafSnapshot,
+        },
+      ],
+      snapshot: {
+        ...leafSnapshot,
+        pathFromRoot: [
+          { params: {}, data: {}, queryParams: {} },
+          parentSnapshot,
+          leafSnapshot,
+        ],
+      },
+    } as unknown as ActivatedRoute;
+
+    const outlet = TestBed.inject(ChildrenOutletContexts).getContext(
+      'primary',
+    )?.outlet;
+    expect(outlet).toBeDefined();
+    outlet?.activateWith(activatedRoute, TestBed.inject(EnvironmentInjector));
+    TestBed.tick();
+
+    expect(element.querySelector('.route-team-id')?.textContent).toBe('100');
+    expect(element.querySelector('.route-parent-data')?.textContent).toBe(
+      'foo',
+    );
     mounted.destroy();
   });
 

@@ -70,4 +70,29 @@ describe('App navbar', () => {
 
     mounted.destroy();
   });
+
+  it('lists Craft Lazy Layout when the parent lazy-layout route is enabled', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter(demoRoutes.toRoutes())],
+    });
+
+    const element = document.createElement('div');
+    document.body.append(element);
+    const mounted = mountCraftComponent(
+      App,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+    TestBed.tick();
+
+    const labels = Array.from(element.querySelectorAll('a')).map((anchor) =>
+      anchor.textContent?.trim(),
+    );
+    expect(labels).toContain('Craft Lazy Layout');
+
+    mounted.destroy();
+  });
 });

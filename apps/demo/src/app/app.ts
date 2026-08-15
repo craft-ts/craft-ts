@@ -99,8 +99,26 @@ const NAV_GROUPS = [
 
 const VISIBLE_NAV_GROUPS = NAV_GROUPS.map((group) => ({
   ...group,
-  links: group.links.filter(([, link]) => demoEnabledRoutePaths.has(link.to)),
+  links: group.links.filter(([, link]) => isEnabledDemoRoute(link.to)),
 })).filter((group) => group.links.length > 0);
+
+/**
+ * Runtime `META_PATHS` lists each `craftRoutes` entry, not the flattened
+ * `loadChildren` URLs. A nav link that targets a lazy child (for example
+ * `craft/lazy-layout/:teamId/users/:userId`) is enabled when its parent path
+ * was selected in the serve prompt.
+ */
+export function isEnabledDemoRoute(to: string): boolean {
+  if (demoEnabledRoutePaths.has(to)) {
+    return true;
+  }
+  for (const path of demoEnabledRoutePaths) {
+    if (path !== '' && to.startsWith(`${path}/`)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export const App = craftComponent(
   'App',
@@ -125,6 +143,10 @@ export const App = craftComponent(
       toggle: () => update((open) => !open),
       close: () => set(false),
     }));
+    const toggleNav = craftMethod('toggleNav', function* (event?: Event) {
+      event?.stopPropagation();
+      yield* navOpen.toggle();
+    });
     const clearCache = craftMethod('clearCache', function* () {
       const persister = yield* GlobalPersisterHandlerService(
         undefined,
@@ -137,7 +159,7 @@ export const App = craftComponent(
     return {
       clearCache,
       navOpen,
-      toggleNav: navOpen.toggle,
+      toggleNav,
       closeNav: navOpen.close,
     };
   },
@@ -177,17 +199,12 @@ export const App = craftComponent(
             {
               class: 'demo-nav__toggle',
               type: 'button',
-              click: function* (event: MouseEvent) {
-                event.stopPropagation();
-                yield* toggleNav();
-              },
+              click: toggleNav,
               'aria-expanded': navOpen,
             },
-            ifBlock(
-              navOpen,
-              () => 'Close examples',
-              () => 'Browse examples',
-            ),
+            function* () {
+              return (yield* navOpen()) ? 'Close examples' : 'Browse examples';
+            },
           ),
           ifBlock(
             navOpen,
@@ -195,6 +212,7 @@ export const App = craftComponent(
               div(
                 {
                   class: 'demo-nav__panel',
+                  click: (event: MouseEvent) => event.stopPropagation(),
                 },
                 each(
                   VISIBLE_NAV_GROUPS,

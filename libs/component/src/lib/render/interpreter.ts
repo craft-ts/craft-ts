@@ -1629,20 +1629,23 @@ class ElementRenderedNode implements RenderedNode {
     }
 
     for (const [eventName, dispose] of this.listeners) {
-      const previousValue = Object.entries(this.props).find(
-        ([key, value]) => eventNameFor(key, value) === eventName,
-      )?.[1];
-      if (!Object.is(previousValue, nextEvents.get(eventName))) {
+      if (!nextEvents.has(eventName)) {
         dispose();
         this.listeners.delete(eventName);
       }
     }
 
-    for (const [eventName, listener] of nextEvents) {
+    for (const [eventName] of nextEvents) {
       if (!this.listeners.has(eventName)) {
         this.listeners.set(
           eventName,
           renderer.listen(this.node, eventName, (event: Event) => {
+            const listener = Object.entries(this.props).find(
+              ([key, value]) => eventNameFor(key, value) === eventName,
+            )?.[1] as EventListener | undefined;
+            if (!listener) {
+              return undefined;
+            }
             const interaction: CraftDomEvent = {
               event,
               eventName,
