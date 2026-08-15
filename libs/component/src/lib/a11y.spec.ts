@@ -172,6 +172,25 @@ describe('liveRegion', () => {
   });
 });
 
+describe('liveRegion persistence', () => {
+  it('stays mounted when the announced text is empty', () => {
+    const root = craftComponent(
+      'liveRegionEmpty',
+      {},
+      () => ({}),
+      () => liveRegion({ label: 'Notifications' }, ''),
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+    const region = element.querySelector('[aria-live]');
+    expect(region).not.toBeNull();
+    expect(region?.getAttribute('role')).toBe('region');
+    expect(region?.getAttribute('aria-label')).toBe('Notifications');
+    expect(region?.textContent).toBe('');
+  });
+});
+
 describe('skipLink', () => {
   it('points at main with a visible-on-focus class', () => {
     const root = craftComponent(

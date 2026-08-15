@@ -100,6 +100,11 @@ export function skipLink(
 /**
  * Announces dynamic text to assistive technology (toasts, "Copied").
  */
+type LiveRegionProps = {
+  readonly politeness?: 'polite' | 'assertive';
+  readonly label?: string;
+};
+
 export function liveRegion<const Children extends CraftNodeChildren>(
   children?: Children,
 ): ElementNode<
@@ -109,7 +114,7 @@ export function liveRegion<const Children extends CraftNodeChildren>(
   Children
 >;
 export function liveRegion<const Children extends CraftNodeChildren>(
-  props: { readonly politeness?: 'polite' | 'assertive' } | null,
+  props: LiveRegionProps | null,
   children?: Children,
 ): ElementNode<
   CraftNodeChildrenDependencies<Children>,
@@ -119,23 +124,26 @@ export function liveRegion<const Children extends CraftNodeChildren>(
 >;
 export function liveRegion(
   propsOrChildren?:
-    | { readonly politeness?: 'polite' | 'assertive' }
+    | LiveRegionProps
     | CraftNodeChildren
     | null,
   maybeChildren?: CraftNodeChildren,
 ): unknown {
   const props = looksLikeChildren(propsOrChildren)
     ? { politeness: 'polite' as const }
-    : ((propsOrChildren ?? {}) as { readonly politeness?: 'polite' | 'assertive' });
+    : ((propsOrChildren ?? {}) as LiveRegionProps);
   const children = looksLikeChildren(propsOrChildren)
     ? (propsOrChildren as CraftNodeChildren)
     : maybeChildren;
   const politeness = props.politeness ?? 'polite';
+  const label = props.label;
   return span(
     {
       'aria-live': politeness,
       'aria-atomic': 'true',
-      role: politeness === 'assertive' ? 'alert' : 'status',
+      ...(label
+        ? { role: 'region' as const, 'aria-label': label }
+        : { role: politeness === 'assertive' ? 'alert' : 'status' }),
     },
     children,
   );
