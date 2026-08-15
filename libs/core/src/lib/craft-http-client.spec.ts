@@ -370,15 +370,18 @@ describe('CraftHttpClient', () => {
     httpTesting.verify();
   });
 
-  it('should pass provided URLSearchParams through to fetch', async () => {
+  it('should preserve repeated URLSearchParams when calling fetch', async () => {
     type User = { id: string; email: string };
+    const params = new URLSearchParams();
+    params.append('tag', 'a');
+    params.append('tag', 'b');
 
     const { UsersUrlSearchParamsApi } = craftService(
       { name: 'UsersUrlSearchParamsApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
-          params: new URLSearchParams({ a: '1' }),
+          params,
           success: response<User[]>(),
         }));
 
@@ -397,7 +400,7 @@ describe('CraftHttpClient', () => {
       const request = httpTesting.expectOne(
         (pendingRequest) =>
           pendingRequest.url === '/api/users' &&
-          pendingRequest.params.get('a') === '1',
+          pendingRequest.params.getAll('tag').join(',') === 'a,b',
       );
       request.flush([]);
 

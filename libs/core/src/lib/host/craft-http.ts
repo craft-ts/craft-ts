@@ -57,7 +57,7 @@ export async function craftFetchTransport<T = unknown>(
     const text = await response.text();
     const result: CraftHttpResponse<T> = {
       status: response.status,
-      body: (text === '' ? null : JSON.parse(text)) as T,
+      body: parseCraftHttpBody(text) as T,
     };
 
     Object.defineProperty(result, CRAFT_HTTP_RESPONSE_METADATA, {
@@ -74,6 +74,18 @@ export async function craftFetchTransport<T = unknown>(
       clearTimeout(timeoutId);
     }
     request.signal?.removeEventListener('abort', abortFromRequest);
+  }
+}
+
+function parseCraftHttpBody(text: string): unknown {
+  if (text === '') {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
   }
 }
 

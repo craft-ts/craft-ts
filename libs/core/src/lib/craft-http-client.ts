@@ -798,15 +798,40 @@ function toCraftFetchRequest(
   method: string,
   config: CraftHttpClientBaseConfig,
 ) {
+  const urlSearchParams =
+    config.params instanceof URLSearchParams ? config.params : undefined;
+
   return {
-    url: config.url,
+    url:
+      urlSearchParams === undefined
+        ? config.url
+        : appendCraftHttpClientSearchParams(config.url, urlSearchParams),
     method,
     headers: config.headers,
-    params: normalizeCraftHttpClientParams(config.params),
+    params:
+      urlSearchParams === undefined
+        ? normalizeCraftHttpClientParams(config.params)
+        : undefined,
     body: getConfigPayload(config),
     signal: config.signal,
     timeout: config.timeout,
   };
+}
+
+function appendCraftHttpClientSearchParams(
+  url: string,
+  params: URLSearchParams,
+): string {
+  const serialized = params.toString();
+  if (!serialized) {
+    return url;
+  }
+
+  const hashIndex = url.indexOf('#');
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+  const baseUrl = hashIndex === -1 ? url : url.slice(0, hashIndex);
+
+  return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${serialized}${hash}`;
 }
 
 function normalizeCraftHttpClientParams(
@@ -816,15 +841,7 @@ function normalizeCraftHttpClientParams(
     return undefined;
   }
 
-  if (params instanceof URLSearchParams) {
-    const normalized: Record<string, string> = {};
-    params.forEach((value, key) => {
-      normalized[key] = value;
-    });
-    return normalized;
-  }
-
-  return { ...params };
+  return params instanceof URLSearchParams ? undefined : { ...params };
 }
 
 function getConfigPayload(config: CraftHttpClientBaseConfig): unknown {
