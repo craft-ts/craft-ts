@@ -118,3 +118,15 @@ export function buttonControl(options?: {
     'data-disabled': true,
   };
 }
+
+export function clickFocus<E extends MouseEvent>(
+  selector: string,
+  handler?: (event: E) => unknown,
+): (event: E) => unknown {
+  return (event: E) => {
+    const root = (event.currentTarget as Element | null)?.ownerDocument ?? document;
+    const target = root.querySelector<HTMLElement>(selector);
+    target?.focus();
+    return handler?.(event);
+  };
+}

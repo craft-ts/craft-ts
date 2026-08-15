@@ -10,6 +10,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   button,
   buttonControl,
+  clickFocus,
   craftComponent,
   disclosureControl,
   div,
@@ -192,5 +193,22 @@ describe('buttonControl', () => {
     expect(el.hasAttribute('data-disabled')).toBe(true);
     el.focus();
     expect(document.activeElement).toBe(el);
+  });
+});
+
+describe('clickFocus', () => {
+  it('focuses the matching element inside the click gesture', () => {
+    const calls: string[] = [];
+    const warmup = document.createElement('input');
+    warmup.id = 'search-warmup';
+    document.body.append(warmup);
+    const handler = clickFocus('#search-warmup', () => {
+      calls.push('opened');
+    });
+    const buttonEl = document.createElement('button');
+    document.body.append(buttonEl);
+    handler({ currentTarget: buttonEl } as unknown as MouseEvent);
+    expect(document.activeElement).toBe(warmup);
+    expect(calls).toEqual(['opened']);
   });
 });
