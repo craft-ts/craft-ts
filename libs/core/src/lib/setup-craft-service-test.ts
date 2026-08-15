@@ -1,10 +1,22 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  createEnvironmentInjector,
+  type EnvironmentInjector,
+  Injector,
+  runInInjectionContext,
+  ɵINJECTOR_SCOPE,
+} from '@angular/core';
 import {
   createExposedServiceValue,
   getServiceMetaData,
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import {
+  createCraftInjector,
+  type CraftInjector,
+  type CraftProvider,
+} from './host/craft-injector';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
@@ -350,11 +362,11 @@ export function mock(
 }
 
 /**
- * Sets up a `craftService` or `toCraftService` in Angular's `TestBed` with typed
- * dependency coverage.
+ * Sets up a `craftService` or `toCraftService` in an isolated injector with
+ * typed dependency coverage.
  *
  * `setupCraftServiceTest` reads the runtime metadata attached to an inject helper
- * or a metadata object and instantiates the target inside an Angular injection
+ * or a metadata object and instantiates the target inside an isolated injection
  * context. Its type system checks the dependency tree so required child services
  * are either:
  *
@@ -399,6 +411,9 @@ export function mock(
  * });
  * ```
  */
+export function setupCraftServiceTest(options: {
+  providers: readonly CraftProvider[];
+}): { injector: CraftInjector };
 export function setupCraftServiceTest<
   Target extends ServiceReference,
   const Overrides extends Record<string, unknown>,
@@ -415,9 +430,39 @@ export function setupCraftServiceTest<
 ): {
   sut: ResolvedServiceOutput<Target, Bindings>;
   mocks: CreateAngularTestMocks<Target, Overrides>;
-} {
+  injector: CraftInjector;
+};
+export function setupCraftServiceTest(
+  targetOrOptions: ServiceReference | { providers: readonly CraftProvider[] },
+  overrides?: Record<string, unknown>,
+  options?: {
+    bindings?: ServiceBindings<ServiceReference>;
+    providers?: CraftServiceProvider[];
+  },
+):
+  | {
+      injector: CraftInjector;
+    }
+  | {
+      sut: unknown;
+      mocks: Record<string, unknown>;
+      injector: CraftInjector;
+    } {
+  if (arguments.length === 1) {
+    const nativeOptions = targetOrOptions as {
+      providers: readonly CraftProvider[];
+    };
+    return {
+      injector: createCraftInjector(nativeOptions.providers),
+    };
+  }
+
+  const target = targetOrOptions as ServiceReference;
   const internalMetaData = getServiceMetaData(target);
-  const providers = [...(options?.providers ?? [])];
+  const providers: CraftServiceProvider[] = [
+    { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+    ...(options?.providers ?? []),
+  ];
   const runtimeOverrides = new Map<
     string,
     { kind: 'useValue'; value: unknown }
@@ -452,7 +497,7 @@ export function setupCraftServiceTest<
     }
   }
 
-  for (const [name, override] of Object.entries(overrides) as Array<
+  for (const [name, override] of Object.entries(overrides ?? {}) as Array<
     [string, AnyServiceOverride | undefined]
   >) {
     if (!override) {
@@ -483,19 +528,25 @@ export function setupCraftServiceTest<
     useValue: runtimeOverrides,
   });
 
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
+  const environmentInjector = createEnvironmentInjector(
     providers,
-  });
+    Injector.NULL as EnvironmentInjector,
+    'setupCraftServiceTest',
+  );
+  const injector = ɵcraftInjectorFromHost(environmentInjector);
 
-  return TestBed.runInInjectionContext(() => ({
-    sut:
-      options?.bindings === undefined
-        ? internalMetaData.inject()
-        : internalMetaData.inject(options.bindings),
-    mocks,
-  })) as {
-    sut: ResolvedServiceOutput<Target, Bindings>;
-    mocks: CreateAngularTestMocks<Target, Overrides>;
+  return injector.run(() =>
+    runInInjectionContext(environmentInjector, () => ({
+      sut:
+        options?.bindings === undefined
+          ? internalMetaData.inject()
+          : internalMetaData.inject(options.bindings),
+      mocks,
+      injector,
+    })),
+  ) as {
+    sut: unknown;
+    mocks: Record<string, unknown>;
+    injector: CraftInjector;
   };
 }

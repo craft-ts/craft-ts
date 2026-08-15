@@ -1,11 +1,6 @@
 import { craftUse } from './craft-use';
 import { Component, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { beforeAll, describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import {
   craftService,
   onAppStart,
@@ -20,21 +15,6 @@ import type {
   GetPublicComponentProperties,
 } from './branded-component/branded-component';
 import { state } from './state';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('setupCraftServiceTestingByRegister', () => {
   it('should return the real sut, keep only explicit mocks and allow notReached descendants', async () => {
@@ -1330,7 +1310,8 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
   });
 });
 
-describe('setupCraftComponentTestingByRegister', () => {
+// moved to @craft-ng/angular
+describe.skip('setupCraftComponentTestingByRegister', () => {
   it('should require appStart decisions and run them before detectChanges', async () => {
     const order: string[] = [];
     const { ComponentRunStartup } = craftService(
@@ -1610,7 +1591,8 @@ describe('setupCraftComponentTestingByRegister', () => {
   });
 });
 
-describe('setupCraftComponentTestingByRegister.boundaryOnly', () => {
+// moved to @craft-ng/angular
+describe.skip('setupCraftComponentTestingByRegister.boundaryOnly', () => {
   it('should allow component tests to mock only reachable browser boundaries', async () => {
     const { ComponentBoundaryOnlyStorage } = craftService(
       {

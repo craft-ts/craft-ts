@@ -1,9 +1,13 @@
 import {
+  createEnvironmentInjector,
+  type EnvironmentInjector,
   type InputSignal,
   type InputSignalWithTransform,
+  Injector,
+  runInInjectionContext,
   type Type,
+  ɵINJECTOR_SCOPE,
 } from '@angular/core';
-import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   createExposedServiceValue,
   getRegisteredAppStartServices,
@@ -39,6 +43,15 @@ import type {
   RootExposureKey,
   Simplify,
 } from './craft-service.shared';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import type { CraftInjector } from './host/craft-injector';
+
+type ComponentFixture<Component> = {
+  readonly componentInstance: Component;
+  readonly nativeElement: HTMLElement;
+  detectChanges(): void;
+  destroy(): void;
+};
 
 type RegisterRealEntry = 'real';
 type RegisterNotReachedEntry = 'notReached';
@@ -1579,10 +1592,28 @@ function createRegisterTestingContext(
   };
 }
 
+function createTestingInjector(providers: CraftServiceProvider[]) {
+  const environmentInjector = createEnvironmentInjector(
+    [{ provide: ɵINJECTOR_SCOPE, useValue: 'root' }, ...providers],
+    Injector.NULL as EnvironmentInjector,
+    'CraftServiceTestingByRegister',
+  );
+  const injector = ɵcraftInjectorFromHost(environmentInjector);
+
+  return {
+    environmentInjector,
+    injector,
+    run<T>(fn: () => T): T {
+      return injector.run(() => runInInjectionContext(environmentInjector, fn));
+    },
+  };
+}
+
 async function runConfiguredAppStartHooks(
   register: Record<string, RuntimeRegisterEntry>,
   appStart: Record<string, AppStartDecision> | undefined,
   helperName: string,
+  testingInjector: ReturnType<typeof createTestingInjector>,
 ) {
   const appStartReferences = new Map(
     getRegisteredAppStartServices().map((reference) => {
@@ -1607,7 +1638,7 @@ async function runConfiguredAppStartHooks(
     return;
   }
 
-  await TestBed.runInInjectionContext(async () => {
+  await testingInjector.run(async () => {
     for (const [name, decision] of Object.entries(appStart)) {
       if (decision !== 'run' && decision !== 'ignore') {
         throw new Error(
@@ -1739,6 +1770,7 @@ async function setupCraftServiceTestingByRegisterImpl<
 ): Promise<{
   sut: ResolvedServiceOutput<Target, Bindings>;
   mocks: CreateRegisterMocks<Register>;
+  injector: CraftInjector;
 }> {
   const internalMetaData = getServiceMetaData(target);
   const runtimeRegister = register as Record<string, RuntimeRegisterEntry>;
@@ -1751,26 +1783,25 @@ async function setupCraftServiceTestingByRegisterImpl<
     },
   );
 
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    providers,
-  });
-
-  const result = TestBed.runInInjectionContext(() => ({
+  const testingInjector = createTestingInjector(providers);
+  const result = testingInjector.run(() => ({
     sut:
       options?.bindings === undefined
         ? internalMetaData.inject()
         : internalMetaData.inject(options.bindings),
     mocks,
+    injector: testingInjector.injector,
   })) as {
     sut: ResolvedServiceOutput<Target, Bindings>;
     mocks: CreateRegisterMocks<Register>;
+    injector: CraftInjector;
   };
 
   await runConfiguredAppStartHooks(
     runtimeRegister,
     options?.appStart,
     'setupCraftServiceTestingByRegister',
+    testingInjector,
   );
 
   return result;
@@ -1795,6 +1826,7 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
 ): Promise<{
   sut: ResolvedServiceOutput<Target, Bindings>;
   mocks: CreateRegisterMocks<BoundaryRegister>;
+  injector: CraftInjector;
 }> {
   const internalMetaData = getServiceMetaData(target);
   const runtimeRegister = createBoundaryOnlyRuntimeRegister(
@@ -1821,26 +1853,25 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
     },
   );
 
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    providers,
-  });
-
-  const result = TestBed.runInInjectionContext(() => ({
+  const testingInjector = createTestingInjector(providers);
+  const result = testingInjector.run(() => ({
     sut:
       config.bindings === undefined
         ? internalMetaData.inject()
         : internalMetaData.inject(config.bindings),
     mocks,
+    injector: testingInjector.injector,
   })) as {
     sut: ResolvedServiceOutput<Target, Bindings>;
     mocks: CreateRegisterMocks<BoundaryRegister>;
+    injector: CraftInjector;
   };
 
   await runConfiguredAppStartHooks(
     runtimeRegister,
     config.appStart,
     'setupCraftServiceTestingByRegister.boundaryOnly',
+    testingInjector,
   );
 
   return result;
@@ -1851,10 +1882,10 @@ async function setupCraftComponentTestingByRegisterImpl<
   ComponentDeps extends object,
   const Register extends SetupComponentTestingRegister<ComponentDeps>,
 >(
-  componentType: Type<ComponentInstance>,
+  _componentType: Type<ComponentInstance>,
   _componentDeps: ComponentDeps,
-  register: Register & AssertValidComponentRegister<ComponentDeps, Register>,
-  ...[options]: ComponentTestingByRegisterOptionsParameter<
+  _register: Register & AssertValidComponentRegister<ComponentDeps, Register>,
+  ...[_options]: ComponentTestingByRegisterOptionsParameter<
     ComponentDeps,
     Register
   >
@@ -1864,40 +1895,10 @@ async function setupCraftComponentTestingByRegisterImpl<
   nativeElement: HTMLElement;
   mocks: CreateRegisterMocks<Register>;
 }> {
-  const runtimeRegister = register as Record<string, RuntimeRegisterEntry>;
-  const { providers, mocks } = createRegisterTestingContext(
-    runtimeRegister,
-    options?.providers,
+  // moved to @craft-ng/angular
+  throw new Error(
+    'setupCraftComponentTestingByRegister moved to @craft-ng/angular.',
   );
-
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    imports: [componentType, ...(options?.imports ?? [])],
-    providers,
-  });
-
-  await runConfiguredAppStartHooks(
-    runtimeRegister,
-    options?.appStart,
-    'setupCraftComponentTestingByRegister',
-  );
-
-  const fixture = TestBed.createComponent(componentType);
-
-  for (const [name, value] of Object.entries(options?.inputs ?? {})) {
-    fixture.componentRef.setInput(name, value);
-  }
-
-  if (options?.detectChanges ?? true) {
-    fixture.detectChanges();
-  }
-
-  return {
-    fixture,
-    component: fixture.componentInstance,
-    nativeElement: fixture.nativeElement as HTMLElement,
-    mocks: mocks as CreateRegisterMocks<Register>,
-  };
 }
 
 async function setupCraftComponentTestingByRegisterBoundaryOnly<
@@ -1906,9 +1907,9 @@ async function setupCraftComponentTestingByRegisterBoundaryOnly<
   const ToProvideRegister extends object = {},
   const BoundaryRegister extends object = {},
 >(
-  componentType: Type<ComponentInstance>,
+  _componentType: Type<ComponentInstance>,
   _componentDeps: ComponentDeps,
-  config: ComponentBoundaryOnlyTestingConfig<
+  _config: ComponentBoundaryOnlyTestingConfig<
     ComponentDeps,
     ToProvideRegister,
     BoundaryRegister
@@ -1922,48 +1923,10 @@ async function setupCraftComponentTestingByRegisterBoundaryOnly<
   nativeElement: HTMLElement;
   mocks: CreateRegisterMocks<BoundaryRegister>;
 }> {
-  const runtimeRegister = createBoundaryOnlyRuntimeRegister({
-    toProvideRegister: config.toProvideRegister as
-      | Record<string, RuntimeRegisterEntry>
-      | undefined,
-    boundaryRegister: config.boundaryRegister as
-      | Record<string, RuntimeRegisterEntry>
-      | undefined,
-    appStart: config.appStart,
-  });
-  const { providers, mocks } = createRegisterTestingContext(
-    runtimeRegister,
-    config.providers,
+  // moved to @craft-ng/angular
+  throw new Error(
+    'setupCraftComponentTestingByRegister.boundaryOnly moved to @craft-ng/angular.',
   );
-
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    imports: [componentType, ...(config.imports ?? [])],
-    providers,
-  });
-
-  await runConfiguredAppStartHooks(
-    runtimeRegister,
-    config.appStart,
-    'setupCraftComponentTestingByRegister.boundaryOnly',
-  );
-
-  const fixture = TestBed.createComponent(componentType);
-
-  for (const [name, value] of Object.entries(config.inputs ?? {})) {
-    fixture.componentRef.setInput(name, value);
-  }
-
-  if (config.detectChanges ?? true) {
-    fixture.detectChanges();
-  }
-
-  return {
-    fixture,
-    component: fixture.componentInstance,
-    nativeElement: fixture.nativeElement as HTMLElement,
-    mocks: mocks as CreateRegisterMocks<BoundaryRegister>,
-  };
 }
 
 export const setupCraftServiceTestingByRegister = Object.assign(

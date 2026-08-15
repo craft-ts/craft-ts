@@ -1,9 +1,4 @@
 import { Component, inject, Injectable, InjectionToken } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { provideRouter, Router } from '@angular/router';
 import { type GetDeps, type GetPublicComponentProperties } from '../index';
 import { craftService, toCraftService } from './craft-service';
@@ -16,21 +11,6 @@ import { craftUse } from './craft-use';
   template: '',
 })
 class CheckoutPage {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('setupCraftServiceTest', () => {
   it('should keep metadata as a secondary setupCraftServiceTest entry', () => {
@@ -523,7 +503,8 @@ describe('setupCraftServiceTest', () => {
     expect(sut.fetchProducts()).toBe('/api/products');
   });
 
-  it('should allow a global adapted Router without override when provideRouter is supplied', () => {
+  // moved to @craft-ng/angular
+  it.skip('should allow a global adapted Router without override when provideRouter is supplied', () => {
     const { Router: RouterService } = toCraftService({
       name: 'Router',
       scope: 'global',
@@ -584,7 +565,8 @@ describe('setupCraftServiceTest', () => {
     expect(mocks.Router.navigateByUrl).toHaveBeenCalledWith('/checkout');
   });
 
-  it('should require explicit coverage for a manuallyProvidedAtRoot adapted Router', async () => {
+  // moved to @craft-ng/angular
+  it.skip('should require explicit coverage for a manuallyProvidedAtRoot adapted Router', async () => {
     const { provideRouter: provideRouterDependency, Router: RouterService } =
       toCraftService({
         name: 'Router',
