@@ -8,7 +8,7 @@ import {
   type Signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { craftComputed as createCraftComputed } from './host/craft-signal';
+import { ɵcraftDerived } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -32,7 +32,7 @@ import {
   type YieldableReactiveValue,
 } from './reactive-read';
 
-const createComputedWithOptions = createCraftComputed as unknown as <T>(
+const createComputedWithOptions = ɵcraftDerived as unknown as <T>(
   computation: () => T,
   options?: CreateComputedOptions<T>,
 ) => Signal<T>;
@@ -66,10 +66,11 @@ type TrackedCraftComputed<
 > = YieldableReactiveValue<T, Name> & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
 } & ([ReactiveDependencyMapFromYielded<Yielded>] extends [never]
-  ? {}
-  : {
-      readonly [REACTIVE_DEPENDENCIES]?: ReactiveDependencyMapFromYielded<Yielded>;
-    }) & SettledBrandFromYielded<Yielded>;
+    ? {}
+    : {
+        readonly [REACTIVE_DEPENDENCIES]?: ReactiveDependencyMapFromYielded<Yielded>;
+      }) &
+  SettledBrandFromYielded<Yielded>;
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,

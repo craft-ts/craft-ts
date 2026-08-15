@@ -154,6 +154,28 @@ describe('query', () => {
     });
   });
 
+  it('settles a synchronous loader exception without Angular resource()', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query('queryRef', {
+          params: () => 'invalid',
+          loader: ({ params }) =>
+            craftException(
+              { code: 'INVALID_QUERY', scope: 'loader' },
+              { params },
+            ),
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(queryRef.status())).toBe('exception');
+      expect(craftUse(queryRef.hasException())).toBe(true);
+      expect(craftUse(queryRef.exception())?.code).toBe('INVALID_QUERY');
+      expect(craftUse(queryRef.value())).toBeUndefined();
+    });
+  });
+
   // Regression: a query whose `params`/`loader` are PLAIN (non-generator)
   // functions used to defer resolving its injector until those computeds first
   // ran — relying on the AMBIENT injection context at read time. A non-blocking
@@ -750,74 +772,72 @@ describe('query exceptions', () => {
             },
           },
           function* ({ exceptions, hasException, state, resourceParamsSrc }) {
-              const _state = yield* state();
-                      expectTypeOf(_state).toEqualTypeOf<{
-                        id: string;
-                        name: string;
-                        email: string;
-                      }>();
-              const _resourceParamsSrc = craftUse(resourceParamsSrc());
-                      expectTypeOf(_resourceParamsSrc).toEqualTypeOf<
-                        string | undefined
-                      >();
-              const _hasException = yield* hasException();
-                      expectTypeOf(_hasException).toEqualTypeOf<boolean>();
-              const _exceptions4 = yield* exceptions();
-                      expectTypeOf(_exceptions4).toEqualTypeOf<{
-                        list: (
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'params';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'loader';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                        )[];
-                        params?:
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'params';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                          | undefined;
-                        loader?:
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'loader';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                          | undefined;
-                      }>();
-                      expectTypeOf(exceptions).toBeFunction();
-              const _exceptions3 = yield* exceptions();
-                      expectTypeOf(_exceptions3)
-                        .toHaveProperty('list')
-                        .toBeArray();
-              const _exceptions2 = yield* exceptions();
-                      expectTypeOf(_exceptions2).toHaveProperty('params');
-              const _exceptions = yield* exceptions();
-                      expectTypeOf(_exceptions).toHaveProperty('loader');
-                      return {};
+            const _state = yield* state();
+            expectTypeOf(_state).toEqualTypeOf<{
+              id: string;
+              name: string;
+              email: string;
+            }>();
+            const _resourceParamsSrc = craftUse(resourceParamsSrc());
+            expectTypeOf(_resourceParamsSrc).toEqualTypeOf<
+              string | undefined
+            >();
+            const _hasException = yield* hasException();
+            expectTypeOf(_hasException).toEqualTypeOf<boolean>();
+            const _exceptions4 = yield* exceptions();
+            expectTypeOf(_exceptions4).toEqualTypeOf<{
+              list: (
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID';
+                      scope: 'params';
                     },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+              )[];
+              params?:
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID';
+                      scope: 'params';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+              loader?:
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+            }>();
+            expectTypeOf(exceptions).toBeFunction();
+            const _exceptions3 = yield* exceptions();
+            expectTypeOf(_exceptions3).toHaveProperty('list').toBeArray();
+            const _exceptions2 = yield* exceptions();
+            expectTypeOf(_exceptions2).toHaveProperty('params');
+            const _exceptions = yield* exceptions();
+            expectTypeOf(_exceptions).toHaveProperty('loader');
+            return {};
+          },
         ),
       );
     });

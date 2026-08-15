@@ -1,13 +1,4 @@
-import {
-  computed,
-  effect,
-  isSignal,
-  linkedSignal,
-  signal,
-  untracked as ngUntracked,
-  type CreateComputedOptions,
-  type CreateEffectOptions,
-} from '@angular/core';
+import { computed, effect, setActiveSub, signal } from 'alien-signals';
 import { RAW_REACTIVE_VALUE } from '../reactive-read';
 
 export const CRAFT_SIGNAL = Symbol('craft-signal');
@@ -23,6 +14,10 @@ export type CraftWritableSignal<T> = CraftSignal<T> & {
 
 type CraftSignalOptions<T> = {
   readonly equal?: (a: T, b: T) => boolean;
+  readonly debugName?: string;
+};
+
+type CraftWatchOptions = {
   readonly debugName?: string;
 };
 
@@ -44,15 +39,43 @@ export function craftSignal<T>(
   initial: T,
   options?: CraftSignalOptions<T>,
 ): CraftWritableSignal<T> {
-  return brand(signal(initial, options)) as unknown as CraftWritableSignal<T>;
+  const raw = signal(initial);
+  const equal = options?.equal ?? Object.is;
+  const value = (() => raw()) as CraftWritableSignal<T>;
+  value.set = (next) => {
+    if (
+      !equal(
+        untracked(() => raw()),
+        next,
+      )
+    ) {
+      raw(next);
+    }
+  };
+  value.update = (update) => value.set(update(untracked(() => raw())));
+  return brand(value);
 }
 
 export function craftComputed<T>(compute: () => T): CraftSignal<T>;
 export function craftComputed<T>(
   compute: () => T,
-  options?: CreateComputedOptions<T>,
+  options?: CraftSignalOptions<T>,
 ): CraftSignal<T> {
-  return brand(computed(compute, options)) as unknown as CraftSignal<T>;
+  const equal = options?.equal ?? Object.is;
+  const value = computed<T>((previous) => {
+    const next = compute();
+    return previous !== undefined && equal(previous, next) ? previous : next;
+  });
+  return brand(value) as CraftSignal<T>;
+}
+
+/**
+ * Compatibility reader for computations that can still mix Angular and Craft
+ * signals during the Angular-v1 extraction. It deliberately evaluates on every
+ * read so each active reactive host can collect its own dependencies.
+ */
+export function ɵcraftDerived<T>(compute: () => T): CraftSignal<T> {
+  return brand(compute) as CraftSignal<T>;
 }
 
 export function craftLinkedSignal<T>(options: {
@@ -65,26 +88,41 @@ export function craftLinkedSignal<T>(options: {
   equal?: (a: T, b: T) => boolean;
   debugName?: string;
 }): CraftWritableSignal<T> {
-  return brand(linkedSignal(options)) as unknown as CraftWritableSignal<T>;
+  const value = craftSignal(options.computation(), options);
+  let initialized = false;
+  effect(() => {
+    options.source();
+    const next = options.computation();
+    if (initialized) {
+      value.set(next);
+    } else {
+      initialized = true;
+    }
+  });
+  return value;
 }
 
 export function craftWatch(fn: () => void | (() => void)): { destroy(): void };
 export function craftWatch(
   fn: () => void | (() => void),
-  options?: CreateEffectOptions,
+  _options?: CraftWatchOptions,
 ): { destroy(): void } {
-  return effect((onCleanup) => {
-    const cleanup = fn();
-    if (cleanup) {
-      onCleanup(cleanup);
-    }
-  }, options);
+  const destroy = effect(fn);
+  return { destroy };
 }
 
 export function untracked<T>(fn: () => T): T {
-  return ngUntracked(fn);
+  const previous = setActiveSub();
+  try {
+    return fn();
+  } finally {
+    setActiveSub(previous);
+  }
 }
 
 export function isCraftSignal(value: unknown): value is CraftSignal<unknown> {
-  return isSignal(value);
+  return (
+    typeof value === 'function' &&
+    (value as Partial<CraftSignal<unknown>>)[CRAFT_SIGNAL] === true
+  );
 }

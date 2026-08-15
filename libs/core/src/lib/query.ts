@@ -8,7 +8,6 @@ import {
   Provider,
   ResourceLoaderParams,
   ResourceOptions,
-  ResourceRef,
   ResourceStreamingLoader,
   runInInjectionContext,
   Signal,
@@ -49,6 +48,7 @@ import {
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
 import type { CraftResourceRef } from './util/craft-resource-ref';
+import { ɵcraftDerived } from './host/craft-signal';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -195,7 +195,7 @@ type QueryConfig<
         loader: GeneratorCompatibleFactory<
           (
             param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -231,7 +231,7 @@ type QueryConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         params?: never;
@@ -283,13 +283,18 @@ type QueryConfig<
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
         params: GeneratorCompatibleFactory<
-          (entity: ResourceRef<NoInfer<FromObjectState>>) => Params,
+          (
+            entity: CraftResourceRef<
+              NoInfer<FromObjectState>,
+              NoInfer<FromObjectResourceParams>
+            >,
+          ) => Params,
           ParamsYielded
         >;
         loader: GeneratorCompatibleFactory<
           (
             param: NoInfer<ResourceLoaderParams<Params>>,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -1784,13 +1789,11 @@ function createQueryRef<
     ),
   );
 
-  // Capture the raw Angular status BEFORE `Object.assign` overrides
+  // Capture the raw resource status BEFORE `Object.assign` overrides
   // `resourceTarget.status` with the craft computed below (otherwise the craft
   // status computed would read itself and form a computation cycle).
-  // (`as unknown` because the raw Angular ref view — `error` included — is no
-  // longer part of the CraftResourceRef surface.)
   const rawResourceStatus = (
-    resourceTarget as unknown as ResourceRef<QueryState>
+    resourceTarget as unknown as CraftResourceRef<QueryState, QueryParams>
   ).status;
   const publicExceptions = hasConfiguredSchema
     ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
@@ -1833,7 +1836,7 @@ function createQueryRef<
 
               const rawSelectStatus = resource.status;
               const result = Object.assign(resource, {
-                status: computed(() =>
+                status: ɵcraftDerived(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
                 exception: computed(() => selectExceptions().list[0]),
@@ -1867,7 +1870,7 @@ function createQueryRef<
             );
             const rawSelectStatus = selected.status;
             const result = Object.assign(selected, {
-              status: computed(() =>
+              status: ɵcraftDerived(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
               exception: computed(() => selectExceptions().list[0]),
@@ -1889,7 +1892,7 @@ function createQueryRef<
       ...(isUsingIdentifier
         ? {}
         : {
-            status: computed(() =>
+            status: ɵcraftDerived(() =>
               toCraftStatus(rawResourceStatus(), hasException()),
             ),
             exception: computed(() => exceptions().list[0]),
@@ -1981,7 +1984,7 @@ function createQueryRef<
             // Bump before the set so both writes land in the same tick and the
             // resource request changes on every call.
             methodTriggerSeq.update((n) => n + 1);
-            //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
+            //@ts-expect-error exposed method params cannot use the from-resource entity callback shape
             queryResourceParamsFnSignal.set(paramsResult as QueryParams);
             return yieldableInvocation<MethodYielded, QueryParams>(
               paramsResult,

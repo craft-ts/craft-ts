@@ -1,4 +1,9 @@
-import { InjectionToken, type Provider, type Signal } from '@angular/core';
+import {
+  InjectionToken,
+  isSignal,
+  type Provider,
+  type Signal,
+} from '@angular/core';
 import { isCraftSignal } from './host/craft-signal';
 import type { SourceBranded } from './util/util';
 
@@ -633,7 +638,7 @@ function createFacade(
   if (cachedByPath?.has(cacheKey)) return cachedByPath.get(cacheKey);
 
   let facade: unknown;
-  if (isCraftSignal(value)) {
+  if (isCraftSignal(value) || isSignal(value)) {
     const pathParts = path.split('.');
     const propertyName = pathParts[pathParts.length - 1] ?? identity.name;
     const reader = createYieldableReactiveValue(
@@ -725,6 +730,7 @@ function createFacade(
         }
         if (
           !isCraftSignal(child) &&
+          !isSignal(child) &&
           (typeof child !== 'object' || child === null)
         ) {
           return child;

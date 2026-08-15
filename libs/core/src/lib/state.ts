@@ -3,6 +3,7 @@ import {
   DestroyRef,
   inject,
   Injector,
+  isSignal,
   isWritableSignal,
   runInInjectionContext,
   Signal,
@@ -14,6 +15,7 @@ import {
   craftLinkedSignal,
   craftSignal,
   isCraftSignal,
+  ɵcraftDerived,
   type CraftWritableSignal,
 } from './host/craft-signal';
 import {
@@ -119,10 +121,10 @@ type StateReader<
 > = Deep extends true
   ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
   : Insertions extends {
-  readonly [DEEP_YIELDABLE_INSERTION]: true;
-}
-  ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
-  : YieldableReactiveValue<StateType, Name>;
+        readonly [DEEP_YIELDABLE_INSERTION]: true;
+      }
+    ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+    : YieldableReactiveValue<StateType, Name>;
 
 export type StateOutput<
   StateType,
@@ -503,7 +505,8 @@ function createStateRef<StateType>(
   const resolvedStateConfig = isGeneratorFunction(rawConfig)
     ? executeStateFactory(rawConfig, undefined, getInjector)
     : rawConfig;
-  const isSignalState = isCraftSignal(resolvedStateConfig);
+  const isSignalState =
+    isCraftSignal(resolvedStateConfig) || isSignal(resolvedStateConfig);
   const readResolvedState = () => (resolvedStateConfig as () => unknown)();
   let lastValidState: StateType | undefined;
   let latestStateException: AnyCraftException | undefined;
@@ -572,12 +575,14 @@ function createStateRef<StateType>(
             equal: () => false,
           })
         : craftSignal(initialStateValue);
-  const readonlyStateSignal =
-    'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
+  const readonlyStateSignal = isCraftSignal(stateSignal)
+    ? ɵcraftDerived(() => stateSignal())
+    : 'asReadonly' in stateSignal &&
+        typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
   const publicStateReader = createYieldableReactiveValue(
-    readonlyStateSignal,
+    readonlyStateSignal as Signal<StateType>,
     name,
     { primitive: 'state', path: name },
   );
@@ -615,8 +620,7 @@ function createStateRef<StateType>(
     (acc, insert) => {
       const insertionContext = {
         state: publicStateReader,
-        set: (newState: StateType) =>
-          yieldableInvocation(setState(newState)),
+        set: (newState: StateType) => yieldableInvocation(setState(newState)),
         update: (updateFn: (currentState: StateType) => StateType) =>
           yieldableInvocation(updateState(updateFn)),
         patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
@@ -684,6 +688,7 @@ function createStateRef<StateType>(
           if (
             typeof value === 'function' &&
             !isCraftSignal(value) &&
+            !isSignal(value) &&
             !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {

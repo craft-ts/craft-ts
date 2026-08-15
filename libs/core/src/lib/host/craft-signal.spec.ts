@@ -1,4 +1,3 @@
-import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import {
   craftComputed,
@@ -54,23 +53,18 @@ describe('craftSignal', () => {
     const count = craftSignal(0);
     const seen: number[] = [];
     const cleaned: number[] = [];
-    const watch = TestBed.runInInjectionContext(() =>
-      craftWatch(() => {
-        const value = count();
-        seen.push(value);
-        return () => cleaned.push(value);
-      }),
-    );
+    const watch = craftWatch(() => {
+      const value = count();
+      seen.push(value);
+      return () => cleaned.push(value);
+    });
 
-    TestBed.tick();
     count.set(1);
-    TestBed.tick();
     expect(seen).toEqual([0, 1]);
     expect(cleaned).toEqual([0]);
 
     watch.destroy();
     count.set(2);
-    TestBed.tick();
     expect(seen).toEqual([0, 1]);
     expect(cleaned).toEqual([0, 1]);
   });

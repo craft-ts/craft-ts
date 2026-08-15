@@ -46,6 +46,7 @@ import {
 import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
 import { preservedResource } from './preserved-resource';
+import { ɵcraftDerived } from './host/craft-signal';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import {
   AnyCraftException,
@@ -1565,7 +1566,7 @@ function createAsyncProcessRef<
 
               const rawSelectStatus = resource.status;
               const result = Object.assign(resource, {
-                status: computed(() =>
+                status: ɵcraftDerived(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
                 exception: computed(() => selectExceptions().list[0]),
@@ -1598,7 +1599,7 @@ function createAsyncProcessRef<
             );
             const rawSelectStatus = selected.status;
             const result = Object.assign(selected, {
-              status: computed(() =>
+              status: ɵcraftDerived(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
               exception: computed(() => selectExceptions().list[0]),
@@ -1620,7 +1621,7 @@ function createAsyncProcessRef<
       ...(isUsingIdentifier
         ? {}
         : {
-            status: computed(() =>
+            status: ɵcraftDerived(() =>
               toCraftStatus(rawResourceStatus(), hasException()),
             ),
             exception: computed(() => exceptions().list[0]),
@@ -1993,7 +1994,9 @@ function createAsyncProcessRef<
     primitive: 'asyncProcess',
     path: name,
   });
-  return (hasDeepYieldableInsertion(insertions)
-    ? deepYieldable(publicAsyncProcess)
-    : publicAsyncProcess) as typeof asyncOutput;
+  return (
+    hasDeepYieldableInsertion(insertions)
+      ? deepYieldable(publicAsyncProcess)
+      : publicAsyncProcess
+  ) as typeof asyncOutput;
 }
