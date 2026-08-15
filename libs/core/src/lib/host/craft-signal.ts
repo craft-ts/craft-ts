@@ -175,7 +175,9 @@ export function craftWatch(
 ): { destroy(): void } {
   // alien-signals has no injector ownership. The overload preserves the Task 2
   // call shape; boundary helpers remain responsible for injector teardown.
-  const destroy = effect(fn);
+  // Detach watches from the currently active Alien subscriber so an
+  // independently-owned watch is not disposed with a transient parent effect.
+  const destroy = untracked(() => effect(fn));
   return { destroy };
 }
 

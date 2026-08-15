@@ -188,7 +188,7 @@ export function craftResource<Value, Params>(
     source: CraftSignal<T>,
     synchronize = true,
   ): CraftSignal<T> => {
-    const angularMirror = ngSignal(source());
+    const angularMirror = ngSignal(untracked(source));
     graphWatches.push(
       craftWatch(() => {
         const next = source();
