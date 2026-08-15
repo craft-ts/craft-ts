@@ -1,18 +1,21 @@
 import {
   assertInInjectionContext,
-  computed,
   DestroyRef,
   inject,
   Injector,
-  isSignal,
   isWritableSignal,
-  linkedSignal,
   runInInjectionContext,
   Signal,
-  signal,
   WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  craftComputed,
+  craftLinkedSignal,
+  craftSignal,
+  isCraftSignal,
+  type CraftWritableSignal,
+} from './host/craft-signal';
 import {
   InsertionsStateFactory,
   InsertionStateFactoryContext,
@@ -84,6 +87,14 @@ type Source$Method<SourceType> = [SourceType] extends [void]
 type AnyGeneratorFunction = (
   ...args: never[]
 ) => Generator<unknown, unknown, unknown>;
+
+const createLinkedSignalWithOptions = craftLinkedSignal as unknown as <
+  T,
+>(options: {
+  source: () => unknown;
+  computation: () => T;
+  equal?: (a: T, b: T) => boolean;
+}) => CraftWritableSignal<T>;
 
 export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
@@ -492,7 +503,8 @@ function createStateRef<StateType>(
   const resolvedStateConfig = isGeneratorFunction(rawConfig)
     ? executeStateFactory(rawConfig, undefined, getInjector)
     : rawConfig;
-  const isSignalState = isSignal(resolvedStateConfig);
+  const isSignalState = isCraftSignal(resolvedStateConfig);
+  const readResolvedState = () => (resolvedStateConfig as () => unknown)();
   let lastValidState: StateType | undefined;
   let latestStateException: AnyCraftException | undefined;
   let skipInitialSourceValidation = isSignalState;
@@ -542,23 +554,24 @@ function createStateRef<StateType>(
   };
 
   const initialStateValue = applySchema(
-    isSignalState
-      ? (resolvedStateConfig as Signal<unknown>)()
-      : resolvedStateConfig,
+    isSignalState ? readResolvedState() : resolvedStateConfig,
     'initial',
   );
   const stateSignal =
     !schema && isSignalState
       ? isWritableSignal(resolvedStateConfig)
         ? (resolvedStateConfig as WritableSignal<StateType>)
-        : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
+        : craftLinkedSignal({
+            source: readResolvedState,
+            computation: () => readResolvedState() as StateType,
+          })
       : isSignalState
-        ? linkedSignal(
-            () =>
-              applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
-            { equal: () => false },
-          )
-        : signal(initialStateValue);
+        ? createLinkedSignalWithOptions({
+            source: readResolvedState,
+            computation: () => applySchema(readResolvedState(), 'source'),
+            equal: () => false,
+          })
+        : craftSignal(initialStateValue);
   const readonlyStateSignal =
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
@@ -670,7 +683,7 @@ function createStateRef<StateType>(
 
           if (
             typeof value === 'function' &&
-            !isSignal(value) &&
+            !isCraftSignal(value) &&
             !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
           ) {
@@ -722,8 +735,8 @@ function createStateRef<StateType>(
     readonlyStateSignal,
     insertionsOutput.exposedInsertionsOutput,
     {
-      hasSchema: signal(schema !== undefined),
-      exceptions: computed(() => {
+      hasSchema: craftSignal(schema !== undefined),
+      exceptions: craftComputed(() => {
         // Keep the exception signal reactive when a derived source changes.
         stateSignal();
         const parse = latestStateException
@@ -731,7 +744,7 @@ function createStateRef<StateType>(
           : {};
         return { list: Object.values(parse), parse };
       }),
-      hasException: computed(() => {
+      hasException: craftComputed(() => {
         stateSignal();
         return latestStateException !== undefined;
       }),

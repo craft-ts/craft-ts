@@ -1,9 +1,5 @@
-import {
-  InjectionToken,
-  isSignal,
-  type Provider,
-  type Signal,
-} from '@angular/core';
+import { InjectionToken, type Provider, type Signal } from '@angular/core';
+import { isCraftSignal } from './host/craft-signal';
 import type { SourceBranded } from './util/util';
 
 /** Runtime/type brand carried by named reactive values exposed to templates. */
@@ -637,13 +633,17 @@ function createFacade(
   if (cachedByPath?.has(cacheKey)) return cachedByPath.get(cacheKey);
 
   let facade: unknown;
-  if (isSignal(value)) {
+  if (isCraftSignal(value)) {
     const pathParts = path.split('.');
     const propertyName = pathParts[pathParts.length - 1] ?? identity.name;
-    const reader = createYieldableReactiveValue(value, propertyName, {
-      ...identity,
-      path,
-    });
+    const reader = createYieldableReactiveValue(
+      value as unknown as Signal<unknown>,
+      propertyName,
+      {
+        ...identity,
+        path,
+      },
+    );
     facade = new Proxy(reader, {
       get(_target, property) {
         if (property === YIELDABLE_VALUE || property === RAW_REACTIVE_VALUE) {
@@ -723,7 +723,10 @@ function createFacade(
               `${path}.${String(property)}.${String(args[0] ?? 'selected')}`,
             );
         }
-        if (!isSignal(child) && (typeof child !== 'object' || child === null)) {
+        if (
+          !isCraftSignal(child) &&
+          (typeof child !== 'object' || child === null)
+        ) {
           return child;
         }
         return createFacade(

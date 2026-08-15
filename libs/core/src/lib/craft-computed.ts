@@ -1,6 +1,5 @@
 import {
   assertInInjectionContext,
-  computed,
   DestroyRef,
   inject,
   Injector,
@@ -9,6 +8,7 @@ import {
   type Signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { craftComputed as createCraftComputed } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -31,6 +31,11 @@ import {
   ɵactiveReactiveReader,
   type YieldableReactiveValue,
 } from './reactive-read';
+
+const createComputedWithOptions = createCraftComputed as unknown as <T>(
+  computation: () => T,
+  options?: CreateComputedOptions<T>,
+) => Signal<T>;
 
 type CraftComputedGenerator<This, Yielded, T> = (
   this: This,
@@ -132,7 +137,7 @@ export function craftComputed<T>(
   let result: Signal<T>;
 
   if (isGeneratorFunction(computationOrFactory)) {
-    result = computed(
+    result = createComputedWithOptions(
       () =>
         runInInjectionContext(computedInjector, () => {
           const iterator = (
@@ -159,7 +164,7 @@ export function craftComputed<T>(
     );
   } else {
     const computation = computationOrFactory as (this: unknown) => T;
-    result = computed(
+    result = createComputedWithOptions(
       hasHost ? () => computation.call(host) : (computation as () => T),
       options,
     );
