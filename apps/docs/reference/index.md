@@ -3,6 +3,8 @@
 Every documented export, with the page that covers it. Use <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>F</kbd>.
 
 For an explanation rather than a lookup, start from the [Guide](/guide/).
+Coding agents: [llms.txt](https://ng-angular-stack.github.io/craft/llms.txt) and
+[coding agents](/resources/ai-agents).
 
 ## Primitives
 

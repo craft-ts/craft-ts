@@ -45,12 +45,19 @@ drives the same runtime explicitly.
 Read the [getting started tutorial](https://ng-angular-stack.github.io/craft/learn)
 or browse the [API reference](https://ng-angular-stack.github.io/craft/reference/).
 
+Coding agents should start from
+[`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt) and the
+[coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents)
+guide (`npx -y @craft-ng/mcp@beta`).
+
 ## Related packages
 
 - [`@craft-ng/component`](https://www.npmjs.com/package/@craft-ng/component)
   for selectorless functional components.
 - [`@craft-ng/dev-tools`](https://www.npmjs.com/package/@craft-ng/dev-tools)
   for codemods, generators and ESLint rules.
+- [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp)
+  for the documentation MCP server and Agent Skills.
 
 ## Status
 

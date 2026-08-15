@@ -1,0 +1,62 @@
+{
+  "name": "@craft-ng/mcp",
+  "version": "0.7.0-beta.10",
+  "description": "MCP server, Agent Skills, and LLM files for coding agents using @craft-ng/core",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://ng-angular-stack.github.io/craft/resources/ai-agents",
+  "bugs": {
+    "url": "https://github.com/ng-angular-stack/ng-craft/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ng-angular-stack/ng-craft.git",
+    "directory": "packages/mcp"
+  },
+  "type": "module",
+  "bin": {
+    "craft-ng-mcp": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "content",
+    "plugin.json",
+    "mcp.json",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.js.map"
+  ],
+  "scripts": {
+    "bundle-docs": "node scripts/bundle-docs.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && node dist/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "ng-craft",
+    "craft-ng",
+    "angular",
+    "mcp",
+    "mcp-server",
+    "llms.txt",
+    "agent-skills",
+    "ai"
+  ]
+}

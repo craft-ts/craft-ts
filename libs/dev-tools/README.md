@@ -10,6 +10,10 @@ Development tools for ng-craft: ESLint configs, ESLint rules, and codemods.
 npm install -D @craft-ng/dev-tools@beta
 ```
 
+For coding agents (docs search, best practices, Agent Skills), also install
+[`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp) — see
+[coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents).
+
 ## Dev-tools configuration
 
 `craft-brand` and the migrations load a typed project config from

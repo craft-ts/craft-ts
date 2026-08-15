@@ -7,6 +7,7 @@
     "registry:mcp": "npm run start --workspace @ng-craft/function-registry-mcp",
     "logs:server": "npm run start --workspace @ng-craft/log-server",
     "logs:mcp": "npm run start --workspace @ng-craft/log-mcp",
+    "craft:mcp": "npm run start --workspace @craft-ng/mcp",
     "release:check": "node --test tools/release.test.mjs tools/release-local.test.mjs",
     "release:local": "node tools/release-local.mjs"
   },
@@ -56,6 +57,7 @@
     "verdaccio": "^6.0.5",
     "vite": "^6.0.0",
     "vitepress": "^1.6.4",
+    "vitepress-plugin-llms": "^1.13.5",
     "vitest": "^4.0.8"
   },
   "workspaces": [

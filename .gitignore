@@ -27,6 +27,9 @@ node_modules
 # local log server output
 /.logs
 
+# generated MCP docs corpus
+/packages/mcp/content/docs-index.json
+
 # misc
 /.sass-cache
 /connect.lock

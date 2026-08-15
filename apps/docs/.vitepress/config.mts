@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress';
+import llmstxt from 'vitepress-plugin-llms';
 
 const learnSidebar = [
   {
@@ -218,6 +219,7 @@ const resourcesSidebar = [
     text: 'Resources',
     items: [
       { text: 'Examples', link: '/resources/examples' },
+      { text: 'Coding agents', link: '/resources/ai-agents' },
       { text: 'Migration', link: '/resources/migration' },
       { text: 'Press kit', link: '/resources/press-kit' },
       { text: 'Roadmap', link: '/resources/roadmap' },
@@ -273,6 +275,10 @@ export default defineConfig({
             text: '@craft-ng/dev-tools',
             link: 'https://www.npmjs.com/package/@craft-ng/dev-tools',
           },
+          {
+            text: '@craft-ng/mcp',
+            link: 'https://www.npmjs.com/package/@craft-ng/mcp',
+          },
         ],
       },
       {
@@ -280,6 +286,7 @@ export default defineConfig({
         activeMatch: '^/resources/',
         items: [
           { text: 'Examples', link: '/resources/examples' },
+          { text: 'Coding agents', link: '/resources/ai-agents' },
           { text: 'Migration', link: '/resources/migration' },
           { text: 'Press kit', link: '/resources/press-kit' },
           { text: 'Roadmap', link: '/resources/roadmap' },
@@ -308,5 +315,25 @@ export default defineConfig({
   },
   head: [
     ['link', { rel: 'icon', href: '/assets/favicon.png', type: 'image/png' }],
+    [
+      'link',
+      {
+        rel: 'describedby',
+        href: 'https://ng-angular-stack.github.io/craft/llms.txt',
+      },
+    ],
   ],
+  vite: {
+    plugins: [
+      llmstxt({
+        title: '@craft-ng/core',
+        description:
+          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ng/mcp server.',
+        details:
+          'After importing @craft-ng/core, run `npx -y @craft-ng/mcp@beta` and read /resources/ai-agents. yield* every Craft reader. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
+        domain: 'https://ng-angular-stack.github.io',
+        ignoreFiles: ['public/**', 'README.md'],
+      }),
+    ],
+  },
 });

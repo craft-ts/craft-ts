@@ -28,6 +28,13 @@ export const releasePackages = [
     sourceManifest: 'libs/dev-tools/package.json',
     distRoot: 'dist/libs/dev-tools',
   },
+  {
+    key: 'mcp',
+    name: '@craft-ng/mcp',
+    project: 'mcp',
+    sourceManifest: 'packages/mcp/package.json',
+    distRoot: 'packages/mcp',
+  },
 ];
 
 export const releaseTrackedFiles = [

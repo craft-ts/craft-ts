@@ -21,7 +21,9 @@
     "state",
     "store",
     "angular signals",
-    "ng-craft"
+    "ng-craft",
+    "mcp",
+    "llms.txt"
   ],
   "peerDependencies": {
     "@angular/common": "^21.0.0",

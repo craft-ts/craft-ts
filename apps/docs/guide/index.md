@@ -99,7 +99,8 @@ afternoon:
 
 [Program operators](/guide/advanced/program-operators) ·
 [Pattern matching](/guide/advanced/pattern-matching) ·
-[Observability](/guide/advanced/observability)
+[Observability](/guide/advanced/observability) ·
+[Coding agents](/resources/ai-agents)
 
 ## Looking for one symbol?
 

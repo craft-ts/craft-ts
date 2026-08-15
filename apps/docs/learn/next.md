@@ -58,6 +58,10 @@ one-line description and a link.
 [Examples](/resources/examples) points at the demo application, which exercises
 most of the above end to end.
 
+Importing Craft into an app that an agent will edit? Point it at
+[coding agents](/resources/ai-agents) — `llms.txt`, the `@craft-ng/mcp` server,
+and the Agent Skills.
+
 <div style="margin-top: 2rem">
 
 [← 10. Test what you wrote](/learn/10-testing)

@@ -29,6 +29,10 @@ npm install --save-dev @craft-ng/dev-tools@beta
 npm ls @craft-ng/dev-tools
 ```
 
+Point the coding agent at [coding agents](/resources/ai-agents) so it uses
+`craft-migrate` through the `migrate-to-ng-craft` skill instead of rewriting
+the app by hand.
+
 Commit or stash the current application changes before writing a migration.
 The codemod does not revert unrelated local changes.
 

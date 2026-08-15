@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "craft-ng",
+  "description": "Agent Skills and MCP server for writing @craft-ng/core Angular apps: primitives, services, routes, forms, and migration.",
+  "author": {
+    "name": "Romain Geffrault",
+    "url": "https://github.com/ng-angular-stack/ng-craft"
+  },
+  "homepage": "https://ng-angular-stack.github.io/craft/resources/ai-agents",
+  "repository": "https://github.com/ng-angular-stack/ng-craft",
+  "license": "MIT",
+  "keywords": [
+    "angular",
+    "craft-ng",
+    "ng-craft",
+    "mcp",
+    "agent-skills"
+  ]
+}

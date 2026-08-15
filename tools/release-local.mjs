@@ -372,9 +372,7 @@ function verifyPublishedArtifacts(version, manifestPath) {
       ),
     );
     if (
-      verification.core === 'skip' &&
-      verification.component === 'skip' &&
-      verification.dev_tools === 'skip'
+      releasePackages.every((pkg) => verification[pkg.key] === 'skip')
     ) {
       return;
     }
@@ -422,9 +420,7 @@ async function main(args) {
     '-t',
     'build',
     '-p',
-    'ng-craft-core',
-    'ng-craft-component',
-    'dev-tools',
+    ...releasePackages.map(({ project }) => project),
   ]);
   run('npx', ['nx', 'build', 'docs']);
 
@@ -450,9 +446,7 @@ async function main(args) {
     '-t',
     'build',
     '-p',
-    'ng-craft-core',
-    'ng-craft-component',
-    'dev-tools',
+    ...releasePackages.map(({ project }) => project),
   ]);
   run('npx', ['nx', 'build', 'docs']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
@@ -498,14 +492,11 @@ async function main(args) {
       { capture: true },
     ),
   );
-  if (plan.core === 'publish') {
-    publishPackage('dist/libs/core', release.channel);
+  for (const pkg of releasePackages) {
+    if (plan[pkg.key] === 'publish') {
+      publishPackage(pkg.distRoot, release.channel);
+    }
   }
-  if (plan.component === 'publish') {
-    publishPackage('dist/libs/component', release.channel);
-  }
-  if (plan.dev_tools === 'publish')
-    publishPackage('dist/libs/dev-tools', release.channel);
 
   verifyPublishedArtifacts(
     release.version,

@@ -139,6 +139,7 @@ test('release PRs are limited to manifests and changelog', () => {
     'libs/component/package.json',
     'libs/core/package.json',
     'libs/dev-tools/package.json',
+    'packages/mcp/package.json',
   ]);
 });
 

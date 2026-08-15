@@ -56,12 +56,15 @@ features:
 ## Packages
 
 The toolkit is split into focused packages. They are currently published on the
-`beta` channel.
+`beta` channel. Coding agents should start from
+[`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt) and the
+[coding agents](/resources/ai-agents) guide.
 
 | Package                                                                    | Purpose                                                             |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | [`@craft-ng/core`](https://www.npmjs.com/package/@craft-ng/core)           | Reactive primitives, services, forms, routing and testing utilities |
 | [`@craft-ng/component`](https://www.npmjs.com/package/@craft-ng/component) | Selectorless functional components and typed hyperscript templates  |
 | [`@craft-ng/dev-tools`](https://www.npmjs.com/package/@craft-ng/dev-tools) | Codemods, generators, CLI commands and ESLint rules                 |
+| [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp)             | MCP server, Agent Skills and `llms.txt` helpers for coding agents   |
 
 <AuthorNote />

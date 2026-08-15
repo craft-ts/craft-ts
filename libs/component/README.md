@@ -88,3 +88,7 @@ keep that order aligned with the factory parameters.
 
 Mount a root component imperatively with `mountCraftComponent`, or use the
 standalone `[craftComponentHost]` bridge directive from an Angular template.
+
+Coding agents: [`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt)
+and the [coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents)
+guide. MCP: `npx -y @craft-ng/mcp@beta`.
