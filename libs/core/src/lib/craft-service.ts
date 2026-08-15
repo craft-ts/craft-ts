@@ -3246,6 +3246,7 @@ export function craftService(
     abstractApi[metaDataName] = abstractMetaData;
 
     attachServiceRuntimeMeta(abstractHelper, abstractMetaData);
+    attachServiceRuntimeMeta(abstractInjectHelper, abstractMetaData);
 
     REGISTERED_SERVICES.set(
       options.name,
