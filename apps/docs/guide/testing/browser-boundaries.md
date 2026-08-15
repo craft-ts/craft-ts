@@ -299,6 +299,10 @@ Methods:
 
 - `title`
 - `setTitle`
+- `lang`
+- `setLang`
+- `dir`
+- `setDir`
 - `visibilityState`
 - `hasFocus`
 

@@ -96,6 +96,7 @@ const LoginFormComponent = craftComponent(
             input({ ...email.input, type: 'email' }).pipe(
               CraftFieldDirective(loginForm.form.selectEmail()),
             ),
+            p(email.description, 'We never share your email.'),
           ]),
           div({ class: 'login-field' }, [
             label(password.label, 'Password'),
@@ -107,6 +108,7 @@ const LoginFormComponent = craftComponent(
                     p({ class: 'login-error' }, 'Password is required.'),
                 }),
               ),
+            p(password.description, 'Use at least 6 characters.'),
           ]),
           ifBlock(loginForm.form.showSuccess, () =>
             p('✅ Login form submitted.'),

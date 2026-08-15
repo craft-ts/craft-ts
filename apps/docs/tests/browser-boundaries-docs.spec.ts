@@ -258,6 +258,8 @@ describe('Browser Boundaries doc page', () => {
       'Every boundary on this page is backed by a global crafted service marked with `browserBoundary: true`.',
     );
     expect(content).toContain('ConsoleService');
+    expect(content).toContain('- `setLang`');
+    expect(content).toContain('- `setDir`');
     expect(content).toContain(
       'That second form is what preserves derivability',
     );

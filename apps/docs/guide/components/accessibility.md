@@ -165,6 +165,10 @@ div(faq.panel, '…');
 button(buttonControl({ disabled: isSaving, keepFocusable: true }), 'Save');
 ```
 
+Un panneau fermé reçoit `hidden` et `aria-hidden`, pour qu’aucun focus ne
+reste à l’intérieur. `keepFocusable` pose `aria-disabled` sans `disabled` :
+le clic n’est pas coupé, l’auteur doit no-op le handler.
+
 Les états sont aussi exposés en `data-*`, ce qui permet une convention CSS
 simple et indépendante du composant :
 
@@ -174,9 +178,9 @@ input[data-invalid] { border-color: var(--danger); }
 button[data-open] { font-weight: 600; }
 ```
 
-Une live region doit être montée dès le premier rendu : ne gâtez jamais son
-nœud sur le message. Le lecteur d’écran peut ainsi s’y abonner avant qu’un
-événement survienne.
+Une live region doit être montée dès le premier rendu : ne conditionnez
+jamais son nœud sur le message. Le lecteur d’écran peut ainsi s’y abonner
+avant qu’un événement survienne.
 
 ```ts
 // correct — region exists at first paint
