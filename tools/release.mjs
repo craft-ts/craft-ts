@@ -311,7 +311,8 @@ function packRelease(version, outputDirectory) {
   const artifacts = [];
 
   for (const pkg of releasePackages) {
-    const distManifest = readJson(`${pkg.distRoot}/package.json`);
+    const packRoot = resolve(pkg.distRoot);
+    const distManifest = readJson(`${packRoot}/package.json`);
     if (distManifest.name !== pkg.name || distManifest.version !== version) {
       throw new Error(
         `${pkg.distRoot}/package.json must contain ${pkg.name}@${version}.`,
@@ -320,7 +321,7 @@ function packRelease(version, outputDirectory) {
 
     const output = run(
       'npm',
-      ['pack', pkg.distRoot, '--json', '--pack-destination', absoluteOutput],
+      ['pack', packRoot, '--json', '--pack-destination', absoluteOutput],
       { capture: true },
     );
     const [artifact] = JSON.parse(output);

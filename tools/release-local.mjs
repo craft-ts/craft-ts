@@ -494,7 +494,7 @@ async function main(args) {
   );
   for (const pkg of releasePackages) {
     if (plan[pkg.key] === 'publish') {
-      publishPackage(pkg.distRoot, release.channel);
+      publishPackage(resolve(workspaceRoot, pkg.distRoot), release.channel);
     }
   }
 
