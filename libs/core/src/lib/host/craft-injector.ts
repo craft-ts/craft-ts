@@ -31,6 +31,7 @@ type AsyncLocalStorageLike<T> = {
 };
 
 type AsyncLocalStorageConstructor = new <T>() => AsyncLocalStorageLike<T>;
+export type CraftHostContextRunner = <T>(fn: () => T) => T;
 
 const nodeProcess = (
   globalThis as typeof globalThis & { process?: NodeProcess }
@@ -118,7 +119,10 @@ function createNativeCraftInjector(
   return craftInjector;
 }
 
-export function ɵcraftInjectorFromHost(hostInjector: object): CraftInjector {
+export function ɵcreateCraftInjectorFromHost(
+  hostInjector: object,
+  runInHostContext: CraftHostContextRunner,
+): CraftInjector {
   const existing = hostInjectors.get(hostInjector);
   if (existing) {
     return existing;
@@ -140,15 +144,17 @@ export function ɵcraftInjectorFromHost(hostInjector: object): CraftInjector {
       return value === NOT_FOUND ? null : (value as T);
     },
     run<T>(fn: () => T): T {
-      if (injectorStorage) {
-        return injectorStorage.run(craftInjector, fn);
-      }
-      browserInjectorStack.push(craftInjector);
-      try {
-        return fn();
-      } finally {
-        browserInjectorStack.pop();
-      }
+      return runInHostContext(() => {
+        if (injectorStorage) {
+          return injectorStorage.run(craftInjector, fn);
+        }
+        browserInjectorStack.push(craftInjector);
+        try {
+          return fn();
+        } finally {
+          browserInjectorStack.pop();
+        }
+      });
     },
     createChild(providers: readonly CraftProvider[]): CraftInjector {
       return createNativeCraftInjector(providers, craftInjector);

@@ -70,9 +70,9 @@ import type { BrandReactiveProperties } from './yieldable';
 import {
   craftToken,
   type CraftToken,
-  ɵcraftInjectorFromHost,
   ɵregisterCraftTokenHostToken,
 } from './host/craft-injector';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;

@@ -1,9 +1,11 @@
+import { inject, InjectionToken, Injector } from '@angular/core';
 import { describe, expect, it } from 'vitest';
 import {
   craftToken,
   createCraftInjector,
   getCurrentCraftInjector,
 } from './craft-injector';
+import { ɵcraftInjectorFromHost } from './angular-craft-injector-host';
 
 describe('CraftInjector', () => {
   it('resolves a factory provider from the same injector', () => {
@@ -95,5 +97,18 @@ describe('CraftInjector', () => {
       await Promise.resolve();
       expect(getCurrentCraftInjector()).toBe(root);
     });
+  });
+
+  it('restores Angular injection context for a host injector run()', () => {
+    const Value = new InjectionToken<string>('Value');
+    const angularInjector = Injector.create({
+      providers: [{ provide: Value, useValue: 'angular' }],
+    });
+
+    const value = ɵcraftInjectorFromHost(angularInjector).run(() =>
+      inject(Value),
+    );
+
+    expect(value).toBe('angular');
   });
 });
