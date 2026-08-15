@@ -5,6 +5,7 @@ import {
   Injector,
   isSignal,
   isWritableSignal,
+  linkedSignal,
   runInInjectionContext,
   Signal,
   WritableSignal,
@@ -97,6 +98,14 @@ const createLinkedSignalWithOptions = craftLinkedSignal as unknown as <
   computation: () => T;
   equal?: (a: T, b: T) => boolean;
 }) => CraftWritableSignal<T>;
+
+const createAngularLinkedSignalWithOptions = linkedSignal as unknown as <
+  T,
+>(options: {
+  source: () => unknown;
+  computation: () => T;
+  equal?: (a: T, b: T) => boolean;
+}) => WritableSignal<T>;
 
 export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
@@ -509,6 +518,8 @@ function createStateRef<StateType>(
     : rawConfig;
   const isSignalState =
     isCraftSignal(resolvedStateConfig) || isSignal(resolvedStateConfig);
+  const isAngularSignalState =
+    isSignal(resolvedStateConfig) && !isCraftSignal(resolvedStateConfig);
   const isCraftWritableState =
     isCraftSignal(resolvedStateConfig) &&
     typeof Reflect.get(resolvedStateConfig, 'set') === 'function';
@@ -571,16 +582,24 @@ function createStateRef<StateType>(
         ? (resolvedStateConfig as
             | WritableSignal<StateType>
             | CraftWritableSignal<StateType>)
-        : craftLinkedSignal({
-            source: readResolvedState,
-            computation: () => readResolvedState() as StateType,
-          })
+        : isAngularSignalState
+          ? linkedSignal(() => readResolvedState() as StateType)
+          : craftLinkedSignal({
+              source: readResolvedState,
+              computation: () => readResolvedState() as StateType,
+            })
       : isSignalState
-        ? createLinkedSignalWithOptions({
-            source: readResolvedState,
-            computation: () => applySchema(readResolvedState(), 'source'),
-            equal: () => false,
-          })
+        ? isAngularSignalState
+          ? createAngularLinkedSignalWithOptions({
+              source: readResolvedState,
+              computation: () => applySchema(readResolvedState(), 'source'),
+              equal: () => false,
+            })
+          : createLinkedSignalWithOptions({
+              source: readResolvedState,
+              computation: () => applySchema(readResolvedState(), 'source'),
+              equal: () => false,
+            })
         : craftSignal(initialStateValue);
   const readonlyStateSignal = isCraftSignal(stateSignal)
     ? craftComputed(() => stateSignal())

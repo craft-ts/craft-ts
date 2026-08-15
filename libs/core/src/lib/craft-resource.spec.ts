@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -104,6 +104,38 @@ describe('craftResource', () => {
     expect(() => reload()).not.toThrow();
     expect(() => destroy()).not.toThrow();
   }, 30_000);
+
+  it('cancels an in-flight load when a local value is set', async () => {
+    let resolve!: (value: { id: number; name: string }) => void;
+    const resource = TestBed.runInInjectionContext(() =>
+      craftResource({
+        params: () => ({ id: 1 }),
+        loader: () =>
+          new Promise<{ id: number; name: string }>((done) => {
+            resolve = done;
+          }),
+      }),
+    );
+
+    expect(resource.status()).toBe('loading');
+    resource.set({ id: 1, name: 'local' });
+    resolve({ id: 1, name: 'server' });
+    await Promise.resolve();
+
+    expect(resource.status()).toBe('local');
+    expect(resource.value()).toEqual({ id: 1, name: 'local' });
+  });
+
+  it('notifies Angular status consumers when destroyed', async () => {
+    const resource = createResource();
+    const status = computed(() => resource.status());
+    await vi_waitForResolved(resource);
+    expect(status()).toBe('resolved');
+
+    resource.destroy();
+
+    expect(status()).toBe('idle');
+  });
 });
 
 async function vi_waitForResolved(resource: {

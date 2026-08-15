@@ -1,7 +1,19 @@
-import { ResourceOptions, Signal } from '@angular/core';
+import {
+  signal as ngSignal,
+  untracked as ngUntracked,
+  type ResourceOptions,
+  type Signal,
+} from '@angular/core';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { craftResource } from './craft-resource';
-import { craftComputed, craftSignal, craftWatch } from './host/craft-signal';
+import {
+  CRAFT_SIGNAL,
+  craftComputed,
+  craftSignal,
+  craftWatch,
+  untracked,
+  type CraftWritableSignal,
+} from './host/craft-signal';
 
 export function preservedResource<T, R>(
   config: ResourceOptions<T, R>,
@@ -12,24 +24,40 @@ export function preservedResource<T, R>(
     __craftRawStatus: Signal<string>;
   };
   const preserved = craftSignal<T | undefined>(config.defaultValue);
+  const angularMirror = ngSignal<T | undefined>(config.defaultValue);
+  const publish = (value: T | undefined): void => {
+    preserved.set(value);
+    ngUntracked(() => angularMirror.set(value));
+  };
   const preserveWatch = craftWatch(() => {
     const status = raw.__craftRawStatus();
     if (status !== 'loading' && status !== 'reloading') {
-      preserved.set(status === 'error' ? undefined : raw.__craftRawValue());
+      publish(status === 'error' ? undefined : raw.__craftRawValue());
     }
   });
-  const state = craftComputed(() => preserved());
+  const value = (() => {
+    angularMirror();
+    return preserved();
+  }) as CraftWritableSignal<T | undefined>;
+  value.set = publish;
+  value.update = (update) => publish(update(untracked(preserved)));
+  Object.defineProperty(value, CRAFT_SIGNAL, {
+    value: true,
+    enumerable: false,
+  });
+  const state = craftComputed(() => value());
   const hasValue = (() =>
-    original.hasValue() || preserved() !== undefined) as CraftResourceRef<
+    original.hasValue() || value() !== undefined) as CraftResourceRef<
     T | undefined,
     R
   >['hasValue'];
   const destroy = () => {
-    preserveWatch.destroy();
     original.destroy();
+    publish(config.defaultValue);
+    preserveWatch.destroy();
   };
   const resourceRef = {
-    value: preserved,
+    value,
     // `resource.hasValue()` becomes false as soon as a reload starts, even
     // though `preserved` still exposes the last resolved value to consumers.
     // Reflect the public value here so guards such as `ifBlock(hasValue)` do

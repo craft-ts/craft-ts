@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { signal, type EffectCleanupRegisterFn } from '@angular/core';
+import {
+  createEnvironmentInjector,
+  EnvironmentInjector,
+  runInInjectionContext,
+  signal,
+  type EffectCleanupRegisterFn,
+} from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -20,6 +26,7 @@ import {
   APP_SNAPSHOT_REGISTRY,
   type ActiveEffectReport,
 } from './take-app-snapshot';
+import { craftSignal } from './host/craft-signal';
 
 beforeAll(() => {
   try {
@@ -68,6 +75,50 @@ describe('craftEffect', () => {
     component.count.set(1);
     TestBed.tick();
     expect(component.seen).toEqual([0, 1]);
+  });
+
+  it('tracks Angular and Craft signal dependencies together', () => {
+    const angularCount = signal(0);
+    const craftCount = craftSignal(0);
+    const seen: number[] = [];
+
+    TestBed.runInInjectionContext(() =>
+      craftEffect('mixed', () => {
+        seen.push(angularCount() + craftCount());
+      }),
+    );
+
+    TestBed.tick();
+    expect(seen).toEqual([0]);
+    angularCount.set(1);
+    TestBed.tick();
+    expect(seen).toEqual([0, 1]);
+
+    craftCount.set(2);
+    expect(seen).toEqual([0, 1, 3]);
+  });
+
+  it('stops with its owning DestroyRef', () => {
+    const source = craftSignal(0);
+    const seen: number[] = [];
+    const injector = createEnvironmentInjector(
+      [],
+      TestBed.inject(EnvironmentInjector),
+    );
+
+    runInInjectionContext(injector, () =>
+      craftEffect('destroyed', () => {
+        seen.push(source());
+      }),
+    );
+    TestBed.tick();
+    source.set(1);
+    expect(seen).toEqual([0, 1]);
+
+    injector.destroy();
+    source.set(2);
+
+    expect(seen).toEqual([0, 1]);
   });
 
   it('should run a generator factory that resolves DI deps once and returns the effect body', () => {
@@ -178,9 +229,7 @@ describe('craftEffect', () => {
     }
 
     type ExpectedDeps = {
-      EffectMultiplierDeps: GetServiceDependencies<
-        typeof EffectMultiplierDeps
-      >;
+      EffectMultiplierDeps: GetServiceDependencies<typeof EffectMultiplierDeps>;
     };
     type _Deps = Expect<Equal<ExtractDeps<Component['fx']>, ExpectedDeps>>;
   });

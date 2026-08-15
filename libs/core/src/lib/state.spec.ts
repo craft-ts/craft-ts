@@ -147,6 +147,20 @@ describe('state', () => {
     });
   });
 
+  it('keeps an Angular readonly computed state live', () => {
+    runInInjectionContext(() => {
+      const origin = signal(5);
+      const readonlyState = computed(() => origin() * 2);
+      const myState = craftUse(state('myState', readonlyState));
+
+      expect(craftUse(myState())).toBe(10);
+
+      origin.set(6);
+
+      expect(craftUse(myState())).toBe(12);
+    });
+  });
+
   it('writes through when initialized from a Craft writable signal', () => {
     runInInjectionContext(() => {
       const origin = craftSignal(5);

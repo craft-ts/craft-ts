@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   DestroyRef,
+  effect,
   inject,
   Injector,
   runInInjectionContext,
@@ -9,7 +10,7 @@ import {
   type EffectRef,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { craftWatch } from './host/craft-signal';
+import { craftSignal, craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -20,11 +21,6 @@ import {
   runCraftGenerator,
 } from './craft-generator-runtime';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
-
-const createWatchWithOptions = craftWatch as unknown as (
-  fn: () => void | (() => void),
-  options?: CreateEffectOptions,
-) => EffectRef;
 
 type CraftEffectFn = (onCleanup: EffectCleanupRegisterFn) => void;
 
@@ -119,22 +115,43 @@ export function craftEffect(
       : (plainFn as CraftEffectFn);
   }
 
-  const ref = createWatchWithOptions(
+  const rerun = craftSignal(0);
+  let craftRef: { destroy(): void } | undefined;
+  let destroyed = false;
+  const angularRef = effect(
     () => {
-      const cleanups: (() => void)[] = [];
-      effectBody((cleanup) => cleanups.push(cleanup));
-      return cleanups.length === 0
-        ? undefined
-        : () => {
-            for (const cleanup of cleanups) cleanup();
-          };
+      if (!craftRef) {
+        craftRef = craftWatch(() => {
+          rerun();
+          const cleanups: (() => void)[] = [];
+          effectBody((cleanup) => cleanups.push(cleanup));
+          return cleanups.length === 0
+            ? undefined
+            : () => {
+                for (const cleanup of cleanups) cleanup();
+              };
+        });
+      } else {
+        rerun.update((revision) => revision + 1);
+      }
     },
     {
       ...options,
       injector: parentInjector,
-      manualCleanup: options?.manualCleanup,
+      manualCleanup: true,
     },
   );
+  const ref = {
+    destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      angularRef.destroy();
+      craftRef?.destroy();
+    },
+  } as EffectRef;
+  if (!options?.manualCleanup) {
+    parentDestroyRef.onDestroy(() => ref.destroy());
+  }
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {

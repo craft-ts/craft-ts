@@ -228,15 +228,19 @@ export function craftResource<Value, Params>(
     destroyed = true;
     abortController?.abort();
     stopStream?.();
-    paramsEffect?.destroy();
-    craftParamsWatch?.destroy();
-    graphWatches.forEach((watch) => watch.destroy());
     ++requestVersion;
     valueState.set(options.defaultValue);
     errorState.set(undefined);
     statusState.set('idle');
+    paramsEffect?.destroy();
+    craftParamsWatch?.destroy();
+    graphWatches.forEach((watch) => watch.destroy());
   };
   const set = (next: Value | undefined): void => {
+    abortController?.abort();
+    stopStream?.();
+    stopStream = undefined;
+    ++requestVersion;
     valueState.set(next);
     errorState.set(undefined);
     statusState.set('local');
