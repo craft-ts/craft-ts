@@ -1,17 +1,22 @@
-import { Injectable } from '@angular/core';
 import type { GetDeps } from './branded-component/branded-component';
+import { craftToken } from './host/craft-injector';
 
-@Injectable({ providedIn: 'root' })
-export class ComponentRegister {
-  #counter = 0;
+export type ComponentRegister = { next(): number };
 
-  next(): number {
-    this.#counter += 1;
-    return this.#counter;
-  }
+export function createComponentRegister(): ComponentRegister {
+  let counter = 0;
+  return {
+    next() {
+      counter += 1;
+      return counter;
+    },
+  };
 }
 
-export const ɵfallbackComponentRegister = new ComponentRegister();
+export const COMPONENT_REGISTER =
+  craftToken<ComponentRegister>('ComponentRegister');
+
+export const ɵfallbackComponentRegister = createComponentRegister();
 
 export type GenDeps_ComponentRegister = GetDeps<{
   deps: {};

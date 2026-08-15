@@ -26,7 +26,7 @@ import {
   provideCraftLoading,
   type CraftLoadingFeature,
 } from './craft-pending';
-import { CraftTitleStrategy } from './craft-a11y';
+import { createCraftTitleStrategy } from './craft-a11y';
 import {
   toCraftService,
   type GetServiceYields,
@@ -415,7 +415,7 @@ export function provideCraftRouter(
 
   return [
     provideCraftRouterInternal(configuredRoutes, ...routerFeatures),
-    { provide: TitleStrategy, useClass: CraftTitleStrategy },
+    { provide: TitleStrategy, useFactory: createCraftTitleStrategy },
     ...provideCraftLoading(...loadingFeatures),
   ];
 }

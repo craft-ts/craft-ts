@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CraftStyleRegistry } from './style-registry';
+import { createCraftStyleRegistry } from './style-registry';
 
 describe('CraftStyleRegistry', () => {
   beforeEach(() => document.body.replaceChildren());
 
   it('deduplicates sheets and removes them after the last release', () => {
-    const registry = new CraftStyleRegistry();
+    const registry = createCraftStyleRegistry();
     const first = registry.acquire(document, 'card', '.card { color: red }', 1);
     const second = registry.acquire(
       document,
@@ -27,7 +27,7 @@ describe('CraftStyleRegistry', () => {
   });
 
   it('keeps registered sheets ordered by their order value', () => {
-    const registry = new CraftStyleRegistry();
+    const registry = createCraftStyleRegistry();
     registry.acquire(document, 'late', '.late {}', 2);
     registry.acquire(document, 'early', '.early {}', 1);
     expect(
@@ -42,7 +42,7 @@ describe('CraftStyleRegistry', () => {
       configurable: true,
       value: [],
     });
-    const registry = new CraftStyleRegistry();
+    const registry = createCraftStyleRegistry();
     registry.acquire(document, 'fallback', '.fallback {}', 0);
     expect(
       document.querySelector('style[data-craft-sheet="fallback"]'),

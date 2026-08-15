@@ -26,6 +26,7 @@ export {
 export type {
   EffectRef as ɵAngularEffectRef,
   Provider as ɵAngularProvider,
+  ProviderToken as ɵAngularProviderToken,
 } from '@angular/core';
 import {
   type GetDeps,

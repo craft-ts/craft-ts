@@ -10,7 +10,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { isCraftLoadingFeature } from './craft-pending';
 import {
   CRAFT_A11Y_NAVIGATION_FOCUS,
-  CraftTitleStrategy,
+  createCraftTitleStrategy,
   withA11yNavigationFocus,
 } from './craft-a11y';
 
@@ -61,7 +61,7 @@ describe('craft a11y navigation', () => {
             component: TitleProbeComponent,
           },
         ]),
-        { provide: TitleStrategy, useClass: CraftTitleStrategy },
+        { provide: TitleStrategy, useFactory: createCraftTitleStrategy },
       ],
     });
     const router = TestBed.inject(Router);

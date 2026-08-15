@@ -1,12 +1,3 @@
-import {
-  createEnvironmentInjector,
-  InjectionToken,
-  Injector,
-  runInInjectionContext,
-  type EnvironmentInjector,
-  type Provider,
-} from '@angular/core';
-
 declare const CraftTokenBrand: unique symbol;
 
 export type CraftToken<T> = {
@@ -25,30 +16,54 @@ export interface CraftInjector {
   createChild(providers: readonly CraftProvider[]): CraftInjector;
 }
 
-const angularTokens = new WeakMap<object, InjectionToken<unknown>>();
-const activeInjectors: CraftInjector[] = [];
-const craftInjectors = new WeakMap<Injector, CraftInjector>();
+type ProviderRecord = {
+  resolve(): unknown;
+};
+
+type NodeProcess = {
+  getBuiltinModule?: (specifier: string) => unknown;
+  versions?: { node?: string };
+};
+
+type AsyncLocalStorageLike<T> = {
+  getStore(): T | undefined;
+  run<Result>(store: T, callback: () => Result): Result;
+};
+
+type AsyncLocalStorageConstructor = new <T>() => AsyncLocalStorageLike<T>;
+
+const nodeProcess = (
+  globalThis as typeof globalThis & { process?: NodeProcess }
+).process;
+const AsyncLocalStorage = nodeProcess?.versions?.node
+  ? (
+      nodeProcess.getBuiltinModule?.('node:async_hooks') as
+        | { AsyncLocalStorage?: AsyncLocalStorageConstructor }
+        | undefined
+    )?.AsyncLocalStorage
+  : undefined;
+const injectorStorage = AsyncLocalStorage
+  ? new AsyncLocalStorage<CraftInjector>()
+  : null;
+const browserInjectorStack: CraftInjector[] = [];
+const hostInjectors = new WeakMap<object, CraftInjector>();
+const hostTokens = new WeakMap<object, object>();
+const NOT_FOUND = Symbol('CraftInjector.notFound');
 
 export function craftToken<T>(debugName: string): CraftToken<T> {
-  const token = { debugName } as CraftToken<T>;
-  angularTokens.set(token, new InjectionToken<T>(debugName));
-  return token;
+  return { debugName } as CraftToken<T>;
 }
 
 export function createCraftInjector(
   providers: readonly CraftProvider[],
 ): CraftInjector {
-  const injectorRef = {} as { current: CraftInjector };
-  const angularInjector = Injector.create({
-    providers: toAngularProviders(providers, () => injectorRef.current),
-    name: 'CraftInjector',
-  });
-  injectorRef.current = ɵcraftInjectorFromHost(angularInjector);
-  return injectorRef.current;
+  return createNativeCraftInjector(providers, null);
 }
 
 export function getCurrentCraftInjector(): CraftInjector {
-  const injector = activeInjectors[activeInjectors.length - 1];
+  const injector =
+    injectorStorage?.getStore() ??
+    browserInjectorStack[browserInjectorStack.length - 1];
   if (!injector) {
     throw new Error(
       'getCurrentCraftInjector() must be called inside injector.run().',
@@ -57,82 +72,122 @@ export function getCurrentCraftInjector(): CraftInjector {
   return injector;
 }
 
-function createAngularBackedCraftInjector(
-  angularInjector: Injector,
+function createNativeCraftInjector(
+  providers: readonly CraftProvider[],
+  parent: CraftInjector | null,
 ): CraftInjector {
+  const records = new Map<CraftToken<unknown>, ProviderRecord>();
   const craftInjector: CraftInjector = {
     get<T>(token: CraftToken<T>): T {
-      return angularInjector.get(getAngularToken(token));
+      const local = records.get(token);
+      if (local) {
+        return local.resolve() as T;
+      }
+      if (parent) {
+        return parent.get(token);
+      }
+      throw missingProviderError(token);
     },
     getOptional<T>(token: CraftToken<T>): T | null {
-      return angularInjector.get(getAngularToken(token), null);
+      const local = records.get(token);
+      if (local) {
+        return local.resolve() as T;
+      }
+      return parent ? parent.getOptional(token) : null;
     },
     run<T>(fn: () => T): T {
-      activeInjectors.push(craftInjector);
+      if (injectorStorage) {
+        return injectorStorage.run(craftInjector, fn);
+      }
+      browserInjectorStack.push(craftInjector);
       try {
-        return runInInjectionContext(angularInjector, fn);
+        return fn();
       } finally {
-        activeInjectors.pop();
+        browserInjectorStack.pop();
       }
     },
     createChild(providers: readonly CraftProvider[]): CraftInjector {
-      const childRef = {} as { current: CraftInjector };
-      const childInjector = createEnvironmentInjector(
-        toAngularProviders(providers, () => childRef.current),
-        angularInjector as EnvironmentInjector,
-        'CraftInjectorChild',
-      );
-      childRef.current = ɵcraftInjectorFromHost(childInjector);
-      return childRef.current;
+      return createNativeCraftInjector(providers, craftInjector);
     },
   };
+
+  for (const provider of providers) {
+    records.set(provider.token, createProviderRecord(provider, craftInjector));
+  }
+
   return craftInjector;
 }
 
 export function ɵcraftInjectorFromHost(hostInjector: object): CraftInjector {
-  const angularInjector = hostInjector as Injector;
-  const existing = craftInjectors.get(angularInjector);
+  const existing = hostInjectors.get(hostInjector);
   if (existing) {
     return existing;
   }
-  const craftInjector = createAngularBackedCraftInjector(angularInjector);
-  craftInjectors.set(angularInjector, craftInjector);
+
+  const host = hostInjector as {
+    get(token: object, notFoundValue?: unknown): unknown;
+  };
+  const craftInjector: CraftInjector = {
+    get<T>(token: CraftToken<T>): T {
+      const value = host.get(hostTokens.get(token) ?? token, NOT_FOUND);
+      if (value === NOT_FOUND) {
+        throw missingProviderError(token);
+      }
+      return value as T;
+    },
+    getOptional<T>(token: CraftToken<T>): T | null {
+      const value = host.get(hostTokens.get(token) ?? token, NOT_FOUND);
+      return value === NOT_FOUND ? null : (value as T);
+    },
+    run<T>(fn: () => T): T {
+      if (injectorStorage) {
+        return injectorStorage.run(craftInjector, fn);
+      }
+      browserInjectorStack.push(craftInjector);
+      try {
+        return fn();
+      } finally {
+        browserInjectorStack.pop();
+      }
+    },
+    createChild(providers: readonly CraftProvider[]): CraftInjector {
+      return createNativeCraftInjector(providers, craftInjector);
+    },
+  };
+  hostInjectors.set(hostInjector, craftInjector);
   return craftInjector;
 }
 
-export function ɵcreateAngularChildInjector(
-  parent: Injector,
-  providers: readonly Provider[],
-  debugName: string,
-): EnvironmentInjector {
-  return createEnvironmentInjector(
-    [...providers],
-    parent as EnvironmentInjector,
-    debugName,
-  );
+export function ɵregisterCraftTokenHostToken<T>(
+  token: CraftToken<T>,
+  hostToken: object,
+): void {
+  hostTokens.set(token, hostToken);
 }
 
-function getAngularToken<T>(token: CraftToken<T>): InjectionToken<T> {
-  const angularToken = angularTokens.get(token);
-  if (!angularToken) {
-    throw new Error(`Unknown Craft token "${token.debugName}".`);
+function createProviderRecord(
+  provider: CraftProvider,
+  injector: CraftInjector,
+): ProviderRecord {
+  if ('useValue' in provider) {
+    return {
+      resolve: () => provider.useValue,
+    };
   }
-  return angularToken as InjectionToken<T>;
+
+  let resolved = false;
+  let value: unknown;
+  return {
+    resolve() {
+      if (!resolved) {
+        value = provider.useFactory(injector);
+        resolved = true;
+      }
+      return value;
+    },
+  };
 }
 
-function toAngularProviders(
-  providers: readonly CraftProvider[],
-  getInjector: () => CraftInjector,
-): Provider[] {
-  return providers.map((provider) =>
-    'useValue' in provider
-      ? {
-          provide: getAngularToken(provider.token),
-          useValue: provider.useValue,
-        }
-      : {
-          provide: getAngularToken(provider.token),
-          useFactory: () => provider.useFactory(getInjector()),
-        },
-  );
+function missingProviderError(token: CraftToken<unknown>): Error {
+  return new Error(`No provider for Craft token "${token.debugName}".`);
 }

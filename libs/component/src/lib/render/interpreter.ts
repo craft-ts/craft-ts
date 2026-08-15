@@ -6,6 +6,7 @@ import {
   CRAFT_FIELD_EXCEPTION_BOUNDARY,
   CRAFT_FIELD_EXCEPTION_SOURCE,
   CRAFT_TEMPORAL_RUNTIME,
+  COMPONENT_REGISTER,
   ComponentRegister,
   craftEffect,
   craftLazy,
@@ -63,6 +64,7 @@ import {
   ɵangularUntracked as untracked,
   type ɵAngularEffectRef as EffectRef,
   type ɵAngularProvider as Provider,
+  type ɵAngularProviderToken as ProviderToken,
   type AngularMountContext,
 } from '@craft-ng/angular';
 import type { HostProps } from '../hyperscript';
@@ -115,6 +117,7 @@ import type {
 } from '../field-exception-block';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
+  CRAFT_STYLE_REGISTRY,
   CraftStyleRegistry,
   ɵfallbackCraftStyleRegistry,
 } from './style-registry';
@@ -570,8 +573,7 @@ function executeTemplateCallback(
 function angularMountContext(context: RenderContext): AngularMountContext {
   return {
     injector: context.injector,
-    resolveInput: (value) =>
-      typeof value === 'function' ? value() : value,
+    resolveInput: (value) => (typeof value === 'function' ? value() : value),
     executeOutput: (callback, value) =>
       executeTemplateCallback(callback, [value], context),
   };
@@ -590,7 +592,11 @@ function resolveTemplateContext(
   if (typeof context === 'function') {
     return resolveTemplateValue(context, renderContext);
   }
-  if (context === null || typeof context !== 'object' || Array.isArray(context)) {
+  if (
+    context === null ||
+    typeof context !== 'object' ||
+    Array.isArray(context)
+  ) {
     return context;
   }
 
@@ -1734,7 +1740,11 @@ class ElementRenderedNode implements RenderedNode {
     const open = nextNode.props['open'];
     if (open && typeof dialog.showModal === 'function' && !dialog.open) {
       dialog.showModal();
-    } else if (open === false && typeof dialog.close === 'function' && dialog.open) {
+    } else if (
+      open === false &&
+      typeof dialog.close === 'function' &&
+      dialog.open
+    ) {
       dialog.close();
     }
   }
@@ -1933,11 +1943,13 @@ class ProjectionRenderedNode implements RenderedNode {
       ),
       () =>
         runInInjectionContext(this.declarationContext.injector, () =>
-          withCraftRenderContext(this.declarationContext, () =>
-            resolveProjectionValue(
-              this.node.render(),
-              this.projectionContext,
-            ) as CraftNodeChildren,
+          withCraftRenderContext(
+            this.declarationContext,
+            () =>
+              resolveProjectionValue(
+                this.node.render(),
+                this.projectionContext,
+              ) as CraftNodeChildren,
           ),
         ),
     );
@@ -2529,11 +2541,7 @@ class CatchBlockRenderedNode implements RenderedNode {
       this.fallbackView.patchChildren(
         hasLiveRegion(resolved.children)
           ? resolved.children
-          : a11yElement(
-              'div',
-              { role: 'alert' },
-              resolved.children,
-            ),
+          : a11yElement('div', { role: 'alert' }, resolved.children),
       );
       if (resolved.showSource) {
         this.restoreSource();
@@ -2711,10 +2719,17 @@ function a11yElement(
   return { kind: 'element', tag, props, children };
 }
 
-function firstElementChild(value: CraftNodeChildren): ElementNodeBase | undefined {
+function firstElementChild(
+  value: CraftNodeChildren,
+): ElementNodeBase | undefined {
   const list = Array.isArray(value) ? value : [value];
   for (const child of list) {
-    if (child && typeof child === 'object' && 'kind' in child && child.kind === 'element') {
+    if (
+      child &&
+      typeof child === 'object' &&
+      'kind' in child &&
+      child.kind === 'element'
+    ) {
       return child as ElementNodeBase;
     }
   }
@@ -2726,7 +2741,12 @@ function hasLiveRegion(children: CraftNodeChildren): boolean {
   if (!element) return false;
   const role = element.props['role'];
   const live = element.props['aria-live'];
-  return role === 'alert' || role === 'status' || live === 'polite' || live === 'assertive';
+  return (
+    role === 'alert' ||
+    role === 'status' ||
+    live === 'polite' ||
+    live === 'assertive'
+  );
 }
 
 /**
@@ -3013,7 +3033,11 @@ class PendingBlockRenderedNode implements RenderedNode {
       this.position === 'before' ? this.end : this.fallbackView.firstNode();
     reattachRange(this.context.renderer, this.detached, anchor, this.parent);
     this.detached = undefined;
-    if (this.focused && 'focus' in this.focused && typeof (this.focused as HTMLElement).focus === 'function') {
+    if (
+      this.focused &&
+      'focus' in this.focused &&
+      typeof (this.focused as HTMLElement).focus === 'function'
+    ) {
       (this.focused as HTMLElement).focus();
     }
     this.focused = undefined;
@@ -3376,7 +3400,10 @@ function allocateCraftHostName(
   name: string,
 ): string {
   const register =
-    injector.get(ComponentRegister, null) ?? ɵfallbackComponentRegister;
+    injector.get(
+      COMPONENT_REGISTER as unknown as ProviderToken<ComponentRegister>,
+      null,
+    ) ?? ɵfallbackComponentRegister;
   return `${kind}:${name}#${register.next()}`;
 }
 
@@ -4586,9 +4613,7 @@ class HeadingSectionRenderedNode implements RenderedNode {
     before: NativeNode | null,
     context: RenderContext,
   ) {
-    const level = node.reset
-      ? 1
-      : Math.min(6, (context.headingLevel ?? 1) + 1);
+    const level = node.reset ? 1 : Math.min(6, (context.headingLevel ?? 1) + 1);
     this.view = createFragment(
       parent,
       before,
@@ -4923,7 +4948,10 @@ export function mountInterpretedComponent<Props extends object>(
     (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
-  const styles = injector.get(CraftStyleRegistry, ɵfallbackCraftStyleRegistry);
+  const styles = injector.get(
+    CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
+    ɵfallbackCraftStyleRegistry,
+  );
   let instance: ComponentRenderedNode;
   try {
     instance = new ComponentRenderedNode(
@@ -4965,7 +4993,10 @@ export function mountInterpretedComponentTemplate<Context>(
     (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
-  const styles = injector.get(CraftStyleRegistry, ɵfallbackCraftStyleRegistry);
+  const styles = injector.get(
+    CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
+    ɵfallbackCraftStyleRegistry,
+  );
   let instance: ComponentRenderedNode;
   try {
     instance = new ComponentRenderedNode(

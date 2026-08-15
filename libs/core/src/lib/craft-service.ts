@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  createEnvironmentInjector,
   DestroyRef,
   EnvironmentInjector,
   EnvironmentProviders,
@@ -8,6 +9,7 @@ import {
   Injector,
   isSignal,
   Provider,
+  runInInjectionContext,
   Signal,
   Type,
   untracked,
@@ -41,6 +43,7 @@ import {
   type CRAFT_SERVICE_PROVIDER_TYPE_BRAND,
 } from './craft-service.shared';
 import {
+  COMPONENT_REGISTER,
   ComponentRegister,
   ɵfallbackComponentRegister,
 } from './component-register';
@@ -65,8 +68,10 @@ import {
 } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
 import {
+  craftToken,
+  type CraftToken,
   ɵcraftInjectorFromHost,
-  ɵcreateAngularChildInjector,
+  ɵregisterCraftTokenHostToken,
 } from './host/craft-injector';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
@@ -497,17 +502,15 @@ type InputBindings<
 > = keyof Inputs extends never
   ? {}
   : {
-      [Key in keyof Inputs]: PublicInputValue<Inputs[Key]> |
-        AllowedProvidedElsewhere<Scope>;
+      [Key in keyof Inputs]:
+        | PublicInputValue<Inputs[Key]>
+        | AllowedProvidedElsewhere<Scope>;
     };
 
-type PublicInputValue<Value> = Value extends Yieldable<
-  [],
-  infer Resolved,
-  any
->
-  ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
-  : Value;
+type PublicInputValue<Value> =
+  Value extends Yieldable<[], infer Resolved, any>
+    ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
+    : Value;
 
 type PublicInputBindings<
   Inputs extends object,
@@ -2226,6 +2229,7 @@ type ConcreteRuntimeDefinition = {
   appStart: boolean;
   providers?: readonly Provider[];
   token?: InjectionToken<unknown>;
+  craftToken?: CraftToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
   hasPublicInput: boolean;
@@ -2393,10 +2397,7 @@ export function toValue<T>(value: MaybeSignal<T>): T {
 }
 
 function isServiceInputReader(value: unknown): value is ServiceInputReader {
-  return (
-    typeof value === 'function' &&
-    SERVICE_INPUT_SOURCE in value
-  );
+  return typeof value === 'function' && SERVICE_INPUT_SOURCE in value;
 }
 
 function resolveServiceInputSource(value: unknown): unknown {
@@ -3185,6 +3186,10 @@ export function craftService(
   if (options.scope === 'abstract') {
     assertAbstractMarker(factoryOrMarker);
     const token = new InjectionToken(`${capitalizedName}AbstractServiceToken`);
+    const nativeToken = craftToken<unknown>(
+      `${capitalizedName}AbstractServiceToken`,
+    );
+    ɵregisterCraftTokenHostToken(nativeToken, token);
     const requirement = createServiceRequirement(options.name, token);
 
     // A minimal definition so `X()` resolves the requirement token (the
@@ -3198,6 +3203,7 @@ export function craftService(
       browserBoundary: false,
       appStart: false,
       token,
+      craftToken: nativeToken,
       requirement,
       hasPublicInput: false,
       hasProvidedInput: false,
@@ -3229,12 +3235,17 @@ export function craftService(
           browserBoundary: false,
           appStart: false,
           token: new InjectionToken(`${capitalizedName}ServiceToken`),
+          craftToken: craftToken(`${capitalizedName}ServiceToken`),
           requirement,
           hasPublicInput: factoryUsesPublicInput(factory),
           hasProvidedInput: factoryUsesProvidedInput(factory),
           appStartHooks: new Map(),
           startedAppStartServices: new Set(),
         };
+        ɵregisterCraftTokenHostToken(
+          abstractRuntimeDefinition.craftToken!,
+          abstractRuntimeDefinition.token!,
+        );
         return createProviders(abstractRuntimeDefinition);
       },
     };
@@ -3287,8 +3298,20 @@ export function craftService(
               ? `${capitalizedName}ToProvide`
               : `${capitalizedName}ServiceToken`,
           );
+  const nativeToken =
+    options.scope === 'function'
+      ? undefined
+      : craftToken<unknown>(
+          options.scope === 'manuallyProvidedAtRoot'
+            ? `${capitalizedName}ToProvide`
+            : `${capitalizedName}ServiceToken`,
+        );
 
   runtimeDefinition.token = token;
+  runtimeDefinition.craftToken = nativeToken;
+  if (token && nativeToken) {
+    ɵregisterCraftTokenHostToken(nativeToken, token);
+  }
 
   // The helper closes over metadata that is initialized immediately below.
   // eslint-disable-next-line prefer-const
@@ -3814,10 +3837,14 @@ function adaptExternalDependencyValue<Value>(
         if (!reactiveProperties.has(property)) {
           reactiveProperties.set(
             property,
-            createYieldableReactiveValue(entry, `${dependencyName}.${String(property)}`, {
-              primitive: 'toCraftService',
-              path: `${dependencyName}.${String(property)}`,
-            }),
+            createYieldableReactiveValue(
+              entry,
+              `${dependencyName}.${String(property)}`,
+              {
+                primitive: 'toCraftService',
+                path: `${dependencyName}.${String(property)}`,
+              },
+            ),
           );
         }
         return reactiveProperties.get(property);
@@ -3911,7 +3938,9 @@ function resolveConcreteService(
   return trackResolvedService(
     definition,
     injector,
-    markNamedReactiveProperties(injector.get(definition.token!)),
+    markNamedReactiveProperties(
+      ɵcraftInjectorFromHost(injector).get(definition.craftToken!),
+    ),
   );
 }
 
@@ -3950,54 +3979,58 @@ function createConcreteServiceInstance(
     definition.providers ?? [],
   );
 
-  return ɵcraftInjectorFromHost(scopedInjector).run(() => {
-    const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
-    const bindings = omitInputs
-      ? {}
-      : (bindingsOverride ?? definition.initialBindings ?? {});
-    const inputs = createInputProxy(
-      bindings,
-      providedConfig,
-      omitInputs,
-      definition.name,
-    );
-    const wrappedFactory = injectFnWrapper()(definition.factory);
-    const result =
-      definition.factory.length > 0 ? wrappedFactory(inputs) : wrappedFactory();
+  return runInInjectionContext(scopedInjector, () =>
+    ɵcraftInjectorFromHost(scopedInjector).run(() => {
+      const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
+      const bindings = omitInputs
+        ? {}
+        : (bindingsOverride ?? definition.initialBindings ?? {});
+      const inputs = createInputProxy(
+        bindings,
+        providedConfig,
+        omitInputs,
+        definition.name,
+      );
+      const wrappedFactory = injectFnWrapper()(definition.factory);
+      const result =
+        definition.factory.length > 0
+          ? wrappedFactory(inputs)
+          : wrappedFactory();
 
-    if (!isGenerator(result)) {
-      return result;
-    }
-
-    const resolved = runCraftGenerator({
-      iterator: result,
-      injector: scopedInjector,
-      hostScope: definition.scope,
-      invalidYieldErrorMessage:
-        'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
-      multipleAppStartErrorMessage:
-        'craftService generators can only declare onAppStart(...) once.',
-      createAppStartHook: (run) => () =>
-        runAppStartCallback(run, scopedInjector, definition.scope),
-      reactiveReader: {
-        name: definition.name,
-        primitive: 'craftService',
-        path: `service:${definition.name}`,
-      },
-    });
-
-    if (resolved.appStartHook) {
-      if (!definition.appStart) {
-        throw new Error(
-          `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
-        );
+      if (!isGenerator(result)) {
+        return result;
       }
 
-      definition.appStartHooks.set(resolved.value, resolved.appStartHook);
-    }
+      const resolved = runCraftGenerator({
+        iterator: result,
+        injector: scopedInjector,
+        hostScope: definition.scope,
+        invalidYieldErrorMessage:
+          'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+        multipleAppStartErrorMessage:
+          'craftService generators can only declare onAppStart(...) once.',
+        createAppStartHook: (run) => () =>
+          runAppStartCallback(run, scopedInjector, definition.scope),
+        reactiveReader: {
+          name: definition.name,
+          primitive: 'craftService',
+          path: `service:${definition.name}`,
+        },
+      });
 
-    return resolved.value;
-  });
+      if (resolved.appStartHook) {
+        if (!definition.appStart) {
+          throw new Error(
+            `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
+          );
+        }
+
+        definition.appStartHooks.set(resolved.value, resolved.appStartHook);
+      }
+
+      return resolved.value;
+    }),
+  );
 }
 
 function runAppStartCallback(
@@ -4540,8 +4573,10 @@ export function ɵprovideHostName(name: string): Provider[] {
             skipSelf: true,
           }) ?? [];
         const id = (
-          inject(ComponentRegister, { optional: true }) ??
-          ɵfallbackComponentRegister
+          inject(
+            COMPONENT_REGISTER as unknown as InjectionToken<ComponentRegister>,
+            { optional: true },
+          ) ?? ɵfallbackComponentRegister
         ).next();
 
         return [...parentTags, `${name}#${id}`] as readonly string[];
@@ -4653,13 +4688,13 @@ export function ɵcreateHostTaggedInjector(
         ]
       : [...envOnlyTags, hostName];
 
-  const envInjector = ɵcreateAngularChildInjector(
-    injector,
+  const envInjector = createEnvironmentInjector(
     [
       ɵprovideHostName(hostName),
       { provide: ɵHOST_TAG_LIST, useValue: mergedTags },
       ...extraProviders,
     ],
+    injector as EnvironmentInjector,
     `HostTag(${hostName})`,
   );
 

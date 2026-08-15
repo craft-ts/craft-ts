@@ -1,5 +1,4 @@
-import { Injectable } from '@angular/core';
-import { type GetDeps } from '@craft-ng/core';
+import { craftToken, type GetDeps } from '@craft-ng/core';
 
 type StyleRoot = Document | ShadowRoot;
 
@@ -17,26 +16,29 @@ const supportsAdoptedStyleSheets =
   'adoptedStyleSheets' in Document.prototype &&
   'replaceSync' in CSSStyleSheet.prototype;
 
-@Injectable({ providedIn: 'root' })
-export class CraftStyleRegistry {
-  private readonly roots = new WeakMap<StyleRoot, Map<string, StyleEntry>>();
+export type CraftStyleRegistry = {
+  acquire(root: StyleRoot, key: string, css: string, order: number): () => void;
+};
 
-  acquire(
+export function createCraftStyleRegistry(): CraftStyleRegistry {
+  const roots = new WeakMap<StyleRoot, Map<string, StyleEntry>>();
+
+  function acquire(
     root: StyleRoot,
     key: string,
     css: string,
     order: number,
   ): () => void {
-    let entries = this.roots.get(root);
+    let entries = roots.get(root);
     if (!entries) {
       entries = new Map();
-      this.roots.set(root, entries);
+      roots.set(root, entries);
     }
 
     const existing = entries.get(key);
     if (existing) {
       existing.refs += 1;
-      return () => this.release(root, key, existing);
+      return () => release(root, key, existing);
     }
 
     const entry: StyleEntry = { refs: 1, css, order };
@@ -57,22 +59,22 @@ export class CraftStyleRegistry {
       entry.element = element;
     }
     entries.set(key, entry);
-    this.sync(root, entries);
-    return () => this.release(root, key, entry);
+    sync(root, entries);
+    return () => release(root, key, entry);
   }
 
-  private release(root: StyleRoot, key: string, entry: StyleEntry): void {
+  function release(root: StyleRoot, key: string, entry: StyleEntry): void {
     if (entry.refs === 0) return;
     entry.refs -= 1;
     if (entry.refs > 0) return;
 
     entry.element?.remove();
-    const entries = this.roots.get(root);
+    const entries = roots.get(root);
     entries?.delete(key);
-    if (entries) this.sync(root, entries);
+    if (entries) sync(root, entries);
   }
 
-  private sync(root: StyleRoot, entries: Map<string, StyleEntry>): void {
+  function sync(root: StyleRoot, entries: Map<string, StyleEntry>): void {
     if (!supportsAdoptedStyleSheets) {
       const parent =
         root instanceof Document ? (root.head ?? root.documentElement) : root;
@@ -97,9 +99,14 @@ export class CraftStyleRegistry {
       .filter((sheet): sheet is CSSStyleSheet => Boolean(sheet));
     root.adoptedStyleSheets = [...current, ...craftSheets];
   }
+
+  return { acquire };
 }
 
-export const ɵfallbackCraftStyleRegistry = new CraftStyleRegistry();
+export const CRAFT_STYLE_REGISTRY =
+  craftToken<CraftStyleRegistry>('CraftStyleRegistry');
+
+export const ɵfallbackCraftStyleRegistry = createCraftStyleRegistry();
 
 export type GenDeps_CraftStyleRegistry = GetDeps<{
   deps: {};
