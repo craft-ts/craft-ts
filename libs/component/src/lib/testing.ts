@@ -455,9 +455,16 @@ type TemplateTestResult<Component extends CraftComponent<any>, Context> =
 
 function matchesName(actual: string, expected: string | RegExp | undefined): boolean {
   if (expected === undefined) return true;
-  if (typeof expected === 'string') return actual === expected;
-  expected.lastIndex = 0;
-  return expected.test(actual);
+  if (typeof expected === 'string') {
+    return actual === expected;
+  }
+  const lastIndex = expected.lastIndex;
+  try {
+    expected.lastIndex = 0;
+    return expected.test(actual);
+  } finally {
+    expected.lastIndex = lastIndex;
+  }
 }
 
 function findById(root: ParentNode, id: string): Element | undefined {
