@@ -1,3 +1,20 @@
+## 0.7.0-beta.11 (2026-08-15)
+
+### 🚀 Features
+
+- **mcp:** ship a consumer MCP server, Agent Skills, and llms.txt ([690579d](https://github.com/ng-angular-stack/ng-craft/commit/690579d))
+
+### 🩹 Fixes
+
+- **release:** version @craft-ng/mcp from its package.json ([f56c276](https://github.com/ng-angular-stack/ng-craft/commit/f56c276))
+- **release:** allow package-lock.json in the version bump ([bde68e9](https://github.com/ng-angular-stack/ng-craft/commit/bde68e9))
+- **release:** pack @craft-ng/mcp from an absolute path ([f112973](https://github.com/ng-angular-stack/ng-craft/commit/f112973))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Romain
+
 ## 0.7.0-beta.10 (2026-08-15)
 
 ### 🩹 Fixes
