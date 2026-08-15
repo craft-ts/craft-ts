@@ -77,6 +77,10 @@ export {
   type CraftProvider,
   type CraftToken,
 } from './lib/host/craft-injector';
+export {
+  createBrowserDomAdapter,
+  type CraftDomAdapter,
+} from './lib/host/craft-dom';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
 export * from './lib/yieldable';

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "node"],
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -15,6 +15,7 @@
     "customConditions": ["@ng-craft/source"],
     "paths": {
       "@craft-ng/core": ["../../libs/core/src/index.ts"],
+      "@craft-ng/angular": ["../../libs/angular/src/index.ts"],
       "test-type": ["../../libs/test-type/src/index.ts"]
     }
   },

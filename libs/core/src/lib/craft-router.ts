@@ -597,16 +597,17 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
     const removeClickListener = context.renderer.listen(
       context.element,
       'click',
-      (event: MouseEvent) => {
+      (event) => {
+        const mouseEvent = event as MouseEvent;
         if (
           !currentInput ||
           !currentUrlTree ||
-          !shouldHandleCraftRouterLinkClick(event, context.element)
+          !shouldHandleCraftRouterLinkClick(mouseEvent, context.element)
         ) {
           return;
         }
 
-        event.preventDefault();
+        mouseEvent.preventDefault();
         void router.navigateByUrl(
           currentUrlTree,
           getNavigationBehaviorOptions(currentInput),

@@ -21,6 +21,7 @@ import {
   type CraftNodeDirective,
   type CraftNodeEffectFactory,
 } from '../craft-node-directive';
+import type { CraftDomAdapter } from '../host/craft-dom';
 import {
   ControlSyncer,
   CraftCheckboxControl,
@@ -87,7 +88,7 @@ export class CraftFieldBinding<T> {
 
   constructor(
     private readonly element: HTMLElement,
-    private readonly renderer: Renderer2,
+    private readonly renderer: CraftDomAdapter,
     private readonly injector: Injector,
     private readonly field: CraftField<T>,
     private readonly customValueControl: CraftValueControl<unknown> | null = null,
@@ -276,8 +277,7 @@ export class CraftFieldBinding<T> {
   }
 
   private toggleClass(el: HTMLElement, cls: string, on: boolean): void {
-    if (on) this.renderer.addClass(el, cls);
-    else this.renderer.removeClass(el, cls);
+    el.classList.toggle(cls, on);
   }
 
   // ---------------------- Strategy: text ----------------------
@@ -611,7 +611,7 @@ export class CraftFieldBinding<T> {
 export function bindCraftField<T>(
   element: HTMLElement,
   field: CraftField<T>,
-  renderer: Renderer2,
+  renderer: CraftDomAdapter,
   injector: Injector,
   customValueControl: CraftValueControl<unknown> | null = null,
   customCheckboxControl: CraftCheckboxControl | null = null,

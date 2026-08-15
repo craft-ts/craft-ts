@@ -1,28 +1,4 @@
 import {
-  ApplicationRef,
-  computed,
-  createComponent,
-  createEnvironmentInjector,
-  ElementRef,
-  EnvironmentInjector,
-  Injector,
-  inputBinding,
-  outputBinding,
-  reflectComponentType,
-  Renderer2,
-  RendererFactory2,
-  RendererStyleFlags2,
-  runInInjectionContext,
-  signal,
-  untracked,
-  type Binding,
-  type ComponentRef,
-  type DirectiveWithBindings,
-  type EffectRef,
-  type Provider,
-  type Type,
-} from '@angular/core';
-import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   CRAFT_DOM_EVENT_HOOK,
   CRAFT_NODE_DIRECTIVE,
@@ -33,6 +9,7 @@ import {
   ComponentRegister,
   craftEffect,
   craftLazy,
+  createBrowserDomAdapter,
   executeYieldable,
   HOST_TAG_LIST,
   executeTemplateTrace,
@@ -58,6 +35,7 @@ import {
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
   type CraftServiceProvider,
+  type CraftDomAdapter,
   type CraftDomEvent,
   type CraftDomEventHook,
   type CraftNodeDirectiveContext,
@@ -71,7 +49,22 @@ import {
   RealCraftTemporalRuntime,
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
-import { CraftAngularDirectiveHost } from '../angular-host';
+import {
+  AngularMount,
+  CraftAngularDirectiveHost,
+  ɵangularComputed as computed,
+  ɵcreateAngularEnvironmentInjector as createEnvironmentInjector,
+  ɵAngularElementRef as ElementRef,
+  ɵAngularEnvironmentInjector as EnvironmentInjector,
+  ɵAngularInjector as Injector,
+  ɵreflectAngularComponentType as reflectComponentType,
+  ɵrunInAngularInjectionContext as runInInjectionContext,
+  ɵangularSignal as signal,
+  ɵangularUntracked as untracked,
+  type ɵAngularEffectRef as EffectRef,
+  type ɵAngularProvider as Provider,
+  type AngularMountContext,
+} from '@craft-ng/angular';
 import type { HostProps } from '../hyperscript';
 import {
   CRAFT_COMPONENT,
@@ -139,7 +132,7 @@ type NativeNode = Node;
 type NativeParent = Node;
 
 interface RenderContext {
-  readonly renderer: Renderer2;
+  readonly renderer: CraftDomAdapter;
   readonly injector: Injector;
   readonly componentContext?: unknown;
   readonly componentName?: string;
@@ -560,10 +553,6 @@ function createEffectInInjector(
   );
 }
 
-function resolveAngularValue(value: unknown): unknown {
-  return typeof value === 'function' ? value() : value;
-}
-
 function executeTemplateCallback(
   callback: (...args: any[]) => unknown,
   args: any[],
@@ -576,6 +565,16 @@ function executeTemplateCallback(
   } finally {
     if (isGeneratorCallback) templateGeneratorDepth--;
   }
+}
+
+function angularMountContext(context: RenderContext): AngularMountContext {
+  return {
+    injector: context.injector,
+    resolveInput: (value) =>
+      typeof value === 'function' ? value() : value,
+    executeOutput: (callback, value) =>
+      executeTemplateCallback(callback, [value], context),
+  };
 }
 
 function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
@@ -682,7 +681,7 @@ function projectYieldableTemplateContext(
   }
   if (typeof value !== 'object' || value === null) return value;
 
-  // Craft nodes carry runtime objects such as RenderContext and Renderer2
+  // Craft nodes carry runtime objects such as RenderContext and the DOM adapter
   // through their declaration context. Copying them as plain objects would
   // strip prototype methods from those runtime services before projection.
   if (
@@ -709,87 +708,6 @@ function projectYieldableTemplateContext(
   return result;
 }
 
-function angularBindings(
-  getInputs: () => Readonly<Record<string, unknown>>,
-  getOutputs: () => Readonly<Record<string, (value: unknown) => unknown>>,
-  context: RenderContext,
-): Binding[] {
-  return [
-    ...Object.keys(getInputs()).map((name) =>
-      inputBinding(name, () => resolveAngularValue(getInputs()[name])),
-    ),
-    ...Object.keys(getOutputs()).map((name) =>
-      outputBinding(name, (value) =>
-        executeTemplateCallback(getOutputs()[name]!, [value], context),
-      ),
-    ),
-  ];
-}
-
-function angularDirectives(
-  source: ReturnType<typeof signal<readonly AngularDirectiveNode[]>>,
-  context: RenderContext,
-): DirectiveWithBindings<unknown>[] {
-  return source().map((descriptor, index) => ({
-    type: descriptor.type,
-    bindings: angularBindings(
-      () => source()[index]?.inputs ?? {},
-      () => source()[index]?.outputs ?? {},
-      context,
-    ),
-  }));
-}
-
-class AngularMount {
-  private readonly descriptorSource;
-  private readonly directiveSource;
-  private readonly componentRef: ComponentRef<unknown>;
-  private readonly applicationRef: ApplicationRef;
-
-  constructor(
-    component: Type<unknown>,
-    hostElement: Element,
-    injector: Injector | undefined,
-    inputs: Readonly<Record<string, unknown>>,
-    outputs: Readonly<Record<string, (value: unknown) => unknown>>,
-    directives: readonly AngularDirectiveNode[],
-    context: RenderContext,
-  ) {
-    const elementInjector = injector ?? context.injector;
-    this.descriptorSource = signal({ inputs, outputs, directives });
-    this.directiveSource = signal(directives);
-    this.applicationRef = context.injector.get(ApplicationRef);
-    this.componentRef = createComponent(component, {
-      environmentInjector: elementInjector.get(EnvironmentInjector),
-      elementInjector,
-      hostElement,
-      bindings: angularBindings(
-        () => this.descriptorSource().inputs,
-        () => this.descriptorSource().outputs,
-        context,
-      ),
-      directives: angularDirectives(this.directiveSource, context),
-    });
-    this.applicationRef.attachView(this.componentRef.hostView);
-    this.componentRef.changeDetectorRef.detectChanges();
-  }
-
-  update(
-    inputs: Readonly<Record<string, unknown>>,
-    outputs: Readonly<Record<string, (value: unknown) => unknown>>,
-    directives: readonly AngularDirectiveNode[],
-  ): void {
-    this.descriptorSource.set({ inputs, outputs, directives });
-    this.directiveSource.set(directives);
-    this.componentRef.changeDetectorRef.detectChanges();
-  }
-
-  destroy(): void {
-    this.applicationRef.detachView(this.componentRef.hostView);
-    this.componentRef.destroy();
-  }
-}
-
 class CraftNodeDirectiveMount {
   private readonly inputs;
   private readonly environmentInjector: EnvironmentInjector;
@@ -806,7 +724,6 @@ class CraftNodeDirectiveMount {
     this.environmentInjector = createEnvironmentInjector(
       [
         { provide: ElementRef, useValue: new ElementRef(element) },
-        { provide: Renderer2, useValue: context.renderer },
         {
           provide: CRAFT_NODE_EFFECT_FACTORY,
           deps: [Injector],
@@ -902,7 +819,7 @@ function sameCraftNodeDirectives(
 }
 
 function insertBefore(
-  renderer: Renderer2,
+  renderer: CraftDomAdapter,
   parent: NativeParent,
   node: NativeNode,
   before: NativeNode | null,
@@ -910,11 +827,17 @@ function insertBefore(
   renderer.insertBefore(parent, node, before);
 }
 
-function removeNode(renderer: Renderer2, node: NativeNode): void {
+function removeNode(renderer: CraftDomAdapter, node: NativeNode): void {
   const parent = node.parentNode;
   if (parent) {
     renderer.removeChild(parent, node);
   }
+}
+
+function createComment(parent: NativeParent, value: string): Comment {
+  const ownerDocument =
+    parent instanceof Document ? parent : parent.ownerDocument;
+  return (ownerDocument ?? document).createComment(value);
 }
 
 function patchRenderedChildren(
@@ -955,7 +878,7 @@ class TextRenderedNode implements RenderedNode {
   constructor(
     private node: Text,
     private value: string,
-    private renderer: Renderer2,
+    private renderer: CraftDomAdapter,
   ) {}
 
   firstNode(): NativeNode {
@@ -1333,27 +1256,30 @@ function sameStyleValue(left: unknown, right: unknown): boolean {
 }
 
 function setStyleValue(
-  renderer: Renderer2,
+  _renderer: CraftDomAdapter,
   element: Element,
   key: string,
   value: unknown,
   context: RenderContext,
 ): void {
   value = resolveTemplateValue(value, context);
+  const style = (element as Element & { readonly style: CSSStyleDeclaration })
+    .style;
   if (value === null || value === undefined || value === false) {
-    renderer.removeStyle(element, key);
+    if (key.startsWith('--')) {
+      style.removeProperty(key);
+    } else {
+      (style as unknown as Record<string, unknown>)[key] = '';
+    }
+  } else if (key.startsWith('--')) {
+    style.setProperty(key, String(value));
   } else {
-    renderer.setStyle(
-      element,
-      key,
-      String(value),
-      key.startsWith('--') ? RendererStyleFlags2.DashCase : undefined,
-    );
+    (style as unknown as Record<string, unknown>)[key] = String(value);
   }
 }
 
 function applyStyles(
-  renderer: Renderer2,
+  renderer: CraftDomAdapter,
   element: Element,
   previous: unknown,
   next: unknown,
@@ -1364,7 +1290,7 @@ function applyStyles(
   if (typeof previous === 'object' && previous !== null) {
     for (const key of Object.keys(previous)) {
       if (typeof next !== 'object' || next === null || !(key in next)) {
-        renderer.removeStyle(element, key);
+        setStyleValue(renderer, element, key, null, context);
       }
     }
   } else if (typeof previous === 'string' && previous !== next) {
@@ -1406,7 +1332,7 @@ function flattenAttributes(
 }
 
 function applyAttribute(
-  renderer: Renderer2,
+  renderer: CraftDomAdapter,
   element: Element,
   key: string,
   value: unknown,
@@ -1685,7 +1611,7 @@ class ElementRenderedNode implements RenderedNode {
             {},
             {},
             directives,
-            this.context,
+            angularMountContext(this.context),
           )
         : undefined;
     } else {
@@ -2095,8 +2021,8 @@ function createFragment(
   children: CraftNodeChildren,
   label: string,
 ): FragmentRenderedNode {
-  const start = context.renderer.createComment(`${label}:start`) as Comment;
-  const end = context.renderer.createComment(`${label}:end`) as Comment;
+  const start = createComment(parent, `${label}:start`);
+  const end = createComment(parent, `${label}:end`);
   insertBefore(context.renderer, parent, start, before);
   insertBefore(context.renderer, parent, end, before);
   return new FragmentRenderedNode(parent, start, end, context, children);
@@ -2442,7 +2368,7 @@ class MatchBlockRenderedNode implements RenderedNode {
  * boundary holds them detached — the markers keep a parent to insert into.
  */
 function detachRange(
-  renderer: Renderer2,
+  renderer: CraftDomAdapter,
   first: NativeNode,
   last: NativeNode,
 ): DocumentFragment {
@@ -2463,7 +2389,7 @@ function detachRange(
 
 /** Re-inserts a detached range before `anchor`, in whatever parent it now has. */
 function reattachRange(
-  renderer: Renderer2,
+  renderer: CraftDomAdapter,
   holder: DocumentFragment,
   anchor: NativeNode,
   fallbackParent: NativeParent,
@@ -2499,12 +2425,8 @@ class CatchBlockRenderedNode implements RenderedNode {
     private readonly context: RenderContext,
   ) {
     this.fallbackPosition = node.position;
-    this.start = context.renderer.createComment(
-      'craft-catch-block:start',
-    ) as Comment;
-    this.end = context.renderer.createComment(
-      'craft-catch-block:end',
-    ) as Comment;
+    this.start = createComment(parent, 'craft-catch-block:start');
+    this.end = createComment(parent, 'craft-catch-block:end');
     insertBefore(context.renderer, parent, this.start, before);
     insertBefore(context.renderer, parent, this.end, before);
 
@@ -2842,10 +2764,8 @@ class PendingBlockRenderedNode implements RenderedNode {
     private readonly context: RenderContext,
   ) {
     this.position = node.position;
-    this.start = context.renderer.createComment(
-      'craft-pending:start',
-    ) as Comment;
-    this.end = context.renderer.createComment('craft-pending:end') as Comment;
+    this.start = createComment(parent, 'craft-pending:start');
+    this.end = createComment(parent, 'craft-pending:end');
     insertBefore(context.renderer, parent, this.start, before);
     insertBefore(context.renderer, parent, this.end, before);
 
@@ -3409,7 +3329,7 @@ class AngularRenderedNode implements RenderedNode {
       node.inputs,
       node.outputs,
       node.directives,
-      context,
+      angularMountContext(context),
     );
   }
 
@@ -4513,7 +4433,13 @@ class DeferRenderedNode implements RenderedNode {
     }
 
     if (this.node.trigger === 'interaction') {
-      const target = this.firstElementInView() ?? this.parent;
+      const target =
+        this.firstElementInView() ??
+        (this.parent instanceof Element ? this.parent : undefined);
+      if (!target) {
+        this.startLoad();
+        return;
+      }
       const start = (event?: Event) => {
         if (event && event.type === 'keydown') {
           const key = (event as KeyboardEvent).key;
@@ -4798,10 +4724,8 @@ function mountNode(
     case 'directive':
       return new CraftDirectiveRenderedNode(node, parent, before, context);
     case 'each': {
-      const start = context.renderer.createComment(
-        'craft-each:start',
-      ) as Comment;
-      const end = context.renderer.createComment('craft-each:end') as Comment;
+      const start = createComment(parent, 'craft-each:start');
+      const end = createComment(parent, 'craft-each:end');
       insertBefore(context.renderer, parent, start, before);
       insertBefore(context.renderer, parent, end, before);
       return new EachRenderedNode(node, parent, start, end, context);
@@ -4998,7 +4922,7 @@ export function mountInterpretedComponent<Props extends object>(
   injector: Injector,
   props: Props,
 ): MountedCraftComponent<Props> {
-  const renderer = injector.get(RendererFactory2).createRenderer(host, null);
+  const renderer = createBrowserDomAdapter(host.ownerDocument);
   const rootNode = host.getRootNode();
   const styleRoot: Document | ShadowRoot =
     (typeof Document !== 'undefined' && rootNode instanceof Document) ||
@@ -5040,7 +4964,7 @@ export function mountInterpretedComponentTemplate<Context>(
   context: Context,
   additionalProviders: readonly CraftServiceProvider[] = [],
 ): MountedCraftTemplate<Context> {
-  const renderer = injector.get(RendererFactory2).createRenderer(host, null);
+  const renderer = createBrowserDomAdapter(host.ownerDocument);
   const rootNode = host.getRootNode();
   const styleRoot: Document | ShadowRoot =
     (typeof Document !== 'undefined' && rootNode instanceof Document) ||

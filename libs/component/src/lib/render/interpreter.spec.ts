@@ -53,7 +53,7 @@ import {
   mountCraftComponent,
   provideCraftComponent,
 } from '../bridge';
-import { angular, directive } from '../angular';
+import { angular, directive } from '@craft-ng/angular';
 import { craftComponent } from '../component';
 import { CraftRouterOutlet } from '../craft-router-outlet';
 import { craftDirective } from '../directive';
@@ -1852,7 +1852,7 @@ describe('functional component interpreter', () => {
       (context) => {
         mountedElements.push(context.element);
         expect(inject(ElementRef).nativeElement).toBe(context.element);
-        expect(inject(Renderer2)).toBe(context.renderer);
+        expect(inject(Renderer2, { optional: true })).toBeNull();
         inject(DestroyRef).onDestroy(destroyRefCleanups);
         context.injector.get(CRAFT_NODE_EFFECT_FACTORY)('marker', () => {
           context.renderer.setAttribute(

@@ -2,12 +2,12 @@ import {
   InjectionToken,
   type EffectRef,
   type Injector,
-  type Renderer2,
 } from '@angular/core';
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftRegistrationTarget,
 } from './craft-register-for-runtime';
+import type { CraftDomAdapter } from './host/craft-dom';
 
 /** Runtime marker shared by core-authored DOM directives and the Craft renderer. */
 export const CRAFT_NODE_DIRECTIVE = Symbol.for(
@@ -31,7 +31,7 @@ export interface CraftNodeDirectiveContext<
 > {
   readonly element: Element;
   readonly injector: Injector;
-  readonly renderer: Renderer2;
+  readonly renderer: CraftDomAdapter;
   /**
    * The current directive inputs. Reading this property inside an effect tracks
    * input updates without remounting the directive.
