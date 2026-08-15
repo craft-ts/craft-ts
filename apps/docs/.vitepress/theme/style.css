@@ -246,7 +246,7 @@ html.dark {
   height: 132px;
   object-fit: cover;
   object-position: center center;
-  transform: translateX(8px);
+  transform: translateX(20px);
 }
 
 .VPHome .author-note__body {
