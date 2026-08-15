@@ -6,9 +6,12 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
+  button,
   craftComponent,
+  disclosureControl,
+  div,
   fieldControl,
   fieldIds,
   input,
@@ -84,5 +87,59 @@ describe('fieldControl', () => {
     const control = element.querySelector('input');
     expect(control?.getAttribute('aria-invalid')).toBe('true');
     expect(control?.hasAttribute('data-invalid')).toBe(true);
+  });
+});
+
+afterEach(() => {
+  document.body.replaceChildren();
+});
+
+describe('disclosureControl', () => {
+  it('links aria-expanded and aria-controls to the panel id', () => {
+    const faq = disclosureControl('faq-1', true);
+    const root = craftComponent(
+      'disclosureOpen',
+      {},
+      () => ({}),
+      () => [
+        button(faq.button, 'What is Craft?'),
+        div(faq.panel, 'A typed Angular framework.'),
+      ],
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+    const toggle = element.querySelector('button');
+    const panel = element.querySelector('#faq-1-panel');
+    expect(toggle?.id).toBe('faq-1-button');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-controls')).toBe('faq-1-panel');
+    expect(toggle?.hasAttribute('data-open')).toBe(true);
+    expect(panel?.hasAttribute('data-open')).toBe(true);
+    expect(panel?.hasAttribute('aria-hidden')).toBe(false);
+  });
+
+  it('hides the panel and drops data-open when closed', () => {
+    const faq = disclosureControl('faq-1', false);
+    const root = craftComponent(
+      'disclosureClosed',
+      {},
+      () => ({}),
+      () => [button(faq.button, 'Q'), div(faq.panel, 'A')],
+    );
+    const element = host();
+    mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+    const toggle = element.querySelector('button');
+    const panel = element.querySelector('#faq-1-panel');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.hasAttribute('data-open')).toBe(false);
+    expect(panel?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('marks the toggle aria-disabled when disabled', () => {
+    const faq = disclosureControl('faq-1', false, { disabled: true });
+    expect(faq.button['aria-disabled']).toBe(true);
+    expect(faq.button['data-disabled']).toBe(true);
   });
 });

@@ -40,3 +40,51 @@ export function fieldControl(
     description: { id: ids.descriptionId },
   };
 }
+
+export type DisclosureControl = {
+  readonly buttonId: string;
+  readonly panelId: string;
+  readonly button: {
+    readonly type: 'button';
+    readonly id: string;
+    readonly 'aria-expanded': 'true' | 'false';
+    readonly 'aria-controls': string;
+    readonly 'data-open'?: true;
+    readonly 'aria-disabled'?: true;
+    readonly 'data-disabled'?: true;
+  };
+  readonly panel: {
+    readonly id: string;
+    readonly 'data-open'?: true;
+    readonly 'aria-hidden'?: true;
+  };
+};
+
+export function disclosureControl(
+  id: string,
+  isOpen: boolean,
+  options?: { readonly disabled?: boolean },
+): DisclosureControl {
+  const buttonId = `${id}-button`;
+  const panelId = `${id}-panel`;
+  const openAttrs = isOpen ? ({ 'data-open': true as const } as const) : {};
+  return {
+    buttonId,
+    panelId,
+    button: {
+      type: 'button',
+      id: buttonId,
+      'aria-expanded': isOpen ? 'true' : 'false',
+      'aria-controls': panelId,
+      ...openAttrs,
+      ...(options?.disabled
+        ? { 'aria-disabled': true as const, 'data-disabled': true as const }
+        : {}),
+    },
+    panel: {
+      id: panelId,
+      ...openAttrs,
+      ...(isOpen ? {} : { 'aria-hidden': true as const }),
+    },
+  };
+}
