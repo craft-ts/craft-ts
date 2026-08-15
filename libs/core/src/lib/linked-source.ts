@@ -34,5 +34,5 @@ export function linkedSource<SourceState, ComputedValue>(
       }),
     },
     SourceBranded,
-  ) as SignalSource<ComputedValue>;
+  ) as unknown as SignalSource<ComputedValue>;
 }

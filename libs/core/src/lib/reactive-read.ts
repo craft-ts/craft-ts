@@ -4,6 +4,7 @@ import {
   type Provider,
   type Signal,
 } from '@angular/core';
+import type { SourceBranded } from './util/util';
 
 /** Runtime/type brand carried by named reactive values exposed to templates. */
 export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
@@ -244,8 +245,11 @@ export type RawReactiveProperties<Shape> =
           : Shape;
 
 /** Recursively replaces exposed Angular signals while preserving methods/plain values. */
-export type YieldableReactiveProperties<Shape> =
-  Shape extends YieldableReactiveValue<any, any>
+export type YieldableReactiveProperties<Shape> = Shape extends SourceBranded
+  ? Shape extends Signal<any>
+    ? YieldableReactiveSignal<Shape, string>
+    : Shape
+  : Shape extends YieldableReactiveValue<any, any>
     ? Shape
     : Shape extends Signal<any>
       ? YieldableReactiveSignal<Shape, string>
@@ -253,26 +257,35 @@ export type YieldableReactiveProperties<Shape> =
         ? Shape
         : Shape extends object
           ? {
-              [Key in keyof Shape]: Shape[Key] extends Signal<any>
-                ? Shape[Key] extends YieldableReactiveValue<any, any>
-                  ? Shape[Key]
-                  : YieldableReactiveSignal<
+              [Key in keyof Shape]: Shape[Key] extends SourceBranded
+                ? Shape[Key] extends Signal<any>
+                  ? YieldableReactiveSignal<
                       Shape[Key],
                       Key extends string ? Key : string
                     >
-                : Shape[Key] extends YieldableReactiveValue<any, any>
-                  ? Shape[Key]
-                  : Shape[Key] extends (...args: any[]) => any
-                    ? Key extends 'select' | 'selectOrCreate'
-                      ? (
-                          ...args: Parameters<Shape[Key]>
-                        ) => YieldableReactiveProperties<ReturnType<Shape[Key]>>
-                      : Key extends 'reload' | 'refresh'
-                        ? YieldableReactiveAction<Shape[Key]>
-                        : Shape[Key]
-                    : Shape[Key] extends object
-                      ? YieldableReactiveProperties<Shape[Key]>
-                      : Shape[Key];
+                  : Shape[Key]
+                : Shape[Key] extends Signal<any>
+                  ? Shape[Key] extends YieldableReactiveValue<any, any>
+                    ? Shape[Key]
+                    : YieldableReactiveSignal<
+                        Shape[Key],
+                        Key extends string ? Key : string
+                      >
+                  : Shape[Key] extends YieldableReactiveValue<any, any>
+                    ? Shape[Key]
+                    : Shape[Key] extends (...args: any[]) => any
+                      ? Key extends 'select' | 'selectOrCreate'
+                        ? (
+                            ...args: Parameters<Shape[Key]>
+                          ) => YieldableReactiveProperties<
+                            ReturnType<Shape[Key]>
+                          >
+                        : Key extends 'reload' | 'refresh'
+                          ? YieldableReactiveAction<Shape[Key]>
+                          : Shape[Key]
+                      : Shape[Key] extends object
+                        ? YieldableReactiveProperties<Shape[Key]>
+                        : Shape[Key];
             }
           : Shape;
 

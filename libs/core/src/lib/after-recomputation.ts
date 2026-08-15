@@ -317,15 +317,24 @@ import { SourceBranded } from './util/util';
  * ```
  */
 export function afterRecomputation<State, SourceType>(
+  _source: SignalSource<SourceType>,
+  callback: (source: SourceType) => State,
+): ReadonlySource<State>;
+export function afterRecomputation<State, SourceType>(
   _source: ReadonlySource<SourceType>,
   callback: (source: SourceType) => State,
+): ReadonlySource<State>;
+export function afterRecomputation<State, SourceType>(
+  _source: SignalSource<SourceType> | ReadonlySource<SourceType>,
+  callback: (source: SourceType) => State,
 ): ReadonlySource<State> {
-  const initialValue = _source();
+  const source = _source as ReadonlySource<SourceType>;
+  const initialValue = source();
   const derivedSource = signal<State | undefined>(
     initialValue && callback(initialValue),
   );
   const effectRef = effect(() => {
-    const sourceValue = _source();
+    const sourceValue = source();
     if (sourceValue !== undefined) {
       untracked(() => {
         const newState = callback(sourceValue);

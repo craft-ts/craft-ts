@@ -7,11 +7,12 @@ const coreIndex = join(
   dirname(fileURLToPath(import.meta.url)),
   '../../index.ts',
 );
+const componentTypes = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../../component/src/lib/types.ts',
+);
 const angularTypeImportSources = [
-  join(
-    dirname(fileURLToPath(import.meta.url)),
-    '../../../../component/src/lib/types.ts',
-  ),
+  componentTypes,
   join(
     dirname(fileURLToPath(import.meta.url)),
     '../../../../component/src/lib/render/vnode.ts',
@@ -32,6 +33,11 @@ describe('public surface', () => {
     expect(signalSource).not.toMatch(
       /export type SignalSource<[^>]+>\s*=\s*Signal</,
     );
+  });
+
+  it('models readonly host signals without requiring set', () => {
+    const source = readFileSync(componentTypes, 'utf8');
+    expect(source).not.toMatch(/type HostSignal<[\s\S]{0,120}\bset\s*\(/);
   });
 
   it.each(angularTypeImportSources)(

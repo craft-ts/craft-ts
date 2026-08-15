@@ -18,18 +18,30 @@ import {
   RAW_REACTIVE_VALUE,
   REACTIVE_VALUE_TYPE,
   YIELDABLE_VALUE,
+  type ReactiveReadRequest,
   type YieldableReactiveValue,
 } from './reactive-read';
 
+type YieldableSignalSourceValue<T> = YieldableReactiveValue<
+  T | undefined,
+  string
+>;
+
 type YieldableSignalSourceMetadata<T> = Omit<
-  YieldableReactiveValue<T | undefined, string>,
+  YieldableSignalSourceValue<T>,
   | typeof RAW_REACTIVE_VALUE
   | typeof REACTIVE_VALUE_TYPE
   | typeof YIELDABLE_VALUE
->;
+> & {
+  readonly [RAW_REACTIVE_VALUE]: YieldableSignalSourceValue<T>[typeof RAW_REACTIVE_VALUE];
+  readonly [REACTIVE_VALUE_TYPE]: T | undefined;
+  readonly [YIELDABLE_VALUE]: string;
+};
 
-type SignalSourceReader<T> = (() => T | undefined) &
-  YieldableSignalSourceMetadata<T>;
+type SignalSourceReader<T> = {
+  (): T | undefined;
+  (): Generator<ReactiveReadRequest<T | undefined>, T | undefined, unknown>;
+} & YieldableSignalSourceMetadata<T>;
 
 export type SignalSource<T> = SignalSourceReader<T> & {
   set: (value: T) => void;
@@ -480,5 +492,5 @@ export function signalSource<T>(
       set,
     },
     SourceBranded,
-  ) as SignalSource<T>;
+  ) as unknown as SignalSource<T>;
 }

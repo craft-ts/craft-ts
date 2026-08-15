@@ -1,7 +1,12 @@
-import type { YieldableReactiveValue } from '@craft-ng/core';
+import type { SignalSource, YieldableReactiveValue } from '@craft-ng/core';
 import { expect, it } from 'vitest';
 
 type _Assert = YieldableReactiveValue<number, 'n'>;
+type AssertAssignable<Expected, Actual extends Expected> = Actual;
+type _SignalSourceStaysYieldable = AssertAssignable<
+  YieldableReactiveValue<number | undefined, string>,
+  SignalSource<number>
+>;
 // @ts-expect-error Angular Signal must not leak from the public index
 import type { Signal } from '@craft-ng/core';
 // @ts-expect-error Angular Injector must not leak from the public index

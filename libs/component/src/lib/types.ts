@@ -16,6 +16,7 @@ import type {
   ReactiveReadRequest,
   DEEP_YIELDABLE,
   YIELDABLE_DEPENDENCY,
+  YieldableReactiveValue,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type {
@@ -65,9 +66,13 @@ import type {
 
 export type CraftProvider = unknown;
 type HostReader<T> = () => T;
-type HostSignal<T> = HostReader<T> & {
-  set(value: T): void;
-};
+type HostSignal<T> = HostReader<T> &
+  Omit<
+    YieldableReactiveValue<T, string>,
+    | typeof RAW_REACTIVE_VALUE
+    | typeof REACTIVE_VALUE_TYPE
+    | typeof YIELDABLE_VALUE
+  >;
 
 declare const INPUT_BRAND: unique symbol;
 declare const OUTPUT_BRAND: unique symbol;
