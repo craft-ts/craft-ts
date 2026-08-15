@@ -103,7 +103,7 @@ already receive those methods as arguments — see
 | `withRetry`                                                         | Retryable lazy `loadComponent` / `loadChildren` | [Setup](/guide/routing/setup)                         |
 | `provideCraftRouter`, `provideCraftLoading`                         | Router with craft loading features              | [Pending UI](/guide/routing/pending-ui)               |
 | `withA11yNavigationFocus`, `CraftTitleStrategy`                     | Focus after nav; route `title` → document       | [Accessibility](/guide/components/accessibility)      |
-| `heading`, `headingSection`, `headingRoot`, `skipLink`, `liveRegion` | Relative outline, skip link, live regions     | [Accessibility](/guide/components/accessibility)      |
+| `heading`, `headingSection`, `headingRoot`, `skipLink`, `liveRegion`, `fieldControl`, `disclosureControl`, `buttonControl`, `clickFocus` | Relative outline, skip link, live regions, accessible control props, focus | [Accessibility](/guide/components/accessibility) |
 | `withErrorComponent`, `withRouteLoadError`, `withTransitionTimings` | Router features                                 | [Route load errors](/guide/routing/route-load-errors) |
 | `CraftRouterOutlet`                                                 | Non-blocking outlet                             | [Pending UI](/guide/routing/pending-ui)               |
 | `craftRouterLink`                                                   | Type-safe navigation target                     | [Setup](/guide/routing/setup)                         |
@@ -137,6 +137,7 @@ already receive those methods as arguments — see
 | ----------------- | ------------------------------------------ | ------------------------------------------------------- |
 | `CraftHttpClient` | Tracked HTTP client with typed exceptions  | [query](/guide/state/server-state)                      |
 | `browserBoundary` | Marks a service as a browser boundary      | [Browser boundaries](/guide/testing/browser-boundaries) |
+| `BrowserDocument` | Reads and updates document title, language, and direction | [Browser boundaries](/guide/testing/browser-boundaries) |
 | `Console`         | Yieldable console, overridable for tracing | [Observability](/guide/advanced/observability)          |
 
 ## Testing

@@ -18,7 +18,9 @@ Cible : **WCAG 2.2 niveau AA**.
    `aria-busy`), `catchBlock` pose `role="alert"`, `defer` rend le placeholder
    clavier, `CraftRouterLink` pose `aria-current="page"`.
 4. **Primitives** — `heading` / `headingSection` (outline relatif), `dialog`
-   (modale native + focus), `liveRegion` (toasts). Pas de `craftButton`.
+   (modale native + focus), `liveRegion` (toasts). Pas de bouton **stylé** :
+   `buttonControl` / `fieldControl` / `disclosureControl` injectent les props
+   d’accessibilité dans vos éléments natifs.
 5. **Tests** — `toBeAccessible()` sur le helper de template.
 
 ```ts
@@ -145,6 +147,45 @@ liveRegion({ politeness: 'polite' }, copied() ? 'Copié' : '');
 `dialog` s’appuie sur `<dialog>` natif (`showModal`, Escape, `aria-modal`).
 `liveRegion` est un `<span role="status">` (ou `alert` si `assertive`).
 
+## Helpers de contrôle (props à merger)
+
+Les helpers sont renderless : ils fournissent les attributs à merger sur vos
+éléments HTML, sans imposer de widget visuel.
+
+```ts
+const email = fieldControl('email');
+label(email.label, 'Email');
+input({ ...email.input, type: 'email' });
+p(email.description, 'We never share your email.');
+
+const faq = disclosureControl('faq-1', isOpen);
+button({ ...faq.button, click: toggle }, 'What is Craft?');
+div(faq.panel, '…');
+
+button(buttonControl({ disabled: isSaving, keepFocusable: true }), 'Save');
+```
+
+Les états sont aussi exposés en `data-*`, ce qui permet une convention CSS
+simple et indépendante du composant :
+
+```css
+button[data-disabled] { opacity: 0.5; }
+input[data-invalid] { border-color: var(--danger); }
+button[data-open] { font-weight: 600; }
+```
+
+Une live region doit être montée dès le premier rendu : ne gâtez jamais son
+nœud sur le message. Le lecteur d’écran peut ainsi s’y abonner avant qu’un
+événement survienne.
+
+```ts
+// correct — region exists at first paint
+liveRegion({ label: 'Notifications' }, copied() ? 'Copied' : '');
+
+// incorrect — SR never subscribes
+ifBlock(copied, () => liveRegion('Copied'));
+```
+
 ## Navigation
 
 `provideCraftRouter` enregistre `CraftTitleStrategy` : le `title` Angular de la
@@ -157,14 +198,34 @@ chargement, le skip-link s’en charge.
 `skipLink('main', 'Aller au contenu')` en tête du shell, avec
 `main({ id: 'main', tabIndex: -1 }, …)`.
 
+Pour synchroniser la langue et la direction du document depuis un générateur :
+
+```ts
+yield* BrowserDocument.setLang('fr');
+yield* BrowserDocument.setDir('ltr');
+```
+
+`clickFocus` place le focus avant d’exécuter le handler, utile pour les
+contrôles qui ouvrent une recherche ou un dialogue :
+
+```ts
+button({
+  type: 'button',
+  click: clickFocus('#search-warmup', openSearch),
+}, 'Search');
+```
+
 ## Tests
 
 ```ts
-const { nativeElement, toBeAccessible } = await setupCraftComponentTemplateTest(
-  Page,
-  { context },
-);
+const { getByRole, getByLabel, toBeAccessible } =
+  await setupCraftComponentTemplateTest(
+    Page,
+    { context },
+  );
 await toBeAccessible();
+getByRole('button', { name: 'Save' });
+getByLabel('Email');
 ```
 
 `assertAccessible` / `toBeAccessible()` couvrent les checks structurels (alt,

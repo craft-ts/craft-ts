@@ -3,6 +3,7 @@ import {
   button,
   craftComponent,
   div,
+  fieldControl,
   fieldExceptionBlock,
   form,
   ifBlock,
@@ -75,58 +76,60 @@ const LoginFormComponent = craftComponent(
     );
     return loginForm;
   },
-  (loginForm) =>
-    // exceptions are volontary handled at different place for demo reasons
-    form(
-      {
-        *submit(event) {
-          event.preventDefault();
-          yield* loginForm.form.submit();
+  (loginForm) => {
+    const email = fieldControl('email');
+    const password = fieldControl('password');
+
+    return (
+      // exceptions are volontary handled at different place for demo reasons
+      form(
+        {
+          *submit(event) {
+            event.preventDefault();
+            yield* loginForm.form.submit();
+          },
         },
-      },
-      [
-        heading('Login form'),
-        div({ class: 'login-field' }, [
-          label({ htmlFor: 'email' }, 'Email'),
-          input({
-            id: 'email',
-            type: 'email',
-          }).pipe(CraftFieldDirective(loginForm.form.selectEmail())),
-        ]),
-        div({ class: 'login-field' }, [
-          label({ htmlFor: 'password' }, 'Password'),
-          input({
-            id: 'password',
-            type: 'password',
-          })
-            .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
-            .pipe(
-              fieldExceptionBlock.partial({
-                required: () =>
-                  p({ class: 'login-error' }, 'Password is required.'),
-              }),
+        [
+          heading('Login form'),
+          div({ class: 'login-field' }, [
+            label(email.label, 'Email'),
+            input({ ...email.input, type: 'email' }).pipe(
+              CraftFieldDirective(loginForm.form.selectEmail()),
             ),
-        ]),
-        ifBlock(loginForm.form.showSuccess, () =>
-          p('✅ Login form submitted.'),
-        ),
-        button({ type: 'submit' }, 'Sign in'),
-      ],
-    ).pipe(
-      fieldExceptionBlock.exhaustive({
-        email: {
-          required: () => p({ class: 'login-error' }, 'Email is required.'),
-          email: () => p({ class: 'login-error' }, 'Enter a valid email.'),
-        },
-        password: {
-          minLength: ({ exception }) =>
-            p(
-              { class: 'login-error' },
-              `Use at least ${exception.payload} characters.`,
-            ),
-        },
-      }),
-    ),
+          ]),
+          div({ class: 'login-field' }, [
+            label(password.label, 'Password'),
+            input({ ...password.input, type: 'password' })
+              .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
+              .pipe(
+                fieldExceptionBlock.partial({
+                  required: () =>
+                    p({ class: 'login-error' }, 'Password is required.'),
+                }),
+              ),
+          ]),
+          ifBlock(loginForm.form.showSuccess, () =>
+            p('✅ Login form submitted.'),
+          ),
+          button({ type: 'submit' }, 'Sign in'),
+        ],
+      ).pipe(
+        fieldExceptionBlock.exhaustive({
+          email: {
+            required: () => p({ class: 'login-error' }, 'Email is required.'),
+            email: () => p({ class: 'login-error' }, 'Enter a valid email.'),
+          },
+          password: {
+            minLength: ({ exception }) =>
+              p(
+                { class: 'login-error' },
+                `Use at least ${exception.payload} characters.`,
+              ),
+          },
+        }),
+      )
+    );
+  },
 );
 
 export default LoginFormComponent;
