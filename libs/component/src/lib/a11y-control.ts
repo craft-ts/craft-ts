@@ -47,7 +47,7 @@ export type DisclosureControl = {
   readonly button: {
     readonly type: 'button';
     readonly id: string;
-    readonly 'aria-expanded': 'true' | 'false';
+    readonly 'aria-expanded': boolean;
     readonly 'aria-controls': string;
     readonly 'data-open'?: true;
     readonly 'aria-disabled'?: true;
@@ -74,7 +74,7 @@ export function disclosureControl(
     button: {
       type: 'button',
       id: buttonId,
-      'aria-expanded': isOpen ? 'true' : 'false',
+      'aria-expanded': isOpen,
       'aria-controls': panelId,
       ...openAttrs,
       ...(options?.disabled

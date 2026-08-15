@@ -1430,10 +1430,12 @@ function applyAttribute(
     return;
   }
 
-  if (value === null || value === undefined || value === false) {
+  if (value === null || value === undefined) {
     renderer.removeAttribute(element, key);
-  } else if (value === true && key.startsWith('aria-')) {
-    renderer.setAttribute(element, key, 'true');
+  } else if (key.startsWith('aria-') && typeof value === 'boolean') {
+    renderer.setAttribute(element, key, value ? 'true' : 'false');
+  } else if (value === false) {
+    renderer.removeAttribute(element, key);
   } else {
     renderer.setAttribute(element, key, value === true ? '' : String(value));
   }
