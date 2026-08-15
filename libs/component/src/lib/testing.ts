@@ -455,9 +455,9 @@ type TemplateTestResult<Component extends CraftComponent<any>, Context> =
 
 function matchesName(actual: string, expected: string | RegExp | undefined): boolean {
   if (expected === undefined) return true;
-  return typeof expected === 'string'
-    ? actual === expected
-    : expected.test(actual);
+  if (typeof expected === 'string') return actual === expected;
+  expected.lastIndex = 0;
+  return expected.test(actual);
 }
 
 function findById(root: ParentNode, id: string): Element | undefined {
@@ -486,7 +486,8 @@ function accessibleName(element: Element, root: ParentNode): string {
   if (
     element instanceof HTMLInputElement ||
     element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLButtonElement
   ) {
     if (element.id) {
       const label = findLabelFor(root, element.id);
@@ -546,16 +547,22 @@ function requireSingle(
 function createAccessibleQueries(root: HTMLElement) {
   return {
     getByRole(role: string, options?: { name?: string | RegExp }) {
+      const query = `role "${role}"${
+        options?.name === undefined ? '' : ` with name "${String(options.name)}"`
+      }`;
       return requireSingle(
         queryAllByRole(root, role, options),
-        `role "${role}"`,
+        query,
         false,
       )!;
     },
     queryByRole(role: string, options?: { name?: string | RegExp }) {
+      const query = `role "${role}"${
+        options?.name === undefined ? '' : ` with name "${String(options.name)}"`
+      }`;
       return requireSingle(
         queryAllByRole(root, role, options),
-        `role "${role}"`,
+        query,
         true,
       );
     },

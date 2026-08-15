@@ -127,7 +127,9 @@ describe('Craft component and directive testing utilities', () => {
       () => [
         label({ htmlFor: 'email' }, 'Email'),
         input({ id: 'email', type: 'email' }),
-        button({ type: 'button' }, 'Save'),
+        label({ htmlFor: 'save-button' }, 'Save'),
+        button({ id: 'save-button', type: 'button' }, 'Save'),
+        button({ type: 'button' }, 'Cancel'),
       ],
     );
     const result = await setupCraftComponentTemplateTest(Page, {
@@ -135,10 +137,14 @@ describe('Craft component and directive testing utilities', () => {
       register: {},
     });
     expect(result.getByRole('button', { name: 'Save' }).textContent).toBe('Save');
+    expect(result.getByRole('button', { name: /Save/g }).textContent).toBe(
+      'Save',
+    );
     expect(result.getByLabel('Email').id).toBe('email');
+    expect(result.getByLabel('Save').id).toBe('save-button');
     expect(result.queryByRole('button', { name: 'Missing' })).toBeUndefined();
     expect(() => result.getByRole('button', { name: 'Missing' })).toThrow(
-      /Unable to find/,
+      /Unable to find role "button" with name "Missing"/,
     );
     result.destroy();
   });
