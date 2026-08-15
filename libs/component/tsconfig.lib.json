@@ -12,6 +12,9 @@
   "exclude": ["**/*.spec.ts", "**/*.test.ts"],
   "references": [
     {
+      "path": "../angular/tsconfig.lib.json"
+    },
+    {
       "path": "../test-type/tsconfig.lib.json"
     },
     {
