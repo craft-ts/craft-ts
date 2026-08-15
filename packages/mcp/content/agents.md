@@ -6,7 +6,7 @@ This application uses `@craft-ng/core`. Treat Craft APIs as the default. Do not 
 
 1. Read https://ng-angular-stack.github.io/craft/llms.txt and follow the linked markdown pages.
 2. If the Craft NG MCP server is configured, call `get_best_practices`, then `search_documentation` / `get_skill` instead of guessing APIs.
-3. Skills live in `node_modules/@craft-ng/mcp/skills/` (routes, spec translation, service migration, full-app migration).
+3. Skills live in `node_modules/@craft-ng/mcp/skills/` (architecture tests, routes, spec translation, service migration, full-app migration).
 
 ## Non-negotiable rules
 
@@ -15,6 +15,7 @@ This application uses `@craft-ng/core`. Treat Craft APIs as the default. Do not 
 - `craftService` + generated `X()` helpers. Adapt Angular tokens with `toCraftService`.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split with `loadChildren` on `TS2589`.
 - Enable `@craft-ng/dev-tools` ESLint rules and run `eslint --fix` after DI or route edits.
+- The `architecture/` suite is the graph contract. Scaffold it at bootstrap. Run it during a feature. Do not add an architecture rule for the feature; encode a smell so it cannot recur.
 
 ## Docs
 

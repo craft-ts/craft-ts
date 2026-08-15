@@ -55,7 +55,12 @@ cannot be inferred safely. Preserve unrelated user changes.
      --fail-on-manual
    ```
 
-8. Run targeted tests first, then lint, application type-check, architecture
+8. `craft-migrate --write` scaffolds the baseline architecture suite as its last
+   step. If `architecture/` is still missing, load `ng-craft-architecture-tests`
+   and offer `craft-migrate-architecture --write`. Do not add an architecture
+   rule for each migrated feature.
+
+9. Run targeted tests first, then lint, application type-check, architecture
    tests (`npx nx architecture <app>` or `npx vitest run --config vitest.architecture.config.ts`),
    full tests, and production build. Report command exit codes separately;
    filtered output is not proof that the complete command succeeded.

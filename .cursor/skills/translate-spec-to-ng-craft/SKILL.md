@@ -58,7 +58,10 @@ Always structure the answer as:
 1. `Spec fragment -> utility`
 2. `Recommended composition`
 3. `Default behaviors`
-4. `Open questions or assumptions`
+4. `Baseline helper already covering this` — the existing architecture-suite helper (`assertMutationHasReactOn`, `assertHttpEndpointUnique`, `assertCraftUnique`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertRouteDiProofs`, …). This is not a new `it()`. Do not add an architecture rule for the feature.
+5. `Open questions or assumptions`
+
+Propose a **new** custom architecture rule only when the spec states a product invariant the baseline helpers do not cover (this feature must not depend on that one). Then load `ng-craft-architecture-tests`.
 
 Name the concrete public APIs exactly as exported by the library.
 When the spec implies a helper method, name it too: `removeOne`, `removeMany`, `updateOne`, `upsertMany`, `cRequired`, `cMinLength`, and similar helpers.
@@ -70,6 +73,7 @@ Mapping: `query` for remote list loading. Add `queryParams` only if pagination, 
 
 Spec: `Creer une page qui affiche une liste d'utilisateurs. On peut supprimer un utilisateur via un bouton, ou en selectionner plusieurs pour en supprimer plusieurs.`
 Mapping: `query` for the list, one `mutation` for single delete, one `mutation` for bulk delete, one selection `state` or `craftState` for selected ids, and `insertReactOnMutation` on the `query` with optimistic removal plus `reload.onMutationError = true`. Use `removeOne` and `removeMany` for the optimistic transforms.
+Baseline helper already covering this: `assertMutationHasReactOn` (and `assertHttpEndpointUnique` if the list HTTP is owned once). Do not add an architecture rule for the feature.
 
 Spec: `Creer une page de recherche avec filtres dans l'URL et pagination sans flicker.`
 Mapping: `queryParams` for filter and pagination state, `query` for results, `insertPaginationPlaceholderData` to keep previous page data visible during transitions, `craftSetAllQueriesParamsStandalone` if the page must generate URLs outside injection context.

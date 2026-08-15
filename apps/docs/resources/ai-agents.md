@@ -13,7 +13,7 @@ and Agent Skills.
 | --- | --- | --- |
 | **LLM files** | [`/llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt), [`/llms-full.txt`](https://ng-angular-stack.github.io/craft/llms-full.txt), and a `.md` sibling for every docs page | Discovery on the internet, no install |
 | **MCP server** | [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp) — `get_best_practices`, `search_documentation`, `find_examples`, skills | Live lookup in Cursor, Claude Code, VS Code, Copilot |
-| **Agent Skills** | `skills/` inside `@craft-ng/mcp`, plus an [Agent Plugin](https://agent-plugins.org/) manifest | Multi-step workflows (routes, spec → primitives, migration) |
+| **Agent Skills** | `skills/` inside `@craft-ng/mcp`, plus an [Agent Plugin](https://agent-plugins.org/) manifest | Multi-step workflows (architecture tests, routes, spec → primitives, migration) |
 
 Do not scrape the HTML docs. Start from `llms.txt` or the MCP tools.
 
@@ -41,7 +41,9 @@ This application uses `@craft-ng/core`.
 
 yield* every Craft reader. Do not generate Angular signal(), inject(), or
 @Injectable in authored Craft code. craftRoutes files need componentDeps and
-a per-file DI check.
+a per-file DI check. The architecture/ suite is the graph contract: scaffold
+at bootstrap, run it during a feature. Do not add an architecture rule for
+the feature.
 ```
 
 The same snippet is returned by the MCP tool `get_best_practices` (field
@@ -96,10 +98,18 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) layout
 | Skill | Trigger |
 | --- | --- |
 | `craft-ng` | Any authored Craft code |
+| `ng-craft-architecture-tests` | Scaffold or run `architecture/`, or freeze a graph smell |
 | `translate-spec-to-ng-craft` | Spec / CRUD / filters / forms → primitives |
 | `ng-craft-routes` | `craftRoutes`, `componentDeps`, `TS2589` |
 | `ng-craft-service-migration` | `@Injectable` / `inject()` → `craftService` |
 | `migrate-to-ng-craft` | `craft-migrate` then manual diagnostics |
+
+The [architecture suite](/guide/testing/architecture) is the app's graph
+contract (unique HTTP, unique identities, armed route DI proofs, folder
+lanes). Scaffold it at app start or at the end of `craft-migrate`. During a
+feature, run the suite that already exists. Do not add an architecture rule for the feature.
+Add a new `it()` only when a bad pattern is spotted, so it cannot recur. If
+`architecture/` is missing mid-feature, offer the scaffold; do not impose it.
 
 Point the agent at `node_modules/@craft-ng/mcp/skills`, or let it call
 `get_skill`. Cursor can also install a skill from that folder.
@@ -108,13 +118,15 @@ Point the agent at `node_modules/@craft-ng/mcp/skills`, or let it call
 
 Ask it to add a `state` counter, a paged `query`, or a `craftRoutes` file.
 It should `yield*` readers, compose insertions with `craftPipe`, and put a DI
-check in the routes file. If it emits `signal()`, `inject()`, or a plain
-Angular `Routes` array, the MCP server or `AGENTS.md` snippet is not in
-context.
+check in the routes file. If the app already has `architecture/`, it should
+run that suite rather than invent a new rule. If it emits `signal()`,
+`inject()`, or a plain Angular `Routes` array, the MCP server or `AGENTS.md`
+snippet is not in context.
 
 ## See also
 
 - [Which primitive should I use?](/guide/concepts/choose-primitive)
 - [The mental model](/guide/concepts/mental-model)
+- [Architecture rules](/guide/testing/architecture)
 - [CLI automation](/guide/routing/automation)
 - [Migration](/resources/migration)

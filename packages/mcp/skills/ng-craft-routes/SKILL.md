@@ -31,6 +31,8 @@ If the public API names here don't match the installed version, confirm against 
    `loadChildren`**, so each file — including lazy children — must re-declare it or its components go
    unchecked. A missing provider then surfaces as `Injected SomeService is not provided in path: "…"`.
    Architecture tests (`assertRouteDiProofs`) fail CI if a collection ships without an armed check.
+   That helper belongs in the app's `architecture/` suite — load `ng-craft-architecture-tests` to
+   scaffold or keep it armed. Do not add an architecture rule for the feature.
 
 3. **Stay under the instantiation ceiling — split with `loadChildren`.** One collection has a finite
    route budget; past it TypeScript throws `TS2589: Type instantiation is excessively deep`, which then

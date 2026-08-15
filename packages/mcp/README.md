@@ -57,6 +57,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) layout
 and are packaged as an [Agent Plugin](https://agent-plugins.org/) (`plugin.json`
 + `mcp.json` + `skills/`):
 
+- `ng-craft-architecture-tests` — scaffold or run `architecture/`, freeze a graph smell
 - `ng-craft-routes` — type-safe `craftRoutes` files
 - `translate-spec-to-ng-craft` — map a spec onto primitives
 - `ng-craft-service-migration` — `craftService` / `toCraftService`

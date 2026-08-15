@@ -42,6 +42,8 @@ Decision page: `/guide/concepts/choose-primitive`.
 
 Install `@craft-ng/dev-tools` and enable the `craft-ng/*` ESLint rules. They are the compiler's partner: a missing route check or a raw `inject()` should fail CI, not production.
 
+The `architecture/` suite is the graph contract: unique HTTP, unique identities, armed route DI proofs, folder lanes. Scaffold it at app start (`ng-craft-architecture-tests`, `craft-migrate-architecture`). During a feature, run it. Do not add an architecture rule for the feature. Add a new `it()` only to freeze a spotted smell so it cannot recur.
+
 ## Default compositions
 
 - Mutation that changes a visible list: `insertReactOnMutation` on the `query`. Prefer `optimisticPatch` for shallow fields, `optimisticUpdate` for arrays. Enable `reload: { onMutationError: true }` unless the spec forbids refetch.
@@ -52,9 +54,10 @@ Install `@craft-ng/dev-tools` and enable the `craft-ng/*` ESLint rules. They are
 
 ## Agent workflow
 
-1. Map the request to primitives (`translate-spec-to-ng-craft` skill).
-2. Search docs for the exact export (`search_documentation`, then `get_documentation_page`).
-3. For routes, follow `ng-craft-routes`. For existing Angular services, `ng-craft-service-migration`. For a whole app, `migrate-to-ng-craft` then `craft-migrate`.
-4. Run the app's lint, typecheck, architecture tests, and tests. Do not claim success from filtered output.
+1. If this is app setup or `craft-migrate`, and `architecture/` is missing, load `ng-craft-architecture-tests` and scaffold the baseline. Mid-feature, offer the scaffold; do not impose it.
+2. Map the request to primitives (`translate-spec-to-ng-craft` skill). Name the baseline helper that already covers the mapping; do not invent a rule per feature.
+3. Search docs for the exact export (`search_documentation`, then `get_documentation_page`).
+4. For routes, follow `ng-craft-routes`. For existing Angular services, `ng-craft-service-migration`. For a whole app, `migrate-to-ng-craft` then `craft-migrate`. Load `ng-craft-architecture-tests` when a graph smell must not recur.
+5. Run the app's lint, typecheck, existing architecture tests, and tests. Do not claim success from filtered output.
 
 Confirm symbol names against the installed `@craft-ng/core` (and `@craft-ng/component`) in `node_modules`. If they disagree with this guide, the installed package wins.

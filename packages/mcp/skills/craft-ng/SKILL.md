@@ -12,6 +12,7 @@ You are working in an application that depends on `@craft-ng/core`.
 1. Call the Craft NG MCP tool `get_best_practices` when it is available.
 2. Search docs with `search_documentation` before inventing an API.
 3. Load a workflow skill with `get_skill` when the task matches:
+   - `ng-craft-architecture-tests` — scaffold or run `architecture/`, or freeze a graph smell. Not before every feature.
    - `translate-spec-to-ng-craft` — map a spec onto primitives
    - `ng-craft-routes` — type-safe routes and DI checks
    - `ng-craft-service-migration` — Angular services → `craftService`
@@ -26,4 +27,5 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
 - One insertion per primitive; compose with `craftPipe`.
 - `craftService` + generated `X()` helpers. No new `inject()` / `@Injectable`.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split on `TS2589`.
+- Run existing architecture tests. Do not add an architecture rule for the feature.
 - Confirm symbols against the installed `node_modules/@craft-ng/core`.

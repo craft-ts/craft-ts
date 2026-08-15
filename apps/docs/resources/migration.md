@@ -31,7 +31,10 @@ npm ls @craft-ng/dev-tools
 
 Point the coding agent at [coding agents](/resources/ai-agents) so it uses
 `craft-migrate` through the `migrate-to-ng-craft` skill instead of rewriting
-the app by hand.
+the app by hand. Step 5 scaffolds the
+[architecture suite](/guide/testing/architecture) as the graph contract — load
+`ng-craft-architecture-tests` if that folder is missing. Do not add an
+architecture rule for each migrated feature.
 
 Commit or stash the current application changes before writing a migration.
 The codemod does not revert unrelated local changes.

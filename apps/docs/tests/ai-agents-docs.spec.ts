@@ -16,6 +16,9 @@ describe('coding agents docs', () => {
     expect(page).toContain('get_best_practices');
     expect(page).toContain('search_documentation');
     expect(page).toContain('ng-craft-routes');
+    expect(page).toContain('ng-craft-architecture-tests');
+    expect(page).toContain('/guide/testing/architecture');
+    expect(page).toContain('Do not add an architecture rule for the feature');
     expect(page).toContain('plugin.json');
   });
 

@@ -14,7 +14,7 @@ export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
     'get_best_practices',
     {
       description:
-        'Return the Craft NG coding-agent guide: which primitive to use, yield* rules, services, routes, ESLint, and the AGENTS.md snippet to drop into an app that imports @craft-ng/core. Call this before writing or reviewing Craft code.',
+        'Return the Craft NG coding-agent guide: which primitive to use, yield* rules, the architecture/ graph contract, services, routes, ESLint, and the AGENTS.md snippet to drop into an app that imports @craft-ng/core. Call this before writing or reviewing Craft code.',
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () =>
@@ -99,7 +99,7 @@ export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
     'list_skills',
     {
       description:
-        'List Agent Skills shipped with @craft-ng/mcp (routes, spec translation, service migration, full-app migration). Load one with get_skill before following a workflow.',
+        'List Agent Skills shipped with @craft-ng/mcp (architecture tests, routes, spec translation, service migration, full-app migration). Load one with get_skill before following a workflow.',
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () =>

@@ -328,9 +328,9 @@ export default defineConfig({
       llmstxt({
         title: '@craft-ng/core',
         description:
-          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ng/mcp server.',
+          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ng/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
         details:
-          'After importing @craft-ng/core, run `npx -y @craft-ng/mcp@beta` and read /resources/ai-agents. yield* every Craft reader. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
+          'After importing @craft-ng/core, run `npx -y @craft-ng/mcp@beta` and read /resources/ai-agents. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
         domain: 'https://ng-angular-stack.github.io',
         ignoreFiles: ['public/**', 'README.md'],
       }),
