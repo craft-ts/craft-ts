@@ -1170,6 +1170,7 @@ const EVENT_NAMES = new Set([
 const PROPERTY_NAMES = new Set([
   'checked',
   'disabled',
+  'htmlFor',
   'multiple',
   'selected',
   'value',
@@ -1431,6 +1432,8 @@ function applyAttribute(
 
   if (value === null || value === undefined || value === false) {
     renderer.removeAttribute(element, key);
+  } else if (value === true && key.startsWith('aria-')) {
+    renderer.setAttribute(element, key, 'true');
   } else {
     renderer.setAttribute(element, key, value === true ? '' : String(value));
   }
