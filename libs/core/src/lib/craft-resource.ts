@@ -1,8 +1,10 @@
 import {
+  computed as ngComputed,
   DestroyRef,
   effect,
   inject,
   Injector,
+  signal as ngSignal,
   untracked as ngUntracked,
   type ResourceLoaderParams,
   type ResourceOptions,
@@ -14,6 +16,7 @@ import {
   CRAFT_SIGNAL,
   craftComputed,
   craftSignal,
+  craftWatch,
   untracked,
   type CraftSignal,
 } from './host/craft-signal';
@@ -155,21 +158,48 @@ export function craftResource<Value, Params>(
     startLoad(params, false);
   };
 
-  const paramsEffect = options.params
+  const angularParams = options.params ? ngComputed(options.params) : undefined;
+  let craftParamsWatch: { destroy(): void } | undefined;
+  const paramsEffect = angularParams
     ? effect(
         () => {
-          const params = options.params?.();
+          const params = angularParams();
           ngUntracked(() => synchronizeParams(params));
+          if (!craftParamsWatch) {
+            ngUntracked(() => {
+              let initialized = false;
+              craftParamsWatch = craftWatch(() => {
+                const craftParams = options.params?.();
+                if (initialized) {
+                  untracked(() => synchronizeParams(craftParams));
+                } else {
+                  initialized = true;
+                }
+              });
+            });
+          }
         },
         { injector },
       )
     : undefined;
 
-  const synchronizeReader = <T>(source: CraftSignal<T>): CraftSignal<T> => {
+  const graphWatches: { destroy(): void }[] = [];
+  const synchronizeReader = <T>(
+    source: CraftSignal<T>,
+    synchronize = true,
+  ): CraftSignal<T> => {
+    const angularMirror = ngSignal(source());
+    graphWatches.push(
+      craftWatch(() => {
+        const next = source();
+        ngUntracked(() => angularMirror.set(next));
+      }),
+    );
     const reader = (() => {
-      if (!destroyed && options.params) {
-        synchronizeParams(options.params());
+      if (synchronize && !destroyed && angularParams) {
+        synchronizeParams(angularParams());
       }
+      angularMirror();
       return source();
     }) as CraftSignal<T>;
     Object.defineProperties(reader, {
@@ -180,6 +210,11 @@ export function craftResource<Value, Params>(
   };
   const value = synchronizeReader(craftComputed(() => valueState()));
   const status = synchronizeReader(craftComputed(() => statusState()));
+  const publicIsLoading = synchronizeReader(isLoading, false);
+  const error = synchronizeReader(
+    craftComputed(() => errorState()),
+    false,
+  );
   const snapshot = craftComputed(
     () =>
       (status() === 'error'
@@ -194,6 +229,8 @@ export function craftResource<Value, Params>(
     abortController?.abort();
     stopStream?.();
     paramsEffect?.destroy();
+    craftParamsWatch?.destroy();
+    graphWatches.forEach((watch) => watch.destroy());
     ++requestVersion;
     valueState.set(options.defaultValue);
     errorState.set(undefined);
@@ -223,8 +260,8 @@ export function craftResource<Value, Params>(
     // Internal channel only: `error` is not part of the CraftResourceRef surface
     // (replaced by the exceptions API) but stays on the object at runtime so
     // `craftUntilSettled` can rethrow a residual technical failure.
-    error: craftComputed(() => errorState()),
-    isLoading,
+    error,
+    isLoading: publicIsLoading,
     reload,
     destroy,
     update,

@@ -24,6 +24,7 @@ import {
 } from './state-method-runtime-context';
 import { craftUse } from './craft-use';
 import type { YieldableInvocation } from './yieldable';
+import { craftSignal } from './host/craft-signal';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -143,6 +144,22 @@ describe('state', () => {
       expect(myState).toBeDefined();
       expectTypeOf(myState).toMatchTypeOf<StateOutput<number, {}>>();
       expect(craftUse(myState())).toBe(10);
+    });
+  });
+
+  it('writes through when initialized from a Craft writable signal', () => {
+    runInInjectionContext(() => {
+      const origin = craftSignal(5);
+      const myState = craftUse(
+        state('myState', origin, ({ set }) => ({
+          replace: (value: number) => set(value),
+        })),
+      );
+
+      myState.replace(9);
+
+      expect(origin()).toBe(9);
+      expect(craftUse(myState())).toBe(9);
     });
   });
 

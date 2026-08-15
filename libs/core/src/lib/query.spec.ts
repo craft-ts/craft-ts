@@ -30,6 +30,7 @@ import { craftGen } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { craftUntilSettled } from './craft-until-settled';
 import type { YieldableReactiveProperties } from './reactive-read';
+import { craftSignal } from './host/craft-signal';
 
 type User = {
   id: string;
@@ -173,6 +174,54 @@ describe('query', () => {
       expect(craftUse(queryRef.hasException())).toBe(true);
       expect(craftUse(queryRef.exception())?.code).toBe('INVALID_QUERY');
       expect(craftUse(queryRef.value())).toBeUndefined();
+    });
+  });
+
+  it('invalidates an Angular computed settledValue after a successful load', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query('queryRef', {
+          params: () => 'ready',
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
+      const rendered = computed(() => {
+        try {
+          return craftUse(queryRef.settledValue()).id;
+        } catch {
+          return 'pending';
+        }
+      });
+
+      expect(rendered()).toBe('pending');
+      await vi.runAllTimersAsync();
+
+      expect(rendered()).toBe('ready');
+    });
+  });
+
+  it('reloads automatically when Craft signal params change', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const currentId = craftSignal('first');
+      const loaded: string[] = [];
+
+      craftUse(
+        query('queryRef', {
+          params: () => currentId(),
+          loader: async ({ params }) => {
+            loaded.push(params);
+            return { id: params };
+          },
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+      expect(loaded).toEqual(['first']);
+
+      currentId.set('second');
+      await vi.runAllTimersAsync();
+
+      expect(loaded).toEqual(['first', 'second']);
     });
   });
 

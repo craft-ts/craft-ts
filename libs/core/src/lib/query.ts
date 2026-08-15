@@ -48,7 +48,6 @@ import {
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
 import type { CraftResourceRef } from './util/craft-resource-ref';
-import { ɵcraftDerived } from './host/craft-signal';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -1836,7 +1835,7 @@ function createQueryRef<
 
               const rawSelectStatus = resource.status;
               const result = Object.assign(resource, {
-                status: ɵcraftDerived(() =>
+                status: computed(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
                 exception: computed(() => selectExceptions().list[0]),
@@ -1870,7 +1869,7 @@ function createQueryRef<
             );
             const rawSelectStatus = selected.status;
             const result = Object.assign(selected, {
-              status: ɵcraftDerived(() =>
+              status: computed(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
               exception: computed(() => selectExceptions().list[0]),
@@ -1892,7 +1891,7 @@ function createQueryRef<
       ...(isUsingIdentifier
         ? {}
         : {
-            status: ɵcraftDerived(() =>
+            status: computed(() =>
               toCraftStatus(rawResourceStatus(), hasException()),
             ),
             exception: computed(() => exceptions().list[0]),

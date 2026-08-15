@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   craftComputed,
   craftLinkedSignal,
@@ -47,6 +47,34 @@ describe('craftSignal', () => {
     expect(doubled()).toBe(9);
     count.set(3);
     expect(doubled()).toBe(6);
+  });
+
+  it('does not keep recomputing an unread linked signal', () => {
+    const count = craftSignal(1);
+    const computation = vi.fn(() => count() * 2);
+    const doubled = craftLinkedSignal({
+      source: count,
+      computation,
+    });
+
+    expect(doubled()).toBe(2);
+    computation.mockClear();
+
+    count.set(2);
+    expect(computation).not.toHaveBeenCalled();
+    expect(doubled()).toBe(4);
+  });
+
+  it('keeps a local write made before the first linked read', () => {
+    const count = craftSignal(1);
+    const doubled = craftLinkedSignal({
+      source: count,
+      computation: () => count() * 2,
+    });
+
+    doubled.set(9);
+
+    expect(doubled()).toBe(9);
   });
 
   it('watches dependencies until destroyed', () => {

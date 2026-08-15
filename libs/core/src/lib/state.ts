@@ -15,7 +15,7 @@ import {
   craftLinkedSignal,
   craftSignal,
   isCraftSignal,
-  ɵcraftDerived,
+  type CraftSignal,
   type CraftWritableSignal,
 } from './host/craft-signal';
 import {
@@ -172,7 +172,7 @@ export type StateSchemaConfig<Schema extends CraftSchema> = {
   readonly schemaValidationPolicy?: SchemaValidationPolicy;
 };
 
-type StateConfig<State> = State | Signal<State>;
+type StateConfig<State> = State | Signal<State> | CraftSignal<State>;
 type StateGeneratorFactory<State, Yielded = never> = () => Generator<
   Yielded,
   StateConfig<State>,
@@ -184,11 +184,13 @@ type ResolvedStateType<StateInput> = StateInput extends {
   ? ResolvedStateType<V>
   : StateInput extends Signal<infer State>
     ? State
-    : StateInput extends (
-          ...args: any[]
-        ) => Generator<any, infer Output, unknown>
-      ? ResolvedStateType<Output>
-      : StateInput;
+    : StateInput extends CraftSignal<infer State>
+      ? State
+      : StateInput extends (
+            ...args: any[]
+          ) => Generator<any, infer Output, unknown>
+        ? ResolvedStateType<Output>
+        : StateInput;
 type StateConfigYielded<StateInput> = StateInput extends {
   readonly $self: infer V;
 }
@@ -507,6 +509,9 @@ function createStateRef<StateType>(
     : rawConfig;
   const isSignalState =
     isCraftSignal(resolvedStateConfig) || isSignal(resolvedStateConfig);
+  const isCraftWritableState =
+    isCraftSignal(resolvedStateConfig) &&
+    typeof Reflect.get(resolvedStateConfig, 'set') === 'function';
   const readResolvedState = () => (resolvedStateConfig as () => unknown)();
   let lastValidState: StateType | undefined;
   let latestStateException: AnyCraftException | undefined;
@@ -562,8 +567,10 @@ function createStateRef<StateType>(
   );
   const stateSignal =
     !schema && isSignalState
-      ? isWritableSignal(resolvedStateConfig)
-        ? (resolvedStateConfig as WritableSignal<StateType>)
+      ? isWritableSignal(resolvedStateConfig) || isCraftWritableState
+        ? (resolvedStateConfig as
+            | WritableSignal<StateType>
+            | CraftWritableSignal<StateType>)
         : craftLinkedSignal({
             source: readResolvedState,
             computation: () => readResolvedState() as StateType,
@@ -576,7 +583,7 @@ function createStateRef<StateType>(
           })
         : craftSignal(initialStateValue);
   const readonlyStateSignal = isCraftSignal(stateSignal)
-    ? ɵcraftDerived(() => stateSignal())
+    ? craftComputed(() => stateSignal())
     : 'asReadonly' in stateSignal &&
         typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()

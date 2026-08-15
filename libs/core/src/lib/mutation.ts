@@ -51,7 +51,6 @@ import {
 } from './util/method-trigger-nonce';
 import { craftResource } from './craft-resource';
 import { preservedResource } from './preserved-resource';
-import { ɵcraftDerived } from './host/craft-signal';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -1870,7 +1869,7 @@ function createMutationRef<
 
               const rawSelectStatus = resource.status;
               const result = Object.assign(resource, {
-                status: ɵcraftDerived(() =>
+                status: computed(() =>
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
                 exception: computed(() => selectExceptions().list[0]),
@@ -1903,7 +1902,7 @@ function createMutationRef<
             );
             const rawSelectStatus = selected.status;
             const result = Object.assign(selected, {
-              status: ɵcraftDerived(() =>
+              status: computed(() =>
                 toCraftStatus(rawSelectStatus(), selectHasException()),
               ),
               exception: computed(() => selectExceptions().list[0]),
@@ -1927,7 +1926,7 @@ function createMutationRef<
       ...(isUsingIdentifier
         ? {}
         : {
-            status: ɵcraftDerived(() =>
+            status: computed(() =>
               toCraftStatus(rawResourceStatus(), hasException()),
             ),
             exception: computed(() => exceptions().list[0]),

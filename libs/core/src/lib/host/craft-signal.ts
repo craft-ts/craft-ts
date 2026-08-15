@@ -1,6 +1,8 @@
 import { computed, effect, setActiveSub, signal } from 'alien-signals';
 import { RAW_REACTIVE_VALUE } from '../reactive-read';
 
+// alien-signals v3 flushes effects synchronously. Keep that native behavior;
+// startViewTransition coordination remains Task 9 debt.
 export const CRAFT_SIGNAL = Symbol('craft-signal');
 
 export type CraftSignal<T> = (() => T) & {
@@ -59,23 +61,22 @@ export function craftSignal<T>(
 export function craftComputed<T>(compute: () => T): CraftSignal<T>;
 export function craftComputed<T>(
   compute: () => T,
+  options: CraftSignalOptions<T>,
+): CraftSignal<T>;
+export function craftComputed<T>(
+  compute: () => T,
   options?: CraftSignalOptions<T>,
 ): CraftSignal<T> {
   const equal = options?.equal ?? Object.is;
+  let hasPrevious = false;
   const value = computed<T>((previous) => {
     const next = compute();
-    return previous !== undefined && equal(previous, next) ? previous : next;
+    const result =
+      hasPrevious && equal(previous as T, next) ? (previous as T) : next;
+    hasPrevious = true;
+    return result;
   });
   return brand(value) as CraftSignal<T>;
-}
-
-/**
- * Compatibility reader for computations that can still mix Angular and Craft
- * signals during the Angular-v1 extraction. It deliberately evaluates on every
- * read so each active reactive host can collect its own dependencies.
- */
-export function ɵcraftDerived<T>(compute: () => T): CraftSignal<T> {
-  return brand(compute) as CraftSignal<T>;
 }
 
 export function craftLinkedSignal<T>(options: {
@@ -88,18 +89,43 @@ export function craftLinkedSignal<T>(options: {
   equal?: (a: T, b: T) => boolean;
   debugName?: string;
 }): CraftWritableSignal<T> {
-  const value = craftSignal(options.computation(), options);
-  let initialized = false;
-  effect(() => {
-    options.source();
-    const next = options.computation();
-    if (initialized) {
-      value.set(next);
-    } else {
-      initialized = true;
+  const revision = signal(0);
+  const equal = options.equal ?? Object.is;
+  let hasSource = false;
+  let previousSource: unknown;
+  let hasComputedValue = false;
+  let localOverride = false;
+  let localValue!: T;
+
+  const derived = computed<T>((previous) => {
+    revision();
+    const source = options.source();
+    if (!hasSource || !Object.is(previousSource, source)) {
+      hasSource = true;
+      previousSource = source;
+      localOverride = false;
     }
+    if (localOverride) {
+      return localValue;
+    }
+    const next = options.computation();
+    const result =
+      hasComputedValue && equal(previous as T, next) ? (previous as T) : next;
+    hasComputedValue = true;
+    return result;
   });
-  return value;
+  const value = (() => derived()) as CraftWritableSignal<T>;
+  value.set = (next) => {
+    if (!hasSource) {
+      previousSource = untracked(options.source);
+      hasSource = true;
+    }
+    localValue = next;
+    localOverride = true;
+    revision(untracked(() => revision()) + 1);
+  };
+  value.update = (update) => value.set(update(untracked(() => derived())));
+  return brand(value);
 }
 
 export function craftWatch(fn: () => void | (() => void)): { destroy(): void };

@@ -12,6 +12,7 @@ import {
   expect,
   expectTypeOf,
   it,
+  vi,
 } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
@@ -65,6 +66,19 @@ describe('craftComputed', () => {
     expect(craftUse(component.doubled())).toBe(0);
     component.count.set(5);
     expect(craftUse(component.doubled())).toBe(10);
+  });
+
+  it('memoizes repeated reads until a dependency changes', () => {
+    const computation = vi.fn(() => 42);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('value', computation),
+    );
+
+    expect(craftUse(value())).toBe(42);
+    const callsAfterFirstRead = computation.mock.calls.length;
+    expect(craftUse(value())).toBe(42);
+
+    expect(computation).toHaveBeenCalledTimes(callsAfterFirstRead);
   });
 
   it('should work with a generator factory that resolves DI deps once', () => {

@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  computed,
   DestroyRef,
   inject,
   Injector,
@@ -8,7 +9,10 @@ import {
   type Signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ɵcraftDerived } from './host/craft-signal';
+import {
+  craftComputed as createCraftComputed,
+  craftSignal,
+} from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -32,7 +36,7 @@ import {
   type YieldableReactiveValue,
 } from './reactive-read';
 
-const createComputedWithOptions = ɵcraftDerived as unknown as <T>(
+const createComputedWithOptions = createCraftComputed as unknown as <T>(
   computation: () => T,
   options?: CreateComputedOptions<T>,
 ) => Signal<T>;
@@ -135,41 +139,52 @@ export function craftComputed<T>(
     `computed:${name}`,
   );
 
-  let result: Signal<T>;
-
+  let evaluate: () => T;
   if (isGeneratorFunction(computationOrFactory)) {
-    result = createComputedWithOptions(
-      () =>
-        runInInjectionContext(computedInjector, () => {
-          const iterator = (
-            computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
-          ).call(host);
-          return runCraftGenerator({
-            iterator,
-            injector: computedInjector,
-            hostScope: 'function',
-            invalidYieldErrorMessage:
-              'craftComputed generators can only yield Craft dependencies and reactive read requests; received an unknown yield.',
-            multipleAppStartErrorMessage:
-              'craftComputed generators cannot declare onAppStart(...) more than once.',
-            onAppStartNotSupportedErrorMessage:
-              'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
-            reactiveReader: ɵactiveReactiveReader() ?? {
-              name,
-              computed: name,
-              path: name,
-            },
-          }).value as T;
-        }),
-      options,
-    );
+    evaluate = () =>
+      runInInjectionContext(computedInjector, () => {
+        const iterator = (
+          computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
+        ).call(host);
+        return runCraftGenerator({
+          iterator,
+          injector: computedInjector,
+          hostScope: 'function',
+          invalidYieldErrorMessage:
+            'craftComputed generators can only yield Craft dependencies and reactive read requests; received an unknown yield.',
+          multipleAppStartErrorMessage:
+            'craftComputed generators cannot declare onAppStart(...) more than once.',
+          onAppStartNotSupportedErrorMessage:
+            'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
+          reactiveReader: ɵactiveReactiveReader() ?? {
+            name,
+            computed: name,
+            path: name,
+          },
+        }).value as T;
+      });
   } else {
     const computation = computationOrFactory as (this: unknown) => T;
-    result = createComputedWithOptions(
-      hasHost ? () => computation.call(host) : (computation as () => T),
-      options,
-    );
+    evaluate = hasHost
+      ? () => computation.call(host)
+      : (computation as () => T);
   }
+
+  const angularProbe = computed(() => ({ value: evaluate() }));
+  const angularRevision = craftSignal(0);
+  const memoized = createComputedWithOptions(() => {
+    angularRevision();
+    return evaluate();
+  }, options);
+  let previousProbe: object | undefined;
+  const result = (() => {
+    const probe = angularProbe();
+    if (previousProbe !== undefined && probe !== previousProbe) {
+      angularRevision.update((revision) => revision + 1);
+    }
+    previousProbe = probe;
+    return memoized();
+  }) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {
