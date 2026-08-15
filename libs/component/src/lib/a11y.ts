@@ -141,7 +141,7 @@ export function liveRegion(
     {
       'aria-live': politeness,
       'aria-atomic': 'true',
-      ...(label
+      ...(label !== undefined
         ? { role: 'region' as const, 'aria-label': label }
         : { role: politeness === 'assertive' ? 'alert' : 'status' }),
     },
