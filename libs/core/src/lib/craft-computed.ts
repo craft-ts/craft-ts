@@ -179,10 +179,13 @@ export function craftComputed<T>(
   let evaluationVersion = 0;
   const memoized = createComputedWithOptions(() => {
     angularRevision();
-    const captured = captureCraftSignalReads(evaluate);
-    capturedCraftReads = captured.reads;
-    evaluationVersion++;
-    return captured.value;
+    try {
+      return captureCraftSignalReads(evaluate, (reads) => {
+        capturedCraftReads = reads;
+      }).value;
+    } finally {
+      evaluationVersion++;
+    }
   }, options);
   const angularMemoRevision = signal(0);
   let angularMemoInitialized = false;
@@ -223,12 +226,17 @@ export function craftComputed<T>(
     ) {
       untracked(() => angularMemoRevision.update((revision) => revision + 1));
     }
-    const value = angularMemo();
-    if (!craftBridgeWatch || installedEvaluationVersion !== evaluationVersion) {
-      installCraftBridge();
+    try {
+      return angularMemo();
+    } finally {
+      if (
+        !craftBridgeWatch ||
+        installedEvaluationVersion !== evaluationVersion
+      ) {
+        installCraftBridge();
+      }
+      previousCraftBridgeRevision = currentCraftBridgeRevision;
     }
-    previousCraftBridgeRevision = currentCraftBridgeRevision;
-    return value;
   }) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });

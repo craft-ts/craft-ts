@@ -121,6 +121,25 @@ describe('craftComputed', () => {
     expect(angularConsumer()).toBe(12);
   });
 
+  it('recovers an Angular consumer after a thrown first evaluation', () => {
+    const ready = craftSignal(false);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('recover', () => {
+        if (!ready()) {
+          throw new Error('not ready');
+        }
+        return 'recovered';
+      }),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(() => angularConsumer()).toThrow('not ready');
+
+    ready.set(true);
+
+    expect(angularConsumer()).toBe('recovered');
+  });
+
   it('retraces conditional Angular dependencies after a Craft branch switch', () => {
     const useSecond = craftSignal(false);
     const first = signal('first');

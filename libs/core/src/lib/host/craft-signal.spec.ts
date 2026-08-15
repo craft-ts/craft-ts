@@ -96,4 +96,19 @@ describe('craftSignal', () => {
     expect(seen).toEqual([0, 1]);
     expect(cleaned).toEqual([0, 1]);
   });
+
+  it('accepts the Task 2 effect option shape', () => {
+    const watch = craftWatch(
+      () => {
+        /* noop */
+      },
+      {
+        injector: {} as never,
+        manualCleanup: true,
+        debugName: 'compatible-watch',
+      },
+    );
+
+    watch.destroy();
+  });
 });

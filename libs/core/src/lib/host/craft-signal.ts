@@ -20,7 +20,10 @@ function trackCraftRead(value: CraftSignal<unknown>): void {
   activeCraftReadCollector?.add(value);
 }
 
-export function captureCraftSignalReads<T>(fn: () => T): {
+export function captureCraftSignalReads<T>(
+  fn: () => T,
+  onReads?: (reads: readonly CraftSignal<unknown>[]) => void,
+): {
   readonly value: T;
   readonly reads: readonly CraftSignal<unknown>[];
 } {
@@ -31,6 +34,7 @@ export function captureCraftSignalReads<T>(fn: () => T): {
     return { value: fn(), reads: [...reads] };
   } finally {
     activeCraftReadCollector = previous;
+    onReads?.([...reads]);
   }
 }
 
@@ -41,6 +45,8 @@ type CraftSignalOptions<T> = {
 
 type CraftWatchOptions = {
   readonly debugName?: string;
+  readonly injector?: unknown;
+  readonly manualCleanup?: boolean;
 };
 
 function brand<T, SignalType extends () => T>(value: SignalType): SignalType {
@@ -161,8 +167,14 @@ export function craftLinkedSignal<T>(options: {
 export function craftWatch(fn: () => void | (() => void)): { destroy(): void };
 export function craftWatch(
   fn: () => void | (() => void),
+  options: CraftWatchOptions,
+): { destroy(): void };
+export function craftWatch(
+  fn: () => void | (() => void),
   _options?: CraftWatchOptions,
 ): { destroy(): void } {
+  // alien-signals has no injector ownership. The overload preserves the Task 2
+  // call shape; boundary helpers remain responsible for injector teardown.
   const destroy = effect(fn);
   return { destroy };
 }
