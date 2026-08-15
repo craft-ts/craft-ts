@@ -4433,13 +4433,7 @@ class DeferRenderedNode implements RenderedNode {
     }
 
     if (this.node.trigger === 'interaction') {
-      const target =
-        this.firstElementInView() ??
-        (this.parent instanceof Element ? this.parent : undefined);
-      if (!target) {
-        this.startLoad();
-        return;
-      }
+      const target = this.firstElementInView() ?? this.parent;
       const start = (event?: Event) => {
         if (event && event.type === 'keydown') {
           const key = (event as KeyboardEvent).key;

@@ -9,7 +9,7 @@ export interface CraftDomAdapter {
   setProperty(el: Element, name: string, value: unknown): void;
   setValue(node: Text, value: string): void;
   listen(
-    target: Element,
+    target: EventTarget,
     event: string,
     handler: EventListener,
   ): () => void;

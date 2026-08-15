@@ -2443,6 +2443,38 @@ describe('functional component interpreter', () => {
     });
   });
 
+  it('keeps interaction defer idle on a DocumentFragment parent', async () => {
+    const loader = vi.fn(async () => 'Interacted');
+    const interaction = craftComponent(
+      'detachedInteraction',
+      {},
+      () => ({}),
+      () =>
+        defer(loader, {
+          trigger: 'interaction',
+          resolve: (value) => p({ class: 'detached-loaded' }, value),
+        }),
+    );
+    const fragment = document.createDocumentFragment();
+    const mounted = mountCraftComponent(
+      interaction,
+      fragment as unknown as Element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    await Promise.resolve();
+
+    expect(loader).not.toHaveBeenCalled();
+    fragment.dispatchEvent(new Event('click'));
+    await vi.waitFor(() => expect(loader).toHaveBeenCalledOnce());
+    await vi.waitFor(() => {
+      expect(fragment.querySelector('.detached-loaded')?.textContent).toBe(
+        'Interacted',
+      );
+    });
+    mounted.destroy();
+  });
+
   it('mounts Angular components and directives through public interop nodes', () => {
     const label = signal('Angular child');
     const selected = vi.fn();
