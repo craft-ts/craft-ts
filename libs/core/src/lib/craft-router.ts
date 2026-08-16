@@ -35,7 +35,6 @@ import {
   matchCraftRoutes,
   matchCraftRoutesAsync,
   parseSearchParams,
-  parseUrl,
   serializeLocation,
   splitPath,
   type CraftCompiledRoute,
@@ -628,7 +627,7 @@ function commitCraftMatch(
     resolved &&
     serializeLocation(resolved) !== serializeLocation(location)
   ) {
-    history.replace(serializeLocation(resolved));
+    history.replace(serializeLocation(resolved), window.history.state);
   }
 }
 
@@ -636,6 +635,7 @@ function provideCraftRouterRuntime(
   routes: readonly CraftCompiledRoute[] = [],
   ..._features: unknown[]
 ): Provider[] {
+  const navigation: { current: CraftNavigation | null } = { current: null };
   return [
     { provide: CRAFT_COMPILED_ROUTES, useValue: routes },
     {
@@ -686,6 +686,7 @@ function provideCraftRouterRuntime(
                   return;
                 }
                 commitCraftMatch(match, history, nextLocation, resolved);
+                navigation.current = null;
               },
               () => {
                 // Keep the previous match. Inflight is cleared in
@@ -695,6 +696,7 @@ function provideCraftRouterRuntime(
             return;
           }
           commitCraftMatch(match, history, nextLocation, syncMatch);
+          navigation.current = null;
         });
         return match;
       },
@@ -705,7 +707,7 @@ function provideCraftRouterRuntime(
       useFactory: (
         history: CraftHistory,
         location: CraftWritableSignal<CraftLocation>,
-      ) => createNativeCraftRouter(history, location),
+      ) => createNativeCraftRouter(history, location, navigation),
       deps: [CRAFT_HISTORY, CRAFT_LOCATION],
     },
   ];
@@ -714,9 +716,9 @@ function provideCraftRouterRuntime(
 function createNativeCraftRouter(
   history: CraftHistory,
   location: CraftWritableSignal<CraftLocation>,
+  navigation: { current: CraftNavigation | null },
 ): CraftRouter {
   const listeners = new Set<(event: CraftRouterEvent) => void>();
-  let currentNavigation: CraftNavigation | null = null;
 
   const toUrl = (
     input: CraftRouterInputWithOptionalQueryParams & CraftNavigationExtras,
@@ -759,16 +761,16 @@ function createNativeCraftRouter(
           ),
         }
       : extras;
-    currentNavigation = { extras: withVt };
+    navigation.current = { extras: withVt };
     for (const listener of listeners) {
       listener({ type: 'NavigationStart', url });
     }
     if (withVt?.skipLocationChange) {
-      location.set(parseUrl(url));
+      history.skip(url, withVt.state ?? null);
     } else if (withVt?.replaceUrl) {
-      history.replace(url, withVt.state);
+      history.replace(url, withVt.state ?? null);
     } else {
-      history.push(url, withVt?.state);
+      history.push(url, withVt?.state ?? null);
     }
     for (const listener of listeners) {
       listener({ type: 'NavigationEnd', url });
@@ -778,7 +780,7 @@ function createNativeCraftRouter(
 
   return {
     get url() {
-      return serializeLocation(history.get());
+      return serializeLocation(location());
     },
     createUrlTree,
     navigate: (input) => commit(toUrl(input), input as CraftNavigationExtras),
@@ -803,7 +805,7 @@ function createNativeCraftRouter(
     serializeUrl: (tree) => tree.toString(),
     isActive: (tree, extras) => {
       const target = String(tree).split('?')[0]?.split('#')[0] ?? '';
-      const current = history.get().pathname;
+      const current = location().pathname;
       if (extras?.paths === 'subset') {
         return current === target || current.startsWith(`${target}/`);
       }
@@ -819,7 +821,7 @@ function createNativeCraftRouter(
         };
       },
     },
-    getCurrentNavigation: () => currentNavigation,
+    getCurrentNavigation: () => navigation.current,
   };
 }
 

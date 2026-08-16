@@ -281,6 +281,32 @@ describe('CraftRouter', () => {
     expect(craftRouter.url).toBe('/query-params?page=3');
   });
 
+  it('skipLocationChange updates url without changing the address bar', async () => {
+    window.history.replaceState(null, '', '/');
+    await TestBed.configureTestingModule({
+      providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
+    }).compileComponents();
+
+    const craftRouter = TestBed.runInInjectionContext(() =>
+      craftUse(CraftRouter()),
+    );
+
+    await craftRouter.navigateByUrl('/users/42', { skipLocationChange: true });
+
+    expect(craftRouter.url).toBe('/users/42');
+    expect(window.location.pathname).toBe('/');
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/users/42');
+    expect(
+      craftRouter.isActive(
+        craftRouter.createUrlTree({
+          to: 'users/:userId',
+          params: { userId: '42' },
+        }),
+      ),
+    ).toBe(true);
+    window.history.replaceState(null, '', '/');
+  });
+
   // moved to @craft-ng/angular
   it.skip(
     'should render CraftRouterLink href and keep routerLinkActive compatible — moved to @craft-ng/angular',

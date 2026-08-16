@@ -662,6 +662,38 @@ describe('queryParams codecs', () => {
     });
   });
 
+  it('skipLocationChange updates url without changing the address bar', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(CRAFT_ROUTER);
+      const history = TestBed.inject(CRAFT_HISTORY);
+      const filters = craftUse(
+        queryParams(
+          'filters',
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: {
+                  decode: (value: string) => Number(value),
+                  encode: (value: number) => String(value),
+                },
+              },
+            },
+          },
+          ({ set }) => ({ set }),
+        ),
+      );
+
+      filters.set({ page: 2 }, { skipLocationChange: true });
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(filters.page())).toBe(2);
+      expect(router.url).toContain('page=2');
+      expect(history.get().search).toContain('page=2');
+      expect(window.location.search).toBe('');
+    });
+  });
+
   it('falls back and exposes native codec decode errors', async () => {
     const nativeError = new Error('invalid page');
 

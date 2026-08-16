@@ -392,6 +392,67 @@ describe('CraftRouterOutlet', () => {
     window.history.replaceState(null, '', '/');
   });
 
+  it('does not republish a view-transition payload on a later navigation without viewTransition', async () => {
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'photos', component: TargetCmp },
+          { path: 'about', component: ParentCmp },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const payload = { name: 'photo-1', image: null };
+
+    await router.navigateByUrl('/photos', {
+      state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
+    });
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+
+    await router.navigateByUrl('/about');
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('does not republish a view-transition payload on popstate back', async () => {
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'photos', component: TargetCmp },
+          { path: 'about', component: ParentCmp },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const payload = { name: 'photo-1', image: null };
+
+    await router.navigateByUrl('/about');
+    await router.navigateByUrl('/photos', {
+      state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
+    });
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+
+    window.history.replaceState(null, '', '/about');
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    await flush();
+
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/about');
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    window.history.replaceState(null, '', '/');
+  });
+
   it('activates the lazy child after resolving loadChildren for /slow-page', async () => {
     TestBed.configureTestingModule({
       providers: [

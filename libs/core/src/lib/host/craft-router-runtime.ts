@@ -9,6 +9,7 @@ export interface CraftHistory {
   listen(fn: (location: CraftLocation) => void): () => void;
   push(url: string, state?: unknown): void;
   replace(url: string, state?: unknown): void;
+  skip(url: string, state?: unknown): void;
   dispose(): void;
 }
 
@@ -103,24 +104,40 @@ export function readWindowLocation(win: Window): CraftLocation {
 export function createBrowserHistory(win: Window): CraftHistory {
   const listeners = new Set<(location: CraftLocation) => void>();
   let disposed = false;
+  let current = readWindowLocation(win);
 
   const notify = (): void => {
     if (disposed) {
       return;
     }
-    const location = readWindowLocation(win);
     for (const listener of listeners) {
-      listener(location);
+      listener(current);
     }
   };
 
+  const write = (
+    mode: 'push' | 'replace',
+    url: string,
+    state: unknown,
+  ): void => {
+    const nextState = state === undefined ? null : state;
+    if (mode === 'push') {
+      win.history.pushState(nextState, '', url);
+    } else {
+      win.history.replaceState(nextState, '', url);
+    }
+    current = readWindowLocation(win);
+    notify();
+  };
+
   const onPopState = (): void => {
+    current = readWindowLocation(win);
     notify();
   };
   win.addEventListener('popstate', onPopState);
 
   return {
-    get: () => readWindowLocation(win),
+    get: () => current,
     listen(fn) {
       listeners.add(fn);
       return () => {
@@ -128,19 +145,13 @@ export function createBrowserHistory(win: Window): CraftHistory {
       };
     },
     push(url, state) {
-      win.history.pushState(
-        state === undefined ? win.history.state : state,
-        '',
-        url,
-      );
-      notify();
+      write('push', url, state);
     },
     replace(url, state) {
-      win.history.replaceState(
-        state === undefined ? win.history.state : state,
-        '',
-        url,
-      );
+      write('replace', url, state);
+    },
+    skip(url, _state) {
+      current = parseUrl(url);
       notify();
     },
     dispose() {
@@ -177,6 +188,10 @@ export function createMemoryHistory(initialUrl = '/'): CraftHistory {
       notify();
     },
     replace(url) {
+      current = parseUrl(url);
+      notify();
+    },
+    skip(url) {
       current = parseUrl(url);
       notify();
     },

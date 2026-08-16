@@ -58,6 +58,19 @@ describe('createBrowserHistory', () => {
     expect(window.history.state).toEqual({ photo: '2' });
   });
 
+  it('does not copy previous state when push or replace omit state', () => {
+    const history = createBrowserHistory(window);
+    history.push('/a', { photo: '1' });
+    history.push('/b');
+
+    expect(window.history.state).toBeNull();
+
+    history.replace('/c', { photo: '2' });
+    history.replace('/d');
+
+    expect(window.history.state).toBeNull();
+  });
+
   it('does not notify popstate after dispose', () => {
     const history = createBrowserHistory(window);
     const seen: string[] = [];

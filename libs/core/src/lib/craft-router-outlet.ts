@@ -725,8 +725,8 @@ export class CraftRouterOutletController {
         ? (history.state as Record<string, unknown> | null | undefined)
         : undefined;
     const raw =
-      fromNavigation?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
       historyState?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
+      fromNavigation?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
       null;
 
     this.viewTransitionSink.set(raw as CraftViewTransitionInput);

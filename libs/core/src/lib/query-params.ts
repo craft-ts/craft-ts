@@ -606,7 +606,7 @@ function createQueryParamsRef<
         mergedOptions.preserveFragment === false ? '' : current.hash
       }`;
       if (mergedOptions.skipLocationChange) {
-        location.set({ ...current, search });
+        history.skip(url);
         return;
       }
       if (mergedOptions.replaceUrl) {
