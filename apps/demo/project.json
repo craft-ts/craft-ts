@@ -10,7 +10,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/demo",
-        "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
+        "command": "tsgo -p tsconfig.app.json --noEmit --pretty false"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
@@ -26,7 +26,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/demo",
-        "command": "tsc -p tsconfig.spec.json --noEmit --pretty false"
+        "command": "tsgo -p tsconfig.spec.json --noEmit --pretty false"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
@@ -41,7 +41,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/demo",
-        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+        "command": "tsgo -p tsconfig.architecture.json --noEmit --pretty false"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",

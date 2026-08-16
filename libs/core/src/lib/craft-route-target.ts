@@ -11,7 +11,11 @@ export type CraftRouteTarget = {
   readonly component: unknown;
 };
 
-export type CraftRouteTargetInput = unknown;
+/**
+ * A route's component: the Craft component itself, or an explicit target. It
+ * used to admit an Angular `Type<unknown>` as a third form.
+ */
+export type CraftRouteTargetInput = object | CraftRouteTarget;
 
 /** Route-scoped target consumed by `CraftRouterOutletController`. */
 export const CRAFT_ROUTE_TARGET = new InjectionToken<CraftRouteTarget | null>(
