@@ -145,7 +145,7 @@ export function startFunctionRegistryBridge({
   createSocket?: (url: string) => RegistryBridgeSocket;
   reconnectDelayMs?: number;
   getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }>;
-  navigate: (url: string) => Promise<void>;
+  navigate?: (url: string) => Promise<void>;
   getDocument?: () => Document;
 }): () => void {
   let clientId = initialClientId;
@@ -245,8 +245,8 @@ export function startFunctionRegistryBridge({
       if (socket === currentSocket) {
         socket = undefined;
       }
-      setMcpPageBadgeText(getDocument(), 'MCP page: reconnecting');
       if (!stopped) {
+        setMcpPageBadgeText(getDocument(), 'MCP page: reconnecting');
         registry.logBridge(`Disconnected from ${url}; reconnecting`);
         scheduleReconnect();
       }

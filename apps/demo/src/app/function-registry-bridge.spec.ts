@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import '@angular/compiler';
+import { Injector, runInInjectionContext } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import {
   createFunctionRegistryClientId,
   handleFunctionRegistryRequest,
@@ -6,7 +9,9 @@ import {
   persistAssignedClientId,
   respondToBridgeMessage,
   shouldSendGoodbye,
+  startFunctionRegistryBridge,
   type RegistryBridgeRequest,
+  type RegistryBridgeSocket,
 } from './function-registry-bridge';
 import { createFunctionRegistry } from './function-registry';
 import type {
@@ -266,7 +271,66 @@ describe('function registry WebSocket bridge', () => {
       error: 'goto "/login-form" is not available',
     });
   });
+
+  it('does not recreate the MCP page badge after stop', () => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+    const socket = fakeRegistryBridgeSocket();
+    const stop = runInInjectionContext(TestBed.inject(Injector), () =>
+      startFunctionRegistryBridge({
+        injector: TestBed.inject(Injector),
+        url: 'ws://127.0.0.1:3333',
+        clientId: 'client-aaaaaaaa',
+        createSocket: () => socket,
+        getPageInfo: () => ({
+          pageUrl: 'http://localhost/',
+          pageTitle: 'Demo',
+        }),
+        navigate: async () => undefined,
+        getDocument: () => document,
+      }),
+    );
+
+    stop();
+    const onclose = socket.onclose;
+    expect(onclose).toEqual(expect.any(Function));
+    (onclose as (event: CloseEvent) => void)(new CloseEvent('close'));
+
+    expect(document.getElementById('mcp-page-bridge-status')).toBeNull();
+  });
+
+  it('starts the bridge without a navigate callback', () => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+    const socket = fakeRegistryBridgeSocket();
+    const stop = runInInjectionContext(TestBed.inject(Injector), () =>
+      startFunctionRegistryBridge({
+        injector: TestBed.inject(Injector),
+        url: 'ws://127.0.0.1:3333',
+        clientId: 'client-aaaaaaaa',
+        createSocket: () => socket,
+        getPageInfo: () => ({
+          pageUrl: 'http://localhost/',
+          pageTitle: 'Demo',
+        }),
+        getDocument: () => document,
+      }),
+    );
+    stop();
+  });
 });
+
+function fakeRegistryBridgeSocket(): RegistryBridgeSocket {
+  return {
+    readyState: 1,
+    send: () => undefined,
+    close: () => undefined,
+    onopen: null,
+    onclose: null,
+    onerror: null,
+    onmessage: null,
+  };
+}
 
 function request(
   callId: string,
