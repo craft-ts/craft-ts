@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
-import { craftPipe } from '../craft-pipe';
-import { state } from '../state';
+import { insertNoopTypingAnchor } from '@craft-ng/core';
+import { craftPipe } from '@craft-ng/core';
+import { state } from '@craft-ng/core';
 import { LegacyCraftFieldDirective as CraftFieldDirective } from '@craft-ng/angular';
-import { insertForm } from './insert-form';
-import { insertFormAttributes } from './insert-form-attributes';
-import { insertSelectFormTree } from './insert-select-form-tree';
+import { insertForm } from '@craft-ng/core';
+import { insertFormAttributes } from '@craft-ng/core';
+import { insertSelectFormTree } from '@craft-ng/core';
 import {
   cEmail,
   cMax,
@@ -15,8 +15,8 @@ import {
   cMinLength,
   cPattern,
   cRequired,
-} from './validator';
-import { craftUse } from '../craft-use';
+} from '@craft-ng/core';
+import { craftUse } from '@craft-ng/core';
 
 @Component({
   standalone: true,

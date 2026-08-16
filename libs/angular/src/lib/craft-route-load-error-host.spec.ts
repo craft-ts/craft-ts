@@ -26,14 +26,14 @@ import {
   provideRouteLoadErrorComponent,
   type CraftRouteLoadRetry,
   withRouteLoadError,
-} from './craft-route-load-error';
+} from '@craft-ng/core';
 import { CraftRouteLoadErrorHostComponent } from '@craft-ng/angular';
 import {
   CRAFT_COMPILED_ROUTES,
   CRAFT_ROUTER,
   provideCraftRouter,
-} from './craft-router';
-import { createCraftRouterOutletController } from './craft-router-outlet';
+} from '@craft-ng/core';
+import { createCraftRouterOutletController } from '@craft-ng/core';
 
 @Component({ standalone: true, template: 'load error' })
 class LoadErrorComponent {}

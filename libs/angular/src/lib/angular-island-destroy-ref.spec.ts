@@ -11,14 +11,14 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { source$ } from '../source$';
 import {
-  DestroyRef,
-  effect,
-  inject,
-  signal,
+  source$,
   ɵcraftInjectorFromHost,
-} from './craft-compat';
+  ɵDestroyRef as DestroyRef,
+  ɵeffect as effect,
+  ɵinject as inject,
+  ɵsignal as signal,
+} from '@craft-ng/core';
 
 beforeAll(() => {
   try {

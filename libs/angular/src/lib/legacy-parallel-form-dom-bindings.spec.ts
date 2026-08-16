@@ -1,18 +1,18 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { type GetDeps, type GetPublicComponentProperties } from '../../index';
-import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
-import { mutation } from '../mutation';
-import { state } from '../state';
+import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { insertNoopTypingAnchor } from '@craft-ng/core';
+import { mutation } from '@craft-ng/core';
+import { state } from '@craft-ng/core';
 import { LegacyCraftFieldDirective as CraftFieldDirective } from '@craft-ng/angular';
-import { insertForm, ValidatedFormValue } from './insert-form';
-import { insertFormAttributes } from './insert-form-attributes';
-import { insertFormSubmit } from './insert-form-submit';
-import { insertSelectFormTree } from './insert-select-form-tree';
-import { craftPipe } from '../craft-pipe';
-import { cRequired } from './validator';
-import { craftUse } from '../craft-use';
-import { rawReactiveValue } from '../reactive-read';
+import { insertForm, ValidatedFormValue } from '@craft-ng/core';
+import { insertFormAttributes } from '@craft-ng/core';
+import { insertFormSubmit } from '@craft-ng/core';
+import { insertSelectFormTree } from '@craft-ng/core';
+import { craftPipe } from '@craft-ng/core';
+import { cRequired } from '@craft-ng/core';
+import { craftUse } from '@craft-ng/core';
+import { rawReactiveValue } from '@craft-ng/core';
 
 type User = { id: string; name: string };
 

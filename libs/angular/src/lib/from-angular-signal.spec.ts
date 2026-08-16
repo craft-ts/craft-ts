@@ -12,8 +12,11 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { ɵcraftInjectorFromHost } from './craft-compat';
-import { craftComputed, craftWatch } from './craft-signal';
+import {
+  ɵcraftInjectorFromHost,
+  ɵcraftComputed as craftComputed,
+  ɵcraftWatch as craftWatch,
+} from '@craft-ng/core';
 
 beforeAll(() => {
   try {

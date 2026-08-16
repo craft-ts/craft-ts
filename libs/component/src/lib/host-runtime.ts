@@ -8,6 +8,7 @@ import {
   ɵEnvironmentInjector,
   ɵINJECTOR_SCOPE as CraftInjectorScope,
   ɵinject,
+  ɵInjectionToken as CraftInjectionToken,
   ɵprovideZonelessChangeDetection,
   ɵrunInInjectionContext,
   ɵsignal,
@@ -81,6 +82,7 @@ export let DestroyRef = CraftDestroyRef;
 export let ElementRef = ɵElementRef;
 export let EnvironmentInjector = ɵEnvironmentInjector;
 export let Injector = CraftInjectorToken;
+export let InjectionToken = CraftInjectionToken;
 export let inject = ɵinject;
 export let provideZonelessChangeDetection = ɵprovideZonelessChangeDetection;
 export let reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>

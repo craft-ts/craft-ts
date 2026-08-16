@@ -1,15 +1,15 @@
 import { Component, forwardRef, model, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { CraftNodeDirective } from '../craft-node-directive';
+import type { CraftNodeDirective } from '@craft-ng/core';
 import {
   craftField,
   CraftValueControl,
   FieldAttributeMeta,
-} from './craft-field';
+} from '@craft-ng/core';
 import {
   CRAFT_FIELD_VALUE_CONTROL,
   CraftFieldDirective as functionalCraftFieldDirective,
-} from './craft-field.directive';
+} from '@craft-ng/core';
 import { LegacyCraftFieldDirective as CraftFieldDirective } from '@craft-ng/angular';
 
 @Component({

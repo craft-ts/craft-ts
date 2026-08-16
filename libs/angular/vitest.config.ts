@@ -11,7 +11,7 @@ const workspaceRoot = path.resolve(
 
 export default defineConfig({
   root: path.dirname(fileURLToPath(import.meta.url)),
-  cacheDir: '../../node_modules/.vite/libs/component',
+  cacheDir: '../../node_modules/.vite/libs/angular',
   plugins: [nxViteTsPaths()],
   resolve: {
     alias: {
@@ -28,6 +28,8 @@ export default defineConfig({
     },
   },
   esbuild: {
+    // The island keeps Angular decorators; they run through JIT here because
+    // every spec imports `@angular/compiler`.
     tsconfigRaw: {
       compilerOptions: {
         experimentalDecorators: true,
@@ -36,18 +38,10 @@ export default defineConfig({
     },
   },
   test: {
-    name: 'ng-craft-component',
+    name: 'ng-craft-angular',
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],
-    exclude: [
-      // TestBed / ngc remainder — run via `nx test-angular ng-craft-component`.
-      'src/lib/a11y-control.spec.ts',
-      'src/lib/assert-defined-input.spec.ts',
-      'src/lib/block.spec.ts',
-      'src/lib/composition.spec.ts',
-      'src/lib/pending-block.spec.ts',
-    ],
     reporters: ['default'],
   },
 });

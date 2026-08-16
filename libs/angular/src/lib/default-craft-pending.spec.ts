@@ -18,7 +18,7 @@ import {
   withLoadingText,
   withPendingComponent,
   withTransitionTimings,
-} from './craft-pending';
+} from '@craft-ng/core';
 import { DefaultCraftPendingComponent } from '@craft-ng/angular';
 
 beforeAll(() => {

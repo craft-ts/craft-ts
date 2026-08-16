@@ -82,6 +82,7 @@ export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 export {
   DestroyRef as ɵDestroyRef,
   Injector as ɵInjector,
+  InjectionToken as ɵInjectionToken,
   ɵsetCraftDevMode,
   ɵsetCraftHostInjectorRunner,
   ɵsetCraftInjectFallback,
@@ -92,6 +93,7 @@ export {
   runInInjectionContext as ɵrunInInjectionContext,
   provideZonelessChangeDetection as ɵprovideZonelessChangeDetection,
   computed as ɵcomputed,
+  effect as ɵeffect,
   signal as ɵsignal,
   untracked as ɵuntracked,
   ɵEffectScheduler,
@@ -105,6 +107,8 @@ export type {
 export {
   CRAFT_SIGNAL as ɵCRAFT_SIGNAL,
   ɵbrandAsCraftSignal,
+  craftComputed as ɵcraftComputed,
+  craftWatch as ɵcraftWatch,
 } from './lib/host/craft-signal';
 export type { CraftSignal as ɵCraftSignal } from './lib/host/craft-signal';
 export {

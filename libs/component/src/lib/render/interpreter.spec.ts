@@ -1,42 +1,22 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
-  Component,
   DestroyRef,
-  Directive,
   ElementRef,
-  EventEmitter,
   EnvironmentInjector,
-  HostBinding,
   inject,
   InjectionToken,
   Injector,
-  Input as AngularInput,
-  Output as AngularOutput,
-  Renderer2,
   createEnvironmentInjector,
   provideZonelessChangeDetection,
   signal,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  ActivatedRoute,
-  ChildrenOutletContexts,
-  provideRouter,
-} from '@angular/router';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BehaviorSubject } from 'rxjs';
+} from '../host-runtime';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   craftComputed,
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
-  CraftRouterLink,
   craftException,
   craftMethod,
   craftService,
@@ -51,15 +31,8 @@ import {
   state,
   type CraftDomEvent,
 } from '@craft-ng/core';
-import {
-  CraftRoutedComponentHost,
-  loadCraftComponent,
-  mountCraftComponent,
-  provideCraftComponent,
-} from '../bridge';
-import { angular, directive } from '@craft-ng/angular';
+import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
-import { CraftRouterOutlet } from '../craft-router-outlet';
 import { craftDirective } from '../directive';
 import { content, renderContent } from '../project';
 import { defer } from '../defer';
@@ -72,43 +45,6 @@ import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 import { renderCraftComponent } from '../testing';
 import { mountInterpretedComponent } from './interpreter';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
-@Component({
-  selector: 'test-angular-child',
-  standalone: true,
-  template: `<button (click)="selected.emit(label)">{{ label }}</button>`,
-})
-class TestAngularChild {
-  @AngularInput() label = '';
-  @AngularOutput() readonly selected = new EventEmitter<string>();
-}
-
-@Directive({
-  selector: '[craftTestMarker]',
-  standalone: true,
-})
-class TestMarkerDirective {
-  @AngularInput() craftTestMarker = '';
-  @HostBinding('attr.data-marker')
-  get marker(): string {
-    return this.craftTestMarker;
-  }
-}
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -252,7 +188,12 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  it('coalesces text binding updates and stops them after destruction', async () => {
+  // Angular's scheduler coalesced writes made in the same turn into a single
+  // binding run. alien-signals notifies synchronously, so each write re-runs
+  // the binding. Batching writes back into one run is a scheduler decision
+  // tracked separately; what this spec pins is that the DOM lands on the last
+  // value and that destruction stops the binding for good.
+  it('re-runs a text binding per write and stops after destruction', async () => {
     const value = signal(0);
     const binding = vi.fn(() => value());
     const component = craftComponent(
@@ -269,12 +210,12 @@ describe('functional component interpreter', () => {
     value.set(2);
     await flush();
     expect(element.textContent).toBe('2');
-    expect(binding).toHaveBeenCalledTimes(2);
+    expect(binding).toHaveBeenCalledTimes(3);
 
     destroy();
     value.set(3);
     await flush();
-    expect(binding).toHaveBeenCalledTimes(2);
+    expect(binding).toHaveBeenCalledTimes(3);
   });
 
   it('owns conditional bindings in the active branch effect', async () => {
@@ -1401,28 +1342,6 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  // moved to @craft-ng/angular
-  it.skip('marks Angular hosts as scope boundaries but leaves their internals unmarked', async () => {
-    const angularBoundaryParent = craftComponent(
-      'angularBoundaryParent',
-      { styles: '.parent { color: blue; }' },
-      () => ({}),
-      () => div({ class: 'parent' }, [angular(TestAngularChild)]),
-    );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      angularBoundaryParent,
-    );
-
-    const angularHost = element.querySelector('test-angular-child')!;
-    expect(angularHost.getAttribute('data-craft-root')).toContain(
-      'angular:test-angular-child',
-    );
-    expect(
-      angularHost.querySelector('button')?.hasAttribute('data-craft-root'),
-    ).toBe(false);
-    destroy();
-  });
-
   it('patches Input accessors without recreating the component', async () => {
     const value = signal('first');
     const valueReader = markYieldableValue(
@@ -1670,7 +1589,8 @@ describe('functional component interpreter', () => {
       (context) => {
         mountedElements.push(context.element);
         expect(inject(ElementRef).nativeElement).toBe(context.element);
-        expect(inject(Renderer2, { optional: true })).toBeNull();
+        // Craft directives render through `context.renderer` (the DOM adapter);
+        // there is no Angular Renderer2 anywhere on this path any more.
         inject(DestroyRef).onDestroy(destroyRefCleanups);
         context.injector.get(CRAFT_NODE_EFFECT_FACTORY)('marker', () => {
           context.renderer.setAttribute(
@@ -1724,164 +1644,6 @@ describe('functional component interpreter', () => {
     expect(destroyRefCleanups).toHaveBeenCalledTimes(2);
   });
 
-  // moved to @craft-ng/angular
-  it.skip('resolves generator craftRouterLink inputs used by each() navigation', async () => {
-    TestBed.configureTestingModule({
-      providers: [provideRouter([{ path: 'list', component: TestAngularChild }])],
-    });
-    const links = [['List', { to: 'list' }]] as const;
-    const nav = craftComponent(
-      'generatorRouterLinkNav',
-      {},
-      () => ({}),
-      () =>
-        each(
-          links,
-          { track: ([, link]) => link.to },
-          (entry) =>
-            a(
-              {
-                craftRouterLink: function* () {
-                  return (yield* entry())[1];
-                },
-              },
-              function* () {
-                return (yield* entry())[0];
-              },
-            ).pipe(CraftRouterLink),
-        ),
-    );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(nav);
-
-    expect(element.querySelector('a')?.getAttribute('href')).toBe('/list');
-    expect(element.querySelector('a')?.textContent).toBe('List');
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('reopens an ifBlock nav panel after a router link closes it', async () => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideRouter([
-          { path: '', component: TestAngularChild },
-          { path: 'list', component: TestAngularChild },
-          { path: 'other', component: TestAngularChild },
-        ]),
-      ],
-    });
-    const links = [
-      ['List', { to: 'list' }],
-      ['Other', { to: 'other' }],
-    ] as const;
-    const nav = craftComponent(
-      'reopenNavPanel',
-      {},
-      function* () {
-        const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
-          toggle: () => update((open) => !open),
-          close: () => set(false),
-        }));
-        return {
-          navOpen,
-          toggleNav: navOpen.toggle,
-          closeNav: navOpen.close,
-        };
-      },
-      ({ navOpen, toggleNav, closeNav }) =>
-        div(
-          {
-            click: function* () {
-              if (yield* navOpen()) {
-                yield* closeNav();
-              }
-            },
-          },
-          [
-            button(
-              {
-                class: 'toggle',
-                click: function* (event: MouseEvent) {
-                  event.stopPropagation();
-                  yield* toggleNav();
-                },
-                'aria-expanded': navOpen,
-              },
-              ifBlock(
-                navOpen,
-                () => 'Close',
-                () => 'Open',
-              ),
-            ),
-            ifBlock(
-              navOpen,
-              () =>
-                div(
-                  {
-                    class: 'panel',
-                    click: (event: MouseEvent) => event.stopPropagation(),
-                  },
-                  each(
-                    links,
-                    { track: ([, link]) => link.to },
-                    (entry) =>
-                      a(
-                        {
-                          click: closeNav,
-                          craftRouterLink: function* () {
-                            return (yield* entry())[1];
-                          },
-                        },
-                        function* () {
-                          return (yield* entry())[0];
-                        },
-                      ).pipe(CraftRouterLink),
-                  ),
-                ),
-              () => [],
-            ),
-          ],
-        ),
-    );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      nav,
-    );
-
-    const toggle = async () => {
-      element.querySelector<HTMLButtonElement>('.toggle')?.click();
-      await flush();
-    };
-    const clickLink = async (label: string) => {
-      const link = Array.from(
-        element.querySelectorAll<HTMLAnchorElement>('a'),
-      ).find((anchor) => anchor.textContent?.trim() === label);
-      expect(link).toBeDefined();
-      link!.click();
-      await flush();
-    };
-
-    await toggle();
-    expect(element.querySelector('.panel')).not.toBeNull();
-    expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
-      'true',
-    );
-
-    await clickLink('List');
-    expect(element.querySelector('.panel')).toBeNull();
-
-    await toggle();
-    expect(element.querySelector('.panel')).not.toBeNull();
-    expect(element.querySelector('.toggle')?.getAttribute('aria-expanded')).toBe(
-      'true',
-    );
-
-    await clickLink('Other');
-    expect(element.querySelector('.panel')).toBeNull();
-
-    await toggle();
-    expect(element.querySelector('.panel')).not.toBeNull();
-
-    destroy();
-  });
-
   it('recovers an ifBlock after its true branch throws', async () => {
     const explode = signal(true);
     const component = craftComponent(
@@ -1927,7 +1689,23 @@ describe('functional component interpreter', () => {
       await flush();
     };
 
-    await expect(toggle()).rejects.toThrow(/panel boom/);
+    // The write is applied synchronously, so the branch throws inside the click
+    // listener rather than during the later flush: the error surfaces on the
+    // window instead of rejecting `flush()` as it did on the Angular scheduler.
+    const listenerErrors: unknown[] = [];
+    const captureError = (event: ErrorEvent) => {
+      listenerErrors.push(event.error ?? event.message);
+      event.preventDefault();
+    };
+    window.addEventListener('error', captureError);
+    try {
+      await toggle();
+    } finally {
+      window.removeEventListener('error', captureError);
+    }
+
+    expect(listenerErrors).toHaveLength(1);
+    expect(String(listenerErrors[0])).toMatch(/panel boom/);
     expect(element.querySelector('.panel')).toBeNull();
 
     explode.set(false);
@@ -2286,277 +2064,4 @@ describe('functional component interpreter', () => {
     parent.destroy();
   });
 
-  // moved to @craft-ng/angular
-  it.skip('mounts Angular components and directives through public interop nodes', async () => {
-    const label = signal('Angular child');
-    const selected = vi.fn();
-    const interop = craftComponent(
-      'interop',
-      {},
-      () => ({ label, selected }),
-      ({ label, selected }) =>
-        div([
-          angular(TestAngularChild, {
-            inputs: { label },
-            outputs: { selected },
-          }),
-          p('Marked').pipe(
-            directive(TestMarkerDirective, {
-              inputs: { craftTestMarker: () => 'active' },
-            }),
-          ),
-        ]),
-    );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(interop);
-
-    expect(element.querySelector('test-angular-child')?.textContent).toContain(
-      'Angular child',
-    );
-    expect(element.querySelector('[data-marker="active"]')?.textContent).toBe(
-      'Marked',
-    );
-
-    element
-      .querySelector<HTMLButtonElement>('test-angular-child button')
-      ?.click();
-    expect(selected).toHaveBeenCalledWith('Angular child');
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('mounts a routed functional component from a route-scoped provider', async () => {
-    const providerRouted = craftComponent(
-      'providerRouted',
-      {},
-      () => ({}),
-      () => p({ class: 'routed-functional' }, 'Routed'),
-    );
-    TestBed.configureTestingModule({
-      providers: [provideCraftComponent(providerRouted)],
-    });
-    const fixture = TestBed.createComponent(CraftRoutedComponentHost);
-    fixture.detectChanges();
-
-    expect(
-      fixture.nativeElement.querySelector('.routed-functional')?.textContent,
-    ).toBe('Routed');
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('passes the activated route params to a routed functional component', async () => {
-    const paramsRouted = craftComponent(
-      'paramsRouted',
-      {},
-      (userId: Input<string>) => ({ userId }),
-      ({ userId }) =>
-        p({ class: 'route-user-id' }, function* () {
-          return yield* userId();
-        }),
-    );
-    TestBed.configureTestingModule({
-      providers: [provideRouter([]), provideCraftComponent(paramsRouted)],
-    });
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      CraftRouterOutlet,
-    );
-    const params = new BehaviorSubject({ userId: '42' });
-    const queryParams = new BehaviorSubject({});
-    const data = new BehaviorSubject({});
-    const activatedRoute = {
-      component: CraftRoutedComponentHost,
-      data,
-      params,
-      queryParams,
-      snapshot: {
-        component: CraftRoutedComponentHost,
-        data: {},
-        params: { userId: '42' },
-        queryParams: {},
-        routeConfig: { component: CraftRoutedComponentHost },
-      },
-    } as unknown as ActivatedRoute;
-
-    const outlet = TestBed.inject(ChildrenOutletContexts).getContext(
-      'primary',
-    )?.outlet;
-    expect(outlet).toBeDefined();
-    outlet?.activateWith(activatedRoute, TestBed.inject(EnvironmentInjector));
-    await flush();
-
-    expect(element.querySelector('.route-user-id')?.textContent).toBe('42');
-
-    activatedRoute.snapshot.params = { userId: '43' };
-    params.next({ userId: '43' });
-    await flush();
-
-    expect(element.querySelector('.route-user-id')?.textContent).toBe('43');
-    destroy();
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('passes inherited parent params and data into a lazy child with multiple inputs', async () => {
-    const inheritedParentInputs = craftComponent(
-      'inheritedParentInputs',
-      {},
-      (teamId: Input<string>, someParentRouteData: Input<string>) => ({
-        teamId,
-        someParentRouteData,
-      }),
-      ({ teamId, someParentRouteData }) =>
-        div([
-          p({ class: 'route-team-id' }, function* () {
-            return yield* teamId();
-          }),
-          p({ class: 'route-parent-data' }, function* () {
-            return yield* someParentRouteData();
-          }),
-        ]),
-    );
-    TestBed.configureTestingModule({
-      providers: [
-        provideRouter([]),
-        provideCraftComponent(inheritedParentInputs),
-      ],
-    });
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      CraftRouterOutlet,
-    );
-    const parentParams = new BehaviorSubject({ teamId: '100' });
-    const parentData = new BehaviorSubject({ someParentRouteData: 'foo' });
-    const params = new BehaviorSubject({ userId: '42' });
-    const queryParams = new BehaviorSubject({});
-    const data = new BehaviorSubject({});
-    const parentSnapshot = {
-      params: { teamId: '100' },
-      data: { someParentRouteData: 'foo' },
-      queryParams: {},
-    };
-    const leafSnapshot = {
-      component: CraftRoutedComponentHost,
-      data: {},
-      params: { userId: '42' },
-      queryParams: {},
-      routeConfig: { component: CraftRoutedComponentHost },
-    };
-    const activatedRoute = {
-      component: CraftRoutedComponentHost,
-      data,
-      params,
-      queryParams,
-      pathFromRoot: [
-        {
-          params: parentParams,
-          data: parentData,
-          queryParams,
-          snapshot: parentSnapshot,
-        },
-        {
-          params,
-          data,
-          queryParams,
-          snapshot: leafSnapshot,
-        },
-      ],
-      snapshot: {
-        ...leafSnapshot,
-        pathFromRoot: [
-          { params: {}, data: {}, queryParams: {} },
-          parentSnapshot,
-          leafSnapshot,
-        ],
-      },
-    } as unknown as ActivatedRoute;
-
-    const outlet = TestBed.inject(ChildrenOutletContexts).getContext(
-      'primary',
-    )?.outlet;
-    expect(outlet).toBeDefined();
-    outlet?.activateWith(activatedRoute, TestBed.inject(EnvironmentInjector));
-    await flush();
-
-    expect(element.querySelector('.route-team-id')?.textContent).toBe('100');
-    expect(element.querySelector('.route-parent-data')?.textContent).toBe(
-      'foo',
-    );
-    destroy();
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('activates a functional outlet from an inherited child route context', async () => {
-    const inheritedRouted = craftComponent(
-      'inheritedRouted',
-      {},
-      (userId: Input<string>) => ({ userId }),
-      ({ userId }) =>
-        p({ class: 'nested-route-user-id' }, function* () {
-          return yield* userId();
-        }),
-    );
-    TestBed.configureTestingModule({
-      providers: [provideRouter([]), provideCraftComponent(inheritedRouted)],
-    });
-    const data = new BehaviorSubject({});
-    const params = new BehaviorSubject({ userId: '84' });
-    const queryParams = new BehaviorSubject({});
-    const activatedRoute = {
-      component: CraftRoutedComponentHost,
-      data,
-      params,
-      queryParams,
-      snapshot: {
-        component: CraftRoutedComponentHost,
-        data: {},
-        params: { userId: '84' },
-        queryParams: {},
-        routeConfig: { component: CraftRoutedComponentHost },
-      },
-    } as unknown as ActivatedRoute;
-    const childContexts = new ChildrenOutletContexts(
-      TestBed.inject(EnvironmentInjector),
-    );
-    childContexts.getOrCreateContext('primary').route = activatedRoute;
-    const nestedRouteInjector = Injector.create({
-      providers: [{ provide: ChildrenOutletContexts, useValue: childContexts }],
-      parent: TestBed.inject(EnvironmentInjector),
-    });
-    const element = host();
-
-    const mounted = mountCraftComponent(
-      CraftRouterOutlet,
-      element,
-      nestedRouteInjector,
-    );
-
-    expect(element.querySelector('.nested-route-user-id')?.textContent).toBe(
-      '84',
-    );
-    mounted.destroy();
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('mounts a lazily loaded functional component without an eager provider', async () => {
-    const routeMarker = new InjectionToken<string>('LAZY_ROUTE_MARKER');
-    const lazyRouted = craftComponent(
-      'lazyRouted',
-      {},
-      () => ({ routeMarker: inject(routeMarker) }),
-      ({ routeMarker }) => p({ class: 'lazy-routed-functional' }, routeMarker),
-    );
-    const loader = vi.fn(async () => lazyRouted);
-
-    const lazyRoute = loadCraftComponent(loader, [
-      { provide: routeMarker, useValue: 'Lazy routed' },
-    ]);
-    const LazyCraftComponentHost = await lazyRoute.loadComponent(
-      {} as Parameters<typeof lazyRoute.loadComponent>[0],
-    );
-    TestBed.configureTestingModule({ providers: lazyRoute.providers });
-    const fixture = TestBed.createComponent(LazyCraftComponentHost);
-    fixture.detectChanges();
-
-    expect(loader).toHaveBeenCalledOnce();
-    expect(
-      fixture.nativeElement.querySelector('.lazy-routed-functional')
-        ?.textContent,
-    ).toBe('Lazy routed');
-  });
 });

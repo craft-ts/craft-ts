@@ -21,6 +21,7 @@ import {
   mountCraftComponent,
   ɵregisterAngularIsland,
 } from '@craft-ng/component';
+import { asCraftComponent, injectCraftToken } from './host-token-interop';
 
 export {
   CRAFT_GLOBAL_ERROR_COMPONENT,
@@ -71,7 +72,12 @@ function createCraftHost(
   elementRef: ElementRef<Element>,
   injector: Injector,
 ): CraftHostMountRef {
-  return mountCraftComponent(component, elementRef.nativeElement, injector, {});
+  return mountCraftComponent(
+    asCraftComponent(component),
+    elementRef.nativeElement,
+    injector,
+    {},
+  );
 }
 
 @Directive({
@@ -98,7 +104,7 @@ export class CraftComponentHostDirective implements OnChanges, OnDestroy {
     if (changes['craftComponentHost'] || !this.mounted) {
       this.mounted?.destroy();
       this.mounted = mountCraftComponent(
-        this.craftComponentHost,
+        asCraftComponent(this.craftComponentHost),
         this.elementRef.nativeElement,
         this.injector,
         this.craftComponentProps,
@@ -124,7 +130,7 @@ export class CraftComponentHostDirective implements OnChanges, OnDestroy {
 export class CraftRoutedComponentHost implements OnDestroy {
   private readonly elementRef = inject<ElementRef<Element>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly component = inject(CRAFT_ROUTED_COMPONENT, {
+  private readonly component = injectCraftToken<unknown>(CRAFT_ROUTED_COMPONENT, {
     optional: true,
   });
   private readonly route = inject(ActivatedRoute, { optional: true });
@@ -174,12 +180,12 @@ export class CraftRoutedComponentHost implements OnDestroy {
 export class CraftRootComponentHost implements OnInit, OnDestroy {
   private readonly elementRef = inject<ElementRef<Element>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly component = inject(CRAFT_ROOT_COMPONENT);
+  private readonly component = injectCraftToken<unknown>(CRAFT_ROOT_COMPONENT);
   private mounted: CraftHostMountRef | undefined;
 
   ngOnInit(): void {
     this.mounted = createCraftHost(
-      this.component,
+      asCraftComponent(this.component),
       this.elementRef,
       this.injector,
     );
@@ -198,7 +204,7 @@ export class CraftRootComponentHost implements OnInit, OnDestroy {
 export class CraftGlobalErrorComponentHost implements OnDestroy {
   private readonly elementRef = inject<ElementRef<Element>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly component = inject(CRAFT_GLOBAL_ERROR_COMPONENT);
+  private readonly component = injectCraftToken<unknown>(CRAFT_GLOBAL_ERROR_COMPONENT);
   private readonly mounted = createCraftHost(
     this.component,
     this.elementRef,
@@ -218,7 +224,7 @@ export class CraftGlobalErrorComponentHost implements OnDestroy {
 export class CraftRouteLoadErrorComponentHost implements OnDestroy {
   private readonly elementRef = inject<ElementRef<Element>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly component = inject(CRAFT_ROUTE_LOAD_ERROR_COMPONENT);
+  private readonly component = injectCraftToken<unknown>(CRAFT_ROUTE_LOAD_ERROR_COMPONENT);
   private readonly mounted = createCraftHost(
     this.component,
     this.elementRef,
@@ -238,7 +244,7 @@ export class CraftRouteLoadErrorComponentHost implements OnDestroy {
 export class CraftPendingComponentHost implements OnDestroy {
   private readonly elementRef = inject<ElementRef<Element>>(ElementRef);
   private readonly injector = inject(Injector);
-  private readonly component = inject(CRAFT_PENDING_COMPONENT, {
+  private readonly component = injectCraftToken<unknown>(CRAFT_PENDING_COMPONENT, {
     optional: true,
   });
   private readonly route = inject(ActivatedRoute, { optional: true });
