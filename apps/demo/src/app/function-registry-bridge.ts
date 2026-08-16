@@ -11,6 +11,8 @@ import {
   applyPageActions,
   captureDomStyles,
   collectPageControls,
+  isGotoAction,
+  toGotoUrl,
   type PageAction,
 } from './page-actor';
 
@@ -27,8 +29,29 @@ export const FUNCTION_REGISTRY_BRIDGE_URL = new InjectionToken<string>(
   },
 );
 
-const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
+export const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
   'ng-craft.function-registry.client-id';
+
+export function persistAssignedClientId(
+  storage: Pick<Storage, 'getItem' | 'setItem'>,
+  clientId: string,
+): void {
+  storage.setItem(FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY, clientId);
+}
+
+export function shouldSendGoodbye(
+  event: Pick<PageTransitionEvent, 'persisted'>,
+): boolean {
+  return event.persisted === false;
+}
+
+export function nextReconnectDelayMs(
+  attempt: number,
+  random: () => number = Math.random,
+): number {
+  const exp = Math.min(10_000, 1000 * 2 ** attempt);
+  return exp + Math.floor(random() * 250);
+}
 
 export const FUNCTION_REGISTRY_CLIENT_ID = new InjectionToken<string>(
   'FUNCTION_REGISTRY_CLIENT_ID',
@@ -107,11 +130,11 @@ type PageSurfaceMessage = Readonly<{
 export function startFunctionRegistryBridge({
   injector,
   url,
-  clientId,
+  clientId: initialClientId,
   registry = functionRegistry,
   createSocket = (socketUrl) => new WebSocket(socketUrl),
-  reconnectDelayMs = 1_000,
   getPageInfo,
+  navigate,
   // eslint-disable-next-line craft-ng/prefer-browser-boundaries
   getDocument = () => globalThis.document,
 }: {
@@ -122,15 +145,23 @@ export function startFunctionRegistryBridge({
   createSocket?: (url: string) => RegistryBridgeSocket;
   reconnectDelayMs?: number;
   getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }>;
+  navigate: (url: string) => Promise<void>;
   getDocument?: () => Document;
 }): () => void {
+  let clientId = initialClientId;
   let socket: RegistryBridgeSocket | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   let publishScheduled = false;
+  let attempt = 0;
+  let handshakeComplete = false;
+
+  const persistStorage = (): Pick<Storage, 'getItem' | 'setItem'> =>
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    globalThis.sessionStorage;
 
   const publishSurface = (): void => {
-    if (socket?.readyState !== SOCKET_OPEN) {
+    if (socket?.readyState !== SOCKET_OPEN || !handshakeComplete) {
       return;
     }
     sendJson(socket, createPageSurface(clientId, getPageInfo(), getDocument()));
@@ -151,7 +182,7 @@ export function startFunctionRegistryBridge({
     'snapshotEffect',
     () => {
       const snapshot = createSnapshot(registry, clientId, getPageInfo());
-      if (socket?.readyState === SOCKET_OPEN) {
+      if (socket?.readyState === SOCKET_OPEN && handshakeComplete) {
         sendJson(socket, snapshot);
       }
     },
@@ -159,6 +190,14 @@ export function startFunctionRegistryBridge({
   );
 
   const observer = new MutationObserver(scheduleSurface);
+
+  const scheduleReconnect = (): void => {
+    if (stopped) {
+      return;
+    }
+    attempt += 1;
+    reconnectTimer = setTimeout(connect, nextReconnectDelayMs(attempt));
+  };
 
   const connect = (): void => {
     if (stopped) {
@@ -169,57 +208,92 @@ export function startFunctionRegistryBridge({
       socket = createSocket(url);
     } catch (error) {
       registry.logBridge(`Connection failed: ${errorMessage(error)}`);
-      reconnectTimer = setTimeout(connect, reconnectDelayMs);
+      scheduleReconnect();
       return;
     }
 
     const currentSocket = socket;
     currentSocket.onopen = () => {
+      attempt = 0;
+      handshakeComplete = false;
       registry.logBridge(`Connected to ${url}`);
-      const pageInfo = getPageInfo();
       sendJson(currentSocket, {
         type: 'hello',
         role: 'registry-app',
         clientId,
-        ...pageInfo,
+        ...getPageInfo(),
       });
-      sendJson(currentSocket, createSnapshot(registry, clientId, pageInfo));
-      sendJson(
-        currentSocket,
-        createPageSurface(clientId, pageInfo, getDocument()),
-      );
     };
     currentSocket.onmessage = (event) => {
+      if (acceptHelloOk(currentSocket, event.data)) {
+        return;
+      }
       void respondToBridgeMessage(
         currentSocket,
         event.data,
         registry,
         getDocument,
         getPageInfo,
+        navigate,
       );
     };
     currentSocket.onerror = () => {
       registry.logBridge(`WebSocket error for ${url}`);
     };
     currentSocket.onclose = () => {
+      handshakeComplete = false;
       if (socket === currentSocket) {
         socket = undefined;
       }
+      setMcpPageBadgeText(getDocument(), 'MCP page: reconnecting');
       if (!stopped) {
         registry.logBridge(`Disconnected from ${url}; reconnecting`);
-        reconnectTimer = setTimeout(connect, reconnectDelayMs);
+        scheduleReconnect();
       }
     };
   };
 
-  observer.observe(getDocument().documentElement, {
+  const acceptHelloOk = (
+    currentSocket: RegistryBridgeSocket,
+    rawMessage: unknown,
+  ): boolean => {
+    const assignedId = readHelloOkClientId(rawMessage);
+    if (assignedId === undefined) {
+      return false;
+    }
+    persistAssignedClientId(persistStorage(), assignedId);
+    clientId = assignedId;
+    handshakeComplete = true;
+    const pageInfo = getPageInfo();
+    sendJson(currentSocket, createSnapshot(registry, clientId, pageInfo));
+    sendJson(
+      currentSocket,
+      createPageSurface(clientId, pageInfo, getDocument()),
+    );
+    setMcpPageBadgeText(
+      getDocument(),
+      `MCP page: connected · ${clientId.slice(0, 8)}`,
+    );
+    return true;
+  };
+
+  const onPageHide = (event: PageTransitionEvent): void => {
+    if (!shouldSendGoodbye(event) || socket?.readyState !== SOCKET_OPEN) {
+      return;
+    }
+    sendJson(socket, { type: 'page/goodbye', clientId });
+  };
+
+  const pageDocument = getDocument();
+  observer.observe(pageDocument.documentElement, {
     subtree: true,
     childList: true,
     attributes: true,
     characterData: true,
   });
-  getDocument().addEventListener('input', scheduleSurface, true);
-  getDocument().addEventListener('change', scheduleSurface, true);
+  pageDocument.addEventListener('input', scheduleSurface, true);
+  pageDocument.addEventListener('change', scheduleSurface, true);
+  pageDocument.defaultView?.addEventListener('pagehide', onPageHide);
 
   connect();
 
@@ -230,8 +304,10 @@ export function startFunctionRegistryBridge({
     }
     snapshotEffect.destroy();
     observer.disconnect();
-    getDocument().removeEventListener('input', scheduleSurface, true);
-    getDocument().removeEventListener('change', scheduleSurface, true);
+    pageDocument.removeEventListener('input', scheduleSurface, true);
+    pageDocument.removeEventListener('change', scheduleSurface, true);
+    pageDocument.defaultView?.removeEventListener('pagehide', onPageHide);
+    destroyMcpPageBadge(pageDocument);
     socket?.close();
     socket = undefined;
   };
@@ -249,6 +325,7 @@ export function respondToBridgeMessage(
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     pageTitle: globalThis.document?.title,
   }),
+  navigate?: (url: string) => Promise<void>,
 ): Promise<void> {
   let request: RegistryBridgeRequest;
   try {
@@ -258,7 +335,13 @@ export function respondToBridgeMessage(
     return Promise.resolve();
   }
 
-  return handleFunctionRegistryRequest(request, registry, getDocument, getPageInfo)
+  return handleFunctionRegistryRequest(
+    request,
+    registry,
+    getDocument,
+    getPageInfo,
+    navigate,
+  )
     .then((result) => {
       sendJson(socket, { type: 'response', callId: request.callId, result });
     })
@@ -282,9 +365,15 @@ export function handleFunctionRegistryRequest(
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     pageTitle: globalThis.document?.title,
   }),
+  navigate?: (url: string) => Promise<void>,
 ): Promise<unknown> {
   if (request.method === 'page') {
-    return handlePageRequest(request.params ?? {}, getDocument(), getPageInfo());
+    return handlePageRequest(
+      request.params ?? {},
+      getDocument,
+      getPageInfo,
+      navigate,
+    );
   }
   return Promise.resolve().then(() =>
     handleFunctionRegistryRequestSync(request, registry),
@@ -382,8 +471,9 @@ function handleFunctionRegistryRequestSync(
 
 async function handlePageRequest(
   params: Readonly<Record<string, unknown>>,
-  pageDocument: Document,
-  pageInfo: Readonly<{ pageUrl?: string; pageTitle?: string }>,
+  getDocument: () => Document,
+  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }>,
+  navigate?: (url: string) => Promise<void>,
 ): Promise<unknown> {
   const act = params['act'];
   const detail = params['detail'] === 'dom-styles' ? 'dom-styles' : 'controls';
@@ -393,15 +483,48 @@ async function handlePageRequest(
       throw new Error('params.act must be an array');
     }
     const actions = act as PageAction[];
-    const applied = applyPageActions(pageDocument, actions);
-    error = applied.error;
+    for (let index = 0; index < actions.length; index += 1) {
+      const action = actions[index];
+      if (action === undefined) {
+        continue;
+      }
+      if (isGotoAction(action)) {
+        if (navigate === undefined) {
+          error = `goto "${action.goto}" is not available`;
+          break;
+        }
+        try {
+          await navigate(toGotoUrl(action.goto));
+          await waitForPageUrl(getPageInfo, action.goto);
+        } catch (caught) {
+          error = caught instanceof Error ? caught.message : String(caught);
+          break;
+        }
+        const next = actions
+          .slice(index + 1)
+          .find((item): item is Exclude<PageAction, { readonly goto: string }> =>
+            !isGotoAction(item),
+          );
+        if (next !== undefined) {
+          await waitForControlIds(getDocument(), [next.id]);
+        }
+        continue;
+      }
+      const applied = applyPageActions(getDocument(), [action]);
+      if (applied.error !== undefined) {
+        error = applied.error;
+        break;
+      }
+    }
     if (error === undefined) {
       await waitForControlIds(
-        pageDocument,
-        actions.map((action) => action.id),
+        getDocument(),
+        actions.flatMap((action) => (isGotoAction(action) ? [] : [action.id])),
       );
     }
   }
+  const pageDocument = getDocument();
+  const pageInfo = getPageInfo();
   const url = pageInfo.pageUrl ?? pageDocument.defaultView?.location.href ?? '';
   const title = pageInfo.pageTitle ?? pageDocument.title;
   const controls = collectPageControls(pageDocument);
@@ -442,6 +565,74 @@ async function waitForControlIds(
     }
     await new Promise((resolve) => setTimeout(resolve, 16));
   }
+}
+
+async function waitForPageUrl(
+  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }>,
+  target: string,
+): Promise<void> {
+  const expected = toGotoUrl(target);
+  const expectedPath =
+    (expected.split('#')[0] ?? expected).split('?')[0] ?? expected;
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const href = getPageInfo().pageUrl ?? '';
+    if (pathnameOf(href) === expectedPath) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 16));
+  }
+  throw new Error(`goto "${target}" was not matched`);
+}
+
+function pathnameOf(href: string): string {
+  try {
+    return new URL(href, 'http://localhost').pathname;
+  } catch {
+    return href;
+  }
+}
+
+function readHelloOkClientId(rawMessage: unknown): string | undefined {
+  try {
+    const parsed: unknown =
+      typeof rawMessage === 'string' ? JSON.parse(rawMessage) : rawMessage;
+    if (typeof parsed !== 'object' || parsed === null) {
+      return undefined;
+    }
+    const message = parsed as Record<string, unknown>;
+    if (
+      message['type'] !== 'hello/ok' ||
+      typeof message['clientId'] !== 'string'
+    ) {
+      return undefined;
+    }
+    return message['clientId'];
+  } catch {
+    return undefined;
+  }
+}
+
+function ensureMcpPageBadge(pageDocument: Document): HTMLDivElement {
+  const existing = pageDocument.getElementById('mcp-page-bridge-status');
+  if (existing instanceof HTMLDivElement) {
+    return existing;
+  }
+  const badge = pageDocument.createElement('div');
+  badge.id = 'mcp-page-bridge-status';
+  badge.setAttribute('aria-live', 'polite');
+  badge.style.cssText =
+    'position:fixed;bottom:8px;left:8px;pointer-events:none;z-index:2147483647;font:12px/1.4 system-ui,sans-serif;padding:4px 8px;background:#111;color:#fff;opacity:0.85;';
+  pageDocument.body.append(badge);
+  return badge;
+}
+
+function setMcpPageBadgeText(pageDocument: Document, text: string): void {
+  ensureMcpPageBadge(pageDocument).textContent = text;
+}
+
+function destroyMcpPageBadge(pageDocument: Document): void {
+  pageDocument.getElementById('mcp-page-bridge-status')?.remove();
 }
 
 function createPageSurface(

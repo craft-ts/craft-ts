@@ -2,7 +2,10 @@
 import {
   createFunctionRegistryClientId,
   handleFunctionRegistryRequest,
+  nextReconnectDelayMs,
+  persistAssignedClientId,
   respondToBridgeMessage,
+  shouldSendGoodbye,
   type RegistryBridgeRequest,
 } from './function-registry-bridge';
 import { createFunctionRegistry } from './function-registry';
@@ -25,6 +28,32 @@ describe('function registry WebSocket bridge', () => {
     expect(createFunctionRegistryClientId(storage, () => 'generated-b')).toBe(
       'generated-a',
     );
+  });
+
+  it('persists a broker-assigned client id', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    };
+    const first = createFunctionRegistryClientId(storage, () => 'original-id');
+    persistAssignedClientId(storage, 'assigned-id');
+    expect(first).toBe('original-id');
+    expect(createFunctionRegistryClientId(storage, () => 'other')).toBe(
+      'assigned-id',
+    );
+  });
+
+  it('sends goodbye only when the tab is discarded, not when it is frozen', () => {
+    expect(shouldSendGoodbye({ persisted: false })).toBe(true);
+    expect(shouldSendGoodbye({ persisted: true })).toBe(false);
+  });
+
+  it('backs off reconnect delay up to 10s', () => {
+    expect(nextReconnectDelayMs(0, () => 0)).toBe(1000);
+    expect(nextReconnectDelayMs(1, () => 0)).toBe(2000);
+    expect(nextReconnectDelayMs(4, () => 0)).toBe(10000);
+    expect(nextReconnectDelayMs(8, () => 0)).toBe(10000);
   });
 
   it('transmits the registry list with the callId', async () => {
@@ -205,6 +234,36 @@ describe('function registry WebSocket bridge', () => {
           value: 'ada@example.com',
         }),
       ],
+    });
+  });
+
+  it('navigates with goto then returns the destination url', async () => {
+    let pageUrl = 'http://localhost/';
+    const navigated: string[] = [];
+    const result = await handleFunctionRegistryRequest(
+      request('page-goto', 'page', { act: [{ goto: '/login-form' }] }),
+      createFunctionRegistry(),
+      () => document,
+      () => ({ pageUrl }),
+      async (url) => {
+        navigated.push(url);
+        pageUrl = `http://localhost${url}`;
+      },
+    );
+
+    expect(navigated).toEqual(['/login-form']);
+    expect(result).toMatchObject({
+      status: 'ready',
+      url: 'http://localhost/login-form',
+    });
+  });
+
+  it('returns an error when goto has no navigator', async () => {
+    const result = await handleFunctionRegistryRequest(
+      request('page-goto', 'page', { act: [{ goto: '/login-form' }] }),
+    );
+    expect(result).toMatchObject({
+      error: 'goto "/login-form" is not available',
     });
   });
 });
