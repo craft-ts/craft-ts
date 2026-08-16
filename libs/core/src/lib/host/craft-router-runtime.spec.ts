@@ -223,6 +223,61 @@ describe('matchCraftRoutes', () => {
     expect(match?.route).toBe(home);
     expect(match?.pathname).toBe('/home');
   });
+
+  it('follows a function redirectTo the same way as a string redirect', () => {
+    const home: CraftCompiledRoute = {
+      path: 'home',
+      component: { name: 'Home' },
+    };
+    const routes: CraftCompiledRoute[] = [
+      { path: '', redirectTo: () => '/home' },
+      home,
+    ];
+    const match = matchCraftRoutes(routes, locationOf('/'));
+
+    expect(match?.route).toBe(home);
+    expect(match?.pathname).toBe('/home');
+  });
+
+  it('follows a generator redirectTo that returns a string without yielding', () => {
+    const home: CraftCompiledRoute = {
+      path: 'home',
+      component: { name: 'Home' },
+    };
+    const routes: CraftCompiledRoute[] = [
+      {
+        path: '',
+        redirectTo: function* () {
+          return '/home';
+        },
+      },
+      home,
+    ];
+    const match = matchCraftRoutes(routes, locationOf('/'));
+
+    expect(match?.route).toBe(home);
+    expect(match?.pathname).toBe('/home');
+  });
+
+  it('loads loadChildren on the redirected URL not the pre-redirect path', async () => {
+    const child: CraftCompiledRoute = {
+      path: '',
+      component: { name: 'Home' },
+    };
+    const routes: CraftCompiledRoute[] = [
+      { path: '', redirectTo: '/home' },
+      {
+        path: 'home',
+        loadChildren: async () => [child],
+      },
+    ];
+
+    const match = await matchCraftRoutesAsync(routes, locationOf('/'));
+
+    expect(match?.route).toBe(child);
+    expect(match?.pathname).toBe('/home');
+    expect(routes[1].children).toEqual([child]);
+  });
 });
 
 describe('history + matcher', () => {

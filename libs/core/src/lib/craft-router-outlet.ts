@@ -9,7 +9,11 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
-import { isCraftException, type AnyCraftException } from './craft-exception';
+import {
+  craftException,
+  isCraftException,
+  type AnyCraftException,
+} from './craft-exception';
 import {
   evaluateCraftGuardSync,
   runCraftRouteChainAsync,
@@ -298,7 +302,6 @@ export class CraftRouterOutletController {
       this._activeRouteInjector &&
       isSameActivation(this._match, activated)
     ) {
-      this._match = activated;
       this._liveMatch.set(activated);
       this._childMatch.set(child);
       this.displayedProps.set(collectMatchProps(activated));
@@ -342,7 +345,7 @@ export class CraftRouterOutletController {
     match: CraftMatch,
     meta: CraftRouteMeta | null,
   ): Promise<void> {
-    if (this._match !== match) {
+    if (!this.isCurrentActivation(match)) {
       return;
     }
     if (
@@ -351,7 +354,7 @@ export class CraftRouterOutletController {
     ) {
       try {
         const loaded = await Promise.resolve(match.route.loadComponent());
-        if (this._match !== match) {
+        if (!this.isCurrentActivation(match)) {
           return;
         }
         const component =
@@ -359,7 +362,27 @@ export class CraftRouterOutletController {
             ? (loaded as { default: unknown }).default
             : loaded;
         match.route.component = component;
-      } catch {
+      } catch (error) {
+        if (!this.isCurrentActivation(match)) {
+          return;
+        }
+        const exception = isCraftException(error)
+          ? error
+          : craftException(
+              { code: 'CRAFT_ROUTE_LOAD_ERROR', scope: 'router' },
+              {
+                phase: 'component',
+                routePath: match.route.path,
+                targetUrl: this.router.url,
+                cause: error,
+                attempt: 1,
+              },
+            );
+        this.publishGlobalError(exception);
+        void this.showErrorComponent(
+          this._meta?.errorComponent ?? this.defaultErrorComponent,
+          exception,
+        );
         return;
       }
     }
@@ -770,6 +793,10 @@ export class CraftRouterOutletController {
   private clearExceptionSinks(meta: CraftRouteMeta | null | undefined): void {
     if (!meta) return;
     for (const sink of Object.values(meta.exceptionSinks)) sink.set(null);
+  }
+
+  private isCurrentActivation(match: CraftMatch): boolean {
+    return this._match !== null && isSameActivation(this._match, match);
   }
 }
 

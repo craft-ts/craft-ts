@@ -658,12 +658,19 @@ function provideCraftRouterRuntime(
         craftWatch(() => {
           const nextLocation = location();
           const current = ++generation;
+          const syncMatch = matchCraftRoutes(compiled, nextLocation);
+          const pendingLocation = syncMatch ?? nextLocation;
           const pending = findUnresolvedLoadChildrenRoute(
             compiled,
-            splitPath(nextLocation.pathname || '/'),
+            splitPath(pendingLocation.pathname || '/'),
           );
           if (pending) {
-            void matchCraftRoutesAsync(compiled, nextLocation).then(
+            void matchCraftRoutesAsync(compiled, {
+              ...nextLocation,
+              pathname: pendingLocation.pathname || '/',
+              search: pendingLocation.search,
+              hash: pendingLocation.hash,
+            }).then(
               (resolved) => {
                 if (current !== generation) {
                   return;
@@ -677,12 +684,7 @@ function provideCraftRouterRuntime(
             );
             return;
           }
-          commitCraftMatch(
-            match,
-            history,
-            nextLocation,
-            matchCraftRoutes(compiled, nextLocation),
-          );
+          commitCraftMatch(match, history, nextLocation, syncMatch);
         });
         return match;
       },

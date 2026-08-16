@@ -335,14 +335,48 @@ export function matchCraftRoutes(
     if (!match) {
       return null;
     }
-    if (
-      typeof match.route.redirectTo !== 'string' ||
-      match.route.redirectTo.length === 0
-    ) {
+    const redirectUrl = resolveRedirectTarget(match);
+    if (!redirectUrl) {
       return match;
     }
-    current = parseUrl(resolveRedirectUrl(match.route.redirectTo, match));
+    current = parseUrl(resolveRedirectUrl(redirectUrl, match));
   }
+}
+
+function resolveRedirectTarget(match: CraftMatch): string | null {
+  const redirectTo = match.route.redirectTo;
+  if (typeof redirectTo === 'string') {
+    return redirectTo.length > 0 ? redirectTo : null;
+  }
+  if (typeof redirectTo !== 'function') {
+    return null;
+  }
+  try {
+    return coerceRedirectUrl(redirectTo());
+  } catch {
+    return null;
+  }
+}
+
+function coerceRedirectUrl(result: unknown): string | null {
+  if (typeof result === 'string' && result.length > 0) {
+    return result;
+  }
+  if (
+    result &&
+    typeof result === 'object' &&
+    typeof (result as { next?: unknown }).next === 'function'
+  ) {
+    try {
+      const step = (result as Iterator<unknown>).next();
+      if (step.done) {
+        return coerceRedirectUrl(step.value);
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function hasUnresolvedLoadChildren(route: CraftCompiledRoute): boolean {
@@ -474,18 +508,28 @@ export async function matchCraftRoutesAsync(
     return null;
   }
   const compiled = routes as CraftCompiledRoute[];
-  const pathname = location.pathname || '/';
-  const normalized = { ...location, pathname };
+  let current: CraftLocation = {
+    ...location,
+    pathname: location.pathname || '/',
+  };
 
   for (;;) {
+    const match = matchCraftRoutes(compiled, current);
     const pending = findUnresolvedLoadChildrenRoute(
       compiled,
-      splitPath(pathname),
+      splitPath((match ?? current).pathname || '/'),
     );
     if (!pending) {
-      return matchCraftRoutes(compiled, normalized);
+      return match;
     }
     await ensureChildrenLoaded(pending);
+    if (match) {
+      current = {
+        pathname: match.pathname,
+        search: match.search,
+        hash: match.hash,
+      };
+    }
   }
 }
 

@@ -244,6 +244,107 @@ describe('CraftRouterOutlet', () => {
     window.history.replaceState(null, '', '/');
   });
 
+  it('mounts a lazy loadComponent target after a compiled redirectTo', async () => {
+    let resolveHome!: (mod: { default: typeof TargetCmp }) => void;
+    const pending = new Promise<{ default: typeof TargetCmp }>((resolve) => {
+      resolveHome = resolve;
+    });
+    window.history.replaceState(null, '', '/a');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'a', component: ErrCmp },
+          { path: '', redirectTo: '/home' },
+          { path: 'home', loadComponent: () => pending },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    expect(outlet.targetComponent()).toBe(ErrCmp);
+
+    TestBed.inject(CRAFT_HISTORY).push('/');
+    resolveHome({ default: TargetCmp });
+    await flush();
+
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('keeps an in-flight loadComponent across match object reuse', async () => {
+    let resolveHome!: (mod: { default: typeof TargetCmp }) => void;
+    const pending = new Promise<{ default: typeof TargetCmp }>((resolve) => {
+      resolveHome = resolve;
+    });
+    const { outlet } = setup();
+    const injector = TestBed.inject(EnvironmentInjector);
+    const first = makeMatch(undefined, TargetCmp, {
+      component: undefined,
+      loadComponent: () => pending,
+    });
+    outlet.activateMatch(first, injector);
+
+    outlet.activateMatch({ ...first, pathname: '/home' }, injector);
+    resolveHome({ default: TargetCmp });
+    await flush();
+
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+  });
+
+  it('surfaces a recoverable error when loadComponent fails', async () => {
+    const { outlet } = setup();
+    outlet.activateMatch(
+      makeMatch(
+        makeMeta({ errorComponent: { component: ErrCmp, componentDeps: {} } }),
+        TargetCmp,
+        {
+          component: undefined,
+          loadComponent: () => Promise.reject(new Error('chunk failed')),
+        },
+      ),
+      TestBed.inject(EnvironmentInjector),
+    );
+    await flush();
+
+    expect(outlet.state()).toBe('error');
+    expect(outlet.errorComponent()).toBe(ErrCmp);
+    expect(outlet.targetComponent()).toBeNull();
+  });
+
+  it('loads redirected loadChildren before activating the target', async () => {
+    let resolveChildren!: (routes: CraftCompiledRoute[]) => void;
+    const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
+      resolveChildren = resolve;
+    });
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: '', redirectTo: '/home' },
+          { path: 'home', loadChildren: () => pending },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    expect(outlet.state()).toBe('idle');
+    expect(outlet.targetComponent()).toBeNull();
+
+    resolveChildren([{ path: '', component: TargetCmp }]);
+    await flush();
+
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
   it('activates the lazy child after resolving loadChildren for /slow-page', async () => {
     TestBed.configureTestingModule({
       providers: [
