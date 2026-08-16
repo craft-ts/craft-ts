@@ -2,7 +2,9 @@ import {
   CRAFT_LOADING_TEXT,
   craftRouteTarget,
   ɵregisterDefaultCraftPendingComponent,
+  ɵsetCraftTestMounter,
 } from '@craft-ng/core';
+import { mountCraftComponent } from './bridge';
 import { inject } from './host-runtime';
 import { craftComponent } from './component';
 import { div } from './hyperscript';
@@ -42,3 +44,13 @@ const DefaultCraftPendingComponent = craftComponent(
 // no equivalent dynamic mount, so writing one is its own piece of work.
 // Until then core's fallback is null: a failed lazy load reports through
 // CRAFT_ROUTE_LOAD_ERROR and renders nothing, rather than throwing.
+
+// Lets TestBed.createComponent(...) mount a Craft component: only this package
+// owns the renderer.
+ɵsetCraftTestMounter((component, host, injector) => {
+  const mounted = mountCraftComponent(component as never, host, injector);
+  return {
+    instance: mounted,
+    destroy: () => mounted.destroy(),
+  };
+});

@@ -4,10 +4,7 @@ import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
 } from '@craft-ng/component';
-import {
-  craftSleep,
-  type ExtractDeps,
-  type GetServiceDependencies, craftUse } from '@craft-ng/core';
+import { craftSleep, craftUse, provideCraftRouter as provideRouter, type ExtractDeps, type GetServiceDependencies } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GranularMutation from './granular-mutation';
@@ -239,7 +236,6 @@ describe('primitive granular mutation logic', () => {
         register: {
           ApiService: { getDataList, updateItem },
           StoragePersister: storage,
-          Router: 'real',
         },
         providers: [provideRouter([])],
       },

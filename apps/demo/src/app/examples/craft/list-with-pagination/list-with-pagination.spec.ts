@@ -8,7 +8,7 @@ import type {
   GetServiceDependencies,
   ResolvedServiceOutput,
 } from '@craft-ng/core';
-import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ng/core';
+import { craftUse, provideCraftRouter as provideRouter, setupCraftServiceTestingByRegister } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {
@@ -56,12 +56,14 @@ type _ApiServiceGetDataListIsTracked = Expect<
   >
 >;
 
-type _PaginationDependsOnRouter = Expect<
+// `queryParams` reads the URL through Craft's own history, not an injected
+// router service, so `pagination` declares no router dependency at all.
+type _PaginationDeclaresNoRouterDep = Expect<
   Equal<
     'Router' extends keyof ExtractDeps<UserListOutput['pagination']>
       ? true
       : false,
-    true
+    false
   >
 >;
 

@@ -2804,7 +2804,9 @@ export function craftRoutes<
     route: AnyCraftRouteDefinition,
     routeIndex: number,
   ): CraftCompiledRoute {
-    const autoProviders: AngularRouteProviders = [
+    // A local accumulator, not the route contract: it is built up here and
+    // only ever handed out as a fresh readonly array below.
+    const autoProviders: unknown[] = [
       provideHostName('route:' + route.path),
     ];
 

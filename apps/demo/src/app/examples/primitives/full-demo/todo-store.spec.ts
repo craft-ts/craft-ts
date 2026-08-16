@@ -2,7 +2,7 @@
 import { setupCraftComponentLogicTest } from '@craft-ng/component';
 import { describe, expect, it, vi } from 'vitest';
 import FullDemo from './full-demo';
-import { craftUse } from '@craft-ng/core';
+import { TestBed, craftUse } from '@craft-ng/core';
 
 describe('Full primitives demo logic', () => {
   async function createLogic() {

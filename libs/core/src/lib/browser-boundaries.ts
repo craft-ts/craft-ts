@@ -809,7 +809,12 @@ const browserCryptoService: BrowserBoundaryService<
     randomUUID: () => getBrowserCrypto().randomUUID(),
     getRandomValues: <TypedArray extends ArrayBufferView>(
       typedArray: TypedArray,
-    ) => getBrowserCrypto().getRandomValues(typedArray) as TypedArray,
+      // lib.dom narrowed getRandomValues to ArrayBufferView<ArrayBuffer>; the
+      // boundary stays open to any view and hands it through unchanged.
+    ) =>
+      (
+        getBrowserCrypto().getRandomValues as (view: ArrayBufferView) => ArrayBufferView
+      )(typedArray) as TypedArray,
     digest: (algorithm, data) =>
       getBrowserCrypto().subtle.digest(algorithm, data),
   }),

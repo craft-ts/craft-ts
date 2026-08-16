@@ -67,7 +67,9 @@ export type Route = {
   canActivateChild?: unknown[];
   resolve?: Record<string, unknown>;
   data?: Data;
-  providers?: unknown[];
+  // Readonly: a route's providers are an input the router only ever reads, and
+  // helpers like loadCraftComponent hand back `readonly` arrays.
+  providers?: readonly unknown[];
   title?: string | (() => string | Promise<string>);
   outlet?: string;
   redirectTo?: string | ((redirectData: PartialMatchRouteSnapshot) => unknown);

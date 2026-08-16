@@ -1,3 +1,4 @@
+import { ɵcomputed as computed } from '@craft-ng/core';
 import type {
   PrimitiveMethodRuntimeContext,
   PrimitiveMethodRuntimeKind,

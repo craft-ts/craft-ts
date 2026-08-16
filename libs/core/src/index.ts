@@ -94,7 +94,11 @@ export {
 } from './lib/host/craft-compat';
 // Craft's stand-in for TestBed: a root injector with the six methods specs
 // actually used. Exported so apps can test against the same harness.
-export { TestBed } from './lib/host/craft-test-bed';
+export {
+  TestBed,
+  ɵsetCraftTestMounter,
+  type CraftComponentFixture,
+} from './lib/host/craft-test-bed';
 export {
   APP_INITIALIZER,
   getCraftRootDefaultProviders as ɵgetCraftRootDefaultProviders,

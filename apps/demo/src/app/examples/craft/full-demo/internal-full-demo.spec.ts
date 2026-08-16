@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-import {
-  ɵInjector as Injector,
-} from '@craft-ng/core';
+import { TestBed, ɵInjector as Injector } from '@craft-ng/core';
 import { loadCraftComponent, mountCraftComponent } from '@craft-ng/component';
 import {
   HostTag,

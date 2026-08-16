@@ -11,6 +11,42 @@ import {
   type ProviderToken,
 } from './craft-compat';
 
+export type CraftComponentFixture<T = unknown> = {
+  readonly nativeElement: HTMLElement;
+  readonly componentInstance: T;
+  detectChanges(): void;
+  destroy(): void;
+};
+
+type CraftTestMounter = (
+  component: unknown,
+  host: Element,
+  injector: CraftInjector,
+) => { instance: unknown; destroy(): void };
+
+let mounter: CraftTestMounter | undefined;
+
+/**
+ * `@craft-ng/component` installs the renderer here on import — core has no way
+ * to mount anything on its own.
+ */
+export function ɵsetCraftTestMounter(next: CraftTestMounter): void {
+  mounter = next;
+}
+
+function ɵmountCraftTestComponent(
+  component: unknown,
+  host: Element,
+  injector: CraftInjector,
+): { instance: unknown; destroy(): void } {
+  if (!mounter) {
+    throw new Error(
+      'TestBed.createComponent needs @craft-ng/component; import it in the spec.',
+    );
+  }
+  return mounter(component, host, injector);
+}
+
 /**
  * The Craft stand-in for Angular's `TestBed`.
  *
@@ -21,7 +57,7 @@ import {
  * testing module, no compiler.
  */
 class CraftTestBed {
-  private providers: Provider[] = [];
+  private providers: unknown[] = [];
   private injector: (CraftInjector & { destroy?(): void }) | undefined;
 
   /**
@@ -32,7 +68,7 @@ class CraftTestBed {
     // no platform to boot
   }
 
-  configureTestingModule(config: { providers?: readonly Provider[] }): this {
+  configureTestingModule(config: { providers?: readonly unknown[] }): this {
     if (config.providers) {
       this.providers.push(...config.providers);
     }
@@ -79,6 +115,37 @@ class CraftTestBed {
    */
   flushEffects(): void {
     // effects are synchronous
+  }
+
+  /** Angular's change-detection pump. Same story as {@link flushEffects}. */
+  tick(): void {
+    // effects are synchronous
+  }
+
+  /**
+   * Mounts a Craft component and returns an Angular-shaped fixture, so the
+   * specs written against `TestBed.createComponent(...)` keep their shape.
+   * `detectChanges` has nothing to do — the mount already rendered.
+   */
+  createComponent<T = unknown>(component: unknown): CraftComponentFixture<T> {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const mounted = ɵmountCraftTestComponent(
+      component,
+      host,
+      this.rootInjector,
+    );
+    return {
+      nativeElement: host,
+      componentInstance: mounted.instance as T,
+      detectChanges() {
+        // rendering is synchronous
+      },
+      destroy() {
+        mounted.destroy();
+        host.remove();
+      },
+    };
   }
 
   resetTestingModule(): this {

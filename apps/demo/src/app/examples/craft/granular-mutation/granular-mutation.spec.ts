@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { provideCraftRouter as provideRouter } from '@craft-ng/core';
 import {
   ComponentLogicOutputOf,
   setupCraftComponentLogicTest,

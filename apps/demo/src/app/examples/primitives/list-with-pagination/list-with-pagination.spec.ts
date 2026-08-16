@@ -7,7 +7,7 @@ import {
   setupCraftComponentTemplateTest,
 } from '@craft-ng/component';
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
-import { craftUse } from '@craft-ng/core';
+import { craftUse, provideCraftRouter as provideRouter } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPagination from './list-with-pagination';
@@ -260,7 +260,6 @@ describe('primitive list with pagination logic', () => {
       ListWithPagination,
       {
         register: {
-          Router: 'real',
           ApiService: { getDataList },
           StoragePersister: storage,
         },
