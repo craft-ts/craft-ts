@@ -120,7 +120,11 @@ describe('RegistryBridgeBroker', () => {
     );
 
     app.close();
-    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+    await vi.waitFor(() =>
+      expect(broker.clients).toEqual([
+        expect.objectContaining({ status: 'reloading' }),
+      ]),
+    );
     const { port } = broker.address();
     const replacement = new WebSocket(`ws://127.0.0.1:${port}`);
     await new Promise<void>((resolve) => replacement.once('open', resolve));
@@ -176,7 +180,11 @@ describe('RegistryBridgeBroker', () => {
     });
 
     app.close();
-    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+    await vi.waitFor(() =>
+      expect(broker.clients).toEqual([
+        expect.objectContaining({ status: 'reloading' }),
+      ]),
+    );
 
     await expect(
       broker.request('page', { timeoutMs: 80 }),
@@ -199,7 +207,11 @@ describe('RegistryBridgeBroker', () => {
     });
 
     app.close();
-    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+    await vi.waitFor(() =>
+      expect(broker.clients).toEqual([
+        expect.objectContaining({ status: 'reloading' }),
+      ]),
+    );
     const pending = broker.request('page', { timeoutMs: 2_000 });
     const { port } = broker.address();
     const replacement = new WebSocket(`ws://127.0.0.1:${port}`);
@@ -269,6 +281,30 @@ describe('RegistryBridgeBroker', () => {
     ).rejects.toThrow(
       /page reloading since .+s, last url \/login-form, generation 1 → still 1/,
     );
+  });
+
+  it('lists reloading cards on registry.clients with status', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+    app.close();
+    await vi.waitFor(async () => {
+      await expect(broker.request('registry/clients')).resolves.toEqual([
+        expect.objectContaining({
+          clientId: 'app-a',
+          status: 'reloading',
+          generation: 1,
+          pageUrl: '/login-form',
+        }),
+      ]);
+    });
   });
 
   it('asks the live page even when broker memory is ready', async () => {
@@ -363,7 +399,11 @@ describe('RegistryBridgeBroker', () => {
     });
 
     app.close();
-    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+    await vi.waitFor(() =>
+      expect(broker.clients).toEqual([
+        expect.objectContaining({ status: 'reloading' }),
+      ]),
+    );
 
     const { port } = broker.address();
     const replacement = new WebSocket(`ws://127.0.0.1:${port}`);
@@ -461,7 +501,12 @@ describe('RegistryBridgeBroker', () => {
     await vi.waitFor(() => expect(broker.clients.length).toBeGreaterThan(1));
     app.close();
     appB.close();
-    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+    await vi.waitFor(() =>
+      expect(broker.clients).toEqual([
+        expect.objectContaining({ status: 'reloading' }),
+        expect.objectContaining({ status: 'reloading' }),
+      ]),
+    );
 
     await expect(broker.request('page', { timeoutMs: 80 })).rejects.toThrow(
       /No ready page client\. Reloading: /,

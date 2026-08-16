@@ -82,21 +82,18 @@ export class RegistryBridgeBroker {
   }
 
   get clients(): readonly RegistryClient[] {
-    return Array.from(this.#clients.values(), (client) => {
-      if (!isSocketOpen(client.socket)) {
-        return undefined;
-      }
-      return {
-        clientId: client.clientId,
-        connectedAt: client.connectedAt,
-        ...(client.pageUrl === undefined ? {} : { pageUrl: client.pageUrl }),
-        ...(client.pageTitle === undefined
-          ? {}
-          : { pageTitle: client.pageTitle }),
-        entryCount: client.snapshot.entries.length,
-        logCount: client.snapshot.logs.length,
-      };
-    }).filter((client): client is RegistryClient => client !== undefined);
+    return Array.from(this.#clients.values(), (client) => ({
+      clientId: client.clientId,
+      connectedAt: client.connectedAt,
+      status: client.status,
+      generation: client.generation,
+      ...(client.pageUrl === undefined ? {} : { pageUrl: client.pageUrl }),
+      ...(client.pageTitle === undefined
+        ? {}
+        : { pageTitle: client.pageTitle }),
+      entryCount: client.snapshot.entries.length,
+      logCount: client.snapshot.logs.length,
+    }));
   }
 
   snapshot(clientId: string): RegistrySnapshot {

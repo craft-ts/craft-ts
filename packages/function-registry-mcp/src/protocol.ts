@@ -107,6 +107,8 @@ export type RegistrySnapshot = Readonly<{
 export type RegistryClient = Readonly<{
   clientId: string;
   connectedAt: string;
+  status: 'reloading' | 'connecting' | 'ready';
+  generation: number;
   pageUrl?: string;
   pageTitle?: string;
   entryCount: number;
