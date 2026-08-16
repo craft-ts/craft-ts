@@ -585,6 +585,61 @@ describe('RegistryBridgeBroker', () => {
     ).resolves.toMatchObject({ url: '/' });
     duplicate.close();
   });
+
+  describe('heartbeat', () => {
+    let silent: WebSocket | undefined;
+
+    beforeEach(async () => {
+      app.close();
+      await broker.close();
+      broker = new RegistryBridgeBroker({
+        port: 0,
+        requestTimeoutMs: 500,
+        heartbeatIntervalMs: 30,
+        heartbeatTimeoutMs: 80,
+      });
+      await broker.ready();
+    });
+
+    afterEach(() => {
+      silent?.close();
+    });
+
+    it('marks a client reloading when it stops answering ping', async () => {
+      const { port } = broker.address();
+      const socket = new WebSocket(`ws://127.0.0.1:${port}`, {
+        autoPong: false,
+      });
+      silent = socket;
+      await new Promise<void>((resolve) => socket.once('open', resolve));
+      echoPage(socket);
+      socket.send(
+        JSON.stringify({
+          type: 'hello',
+          role: 'registry-app',
+          clientId: 'silent',
+          pageUrl: 'http://localhost/login-form',
+        }),
+      );
+      publishSurface(socket, {
+        clientId: 'silent',
+        url: '/login-form',
+        controls: [control('email')],
+      });
+      await vi.waitFor(async () => {
+        await expect(
+          broker.request('page', { clientId: 'silent' }),
+        ).resolves.toMatchObject({ status: 'ready' });
+      });
+
+      await vi.waitFor(() => {
+        expect(socket.readyState).not.toBe(WebSocket.OPEN);
+      });
+      await expect(
+        broker.request('page', { clientId: 'silent', timeoutMs: 200 }),
+      ).rejects.toThrow(/page reloading since /);
+    });
+  });
 });
 
 function control(id: string) {

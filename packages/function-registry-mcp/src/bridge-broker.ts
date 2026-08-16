@@ -55,20 +55,29 @@ export class RegistryBridgeBroker {
   readonly #pending = new Map<string, PendingCall>();
   readonly #clients = new Map<string, ClientConnection>();
   readonly #socketClientIds = new WeakMap<WebSocket, string>();
+  readonly #heartbeats = new WeakMap<WebSocket, ReturnType<typeof setInterval>>();
   readonly #requestTimeoutMs: number;
+  readonly #heartbeatIntervalMs: number;
+  readonly #heartbeatTimeoutMs: number;
 
   constructor({
     host = '127.0.0.1',
     port = 3333,
     requestTimeoutMs = 10_000,
+    heartbeatIntervalMs = 5_000,
+    heartbeatTimeoutMs = 15_000,
   }: {
     host?: string;
     port?: number;
     requestTimeoutMs?: number;
+    heartbeatIntervalMs?: number;
+    heartbeatTimeoutMs?: number;
   } = {}) {
     const options: ServerOptions = { host, port };
     this.#server = new WebSocketServer(options);
     this.#requestTimeoutMs = requestTimeoutMs;
+    this.#heartbeatIntervalMs = heartbeatIntervalMs;
+    this.#heartbeatTimeoutMs = heartbeatTimeoutMs;
     this.#server.on('connection', (socket) => this.#handleConnection(socket));
   }
 
@@ -137,6 +146,7 @@ export class RegistryBridgeBroker {
       }
     }
     for (const client of this.#server.clients) {
+      this.#clearHeartbeat(client);
       client.close();
     }
     this.#clients.clear();
@@ -286,6 +296,7 @@ export class RegistryBridgeBroker {
   #handleConnection(socket: WebSocket): void {
     socket.on('message', (rawData) => this.#handleMessage(socket, rawData));
     socket.on('close', () => {
+      this.#clearHeartbeat(socket);
       const clientId = this.#socketClientIds.get(socket);
       if (clientId === undefined) {
         return;
@@ -429,6 +440,7 @@ export class RegistryBridgeBroker {
     });
     const helloOk: HelloOk = { type: 'hello/ok', clientId };
     socket.send(JSON.stringify(helloOk));
+    this.#startHeartbeat(socket);
     if (
       !previousOpenOnOtherSocket &&
       previous !== undefined &&
@@ -527,6 +539,34 @@ export class RegistryBridgeBroker {
       clearTimeout(waiter.timeout);
       waiter.reject(new Error(message));
     }
+  }
+
+  #startHeartbeat(socket: WebSocket): void {
+    this.#clearHeartbeat(socket);
+    let lastPongAt = Date.now();
+    socket.on('pong', () => {
+      lastPongAt = Date.now();
+    });
+    const timer = setInterval(() => {
+      if (Date.now() - lastPongAt > this.#heartbeatTimeoutMs) {
+        this.#clearHeartbeat(socket);
+        socket.terminate();
+        return;
+      }
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.ping();
+      }
+    }, this.#heartbeatIntervalMs);
+    this.#heartbeats.set(socket, timer);
+  }
+
+  #clearHeartbeat(socket: WebSocket): void {
+    const timer = this.#heartbeats.get(socket);
+    if (timer === undefined) {
+      return;
+    }
+    clearInterval(timer);
+    this.#heartbeats.delete(socket);
   }
 
   #dropClient(clientId: string, waiterMessage: string): void {
