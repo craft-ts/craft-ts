@@ -7,8 +7,11 @@ import {
   type EnvironmentProviders,
   type Provider,
 } from '@angular/core';
-import { Router, type Event as AngularRouterEvent } from '@angular/router';
 import type { CraftRoutePhase } from './craft-route-exceptions';
+import {
+  CRAFT_ROUTER,
+  type CraftRouterEvent,
+} from './craft-router-tokens';
 
 export type CraftRouterTraceStage =
   | 'match'
@@ -20,7 +23,7 @@ export type CraftRouterTraceContext = Readonly<{
   kind: 'routerEvent' | 'routeChain' | 'routeStage';
   phase: 'event' | 'run';
   eventName?: string;
-  event?: AngularRouterEvent;
+  event?: CraftRouterEvent;
   stage?: CraftRouterTraceStage;
   routePhase?: CraftRoutePhase;
   url?: string;
@@ -40,6 +43,17 @@ export const CRAFT_ROUTER_TRACE = new InjectionToken<
 
 const routerTraceListeners = new WeakSet<Injector>();
 
+type CraftRouterEvents = {
+  subscribe(fn: (event: CraftRouterEvent) => void): { unsubscribe(): void };
+};
+
+function craftRouterEvents(
+  router: object,
+): CraftRouterEvents | undefined {
+  const events = (router as { events?: CraftRouterEvents }).events;
+  return events && typeof events.subscribe === 'function' ? events : undefined;
+}
+
 export function provideCraftRouterTrace(
   wrapper: CraftRouterTraceWrapper,
 ): (Provider | EnvironmentProviders)[] {
@@ -51,25 +65,23 @@ export function provideCraftRouterTrace(
     },
     provideAppInitializer(() => {
       const injector = inject(Injector);
-      const router = inject(Router);
+      const router = inject(CRAFT_ROUTER, { optional: true });
+      const events = router ? craftRouterEvents(router) : undefined;
 
-      if (routerTraceListeners.has(injector)) {
+      if (!events || routerTraceListeners.has(injector)) {
         return;
       }
       routerTraceListeners.add(injector);
 
-      router.events.subscribe((event) => {
+      events.subscribe((event) => {
         executeCraftRouterTrace(
           injector,
           {
             kind: 'routerEvent',
             phase: 'event',
-            eventName: event.constructor.name,
+            eventName: event.type,
             event,
-            url:
-              'url' in event && typeof event.url === 'string'
-                ? event.url
-                : undefined,
+            url: event.url,
           },
           () => undefined,
         );
