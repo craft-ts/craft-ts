@@ -21,6 +21,7 @@ export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-params';
 export * from './lib/query';
+export * from './lib/render/channels';
 // Insertion authoring surface: the contexts an insertion receives, and the
 // factory signatures a reusable insertion can be typed with.
 export type {
