@@ -350,15 +350,43 @@ export function findUnresolvedLoadChildrenRoute(
       }
     }
 
-    if (
-      hasUnresolvedLoadChildren(route) &&
-      (nextRemaining.length > 0 || route.component === undefined)
-    ) {
+    if (hasUnresolvedLoadChildren(route)) {
       return route;
     }
   }
 
   return null;
+}
+
+function routeActivatesOutlet(route: CraftCompiledRoute): boolean {
+  return route.component != null || typeof route.loadComponent === 'function';
+}
+
+export function sliceCraftMatchForOutlet(match: CraftMatch): {
+  activated: CraftMatch;
+  child: CraftMatch | null;
+} {
+  const index = match.routes.findIndex(routeActivatesOutlet);
+  if (index === -1) {
+    return { activated: match, child: null };
+  }
+  const remaining = match.routes.slice(index);
+  const childRoutes = match.routes.slice(index + 1);
+  return {
+    activated: {
+      ...match,
+      route: remaining[0],
+      routes: remaining,
+    },
+    child:
+      childRoutes.length === 0
+        ? null
+        : {
+            ...match,
+            route: childRoutes[childRoutes.length - 1],
+            routes: childRoutes,
+          },
+  };
 }
 
 function normalizeLoadedChildren(loaded: unknown): CraftCompiledRoute[] {

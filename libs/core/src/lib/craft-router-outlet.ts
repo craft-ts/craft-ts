@@ -56,9 +56,11 @@ import {
 } from './host/craft-signal';
 import {
   serializeLocation,
+  sliceCraftMatchForOutlet,
   type CraftMatch,
 } from './host/craft-router-runtime';
 import {
+  CRAFT_CHILD_MATCH,
   CRAFT_MATCH,
   CRAFT_ROUTER,
   type CraftRouterNavigationApi,
@@ -209,6 +211,7 @@ export class CraftRouterOutletController {
 
   private _match: CraftMatch | null = null;
   private _liveMatch: CraftWritableSignal<CraftMatch> | null = null;
+  private _childMatch: CraftWritableSignal<CraftMatch | null> | null = null;
   private _activeRouteInjector: Injector | null = null;
   private _meta: CraftRouteMeta | null = null;
   private _navId = 0;
@@ -234,7 +237,9 @@ export class CraftRouterOutletController {
   }
 
   constructor() {
-    const matchSignal = inject(CRAFT_MATCH, { optional: true });
+    const matchSignal =
+      inject(CRAFT_CHILD_MATCH, { optional: true }) ??
+      inject(CRAFT_MATCH, { optional: true });
     if (matchSignal) {
       this._matchWatch = craftWatch(() => {
         const match = matchSignal();
@@ -258,6 +263,7 @@ export class CraftRouterOutletController {
     this.teardown();
     this._match = null;
     this._liveMatch = null;
+    this._childMatch = null;
     this._activeRouteInjector = null;
     this._meta = null;
     this._previousUrl = this.router.url;
@@ -282,31 +288,33 @@ export class CraftRouterOutletController {
     const previousMatchUrl = this._match
       ? serializeLocation(this._match)
       : this._previousUrl;
+    const { activated, child } = sliceCraftMatchForOutlet(match);
 
     if (
       this._match &&
       this._liveMatch &&
+      this._childMatch &&
       this._activeRouteInjector &&
-      isSameActivation(this._match, match)
+      isSameActivation(this._match, activated)
     ) {
-      this._match = match;
-      this._liveMatch.set(match);
-      this.displayedProps.set(collectMatchProps(match));
+      this._match = activated;
+      this._liveMatch.set(activated);
+      this._childMatch.set(child);
+      this.displayedProps.set(collectMatchProps(activated));
       return;
     }
 
     this._previousUrl = previousMatchUrl;
     this.teardown();
-    this._match = match;
-    this._liveMatch = craftSignal(match);
-    const routeProviders = match.routes.flatMap((route) => {
-      const providers = route.providers;
-      return Array.isArray(providers) ? providers : [];
-    });
+    this._match = activated;
+    this._liveMatch = craftSignal(activated);
+    this._childMatch = craftSignal(child);
+    const routeProviders = activated.route.providers;
     this._activeRouteInjector = Injector.create({
       providers: [
         { provide: CRAFT_MATCH, useValue: this._liveMatch },
-        ...(routeProviders as never[]),
+        { provide: CRAFT_CHILD_MATCH, useValue: this._childMatch },
+        ...(Array.isArray(routeProviders) ? (routeProviders as never[]) : []),
       ],
       parent: environmentInjector ?? this.rootInjector,
       name: 'CraftRouterOutlet',
@@ -315,11 +323,14 @@ export class CraftRouterOutletController {
     this.publishViewTransitionPayload();
 
     const meta = getCraftRouteMeta(
-      match.data as Record<string | symbol, unknown>,
+      (activated.route.data ?? activated.data) as Record<
+        string | symbol,
+        unknown
+      >,
     );
     this._meta = meta ?? null;
     this.clearExceptionSinks(meta);
-    void this.finishActivation(match, meta ?? null);
+    void this.finishActivation(activated, meta ?? null);
   }
 
   private async finishActivation(

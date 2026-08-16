@@ -4,6 +4,7 @@ import {
   createBrowserHistory,
   matchCraftRoutes,
   matchCraftRoutesAsync,
+  sliceCraftMatchForOutlet,
   type CraftCompiledRoute,
 } from './craft-router-runtime';
 
@@ -120,6 +121,63 @@ describe('matchCraftRoutes', () => {
 
     expect(match?.route).toBe(child);
     expect(routes[0].children).toEqual([child]);
+  });
+
+  it('loads loadChildren when the parent has a component and remaining segments are empty', async () => {
+    const child: CraftCompiledRoute = {
+      path: '',
+      component: { name: 'Child' },
+    };
+    const parent: CraftCompiledRoute = {
+      path: 'layout',
+      component: { name: 'Layout' },
+      loadChildren: async () => [child],
+    };
+    const routes: CraftCompiledRoute[] = [parent];
+
+    const match = await matchCraftRoutesAsync(routes, locationOf('/layout'));
+
+    expect(match?.route).toBe(child);
+    expect(match?.routes.map((route) => route.path)).toEqual(['layout', '']);
+    expect(parent.children).toEqual([child]);
+  });
+
+  it('slices a parent+child match so the outlet activates the parent and the suffix is the child', () => {
+    const child: CraftCompiledRoute = {
+      path: 'child',
+      component: { name: 'Child' },
+    };
+    const parent: CraftCompiledRoute = {
+      path: 'parent',
+      component: { name: 'Parent' },
+      children: [child],
+    };
+    const match = matchCraftRoutes([parent], locationOf('/parent/child'));
+    const sliced = sliceCraftMatchForOutlet(match!);
+
+    expect(sliced.activated.route).toBe(parent);
+    expect(sliced.activated.routes.map((route) => route.path)).toEqual([
+      'parent',
+      'child',
+    ]);
+    expect(sliced.child?.route).toBe(child);
+    expect(sliced.child?.routes).toEqual([child]);
+  });
+
+  it('skips a parent without a component so the root outlet activates the child', () => {
+    const child: CraftCompiledRoute = {
+      path: '',
+      component: { name: 'SlowPage' },
+    };
+    const parent: CraftCompiledRoute = {
+      path: 'slow-page',
+      children: [child],
+    };
+    const match = matchCraftRoutes([parent], locationOf('/slow-page'));
+    const sliced = sliceCraftMatchForOutlet(match!);
+
+    expect(sliced.activated.route).toBe(child);
+    expect(sliced.child).toBeNull();
   });
 });
 

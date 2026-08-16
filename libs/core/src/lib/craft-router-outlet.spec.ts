@@ -4,6 +4,7 @@ import {
   Component,
   createEnvironmentInjector,
   EnvironmentInjector,
+  runInInjectionContext,
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -71,6 +72,12 @@ class TargetCmp {}
 
 @Component({ selector: 'spec-err', standalone: true, template: `error` })
 class ErrCmp {}
+
+@Component({ selector: 'spec-parent', standalone: true, template: `parent` })
+class ParentCmp {}
+
+@Component({ selector: 'spec-child', standalone: true, template: `child` })
+class ChildCmp {}
 
 function dummyGen(): Generator<unknown, unknown, unknown> {
   return (function* () {
@@ -354,6 +361,87 @@ describe('CraftRouterOutlet', () => {
 
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(ErrCmp);
+  });
+
+  it('mounts the parent at the root outlet and the child at the nested outlet', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'parent',
+            component: ParentCmp,
+            children: [{ path: 'child', component: ChildCmp }],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/parent/child');
+
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+
+    const nested = runInInjectionContext(outlet.displayedInjector()!, () =>
+      createCraftRouterOutletController(),
+    );
+
+    expect(nested.targetComponent()).toBe(ChildCmp);
+    expect(nested.targetComponent()).not.toBe(ParentCmp);
+  });
+
+  it('does not remount the parent in a nested outlet when only the layout matched', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'layout',
+            component: ParentCmp,
+            children: [{ path: 'child', component: ChildCmp }],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/layout');
+
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+
+    const nested = runInInjectionContext(outlet.displayedInjector()!, () =>
+      createCraftRouterOutletController(),
+    );
+
+    expect(nested.targetComponent()).toBeNull();
+  });
+
+  it('loads a lazy empty-path child when the parent has a component', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'layout',
+            component: ParentCmp,
+            loadChildren: async () => [{ path: '', component: ChildCmp }],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/layout');
+    await flush();
+
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+
+    const nested = runInInjectionContext(outlet.displayedInjector()!, () =>
+      createCraftRouterOutletController(),
+    );
+
+    expect(nested.targetComponent()).toBe(ChildCmp);
   });
 
   it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {

@@ -75,6 +75,10 @@ export const CRAFT_MATCH = angularCraftToken<CraftSignal<CraftMatch | null>>(
   'CRAFT_MATCH',
 );
 
+export const CRAFT_CHILD_MATCH = angularCraftToken<
+  CraftSignal<CraftMatch | null>
+>('CRAFT_CHILD_MATCH');
+
 export const CRAFT_COMPILED_ROUTES = angularCraftToken<
   readonly CraftCompiledRoute[]
 >('CRAFT_COMPILED_ROUTES');
