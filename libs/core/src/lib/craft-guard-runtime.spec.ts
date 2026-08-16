@@ -1,7 +1,17 @@
+
+/**
+ * A stand-in DI token. These specs never drove a real router — they only
+ * needed some external service to adapt through `toCraftService`.
+ */
+class Router {
+  readonly url: string = '/';
+  navigateByUrl(_url: string): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+}
 import {
   Injector,
 } from './host/craft-compat';
-import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import { craftGen, CraftGenShortCircuit } from './craft-gen';

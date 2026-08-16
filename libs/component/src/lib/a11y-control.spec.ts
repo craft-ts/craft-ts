@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { signal } from '@angular/core';
+import {
+  signal,
+} from '../../../core/src/lib/host/craft-compat';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   button,

@@ -6,7 +6,6 @@ import {
   WritableSignal,
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
-import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { afterRecomputation } from './after-recomputation';
 import { ɵinjectService as injectService } from './inject-service';
@@ -24,10 +23,7 @@ describe('Service2', () => {
   });
 
   it('1- Should only expose the public entries returned by the insertion callback', async () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class MyService {
+        class MyService {
       total = computed(() => 10);
       resetCalls = signal(0);
 
@@ -57,10 +53,7 @@ describe('Service2', () => {
   });
 
   it('2- Should apply bindings from insertions without exposing the bound properties', async () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class MyService {
+        class MyService {
       idInput = signal<string | undefined>(undefined);
       total = signal(0);
       events = new Subject<number>();
@@ -134,10 +127,7 @@ describe('Service2', () => {
   });
 
   it('3- Should infer only opt-in exposed outputs and hide bound insertions from the result type', () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class MyService {
+        class MyService {
       idInput = signal<string | undefined>(undefined);
       total = computed(() => 10);
       editableTotal = signal(0);
@@ -188,10 +178,7 @@ describe('Service2', () => {
   });
 
   it('4- Should expose writable signals as WritableSignal in the callback and outputs', () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class MyWritableService {
+        class MyWritableService {
       total = signal(0);
     }
 
@@ -211,10 +198,7 @@ describe('Service2', () => {
   });
 
   it('5- Should chain up to 5 insertions with typed previous insertions access', async () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class MyService {
+        class MyService {
       total = signal(2);
     }
 

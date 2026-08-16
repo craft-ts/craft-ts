@@ -1,5 +1,4 @@
 import { TestBed } from './host/craft-test-bed';
-import { Component } from '@angular/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sourceFromEvent, SourceFromEvent } from './source-from-event';
 
@@ -47,11 +46,7 @@ describe('sourceFromEvent', () => {
   });
 
   it('should call dispose when DestroyRef triggers onDestroy', () => {
-    @Component({
-      template: '',
-      standalone: true,
-    })
-    class TestComponent {
+        class TestComponent {
       eventSource = sourceFromEvent<MouseEvent>(button, 'click');
     }
 

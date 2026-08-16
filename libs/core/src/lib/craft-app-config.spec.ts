@@ -3,7 +3,6 @@ import {
   Type,
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
-import { ApplicationInitStatus } from '@angular/core';
 import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 import type { AppCheckedDI } from './app-checked-di';
 import { GetDeps } from './branded-component/branded-component';

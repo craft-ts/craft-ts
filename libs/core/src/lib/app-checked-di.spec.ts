@@ -1,4 +1,3 @@
-import { Component } from '@angular/core';
 import { craftService, GetServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
@@ -11,11 +10,7 @@ function _injectDemoUserIdParams(): string {
 
 describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
-    @Component({
-      selector: 'lib-app',
-      template: ` App `,
-    })
-    class AppComponent {}
+        class AppComponent {}
 
     type GenDeps_AppComponent = GetDeps<{
       deps: {};

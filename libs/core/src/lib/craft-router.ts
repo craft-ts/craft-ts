@@ -18,11 +18,12 @@ import {
   createCraftTitleStrategy,
   type CraftTitleStrategy,
 } from './craft-a11y';
-import type {
-  ActivatedRouteSnapshot,
-  Data,
-  ParamMap,
-  RouterStateSnapshot,
+import {
+  ActivatedRoute,
+  type ActivatedRouteSnapshot,
+  type Data,
+  type ParamMap,
+  type RouterStateSnapshot,
 } from './host/craft-router-types';
 import {
   ɵtoCraftService as toCraftService,
@@ -641,6 +642,28 @@ function emptyParamMap(): ParamMap {
   };
 }
 
+function emptyActivatedRouteSnapshot(): ActivatedRouteSnapshot {
+  const snapshot: ActivatedRouteSnapshot = {
+    routeConfig: null,
+    url: [],
+    params: {},
+    queryParams: {},
+    fragment: null,
+    data: {} as Data,
+    outlet: 'primary',
+    paramMap: emptyParamMap(),
+    queryParamMap: emptyParamMap(),
+    parent: null,
+    root: null as unknown as ActivatedRouteSnapshot,
+    firstChild: null,
+    children: [],
+    pathFromRoot: [],
+  };
+  snapshot.root = snapshot;
+  snapshot.pathFromRoot = [snapshot];
+  return snapshot;
+}
+
 function matchToRouterStateSnapshot(match: CraftMatch): RouterStateSnapshot {
   const makeNode = (
     route: CraftCompiledRoute,
@@ -760,6 +783,37 @@ function provideCraftRouterRuntime(
     {
       provide: CRAFT_TITLE_STRATEGY,
       useFactory: () => createCraftTitleStrategy(),
+    },
+    {
+      // The Angular island used to bridge this token onto Angular's own
+      // ActivatedRoute. The Craft router owns it now: it is the leaf of the
+      // snapshot built from the current match, and empty before the first one.
+      provide: ActivatedRoute,
+      useFactory: (match: CraftSignal<CraftMatch | null>): ActivatedRoute => {
+        const leafOf = (snapshot: ActivatedRouteSnapshot) => {
+          let node = snapshot;
+          while (node.firstChild) node = node.firstChild;
+          return node;
+        };
+        const snapshot = () => {
+          const current = match();
+          return current
+            ? leafOf(matchToRouterStateSnapshot(current).root)
+            : emptyActivatedRouteSnapshot();
+        };
+        return {
+          get snapshot() {
+            return snapshot();
+          },
+          get pathFromRoot() {
+            return snapshot().pathFromRoot.map((node) => ({
+              snapshot: node,
+              pathFromRoot: [],
+            }));
+          },
+        };
+      },
+      deps: [CRAFT_MATCH],
     },
     {
       provide: CRAFT_HISTORY,

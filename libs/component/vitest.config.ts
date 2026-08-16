@@ -40,14 +40,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],
-    exclude: [
-      // TestBed / ngc remainder — run via `nx test-angular ng-craft-component`.
-      'src/lib/a11y-control.spec.ts',
-      'src/lib/assert-defined-input.spec.ts',
-      'src/lib/block.spec.ts',
-      'src/lib/composition.spec.ts',
-      'src/lib/pending-block.spec.ts',
-    ],
+    exclude: [],
     reporters: ['default'],
   },
 });

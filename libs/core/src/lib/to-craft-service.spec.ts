@@ -1,11 +1,10 @@
+import { provideCraftRouter } from './craft-router';
 import {
   inject,
   InjectionToken,
   signal,
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
-import { Component, Injectable } from '@angular/core';
-import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { state } from './state';
 import {
   craftService,
@@ -21,19 +20,13 @@ import type {
 import { craftUse } from './craft-use';
 import { CraftActivatedRoute } from './craft-activated-route';
 
-@Component({
-  standalone: true,
-  template: '',
-})
-class CheckoutPage {}
-
 beforeEach(() => {
   TestBed.resetTestingModule();
 });
 
 describe('toCraftService', () => {
   it('adapts Angular ActivatedRoute as a global Craft service', () => {
-    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
 
     TestBed.runInInjectionContext(() => {
       const activatedRoute = craftUse(CraftActivatedRoute());
@@ -43,10 +36,7 @@ describe('toCraftService', () => {
   });
 
   it('should adapt an injectable class in global scope and keep exposed methods bound to the source instance', async () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class RouterLikeSource {
+        class RouterLikeSource {
       readonly currentUrl = signal('/');
 
       navigateByUrl(url: string) {
@@ -88,10 +78,7 @@ describe('toCraftService', () => {
   });
 
   it('should expose single-property shortcuts from toCraftService yield helpers', async () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class RouterLikeShortcutSource {
+        class RouterLikeShortcutSource {
       readonly currentUrl = signal('/');
 
       navigateByUrl(url: string) {
@@ -136,10 +123,7 @@ describe('toCraftService', () => {
   });
 
   it('should call toCraftService method shortcuts directly when there are no public inputs', async () => {
-    @Injectable({
-      providedIn: 'root',
-    })
-    class RouterLikeDirectShortcutSource {
+        class RouterLikeDirectShortcutSource {
       readonly currentUrl = signal('/');
 
       navigateByUrl(url: string) {

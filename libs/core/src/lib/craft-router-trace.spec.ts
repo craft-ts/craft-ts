@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createCraftInjector } from './host/craft-injector';
 import {
   APP_INITIALIZER,
   createEnvironmentInjector,
@@ -7,8 +8,6 @@ import {
   type EnvironmentInjector,
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
-import { getPlatform } from '@angular/core';
-import { Router } from '@angular/router';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
 import {
@@ -73,7 +72,7 @@ describe('craft router trace', () => {
     ]);
   });
 
-  it('boots without Angular Router and traces Craft navigation events', async () => {
+  it('boots standalone and traces Craft navigation events', async () => {
     const traces: CraftRouterTraceContext[] = [];
     const injector = createEnvironmentInjector(
       [
@@ -83,12 +82,9 @@ describe('craft router trace', () => {
           return next();
         }),
       ],
-      getPlatform()!.injector as EnvironmentInjector,
+      createCraftInjector([]),
     );
 
-    expect(() => injector.get(Router)).toThrowError(
-      /No provider found for `Router`/,
-    );
     expect(() => runAppInitializers(injector)).not.toThrow();
 
     const router = injector.get(CRAFT_ROUTER);
@@ -105,7 +101,7 @@ describe('craft router trace', () => {
   it('does not throw when Craft router is absent', () => {
     const injector = createEnvironmentInjector(
       [provideCraftRouterTrace((_traceContext, next) => next())],
-      getPlatform()!.injector as EnvironmentInjector,
+      createCraftInjector([]),
     );
 
     expect(() => runAppInitializers(injector)).not.toThrow();

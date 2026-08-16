@@ -1,6 +1,8 @@
+import {
+  computed,
+} from '../../../core/src/lib/host/craft-compat';
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
-import { computed } from '@angular/core';
 import {
   craftComputed,
   craftMethod,

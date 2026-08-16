@@ -1,19 +1,25 @@
+import { provideCraftRouter as provideRouter } from './craft-router';
+
+/**
+ * A stand-in DI token. These specs never drove a real router — they only
+ * needed some external service to adapt through `toCraftService`.
+ */
+class Router {
+  readonly url: string = '/';
+  navigateByUrl(_url: string): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+}
 import {
   inject,
   InjectionToken,
 } from './host/craft-compat';
-import { Component, Injectable } from '@angular/core';
-import { Router, provideRouter } from '@angular/router';
 import { type GetDeps, type GetPublicComponentProperties } from '../index';
 import { craftService, ɵtoCraftService as toCraftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 import { craftUse } from './craft-use';
 
-@Component({
-  standalone: true,
-  template: '',
-})
 class CheckoutPage {}
 
 describe('setupCraftServiceTest', () => {
@@ -467,8 +473,7 @@ describe('setupCraftServiceTest', () => {
   it('should require an explicit provider when a raw external dependency only uses provider inputs', () => {
     const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
 
-    @Injectable()
-    class CatalogDriver {
+        class CatalogDriver {
       readonly baseUrl = inject(API_BASE_URL);
 
       fetchProducts() {
@@ -507,36 +512,6 @@ describe('setupCraftServiceTest', () => {
     expect(sut.fetchProducts()).toBe('/api/products');
   });
 
-  // moved to @craft-ng/angular
-  it.skip('should allow a global adapted Router without override when provideRouter is supplied', () => {
-    const { Router: RouterService } = toCraftService({
-      name: 'Router',
-      scope: 'global',
-      token: Router,
-    });
-
-    const { Navigation: Navigation } = craftService(
-      { name: 'Navigation', scope: 'toProvide' },
-      function* () {
-        const router = yield* RouterService();
-
-        return {
-          readUrl: () => router.url,
-        };
-      },
-    );
-
-    const { sut } = setupCraftServiceTest(
-      Navigation,
-      {},
-      {
-        providers: [provideRouter([])],
-      },
-    );
-
-    expect(typeof sut.readUrl()).toBe('string');
-  });
-
   it('should allow mocking a global adapted Router', async () => {
     const { Router: RouterService } = toCraftService({
       name: 'Router',
@@ -567,61 +542,6 @@ describe('setupCraftServiceTest', () => {
     await sut.goToCheckout();
 
     expect(mocks.Router.navigateByUrl).toHaveBeenCalledWith('/checkout');
-  });
-
-  // moved to @craft-ng/angular
-  it.skip('should require explicit coverage for a manuallyProvidedAtRoot adapted Router', async () => {
-    const { provideRouter: provideRouterDependency, Router: RouterService } =
-      toCraftService({
-        name: 'Router',
-        scope: 'manuallyProvidedAtRoot',
-        token: Router,
-        provide: () =>
-          provideRouter([{ path: 'checkout', component: CheckoutPage }]),
-      });
-
-    const { Navigation: Navigation } = craftService(
-      { name: 'Navigation', scope: 'global' },
-      function* () {
-        const router = yield* RouterService();
-
-        return {
-          readUrl: () => router.url,
-        };
-      },
-    );
-
-    // eslint-disable-next-line no-constant-condition
-    if (false) {
-      //@ts-expect-error Router should be explicitly covered because it is manuallyProvidedAtRoot
-      setupCraftServiceTest(Navigation, {}, { providers: [provideRouter([])] });
-    }
-
-    const { sut } = setupCraftServiceTest(Navigation, {
-      Router: provideRouterDependency(),
-    });
-
-    expect(typeof sut.readUrl()).toBe('string');
-
-    const { RouteNavigation: RouteNavigation } = craftService(
-      { name: 'RouteNavigation', scope: 'global' },
-      function* () {
-        const router = yield* RouterService();
-
-        return {
-          goToCheckout: () => router.navigateByUrl('/checkout'),
-          readUrl: () => router.url,
-        };
-      },
-    );
-
-    const routeNavigationTest = setupCraftServiceTest(RouteNavigation, {
-      Router: provideRouterDependency(),
-    });
-
-    await routeNavigationTest.sut.goToCheckout();
-
-    expect(routeNavigationTest.sut.readUrl()).toBe('/checkout');
   });
 
   it('should help with autocompletion the mocking of a global service dependency', async () => {

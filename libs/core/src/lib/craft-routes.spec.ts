@@ -1,4 +1,30 @@
 import {
+  ActivatedRoute,
+  NavigationEnd,
+  type ActivatedRouteSnapshot,
+  type CanActivateFn,
+  type CanMatchFn,
+  type Data,
+  type GuardResult,
+  type Params,
+  type PartialMatchRouteSnapshot,
+  type Route,
+  type RouterStateSnapshot,
+  type UrlSegment,
+  UrlTree,
+} from './host/craft-router-types';
+
+/**
+ * A stand-in DI token. These specs never drove a real router — they only
+ * needed some external service to adapt through `toCraftService`.
+ */
+class Router {
+  readonly url: string = '/';
+  navigateByUrl(_url: string): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+}
+import {
   computed,
   EnvironmentInjector,
   inject,
@@ -11,8 +37,6 @@ import {
   type Signal,
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
-import { Component, input } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router, UrlTree, type ActivatedRouteSnapshot, type CanActivateFn, type CanMatchFn, type Data, type GuardResult, type Params, type PartialMatchRouteSnapshot, type Route, type RouterStateSnapshot, type UrlSegment } from '@angular/router';
 import {
   BehaviorSubject,
   combineLatest,
@@ -2565,13 +2589,8 @@ describe('craftRoutes', () => {
 
 describe('AppRoutes.META_DATA', () => {
   it('should throw is an input is not directly provided', () => {
-    @Component({
-      selector: 'lib-user',
-      standalone: true,
-      template: ` Test `,
-    })
-    class UserComponent {
-      userId = input.required<string>();
+        class UserComponent {
+      userId = craftSignal<string>(undefined as never);
     }
 
     type GenDeps_UserComponent = GetDeps<{
@@ -2606,13 +2625,8 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should not remove matching inputs from publicProperties deps if type does not match', () => {
-    @Component({
-      selector: 'lib-user',
-      standalone: true,
-      template: ` Test `,
-    })
-    class UserComponent {
-      userId = input.required<number>();
+        class UserComponent {
+      userId = craftSignal<number>(undefined as never);
     }
 
     type GenDeps_UserComponent = GetDeps<{
@@ -2654,13 +2668,8 @@ describe('AppRoutes.META_DATA', () => {
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
-    @Component({
-      selector: 'lib-user',
-      standalone: true,
-      template: ` Test `,
-    })
-    class UserComponent {
-      userId = input.required<string>();
+        class UserComponent {
+      userId = craftSignal<string>(undefined as never);
 
       counter = craftUse(Counter());
     }
@@ -2696,13 +2705,8 @@ describe('AppRoutes.META_DATA', () => {
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
-    @Component({
-      selector: 'lib-user',
-      standalone: true,
-      template: ` Test `,
-    })
-    class UserComponent {
-      userId = input.required<string>();
+        class UserComponent {
+      userId = craftSignal<string>(undefined as never);
 
       counter = craftUse(Counter());
     }

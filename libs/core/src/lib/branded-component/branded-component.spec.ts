@@ -1,5 +1,6 @@
-import { CommonModule } from '@angular/common';
-import { Component, input } from '@angular/core';
+import {
+  signal as craftSignal,
+} from '../host/craft-compat';
 import { Equal, Expect } from 'test-type';
 import { describe, expectTypeOf, it } from 'vitest';
 import {
@@ -112,11 +113,7 @@ describe('GetDeps', () => {
       }),
     );
 
-    @Component({
-      selector: 'lib-status',
-      template: ` Status `,
-    })
-    class StatusComponent {}
+        class StatusComponent {}
 
     class HttpClient {}
 
@@ -158,11 +155,7 @@ describe('GetDeps', () => {
       }),
     );
 
-    @Component({
-      selector: 'lib-status',
-      template: ` Status `,
-    })
-    class StatusComponent {}
+        class StatusComponent {}
 
     class HttpClient {}
 
@@ -322,13 +315,9 @@ describe('GetDeps', () => {
 
 describe('GetPublicComponentProperties', () => {
   it('extracts only input signals from the public component instance surface', () => {
-    @Component({
-      selector: 'lib-login-form',
-      template: ` Login Form `,
-    })
-    class LoginFormComponent {
+        class LoginFormComponent {
       readonly userId = input<string>();
-      readonly userMandatoryId = input.required<string>();
+      readonly userMandatoryId = craftSignal<string>(undefined as never);
       protected readonly protectedField = 'protected';
       private readonly privateField = 'private';
 
@@ -355,13 +344,9 @@ describe('GetPublicComponentProperties', () => {
   });
 
   it('accepts an instance type directly', () => {
-    @Component({
-      selector: 'lib-login-form',
-      template: ` Login Form `,
-    })
-    class LoginFormComponent {
+        class LoginFormComponent {
       readonly userId = input<string>();
-      readonly userMandatoryId = input.required<string>();
+      readonly userMandatoryId = craftSignal<string>(undefined as never);
     }
 
     type PublicProperties = GetPublicComponentProperties<LoginFormComponent>;
@@ -375,13 +360,9 @@ describe('GetPublicComponentProperties', () => {
   });
 
   it('strips internal InputSignal brand symbols — input properties are exposed as plain callables', () => {
-    @Component({
-      selector: 'lib-signal-component',
-      template: ``,
-    })
-    class SignalComponent {
+        class SignalComponent {
       readonly label = input<string>();
-      readonly count = input.required<number>();
+      readonly count = craftSignal<number>(undefined as never);
     }
 
     type PublicProperties = GetPublicComponentProperties<
@@ -399,11 +380,7 @@ describe('GetPublicComponentProperties', () => {
   });
 
   it('omits non-signal public members', () => {
-    @Component({
-      selector: 'lib-mixed-component',
-      template: ``,
-    })
-    class MixedComponent {
+        class MixedComponent {
       readonly value = input<boolean>();
       compute(): string {
         return 'result';

@@ -1,5 +1,5 @@
 import { TestBed } from '../host/craft-test-bed';
-import { provideRouter } from '@angular/router';
+import { provideCraftRouter } from '../craft-router';
 import { craftService } from '../craft-service';
 import { query } from '../query';
 import { queryParams } from '../query-params';
@@ -17,7 +17,7 @@ describe('insertForm compatibility with queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     TestBed.configureTestingModule({
-      providers: [provideRouter([])],
+      providers: [...provideCraftRouter([])],
     }).compileComponents();
   });
 

@@ -26,6 +26,31 @@ export type UrlTree = {
 
 export type GuardResult = boolean | UrlTree;
 
+/** Route params, keyed by the `:name` segments that produced them. */
+export type Params = Record<string, string>;
+
+export type CanActivateFn = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot,
+) => GuardResult | Promise<GuardResult>;
+
+export type CanMatchFn = (
+  route: Route,
+  segments: UrlSegment[],
+) => GuardResult | Promise<GuardResult>;
+
+/**
+ * Emitted once a navigation has committed. Craft's own navigation stream
+ * reports the same two moments Angular's did, so trace consumers keep working.
+ */
+export class NavigationEnd {
+  constructor(
+    readonly id: number,
+    readonly url: string,
+    readonly urlAfterRedirects: string,
+  ) {}
+}
+
 export type Route = {
   path?: string;
   pathMatch?: 'full' | 'prefix';

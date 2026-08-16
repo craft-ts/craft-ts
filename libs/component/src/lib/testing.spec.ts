@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
+import {
+  signal,
+} from '../../../core/src/lib/host/craft-compat';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import { craftService, craftUse } from '@craft-ng/core';
 import { craftComponent } from './component';
@@ -8,7 +10,6 @@ import { div, button, input, label, p, span } from './hyperscript';
 import { ifBlock } from './if-block';
 import { each } from './each';
 import { markYieldableValue } from '@craft-ng/core';
-import { signal } from '@angular/core';
 import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,

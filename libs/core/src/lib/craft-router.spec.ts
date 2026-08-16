@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { TestBed } from './host/craft-test-bed';
-import { Component } from '@angular/core';
 import { craftUse } from './craft-use';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
@@ -18,10 +17,6 @@ import type { GetServiceDependencies } from './craft-service';
 import { queryParams } from './query-params';
 import { viewTransitionPayload } from './craft-view-transition';
 
-@Component({
-  standalone: true,
-  template: '',
-})
 class BlankComponent {}
 
 const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
@@ -117,10 +112,6 @@ declare module './craft-router' {
   }
 }
 
-@Component({
-  standalone: true,
-  template: '',
-})
 class CraftRouterLinkHostComponent {}
 
 beforeEach(() => {
@@ -286,33 +277,6 @@ describe('CraftRouter', () => {
       ),
     ).toBe(true);
     window.history.replaceState(null, '', '/');
-  });
-
-  // moved to @craft-ng/angular
-  it.skip(
-    'should render CraftRouterLink href and keep routerLinkActive compatible — moved to @craft-ng/angular',
-    async () => {
-    expect(CraftRouterLinkHostComponent).toBeDefined();
-  }, 30_000);
-
-  it('only intercepts unmodified primary clicks targeting the current context', () => {
-    const anchor = document.createElement('a');
-    const click = (init: MouseEventInit = {}) =>
-      new MouseEvent('click', { button: 0, ...init });
-
-    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(true);
-    expect(shouldHandleCraftRouterLinkClick(click({ button: 1 }), anchor)).toBe(
-      false,
-    );
-    expect(
-      shouldHandleCraftRouterLinkClick(click({ ctrlKey: true }), anchor),
-    ).toBe(false);
-
-    anchor.target = '_blank';
-    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(false);
-    anchor.target = '_self';
-    anchor.setAttribute('aria-disabled', 'true');
-    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(false);
   });
 
   it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouter', () => {

@@ -8,7 +8,6 @@ import {
   signal,
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
-import { Component } from '@angular/core';
 import {
   afterEach,
   beforeAll,
