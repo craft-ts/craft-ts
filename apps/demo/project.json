@@ -98,14 +98,14 @@
       "continuous": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "node tools/serve-demo.mjs --configuration development"
+        "command": "node tools/serve-demo.mjs --vite --configuration development"
       },
       "configurations": {
         "production": {
-          "command": "node tools/serve-demo.mjs --configuration production"
+          "command": "node tools/serve-demo.mjs --vite --configuration production"
         },
         "development": {
-          "command": "node tools/serve-demo.mjs --configuration development"
+          "command": "node tools/serve-demo.mjs --vite --configuration development"
         }
       },
       "defaultConfiguration": "development"

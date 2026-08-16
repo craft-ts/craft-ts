@@ -881,12 +881,15 @@ function patchRenderedChildren(
 
 class TextRenderedNode implements RenderedNode {
   readonly kind = 'text';
+  private node: Text;
+  private value: string;
+  private renderer: CraftDomAdapter;
 
-  constructor(
-    private node: Text,
-    private value: string,
-    private renderer: CraftDomAdapter,
-  ) {}
+  constructor(node: Text, value: string, renderer: CraftDomAdapter) {
+    this.node = node;
+    this.value = value;
+    this.renderer = renderer;
+  }
 
   firstNode(): NativeNode {
     return this.node;
@@ -919,11 +922,12 @@ class ReactiveTextRenderedNode implements RenderedNode {
   private effectRef: EffectRef;
   private value = '';
 
-  constructor(
-    private readonly node: Text,
-    binding: CraftTextBinding,
-    private readonly context: RenderContext,
-  ) {
+  private readonly node: Text;
+  private readonly context: RenderContext;
+
+  constructor(node: Text, binding: CraftTextBinding, context: RenderContext) {
+    this.node = node;
+    this.context = context;
     this.binding = binding;
     this.effectRef = this.createEffect();
   }
@@ -995,12 +999,17 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   private readonly styleReleases: (() => void)[];
   private readonly registrationReleases: (() => void)[];
 
+  private node: CraftDirectiveNode<any, any, any>;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: CraftDirectiveNode<any, any, any>,
+    node: CraftDirectiveNode<any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.context = context;
     this.descriptor = signal(node);
     const owners = node.directives.map((directive) => ({
       name: directive[CRAFT_DIRECTIVE].name,
@@ -1396,12 +1405,19 @@ class ElementRenderedNode implements RenderedNode {
   private localName: string | undefined;
   private dialogCleanup: (() => void) | undefined;
 
+  private readonly node: Element;
+  private tag: string;
+  private context: RenderContext;
+
   constructor(
-    private readonly node: Element,
-    private tag: string,
-    private context: RenderContext,
+    node: Element,
+    tag: string,
+    context: RenderContext,
     initial: ElementNodeBase<any, any, any, any, any, any, any, any>,
   ) {
+    this.node = node;
+    this.tag = tag;
+    this.context = context;
     this.patchProperties(initial);
     this.installDialog(initial);
     const nested =
@@ -1778,13 +1794,22 @@ class FragmentRenderedNode implements RenderedNode {
     return this.start.parentNode ?? this.parent;
   }
 
+  private readonly parent: NativeParent;
+  private readonly start: Comment;
+  private readonly end: Comment;
+  private context: RenderContext;
+
   constructor(
-    private readonly parent: NativeParent,
-    private readonly start: Comment,
-    private readonly end: Comment,
-    private context: RenderContext,
+    parent: NativeParent,
+    start: Comment,
+    end: Comment,
+    context: RenderContext,
     initialChildren: CraftNodeChildren,
   ) {
+    this.parent = parent;
+    this.start = start;
+    this.end = end;
+    this.context = context;
     this.children = patchRenderedChildren(
       parent,
       this.children,
@@ -2056,13 +2081,24 @@ class EachRenderedNode implements RenderedNode {
   private readonly descriptor;
   private readonly effectRef: EffectRef;
 
+  private node: EachNode<unknown, unknown>;
+  private readonly parent: NativeParent;
+  private readonly start: Comment;
+  private readonly end: Comment;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: EachNode<unknown, unknown>,
-    private readonly parent: NativeParent,
-    private readonly start: Comment,
-    private readonly end: Comment,
-    private readonly context: RenderContext,
+    node: EachNode<unknown, unknown>,
+    parent: NativeParent,
+    start: Comment,
+    end: Comment,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.parent = parent;
+    this.start = start;
+    this.end = end;
+    this.context = context;
     this.descriptor = signal(node);
     this.effectRef = createRenderEffect(context, 'each-block', () => {
       const previousItemTemplate = this.node.itemTemplate;
@@ -2220,12 +2256,17 @@ class IfBlockRenderedNode implements RenderedNode {
   private readonly descriptor;
   private readonly effectRef: EffectRef;
 
+  private node: IfBlockNode;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: IfBlockNode,
+    node: IfBlockNode,
     parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.context = context;
     this.descriptor = signal(node);
     this.view = createFragment(
       parent,
@@ -2290,12 +2331,17 @@ class MatchBlockRenderedNode implements RenderedNode {
   private readonly descriptor;
   private readonly effectRef: EffectRef;
 
+  private node: MatchBlockNode;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: MatchBlockNode,
+    node: MatchBlockNode,
     parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.context = context;
     this.descriptor = signal(node);
     this.view = createFragment(
       parent,
@@ -2431,12 +2477,19 @@ class CatchBlockRenderedNode implements RenderedNode {
   /** Reporters still failing. The fallback stays up until this empties. */
   private readonly failing = new Set<object>();
 
+  private node: CatchBlockNode<any, any, any, any, any>;
+  private readonly parent: NativeParent;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: CatchBlockNode<any, any, any, any, any>,
-    private readonly parent: NativeParent,
+    node: CatchBlockNode<any, any, any, any, any>,
+    parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.parent = parent;
+    this.context = context;
     this.fallbackPosition = node.position;
     this.start = createComment(parent, 'craft-catch-block:start');
     this.end = createComment(parent, 'craft-catch-block:end');
@@ -2778,12 +2831,19 @@ class PendingBlockRenderedNode implements RenderedNode {
   private reloadingSource: string | undefined;
   private detached: DocumentFragment | undefined;
 
+  private node: PendingBlockNode<any, any, any, any>;
+  private readonly parent: NativeParent;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: PendingBlockNode<any, any, any, any>,
-    private readonly parent: NativeParent,
+    node: PendingBlockNode<any, any, any, any>,
+    parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.parent = parent;
+    this.context = context;
     this.position = node.position;
     this.start = createComment(parent, 'craft-pending:start');
     this.end = createComment(parent, 'craft-pending:end');
@@ -3055,12 +3115,17 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
 
+  private node: FieldExceptionBlockNode<any, any, any, any>;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: FieldExceptionBlockNode<any, any, any, any>,
+    node: FieldExceptionBlockNode<any, any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.context = context;
     this.descriptor = signal(node);
     this.view = createFragment(
       parent,
@@ -3330,12 +3395,15 @@ class AngularRenderedNode implements RenderedNode {
   private readonly mount: AngularMount;
   private node: AngularComponentNode;
 
+  private readonly context: RenderContext;
+
   constructor(
     node: AngularComponentNode,
     parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.context = context;
     this.node = node;
     const selector = reflectComponentType(node.component)?.selector;
     const tag =
@@ -3432,17 +3500,22 @@ class ComponentRenderedNode implements RenderedNode {
   private registrationReleases: (() => void)[] = [];
   private readonly hostBindings: HostPropertyBindings | undefined;
 
+  private component: CraftComponent<object>;
+  private readonly context: RenderContext;
+
   constructor(
-    private component: CraftComponent<object>,
+    component: CraftComponent<object>,
     props: object,
     parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
     hostTarget?: Element,
     templateContext?: { readonly value: unknown },
     additionalProviders: readonly CraftServiceProvider[] = [],
     declarationContext?: RenderContext,
   ) {
+    this.component = component;
+    this.context = context;
     this.templateOnly = templateContext !== undefined;
     const definition = component[CRAFT_COMPONENT];
     const composition = definition.composition;
@@ -4356,12 +4429,19 @@ class DeferRenderedNode implements RenderedNode {
   private loadedValue: unknown;
   private loadError: unknown;
 
+  private node: DeferNode<unknown>;
+  private readonly parent: NativeParent;
+  private readonly context: RenderContext;
+
   constructor(
-    private node: DeferNode<unknown>,
-    private readonly parent: NativeParent,
+    node: DeferNode<unknown>,
+    parent: NativeParent,
     before: NativeNode | null,
-    private readonly context: RenderContext,
+    context: RenderContext,
   ) {
+    this.node = node;
+    this.parent = parent;
+    this.context = context;
     this.view = createFragment(
       parent,
       before,
@@ -4801,10 +4881,13 @@ class HostPropertyBindings {
     { readonly source: unknown; readonly effectRef: EffectRef }
   >();
 
-  constructor(
-    private readonly host: Element,
-    private readonly context: RenderContext,
-  ) {}
+  private readonly host: Element;
+  private readonly context: RenderContext;
+
+  constructor(host: Element, context: RenderContext) {
+    this.host = host;
+    this.context = context;
+  }
 
   patch(next: Readonly<Record<string, unknown>>): void {
     const renderer = this.context.renderer;

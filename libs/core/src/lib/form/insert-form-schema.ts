@@ -6,7 +6,7 @@ import {
   type SchemaInput,
   type SchemaValidationException,
 } from '../schema-validation';
-import type { StandardSchemaV1 } from '../standard-schema';
+import type { StandardSchemaV1PathSegment } from '../standard-schema';
 import { rawReactiveValue } from '../reactive-read';
 import { angularLinkedSignal } from '../host/angular-linked-signal';
 import type {
@@ -25,7 +25,7 @@ export type FormSchemaInsertionOutputs = {
 };
 
 function normalizeIssuePath(
-  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment> | undefined,
+  path: ReadonlyArray<PropertyKey | StandardSchemaV1PathSegment> | undefined,
 ): ReadonlyArray<string | number> {
   if (!path) return [];
 

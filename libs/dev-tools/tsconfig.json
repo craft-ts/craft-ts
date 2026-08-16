@@ -9,7 +9,9 @@
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noPropertyAccessFromIndexSignature": true
+    "noPropertyAccessFromIndexSignature": true,
+    "experimentalDecorators": true,
+    "erasableSyntaxOnly": false
   },
   "files": [],
   "include": [],

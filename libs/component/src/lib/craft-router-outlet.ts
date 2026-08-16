@@ -26,7 +26,7 @@ export const CraftRouterOutlet = craftComponent(
     const target = outlet.displayedTarget();
     if (!target) return [];
     if (target.kind === 'angular') {
-      return angular(target.component, {
+      return angular(target.component as Parameters<typeof angular>[0], {
         injector: outlet.displayedInjector(),
       });
     }

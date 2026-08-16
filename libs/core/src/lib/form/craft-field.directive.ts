@@ -85,16 +85,28 @@ export class CraftFieldBinding<T> {
   private readonly craftField = () =>
     rawReactiveFacade(this.field) as CraftField<T>;
   private readonly createEffect: CraftNodeEffectFactory;
+  private readonly element: HTMLElement;
+  private readonly renderer: CraftDomAdapter;
+  private readonly injector: Injector;
+  private readonly field: CraftField<T>;
+  private readonly customValueControl: CraftValueControl<unknown> | null;
+  private readonly customCheckboxControl: CraftCheckboxControl | null;
 
   constructor(
-    private readonly element: HTMLElement,
-    private readonly renderer: CraftDomAdapter,
-    private readonly injector: Injector,
-    private readonly field: CraftField<T>,
-    private readonly customValueControl: CraftValueControl<unknown> | null = null,
-    private readonly customCheckboxControl: CraftCheckboxControl | null = null,
+    element: HTMLElement,
+    renderer: CraftDomAdapter,
+    injector: Injector,
+    field: CraftField<T>,
+    customValueControl: CraftValueControl<unknown> | null = null,
+    customCheckboxControl: CraftCheckboxControl | null = null,
     createEffect?: CraftNodeEffectFactory,
   ) {
+    this.element = element;
+    this.renderer = renderer;
+    this.injector = injector;
+    this.field = field;
+    this.customValueControl = customValueControl;
+    this.customCheckboxControl = customCheckboxControl;
     this.createEffect =
       createEffect ??
       ((_name, effectFn) => effect(effectFn, { injector: this.injector }));

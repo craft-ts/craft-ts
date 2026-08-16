@@ -57,7 +57,10 @@ import {
   type BrandReactiveProperties,
   type YieldableInsertionMethods,
 } from './yieldable';
-import type { StandardSchemaV1 } from './standard-schema';
+import type {
+  StandardSchemaV1InferInput,
+  StandardSchemaV1InferOutput,
+} from './standard-schema';
 import {
   decideSchemaValidation,
   type CraftSchema,
@@ -174,8 +177,8 @@ export type StateOutput<
 
 export type StateSchemaConfig<Schema extends CraftSchema> = {
   readonly $self:
-    | StandardSchemaV1.InferInput<Schema>
-    | Signal<StandardSchemaV1.InferInput<Schema>>;
+    | StandardSchemaV1InferInput<Schema>
+    | Signal<StandardSchemaV1InferInput<Schema>>;
   readonly schema: Schema;
   readonly providers?: readonly import('@angular/core').Provider[];
   readonly schemaValidationPolicy?: SchemaValidationPolicy;
@@ -407,7 +410,7 @@ export function state<Name extends string, Schema extends CraftSchema>(
 ): CraftPrimitiveGen<
   NamedPrimitive<
     Name,
-    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true, false, Name>
+    StateOutput<StandardSchemaV1InferOutput<Schema>, {}, {}, true, false, Name>
   >
 >;
 export function state<Name extends string, StateInput>(

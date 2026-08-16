@@ -98,6 +98,7 @@ function parseArguments(argv) {
   let requestedRoutes;
   let allRoutes = false;
   let generateOnly = false;
+  let useVite = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -105,6 +106,8 @@ function parseArguments(argv) {
       allRoutes = true;
     } else if (argument === '--generate-only') {
       generateOnly = true;
+    } else if (argument === '--vite') {
+      useVite = true;
     } else if (argument === '--demo-routes' || argument === '--routes') {
       requestedRoutes = argv[++index] ?? '';
     } else if (
@@ -117,7 +120,7 @@ function parseArguments(argv) {
     }
   }
 
-  return { forwarded, requestedRoutes, allRoutes, generateOnly };
+  return { forwarded, requestedRoutes, allRoutes, generateOnly, useVite };
 }
 
 function chooseRoutes(routes, requestedRoutes, allRoutes) {
@@ -268,7 +271,7 @@ function promptForRoutes(routes) {
 async function main() {
   const source = readFileSync(routesPath, 'utf8');
   const routes = readRouteCatalog(source);
-  const { forwarded, requestedRoutes, allRoutes, generateOnly } =
+  const { forwarded, requestedRoutes, allRoutes, generateOnly, useVite } =
     parseArguments(process.argv.slice(2));
   const enabledRouteIds = await chooseRoutes(
     routes,
@@ -283,19 +286,12 @@ async function main() {
 
   if (generateOnly) return;
 
-  const nxBin = resolve(workspaceRoot, 'node_modules/nx/bin/nx.js');
   const restoreAllRoutes = () => {
     writeFileSync(runtimeRoutesPath, runtimeRoutesFallback);
   };
-  const child = spawn(
-    process.execPath,
-    [nxBin, 'run', 'demo:serve-angular', ...forwarded],
-    {
-      cwd: workspaceRoot,
-      env: process.env,
-      stdio: 'inherit',
-    },
-  );
+  const child = useVite
+    ? spawnVite(forwarded)
+    : spawnAngularDevServer(forwarded);
 
   const forwardSignal = (signal) => child.kill(signal);
   process.on('SIGINT', () => forwardSignal('SIGINT'));
@@ -305,6 +301,47 @@ async function main() {
     if (signal) process.kill(process.pid, signal);
     else process.exit(code ?? 1);
   });
+}
+
+function spawnAngularDevServer(forwarded) {
+  const nxBin = resolve(workspaceRoot, 'node_modules/nx/bin/nx.js');
+  return spawn(
+    process.execPath,
+    [nxBin, 'run', 'demo:serve-angular', ...forwarded],
+    {
+      cwd: workspaceRoot,
+      env: process.env,
+      stdio: 'inherit',
+    },
+  );
+}
+
+function spawnVite(forwarded) {
+  const viteBin = resolve(workspaceRoot, 'node_modules/vite/bin/vite.js');
+  const viteArgs = forwarded.filter((argument, index, args) => {
+    if (
+      argument === '--configuration' ||
+      argument.startsWith('--configuration=')
+    ) {
+      return false;
+    }
+    if (args[index - 1] === '--configuration') {
+      return false;
+    }
+    return true;
+  });
+  process.stdout.write(
+    'Serving demo with Vite (typecheck runs in parallel via demo:typecheck).\n',
+  );
+  return spawn(
+    process.execPath,
+    [viteBin, '--config', 'apps/demo/vite.config.ts', ...viteArgs],
+    {
+      cwd: workspaceRoot,
+      env: process.env,
+      stdio: 'inherit',
+    },
+  );
 }
 
 main().catch((error) => {

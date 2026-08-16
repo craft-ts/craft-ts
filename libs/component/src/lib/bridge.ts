@@ -16,7 +16,6 @@ import {
 import { ActivatedRoute, type Route } from '@angular/router';
 import {
   CRAFT_ROUTE_TARGET,
-  collectActivatedRouteProps,
   craftRouteTarget,
   type ComponentDepsCarrier,
   type ComponentDepsOf,
@@ -60,6 +59,37 @@ export function mountCraftComponent<Component extends CraftComponent<any>>(
   props: PropsOf<Component> = {} as PropsOf<Component>,
 ): CraftMountRef<PropsOf<Component>> {
   return mountInterpretedComponent(component, hostElement, injector, props);
+}
+
+const ANGULAR_ROUTE_PROP_SKIP = new Set([
+  'craftComponent',
+  'craftPendingComponent',
+]);
+
+function collectAngularRouteProps(
+  route: ActivatedRoute | null | undefined,
+): Record<string, unknown> {
+  if (!route) {
+    return {};
+  }
+  const props: Record<string, unknown> = {};
+  const assign = (bag: Record<string, unknown> | undefined) => {
+    if (!bag) {
+      return;
+    }
+    for (const [key, value] of Object.entries(bag)) {
+      if (ANGULAR_ROUTE_PROP_SKIP.has(key) || typeof value === 'function') {
+        continue;
+      }
+      props[key] = value;
+    }
+  };
+  for (const segment of route.pathFromRoot ?? [route]) {
+    assign(segment.snapshot.params as Record<string, unknown>);
+    assign(segment.snapshot.data as Record<string, unknown>);
+  }
+  assign(route.snapshot.queryParams as Record<string, unknown>);
+  return props;
 }
 
 @Directive({
@@ -134,7 +164,7 @@ export class CraftRoutedComponentHost implements OnDestroy {
       component,
       this.elementRef.nativeElement,
       this.injector,
-      collectActivatedRouteProps(this.route),
+      collectAngularRouteProps(this.route),
     );
     this.routeSubscription = this.route
       ? combineLatest(
@@ -146,7 +176,7 @@ export class CraftRoutedComponentHost implements OnDestroy {
             this.route.queryParams,
           ].filter(Boolean),
         ).subscribe(() => {
-          this.mounted.updateProps(collectActivatedRouteProps(this.route));
+          this.mounted.updateProps(collectAngularRouteProps(this.route));
         })
       : undefined;
   }
@@ -428,7 +458,7 @@ export class CraftPendingComponentHost implements OnDestroy {
       component,
       this.elementRef.nativeElement,
       this.injector,
-      collectActivatedRouteProps(this.route),
+      collectAngularRouteProps(this.route),
     );
   }
 

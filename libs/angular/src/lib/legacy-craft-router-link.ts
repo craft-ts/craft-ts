@@ -3,8 +3,11 @@ import { RouterLink } from '@angular/router';
 import {
   createCraftRouterCommands,
   type CraftRouterLinkInput,
+  type GenDeps_LegacyCraftRouterLink,
 } from '@craft-ng/core';
 import { CRAFT_VIEW_TRANSITION_STATE_KEY } from '@craft-ng/core';
+
+export type { GenDeps_LegacyCraftRouterLink };
 
 /**
  * @deprecated Use the functional `CraftRouterLink` on Craft nodes.
@@ -48,7 +51,7 @@ export class LegacyCraftRouterLink {
 
       this.routerLink.routerLink = [...createCraftRouterCommands(value)];
       this.routerLink.queryParams = value.queryParams;
-      this.routerLink.fragment = value.fragment;
+      this.routerLink.fragment = value.fragment ?? undefined;
       this.routerLink.queryParamsHandling = value.queryParamsHandling as
         | ''
         | 'merge'

@@ -27,6 +27,13 @@
       }
     },
     "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/component/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "test-angular": {
       "executor": "@nx/angular:unit-test",
       "options": {
         "runner": "vitest"
