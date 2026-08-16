@@ -3,9 +3,10 @@ import {
   EnvironmentInjector,
   Injector,
   inject,
+  getCraftRootDefaultProviders,
   type EnvironmentProviders,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 import type { GetDeps } from './branded-component/branded-component';
 import {
   isCraftLoadingFeature,
@@ -443,6 +444,7 @@ export function provideCraftRouter(
   }
 
   return [
+    ...getCraftRootDefaultProviders(),
     provideCraftRouterInternal(configuredRoutes),
     ...provideCraftLoading(...loadingFeatures),
   ];

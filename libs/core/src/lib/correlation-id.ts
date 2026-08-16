@@ -5,7 +5,7 @@ import {
   InjectionToken,
   signal,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import {

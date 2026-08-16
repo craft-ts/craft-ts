@@ -1,4 +1,4 @@
-import { inject, Injector, runInInjectionContext } from '@angular/core';
+import { inject, Injector, runInInjectionContext } from './host/craft-compat';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 
 const INVALID_YIELD_ERROR_MESSAGE =

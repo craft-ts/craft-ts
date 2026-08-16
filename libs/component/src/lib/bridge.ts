@@ -1,5 +1,9 @@
-import { Injector, type Type, type ValueProvider } from '@angular/core';
-import { type Route } from '@angular/router';
+import {
+  ɵAngularInjector as Injector,
+  type ɵAngularRoute as Route,
+  type ɵAngularType as Type,
+  type ɵAngularValueProvider as ValueProvider,
+} from '@craft-ng/angular';
 import {
   CRAFT_GLOBAL_ERROR_COMPONENT,
   CRAFT_PENDING_COMPONENT,

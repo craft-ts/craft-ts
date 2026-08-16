@@ -1,7 +1,7 @@
-import { Injector } from '@angular/core';
 import {
   executeGeneratorCompatibleFactory,
   executeGeneratorCompatibleFactoryAsync,
+  type CraftInjector,
   type CraftProgramSettledStep,
   type ResolveGeneratorResult,
   ɵcraftInjectorFromHost,
@@ -18,7 +18,7 @@ const APP_START_NOT_SUPPORTED =
 export function executeCraftComponentFactory<Factory extends ComponentFactory>(
   factory: Factory,
   args: Parameters<Factory>,
-  injector: Injector,
+  injector: CraftInjector | object,
 ): ResolveGeneratorResult<ReturnType<Factory>> {
   return ɵcraftInjectorFromHost(injector).run(
     () =>
@@ -39,7 +39,7 @@ export function executeCraftComponentFactoryAsync<
 >(
   factory: Factory,
   args: Parameters<Factory>,
-  injector: Injector,
+  injector: CraftInjector | object,
 ): Promise<CraftProgramSettledStep> {
   return ɵcraftInjectorFromHost(injector).run(() =>
     executeGeneratorCompatibleFactoryAsync({

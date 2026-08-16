@@ -1,11 +1,18 @@
-import {
-  InjectionToken,
-  isSignal,
-  type Provider,
-  type Signal,
-} from '@angular/core';
-import { isCraftSignal } from './host/craft-signal';
+import { isCraftSignal, type CraftSignal as Signal } from './host/craft-signal';
+import { craftToken } from './host/craft-injector';
 import type { SourceBranded } from './util/util';
+
+function isCallableSignal(value: unknown): boolean {
+  if (typeof value !== 'function') {
+    return false;
+  }
+  const symbols = Object.getOwnPropertySymbols(value);
+  return (
+    symbols.some((symbol) => symbol.description === 'SIGNAL') ||
+    'set' in value ||
+    'update' in value
+  );
+}
 
 /** Runtime/type brand carried by named reactive values exposed to templates. */
 export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
@@ -317,16 +324,20 @@ export function ɵwithActiveReactiveReader<T>(
 }
 
 /** Observability hook notified whenever a Craft generator resolves a reactive read. */
-export const REACTIVE_READ_OBSERVERS = new InjectionToken<
-  readonly ReactiveReadObserver[]
->('REACTIVE_READ_OBSERVERS', {
-  providedIn: 'root',
-  factory: () => [],
-});
+export const REACTIVE_READ_OBSERVERS = Object.assign(
+  craftToken<readonly ReactiveReadObserver[]>('REACTIVE_READ_OBSERVERS'),
+  {
+    ɵfactory: (): readonly ReactiveReadObserver[] => [],
+  },
+);
 
 export function provideReactiveReadObserver(
   observer: ReactiveReadObserver,
-): Provider {
+): {
+  provide: typeof REACTIVE_READ_OBSERVERS;
+  useValue: ReactiveReadObserver;
+  multi: true;
+} {
   return { provide: REACTIVE_READ_OBSERVERS, useValue: observer, multi: true };
 }
 
@@ -638,7 +649,7 @@ function createFacade(
   if (cachedByPath?.has(cacheKey)) return cachedByPath.get(cacheKey);
 
   let facade: unknown;
-  if (isCraftSignal(value) || isSignal(value)) {
+  if (isCraftSignal(value) || isCallableSignal(value)) {
     const pathParts = path.split('.');
     const propertyName = pathParts[pathParts.length - 1] ?? identity.name;
     const reader = createYieldableReactiveValue(
@@ -730,7 +741,7 @@ function createFacade(
         }
         if (
           !isCraftSignal(child) &&
-          !isSignal(child) &&
+          !isCallableSignal(child) &&
           (typeof child !== 'object' || child === null)
         ) {
           return child;

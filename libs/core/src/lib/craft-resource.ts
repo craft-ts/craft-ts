@@ -10,7 +10,7 @@ import {
   type ResourceSnapshot,
   type ResourceStatus,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   CRAFT_SIGNAL,
   craftComputed,

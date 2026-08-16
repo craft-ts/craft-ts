@@ -1,6 +1,7 @@
 import {
   createEnvironmentInjector,
   ErrorHandler,
+  getCraftRootDefaultProviders,
   type EnvironmentInjector,
   inject,
   Injector,
@@ -8,7 +9,7 @@ import {
   runInInjectionContext,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   createExposedServiceValue,
   getServiceMetaData,
@@ -420,6 +421,7 @@ function createAngularHostCraftInjector(
 ): { injector: CraftInjector; environmentInjector: EnvironmentInjector } {
   const environmentInjector = createEnvironmentInjector(
     [
+      ...getCraftRootDefaultProviders(),
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
       provideZonelessChangeDetection(),
       { provide: ErrorHandler, useClass: ErrorHandler },

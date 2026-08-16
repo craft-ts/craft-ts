@@ -1,4 +1,4 @@
-import { Signal } from '@angular/core';
+import { Signal } from './host/craft-compat';
 import { craftComputed } from './craft-computed';
 import { isGenerator } from './craft-generator-runtime';
 import { settled, type CraftSettledBrand } from './craft-settled';

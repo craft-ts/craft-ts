@@ -1,4 +1,4 @@
-import { inject } from '@angular/core';
+import { inject } from './host/craft-compat';
 import { craftException } from './craft-exception';
 import { craftGen, type CraftGenInvocation } from './craft-gen';
 import {

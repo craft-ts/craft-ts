@@ -134,7 +134,7 @@ Angular templates can keep using the deprecated compatibility wrapper during
 the migration:
 
 ```ts
-import { LegacyCraftFieldDirective } from '@craft-ng/core';
+import { LegacyCraftFieldDirective } from '@craft-ng/angular';
 
 @Component({
   imports: [LegacyCraftFieldDirective],

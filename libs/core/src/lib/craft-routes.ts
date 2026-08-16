@@ -6,8 +6,8 @@ import {
   signal,
   type Signal,
   type WritableSignal,
-} from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { toObservable } from './host/craft-compat';
 import {
   filter,
   firstValueFrom,
@@ -23,7 +23,7 @@ import type {
   Route,
   RouterStateSnapshot,
   UrlSegment,
-} from '@angular/router';
+} from './host/craft-router-types';
 import type {
   CRAFT_COMPONENT_DEPS,
   ComponentExceptionsCarrier,

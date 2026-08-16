@@ -27,7 +27,7 @@ import {
   InjectionToken,
   Injector,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 
 export {
   CRAFT_REGISTRATION_TARGET,

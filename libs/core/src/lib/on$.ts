@@ -1,4 +1,4 @@
-import { DestroyRef, EventEmitter, inject } from '@angular/core';
+import { DestroyRef, EventEmitter, inject } from './host/craft-compat';
 import { craftUse } from './craft-use';
 import type {
   ExtractServiceHelperDependencyMap,

@@ -1,4 +1,4 @@
-import type { Injector } from '@angular/core';
+import type { Injector } from './host/craft-compat';
 import {
   craftException,
   type AnyCraftException,

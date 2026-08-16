@@ -6,8 +6,8 @@ import {
   Injector,
   Signal,
   signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import type {

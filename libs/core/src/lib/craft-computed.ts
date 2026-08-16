@@ -9,8 +9,8 @@ import {
   untracked,
   type CreateComputedOptions,
   type Signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   captureCraftSignalReads,
   craftComputed as createCraftComputed,

@@ -7,12 +7,11 @@ release dates.
 
 ## Near-term priorities
 
-### SSR compatibility
+### SSR as a Craft host
 
-One of the next areas I plan to investigate is compatibility with
-server-side rendering (SSR). The goal is to understand how the library's
-runtime behaviour, state primitives, and dependency-injection patterns fit
-into SSR applications, and to address any issues that emerge from that work.
+SSR is a Craft host concern (serialize Craft trees to HTML), not Angular SSR.
+That work lives in a later compiler/host plan; this release does not ship a
+product SSR renderer.
 
 ### Real-world integration and stability
 

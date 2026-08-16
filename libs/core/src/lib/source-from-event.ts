@@ -3,7 +3,7 @@ import {
   DestroyRef,
   inject,
   ValueEqualityFn,
-} from '@angular/core';
+} from './host/craft-compat';
 import { SignalSource, signalSource } from './signal-source';
 
 export type SourceFromEvent<T> = SignalSource<T> & {

@@ -1,4 +1,4 @@
-import { inject, Injector, runInInjectionContext } from '@angular/core';
+import { inject, Injector, runInInjectionContext } from '../host/craft-compat';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import { isGenerator, runCraftGenerator } from '../craft-generator-runtime';
 import type {

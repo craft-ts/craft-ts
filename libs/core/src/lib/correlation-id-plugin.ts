@@ -5,7 +5,7 @@ import {
   runInInjectionContext,
   type EnvironmentProviders,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   CORRELATION_ID_SERVICE,
   createCorrelationIdService,

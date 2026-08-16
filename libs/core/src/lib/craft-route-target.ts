@@ -1,4 +1,4 @@
-import { InjectionToken, type Type } from '@angular/core';
+import { InjectionToken, type Type } from './host/craft-compat';
 
 export type CraftRouteTarget =
   | {

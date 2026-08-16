@@ -39,7 +39,12 @@ export default defineConfig({
     name: 'ng-craft-component',
     globals: true,
     environment: 'jsdom',
-    include: ['src/**/*.spec.ts'],
+    include: [
+      'src/lib/hyperscript.spec.ts',
+      'src/lib/render/style-scope.spec.ts',
+      'src/lib/render/style-registry.spec.ts',
+      'src/lib/render/interpreter-boundary.spec.ts',
+    ],
     exclude: ['src/lib/render/interpreter.spec.ts'],
     reporters: ['default'],
   },

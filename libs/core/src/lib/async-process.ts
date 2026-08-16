@@ -14,7 +14,7 @@ import {
   signal,
   untracked,
   WritableSignal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { InsertionsResourcesFactory } from './query.core';
 import {
   executeGeneratorCompatibleFactory,
@@ -60,7 +60,7 @@ import {
   type CraftPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,

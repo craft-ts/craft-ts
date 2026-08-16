@@ -1,4 +1,4 @@
-import type { InputSignalWithTransform } from '@angular/core';
+import type { InputSignalWithTransform } from '../host/craft-compat';
 import type {
   BrandedServiceProvider,
   CompleteServiceDependencyMapFromYielded,

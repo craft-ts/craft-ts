@@ -1,13 +1,13 @@
 import {
-  createEnvironmentInjector,
-  ElementRef,
-  EnvironmentInjector,
-  Injector,
-  provideZonelessChangeDetection,
-  runInInjectionContext,
-  ɵEffectScheduler,
-  ɵINJECTOR_SCOPE,
-} from '@angular/core';
+  ɵcreateAngularEnvironmentInjector as createEnvironmentInjector,
+  ɵAngularElementRef as ElementRef,
+  ɵAngularEnvironmentInjector as EnvironmentInjector,
+  ɵAngularInjector as Injector,
+  ɵprovideAngularZonelessChangeDetection as provideZonelessChangeDetection,
+  ɵrunInAngularInjectionContext as runInInjectionContext,
+  ɵAngularEffectScheduler as ɵEffectScheduler,
+  ɵAngularInjectorScope as ɵINJECTOR_SCOPE,
+} from '@craft-ng/angular';
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   createExposedServiceValue,

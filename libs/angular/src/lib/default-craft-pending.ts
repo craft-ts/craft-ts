@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
   CRAFT_LOADING_TEXT,
   ɵregisterDefaultCraftPendingComponent,
   type GetDeps,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
+import { injectCraft } from './inject-craft';
 
 /**
  * The default pending component: a single element rendering {@link CRAFT_LOADING_TEXT}.
@@ -30,7 +31,7 @@ import {
   ],
 })
 export class DefaultCraftPendingComponent {
-  readonly loading = inject(CRAFT_LOADING_TEXT);
+  readonly loading = injectCraft(CRAFT_LOADING_TEXT);
 }
 
 ɵregisterDefaultCraftPendingComponent(DefaultCraftPendingComponent);

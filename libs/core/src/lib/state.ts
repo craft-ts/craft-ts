@@ -9,8 +9,10 @@ import {
   runInInjectionContext,
   Signal,
   WritableSignal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
+
+const UNSET_ANGULAR_STATE = Symbol('unset-angular-state');
 import {
   craftComputed,
   craftLinkedSignal,
@@ -527,6 +529,23 @@ function createStateRef<StateType>(
     isCraftSignal(resolvedStateConfig) &&
     typeof Reflect.get(resolvedStateConfig, 'set') === 'function';
   const readResolvedState = () => (resolvedStateConfig as () => unknown)();
+  const wrapAngularReadonlyState = () => {
+    const override = craftSignal<StateType | typeof UNSET_ANGULAR_STATE>(
+      UNSET_ANGULAR_STATE,
+    );
+    const value = (() => {
+      const local = override();
+      return local === UNSET_ANGULAR_STATE
+        ? (readResolvedState() as StateType)
+        : (local as StateType);
+    }) as CraftWritableSignal<StateType>;
+    value.set = (next) => {
+      override.set(next);
+    };
+    value.update = (updateFn) => value.set(updateFn(value()));
+    value.asReadonly = () => value;
+    return value;
+  };
   let lastValidState: StateType | undefined;
   let latestStateException: AnyCraftException | undefined;
   let skipInitialSourceValidation = isSignalState;
@@ -586,7 +605,7 @@ function createStateRef<StateType>(
             | WritableSignal<StateType>
             | CraftWritableSignal<StateType>)
         : isAngularSignalState
-          ? linkedSignal(() => readResolvedState() as StateType)
+          ? wrapAngularReadonlyState()
           : craftLinkedSignal({
               source: readResolvedState,
               computation: () => readResolvedState() as StateType,
@@ -604,12 +623,16 @@ function createStateRef<StateType>(
               equal: () => false,
             })
         : craftSignal(initialStateValue);
-  const readonlyStateSignal = isCraftSignal(stateSignal)
-    ? craftComputed(() => stateSignal())
-    : 'asReadonly' in stateSignal &&
-        typeof stateSignal.asReadonly === 'function'
-      ? stateSignal.asReadonly()
-      : (stateSignal as Signal<StateType>);
+  const readonlyStateSignal =
+    isAngularSignalState &&
+    !(isWritableSignal(resolvedStateConfig) || isCraftWritableState)
+      ? (stateSignal as Signal<StateType>)
+      : isCraftSignal(stateSignal)
+        ? craftComputed(() => stateSignal())
+        : 'asReadonly' in stateSignal &&
+            typeof stateSignal.asReadonly === 'function'
+          ? stateSignal.asReadonly()
+          : (stateSignal as Signal<StateType>);
   const publicStateReader = createYieldableReactiveValue(
     readonlyStateSignal as Signal<StateType>,
     name,

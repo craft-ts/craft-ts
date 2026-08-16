@@ -3,7 +3,7 @@ import {
   runInInjectionContext,
   type Injector,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 
 /** Metadata attached to one effective Craft template render. */
 export type TemplateTraceContext = Readonly<{
@@ -39,6 +39,7 @@ export const CRAFT_TEMPLATE_TRACE = new InjectionToken<
 >('CRAFT_TEMPLATE_TRACE', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 /** Register one composable synchronous template trace wrapper. */

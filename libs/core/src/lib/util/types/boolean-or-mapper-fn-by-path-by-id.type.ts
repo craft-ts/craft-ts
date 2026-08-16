@@ -1,4 +1,4 @@
-import { ResourceRef } from '@angular/core';
+import { ResourceRef } from '../../host/craft-compat';
 import {
   HasChild,
   MakeOptionalPropertiesRequired,

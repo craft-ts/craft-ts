@@ -1,6 +1,6 @@
-import { EnvironmentInjector, inject } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { setupCraftServiceTest } from '../setup-craft-service-test';
+import { EnvironmentInjector, inject } from './craft-compat';
 import { angularLinkedSignal } from './angular-linked-signal';
 import { craftSignal } from './craft-signal';
 

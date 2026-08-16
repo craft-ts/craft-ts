@@ -4,9 +4,10 @@ import {
   Injector,
   linkedSignal,
   signal,
+  untracked,
   type ValueEqualityFn,
   type WritableSignal,
-} from '@angular/core';
+} from './craft-compat';
 import { craftWatch } from './craft-signal';
 
 type PreviousValue<Source, Value> = {
@@ -62,23 +63,50 @@ export function angularLinkedSignal<Source, Value>(options: {
       }
     });
   };
+  let previousSource: Source | undefined;
+  let frozen: Value | undefined;
+  let hasFrozen = false;
+
+  const linked = linkedSignal<Source, Value>({
+    source: () => {
+      if (hasFrozen) {
+        return previousSource as Source;
+      }
+      ensureWatch();
+      revision();
+      previousSource = options.source();
+      return previousSource;
+    },
+    computation: (source, previous) => {
+      if (hasFrozen) {
+        return frozen as Value;
+      }
+      return options.computation(source, previous);
+    },
+    ...(options.equal && { equal: options.equal }),
+    ...(options.debugName && { debugName: options.debugName }),
+  });
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
     watch?.destroy();
     watch = undefined;
+    frozen = untracked(() => linked());
+    hasFrozen = true;
   };
   destroyRef?.onDestroy(destroy);
-
-  const linked = linkedSignal<Source, Value>({
-    source: () => {
-      ensureWatch();
-      revision();
-      return options.source();
-    },
-    computation: options.computation,
-    ...(options.equal && { equal: options.equal }),
-    ...(options.debugName && { debugName: options.debugName }),
-  });
-  return Object.assign(linked, { destroy });
+  const value = (() => (hasFrozen ? (frozen as Value) : linked())) as WritableSignal<Value>;
+  value.set = (next) => {
+    if (hasFrozen) {
+      return;
+    }
+    linked.set(next);
+  };
+  value.update = (updateFn) => {
+    if (hasFrozen) {
+      return;
+    }
+    linked.update(updateFn);
+  };
+  return Object.assign(value, { destroy });
 }

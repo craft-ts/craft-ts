@@ -1,4 +1,4 @@
-import { WritableSignal } from '@angular/core';
+import { WritableSignal } from './host/craft-compat';
 import {
   ResourceByIdLikeMutationRef,
   ResourceLikeMutationRef,

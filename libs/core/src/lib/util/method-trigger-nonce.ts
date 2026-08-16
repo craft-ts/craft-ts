@@ -1,4 +1,4 @@
-import { ValueEqualityFn } from '@angular/core';
+import { ValueEqualityFn } from '../host/craft-compat';
 
 /**
  * Internal machinery that forces a method-based primitive (`query` / `mutation` /

@@ -2,7 +2,7 @@ import {
   InjectionToken,
   type EffectRef,
   type Injector,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftRegistrationTarget,

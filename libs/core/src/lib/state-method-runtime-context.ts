@@ -1,4 +1,4 @@
-import type { Provider, Signal } from '@angular/core';
+import type { Provider, Signal } from './host/craft-compat';
 import {
   injectPrimitiveMethodRuntimeContext,
   ɵprovidePrimitiveMethodRuntimeContext,

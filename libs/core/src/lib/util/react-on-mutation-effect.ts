@@ -6,7 +6,7 @@ import {
   Signal,
   inject,
   computed,
-} from '@angular/core';
+} from '../host/craft-compat';
 import { angularLinkedSignal as linkedSignal } from '../host/angular-linked-signal';
 import {
   ResourceLikeMutationRef,

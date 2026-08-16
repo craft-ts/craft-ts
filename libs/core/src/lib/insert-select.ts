@@ -4,8 +4,8 @@ import {
   inject,
   isSignal,
   runInInjectionContext,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import { InsertionsStateFactory } from './query.core';
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import { Source$ as SourceDollarType, source$ } from './source$';

@@ -3,7 +3,7 @@ import {
   InjectionToken,
   inject,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 
 export const TEMPORAL_AWAIT_REQUEST_MARKER = Symbol(
   'temporal-await-request-marker',

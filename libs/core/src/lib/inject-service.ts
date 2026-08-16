@@ -8,7 +8,7 @@ import {
   Type,
   untracked,
   WritableSignal,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   FilterSource,
   HasKeys,
@@ -175,8 +175,8 @@ export function injectService<
  * @example
  * Build a small navigation facade from `Router`
  * ```ts
- * import { Component, computed } from '@angular/core';
- * import { Router } from '@angular/router';
+ * import { Component, computed } from './host/craft-compat';
+ * import { Router } from './host/craft-router-types';
  * import { injectService, on$, source$ } from '@craft-ng/core';
  *
  * @Component({
@@ -203,7 +203,7 @@ export function injectService<
  * @example
  * Build a checkout-oriented facade from a broader service
  * ```ts
- * import { Component, computed, Injectable, signal } from '@angular/core';
+ * import { Component, computed, Injectable, signal } from './host/craft-compat';
  * import { injectService } from '@craft-ng/core';
  *
  * @Injectable({ providedIn: 'root' })

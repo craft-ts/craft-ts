@@ -5,7 +5,7 @@ import {
   linkedSignal,
   signal,
   untracked,
-} from '@angular/core';
+} from './host/craft-compat';
 
 import type { StorageServiceApi } from './browser-boundaries';
 import { isEqual } from './util/persister.util';

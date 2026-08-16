@@ -1,4 +1,4 @@
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute } from './host/craft-router-types';
 import {
   toCraftService,
   type SERVICE_HELPER_DEPENDENCIES,

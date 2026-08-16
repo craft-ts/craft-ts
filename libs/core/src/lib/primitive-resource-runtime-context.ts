@@ -3,7 +3,7 @@ import {
   InjectionToken,
   type Provider,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 
 export type PrimitiveResourceRuntimeKind =
   | 'query'
@@ -47,6 +47,7 @@ const PRIMITIVE_RESOURCE_RUNTIME_OBSERVER = new InjectionToken<
 >('PRIMITIVE_RESOURCE_RUNTIME_OBSERVER', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 export function providePrimitiveResourceRuntimeObserver(

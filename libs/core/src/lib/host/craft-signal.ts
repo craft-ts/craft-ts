@@ -6,12 +6,13 @@ import { RAW_REACTIVE_VALUE } from '../reactive-read';
 export const CRAFT_SIGNAL = Symbol('craft-signal');
 
 export type CraftSignal<T> = (() => T) & {
-  readonly [CRAFT_SIGNAL]: true;
+  readonly [CRAFT_SIGNAL]?: true;
 };
 
 export type CraftWritableSignal<T> = CraftSignal<T> & {
   set(value: T): void;
   update(fn: (value: T) => T): void;
+  asReadonly(): CraftSignal<T>;
 };
 
 let activeCraftReadCollector: Set<CraftSignal<unknown>> | undefined;
@@ -63,6 +64,16 @@ function brand<T, SignalType extends () => T>(value: SignalType): SignalType {
   return value;
 }
 
+function withAsReadonly<T>(
+  value: CraftWritableSignal<T> | CraftSignal<T>,
+): typeof value {
+  const writable = value as CraftWritableSignal<T>;
+  if (typeof writable.asReadonly !== 'function') {
+    writable.asReadonly = () => value;
+  }
+  return value;
+}
+
 export function craftSignal<T>(
   initial: T,
   options?: CraftSignalOptions<T>,
@@ -84,7 +95,9 @@ export function craftSignal<T>(
     }
   };
   value.update = (update) => value.set(update(untracked(() => raw())));
-  return brand(value);
+  const branded = brand(value);
+  branded.asReadonly = () => craftComputed(() => branded());
+  return branded;
 }
 
 export function craftComputed<T>(compute: () => T): CraftSignal<T>;
@@ -109,7 +122,7 @@ export function craftComputed<T>(
     trackCraftRead(value);
     return derived();
   }) as CraftSignal<T>;
-  return brand(value) as CraftSignal<T>;
+  return withAsReadonly(brand(value)) as CraftSignal<T>;
 }
 
 export function craftLinkedSignal<T>(options: {
@@ -161,7 +174,9 @@ export function craftLinkedSignal<T>(options: {
     revision(untracked(() => revision()) + 1);
   };
   value.update = (update) => value.set(update(untracked(() => derived())));
-  return brand(value);
+  const branded = brand(value);
+  branded.asReadonly = () => craftComputed(() => branded());
+  return branded;
 }
 
 export function craftWatch(fn: () => void | (() => void)): { destroy(): void };

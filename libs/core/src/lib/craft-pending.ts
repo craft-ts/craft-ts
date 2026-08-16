@@ -5,7 +5,7 @@ import {
   signal,
   type Provider,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import type { CraftRouteTargetInput } from './craft-route-target';
 

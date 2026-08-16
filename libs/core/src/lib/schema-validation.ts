@@ -5,7 +5,7 @@ import {
   type Provider,
   type Signal,
   signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { craftException, type AnyCraftException } from './craft-exception';
 import type {
   StandardSchemaV1,

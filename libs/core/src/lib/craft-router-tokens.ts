@@ -1,4 +1,4 @@
-import { InjectionToken } from '@angular/core';
+import { InjectionToken } from './host/craft-compat';
 import { craftToken, ɵregisterCraftTokenHostToken } from './host/craft-injector';
 import type {
   CraftCompiledRoute,

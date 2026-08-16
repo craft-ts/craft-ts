@@ -71,10 +71,13 @@ describe('public surface', () => {
     expect(decorated).toEqual([]);
   });
 
-  it('keeps the default Nx test target on Angular unit-test so TestBed specs boot', () => {
+  it('keeps TestBed specs on the Angular unit-test target', () => {
     const project = JSON.parse(readFileSync(coreProject, 'utf8')) as {
-      targets: { test: { executor: string } };
+      targets: { test: { executor: string }; 'test-angular': { executor: string } };
     };
-    expect(project.targets.test.executor).toBe('@nx/angular:unit-test');
+    expect(project.targets.test.executor).toBe('nx:run-commands');
+    expect(project.targets['test-angular'].executor).toBe(
+      '@nx/angular:unit-test',
+    );
   });
 });

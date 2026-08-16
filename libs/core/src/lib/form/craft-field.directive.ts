@@ -6,7 +6,7 @@ import {
   Renderer2,
   type Signal,
   untracked,
-} from '@angular/core';
+} from '../host/craft-compat';
 import type { GetDeps } from '../branded-component/branded-component';
 import { REACTIVE_VALUE_TYPE, rawReactiveFacade } from '../reactive-read';
 import {
@@ -617,16 +617,16 @@ export class CraftFieldBinding<T> {
 export function bindCraftField<T>(
   element: HTMLElement,
   field: CraftField<T>,
-  renderer: CraftDomAdapter,
-  injector: Injector,
+  renderer: CraftDomAdapter | object,
+  injector: Injector | object,
   customValueControl: CraftValueControl<unknown> | null = null,
   customCheckboxControl: CraftCheckboxControl | null = null,
   createEffect?: CraftNodeEffectFactory,
 ): () => void {
   const binding = new CraftFieldBinding(
     element,
-    renderer,
-    injector,
+    renderer as CraftDomAdapter,
+    injector as Injector,
     field,
     customValueControl,
     customCheckboxControl,

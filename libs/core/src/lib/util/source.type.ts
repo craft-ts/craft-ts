@@ -1,4 +1,4 @@
-import { Signal } from '@angular/core';
+import { Signal } from '../host/craft-compat';
 import { SourceBranded } from './util';
 
 export type ReadonlySource<T> = Signal<T | undefined> & {

@@ -1,4 +1,4 @@
-import { computed, inject, Injector, type Signal } from '@angular/core';
+import { computed, inject, Injector, type Signal } from '../host/craft-compat';
 import {
   createSchemaValidationException,
   parseSchema,

@@ -3,7 +3,7 @@ import {
   runInInjectionContext,
   type Injector,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   executeGeneratorCompatibleFactory,
   isGenerator,

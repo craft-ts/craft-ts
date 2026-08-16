@@ -1,4 +1,4 @@
-import { effect, signal, untracked } from '@angular/core';
+import { effect, signal, untracked } from './host/craft-compat';
 import { SignalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { SourceBranded } from './util/util';

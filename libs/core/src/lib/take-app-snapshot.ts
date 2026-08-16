@@ -1,4 +1,4 @@
-import { inject, InjectionToken, isSignal, type Provider } from '@angular/core';
+import { inject, InjectionToken, isSignal, type Provider } from './host/craft-compat';
 import { debounceTime, Subject, tap } from 'rxjs';
 import { provideFnWrapper } from './fn-wrapper';
 import { isCraftControlFlow } from './craft-control-flow';

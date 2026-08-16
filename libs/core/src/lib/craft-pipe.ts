@@ -3,7 +3,7 @@ import {
   Injector,
   isSignal,
   runInInjectionContext,
-} from '@angular/core';
+} from './host/craft-compat';
 import { isGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵcreateHostTaggedInjector } from './craft-service';

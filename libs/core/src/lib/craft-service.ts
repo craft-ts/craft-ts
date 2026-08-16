@@ -13,7 +13,7 @@ import {
   Signal,
   Type,
   untracked,
-} from '@angular/core';
+} from './host/craft-compat';
 import type { Observable } from 'rxjs';
 import {
   isGenerator,
@@ -2464,8 +2464,8 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * @example
  * Adapt `Router` as a global dependency
  * ```ts
- * import { Router } from '@angular/router';
- * import { toCraftService } from '@craft-ng/core';
+ * import { Router } from './host/craft-router-types';
+ * import { toCraftService } from '@craft-ng/angular';
  *
  * const { Router } = toCraftService({
  *   name: 'Router',
@@ -2477,8 +2477,8 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * @example
  * Adapt an injected token through the callback form
  * ```ts
- * import { inject, InjectionToken } from '@angular/core';
- * import { toCraftService } from '@craft-ng/core';
+ * import { inject, InjectionToken } from './host/craft-compat';
+ * import { toCraftService } from '@craft-ng/angular';
  *
  * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
  *
@@ -2492,8 +2492,8 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * @example
  * Adapt a provider-capable dependency for explicit test coverage
  * ```ts
- * import { Router, provideRouter } from '@angular/router';
- * import { toCraftService } from '@craft-ng/core';
+ * import { Router, provideRouter } from './host/craft-router-types';
+ * import { toCraftService } from '@craft-ng/angular';
  *
  * const { provideAppRouter, AppRouterToProvide } = toCraftService({
  *   name: 'AppRouter',
@@ -3765,6 +3765,13 @@ function createProviders(
     },
   ];
 
+  if (definition.craftToken && definition.craftToken !== concreteToken) {
+    concreteProviders.push({
+      provide: definition.craftToken,
+      useExisting: concreteToken,
+    });
+  }
+
   if (definition.requirement) {
     concreteProviders.push({
       provide: definition.requirement.token,
@@ -3939,7 +3946,9 @@ function resolveConcreteService(
     definition,
     injector,
     markNamedReactiveProperties(
-      ɵcraftInjectorFromHost(injector).get(definition.craftToken!),
+      ɵcraftInjectorFromHost(injector).get(
+        (definition.token ?? definition.craftToken) as object,
+      ),
     ),
   );
 }

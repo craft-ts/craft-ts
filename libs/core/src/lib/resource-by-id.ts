@@ -9,7 +9,7 @@ import {
   WritableSignal,
   computed,
   Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { angularLinkedSignal as linkedSignal } from './host/angular-linked-signal';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';

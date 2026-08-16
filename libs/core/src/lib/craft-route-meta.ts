@@ -1,8 +1,8 @@
-import type { Type, WritableSignal } from '@angular/core';
+import type { Type, WritableSignal } from './host/craft-compat';
 import type {
   ActivatedRouteSnapshot,
   RouterStateSnapshot,
-} from '@angular/router';
+} from './host/craft-router-types';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type {
   CraftExceptionComponentInput,

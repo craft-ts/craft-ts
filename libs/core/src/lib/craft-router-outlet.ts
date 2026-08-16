@@ -6,8 +6,8 @@ import {
   InjectionToken,
   runInInjectionContext,
   type Type,
-} from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+} from './host/craft-compat';
+import { DOCUMENT } from './host/craft-compat';
 import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
 import {
   isCraftException,

@@ -1,4 +1,4 @@
-import { inject, InjectionToken, type Provider } from '@angular/core';
+import { inject, InjectionToken, type Provider } from './host/craft-compat';
 import { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
 
 export { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
@@ -25,6 +25,7 @@ export const FN_WRAPPER = new InjectionToken<readonly FnWrapper[]>(
   {
     providedIn: 'root',
     factory: () => [],
+    multi: true,
   },
 );
 
@@ -33,6 +34,7 @@ export const FN_WRAP_OBSERVER = new InjectionToken<readonly FnWrapObserver[]>(
   {
     providedIn: 'root',
     factory: () => [],
+    multi: true,
   },
 );
 

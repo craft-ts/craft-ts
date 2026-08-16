@@ -14,8 +14,8 @@ import {
   signal,
   untracked,
   WritableSignal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,

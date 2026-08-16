@@ -1,4 +1,4 @@
-import { computed, Signal, signal } from '@angular/core';
+import { computed, Signal, signal } from './host/craft-compat';
 import { AnyCraftException } from './craft-exception';
 
 type ResourceExceptionScope = 'params' | 'loader';

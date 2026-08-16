@@ -1,4 +1,4 @@
-import { inject, InjectionToken, Injector } from '@angular/core';
+import { InjectionToken, Injector } from '@angular/core';
 import { describe, expect, it } from 'vitest';
 import {
   craftToken,
@@ -99,14 +99,14 @@ describe('CraftInjector', () => {
     });
   });
 
-  it('restores Angular injection context for a host injector run()', () => {
+  it('resolves host injector tokens through Craft get()', () => {
     const Value = new InjectionToken<string>('Value');
     const angularInjector = Injector.create({
       providers: [{ provide: Value, useValue: 'angular' }],
     });
 
     const value = ɵcraftInjectorFromHost(angularInjector).run(() =>
-      inject(Value),
+      ɵcraftInjectorFromHost(angularInjector).get(Value),
     );
 
     expect(value).toBe('angular');

@@ -1,4 +1,14 @@
+import './lib/angular';
+import './lib/craft-inject-fallback';
+import './lib/default-craft-pending';
+import './lib/craft-route-load-error-host';
+import './lib/craft-component-hosts';
+import './lib/legacy-craft-field';
+import './lib/legacy-craft-router-link';
+
 export * from './lib/angular';
+export { injectCraft } from './lib/inject-craft';
+export { toCraftService, injectService } from '@craft-ng/core';
 export {
   DefaultCraftPendingComponent,
   type GenDeps_DefaultCraftPendingComponent,

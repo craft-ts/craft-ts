@@ -1,4 +1,4 @@
-import { Injector, InjectionToken, type Provider } from '@angular/core';
+import { Injector, InjectionToken, type Provider } from './host/craft-compat';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -46,6 +46,7 @@ export const SERVICE_YIELD_WRAPPER = new InjectionToken<
 >('SERVICE_YIELD_WRAPPER', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 /** Registers a wrapper around every Craft service yield below the provider. */

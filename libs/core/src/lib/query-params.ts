@@ -9,8 +9,8 @@ import {
   runInInjectionContext,
   Signal,
   WritableSignal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsQueryParamsFactory,
   InsertionQueryParamsFactoryContext,

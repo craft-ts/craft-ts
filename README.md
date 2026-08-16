@@ -5,7 +5,7 @@
 <h1 align="center">@craft-ng/core</h1>
 
 <p align="center">
-  Type-safe, declarative building blocks for Angular applications.<br />
+  Type-safe, declarative building blocks for applications.<br />
   <strong>Declare. Yield. Derive. Compile — no surprises.</strong>
 </p>
 
@@ -21,7 +21,7 @@
 
 ## What is ng-craft?
 
-ng-craft is a Signal-first toolkit for modeling Angular state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional.
+ng-craft is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional. Angular is an optional island via `@craft-ng/angular`.
 
 It is designed to keep application behavior close to where it is used while making dependency graphs visible to the compiler and to tests.
 
@@ -29,25 +29,28 @@ It is designed to keep application behavior close to where it is used while maki
 
 - **One reactive model for every kind of state** — `state`, `query`, `mutation`, `asyncProcess`, and `queryParams` cover local, server, asynchronous, and URL state.
 - **Composable behavior** — insertions add reusable capabilities such as persistence, entity management, selection, pagination placeholders, and optimistic updates.
-- **Function-based services** — `craftService` composes state and dependencies; `toCraftService` adapts existing Angular services and tokens.
-- **Type-safe Angular integration** — typed dependency injection, navigation, route inputs, route providers, guards, pending UI, and lazy-load error handling.
+- **Function-based services** — `craftService` composes state and dependencies; `toCraftService` (from `@craft-ng/angular`) adapts existing Angular services and tokens.
+- **Type-safe routing and DI** — typed dependency injection, navigation, route inputs, route providers, guards, pending UI, and lazy-load error handling.
 - **Derived forms** — form state, validation, submission, and interdependent logic remain reactive and declarative.
 - **Deterministic testing** — tests describe the real dependency graph and can isolate browser or platform boundaries explicitly.
 - **Observability by design** — exceptions, correlations, and application state can be captured where failures occur.
 
 ## Installation
 
-ng-craft currently targets Angular 21. It requires Node.js 20.19+ (or 22.12+)
-and TypeScript 5.9+.
+`@craft-ng/core` and `@craft-ng/component` have no Angular peer dependencies.
+Angular remains optional through `@craft-ng/angular` when you need Angular
+islands. Node.js 20.19+ (or 22.12+) and TypeScript 5.9+ are required.
 
 ```bash
 npm install @craft-ng/core@beta @craft-ng/component@beta
+npm install @craft-ng/angular@beta   # optional Angular islands
 npm install -D @craft-ng/dev-tools@beta
 ```
 
 The packages are currently published on the `beta` channel. `@craft-ng/core`
 provides the reactive primitives, `@craft-ng/component` provides selectorless
-functional components, and `@craft-ng/dev-tools` provides the codemods and
+functional components, `@craft-ng/angular` adapts Angular components and
+services, and `@craft-ng/dev-tools` provides the codemods and
 ESLint rules used by the type-safe DI and routing workflow.
 
 ## Quick start

@@ -1,4 +1,4 @@
-import { provideAppInitializer, type ApplicationConfig } from '@angular/core';
+import { getCraftRootDefaultProviders, provideAppInitializer, type ApplicationConfig } from './host/craft-compat';
 import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
 import {
   getRegisteredAppStartServices,
@@ -246,6 +246,7 @@ export function craftAppConfig<
     RequireCraftAppStartConfig,
 ): CraftAppConfigResult<RoutingDeps, Providers | readonly []> {
   const providers = [
+    ...getCraftRootDefaultProviders(),
     ...(config.providers ?? []),
   ] as AngularApplicationProvider[];
   const providerNames = collectProvidedServiceNames(providers);

@@ -1,4 +1,4 @@
-import { Signal, WritableSignal } from '@angular/core';
+import { Signal, WritableSignal } from './host/craft-compat';
 import { CraftResourceStatus } from './util/craft-resource-status';
 import {
   CustomReloadOnSpecificMutationStatus,

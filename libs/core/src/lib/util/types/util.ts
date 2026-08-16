@@ -4,7 +4,7 @@ import {
   EffectRef,
   InjectionToken,
   Injector,
-} from '@angular/core';
+} from '../../host/craft-compat';
 import { explicitEffect, ExplicitEffectValues } from '../explicit-effect';
 
 export const DYNAMIC_EFFECT_REF_INSTANCE_TOKEN = new InjectionToken<EffectRef>(

@@ -13,7 +13,7 @@ import {
   type CorrelationIdMetadata,
 } from './correlation-id';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
-import type { Injector } from '@angular/core';
+import type { Injector } from './host/craft-compat';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
 type ConsoleMetadataMethod = 'debug' | 'info' | 'log' | 'warn' | 'error';

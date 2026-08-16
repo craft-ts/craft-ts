@@ -3,7 +3,7 @@ import {
   untracked as ngUntracked,
   type ResourceOptions,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { craftResource } from './craft-resource';
 import {

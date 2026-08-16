@@ -1,8 +1,8 @@
-# What craft adds to Angular
+# What Craft adds — and where Angular remains
 
-Craft is not a replacement for Angular — it runs on Angular's DI, signals and
-router. This page is the honest list of what you get **on top**, and what it
-costs.
+Craft is the runtime: signals, DI, routing, and rendering run on Craft hosts.
+Angular is an optional island, imported from `@craft-ng/angular` when you still
+need an Angular component, directive, or service.
 
 If you want the reasoning rather than the inventory, read
 [The mental model](/guide/concepts/mental-model).

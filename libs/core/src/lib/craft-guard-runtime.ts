@@ -1,4 +1,4 @@
-import { Injector, runInInjectionContext } from '@angular/core';
+import { Injector, runInInjectionContext } from './host/craft-compat';
 import type { CraftRouter, CraftUrlTree } from './craft-router';
 
 type CraftRouteRouterLike = {

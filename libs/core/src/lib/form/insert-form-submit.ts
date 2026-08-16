@@ -5,7 +5,7 @@ import {
   Injector,
   Signal,
   untracked,
-} from '@angular/core';
+} from '../host/craft-compat';
 import {
   AnyCraftException,
   ExcludeByCode,

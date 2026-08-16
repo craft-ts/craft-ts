@@ -4,7 +4,7 @@ import {
   Injector,
   type Signal,
   untracked,
-} from '@angular/core';
+} from '../host/craft-compat';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import {
   CraftExceptionResult,

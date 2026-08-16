@@ -3,8 +3,8 @@ import {
   DestroyRef,
   Injector,
   runInInjectionContext,
-} from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { toObservable } from './host/craft-compat';
 import { filter, take } from 'rxjs';
 import type { AnyCraftException } from './craft-exception';
 import { isCraftGenShortCircuit } from './craft-gen';

@@ -7,7 +7,7 @@ import {
   Signal,
   untracked,
   type EnvironmentInjector,
-} from '@angular/core';
+} from '../host/craft-compat';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import {
   InsertionStateFactoryContext,

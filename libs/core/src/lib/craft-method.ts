@@ -4,7 +4,7 @@ import {
   Injector,
   Provider,
   runInInjectionContext,
-} from '@angular/core';
+} from './host/craft-compat';
 import type {
   BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,

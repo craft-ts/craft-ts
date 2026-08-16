@@ -1,4 +1,4 @@
-import type { Signal } from '@angular/core';
+import type { Signal } from './host/craft-compat';
 import {
   isCraftException,
   type AnyCraftException,

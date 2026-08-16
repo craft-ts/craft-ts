@@ -6,7 +6,7 @@ import {
   runInInjectionContext,
   type EnvironmentProviders,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 import type { CraftRoutePhase } from './craft-route-exceptions';
 import {
   CRAFT_ROUTER,
@@ -39,6 +39,7 @@ export const CRAFT_ROUTER_TRACE = new InjectionToken<
 >('CRAFT_ROUTER_TRACE', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 const routerTraceListeners = new WeakSet<Injector>();

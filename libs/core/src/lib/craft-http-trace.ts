@@ -3,7 +3,7 @@ import {
   Injector,
   runInInjectionContext,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 
 export type CraftHttpTraceContext = Readonly<{
   method: string;
@@ -22,6 +22,7 @@ export const CRAFT_HTTP_TRACE = new InjectionToken<
 >('CRAFT_HTTP_TRACE', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 export function provideCraftHttpTrace(

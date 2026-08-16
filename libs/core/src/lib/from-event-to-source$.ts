@@ -1,4 +1,4 @@
-import { assertInInjectionContext, DestroyRef, inject } from '@angular/core';
+import { assertInInjectionContext, DestroyRef, inject } from './host/craft-compat';
 import { source$ } from './source$';
 import {
   createNamedPrimitiveGen,

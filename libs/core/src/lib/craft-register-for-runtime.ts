@@ -4,7 +4,7 @@ import {
   signal,
   type Injector,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { ɵrunCraftTargetWrappers } from './craft-target-runtime';
 
@@ -61,6 +61,7 @@ export const REGISTER_FOR_REGISTRY = new InjectionToken<
 >('REGISTER_FOR_REGISTRY', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 export function createRegisterForRegistry(

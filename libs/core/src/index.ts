@@ -72,11 +72,17 @@ export {
   craftToken,
   createCraftInjector,
   getCurrentCraftInjector,
+  ɵcreateCraftInjectorFromHost,
   type CraftInjector,
   type CraftProvider,
   type CraftToken,
 } from './lib/host/craft-injector';
-export { ɵcraftInjectorFromHost } from './lib/host/angular-craft-injector-host';
+export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
+export {
+  DestroyRef,
+  Injector,
+  ɵsetCraftInjectFallback,
+} from './lib/host/craft-compat';
 export {
   createBrowserDomAdapter,
   type CraftDomAdapter,

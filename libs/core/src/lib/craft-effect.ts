@@ -10,8 +10,8 @@ import {
   type CreateEffectOptions,
   type EffectCleanupRegisterFn,
   type EffectRef,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import { craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,

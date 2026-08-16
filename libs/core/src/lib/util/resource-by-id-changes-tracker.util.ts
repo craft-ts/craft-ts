@@ -1,4 +1,4 @@
-import { computed, linkedSignal, Signal } from '@angular/core';
+import { computed, linkedSignal, Signal } from '../host/craft-compat';
 import { CraftResourceRef } from './craft-resource-ref';
 import { CraftResourceStatus, toCraftStatus } from './craft-resource-status';
 

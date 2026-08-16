@@ -8,7 +8,7 @@ import {
   runInInjectionContext,
   type Type,
   ɵINJECTOR_SCOPE,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   createExposedServiceValue,
   getRegisteredAppStartServices,

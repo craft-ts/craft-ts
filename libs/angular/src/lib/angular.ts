@@ -15,19 +15,27 @@ import {
 export {
   computed as ɵangularComputed,
   createEnvironmentInjector as ɵcreateAngularEnvironmentInjector,
+  DestroyRef as ɵAngularDestroyRef,
   ElementRef as ɵAngularElementRef,
   EnvironmentInjector as ɵAngularEnvironmentInjector,
+  inject as ɵangularInject,
   Injector as ɵAngularInjector,
+  provideZonelessChangeDetection as ɵprovideAngularZonelessChangeDetection,
   reflectComponentType as ɵreflectAngularComponentType,
   runInInjectionContext as ɵrunInAngularInjectionContext,
   signal as ɵangularSignal,
   untracked as ɵangularUntracked,
+  ɵEffectScheduler as ɵAngularEffectScheduler,
+  ɵINJECTOR_SCOPE as ɵAngularInjectorScope,
 } from '@angular/core';
 export type {
   EffectRef as ɵAngularEffectRef,
   Provider as ɵAngularProvider,
   ProviderToken as ɵAngularProviderToken,
+  Type as ɵAngularType,
+  ValueProvider as ɵAngularValueProvider,
 } from '@angular/core';
+export type { Route as ɵAngularRoute } from '@angular/router';
 import {
   type GetDeps,
   type GetPublicComponentProperties,

@@ -1,4 +1,4 @@
-import type { ResourceSnapshot, ResourceStatus, Signal } from '@angular/core';
+import type { ResourceSnapshot, ResourceStatus, Signal } from '../host/craft-compat';
 import type { CraftSettledSignal } from '../craft-settled';
 
 export type CraftResourceRefSpecificState<Value, Params> = {

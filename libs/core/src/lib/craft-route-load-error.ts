@@ -8,7 +8,7 @@ import {
   type Type,
   type ValueProvider,
   type WritableSignal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { craftException, isCraftException } from './craft-exception';
 import {
   CRAFT_DYNAMIC_IMPORT,

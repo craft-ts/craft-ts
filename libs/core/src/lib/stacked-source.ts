@@ -1,4 +1,4 @@
-import { linkedSignal, Signal, signal } from '@angular/core';
+import { linkedSignal, Signal, signal } from './host/craft-compat';
 
 export type StackSource<T> = Signal<T[] | undefined> & {
   set: (value: T) => void;

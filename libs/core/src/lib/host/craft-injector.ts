@@ -6,18 +6,31 @@ export type CraftToken<T> = {
 };
 
 export type CraftProvider<T = unknown> =
-  | { token: CraftToken<T>; useValue: T }
-  | { token: CraftToken<T>; useFactory: (injector: CraftInjector) => T };
+  | { token: CraftToken<T> | object; useValue: T; multi?: boolean }
+  | {
+      token: CraftToken<T> | object;
+      useFactory: (injector: CraftInjector) => T;
+      multi?: boolean;
+    };
 
 export interface CraftInjector {
-  get<T>(token: CraftToken<T>): T;
-  getOptional<T>(token: CraftToken<T>): T | null;
+  get<T>(token: CraftToken<T> | object): T;
+  get<T>(token: CraftToken<T> | object, notFoundValue: T): T;
+  getOptional<T>(token: CraftToken<T> | object): T | null;
   run<T>(fn: () => T): T;
   createChild(providers: readonly CraftProvider[]): CraftInjector;
+  destroy(): void;
+  readonly destroyed: boolean;
 }
 
 type ProviderRecord = {
   resolve(): unknown;
+  readonly multi: boolean;
+};
+
+type TokenWithFactory = {
+  readonly debugName?: string;
+  readonly ɵfactory?: () => unknown;
 };
 
 type NodeProcess = {
@@ -49,7 +62,7 @@ const injectorStorage = AsyncLocalStorage
 const browserInjectorStack: CraftInjector[] = [];
 const hostInjectors = new WeakMap<object, CraftInjector>();
 const hostTokens = new WeakMap<object, object>();
-const NOT_FOUND = Symbol('CraftInjector.notFound');
+export const ɵNOT_FOUND = Symbol('CraftInjector.notFound');
 
 export function craftToken<T>(debugName: string): CraftToken<T> {
   return { debugName } as CraftToken<T>;
@@ -73,28 +86,126 @@ export function getCurrentCraftInjector(): CraftInjector {
   return injector;
 }
 
+export function isCraftInjector(value: unknown): value is CraftInjector {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as CraftInjector).get === 'function' &&
+    typeof (value as CraftInjector).run === 'function' &&
+    typeof (value as CraftInjector).createChild === 'function'
+  );
+}
+
+function tokenName(token: object): string {
+  const named = token as TokenWithFactory & { name?: string };
+  return named.debugName ?? named.name ?? 'unknown';
+}
+
+function readDefaultFactory(token: object): unknown | typeof ɵNOT_FOUND {
+  const factory = (token as TokenWithFactory).ɵfactory;
+  if (typeof factory !== 'function') {
+    return ɵNOT_FOUND;
+  }
+  return factory();
+}
+
+function lookupRecord(
+  records: Map<object, ProviderRecord>,
+  token: object,
+): ProviderRecord | undefined {
+  const direct = records.get(token);
+  if (direct) {
+    return direct;
+  }
+  const aliased = hostTokens.get(token);
+  return aliased ? records.get(aliased) : undefined;
+}
+
+function lookupDefaultFactory(token: object): unknown | typeof ɵNOT_FOUND {
+  const direct = readDefaultFactory(token);
+  if (direct !== ɵNOT_FOUND) {
+    return direct;
+  }
+  const aliased = hostTokens.get(token);
+  return aliased ? readDefaultFactory(aliased) : ɵNOT_FOUND;
+}
+
 function createNativeCraftInjector(
   providers: readonly CraftProvider[],
   parent: CraftInjector | null,
 ): CraftInjector {
-  const records = new Map<CraftToken<unknown>, ProviderRecord>();
+  const records = new Map<object, ProviderRecord>();
+  const children: CraftInjector[] = [];
+  let destroyed = false;
+  const destroyCallbacks: Array<() => void> = [];
   const craftInjector: CraftInjector = {
-    get<T>(token: CraftToken<T>): T {
-      const local = records.get(token);
+    get<T>(token: CraftToken<T> | object, notFoundValue?: T): T {
+      if (token === craftInjector) {
+        return craftInjector as T;
+      }
+      const local = lookupRecord(records, token);
       if (local) {
-        return local.resolve() as T;
+        const value = local.resolve();
+        if (local.multi) {
+          const parentValues = parent
+            ? ((parent.getOptional(token) as unknown[] | null) ?? [])
+            : [];
+          return [
+            ...(Array.isArray(parentValues) ? parentValues : []),
+            ...(value as unknown[]),
+          ] as T;
+        }
+        return value as T;
       }
       if (parent) {
-        return parent.get(token);
+        if (arguments.length >= 2) {
+          return parent.get(token, notFoundValue as T);
+        }
+        try {
+          return parent.get(token);
+        } catch {
+          const fallback = lookupDefaultFactory(token);
+          if (fallback !== ɵNOT_FOUND) {
+            return fallback as T;
+          }
+          throw missingProviderError(token);
+        }
+      }
+      const fallback = lookupDefaultFactory(token);
+      if (fallback !== ɵNOT_FOUND) {
+        return fallback as T;
+      }
+      if (arguments.length >= 2) {
+        return notFoundValue as T;
       }
       throw missingProviderError(token);
     },
-    getOptional<T>(token: CraftToken<T>): T | null {
-      const local = records.get(token);
-      if (local) {
-        return local.resolve() as T;
+    getOptional<T>(token: CraftToken<T> | object): T | null {
+      if (token === craftInjector) {
+        return craftInjector as T;
       }
-      return parent ? parent.getOptional(token) : null;
+      const local = lookupRecord(records, token);
+      if (local) {
+        const value = local.resolve();
+        if (local.multi) {
+          const parentValues = parent
+            ? ((parent.getOptional(token) as unknown[] | null) ?? [])
+            : [];
+          return [
+            ...(Array.isArray(parentValues) ? parentValues : []),
+            ...(value as unknown[]),
+          ] as T;
+        }
+        return value as T;
+      }
+      if (parent) {
+        const inherited = parent.getOptional(token);
+        if (inherited !== null) {
+          return inherited;
+        }
+      }
+      const fallback = lookupDefaultFactory(token);
+      return fallback === ɵNOT_FOUND ? null : (fallback as T);
     },
     run<T>(fn: () => T): T {
       if (injectorStorage) {
@@ -107,13 +218,36 @@ function createNativeCraftInjector(
         browserInjectorStack.pop();
       }
     },
-    createChild(providers: readonly CraftProvider[]): CraftInjector {
-      return createNativeCraftInjector(providers, craftInjector);
+    createChild(childProviders: readonly CraftProvider[]): CraftInjector {
+      const child = createNativeCraftInjector(childProviders, craftInjector);
+      children.push(child);
+      return child;
+    },
+    destroy(): void {
+      if (destroyed) {
+        return;
+      }
+      destroyed = true;
+      for (const child of children) {
+        child.destroy();
+      }
+      for (const callback of destroyCallbacks) {
+        callback();
+      }
+    },
+    get destroyed() {
+      return destroyed;
     },
   };
 
+  Object.defineProperty(craftInjector, 'ɵonDestroy', {
+    value: (callback: () => void) => {
+      destroyCallbacks.push(callback);
+    },
+  });
+
   for (const provider of providers) {
-    records.set(provider.token, createProviderRecord(provider, craftInjector));
+    addProviderRecord(records, provider, craftInjector);
   }
 
   return craftInjector;
@@ -130,18 +264,35 @@ export function ɵcreateCraftInjectorFromHost(
 
   const host = hostInjector as {
     get(token: object, notFoundValue?: unknown): unknown;
+    destroy?: () => void;
+    destroyed?: boolean;
   };
+  const children: CraftInjector[] = [];
+  let destroyed = false;
   const craftInjector: CraftInjector = {
-    get<T>(token: CraftToken<T>): T {
-      const value = host.get(hostTokens.get(token) ?? token, NOT_FOUND);
-      if (value === NOT_FOUND) {
-        throw missingProviderError(token);
+    get<T>(token: CraftToken<T> | object, notFoundValue?: T): T {
+      const hostToken = hostTokens.get(token) ?? token;
+      const value = host.get(hostToken, ɵNOT_FOUND);
+      if (value !== ɵNOT_FOUND) {
+        return value as T;
       }
-      return value as T;
+      const fallback = lookupDefaultFactory(token);
+      if (fallback !== ɵNOT_FOUND) {
+        return fallback as T;
+      }
+      if (arguments.length >= 2) {
+        return notFoundValue as T;
+      }
+      throw missingProviderError(token);
     },
-    getOptional<T>(token: CraftToken<T>): T | null {
-      const value = host.get(hostTokens.get(token) ?? token, NOT_FOUND);
-      return value === NOT_FOUND ? null : (value as T);
+    getOptional<T>(token: CraftToken<T> | object): T | null {
+      const hostToken = hostTokens.get(token) ?? token;
+      const value = host.get(hostToken, ɵNOT_FOUND);
+      if (value !== ɵNOT_FOUND) {
+        return value as T;
+      }
+      const fallback = lookupDefaultFactory(token);
+      return fallback === ɵNOT_FOUND ? null : (fallback as T);
     },
     run<T>(fn: () => T): T {
       return runInHostContext(() => {
@@ -157,7 +308,22 @@ export function ɵcreateCraftInjectorFromHost(
       });
     },
     createChild(providers: readonly CraftProvider[]): CraftInjector {
-      return createNativeCraftInjector(providers, craftInjector);
+      const child = createNativeCraftInjector(providers, craftInjector);
+      children.push(child);
+      return child;
+    },
+    destroy(): void {
+      if (destroyed) {
+        return;
+      }
+      destroyed = true;
+      for (const child of children) {
+        child.destroy();
+      }
+      host.destroy?.();
+    },
+    get destroyed() {
+      return destroyed || host.destroyed === true;
     },
   };
   hostInjectors.set(hostInjector, craftInjector);
@@ -171,12 +337,39 @@ export function ɵregisterCraftTokenHostToken<T>(
   hostTokens.set(token, hostToken);
 }
 
+function addProviderRecord(
+  records: Map<object, ProviderRecord>,
+  provider: CraftProvider,
+  injector: CraftInjector,
+): void {
+  const token = provider.token;
+  if (provider.multi) {
+    const existing = records.get(token);
+    const nextValue = createProviderRecord(provider, injector).resolve;
+    if (existing?.multi) {
+      const previous = existing.resolve as () => unknown[];
+      records.set(token, {
+        multi: true,
+        resolve: () => [...previous(), nextValue()],
+      });
+      return;
+    }
+    records.set(token, {
+      multi: true,
+      resolve: () => [nextValue()],
+    });
+    return;
+  }
+  records.set(token, createProviderRecord(provider, injector));
+}
+
 function createProviderRecord(
   provider: CraftProvider,
   injector: CraftInjector,
 ): ProviderRecord {
   if ('useValue' in provider) {
     return {
+      multi: provider.multi === true,
       resolve: () => provider.useValue,
     };
   }
@@ -184,6 +377,7 @@ function createProviderRecord(
   let resolved = false;
   let value: unknown;
   return {
+    multi: provider.multi === true,
     resolve() {
       if (!resolved) {
         value = provider.useFactory(injector);
@@ -194,6 +388,6 @@ function createProviderRecord(
   };
 }
 
-function missingProviderError(token: CraftToken<unknown>): Error {
-  return new Error(`No provider for Craft token "${token.debugName}".`);
+function missingProviderError(token: object): Error {
+  return new Error(`No provider for Craft token "${tokenName(token)}".`);
 }

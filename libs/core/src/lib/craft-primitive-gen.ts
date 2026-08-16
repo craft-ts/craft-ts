@@ -1,4 +1,4 @@
-import { isSignal, type Injector, type Signal } from '@angular/core';
+import { isSignal, type Injector, type Signal } from './host/craft-compat';
 import {
   isGenerator,
   SERVICE_TRACKED_DEPS_REQUEST_MARKER,

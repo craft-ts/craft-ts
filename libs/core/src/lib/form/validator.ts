@@ -1,4 +1,4 @@
-import { computed, effect, Signal, signal, untracked } from '@angular/core';
+import { computed, effect, Signal, signal, untracked } from '../host/craft-compat';
 import {
   AnyCraftException,
   CRAFT_EXCEPTION_SYMBOL,

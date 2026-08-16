@@ -1,4 +1,4 @@
-import { inject, InjectionToken, signal, type Signal } from '@angular/core';
+import { inject, InjectionToken, signal, type Signal } from './host/craft-compat';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 
 /**

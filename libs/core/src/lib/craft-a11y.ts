@@ -1,5 +1,5 @@
-import { InjectionToken } from '@angular/core';
-import { TitleStrategy, type RouterStateSnapshot } from '@angular/router';
+import { InjectionToken } from './host/craft-compat';
+import { TitleStrategy, type RouterStateSnapshot } from './host/craft-router-types';
 import { ɵapplyBrowserDocumentTitle } from './browser-boundaries';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import { craftToken } from './host/craft-injector';

@@ -4,11 +4,11 @@ import {
   craftUse,
   fromEventToSource$,
   state,
-  toCraftService,
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type TemporalTaskHandle,
   type SendContextPayload,
 } from '@craft-ng/core';
+import { toCraftService } from '@craft-ng/angular';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {

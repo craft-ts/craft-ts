@@ -5,7 +5,7 @@ import {
   type Signal,
   type Type,
   type WritableSignal,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   CraftRouter,
   type CraftRouterUrlTreeInput,

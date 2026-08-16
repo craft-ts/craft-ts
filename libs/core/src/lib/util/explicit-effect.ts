@@ -4,7 +4,7 @@ import {
   EffectRef,
   effect,
   untracked,
-} from '@angular/core';
+} from '../host/craft-compat';
 // from https://github.com/ngxtension/ngxtension-platform
 
 /**

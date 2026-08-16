@@ -1,4 +1,4 @@
-import { computed, type Signal } from '@angular/core';
+import { computed, type Signal } from './host/craft-compat';
 import {
   CraftGenShortCircuit,
   type CraftGenExceptionMarker,

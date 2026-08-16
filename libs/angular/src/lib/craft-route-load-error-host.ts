@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   EnvironmentInjector,
-  inject,
   signal,
   type Type,
 } from '@angular/core';
@@ -17,6 +16,7 @@ import {
   type GetDeps,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
+import { injectCraft } from './inject-craft';
 
 @Component({
   standalone: true,
@@ -30,7 +30,7 @@ import {
   `,
 })
 export class CraftRouteLoadErrorHostComponent {
-  private readonly active = inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
+  private readonly active = injectCraft(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
   readonly componentInjector = signal<EnvironmentInjector | undefined>(
     this.active()?.injector,
   );
@@ -47,7 +47,9 @@ function resolveEagerComponent(
   if (!descriptor) return null;
   if (descriptor.component) {
     const target = normalizeCraftRouteTarget(descriptor.component);
-    if (target.kind === 'angular') return target.component;
+    if (target.kind === 'angular') {
+      return target.component as Type<unknown>;
+    }
     throw new Error(
       'The Angular route-load recovery host cannot render a Craft target directly. Configure the @craft-ng/component compatibility host for chunk recovery.',
     );

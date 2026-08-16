@@ -1,4 +1,4 @@
-import { InjectionToken, type Signal } from '@angular/core';
+import { InjectionToken, type Signal } from '../host/craft-compat';
 import type { AnyCraftException } from '../craft-exception';
 import type { CraftField } from './craft-field';
 import type { ValidatorOutput } from './validator';
