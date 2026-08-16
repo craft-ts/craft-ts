@@ -1,5 +1,6 @@
 import {
   computed,
+  DestroyRef,
   inject,
   Injector,
   runInInjectionContext,
@@ -867,6 +868,15 @@ export function insertForm(...args: any[]): any {
         formInjector,
         `formItem:${formIdentifier}`,
       ) as EnvironmentInjector;
+      // `getOrCreateEntry` runs in the `formsSignal` computation, so
+      // `ɵcreateHostTaggedInjector` cannot see an ambient DestroyRef.
+      // Bind remaining rows to the form injector so host teardown
+      // destroys them even when they were never evicted.
+      formInjector.get(DestroyRef).onDestroy(() => {
+        if (!itemInjector.destroyed) {
+          itemInjector.destroy();
+        }
+      });
 
       // `buildSimpleForm` may create effects (e.g. via insertFormSubmit). When
       // `getOrCreateEntry` is invoked from within a reactive context (such as
