@@ -1,6 +1,7 @@
-import { computed, signal } from '@angular/core';
+import { computed, inject, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftException } from '../craft-exception';
+import { angularLinkedSignal } from '../host/angular-linked-signal';
 import { craftSignal } from '../host/craft-signal';
 import { state } from '../state';
 import { CraftField } from './craft-field';
@@ -125,6 +126,48 @@ describe('insertForm', () => {
       'c',
       'c',
     ]);
+  });
+
+  it('stops field watches after a parallel form item is evicted', () => {
+    const { injector } = setupCraftServiceTest();
+    const items = craftSignal([
+      { id: 'a', name: 'Alpha' },
+      { id: 'b', name: 'Beta' },
+      { id: 'c', name: 'Gamma' },
+    ]);
+    const fieldWatches = vi.fn((value: { id: string; name: string }) => value);
+    const usersForm = injector.run(() =>
+      craftUse(
+        state(
+          'usersForm',
+          items,
+          insertForm({ identifier: ({ item }) => item.id }, ({ field }) => {
+            const linked = angularLinkedSignal({
+              source: () => {
+                items();
+                return fieldWatches(field.value());
+              },
+              computation: (current) => current,
+              injector: inject(Injector),
+            });
+            linked();
+            return {};
+          }),
+        ),
+      ),
+    );
+
+    expect(craftUse(usersForm.forms()).length).toBe(3);
+
+    items.set([{ id: 'c', name: 'Gamma' }]);
+    expect(craftUse(usersForm.forms()).length).toBe(1);
+    expect(usersForm.select('a')).toBeUndefined();
+    expect(usersForm.select('b')).toBeUndefined();
+
+    fieldWatches.mockClear();
+    items.set([{ id: 'c', name: 'Delta' }]);
+    expect(craftUse(usersForm.forms())[0].name.value()).toBe('Delta');
+    expect(fieldWatches.mock.calls.map(([value]) => value?.id)).toEqual(['c']);
   });
 
   it('applies set/update/patch through the form tree', () => {

@@ -4698,7 +4698,11 @@ export function ɵcreateHostTaggedInjector(
     `HostTag(${hostName})`,
   );
 
-  parentDestroyRef?.onDestroy(() => envInjector.destroy());
+  parentDestroyRef?.onDestroy(() => {
+    if (!envInjector.destroyed) {
+      envInjector.destroy();
+    }
+  });
 
   return envInjector;
 }

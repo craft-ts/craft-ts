@@ -5,6 +5,7 @@ import {
   runInInjectionContext,
   Signal,
   untracked,
+  type EnvironmentInjector,
 } from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import {
@@ -777,6 +778,7 @@ export function insertForm(...args: any[]): any {
       formIdentifier: string | number;
       form: FormWithInsertions<unknown, Record<string, unknown>>;
       itemState: AngularLinkedSignal<unknown>;
+      itemInjector: EnvironmentInjector;
     };
 
     const formsByIdentifier = new Map<string | number, ParallelEntry>();
@@ -784,6 +786,9 @@ export function insertForm(...args: any[]): any {
     const evictEntry = (formIdentifier: string | number): void => {
       const entry = formsByIdentifier.get(formIdentifier);
       entry?.itemState.destroy();
+      if (entry && !entry.itemInjector.destroyed) {
+        entry.itemInjector.destroy();
+      }
       formsByIdentifier.delete(formIdentifier);
     };
 
@@ -861,7 +866,7 @@ export function insertForm(...args: any[]): any {
       const itemInjector = ɵcreateHostTaggedInjector(
         formInjector,
         `formItem:${formIdentifier}`,
-      );
+      ) as EnvironmentInjector;
 
       // `buildSimpleForm` may create effects (e.g. via insertFormSubmit). When
       // `getOrCreateEntry` is invoked from within a reactive context (such as
@@ -879,7 +884,12 @@ export function insertForm(...args: any[]): any {
           ),
         ),
       );
-      const entry: ParallelEntry = { formIdentifier, form, itemState };
+      const entry: ParallelEntry = {
+        formIdentifier,
+        form,
+        itemState,
+        itemInjector,
+      };
       formsByIdentifier.set(formIdentifier, entry);
       return entry;
     };
