@@ -17,7 +17,7 @@ export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
     bridge,
     'page',
     'page',
-    'Read named controls on the connected browser tab, or run act (goto / fill / click / press) then return the new page state. Omit clientId when exactly one tab is connected. Default detail is controls; pass detail "dom-styles" only to debug layout/CSS.',
+    'Read named controls on the connected browser tab, or run act (goto / fill / click / press) then return the new page state. Omit clientId when exactly one tab is ready. Default detail is controls; pass detail "dom-styles" only to debug layout/CSS.',
     {
       clientId: z.string().min(1).optional(),
       act: z

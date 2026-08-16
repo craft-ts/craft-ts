@@ -4,9 +4,41 @@ export type PageMatch = {
 };
 
 export type PageAction =
+  | { readonly goto: string }
   | { readonly id: string; readonly fill: unknown; readonly match?: PageMatch }
   | { readonly id: string; readonly press?: string; readonly match?: PageMatch }
   | { readonly id: string; readonly match?: PageMatch };
+
+export function isGotoAction(
+  action: PageAction,
+): action is { readonly goto: string } {
+  return 'goto' in action;
+}
+
+export function toGotoUrl(target: string): string {
+  const trimmed = target.trim();
+  if (trimmed.length === 0) {
+    throw new Error('goto url is empty');
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  try {
+    const url = new URL(trimmed);
+    return `${url.pathname}${url.search}${url.hash}` || '/';
+  } catch {
+    return `/${trimmed}`;
+  }
+}
+
+export function toCraftGotoTarget(target: string): string {
+  const path = toGotoUrl(target);
+  const pathname = (path.split('#')[0] ?? path).split('?')[0] ?? path;
+  if (pathname === '/' || pathname === '') {
+    return '';
+  }
+  return pathname.startsWith('/') ? pathname.slice(1) : pathname;
+}
 
 export type PageControl = {
   readonly id: string;
@@ -95,6 +127,9 @@ export function assertPagePayloadSize(payload: unknown): void {
 }
 
 function applyAction(root: ParentNode, action: PageAction): void {
+  if (isGotoAction(action)) {
+    throw new Error(`goto "${action.goto}" cannot be applied to the DOM`);
+  }
   const node = resolveControl(root, action.id, action.match);
   if (!isEnabled(node)) {
     throw new Error(`control "${action.id}" is disabled`);

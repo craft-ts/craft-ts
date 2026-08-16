@@ -2,12 +2,14 @@ import {
   DestroyRef,
   inject,
   Injector,
+  NgZone,
   provideAppInitializer,
   runInInjectionContext,
 } from '@angular/core';
 import {
   BrowserDocument,
   BrowserLocation,
+  CraftRouter,
   craftUse,
   executeGeneratorCompatibleFactory,
   HOST_TAG_LIST,
@@ -30,6 +32,7 @@ import {
   FUNCTION_REGISTRY_CLIENT_ID,
   startFunctionRegistryBridge,
 } from './function-registry-bridge';
+import { toCraftGotoTarget } from './page-actor';
 
 type RegistryFactory = (...args: unknown[]) => unknown;
 
@@ -102,6 +105,8 @@ export const provideMcpExperimentation = () => [
     const destroyRef = inject(DestroyRef);
     // eslint-disable-next-line craft-ng/no-angular-inject
     const injector = inject(Injector);
+    // eslint-disable-next-line craft-ng/no-angular-inject
+    const zone = inject(NgZone);
     const stopBridge = startFunctionRegistryBridge({
       injector,
       // eslint-disable-next-line craft-ng/no-angular-inject
@@ -117,6 +122,21 @@ export const provideMcpExperimentation = () => [
             };
           }),
         ),
+      navigate: (url) =>
+        zone.run(() =>
+          runInInjectionContext(injector, () =>
+            craftUse(function* () {
+              const router = yield* CraftRouter();
+              return router.navigateByUrl({
+                to: toCraftGotoTarget(url),
+              } as Parameters<CraftRouter['navigateByUrl']>[0]);
+            }),
+          ),
+        ).then((matched) => {
+          if (!matched) {
+            throw new Error(`goto "${url}" was not matched`);
+          }
+        }),
     });
     destroyRef.onDestroy(stopBridge);
   }),

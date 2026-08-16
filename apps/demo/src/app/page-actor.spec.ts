@@ -17,6 +17,8 @@ import {
   captureDomStyles,
   collectPageControls,
   PAGE_DOM_STYLES_MAX_BYTES,
+  toCraftGotoTarget,
+  toGotoUrl,
 } from './page-actor';
 
 describe('page actor', () => {
@@ -271,6 +273,22 @@ describe('page actor', () => {
     expect(() =>
       assertPagePayloadSize('x'.repeat(PAGE_DOM_STYLES_MAX_BYTES + 1)),
     ).toThrow('dom-styles exceeds size cap');
+  });
+
+  it('does not apply goto to the DOM', () => {
+    const host = document.createElement('div');
+    const result = applyPageActions(host, [{ goto: '/login-form' }]);
+    expect(result.error).toBe('goto "/login-form" cannot be applied to the DOM');
+  });
+
+  it('normalizes goto targets to an in-app path', () => {
+    expect(toGotoUrl('/login-form')).toBe('/login-form');
+    expect(toGotoUrl('login-form')).toBe('/login-form');
+    expect(toGotoUrl('http://localhost:4200/login-form?x=1')).toBe(
+      '/login-form?x=1',
+    );
+    expect(toCraftGotoTarget('/login-form')).toBe('login-form');
+    expect(toCraftGotoTarget('/')).toBe('');
   });
 });
 

@@ -61,6 +61,16 @@ describe('registry MCP server', () => {
     });
 
     await client.callTool({
+      name: 'page',
+      arguments: {
+        act: [{ goto: '/login-form' }],
+      },
+    });
+    expect(request).toHaveBeenCalledWith('page', {
+      act: [{ goto: '/login-form' }],
+    });
+
+    await client.callTool({
       name: 'registry.clients',
       arguments: {},
     });
@@ -120,6 +130,28 @@ describe('registry MCP server', () => {
       key: 'increment',
       source: '({ state }) => state.update(value => value + 10)',
     });
+
+    await client.close();
+    await server.close();
+  });
+
+  it('tells agents to omit clientId when exactly one tab is ready', async () => {
+    const request = vi.fn(async () => []);
+    const server = createRegistryMcpServer({ request });
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const tools = await client.listTools();
+    const pageTool = tools.tools.find((tool) => tool.name === 'page');
+    expect(pageTool?.description).toContain(
+      'Omit clientId when exactly one tab is ready',
+    );
 
     await client.close();
     await server.close();
