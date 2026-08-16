@@ -266,6 +266,31 @@ export class CraftRouterOutletController {
     );
     this._meta = meta ?? null;
     this.clearExceptionSinks(meta);
+    void this.finishActivation(match, meta ?? null);
+  }
+
+  private async finishActivation(
+    match: CraftMatch,
+    meta: CraftRouteMeta | null,
+  ): Promise<void> {
+    if (this._match !== match) {
+      return;
+    }
+    if (typeof match.route.loadComponent === 'function' && !match.route.component) {
+      try {
+        const loaded = await Promise.resolve(match.route.loadComponent());
+        if (this._match !== match) {
+          return;
+        }
+        const component =
+          loaded && typeof loaded === 'object' && 'default' in loaded
+            ? (loaded as { default: unknown }).default
+            : loaded;
+        match.route.component = component;
+      } catch {
+        return;
+      }
+    }
     const component = this.resolveRouteComponent(match);
     this.displayedProps.set(collectMatchProps(match));
 

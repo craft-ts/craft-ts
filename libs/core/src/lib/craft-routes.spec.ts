@@ -361,7 +361,7 @@ function createRouteInjector(
       },
       {
         provide: CRAFT_MATCH,
-        useFactory: () => {
+        useValue: (() => {
           const hostRoute = activatedRoute as ActivatedRouteWithCraftMatch;
           const matchSignal =
             hostRoute.__craftMatch ??
@@ -369,7 +369,7 @@ function createRouteInjector(
           matchSignal.set(buildStubMatch(activatedRoute, routePath));
           hostRoute.__craftMatch = matchSignal;
           return matchSignal;
-        },
+        })(),
       },
       ...flattenProviders(providers),
     ] as never[],

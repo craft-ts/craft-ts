@@ -2379,16 +2379,31 @@ function findSnapshotRouteByPath(
   return null;
 }
 
-function paramsForRoutePath(
-  match: CraftMatch | null,
+function injectRouteParamsSignal(
   routePath: string,
-): Record<string, string> | null {
-  if (!match || !match.routes.some((route) => route.path === routePath)) {
-    return null;
-  }
+): Signal<Record<string, string>> {
+  const matchSignal = inject(CRAFT_MATCH);
   const names = extractRouteParamNames(routePath);
-  if (names.length === 0) {
+  let last: Record<string, string> = pickParams(matchSignal(), names);
+  return craftComputed(() => {
+    const match = matchSignal();
+    if (!match) {
+      return last;
+    }
+    last = pickParams(match, names);
+    return last;
+  }) as unknown as Signal<Record<string, string>>;
+}
+
+function pickParams(
+  match: CraftMatch | null,
+  names: readonly string[],
+): Record<string, string> {
+  if (!match) {
     return {};
+  }
+  if (names.length === 0) {
+    return { ...match.params };
   }
   const params: Record<string, string> = {};
   for (const name of names) {
@@ -2398,21 +2413,6 @@ function paramsForRoutePath(
     }
   }
   return params;
-}
-
-function injectRouteParamsSignal(
-  routePath: string,
-): Signal<Record<string, string>> {
-  const matchSignal = inject(CRAFT_MATCH);
-  let last: Record<string, string> =
-    paramsForRoutePath(matchSignal(), routePath) ?? {};
-  return craftComputed(() => {
-    const current = paramsForRoutePath(matchSignal(), routePath);
-    if (current) {
-      last = current;
-    }
-    return last;
-  }) as unknown as Signal<Record<string, string>>;
 }
 
 function injectRouteDataSignal<RouteData extends Data>(
