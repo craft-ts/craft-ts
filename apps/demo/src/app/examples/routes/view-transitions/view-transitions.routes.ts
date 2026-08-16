@@ -15,8 +15,8 @@ import {
   type ParentRoutes,
   type RouteCheckedDI,
 } from '@craft-ng/core';
+import { CraftPendingComponentHost } from '@craft-ng/angular';
 import {
-  CraftPendingComponentHost,
   loadCraftComponent,
   provideCraftPendingComponent,
 } from '@craft-ng/component';
