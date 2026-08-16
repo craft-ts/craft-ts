@@ -13,6 +13,7 @@ import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
 import {
   CraftRouter,
+  CRAFT_HISTORY,
   provideCraftRouter,
   shouldHandleCraftRouterLinkClick,
 } from './craft-router';
@@ -432,5 +433,19 @@ describe('CraftRouter', () => {
       CraftRouter: GetServiceDependencies<typeof CraftRouter>;
     };
     type _Check = Expect<Equal<ExtractDeps<MultiYield['run']>, ExpectedDeps>>;
+  });
+
+  it('disposes the browser history popstate listener when the injector is destroyed', () => {
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter([])],
+    });
+    TestBed.inject(CRAFT_HISTORY);
+    TestBed.resetTestingModule();
+
+    expect(
+      removeSpy.mock.calls.some((call) => call[0] === 'popstate'),
+    ).toBe(true);
+    removeSpy.mockRestore();
   });
 });

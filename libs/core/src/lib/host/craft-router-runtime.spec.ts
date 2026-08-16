@@ -46,6 +46,30 @@ describe('createBrowserHistory', () => {
       hash: '#top',
     });
   });
+
+  it('writes state on push and replace', () => {
+    const history = createBrowserHistory(window);
+    history.push('/a', { photo: '1' });
+
+    expect(window.history.state).toEqual({ photo: '1' });
+
+    history.replace('/b', { photo: '2' });
+
+    expect(window.history.state).toEqual({ photo: '2' });
+  });
+
+  it('does not notify popstate after dispose', () => {
+    const history = createBrowserHistory(window);
+    const seen: string[] = [];
+    history.listen((location) => {
+      seen.push(location.pathname);
+    });
+
+    history.dispose();
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    expect(seen).toEqual([]);
+  });
 });
 
 describe('matchCraftRoutes', () => {

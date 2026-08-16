@@ -7,8 +7,9 @@ export type CraftLocation = {
 export interface CraftHistory {
   get(): CraftLocation;
   listen(fn: (location: CraftLocation) => void): () => void;
-  push(url: string): void;
-  replace(url: string): void;
+  push(url: string, state?: unknown): void;
+  replace(url: string, state?: unknown): void;
+  dispose(): void;
 }
 
 export type CraftQueryParams = Record<string, string>;
@@ -101,8 +102,12 @@ export function readWindowLocation(win: Window): CraftLocation {
 
 export function createBrowserHistory(win: Window): CraftHistory {
   const listeners = new Set<(location: CraftLocation) => void>();
+  let disposed = false;
 
   const notify = (): void => {
+    if (disposed) {
+      return;
+    }
     const location = readWindowLocation(win);
     for (const listener of listeners) {
       listener(location);
@@ -122,13 +127,29 @@ export function createBrowserHistory(win: Window): CraftHistory {
         listeners.delete(fn);
       };
     },
-    push(url) {
-      win.history.pushState(win.history.state, '', url);
+    push(url, state) {
+      win.history.pushState(
+        state === undefined ? win.history.state : state,
+        '',
+        url,
+      );
       notify();
     },
-    replace(url) {
-      win.history.replaceState(win.history.state, '', url);
+    replace(url, state) {
+      win.history.replaceState(
+        state === undefined ? win.history.state : state,
+        '',
+        url,
+      );
       notify();
+    },
+    dispose() {
+      if (disposed) {
+        return;
+      }
+      disposed = true;
+      win.removeEventListener('popstate', onPopState);
+      listeners.clear();
     },
   };
 }
@@ -158,6 +179,9 @@ export function createMemoryHistory(initialUrl = '/'): CraftHistory {
     replace(url) {
       current = parseUrl(url);
       notify();
+    },
+    dispose() {
+      listeners.clear();
     },
   };
 }

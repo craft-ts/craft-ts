@@ -44,6 +44,8 @@ import {
   Subject,
   type Observable,
 } from 'rxjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   beforeAll,
   beforeEach,
@@ -88,12 +90,39 @@ import { craftUntilSettled } from './craft-until-settled';
 import {
   CRAFT_MATCH,
   CRAFT_ROUTER,
+  matchCraftRoutes,
   provideCraftRouter,
   type CraftCompiledRoute,
   type CraftMatch,
 } from './craft-router';
-import { CRAFT_ROUTE_META } from './craft-route-meta';
+import { createCraftRouterOutletController } from './craft-router-outlet';
+import { CRAFT_ROUTE_META, getCraftRouteMeta } from './craft-route-meta';
 import { craftSignal, type CraftWritableSignal } from './host/craft-signal';
+import { withTransitionTimings } from './craft-pending';
+
+const flushChain = async () => {
+  for (let i = 0; i < 20; i += 1) {
+    await Promise.resolve();
+  }
+};
+
+function activateCraftRoutes(
+  routes: readonly CraftCompiledRoute[],
+  url: string,
+) {
+  window.history.replaceState(null, '', url);
+  TestBed.configureTestingModule({
+    providers: [
+      provideCraftRouter(
+        routes,
+        withTransitionTimings({ stayMs: 0, blankMs: 0, pendingMinMs: 0 }),
+      ),
+    ],
+  });
+  return TestBed.runInInjectionContext(() =>
+    createCraftRouterOutletController(),
+  );
+}
 
 function _injectDemoUserIdParams(): Signal<string> {
   throw new Error('Type-only helper');
@@ -454,6 +483,16 @@ beforeEach(() => {
 });
 
 describe('craftRoutes', () => {
+  it('does not import @angular/router at runtime', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'libs/core/src/lib/craft-routes.ts'),
+      'utf8',
+    );
+    expect(source).not.toMatch(
+      /^import\s+(?!type\b)[^;]*from ['"]@angular\/router['"]/m,
+    );
+  });
+
   it('should expose typed inject helpers for params but not route data', () => {
     const routes = craftRoutes('player', [
       {
@@ -861,7 +900,7 @@ describe('craftRoutes', () => {
     expect(result).toEqual(plainRoutes);
   });
 
-  it.skip('should support canActivate generator alongside plain Angular loadChildren — outlet-driven guards', () => {
+  it('should support canActivate generator alongside plain Angular loadChildren — outlet-driven guards', async () => {
     const { Auth, provideAuth } = craftService(
       { name: 'Auth', scope: 'toProvide' },
       () => ({ currentUser: { id: 1 } }),
@@ -871,6 +910,8 @@ describe('craftRoutes', () => {
       {
         path: 'profile',
         providers: [provideAuth()],
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
         loadChildren: () => plainRoutes,
         canActivate: function* () {
           const auth = yield* Auth();
@@ -879,21 +920,10 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const injector = createRouteInjector(
-      routeConfig.providers,
-      activatedRoute.route,
-      undefined,
-      routeConfig.path,
-    );
-    const canActivate = getCanActivateGuard(routeConfig);
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/profile');
+    await flushChain();
 
-    const result = runInInjectionContext(injector, () =>
-      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-    );
-
-    expect(result).toBe(true);
+    expect(outlet.state()).toBe('loaded');
   });
 
   it('should support a redirectTo generator that yields tracked dependencies', () => {
@@ -924,12 +954,20 @@ describe('craftRoutes', () => {
 
     expect(typeof routeConfig.redirectTo).toBe('function');
 
+    const produced = (
+      routeConfig.redirectTo as (
+        snapshot: PartialMatchRouteSnapshot,
+      ) => Generator<unknown, string, unknown>
+    )(partialMatchRouteSnapshotStub);
+
     const result = runInInjectionContext(injector, () =>
-      (
-        routeConfig.redirectTo as (
-          snapshot: PartialMatchRouteSnapshot,
-        ) => string
-      )(partialMatchRouteSnapshotStub),
+      runCraftGenerator({
+        iterator: produced,
+        injector,
+        hostScope: 'function',
+        invalidYieldErrorMessage: 'invalid redirect yield',
+        multipleAppStartErrorMessage: 'multiple redirect app start',
+      }).value,
     );
 
     expect(result).toBe('/pizzerias/admin');
@@ -945,6 +983,56 @@ describe('craftRoutes', () => {
     ]);
 
     expect(appRoutes.toRoutes()[0].redirectTo).toBe('/pizzerias');
+  });
+
+  it('follows a craftRoutes-compiled function redirectTo through the matcher', () => {
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: '',
+        pathMatch: 'full',
+        redirectTo: () => '/home',
+      },
+      {
+        path: 'home',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+
+    const match = matchCraftRoutes(appRoutes.toRoutes(), {
+      pathname: '/',
+      search: '',
+      hash: '',
+    });
+
+    expect(match?.pathname).toBe('/home');
+    expect(match?.route.path).toBe('home');
+  });
+
+  it('follows a craftRoutes-compiled generator redirectTo through the matcher', () => {
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: '',
+        pathMatch: 'full',
+        redirectTo: function* () {
+          return '/home';
+        },
+      },
+      {
+        path: 'home',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+
+    const match = matchCraftRoutes(appRoutes.toRoutes(), {
+      pathname: '/',
+      search: '',
+      hash: '',
+    });
+
+    expect(match?.pathname).toBe('/home');
+    expect(match?.route.path).toBe('home');
   });
 
   it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
@@ -2113,7 +2201,7 @@ describe('craftRoutes', () => {
     expect(routeConfig.canMatch).toBeUndefined();
   });
 
-  it.skip('should wait for a defined signal result in canActivate and then accept — outlet-driven guards', async () => {
+  it('should wait for a defined signal result in canActivate and then accept — outlet-driven guards', async () => {
     const guardResult = signal<GuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
@@ -2124,29 +2212,18 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const canActivate = getCanActivateGuard(routeConfig);
-    configureRouteTestingModule(routeConfig.providers, activatedRoute.route);
-    const result = TestBed.runInInjectionContext(() =>
-      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-    );
-    const guardPromise = firstValueFrom(result as any);
-    let resolved = false;
-
-    guardPromise.then(() => {
-      resolved = true;
-    });
-
-    await Promise.resolve();
-    expect(resolved).toBe(false);
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/guard');
+    await flushChain();
+    expect(outlet.state()).not.toBe('loaded');
 
     guardResult.set(true);
+    TestBed.flushEffects();
+    await flushChain();
 
-    expect(await guardPromise).toBe(true);
+    expect(outlet.state()).toBe('loaded');
   });
 
-  it.skip('should wait for a defined signal result in canActivate and then reject — outlet-driven guards', async () => {
+  it('should wait for a defined signal result in canActivate and then reject — outlet-driven guards', async () => {
     const guardResult = signal<GuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
@@ -2157,29 +2234,18 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const canActivate = getCanActivateGuard(routeConfig);
-    configureRouteTestingModule(routeConfig.providers, activatedRoute.route);
-    const result = TestBed.runInInjectionContext(() =>
-      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-    );
-    const guardPromise = firstValueFrom(result as any);
-    let resolved = false;
-
-    guardPromise.then(() => {
-      resolved = true;
-    });
-
-    await Promise.resolve();
-    expect(resolved).toBe(false);
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/guard');
+    await flushChain();
+    expect(outlet.state()).not.toBe('loaded');
 
     guardResult.set(false);
+    TestBed.flushEffects();
+    await flushChain();
 
-    expect(await guardPromise).toBe(false);
+    expect(outlet.state()).not.toBe('loaded');
   });
 
-  it.skip('should allow canActivate generators to yield multiple services and return an observable — outlet-driven guards', async () => {
+  it('should allow canActivate generators to yield multiple services and return an observable — outlet-driven guards', async () => {
     const authAccess$ = new BehaviorSubject(true);
     const entityOperational$ = new BehaviorSubject(true);
     const { Auth, provideAuth } = craftService(
@@ -2211,21 +2277,13 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const injector = createRouteInjector(
-      routeConfig.providers,
-      activatedRoute.route,
-    );
-    const canActivate = getCanActivateGuard(routeConfig);
-    const result = runInInjectionContext(injector, () =>
-      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-    );
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/guard');
+    await flushChain();
 
-    expect(await firstValueFrom(result as any)).toBe(true);
+    expect(outlet.state()).toBe('loaded');
   });
 
-  it.skip('should allow canMatch generators to yield services and return a synchronous result — outlet-driven guards', () => {
+  it('should allow canMatch generators to yield services and return a synchronous result — outlet-driven guards', async () => {
     const { Permissions, providePermissions } = craftService(
       { name: 'Permissions', scope: 'toProvide' },
       () => ({
@@ -2246,76 +2304,37 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const injector = createRouteInjector(
-      routeConfig.providers,
-      activatedRoute.route,
-    );
-    const canMatch = getCanMatchGuard(routeConfig);
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/guard');
+    await flushChain();
 
-    const result = runInInjectionContext(injector, () =>
-      canMatch(routeConfig as unknown as Route, urlSegmentsStub, partialMatchRouteSnapshotStub),
-    );
-
-    expect(result).toBe(true);
+    expect(outlet.state()).toBe('loaded');
   });
 
-  it.skip('should wait for craftUntilSettled in canMatch before selecting a lazy dashboard route — outlet-driven guards', async () => {
+  it('should wait for craftUntilSettled in canMatch before activating a lazy dashboard route — outlet-driven guards', async () => {
     class AdminDashboardComponent {}
-    class UserDashboardComponent {}
 
-    type DashboardAccess = { kind: 'admin' } | { kind: 'user' };
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      craftRoute('dashboard', {
+        componentDeps: {},
+        loadComponent: ({ withRetry }) =>
+          withRetry(Promise.resolve({ AdminDashboardComponent })).then(
+            (m) => m.AdminDashboardComponent,
+          ),
+        canMatch: function* () {
+          const settledAccess = yield* craftUntilSettled(
+            fakeHttpCall(Promise.resolve({ kind: 'admin' as const })),
+          );
 
-    async function selectDashboardComponent(access: DashboardAccess) {
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        craftRoute('dashboard', {
-          componentDeps: {},
-          loadComponent: ({ withRetry }) =>
-            withRetry(Promise.resolve({ AdminDashboardComponent })).then(
-              (m) => m.AdminDashboardComponent,
-            ),
-          canMatch: function* () {
-            const settledAccess = yield* craftUntilSettled(
-              fakeHttpCall(Promise.resolve(access)),
-            );
+          return settledAccess.kind === 'admin';
+        },
+      }),
+    ]);
 
-            return settledAccess.kind === 'admin';
-          },
-        }),
-        craftRoute('dashboard', {
-          componentDeps: {},
-          loadComponent: ({ withRetry }) =>
-            withRetry(Promise.resolve({ UserDashboardComponent })).then(
-              (m) => m.UserDashboardComponent,
-            ),
-        }),
-      ]);
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/dashboard');
+    await flushChain();
 
-      const [adminRoute, userRoute] = appRoutes.toRoutes();
-      const activatedRoute = createActivatedRouteStub();
-      const injector = createRouteInjector(
-        adminRoute.providers,
-        activatedRoute.route,
-      );
-      const canMatch = getCanMatchGuard(adminRoute);
-      const matchResult = runInInjectionContext(injector, () =>
-        canMatch(adminRoute as unknown as Route, urlSegmentsStub, partialMatchRouteSnapshotStub),
-      );
-      const adminMatches = isObservable(matchResult)
-        ? await firstValueFrom(matchResult)
-        : await matchResult;
-      const selectedRoute = adminMatches ? adminRoute : userRoute;
-
-      return selectedRoute.loadComponent?.();
-    }
-
-    await expect(selectDashboardComponent({ kind: 'admin' })).resolves.toBe(
-      AdminDashboardComponent,
-    );
-    await expect(selectDashboardComponent({ kind: 'user' })).resolves.toBe(
-      UserDashboardComponent,
-    );
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(AdminDashboardComponent);
   });
 
   // The legacy blocking-guard describes ('craftCanActivate' / 'craftCanMatch')
@@ -2325,7 +2344,7 @@ describe('craftRoutes', () => {
   // `craftRoute`). Runtime coverage lives in craft-guard-runtime.spec.ts,
   // type-level exhaustiveness coverage in craft-routes-ux.spec.ts.
 
-  it.skip('should resolve an observable canMatch result once it emits a defined value — outlet-driven guards', async () => {
+  it('should resolve an observable canMatch result once it emits a defined value — outlet-driven guards', async () => {
     const guardResult = new BehaviorSubject<GuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
@@ -2336,32 +2355,17 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const injector = createRouteInjector(
-      routeConfig.providers,
-      activatedRoute.route,
-    );
-    const canMatch = getCanMatchGuard(routeConfig);
-    const result = runInInjectionContext(injector, () =>
-      canMatch(routeConfig as unknown as Route, urlSegmentsStub, partialMatchRouteSnapshotStub),
-    );
-    const guardPromise = firstValueFrom(result as any);
-    let resolved = false;
-
-    guardPromise.then(() => {
-      resolved = true;
-    });
-
-    await Promise.resolve();
-    expect(resolved).toBe(false);
+    const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/guard');
+    await flushChain();
+    expect(outlet.state()).not.toBe('loaded');
 
     guardResult.next(true);
+    await flushChain();
 
-    expect(await guardPromise).toBe(true);
+    expect(outlet.state()).toBe('loaded');
   });
 
-  it.skip('should throw when canActivate synchronously returns undefined — outlet-driven guards', () => {
+  it('should throw when canActivate synchronously returns undefined — outlet-driven guards', () => {
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
@@ -2372,16 +2376,18 @@ describe('craftRoutes', () => {
     ]);
 
     const routeConfig = appRoutes.toRoutes()[0];
-    const activatedRoute = createActivatedRouteStub();
-    const injector = createRouteInjector(
-      routeConfig.providers,
-      activatedRoute.route,
-    );
-    const canActivate = getCanActivateGuard(routeConfig);
+    const meta = getCraftRouteMeta(routeConfig.data);
+    const injector = Injector.create({ providers: [] });
 
     expect(() =>
       runInInjectionContext(injector, () =>
-        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+        runCraftGenerator({
+          iterator: meta!.guard!({} as never, {} as never),
+          injector,
+          hostScope: 'function',
+          invalidYieldErrorMessage: 'invalid guard yield',
+          multipleAppStartErrorMessage: 'multiple guard app start',
+        }),
       ),
     ).toThrow(
       'Route "guard" canActivate guard must not synchronously return undefined.',
@@ -2391,7 +2397,7 @@ describe('craftRoutes', () => {
   describe('craftRoute().withProviders()', () => {
     type User = { id: number; name: string };
 
-    it.skip('should build a route-level provider from typed route-scoped  helpers — outlet-driven guards', () => {
+    it('should build a route-level provider from typed route-scoped  helpers — outlet-driven guards', async () => {
       const { User, provideUser } = craftService(
         { name: 'User', scope: 'abstract' },
         abstract<User>(),
@@ -2410,23 +2416,17 @@ describe('craftRoutes', () => {
         ]),
       ]);
 
-      const routeConfig = wpRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub({
-        params: { userId: '9' },
-      });
-      const injector = createRouteInjector(
-        routeConfig.providers,
-        activatedRoute.route,
+      const outlet = activateCraftRoutes(
+        wpRoutes.toRoutes(),
+        '/dashboard/9',
       );
-      const canActivate = getCanActivateGuard(routeConfig);
+      await flushChain();
 
-      // Guard must run first so the guarded-data signal is populated.
-      const guardResult = runInInjectionContext(injector, () =>
-        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      expect(outlet.state()).toBe('loaded');
+      const user = runInInjectionContext(
+        outlet.displayedInjector() ?? TestBed.inject(Injector),
+        () => craftUse(User()),
       );
-      expect(guardResult).toBe(true);
-
-      const user = runInInjectionContext(injector, () => craftUse(User()));
       expect(user).toEqual({ id: 9, name: 'Carol' });
     });
 
@@ -2496,7 +2496,7 @@ describe('craftRoutes', () => {
       routes.AppDashboardGuardedData;
     });
 
-    it.skip('should set guard data signal when sync guard returns an object — outlet-driven guards', () => {
+    it('should set guard data signal when sync guard returns an object — outlet-driven guards', async () => {
       const { appRoutes, AppDashboardGuardedData } = craftRoutes('app', [
         {
           path: 'dashboard',
@@ -2506,30 +2506,20 @@ describe('craftRoutes', () => {
         },
       ]);
 
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      const injector = createRouteInjector(
-        routeConfig.providers,
-        activatedRoute.route,
-      );
-      const canActivate = getCanActivateGuard(routeConfig);
+      const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/dashboard');
+      await flushChain();
 
-      const guardResult = runInInjectionContext(injector, () =>
-        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-      );
-
-      expect(guardResult).toBe(true);
-
+      expect(outlet.state()).toBe('loaded');
       const guardData = resolveRouteYield<Signal<User>>(
         AppDashboardGuardedData(),
-        injector,
+        outlet.displayedInjector() ?? TestBed.inject(Injector),
       );
 
       expectTypeOf(guardData).toEqualTypeOf<Signal<User>>();
       expect(guardData()).toEqual({ id: 42, name: 'Alice' });
     });
 
-    it.skip('should set guard data signal when generator guard yields services and returns an object — outlet-driven guards', () => {
+    it('should set guard data signal when generator guard yields services and returns an object — outlet-driven guards', async () => {
       const { Auth, provideAuth } = craftService(
         { name: 'Auth', scope: 'toProvide' },
         () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
@@ -2548,29 +2538,18 @@ describe('craftRoutes', () => {
         },
       ]);
 
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      const injector = createRouteInjector(
-        routeConfig.providers,
-        activatedRoute.route,
-      );
-      const canActivate = getCanActivateGuard(routeConfig);
-
-      const guardResult = runInInjectionContext(injector, () =>
-        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-      );
-
-      expect(guardResult).toBe(true);
+      const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/dashboard');
+      await flushChain();
 
       const guardData = resolveRouteYield<Signal<User>>(
         AppDashboardGuardedData(),
-        injector,
+        outlet.displayedInjector() ?? TestBed.inject(Injector),
       );
 
       expect(guardData()).toEqual({ id: 7, name: 'Bob' });
     });
 
-    it.skip('should set guard data signal when Observable guard emits an object — outlet-driven guards', async () => {
+    it('should set guard data signal when Observable guard emits an object — outlet-driven guards', async () => {
       const subject = new BehaviorSubject<User | false | undefined>(undefined);
 
       const { appRoutes, AppDashboardGuardedData } = craftRoutes('app', [
@@ -2582,33 +2561,23 @@ describe('craftRoutes', () => {
         },
       ]);
 
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      const injector = createRouteInjector(
-        routeConfig.providers,
-        activatedRoute.route,
-      );
-      const canActivate = getCanActivateGuard(routeConfig);
-
-      const result = runInInjectionContext(injector, () =>
-        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-      );
-
-      const guardPromise = firstValueFrom(result as any);
+      const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/dashboard');
+      await flushChain();
+      expect(outlet.state()).not.toBe('loaded');
 
       subject.next({ id: 99, name: 'Carol' });
+      await flushChain();
 
-      expect(await guardPromise).toBe(true);
-
+      expect(outlet.state()).toBe('loaded');
       const guardData = resolveRouteYield<Signal<User>>(
         AppDashboardGuardedData(),
-        injector,
+        outlet.displayedInjector() ?? TestBed.inject(Injector),
       );
 
       expect(guardData()).toEqual({ id: 99, name: 'Carol' });
     });
 
-    it.skip('should block navigation when guard returns false and not crash — outlet-driven guards', () => {
+    it('should block navigation when guard returns false and not crash — outlet-driven guards', async () => {
       const { appRoutes, AppDashboardGuardedData: _guardedData } = craftRoutes(
         'app',
         [
@@ -2621,19 +2590,11 @@ describe('craftRoutes', () => {
         ],
       );
 
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      const injector = createRouteInjector(
-        routeConfig.providers,
-        activatedRoute.route,
-      );
-      const canActivate = getCanActivateGuard(routeConfig);
+      const outlet = activateCraftRoutes(appRoutes.toRoutes(), '/dashboard');
+      await flushChain();
 
-      const guardResult = runInInjectionContext(injector, () =>
-        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
-      );
-
-      expect(guardResult).toBe(false);
+      expect(outlet.state()).not.toBe('loaded');
+      expect(outlet.targetComponent()).toBeNull();
     });
   });
 });

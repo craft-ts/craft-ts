@@ -48,7 +48,9 @@ import {
 } from './craft-router';
 import {
   CRAFT_START_VIEW_TRANSITION,
+  CRAFT_VIEW_TRANSITION,
   CRAFT_VIEW_TRANSITION_SKIP_BLANK,
+  CRAFT_VIEW_TRANSITION_STATE_KEY,
   CRAFT_VIEW_TRANSITIONS_ENABLED,
 } from './craft-view-transition';
 
@@ -342,6 +344,51 @@ describe('CraftRouterOutlet', () => {
     expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('keeps the view-transition payload when loadChildren defers the match', async () => {
+    let resolveChildren!: (routes: CraftCompiledRoute[]) => void;
+    const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
+      resolveChildren = resolve;
+    });
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'view-transitions',
+            loadChildren: () => pending,
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const payload = { name: 'photo-1', image: null };
+
+    await router.navigateByUrl('/view-transitions/42', {
+      state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
+    });
+
+    expect(
+      (window.history.state as Record<string, unknown> | null)?.[
+        CRAFT_VIEW_TRANSITION_STATE_KEY
+      ],
+    ).toEqual(payload);
+    expect(
+      router.getCurrentNavigation()?.extras?.state?.[
+        CRAFT_VIEW_TRANSITION_STATE_KEY
+      ],
+    ).toEqual(payload);
+
+    resolveChildren([{ path: ':photoId', component: TargetCmp }]);
+    await flush();
+
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
     window.history.replaceState(null, '', '/');
   });
 

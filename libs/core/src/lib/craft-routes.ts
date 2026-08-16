@@ -1,24 +1,29 @@
 import {
   inject,
   Injector,
+  isSignal,
   runInInjectionContext,
   signal,
   type Signal,
   type WritableSignal,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import {
-  RedirectCommand,
-  UrlTree,
-  type ActivatedRouteSnapshot,
-  type Data,
-  type GuardResult,
-  type MaybeAsync,
-  type PartialMatchRouteSnapshot,
-  type Route,
-  type RouterStateSnapshot,
-  type UrlSegment,
+  filter,
+  firstValueFrom,
+  isObservable,
+  take,
+  type Observable,
+} from 'rxjs';
+import type {
+  ActivatedRouteSnapshot,
+  Data,
+  GuardResult,
+  PartialMatchRouteSnapshot,
+  Route,
+  RouterStateSnapshot,
+  UrlSegment,
 } from '@angular/router';
-import { firstValueFrom, isObservable, type Observable } from 'rxjs';
 import type {
   CRAFT_COMPONENT_DEPS,
   ComponentExceptionsCarrier,
@@ -26,10 +31,14 @@ import type {
   ExtractDeps,
 } from './branded-component/branded-component';
 import { type AnyCraftException } from './craft-exception';
-import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import {
+  GUARD_AWAIT_REQUEST_MARKER,
+  isGenerator,
+  runCraftGenerator,
+} from './craft-generator-runtime';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
-import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
+import { CRAFT_ROUTE_META, type CraftRouteMeta, type CraftRouteStepFactory } from './craft-route-meta';
 import { CRAFT_VIEW_TRANSITION } from './craft-view-transition';
 import type { ViewTransitionPayloadDef } from './craft-view-transition';
 import type {
@@ -63,9 +72,10 @@ import type {
   CraftCompiledRoute,
   CraftMatch,
 } from './host/craft-router-runtime';
-import { CRAFT_MATCH } from './craft-router-tokens';
+import { CRAFT_MATCH, type CraftUrlTree } from './craft-router-tokens';
 import { craftComputed } from './host/craft-signal';
 
+type MaybeAsync<T> = T | Promise<T> | Observable<T>;
 type AngularRouteBase = Omit<
   Route,
   | 'canActivate'
@@ -256,7 +266,7 @@ type RouteQueryParamsFactory<Output = unknown, Yielded = never> = () =>
   | Output
   | Generator<Yielded, Output, unknown>;
 
-type RouteRedirectToResult = string | UrlTree;
+type RouteRedirectToResult = string | CraftUrlTree;
 
 // A `redirectTo` that can be a plain string, a synchronous/async function (a
 // plain Angular `RedirectFunction`), or a generator factory that `yield*`s
@@ -323,7 +333,7 @@ type ExtractCanActivateGuardData<Guard> = Guard extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
+      GuardResult | AnyCraftException | undefined | null
     >
   : never;
 
@@ -344,7 +354,7 @@ type ExtractResolveData<Resolve> = Resolve extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
+      GuardResult | AnyCraftException | undefined | null
     >
   : never;
 
@@ -2380,40 +2390,74 @@ function executeRouteQueryParamsFactory<Output>(
   });
 }
 
-const ROUTE_REDIRECT_TO_INVALID_YIELD_ERROR_MESSAGE =
-  'route redirectTo generators can only yield craftService dependencies or exposed dependency helpers.';
-const ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE =
-  'route redirectTo generators do not support onAppStart(...).';
+function toCraftRouteStepFactory(
+  routePath: string,
+  guardName: 'canActivate' | 'canMatch',
+  factory: unknown,
+): CraftRouteStepFactory | undefined {
+  if (typeof factory !== 'function') {
+    return undefined;
+  }
 
-// Wraps a craft `redirectTo` factory into a plain Angular `RedirectFunction`.
-// Angular runs the result in an injection context, so a generator factory can
-// `yield*` craftService dependencies; we drive it with `runCraftGenerator` and
-// return the resolved redirect target. Plain (non-generator) factories pass
-// their result straight through.
-function createRedirectTo(
-  factory: RouteRedirectToFactory<unknown>,
-): (
-  redirectData: PartialMatchRouteSnapshot,
-) => MaybeAsync<RouteRedirectToResult> {
-  return (redirectData) => {
-    const result = factory(redirectData);
-
-    if (!isGenerator(result)) {
-      return result as MaybeAsync<RouteRedirectToResult>;
+  return function* (route, state) {
+    const result = factory(route, state);
+    if (isGenerator(result)) {
+      return yield* settlePublicGuardValue(
+        routePath,
+        guardName,
+        yield* result,
+      );
     }
-
-    const injector = inject(Injector);
-
-    return runCraftGenerator({
-      iterator: result,
-      injector,
-      hostScope: 'function',
-      invalidYieldErrorMessage: ROUTE_REDIRECT_TO_INVALID_YIELD_ERROR_MESSAGE,
-      multipleAppStartErrorMessage: ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE,
-      onAppStartNotSupportedErrorMessage:
-        ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE,
-    }).value as RouteRedirectToResult;
+    return yield* settlePublicGuardValue(routePath, guardName, result);
   };
+}
+
+function* settlePublicGuardValue(
+  routePath: string,
+  guardName: 'canActivate' | 'canMatch',
+  value: unknown,
+): Generator<unknown, unknown, unknown> {
+  if (value === undefined) {
+    throw new Error(
+      `Route "${routePath}" ${guardName} guard must not synchronously return undefined.`,
+    );
+  }
+
+  if (isSignal(value)) {
+    return yield {
+      [GUARD_AWAIT_REQUEST_MARKER]: true,
+      kind: 'promise',
+      value: firstValueFrom(
+        toObservable(value).pipe(
+          filter((next) => next !== undefined),
+          take(1),
+        ),
+      ),
+    };
+  }
+
+  if (isObservable(value)) {
+    return yield {
+      [GUARD_AWAIT_REQUEST_MARKER]: true,
+      kind: 'promise',
+      value: firstValueFrom(
+        value.pipe(
+          filter((next) => next !== undefined),
+          take(1),
+        ),
+      ),
+    };
+  }
+
+  if (value instanceof Promise) {
+    return yield {
+      [GUARD_AWAIT_REQUEST_MARKER]: true,
+      kind: 'promise',
+      value,
+    };
+  }
+
+  return value;
 }
 
 function provideRouteValueService(
@@ -2947,10 +2991,6 @@ export function craftRoutes<
       loadComponent !== undefined
         ? createLoadComponent(route.path, loadComponent)
         : undefined;
-    const wrappedRedirectTo =
-      typeof redirectTo === 'function'
-        ? createRedirectTo(redirectTo)
-        : redirectTo;
 
     const hasCraftChain =
       canActivate !== undefined ||
@@ -2959,8 +2999,12 @@ export function craftRoutes<
 
     const craftMeta: CraftRouteMeta | undefined = hasCraftChain
       ? {
-          match: canMatch as unknown as CraftRouteMeta['match'],
-          guard: canActivate as unknown as CraftRouteMeta['guard'],
+          match: toCraftRouteStepFactory(route.path, 'canMatch', canMatch),
+          guard: toCraftRouteStepFactory(
+            route.path,
+            'canActivate',
+            canActivate,
+          ),
           resolve: resolve as unknown as CraftRouteMeta['resolve'],
           handleExceptions: (handleExceptions ??
             {}) as CraftRouteExceptionHandlerMap,
@@ -2986,7 +3030,7 @@ export function craftRoutes<
     return {
       ...angularRoute,
       ...(mergedData !== undefined ? { data: mergedData } : {}),
-      ...(redirectTo !== undefined ? { redirectTo: wrappedRedirectTo } : {}),
+      ...(redirectTo !== undefined ? { redirectTo } : {}),
       loadChildren: wrappedLoadChildren,
       ...(wrappedLoadComponent !== undefined
         ? { loadComponent: wrappedLoadComponent }

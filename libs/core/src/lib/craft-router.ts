@@ -1,4 +1,9 @@
-import { type EnvironmentProviders, type Provider } from '@angular/core';
+import {
+  DestroyRef,
+  inject,
+  type EnvironmentProviders,
+  type Provider,
+} from '@angular/core';
 import type { GetDeps } from './branded-component/branded-component';
 import {
   isCraftLoadingFeature,
@@ -635,13 +640,18 @@ function provideCraftRouterRuntime(
     { provide: CRAFT_COMPILED_ROUTES, useValue: routes },
     {
       provide: CRAFT_HISTORY,
-      useFactory: () => createBrowserHistory(window),
+      useFactory: () => {
+        const history = createBrowserHistory(window);
+        inject(DestroyRef).onDestroy(() => history.dispose());
+        return history;
+      },
     },
     {
       provide: CRAFT_LOCATION,
       useFactory: (history: CraftHistory) => {
         const location = craftSignal(history.get());
-        history.listen((next) => location.set(next));
+        const stop = history.listen((next) => location.set(next));
+        inject(DestroyRef).onDestroy(stop);
         return location;
       },
       deps: [CRAFT_HISTORY],
@@ -756,14 +766,13 @@ function createNativeCraftRouter(
     if (withVt?.skipLocationChange) {
       location.set(parseUrl(url));
     } else if (withVt?.replaceUrl) {
-      history.replace(url);
+      history.replace(url, withVt.state);
     } else {
-      history.push(url);
+      history.push(url, withVt?.state);
     }
     for (const listener of listeners) {
       listener({ type: 'NavigationEnd', url });
     }
-    currentNavigation = null;
     return Promise.resolve(true);
   };
 
