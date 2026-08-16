@@ -123,7 +123,7 @@ describe('Craft route generators', () => {
     expect(tree.exists('apps/demo/src/app/users/users.routes.ts')).toBe(true);
   });
 
-  it('composes the native Nx Angular component generator', async () => {
+  it('scaffolds a Craft component for the created route', async () => {
     await routeGenerator(tree, {
       path: '/created',
       project: 'demo',
@@ -134,7 +134,7 @@ describe('Craft route generators', () => {
 
     expect(
       tree.read('apps/demo/src/app/created-page/demo-page.ts', 'utf8'),
-    ).toContain('export class DemoPage');
+    ).toContain('export const DemoPage');
     expect(tree.exists('apps/demo/src/app/created-page/DemoPage.ts')).toBe(
       false,
     );
@@ -144,55 +144,10 @@ describe('Craft route generators', () => {
     expect(tree.exists('apps/demo/src/app/created-page/demo-page.css')).toBe(
       false,
     );
-    expect(
-      tree.read('apps/demo/src/app/created/created.routes.ts', 'utf8'),
-    ).toContain('GenDeps_DemoPage');
-  });
-
-  it('keeps the separate component path and name with the Angular schematic', async () => {
-    tree.delete('nx.json');
-    tree.write(
-      'angular.json',
-      JSON.stringify({
-        version: 1,
-        projects: {
-          demo: {
-            root: 'apps/demo',
-            sourceRoot: 'apps/demo/src',
-            projectType: 'application',
-            architect: {
-              build: {
-                builder: '@angular/build:application',
-                options: { tsConfig: 'apps/demo/tsconfig.app.json' },
-              },
-            },
-          },
-        },
-      }),
-    );
-
-    await routeGenerator(tree, {
-      path: '/angular-created',
-      project: 'demo',
-      createComponent: 'test-cli/TestCli',
-      skipValidation: true,
-      yes: true,
-    });
-
-    const generatedComponent = tree
-      .listChanges()
-      .find(
-        (change) =>
-          change.path.includes('/test-cli/') && change.path.endsWith('.ts'),
-      );
-    expect(generatedComponent?.path).toBe(
-      'apps/demo/src/app/test-cli/test-cli.ts',
-    );
-    expect(generatedComponent?.content?.toString()).toContain(
-      'export class TestCli',
-    );
-    expect(tree.exists('apps/demo/src/app/test-cli/test-cli.html')).toBe(false);
-    expect(tree.exists('apps/demo/src/app/test-cli/test-cli.css')).toBe(false);
+    // A Craft SFC carries its own contract, so the route has no componentDeps.
+    const routes = tree.read('apps/demo/src/app/created/created.routes.ts', 'utf8');
+    expect(routes).toContain('demo-page');
+    expect(routes).not.toContain('GenDeps_DemoPage');
   });
 
   it('splits routes through the same virtual Tree', async () => {
@@ -217,7 +172,7 @@ describe('Craft route generators', () => {
     );
   });
 
-  it('publishes the same operations as Nx generators and Angular schematics', () => {
+  it('publishes the same operations as the Nx generators', () => {
     const manifest = JSON.parse(
       readFileSync(
         new URL('../../../generators.json', import.meta.url),

@@ -1,7 +1,7 @@
 {
   "name": "@craft-ng/core",
   "version": "0.7.0-beta.11",
-  "description": "Type-safe Angular. Declare. Yield. Derive. Compile — no surprises",
+  "description": "Type-safe Angular. Declare. Yield. Derive. Compile \u2014 no surprises",
   "author": "Romain Geffrault",
   "license": "MIT",
   "homepage": "https://ng-angular-stack.github.io/craft/",
@@ -37,5 +37,15 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  }
 }

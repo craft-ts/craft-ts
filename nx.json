@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -48,15 +51,6 @@
     }
   ],
   "targetDefaults": {
-    "@nx/angular:package": {
-      "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
-    },
-    "@nx/angular:unit-test": {
-      "cache": false,
-      "inputs": ["default", "^production"]
-    },
     "@nx/eslint:lint": {
       "cache": true,
       "inputs": [
@@ -68,27 +62,30 @@
     },
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
-    },
-    "@angular/build:application": {
-      "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
-    },
-    "@angular/build:unit-test": {
-      "cache": false,
-      "inputs": ["default", "^production"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ]
     }
   },
   "release": {
-    "projects": ["ng-craft-core", "ng-craft-component", "dev-tools", "mcp"],
+    "projects": [
+      "ng-craft-core",
+      "ng-craft-component",
+      "dev-tools",
+      "mcp"
+    ],
     "projectsRelationship": "fixed",
     "releaseTag": {
       "pattern": "v{version}"
     },
     "version": {
-      "manifestRootsToUpdate": ["{projectRoot}"],
+      "manifestRootsToUpdate": [
+        "{projectRoot}"
+      ],
       "currentVersionResolver": "git-tag",
       "git": {
         "commit": false,
@@ -103,19 +100,5 @@
       "workspaceChangelog": true
     }
   },
-  "generators": {
-    "@nx/angular:library": {
-      "linter": "eslint",
-      "unitTestRunner": "vitest-angular"
-    },
-    "@nx/angular:component": {
-      "style": "css"
-    },
-    "@nx/angular:application": {
-      "e2eTestRunner": "none",
-      "linter": "eslint",
-      "style": "css",
-      "unitTestRunner": "vitest-angular"
-    }
-  }
+  "generators": {}
 }

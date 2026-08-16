@@ -9,7 +9,7 @@ export default [
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredDependencies: ['@angular/compiler', 'vitest'],
+          ignoredDependencies: ['vitest'],
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
         },
       ],
@@ -18,27 +18,9 @@ export default [
       parser: await import('jsonc-eslint-parser'),
     },
   },
-  ...nx.configs['flat/angular'],
-  ...nx.configs['flat/angular-template'],
   {
     files: ['**/*.ts'],
     rules: {
-      '@angular-eslint/directive-selector': [
-        'error',
-        {
-          type: 'attribute',
-          prefix: ['lib', 'craft'],
-          style: 'camelCase',
-        },
-      ],
-      '@angular-eslint/component-selector': [
-        'error',
-        {
-          type: 'element',
-          prefix: ['lib', 'craft'],
-          style: 'kebab-case',
-        },
-      ],
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -51,7 +33,6 @@ export default [
       '@typescript-eslint/no-unsafe-function-type': 'off',
       '@typescript-eslint/no-empty-interface': 'off',
       '@typescript-eslint/no-namespace': 'off',
-      '@angular-eslint/no-input-rename': 'off',
     },
   },
   {
@@ -63,9 +44,6 @@ export default [
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-inferrable-types': 'off',
       '@typescript-eslint/no-unused-expressions': 'off',
-      '@angular-eslint/component-selector': 'off',
-      '@angular-eslint/directive-selector': 'off',
-      '@angular-eslint/template/elements-content': 'off',
     },
   },
   {

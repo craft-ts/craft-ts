@@ -7,19 +7,18 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/angular:package",
-      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "executor": "@nx/js:tsc",
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
-        "project": "libs/component/ng-package.json",
-        "tsConfig": "libs/component/tsconfig.lib.json"
-      },
-      "configurations": {
-        "production": {
-          "tsConfig": "libs/component/tsconfig.lib.prod.json"
-        },
-        "development": {}
-      },
-      "defaultConfiguration": "production"
+        "outputPath": "dist/libs/component",
+        "main": "libs/component/src/index.ts",
+        "tsConfig": "libs/component/tsconfig.lib.json",
+        "assets": [
+          "libs/component/LICENSE"
+        ]
+      }
     },
     "nx-release-publish": {
       "options": {
@@ -31,19 +30,6 @@
       "options": {
         "command": "node tools/run-lib-vitest.mjs libs/component/vitest.config.ts",
         "forwardAllArgs": true
-      }
-    },
-    "test-strip": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node tools/run-lib-vitest.mjs libs/component/vitest.config.ts",
-        "forwardAllArgs": true
-      }
-    },
-    "test-angular": {
-      "executor": "@nx/angular:unit-test",
-      "options": {
-        "runner": "vitest"
       }
     },
     "lint": {

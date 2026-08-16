@@ -1,5 +1,4 @@
 import eslint from '@eslint/js';
-import angular from 'angular-eslint';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
@@ -13,7 +12,6 @@ export default defineConfig([
       eslint.configs.recommended,
       ...tseslint.configs.recommended,
       ...tseslint.configs.stylistic,
-      angular.configs.tsRecommended,
     ],
     languageOptions: {
       parserOptions: {
@@ -24,7 +22,6 @@ export default defineConfig([
     plugins: {
       'craft-ng': craftRules,
     },
-    processor: angular.processInlineTemplates,
     rules: {
       ...craftDemoRules,
       // Keep the standalone release config aligned with the workspace demo
@@ -82,8 +79,6 @@ export default defineConfig([
   {
     files: ['**/*.html'],
     extends: [
-      angular.configs.templateRecommended,
-      angular.configs.templateAccessibility,
     ],
   },
   {

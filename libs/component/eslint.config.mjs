@@ -17,18 +17,9 @@ export default [
       parser: await import('jsonc-eslint-parser'),
     },
   },
-  ...nx.configs['flat/angular'],
   {
     files: ['**/*.ts'],
     rules: {
-      '@angular-eslint/directive-selector': [
-        'error',
-        {
-          type: 'attribute',
-          prefix: 'craft',
-          style: 'camelCase',
-        },
-      ],
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
