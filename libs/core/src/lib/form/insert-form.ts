@@ -12,7 +12,10 @@ import {
   InsertionsStateFactory,
 } from '../query.core';
 import { createCraftFieldTree, CraftFieldTree } from './craft-field';
-import { angularLinkedSignal } from '../host/angular-linked-signal';
+import {
+  angularLinkedSignal,
+  type AngularLinkedSignal,
+} from '../host/angular-linked-signal';
 import {
   createFormExceptions,
   createSubmissionController,
@@ -773,10 +776,16 @@ export function insertForm(...args: any[]): any {
     type ParallelEntry = {
       formIdentifier: string | number;
       form: FormWithInsertions<unknown, Record<string, unknown>>;
+      itemState: AngularLinkedSignal<unknown>;
     };
 
     const formsByIdentifier = new Map<string | number, ParallelEntry>();
     const identifier = parallelConfig.identifier;
+    const evictEntry = (formIdentifier: string | number): void => {
+      const entry = formsByIdentifier.get(formIdentifier);
+      entry?.itemState.destroy();
+      formsByIdentifier.delete(formIdentifier);
+    };
 
     const selectItem = (formIdentifier: string | number) => {
       const currentState = rawReactiveValue(context.state)();
@@ -870,7 +879,7 @@ export function insertForm(...args: any[]): any {
           ),
         ),
       );
-      const entry: ParallelEntry = { formIdentifier, form };
+      const entry: ParallelEntry = { formIdentifier, form, itemState };
       formsByIdentifier.set(formIdentifier, entry);
       return entry;
     };
@@ -880,7 +889,9 @@ export function insertForm(...args: any[]): any {
       injector: formInjector,
       computation: (currentState) => {
         if (!Array.isArray(currentState)) {
-          formsByIdentifier.clear();
+          for (const cachedId of [...formsByIdentifier.keys()]) {
+            evictEntry(cachedId);
+          }
           return [] as ParallelEntry[];
         }
 
@@ -896,8 +907,8 @@ export function insertForm(...args: any[]): any {
           return getOrCreateEntry(id);
         });
 
-        for (const cachedId of formsByIdentifier.keys()) {
-          if (!seen.has(cachedId)) formsByIdentifier.delete(cachedId);
+        for (const cachedId of [...formsByIdentifier.keys()]) {
+          if (!seen.has(cachedId)) evictEntry(cachedId);
         }
 
         return entries;

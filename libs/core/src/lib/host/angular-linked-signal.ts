@@ -32,6 +32,10 @@ function optionalDestroyRef(injector?: Injector): DestroyRef | null {
   }
 }
 
+export type AngularLinkedSignal<T> = WritableSignal<T> & {
+  destroy(): void;
+};
+
 export function angularLinkedSignal<Source, Value>(options: {
   readonly source: () => Source;
   readonly computation: (
@@ -41,7 +45,7 @@ export function angularLinkedSignal<Source, Value>(options: {
   readonly equal?: ValueEqualityFn<Value>;
   readonly debugName?: string;
   readonly injector?: Injector;
-}): WritableSignal<Value> {
+}): AngularLinkedSignal<Value> {
   const destroyRef = optionalDestroyRef(options.injector);
   const revision = signal(0);
   let initialized = false;
@@ -58,13 +62,15 @@ export function angularLinkedSignal<Source, Value>(options: {
       }
     });
   };
-  destroyRef?.onDestroy(() => {
+  const destroy = (): void => {
+    if (destroyed) return;
     destroyed = true;
     watch?.destroy();
     watch = undefined;
-  });
+  };
+  destroyRef?.onDestroy(destroy);
 
-  return linkedSignal<Source, Value>({
+  const linked = linkedSignal<Source, Value>({
     source: () => {
       ensureWatch();
       revision();
@@ -74,4 +80,5 @@ export function angularLinkedSignal<Source, Value>(options: {
     ...(options.equal && { equal: options.equal }),
     ...(options.debugName && { debugName: options.debugName }),
   });
+  return Object.assign(linked, { destroy });
 }

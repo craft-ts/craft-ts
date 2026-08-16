@@ -7,6 +7,8 @@ import {
 } from '@angular/platform-browser/testing';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftResource } from './craft-resource';
+import { craftSignal } from './host/craft-signal';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 beforeAll(() => {
   try {
@@ -135,6 +137,27 @@ describe('craftResource', () => {
     resource.destroy();
 
     expect(status()).toBe('idle');
+  });
+
+  it('stops the linked Craft params watch when destroyed', async () => {
+    const { injector } = setupCraftServiceTest();
+    const params = craftSignal({ id: 1 });
+    const sourceFn = vi.fn(() => params());
+    const resource = injector.run(() =>
+      craftResource({
+        params: sourceFn,
+        loader: async ({ params: p }) => ({ id: p.id, name: `item-${p.id}` }),
+      }),
+    );
+
+    await vi_waitForResolved(resource);
+    expect(resource.value()).toEqual({ id: 1, name: 'item-1' });
+
+    sourceFn.mockClear();
+    resource.destroy();
+
+    params.set({ id: 2 });
+    expect(sourceFn).not.toHaveBeenCalled();
   });
 });
 

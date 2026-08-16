@@ -1,6 +1,7 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftException } from '../craft-exception';
+import { craftSignal } from '../host/craft-signal';
 import { state } from '../state';
 import { CraftField } from './craft-field';
 import {
@@ -10,6 +11,7 @@ import {
 } from './insert-form';
 import { craftUse } from '../craft-use';
 import type { YieldableReactiveValue } from '../reactive-read';
+import { setupCraftServiceTest } from '../setup-craft-service-test';
 
 type LoginData = {
   name: string;
@@ -88,6 +90,41 @@ describe('insertForm', () => {
       const c = usersForm.select('c');
       expect(c).toBeUndefined();
     });
+  });
+
+  it('stops watching an evicted parallel form item', () => {
+    const { injector } = setupCraftServiceTest();
+    const items = craftSignal([
+      { id: 'a', name: 'Alpha' },
+      { id: 'b', name: 'Beta' },
+      { id: 'c', name: 'Gamma' },
+    ]);
+    const identifier = vi.fn(
+      ({ item }: { item: { id: string; name: string } }) => item.id,
+    );
+    const usersForm = injector.run(() =>
+      craftUse(state('usersForm', items, insertForm({ identifier }))),
+    );
+
+    const list = craftUse(usersForm.forms());
+    expect(list.length).toBe(3);
+    expect(list[0].name.value()).toBe('Alpha');
+    expect(list[1].name.value()).toBe('Beta');
+    expect(list[2].name.value()).toBe('Gamma');
+
+    items.set([{ id: 'c', name: 'Gamma' }]);
+    expect(craftUse(usersForm.forms()).length).toBe(1);
+    expect(usersForm.select('a')).toBeUndefined();
+    expect(usersForm.select('b')).toBeUndefined();
+
+    identifier.mockClear();
+    items.set([{ id: 'c', name: 'Delta' }]);
+    expect(craftUse(usersForm.forms())[0].name.value()).toBe('Delta');
+    expect(identifier.mock.calls.map(([ctx]) => ctx.item.id)).toEqual([
+      'c',
+      'c',
+      'c',
+    ]);
   });
 
   it('applies set/update/patch through the form tree', () => {

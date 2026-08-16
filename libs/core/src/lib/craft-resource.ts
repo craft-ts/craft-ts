@@ -158,7 +158,7 @@ export function craftResource<Value, Params>(
     startLoad(params, false);
   };
 
-    const angularParams = options.params
+  const angularParams = options.params
     ? angularLinkedSignal({
         source: () => options.params!(),
         computation: (current) => current,
@@ -240,6 +240,7 @@ export function craftResource<Value, Params>(
     statusState.set('idle');
     paramsEffect?.destroy();
     craftParamsWatch?.destroy();
+    angularParams?.destroy();
     graphWatches.forEach((watch) => watch.destroy());
   };
   const set = (next: Value | undefined): void => {

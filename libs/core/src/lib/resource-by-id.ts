@@ -165,6 +165,22 @@ export function resourceById<
   const resourceByGroup = signal<
     Partial<Record<GroupIdentifier, CraftResourceRef<State, ResourceParams>>>
   >({});
+  const linkedParamsByGroup = new Map<GroupIdentifier, { destroy(): void }>();
+  const rememberLinkedParams = (
+    group: GroupIdentifier,
+    linked: { destroy(): void },
+  ): void => {
+    linkedParamsByGroup.get(group)?.destroy();
+    linkedParamsByGroup.set(group, linked);
+  };
+  const destroyLinkedParams = (group: GroupIdentifier): void => {
+    linkedParamsByGroup.get(group)?.destroy();
+    linkedParamsByGroup.delete(group);
+  };
+  const destroyAllLinkedParams = (): void => {
+    linkedParamsByGroup.forEach((linked) => linked.destroy());
+    linkedParamsByGroup.clear();
+  };
 
   const resourceEqualParams =
     equalParams === 'useIdentifier'
@@ -205,6 +221,7 @@ export function resourceById<
           return incomingRequestValue;
         },
       });
+      rememberLinkedParams(group, filteredRequestByGroup);
 
       //@ts-expect-error TypeScript misinterpreting
       const paramsWithEqualRule = computed(() => filteredRequestByGroup(), {
@@ -256,12 +273,14 @@ export function resourceById<
     changes: changesTracker,
     state: stateSignal,
     reset: () => {
+      destroyAllLinkedParams();
       Object.values(resourceByGroup()).forEach((resource) =>
         (resource as CraftResourceRef<State, ResourceParams>).destroy(),
       );
       resourceByGroup.set({});
     },
     resetResource: (id: GroupIdentifier) => {
+      destroyLinkedParams(id);
       resourceByGroup.update((state) => {
         const newState = { ...state };
         newState[id]?.destroy();
@@ -328,6 +347,7 @@ export function resourceById<
           return incomingParamsValue;
         },
       });
+      rememberLinkedParams(group, filteredGlobalParamsByGroup);
       // ! without pulling the signal here, it is not possible to load multiples resources in the same cycle
       const _pull_filteredGlobalParamsByGroup = filteredGlobalParamsByGroup();
       const paramsWithEqualRule = computed(
@@ -393,6 +413,7 @@ export function resourceById<
           return incomingParamsValue;
         },
       });
+      rememberLinkedParams(group, filteredGlobalParamsByGroup);
 
       // ! without pulling the signal here, it is not possible to load multiples resources in the same cycle
       const _pull_filteredGlobalParamsByGroup = filteredGlobalParamsByGroup();

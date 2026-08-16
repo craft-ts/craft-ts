@@ -1,5 +1,6 @@
 import { ResourceStatus, signal } from '@angular/core';
 import { resourceById } from './resource-by-id';
+import { craftSignal } from './host/craft-signal';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('resourceById', () => {
@@ -73,9 +74,12 @@ describe('resourceById', () => {
       const resourceByIdRef = resourceById({
         fromResourceById: innerResourceByIdRef,
         params: ({ value, status }) => {
-          expectTypeOf(value()).toEqualTypeOf<{
-            id: string;
-          } | undefined>();
+          expectTypeOf(value()).toEqualTypeOf<
+            | {
+                id: string;
+              }
+            | undefined
+          >();
           expectTypeOf(status()).toEqualTypeOf<ResourceStatus>();
           return status() === 'resolved' || status() === 'local'
             ? value()
@@ -161,6 +165,30 @@ describe('resourceById', () => {
       resourceByIdRef.reset();
       expect(resourceByIdRef()['1234']).toBeUndefined();
       expect(resourceByIdRef()['12345']).toBeUndefined();
+    });
+  });
+
+  it('stops the per-id linked params watch when resetResource runs', async () => {
+    await runResource(async () => {
+      const sourceParams = craftSignal<{ id: string } | undefined>(undefined);
+      const sourceFn = vi.fn(() => sourceParams());
+      const resourceByIdRef = resourceById({
+        identifier: (request) => request.id,
+        params: sourceFn,
+        loader: async ({ params }) => params,
+      });
+
+      resourceByIdRef.addById('123', { defaultValue: { id: '123' } });
+      await vi.runAllTimersAsync();
+      expect(resourceByIdRef()['123']?.value()).toEqual({ id: '123' });
+
+      resourceByIdRef.resetResource('123');
+      expect(resourceByIdRef()['123']).toBeUndefined();
+
+      sourceFn.mockClear();
+      sourceParams.set({ id: '999' });
+      await vi.runAllTimersAsync();
+      expect(sourceFn).not.toHaveBeenCalled();
     });
   });
 
