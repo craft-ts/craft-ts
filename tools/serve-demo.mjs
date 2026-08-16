@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as readline from 'node:readline';
 import process from 'node:process';
+import { toViteCliArgs } from './vite-serve-args.mjs';
 
 const workspaceRoot = resolve(import.meta.dirname, '..');
 // app.routes.ts est la source canonique : ce script ne doit jamais l'écrire.
@@ -318,18 +319,7 @@ function spawnAngularDevServer(forwarded) {
 
 function spawnVite(forwarded) {
   const viteBin = resolve(workspaceRoot, 'node_modules/vite/bin/vite.js');
-  const viteArgs = forwarded.filter((argument, index, args) => {
-    if (
-      argument === '--configuration' ||
-      argument.startsWith('--configuration=')
-    ) {
-      return false;
-    }
-    if (args[index - 1] === '--configuration') {
-      return false;
-    }
-    return true;
-  });
+  const viteArgs = toViteCliArgs(forwarded);
   process.stdout.write(
     'Serving demo with Vite (typecheck runs in parallel via demo:typecheck).\n',
   );

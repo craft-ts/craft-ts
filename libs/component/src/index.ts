@@ -1,9 +1,9 @@
 export * from './lib/ai/ai-context-menu';
 export * from './lib/ai/ai-send-dialog';
 export * from './lib/ai/send-context-to-ai';
-export * from './lib/angular';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
+export * from './lib/angular';
 export * from './lib/component';
 export * from './lib/css-vars';
 export type {

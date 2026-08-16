@@ -1,14 +1,8 @@
 import {
-  Directive,
   effect,
-  ElementRef,
-  inject,
   InjectionToken,
   Injector,
-  input,
   isDevMode,
-  OnDestroy,
-  OnInit,
   Renderer2,
   type Signal,
   untracked,
@@ -720,46 +714,19 @@ export function CraftFieldDirective<
   return directive as BoundCraftFieldDirective<Field>;
 }
 
-/** @deprecated Use the functional `CraftFieldDirective` on Craft nodes. */
-@Directive({
-  selector: '[craftField]',
-  standalone: true,
-  exportAs: 'craftField',
-})
-export class LegacyCraftFieldDirective<T> implements OnInit, OnDestroy {
-  readonly craftField = input.required<CraftField<T>>();
+export type GenDeps_LegacyCraftFieldDirective = GetDeps<{
+  deps: Record<never, never>;
+  provided: Record<never, never>;
+  missingProvider: {
+    Renderer2: Renderer2;
+    Injector: Injector;
+    CRAFT_FIELD_VALUE_CONTROL: typeof CRAFT_FIELD_VALUE_CONTROL;
+    CRAFT_FIELD_CHECKBOX_CONTROL: typeof CRAFT_FIELD_CHECKBOX_CONTROL;
+  };
+}>;
 
-  private readonly elementRef = inject(ElementRef<HTMLElement>);
-  private readonly renderer = inject(Renderer2);
-  private readonly injector = inject(Injector);
-  private readonly customValueControl = inject(CRAFT_FIELD_VALUE_CONTROL, {
-    optional: true,
-    self: true,
-  });
-  private readonly customCheckboxControl = inject(
-    CRAFT_FIELD_CHECKBOX_CONTROL,
-    {
-      optional: true,
-      self: true,
-    },
-  );
-  private cleanup: (() => void) | undefined;
-
-  ngOnInit(): void {
-    this.cleanup = bindCraftField(
-      this.elementRef.nativeElement,
-      this.craftField(),
-      this.renderer,
-      this.injector,
-      this.customValueControl,
-      this.customCheckboxControl,
-    );
-  }
-
-  ngOnDestroy(): void {
-    this.cleanup?.();
-  }
-}
+/** @deprecated DI metadata belongs to `LegacyCraftFieldDirective` only. */
+export type GenDeps_CraftFieldDirective = GenDeps_LegacyCraftFieldDirective;
 
 function formatMinMax(value: number | Date, inputType: string): string {
   if (value instanceof Date) return formatDateForInput(value, inputType);
@@ -804,17 +771,3 @@ function formatDateForInput(date: Date, inputType: string): string {
       return date.toISOString();
   }
 }
-
-export type GenDeps_LegacyCraftFieldDirective = GetDeps<{
-  deps: Record<never, never>;
-  provided: Record<never, never>;
-  missingProvider: {
-    Renderer2: Renderer2;
-    Injector: Injector;
-    CRAFT_FIELD_VALUE_CONTROL: typeof CRAFT_FIELD_VALUE_CONTROL;
-    CRAFT_FIELD_CHECKBOX_CONTROL: typeof CRAFT_FIELD_CHECKBOX_CONTROL;
-  };
-}>;
-
-/** @deprecated DI metadata belongs to `LegacyCraftFieldDirective` only. */
-export type GenDeps_CraftFieldDirective = GenDeps_LegacyCraftFieldDirective;

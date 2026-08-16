@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
-import { LegacyCraftFieldDirective as CraftFieldDirective } from './craft-field.directive';
+import { LegacyCraftFieldDirective as CraftFieldDirective } from '@craft-ng/angular';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertSelectFormTree } from './insert-select-form-tree';

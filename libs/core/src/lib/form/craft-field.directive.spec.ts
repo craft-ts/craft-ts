@@ -9,8 +9,8 @@ import {
 import {
   CRAFT_FIELD_VALUE_CONTROL,
   CraftFieldDirective as functionalCraftFieldDirective,
-  LegacyCraftFieldDirective as CraftFieldDirective,
 } from './craft-field.directive';
+import { LegacyCraftFieldDirective as CraftFieldDirective } from '@craft-ng/angular';
 
 @Component({
   standalone: true,

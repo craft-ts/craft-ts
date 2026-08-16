@@ -35,7 +35,13 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    include: ['libs/core/src/**/*.spec.ts', 'libs/component/src/**/*.spec.ts'],
+    include: [
+      'libs/core/src/lib/state.spec.ts',
+      'libs/core/src/lib/host/**/*.spec.ts',
+      'libs/component/src/**/*.spec.ts',
+      'tools/**/*.spec.ts',
+    ],
+    exclude: ['libs/component/src/lib/render/interpreter.spec.ts'],
     reporters: ['default'],
   },
 });

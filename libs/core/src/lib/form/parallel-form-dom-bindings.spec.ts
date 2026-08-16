@@ -4,7 +4,7 @@ import { type GetDeps, type GetPublicComponentProperties } from '../../index';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { mutation } from '../mutation';
 import { state } from '../state';
-import { LegacyCraftFieldDirective as CraftFieldDirective } from './craft-field.directive';
+import { LegacyCraftFieldDirective as CraftFieldDirective } from '@craft-ng/angular';
 import { insertForm, ValidatedFormValue } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertFormSubmit } from './insert-form-submit';

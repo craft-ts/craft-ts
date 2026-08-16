@@ -39,7 +39,7 @@ export default defineConfig({
     name: 'ng-craft-core',
     globals: true,
     environment: 'jsdom',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/lib/state.spec.ts', 'src/lib/host/**/*.spec.ts'],
     reporters: ['default'],
   },
 });

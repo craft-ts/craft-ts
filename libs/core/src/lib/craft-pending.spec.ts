@@ -13,13 +13,13 @@ import {
   CRAFT_PENDING_COMPONENT,
   CRAFT_PENDING_MIN_MS,
   CRAFT_STAY_MS,
-  DefaultCraftPendingComponent,
   provideCraftLoading,
   withErrorComponent,
   withLoadingText,
   withPendingComponent,
   withTransitionTimings,
 } from './craft-pending';
+import { DefaultCraftPendingComponent } from '@craft-ng/angular';
 
 beforeAll(() => {
   try {

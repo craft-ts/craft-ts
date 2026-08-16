@@ -20,7 +20,6 @@ import {
   CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
   CRAFT_ROUTE_LOAD_ERROR_PATH,
   CRAFT_ROUTE_LOAD_RETRY,
-  CraftRouteLoadErrorHostComponent,
   createRouteLoadRetry,
   isCraftRouteLoadError,
   loadRouteWithRetry,
@@ -28,6 +27,7 @@ import {
   type CraftRouteLoadRetry,
   withRouteLoadError,
 } from './craft-route-load-error';
+import { CraftRouteLoadErrorHostComponent } from '@craft-ng/angular';
 import {
   CRAFT_COMPILED_ROUTES,
   CRAFT_ROUTER,
@@ -213,8 +213,12 @@ describe('route load error recovery', () => {
       'Failed to fetch dynamically imported module: http://localhost:3000/chunk-cached.js',
     );
 
-    await expect(retryFailedImport(injector, error)).resolves.toBe(loadedModule);
-    await expect(retryFailedImport(injector, error)).resolves.toBe(loadedModule);
+    await expect(retryFailedImport(injector, error)).resolves.toBe(
+      loadedModule,
+    );
+    await expect(retryFailedImport(injector, error)).resolves.toBe(
+      loadedModule,
+    );
     expect(dynamicImport).toHaveBeenCalledTimes(1);
   });
 
@@ -327,9 +331,9 @@ describe('route load error recovery', () => {
       ],
     });
     const injector = TestBed.inject(EnvironmentInjector);
-    const loader = vi.fn<() => Promise<never>>().mockRejectedValue(
-      new Error('still broken'),
-    );
+    const loader = vi
+      .fn<() => Promise<never>>()
+      .mockRejectedValue(new Error('still broken'));
 
     const promise = runInInjectionContext(injector, () =>
       loadRouteWithRetry(loader, 'children', 'admin'),
@@ -344,7 +348,9 @@ describe('route load error recovery', () => {
         attempt: 2,
       },
     });
-    await promise.catch((error) => expect(isCraftRouteLoadError(error)).toBe(true));
+    await promise.catch((error) =>
+      expect(isCraftRouteLoadError(error)).toBe(true),
+    );
   });
 
   it('resolves local component and retry overrides from a route injector', () => {

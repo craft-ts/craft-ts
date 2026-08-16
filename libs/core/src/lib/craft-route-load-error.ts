@@ -1,7 +1,4 @@
-import { NgComponentOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  Component,
   computed,
   EnvironmentInjector,
   inject,
@@ -12,11 +9,6 @@ import {
   type ValueProvider,
   type WritableSignal,
 } from '@angular/core';
-import type {
-  ExtractDeps,
-  GetDeps,
-  GetPublicComponentProperties,
-} from './branded-component/branded-component';
 import { craftException, isCraftException } from './craft-exception';
 import {
   CRAFT_DYNAMIC_IMPORT,
@@ -33,7 +25,6 @@ import {
 } from './craft-load-retry';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
-import { normalizeCraftRouteTarget } from './craft-route-target';
 import { CRAFT_ROUTER } from './craft-router-tokens';
 import {
   toCraftService,
@@ -109,12 +100,30 @@ interface ActiveRouteLoadError {
   readonly injector: EnvironmentInjector;
 }
 
-const CRAFT_ACTIVE_ROUTE_LOAD_ERROR = new InjectionToken<
+export const CRAFT_ACTIVE_ROUTE_LOAD_ERROR = new InjectionToken<
   WritableSignal<ActiveRouteLoadError | null>
 >('CRAFT_ACTIVE_ROUTE_LOAD_ERROR', {
   providedIn: 'root',
   factory: () => signal<ActiveRouteLoadError | null>(null),
 });
+
+let craftRouteLoadErrorHostComponent: Type<unknown> | undefined;
+
+/** Registers the Angular recovery host from `@craft-ng/angular`. */
+export function ɵregisterCraftRouteLoadErrorHostComponent(
+  component: Type<unknown>,
+): void {
+  craftRouteLoadErrorHostComponent = component;
+}
+
+function getCraftRouteLoadErrorHostComponent(): Type<unknown> {
+  if (!craftRouteLoadErrorHostComponent) {
+    throw new Error(
+      'CraftRouteLoadErrorHostComponent is provided by @craft-ng/angular.',
+    );
+  }
+  return craftRouteLoadErrorHostComponent;
+}
 
 export const CRAFT_ROUTE_LOAD_ERROR = new InjectionToken<
   Signal<CraftRouteLoadError | null>
@@ -139,8 +148,7 @@ export const CRAFT_ROUTE_LOAD_RECOVERY =
       const active = inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
       return {
         retry: async () => {
-          const targetUrl =
-            active()?.exception.payload.targetUrl ?? router.url;
+          const targetUrl = active()?.exception.payload.targetUrl ?? router.url;
           return targetUrl ? router.navigateByUrl(targetUrl) : false;
         },
         reload: () => globalThis.location?.reload(),
@@ -235,7 +243,7 @@ export function withRouteLoadError(
   Object.assign(feature, {
     recoveryRoute: {
       path: CRAFT_ROUTE_LOAD_ERROR_PATH,
-      component: CraftRouteLoadErrorHostComponent,
+      component: getCraftRouteLoadErrorHostComponent(),
     },
   });
 
@@ -321,62 +329,3 @@ export function loadRouteWithRetry<T>(
     }
   })();
 }
-
-@Component({
-  standalone: true,
-  imports: [NgComponentOutlet],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <ng-container
-      [ngComponentOutlet]="component()"
-      [ngComponentOutletInjector]="componentInjector()"
-    />
-  `,
-})
-export class CraftRouteLoadErrorHostComponent {
-  private readonly active = inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
-  readonly componentInjector = signal<EnvironmentInjector | undefined>(
-    this.active()?.injector,
-  );
-  readonly component = signal<Type<unknown> | null>(
-    resolveEagerComponent(
-      this.active()?.injector.get(CRAFT_ROUTE_LOAD_ERROR_COMPONENT) ?? null,
-    ),
-  );
-}
-
-function resolveEagerComponent(
-  descriptor: CraftExceptionComponentDescriptor | null,
-): Type<unknown> | null {
-  if (!descriptor) return null;
-  if (descriptor.component) {
-    const target = normalizeCraftRouteTarget(descriptor.component);
-    if (target.kind === 'angular') return target.component;
-    throw new Error(
-      'The Angular route-load recovery host cannot render a Craft target directly. Configure the @craft-ng/component compatibility host for chunk recovery.',
-    );
-  }
-  throw new Error(
-    'withRouteLoadError requires an eager error component because lazy loading is unavailable after a route chunk failure.',
-  );
-}
-
-export type GenDeps_CraftRouteLoadErrorHostComponent = GetDeps<{
-  deps: {
-    NgComponentOutlet: NgComponentOutlet;
-  };
-  propertiesDeps: {
-    active: {
-      CRAFT_ACTIVE_ROUTE_LOAD_ERROR: typeof CRAFT_ACTIVE_ROUTE_LOAD_ERROR;
-    };
-    componentInjector: ExtractDeps<
-      CraftRouteLoadErrorHostComponent['componentInjector']
-    >;
-    component: ExtractDeps<CraftRouteLoadErrorHostComponent['component']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<CraftRouteLoadErrorHostComponent>;
-  missingProvider: {
-    CRAFT_ACTIVE_ROUTE_LOAD_ERROR: typeof CRAFT_ACTIVE_ROUTE_LOAD_ERROR;
-  };
-}>;
