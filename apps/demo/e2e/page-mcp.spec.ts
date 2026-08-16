@@ -14,7 +14,7 @@ type PageControl = {
   id: string;
 };
 
-test('fills the login form through page act without reloading', async ({
+test('goes to the login form through page act then fills it without reloading', async ({
   page,
 }) => {
   const clientId = 'e2e-page-client';
@@ -91,17 +91,15 @@ test('fills the login form through page act without reloading', async ({
   };
 
   try {
-    await page.goto('/login-form');
-    const loadsAfterGoto = loads;
+    await page.goto('/');
+    const loadsAfterHome = loads;
     await expect
-      .poll(() => controls.some((control) => control.id === 'email'))
-      .toBeTruthy();
-    await expect
-      .poll(() => controls.some((control) => control.id === 'submit'))
+      .poll(() => controls.some((control) => control.id === 'navToggle'))
       .toBeTruthy();
 
     const result = (await request('page', {
       act: [
+        { goto: '/login-form' },
         { id: 'email', fill: 'ada@example.com' },
         { id: 'password', fill: 'secret1' },
         { id: 'submit' },
@@ -109,7 +107,7 @@ test('fills the login form through page act without reloading', async ({
     })) as { error?: string };
 
     expect(result.error).toBeUndefined();
-    expect(loads).toBe(loadsAfterGoto);
+    expect(loads).toBe(loadsAfterHome);
     await expect(page).toHaveURL(/\/login-form$/);
     await expect(page.getByText('Login form submitted.')).toBeVisible();
   } finally {
