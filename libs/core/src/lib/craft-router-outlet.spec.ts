@@ -25,14 +25,19 @@ import type { RouteChainOutcome } from './craft-guard-runtime';
 import { CRAFT_GLOBAL_ERROR } from './craft-route-exceptions';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
 import { CRAFT_ROUTE_TARGET, craftRouteTarget } from './craft-route-target';
+import { craftService } from './craft-service';
 import {
   CRAFT_ROUTE_CHAIN_RUNNER,
+  CRAFT_SYNC_TEMPLATE_FLUSH,
   collectMatchProps,
   createCraftRouterOutletController,
   type CraftRouterOutletController,
   resolveComponentInput,
 } from './craft-router-outlet';
-import type { CraftCompiledRoute, CraftMatch } from './host/craft-router-runtime';
+import type {
+  CraftCompiledRoute,
+  CraftMatch,
+} from './host/craft-router-runtime';
 import {
   CRAFT_HISTORY,
   CRAFT_ROUTER,
@@ -94,12 +99,14 @@ function makeMeta(overrides: Partial<CraftRouteMeta> = {}): CraftRouteMeta {
 function makeMatch(
   meta: CraftRouteMeta | undefined,
   component: unknown = TargetCmp,
+  extras: Partial<CraftCompiledRoute> = {},
 ): CraftMatch {
   const data = meta ? { [CRAFT_ROUTE_META]: meta } : {};
   const route: CraftCompiledRoute = {
     path: 'a',
     component,
     data,
+    ...extras,
   };
   return {
     pathname: '/a',
@@ -131,6 +138,12 @@ const flush = async () => {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+};
+
+const flushChain = async () => {
+  for (let i = 0; i < 12; i += 1) {
+    await Promise.resolve();
+  }
 };
 
 describe('CraftRouterOutlet', () => {
@@ -196,6 +209,53 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
     TestBed.inject(CRAFT_HISTORY).push('/a');
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('activates the lazy child after resolving loadChildren for /slow-page', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'slow-page',
+            loadChildren: async () => [{ path: '', component: TargetCmp }],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/slow-page');
+    await flush();
+
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('activates a lazy child with remaining segments after loadChildren', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'view-transitions',
+            loadChildren: async () => [
+              { path: '', component: ErrCmp },
+              { path: ':photoId', component: TargetCmp },
+            ],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/view-transitions/42');
+    await flush();
+
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(TargetCmp);
   });
@@ -486,6 +546,99 @@ describe('CraftRouterOutlet', () => {
   });
 });
 
+describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function setup(): {
+    outlet: CraftRouterOutletController;
+    router: CraftRouterNavigationApi;
+  } {
+    const router = stubRouter();
+    TestBed.configureTestingModule({
+      providers: [{ provide: CRAFT_ROUTER, useValue: router }],
+    });
+    return {
+      outlet: TestBed.runInInjectionContext(() =>
+        createCraftRouterOutletController(),
+      ),
+      router,
+    };
+  }
+
+  it('writes guard data into the route sink via activateMatch', async () => {
+    const { outlet } = setup();
+    const meta = makeMeta({
+      stayMs: 0,
+      blankMs: 0,
+      resolve: undefined,
+      guard: function* () {
+        return { id: 42, name: 'Alice' };
+      },
+    });
+
+    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    await flushChain();
+
+    expect(meta.guardDataSink?.()).toEqual({ id: 42, name: 'Alice' });
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('blocks activation when the guard returns false', async () => {
+    const { outlet, router } = setup();
+    const meta = makeMeta({
+      stayMs: 0,
+      blankMs: 0,
+      resolve: undefined,
+      guard: function* () {
+        return false;
+      },
+    });
+
+    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    await flushChain();
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith(router.url);
+    expect(outlet.targetComponent()).toBeNull();
+    expect(outlet.state()).not.toBe('loaded');
+  });
+
+  it('writes generator guard data after yielding a craft service', async () => {
+    type User = { id: number; name: string };
+    const { OutletAuth, provideOutletAuth } = craftService(
+      { name: 'OutletAuth', scope: 'toProvide' },
+      () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
+    );
+    const { outlet } = setup();
+    const meta = makeMeta({
+      stayMs: 0,
+      blankMs: 0,
+      resolve: undefined,
+      guard: function* () {
+        const auth = yield* OutletAuth();
+        return auth.currentUser;
+      },
+    });
+
+    outlet.activateMatch(
+      makeMatch(meta, TargetCmp, { providers: [provideOutletAuth()] }),
+      TestBed.inject(EnvironmentInjector),
+    );
+    await flushChain();
+
+    expect(meta.guardDataSink?.()).toEqual({ id: 7, name: 'Bob' });
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+});
+
 describe('CraftRouterOutlet (view transitions)', () => {
   let deferred: {
     promise: Promise<RouteChainOutcome>;
@@ -592,6 +745,42 @@ describe('CraftRouterOutlet (view transitions)', () => {
 
     vi.advanceTimersByTime(300);
     expect(outlet.state()).toBe('pending');
+  });
+
+  it('has already swapped the displayed DOM when the view-transition callback returns', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    let outlet!: CraftRouterOutletController;
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: CRAFT_ROUTER, useValue: stubRouter() },
+        { provide: CRAFT_VIEW_TRANSITIONS_ENABLED, useValue: true },
+        {
+          provide: CRAFT_SYNC_TEMPLATE_FLUSH,
+          useValue: () => {
+            host.textContent = outlet.displayedComponent() ? 'target' : '';
+          },
+        },
+        {
+          provide: CRAFT_START_VIEW_TRANSITION,
+          useValue: (cb: () => void) => {
+            cb();
+            expect(host.textContent).toBe('target');
+          },
+        },
+      ],
+    });
+
+    outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    outlet.activateMatch(
+      makeMatch(undefined),
+      TestBed.inject(EnvironmentInjector),
+    );
+    expect(host.textContent).toBe('target');
+    host.remove();
   });
 });
 

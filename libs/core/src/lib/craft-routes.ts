@@ -1,18 +1,13 @@
 import {
   inject,
   Injector,
-  isSignal,
   runInInjectionContext,
   signal,
   type Signal,
   type WritableSignal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import {
-  ActivatedRoute,
-  NavigationEnd,
   RedirectCommand,
-  Router,
   UrlTree,
   type ActivatedRouteSnapshot,
   type Data,
@@ -23,14 +18,7 @@ import {
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
-import {
-  Observable,
-  filter,
-  firstValueFrom,
-  isObservable,
-  map,
-  take,
-} from 'rxjs';
+import { firstValueFrom, isObservable, type Observable } from 'rxjs';
 import type {
   CRAFT_COMPONENT_DEPS,
   ComponentExceptionsCarrier,
@@ -38,16 +26,7 @@ import type {
   ExtractDeps,
 } from './branded-component/branded-component';
 import { type AnyCraftException } from './craft-exception';
-import {
-  isCraftGenShortCircuit,
-  type ExtractCraftGenExceptions,
-} from './craft-gen';
-import {
-  executeGeneratorCompatibleFactory,
-  isGenerator,
-  runCraftGenerator,
-} from './craft-generator-runtime';
-import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
+import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
@@ -75,11 +54,6 @@ import {
   type MergeObjectUnion,
   type Simplify,
 } from './craft-service.shared';
-import {
-  CRAFT_TEMPORAL_RUNTIME,
-  RealCraftTemporalRuntime,
-  type TemporalTaskHandle,
-} from './temporal-runtime';
 import { provideHostName } from './host-tag';
 import {
   loadRouteWithRetry,
@@ -2322,63 +2296,6 @@ function toExceptionInjectHelperName(
   return `inject${toRouteCollectionExceptionServiceName(routeCollectionName, routePath, code)}`;
 }
 
-function findActivatedRouteByPath(
-  route: ActivatedRoute,
-  routePath: string,
-): ActivatedRoute | null {
-  if (route.routeConfig?.path === routePath) {
-    return route;
-  }
-
-  for (const child of route.children ?? []) {
-    const match = findActivatedRouteByPath(child, routePath);
-
-    if (match) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
-function getRootActivatedRoute(route: ActivatedRoute): ActivatedRoute {
-  let currentRoute = route;
-
-  while (currentRoute.parent) {
-    currentRoute = currentRoute.parent;
-  }
-
-  return currentRoute;
-}
-
-function resolveActivatedRouteByPath(routePath: string): ActivatedRoute {
-  const activatedRoute = inject(ActivatedRoute);
-  const rootActivatedRoute = getRootActivatedRoute(activatedRoute);
-
-  return (
-    findActivatedRouteByPath(rootActivatedRoute, routePath) ?? activatedRoute
-  );
-}
-
-function findSnapshotRouteByPath(
-  snapshot: ActivatedRouteSnapshot,
-  routePath: string,
-): ActivatedRouteSnapshot | null {
-  if (snapshot.routeConfig?.path === routePath) {
-    return snapshot;
-  }
-
-  for (const child of snapshot.children) {
-    const match = findSnapshotRouteByPath(child, routePath);
-
-    if (match) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
 function injectRouteParamsSignal(
   routePath: string,
 ): Signal<Record<string, string>> {
@@ -2423,7 +2340,9 @@ function injectRouteDataSignal<RouteData extends Data>(
     ?.data ?? {}) as RouteData;
   return craftComputed(() => {
     const match = matchSignal();
-    const route = match?.routes.find((candidate) => candidate.path === routePath);
+    const route = match?.routes.find(
+      (candidate) => candidate.path === routePath,
+    );
     if (route) {
       last = (route.data ?? {}) as RouteData;
     }
@@ -2599,165 +2518,6 @@ function createLoadComponent(
       'component',
       routePath,
     );
-}
-
-const ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE =
-  'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an craftUntilSettled/craftUntilDefined await request.';
-const ANGULAR_GUARD_APP_START_ERROR_MESSAGE =
-  'craft route guards cannot register application start hooks.';
-
-function isAngularGuardResult(value: unknown): value is GuardResult {
-  return (
-    typeof value === 'boolean' ||
-    value instanceof UrlTree ||
-    value instanceof RedirectCommand
-  );
-}
-
-function toAngularGuardResult(
-  value: unknown,
-  successDataSink?: WritableSignal<unknown>,
-): GuardResult {
-  if (isAngularGuardResult(value)) {
-    return value;
-  }
-
-  successDataSink?.set(value);
-  return true;
-}
-
-function normalizeAngularGuardResult(
-  routePath: string,
-  guardName: 'canActivate' | 'canMatch',
-  value: unknown,
-  successDataSink?: WritableSignal<unknown>,
-): MaybeAsync<GuardResult> | Observable<GuardResult> {
-  if (value === undefined) {
-    throw new Error(
-      `Route "${routePath}" ${guardName} guard must not synchronously return undefined.`,
-    );
-  }
-
-  if (isSignal(value)) {
-    return new Observable<GuardResult>((subscriber) => {
-      let active = true;
-      let timer: TemporalTaskHandle | null = null;
-      const temporalRuntime =
-        tryInjectTemporalRuntime() ?? new RealCraftTemporalRuntime();
-
-      const poll = () => {
-        if (!active) {
-          return;
-        }
-
-        const result = value();
-
-        if (result === undefined) {
-          timer = temporalRuntime.schedule(poll, 0, {
-            kind: 'route-guard-poll',
-            owner: `route:${routePath}`,
-          });
-          return;
-        }
-
-        subscriber.next(toAngularGuardResult(result, successDataSink));
-        subscriber.complete();
-      };
-
-      poll();
-
-      return () => {
-        active = false;
-        timer?.cancel();
-        timer = null;
-      };
-    });
-  }
-
-  if (isObservable(value)) {
-    return value.pipe(
-      filter((result) => result !== undefined),
-      take(1),
-      map((result) => toAngularGuardResult(result, successDataSink)),
-    );
-  }
-
-  if (value instanceof Promise) {
-    return value.then((result) =>
-      toAngularGuardResult(result, successDataSink),
-    );
-  }
-
-  return toAngularGuardResult(value, successDataSink);
-}
-
-function tryInjectTemporalRuntime() {
-  try {
-    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function createAngularGuard<
-  Args extends unknown[],
-  Result extends CraftRouteCanActivateResult | GuardResult,
->(
-  routePath: string,
-  guardName: 'canActivate' | 'canMatch',
-  guard: (...args: Args) => Result | Generator<unknown, Result, unknown>,
-  successDataSink?: WritableSignal<unknown>,
-): (...args: Args) => MaybeAsync<GuardResult> | Observable<GuardResult> {
-  return (...args) => {
-    const injector = inject(Injector);
-
-    try {
-      const result = executeGeneratorCompatibleFactory({
-        factory: guard,
-        thisArg: undefined,
-        getInjector: () => injector,
-        args,
-        invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage:
-          ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-      });
-
-      return normalizeAngularGuardResult(
-        routePath,
-        guardName,
-        result,
-        successDataSink,
-      );
-    } catch (error) {
-      // A craft exception is handled by the non-blocking Craft outlet after
-      // Angular commits the URL. Let that chain reach its typed route handler
-      // instead of exposing the internal short-circuit as a navigation error.
-      if (isCraftGenShortCircuit(error)) {
-        return true;
-      }
-
-      if (
-        !(error instanceof Error) ||
-        error.message !== ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE
-      ) {
-        throw error;
-      }
-
-      return executeGeneratorCompatibleFactoryAsync({
-        factory: guard,
-        thisArg: undefined,
-        getInjector: () => injector,
-        args,
-        invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
-        appStartNotSupportedErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-      }).then((settled) =>
-        settled.kind === 'shortCircuit'
-          ? false
-          : toAngularGuardResult(settled.value, successDataSink),
-      );
-    }
-  };
 }
 
 // Authors a single route with fully-typed, route-scoped provider helpers.

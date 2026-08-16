@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createBrowserHistory,
   matchCraftRoutes,
+  matchCraftRoutesAsync,
   type CraftCompiledRoute,
 } from './craft-router-runtime';
 
@@ -75,10 +76,7 @@ describe('matchCraftRoutes', () => {
   });
 
   it('matches a ** wildcard against remaining segments', () => {
-    const routes: CraftCompiledRoute[] = [
-      { path: 'known' },
-      { path: '**' },
-    ];
+    const routes: CraftCompiledRoute[] = [{ path: 'known' }, { path: '**' }];
     const match = matchCraftRoutes(routes, locationOf('/missing/page'));
 
     expect(match?.route.path).toBe('**');
@@ -104,6 +102,24 @@ describe('matchCraftRoutes', () => {
       'users/:userId',
       'details',
     ]);
+  });
+
+  it('loads loadChildren then rematches the empty-path child for /slow-page', async () => {
+    const child: CraftCompiledRoute = {
+      path: '',
+      component: { name: 'SlowPage' },
+    };
+    const routes: CraftCompiledRoute[] = [
+      {
+        path: 'slow-page',
+        loadChildren: async () => [child],
+      },
+    ];
+
+    const match = await matchCraftRoutesAsync(routes, locationOf('/slow-page'));
+
+    expect(match?.route).toBe(child);
+    expect(routes[0].children).toEqual([child]);
   });
 });
 

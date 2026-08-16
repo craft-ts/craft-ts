@@ -114,6 +114,35 @@ export const CRAFT_ROUTE_CHAIN_RUNNER = new InjectionToken<
   factory: () => runCraftRouteChainAsync,
 });
 
+const syncTemplateFlushers = new Set<() => void>();
+
+/** Registers a synchronous template patch invoked from view-transition commits. */
+export function registerCraftSyncTemplateFlush(fn: () => void): () => void {
+  syncTemplateFlushers.add(fn);
+  return () => {
+    syncTemplateFlushers.delete(fn);
+  };
+}
+
+function runRegisteredSyncTemplateFlush(): void {
+  for (const flush of syncTemplateFlushers) {
+    flush();
+  }
+}
+
+/**
+ * Runs inside `startViewTransition`'s callback after Craft signals commit, so
+ * the displayed DOM is patched before the callback returns. Templates driven by
+ * `craftEffect` otherwise bump an Angular signal asynchronously.
+ */
+export const CRAFT_SYNC_TEMPLATE_FLUSH = new InjectionToken<() => void>(
+  'CRAFT_SYNC_TEMPLATE_FLUSH',
+  {
+    providedIn: 'root',
+    factory: () => runRegisteredSyncTemplateFlush,
+  },
+);
+
 /**
  * A non-blocking replacement for `<router-outlet>`. The URL commits immediately
  * (history.push); this outlet reads the route's {@link CraftRouteMeta} and
@@ -142,6 +171,7 @@ export class CraftRouterOutletController {
     CRAFT_VIEW_TRANSITION_SKIP_BLANK,
   );
   private readonly startViewTransition = inject(CRAFT_START_VIEW_TRANSITION);
+  private readonly syncTemplateFlush = inject(CRAFT_SYNC_TEMPLATE_FLUSH);
   private readonly viewTransitionSink = inject(
     CRAFT_VIEW_TRANSITION,
   ) as unknown as {
@@ -276,7 +306,10 @@ export class CraftRouterOutletController {
     if (this._match !== match) {
       return;
     }
-    if (typeof match.route.loadComponent === 'function' && !match.route.component) {
+    if (
+      typeof match.route.loadComponent === 'function' &&
+      !match.route.component
+    ) {
       try {
         const loaded = await Promise.resolve(match.route.loadComponent());
         if (this._match !== match) {
@@ -376,7 +409,7 @@ export class CraftRouterOutletController {
             : undefined,
       },
       injector,
-            this.router as import('./craft-router').CraftRouter,
+      this.router as import('./craft-router').CraftRouter,
       meta.handleExceptions,
       phase,
     ).then(
@@ -460,6 +493,7 @@ export class CraftRouterOutletController {
       this.displayedProps.set(this.routeProps());
       this.displayedComponent.set(component);
       this.displayedTarget.set(target);
+      this.syncTemplateFlush();
     };
 
     if (!this.viewTransitionsEnabled) {
@@ -603,7 +637,7 @@ export class CraftRouterOutletController {
         })(),
       },
       this._activeRouteInjector ?? this.rootInjector,
-            this.router as import('./craft-router').CraftRouter,
+      this.router as import('./craft-router').CraftRouter,
       meta.handleExceptions,
       'active',
     );
@@ -619,8 +653,9 @@ export class CraftRouterOutletController {
   }
 
   private publishViewTransitionPayload(): void {
-    const fromNavigation = this.router.getCurrentNavigation()?.extras
-      ?.state as Record<string, unknown> | undefined;
+    const fromNavigation = this.router.getCurrentNavigation()?.extras?.state as
+      | Record<string, unknown>
+      | undefined;
     const historyState =
       typeof history !== 'undefined'
         ? (history.state as Record<string, unknown> | null | undefined)
@@ -756,9 +791,7 @@ function silentRouter(): CraftRouterNavigationApi {
   };
 }
 
-function constantMatchSignal(
-  match: CraftMatch,
-): () => CraftMatch {
+function constantMatchSignal(match: CraftMatch): () => CraftMatch {
   const value = craftSignal(match);
   return value;
 }

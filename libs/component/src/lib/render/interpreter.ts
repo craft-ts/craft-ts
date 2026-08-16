@@ -11,6 +11,7 @@ import {
   craftEffect,
   craftLazy,
   createBrowserDomAdapter,
+  registerCraftSyncTemplateFlush,
   executeYieldable,
   HOST_TAG_LIST,
   executeTemplateTrace,
@@ -3417,6 +3418,7 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly effectRef: EffectRef;
   private composedTemplateEffect: EffectRef | undefined;
   private componentExceptionEffect: EffectRef | undefined;
+  private syncTemplateFlushRelease: (() => void) | undefined;
   private componentFallbackVisible = false;
   private componentFallbackException: AnyCraftException | undefined;
   private readonly styleReleases: (() => void)[];
@@ -3802,6 +3804,8 @@ class ComponentRenderedNode implements RenderedNode {
       this.registrationReleases = [];
       this.composedTemplateEffect?.destroy();
       this.composedTemplateEffect = undefined;
+      this.syncTemplateFlushRelease?.();
+      this.syncTemplateFlushRelease = undefined;
       this.componentExceptionEffect?.destroy();
       this.componentExceptionEffect = undefined;
       this.componentFallbackVisible = false;
@@ -3956,6 +3960,17 @@ class ComponentRenderedNode implements RenderedNode {
         }),
       ),
     );
+    this.syncTemplateFlushRelease?.();
+    this.syncTemplateFlushRelease = registerCraftSyncTemplateFlush(() => {
+      this.renderComposedTemplate(
+        definition,
+        factoryContext,
+        renderInjector,
+        renderContext,
+        context,
+        hostTarget,
+      );
+    });
   }
 
   private installComponentExceptionEffect(

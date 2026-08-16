@@ -17,7 +17,7 @@ export type CraftCompiledRoute = {
   path: string;
   pathMatch?: 'full' | 'prefix';
   redirectTo?: string | ((...args: unknown[]) => unknown);
-  children?: readonly CraftCompiledRoute[];
+  children?: CraftCompiledRoute[];
   loadChildren?: () => Promise<readonly CraftCompiledRoute[] | unknown>;
   component?: unknown;
   loadComponent?: () => Promise<unknown> | unknown;
@@ -44,7 +44,8 @@ export function parseUrl(url: string): CraftLocation {
   const withoutHash = hashIndex === -1 ? url : url.slice(0, hashIndex);
   const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
   const searchIndex = withoutHash.indexOf('?');
-  const pathname = searchIndex === -1 ? withoutHash : withoutHash.slice(0, searchIndex);
+  const pathname =
+    searchIndex === -1 ? withoutHash : withoutHash.slice(0, searchIndex);
   const search = searchIndex === -1 ? '' : withoutHash.slice(searchIndex);
   return {
     pathname: pathname || '/',
@@ -252,7 +253,8 @@ function matchRouteList(
 ): CraftMatch | null {
   for (const route of routes) {
     const pathMatch =
-      route.pathMatch ?? (route.path === '' && !route.children ? 'full' : 'prefix');
+      route.pathMatch ??
+      (route.path === '' && !route.children ? 'full' : 'prefix');
     const segmentMatch = matchSegments(route.path, remaining, pathMatch);
     if (!segmentMatch) {
       continue;
@@ -314,6 +316,116 @@ export function matchCraftRoutes(
   );
 }
 
+function hasUnresolvedLoadChildren(route: CraftCompiledRoute): boolean {
+  return (
+    typeof route.loadChildren === 'function' &&
+    !(route.children && route.children.length > 0)
+  );
+}
+
+function findUnresolvedLoadChildrenRoute(
+  routes: readonly CraftCompiledRoute[],
+  remaining: readonly string[],
+): CraftCompiledRoute | null {
+  for (const route of routes) {
+    const pathMatch =
+      route.pathMatch ??
+      (route.path === '' && !route.children && !route.loadChildren
+        ? 'full'
+        : 'prefix');
+    const segmentMatch = matchSegments(route.path, remaining, pathMatch);
+    if (!segmentMatch) {
+      continue;
+    }
+
+    const nextRemaining = remaining.slice(segmentMatch.consumed);
+
+    if (route.children && route.children.length > 0) {
+      const nested = findUnresolvedLoadChildrenRoute(
+        route.children,
+        nextRemaining,
+      );
+      if (nested) {
+        return nested;
+      }
+    }
+
+    if (
+      hasUnresolvedLoadChildren(route) &&
+      (nextRemaining.length > 0 || route.component === undefined)
+    ) {
+      return route;
+    }
+  }
+
+  return null;
+}
+
+function normalizeLoadedChildren(loaded: unknown): CraftCompiledRoute[] {
+  if (Array.isArray(loaded)) {
+    return loaded as CraftCompiledRoute[];
+  }
+  if (
+    loaded &&
+    typeof loaded === 'object' &&
+    'toRoutes' in loaded &&
+    typeof (loaded as { toRoutes: unknown }).toRoutes === 'function'
+  ) {
+    return normalizeLoadedChildren(
+      (loaded as { toRoutes: () => unknown }).toRoutes(),
+    );
+  }
+  if (loaded && typeof loaded === 'object' && 'default' in loaded) {
+    return normalizeLoadedChildren((loaded as { default: unknown }).default);
+  }
+  throw new Error(
+    'loadChildren must return a craftRoutes collection or a Craft compiled route array.',
+  );
+}
+
+const loadChildrenInflight = new WeakMap<CraftCompiledRoute, Promise<void>>();
+
+async function ensureChildrenLoaded(route: CraftCompiledRoute): Promise<void> {
+  if (!hasUnresolvedLoadChildren(route)) {
+    return;
+  }
+  const existing = loadChildrenInflight.get(route);
+  if (existing) {
+    await existing;
+    return;
+  }
+  const pending = Promise.resolve(route.loadChildren!()).then((loaded) => {
+    route.children = normalizeLoadedChildren(loaded);
+    route.loadChildren = undefined;
+    loadChildrenInflight.delete(route);
+  });
+  loadChildrenInflight.set(route, pending);
+  await pending;
+}
+
+export async function matchCraftRoutesAsync(
+  routes: unknown,
+  location: CraftLocation,
+): Promise<CraftMatch | null> {
+  if (!Array.isArray(routes)) {
+    return null;
+  }
+  const compiled = routes as CraftCompiledRoute[];
+  const pathname = location.pathname || '/';
+  const normalized = { ...location, pathname };
+
+  for (;;) {
+    const pending = findUnresolvedLoadChildrenRoute(
+      compiled,
+      splitPath(pathname),
+    );
+    if (!pending) {
+      return matchCraftRoutes(compiled, normalized);
+    }
+    await ensureChildrenLoaded(pending);
+  }
+}
+
 export function buildPathFromTemplate(
   template: string,
   params?: Record<string, string>,
@@ -321,20 +433,25 @@ export function buildPathFromTemplate(
   if (template === '' || template === '/') {
     return '/';
   }
-  const segments = template.split('/').filter(Boolean).map((segment) => {
-    if (!segment.startsWith(':')) {
-      return segment;
-    }
-    const name = paramName(segment);
-    const value = params?.[name];
-    if (value === undefined) {
-      if (isOptionalParam(segment)) {
-        return null;
+  const segments = template
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => {
+      if (!segment.startsWith(':')) {
+        return segment;
       }
-      throw new Error(`Missing route param "${name}" for route "${template}".`);
-    }
-    return value;
-  });
+      const name = paramName(segment);
+      const value = params?.[name];
+      if (value === undefined) {
+        if (isOptionalParam(segment)) {
+          return null;
+        }
+        throw new Error(
+          `Missing route param "${name}" for route "${template}".`,
+        );
+      }
+      return value;
+    });
   return `/${segments.filter((segment): segment is string => segment !== null).join('/')}`;
 }
 
@@ -351,6 +468,10 @@ export function createUrlFromParts(
       ),
     ),
   );
-  const hash = fragment ? (fragment.startsWith('#') ? fragment : `#${fragment}`) : '';
+  const hash = fragment
+    ? fragment.startsWith('#')
+      ? fragment
+      : `#${fragment}`
+    : '';
   return `${pathname}${search}${hash}`;
 }

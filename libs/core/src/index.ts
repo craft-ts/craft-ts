@@ -85,6 +85,7 @@ export {
   createBrowserHistory,
   createMemoryHistory,
   matchCraftRoutes,
+  matchCraftRoutesAsync,
   parseSearchParams,
   parseUrl,
   serializeLocation,

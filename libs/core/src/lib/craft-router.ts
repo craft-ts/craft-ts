@@ -27,6 +27,7 @@ import {
   createBrowserHistory,
   createUrlFromParts,
   matchCraftRoutes,
+  matchCraftRoutesAsync,
   parseSearchParams,
   parseUrl,
   serializeLocation,
@@ -35,8 +36,8 @@ import {
   type CraftLocation,
 } from './host/craft-router-runtime';
 import {
-  craftComputed,
   craftSignal,
+  craftWatch,
   type CraftWritableSignal,
 } from './host/craft-signal';
 import {
@@ -55,6 +56,7 @@ export {
   createBrowserHistory,
   createMemoryHistory,
   matchCraftRoutes,
+  matchCraftRoutesAsync,
   type CraftCompiledRoute,
   type CraftHistory,
   type CraftLocation,
@@ -173,8 +175,7 @@ type CraftRouterAbsoluteTarget<Path extends NavigableRoutePath> = Simplify<
 >;
 
 type CraftRouterUrlCreationOptions<Path extends string> = Simplify<
-  Omit<CraftNavigationExtras, 'state'> &
-    RouteQueryParamsField<Path>
+  Omit<CraftNavigationExtras, 'state'> & RouteQueryParamsField<Path>
 >;
 
 type CraftRouterNavigationOptions<Path extends string> = Simplify<
@@ -632,7 +633,31 @@ function provideCraftRouterRuntime(
       useFactory: (
         location: CraftWritableSignal<CraftLocation>,
         compiled: readonly CraftCompiledRoute[],
-      ) => craftComputed(() => matchCraftRoutes(compiled, location())),
+      ) => {
+        const match = craftSignal(matchCraftRoutes(compiled, location()));
+        let generation = 0;
+        craftWatch(() => {
+          const nextLocation = location();
+          const current = ++generation;
+          const syncMatch = matchCraftRoutes(compiled, nextLocation);
+          match.set(syncMatch);
+          void matchCraftRoutesAsync(compiled, nextLocation).then(
+            (resolved) => {
+              if (current !== generation) {
+                return;
+              }
+              const currentMatch = match();
+              if (
+                resolved?.route !== currentMatch?.route ||
+                resolved?.pathname !== currentMatch?.pathname
+              ) {
+                match.set(resolved);
+              }
+            },
+          );
+        });
+        return match;
+      },
       deps: [CRAFT_LOCATION, CRAFT_COMPILED_ROUTES],
     },
     {
@@ -717,8 +742,7 @@ function createNativeCraftRouter(
       return serializeLocation(history.get());
     },
     createUrlTree,
-    navigate: (input) =>
-      commit(toUrl(input), input as CraftNavigationExtras),
+    navigate: (input) => commit(toUrl(input), input as CraftNavigationExtras),
     navigateByUrl: ((input: unknown, extras?: CraftNavigationExtras) => {
       if (typeof input === 'string') {
         return commit(input, extras);

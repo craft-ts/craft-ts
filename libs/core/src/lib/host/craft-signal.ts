@@ -1,8 +1,8 @@
 import { computed, effect, setActiveSub, signal } from 'alien-signals';
 import { RAW_REACTIVE_VALUE } from '../reactive-read';
 
-// alien-signals v3 flushes effects synchronously. Keep that native behavior;
-// startViewTransition coordination remains Task 9 debt.
+// alien-signals v3 flushes effects synchronously. Outlet view-transition
+// swaps also run CRAFT_SYNC_TEMPLATE_FLUSH inside startViewTransition.
 export const CRAFT_SIGNAL = Symbol('craft-signal');
 
 export type CraftSignal<T> = (() => T) & {

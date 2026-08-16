@@ -164,7 +164,9 @@ function* resolveRouteException(
     payload: exception.payload,
     phase,
     router: router as CraftRouter,
-    createUrlTree: router.createUrlTree.bind(router) as CraftRouter['createUrlTree'],
+    createUrlTree: router.createUrlTree.bind(
+      router,
+    ) as CraftRouter['createUrlTree'],
     navigate: router.navigate.bind(router) as CraftRouter['navigate'],
     navigateByUrl: router.navigateByUrl.bind(
       router,
@@ -340,6 +342,9 @@ async function runCraftRouteChainAsyncInternal(
       if ('outcome' in result) {
         return result.outcome;
       }
+      if (result.data === false) {
+        return { kind: 'stay' };
+      }
     }
 
     let guardData: unknown;
@@ -356,6 +361,10 @@ async function runCraftRouteChainAsyncInternal(
 
       if ('outcome' in result) {
         return result.outcome;
+      }
+
+      if (result.data === false) {
+        return { kind: 'stay' };
       }
 
       guardData = result.data;
