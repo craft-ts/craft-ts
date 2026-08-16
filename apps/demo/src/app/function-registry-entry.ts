@@ -1,10 +1,10 @@
 import {
   DestroyRef,
-  inject,
-  Injector,
   provideAppInitializer,
-  runInInjectionContext,
-} from '@angular/core';
+  ɵinject as inject,
+  ɵInjector as Injector,
+  ɵrunInInjectionContext as runInInjectionContext,
+} from '@craft-ng/core';
 import {
   BrowserDocument,
   BrowserLocation,

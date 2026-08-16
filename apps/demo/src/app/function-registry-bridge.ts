@@ -1,4 +1,8 @@
-import { InjectionToken, type EffectRef, type Injector } from '@angular/core';
+import {
+  InjectionToken,
+  type EffectRef,
+  type ɵInjector as Injector,
+} from '@craft-ng/core';
 import { craftEffect } from '@craft-ng/core';
 import {
   functionRegistry,

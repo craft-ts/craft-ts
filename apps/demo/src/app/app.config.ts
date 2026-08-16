@@ -1,8 +1,3 @@
-import { provideBrowserGlobalErrorListeners } from '@angular/core';
-import {
-  CraftGlobalErrorComponentHost,
-  CraftRouteLoadErrorComponentHost,
-} from '@craft-ng/angular';
 import {
   provideCraftGlobalErrorComponent,
   provideCraftRootComponent,
@@ -33,6 +28,7 @@ import {
   type ComponentDepsOf,
   type RouteExceptionComponentCheckedDI,
   craftException,
+  craftRouteTarget,
 } from '@craft-ng/core';
 import { App } from './app';
 import { demoRoutes } from './app.routes.runtime';
@@ -51,7 +47,6 @@ export const appConfig = craftAppConfig({
   // the slim path registry and avoids re-expanding every component graph.
   routingDeps: demoRoutes.META_PATHS,
   providers: [
-    provideBrowserGlobalErrorListeners(),
     // Overrides the craft ConsoleService: every Console.* call keeps printing
     // in the browser and is also shipped to the local log server, where the
     // logs MCP server can read it back.
@@ -77,10 +72,10 @@ export const appConfig = craftAppConfig({
       withCraftViewTransitions(),
       withA11yNavigationFocus(),
       withErrorComponent({
-        component: CraftGlobalErrorComponentHost,
+        component: craftRouteTarget(MyGlobalErrorScreen),
       }),
       withRouteLoadError({
-        component: CraftRouteLoadErrorComponentHost,
+        component: craftRouteTarget(MyRouteLoadErrorScreen),
         retry: {
           attempts: 2,
           delayMs: 250,

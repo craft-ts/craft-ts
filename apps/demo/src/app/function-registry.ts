@@ -1,4 +1,8 @@
-import { signal, untracked, type Signal } from '@angular/core';
+import {
+  craftSignal as signal,
+  craftUntracked as untracked,
+  type Signal,
+} from '@craft-ng/core';
 import type {
   PrimitiveMethodRuntimeContext,
   PrimitiveMethodRuntimeKind,

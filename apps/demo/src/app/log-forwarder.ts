@@ -1,4 +1,9 @@
-import { DestroyRef, inject, InjectionToken, type Provider } from '@angular/core';
+import {
+  DestroyRef,
+  InjectionToken,
+  type Provider,
+  ɵinject as inject,
+} from '@craft-ng/core';
 import {
   SERVICE_RUNTIME_OVERRIDES,
   type ConsoleServiceApi,

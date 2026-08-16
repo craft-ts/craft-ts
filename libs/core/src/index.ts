@@ -16,7 +16,6 @@ export * from './lib/craft-unique';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';
 export * from './lib/insert-select-resource';
-export * from './lib/inject-service';
 export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-params';
@@ -79,7 +78,26 @@ export {
   type CraftToken,
 } from './lib/host/craft-injector';
 export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
+// The DI and reactivity surface an application authors against. These are
+// generic concepts, not Angular ones — an app needs a token, an injector, a
+// teardown hook and a way to run something at startup, whatever renders it.
 export {
+  DestroyRef,
+  InjectionToken,
+  provideAppInitializer,
+  signal as craftSignal,
+  untracked as craftUntracked,
+  type EnvironmentProviders,
+  type Provider,
+  type Signal,
+  type EffectRef,
+} from './lib/host/craft-compat';
+// Craft's stand-in for TestBed: a root injector with the six methods specs
+// actually used. Exported so apps can test against the same harness.
+export { TestBed } from './lib/host/craft-test-bed';
+export {
+  APP_INITIALIZER,
+  getCraftRootDefaultProviders as ɵgetCraftRootDefaultProviders,
   DestroyRef as ɵDestroyRef,
   Injector as ɵInjector,
   InjectionToken as ɵInjectionToken,

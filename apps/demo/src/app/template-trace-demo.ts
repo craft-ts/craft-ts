@@ -1,10 +1,10 @@
 import {
-  inject,
-  Injector,
-  untracked,
+  craftUntracked as untracked,
   type EnvironmentProviders,
   type Provider,
-} from '@angular/core';
+  ɵinject as inject,
+  ɵInjector as Injector,
+} from '@craft-ng/core';
 import {
   Console,
   craftException,

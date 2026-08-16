@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,

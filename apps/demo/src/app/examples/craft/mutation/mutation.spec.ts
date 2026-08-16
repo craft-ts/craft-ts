@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { signal } from '@angular/core';
+import {
+  craftSignal as signal,
+} from '@craft-ng/core';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,

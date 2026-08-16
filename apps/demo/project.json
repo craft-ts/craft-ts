@@ -53,43 +53,19 @@
       "cache": true
     },
     "build": {
-      "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/dist/apps/demo"
+      ],
       "options": {
-        "outputPath": "dist/apps/demo",
-        "browser": "apps/demo/src/main.ts",
-        "loader": {
-          ".css": "text"
-        },
-        "tsConfig": "apps/demo/tsconfig.app.json",
-        "assets": [
-          {
-            "glob": "**/*",
-            "input": "apps/demo/public"
-          }
-        ],
-        "styles": ["apps/demo/src/styles.css"]
+        "command": "npx vite build --config apps/demo/vite.config.ts"
       },
       "configurations": {
         "production": {
-          "budgets": [
-            {
-              "type": "initial",
-              "maximumWarning": "500kb",
-              "maximumError": "1mb"
-            },
-            {
-              "type": "anyComponentStyle",
-              "maximumWarning": "4kb",
-              "maximumError": "8kb"
-            }
-          ],
-          "outputHashing": "all"
+          "command": "npx vite build --config apps/demo/vite.config.ts --mode production"
         },
         "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          "command": "npx vite build --config apps/demo/vite.config.ts --mode development"
         }
       },
       "defaultConfiguration": "production"
@@ -98,39 +74,17 @@
       "continuous": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "node tools/serve-demo.mjs --vite --configuration development"
-      },
-      "configurations": {
-        "production": {
-          "command": "node tools/serve-demo.mjs --vite --configuration production"
-        },
-        "development": {
-          "command": "node tools/serve-demo.mjs --vite --configuration development"
-        }
-      },
-      "defaultConfiguration": "development"
-    },
-    "serve-angular": {
-      "continuous": true,
-      "executor": "@angular/build:dev-server",
-      "options": {},
-      "configurations": {
-        "production": {
-          "buildTarget": "demo:build:production"
-        },
-        "development": {
-          "buildTarget": "demo:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "command": "node tools/serve-demo.mjs"
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint"
     },
     "test": {
-      "executor": "@angular/build:unit-test",
+      "executor": "nx:run-commands",
       "options": {
-        "tsConfig": "apps/demo/tsconfig.spec.json"
+        "command": "node tools/run-lib-vitest.mjs apps/demo/vitest.config.ts",
+        "forwardAllArgs": true
       }
     },
     "architecture": {

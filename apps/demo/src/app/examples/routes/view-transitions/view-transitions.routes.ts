@@ -4,6 +4,7 @@ import {
   craftExceptionHandler,
   craftGen,
   craftRoutes,
+  craftRouteTarget,
   craftService,
   query,
   craftRoute,
@@ -15,7 +16,6 @@ import {
   type ParentRoutes,
   type RouteCheckedDI,
 } from '@craft-ng/core';
-import { CraftPendingComponentHost } from '@craft-ng/angular';
 import {
   loadCraftComponent,
   provideCraftPendingComponent,
@@ -23,8 +23,8 @@ import {
 import PhotoSkeleton from './photo-skeleton';
 
 // --- View Transitions demo (gallery → detail, shared-element morph) ----------
-// Two routes showcasing Angular's `withViewTransitions()` feature, mixed into
-// `provideCraftRouter` in `app.config.ts`. The gallery ('') and the detail
+// Two routes showcasing Craft's `withCraftViewTransitions()` feature, mixed
+// into `provideCraftRouter` in `app.config.ts`. The gallery ('') and the detail
 // (':photoId') share a `view-transition-name` per artwork, so the browser morphs
 // the clicked tile into the detail hero (and back).
 //
@@ -88,10 +88,10 @@ export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
         name: string;
         image: string | null;
       }>(),
-      pendingComponent: CraftPendingComponentHost,
+      pendingComponent: craftRouteTarget(PhotoSkeleton),
       // `resolve` is intentionally handled by CraftRouterOutlet after the URL
-      // commits. A slow Angular `canActivate` would block route activation and
-      // leave the pending component with no outlet to render into.
+      // commits: a blocking guard would activate the route only once it
+      // settled, leaving the pending component with no outlet to render into.
       resolve: function* () {
         return yield* slowDetailGuard();
       },

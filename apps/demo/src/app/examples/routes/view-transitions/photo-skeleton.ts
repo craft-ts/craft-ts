@@ -1,5 +1,7 @@
 /* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import type { Signal } from '@angular/core';
+import {
+  Signal,
+} from '@craft-ng/core';
 import {
   article,
   craftComponent,

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import { describe, expect, it, vi } from 'vitest';
 import {
   setupCraftServiceTestingByRegister, craftUse } from '@craft-ng/core';

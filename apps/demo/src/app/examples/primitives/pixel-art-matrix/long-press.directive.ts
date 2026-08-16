@@ -1,4 +1,6 @@
-import { DestroyRef } from '@angular/core';
+import {
+  DestroyRef,
+} from '@craft-ng/core';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   craftNodeDirective,

@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { provideRouter } from '@angular/router';
 import {
   ComponentLogicOutputOf,
   setupCraftComponentLogicTest,

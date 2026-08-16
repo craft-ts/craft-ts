@@ -99,7 +99,6 @@ function parseArguments(argv) {
   let requestedRoutes;
   let allRoutes = false;
   let generateOnly = false;
-  let useVite = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -108,7 +107,7 @@ function parseArguments(argv) {
     } else if (argument === '--generate-only') {
       generateOnly = true;
     } else if (argument === '--vite') {
-      useVite = true;
+      // Vite is the only dev server now; the flag is accepted and ignored.
     } else if (argument === '--demo-routes' || argument === '--routes') {
       requestedRoutes = argv[++index] ?? '';
     } else if (
@@ -121,7 +120,7 @@ function parseArguments(argv) {
     }
   }
 
-  return { forwarded, requestedRoutes, allRoutes, generateOnly, useVite };
+  return { forwarded, requestedRoutes, allRoutes, generateOnly };
 }
 
 function chooseRoutes(routes, requestedRoutes, allRoutes) {
@@ -272,7 +271,7 @@ function promptForRoutes(routes) {
 async function main() {
   const source = readFileSync(routesPath, 'utf8');
   const routes = readRouteCatalog(source);
-  const { forwarded, requestedRoutes, allRoutes, generateOnly, useVite } =
+  const { forwarded, requestedRoutes, allRoutes, generateOnly } =
     parseArguments(process.argv.slice(2));
   const enabledRouteIds = await chooseRoutes(
     routes,
@@ -290,9 +289,7 @@ async function main() {
   const restoreAllRoutes = () => {
     writeFileSync(runtimeRoutesPath, runtimeRoutesFallback);
   };
-  const child = useVite
-    ? spawnVite(forwarded)
-    : spawnAngularDevServer(forwarded);
+  const child = spawnVite(forwarded);
 
   const forwardSignal = (signal) => child.kill(signal);
   process.on('SIGINT', () => forwardSignal('SIGINT'));
@@ -302,19 +299,6 @@ async function main() {
     if (signal) process.kill(process.pid, signal);
     else process.exit(code ?? 1);
   });
-}
-
-function spawnAngularDevServer(forwarded) {
-  const nxBin = resolve(workspaceRoot, 'node_modules/nx/bin/nx.js');
-  return spawn(
-    process.execPath,
-    [nxBin, 'run', 'demo:serve-angular', ...forwarded],
-    {
-      cwd: workspaceRoot,
-      env: process.env,
-      stdio: 'inherit',
-    },
-  );
 }
 
 function spawnVite(forwarded) {

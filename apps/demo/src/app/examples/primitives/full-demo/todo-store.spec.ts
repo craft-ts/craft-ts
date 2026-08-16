@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
 import { setupCraftComponentLogicTest } from '@craft-ng/component';
 import { describe, expect, it, vi } from 'vitest';
 import FullDemo from './full-demo';

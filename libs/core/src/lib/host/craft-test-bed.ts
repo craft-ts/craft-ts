@@ -63,7 +63,9 @@ class CraftTestBed {
   inject<T>(token: ProviderToken<T>, notFoundValue: T | null): T | null;
   inject<T>(token: ProviderToken<T>, notFoundValue?: T | null): T | null {
     return arguments.length > 1
-      ? this.rootInjector.get(token as object, notFoundValue)
+      ? ((this.rootInjector.get(token as object, notFoundValue) ?? null) as
+          | T
+          | null)
       : (this.rootInjector.get(token as object) as T);
   }
 

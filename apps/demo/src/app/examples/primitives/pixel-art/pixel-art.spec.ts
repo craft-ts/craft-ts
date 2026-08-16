@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Injector } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  ɵInjector as Injector,
+} from '@craft-ng/core';
 import { mountCraftComponent } from '@craft-ng/component';
 import {
   LocalStoragePersister,
