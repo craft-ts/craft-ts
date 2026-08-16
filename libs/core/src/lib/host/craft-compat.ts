@@ -378,13 +378,27 @@ export function runInInjectionContext<T>(
   return asCraftInjector(injector).run(fn);
 }
 
+type CraftHostInjectorRunner = <T>(host: object, fn: () => T) => T;
+
+let hostInjectorRunner: CraftHostInjectorRunner | undefined;
+
+export function ɵsetCraftHostInjectorRunner(
+  runner: CraftHostInjectorRunner | undefined,
+): void {
+  hostInjectorRunner = runner;
+}
+
 export function asCraftInjector(
   injector: Injector | CraftInjector | object,
 ): CraftInjector {
   if (isCraftInjector(injector)) {
     return injector;
   }
-  return ɵcreateCraftInjectorFromHost(injector as object, (fn) => fn());
+  return ɵcreateCraftInjectorFromHost(injector as object, (fn) =>
+    hostInjectorRunner
+      ? hostInjectorRunner(injector as object, fn)
+      : fn(),
+  );
 }
 
 export function ɵcraftInjectorFromHost(hostInjector: object): CraftInjector {
