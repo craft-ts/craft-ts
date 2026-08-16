@@ -20,14 +20,32 @@ npm run registry:mcp
 ```
 
 Point Cursor at that stdio server. It already listens on `ws://127.0.0.1:3333`
-for the demo tab. Each tab keeps a stable `clientId` in `sessionStorage`. Call
-`page` without `clientId` when exactly one tab is connected; pass it when several
-are.
+for the demo tab. Each tab keeps a stable `clientId` in `sessionStorage`.
+
+## One ready tab
+
+Each tab has a `clientId` in `sessionStorage`. Duplicating a tab copies it; the
+broker assigns a new id (`hello/ok`) so the two tabs do not fight.
+
+Omit `clientId` when **exactly one tab is `ready`**. A ghost `reloading` card
+(HMR, F5) does not count. Two `ready` tabs → pass `clientId` from
+`registry.clients` (id, status, url). Never pick “latest”. The error is
+`Multiple ready page clients; clientId is required. Available clients: <id> ready <url>, <id> ready <url>`.
+Zero ready with several ghosts is
+`No ready page client. Reloading: <id> (last url <url>), <id> (last url <url>)`.
+Zero cards is `page client is not connected`.
+
+Closing the tab sends `page/goodbye`; the card is dropped. Opening a new tab is
+a new id. If `page client "<id>" is not connected`, call `registry.clients` and
+retry without id when a single ready remains.
+
+Closing without goodbye (crash) looks like reload for up to 20s.
 
 ## One tool: `page`
 
-Omit `act` to read the current surface. Pass `act` to run a batch, then receive
-the **new** state in the same round-trip.
+Omit `act` to read the current surface. The broker **always asks the live tab**
+— a Craft `value:` that changed without a DOM mutation is still current. Pass
+`act` to run a batch, then receive the **new** state in the same round-trip.
 
 Default `detail` is `"controls"`: the named interactive surface (id, role,
 accessible name, value, enabled, index, and `track` when the node is inside
@@ -43,7 +61,11 @@ That name is unique in the app graph
 Do not prefix it with the component name. When `each` repeats the same id, pass
 `match.index` or `match.track`.
 
-## Fill, click, ready
+## Fill, click, goto, ready
+
+`act: [{ "goto": "/login-form" }]` navigates in the tab (Craft router).
+The WebSocket stays up. Prefer `goto` over clicking `navLink` — every nav item
+shares that id. Paths like `/login-form` and full URLs both work.
 
 A `fill` sets the control and dispatches one `input` or `change` (then blur), so
 `CraftFieldDirective` validation and touched state run. A click is `act` with

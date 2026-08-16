@@ -25,6 +25,30 @@ describe('live page MCP docs', () => {
     expect(page).toContain('function-registry');
     expect(page).toContain('data-craft-name="save"');
     expect(page).toContain('assertInteractiveElementNamed');
+    expect(page).toContain('goto');
+    expect(page).toContain('always asks the live tab');
+  });
+
+  it('ships the page skill on the Cursor skills path', () => {
+    const cursorSkill = readFileSync(
+      join(repoRoot, '.cursor/skills/ng-craft-dev-page-mcp/SKILL.md'),
+      'utf8',
+    );
+    expect(cursorSkill).toContain('Do **not** open Playwright');
+    expect(cursorSkill).toContain('"goto": "/login-form"');
+  });
+
+  it('explains one ready tab vs several and goodbye vs reload', () => {
+    expect(page).toContain('One ready tab');
+    expect(page).toContain('page/goodbye');
+    expect(page).toContain('Multiple ready page clients');
+    expect(page).toContain('registry.clients');
+    const cursorSkill = readFileSync(
+      join(repoRoot, '.cursor/skills/ng-craft-dev-page-mcp/SKILL.md'),
+      'utf8',
+    );
+    expect(cursorSkill).toContain('page client "');
+    expect(cursorSkill).toContain('Never guess');
   });
 
   it('is the first home feature and is linked from agents and reference', () => {

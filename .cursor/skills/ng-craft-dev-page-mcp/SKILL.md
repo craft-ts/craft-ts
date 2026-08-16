@@ -7,8 +7,6 @@ description: Drive and inspect the already-open ng serve tab through the functio
 
 Operate the tab the developer already has open. Do **not** open Playwright, a second browser, or Chrome DevTools for this. The tool is `page` on `@ng-craft/function-registry-mcp` (`npm run registry:mcp`). It does not exist on `@craft-ng/mcp`.
 
-Cursor loads skills from `.cursor/skills/`. This file is mirrored at `.cursor/skills/ng-craft-dev-page-mcp/SKILL.md`.
-
 ## Fast path
 
 1. Call `page` with no `act` (omit `clientId` when **exactly one tab is `ready`**). A ghost `reloading` card (HMR, F5) does not count. That always asks the live tab — do not assume a previous dump is still true.
