@@ -789,7 +789,7 @@ function provideCraftRouterRuntime(
       // ActivatedRoute. The Craft router owns it now: it is the leaf of the
       // snapshot built from the current match, and empty before the first one.
       provide: ActivatedRoute,
-      useFactory: (match: CraftSignal<CraftMatch | null>): ActivatedRoute => {
+      useFactory: (match: () => CraftMatch | null): ActivatedRoute => {
         const leafOf = (snapshot: ActivatedRouteSnapshot) => {
           let node = snapshot;
           while (node.firstChild) node = node.firstChild;

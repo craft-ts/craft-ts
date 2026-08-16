@@ -44,11 +44,15 @@ export type CanMatchFn = (
  * reports the same two moments Angular's did, so trace consumers keep working.
  */
 export class NavigationEnd {
-  constructor(
-    readonly id: number,
-    readonly url: string,
-    readonly urlAfterRedirects: string,
-  ) {}
+  readonly id: number;
+  readonly url: string;
+  readonly urlAfterRedirects: string;
+
+  constructor(id: number, url: string, urlAfterRedirects: string) {
+    this.id = id;
+    this.url = url;
+    this.urlAfterRedirects = urlAfterRedirects;
+  }
 }
 
 export type Route = {

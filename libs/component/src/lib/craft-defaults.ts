@@ -1,10 +1,6 @@
 import {
-  CRAFT_ACTIVE_ROUTE_LOAD_ERROR,
   CRAFT_LOADING_TEXT,
-  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
   craftRouteTarget,
-  normalizeCraftRouteTarget,
-  ɵregisterCraftRouteLoadErrorHostComponent,
   ɵregisterDefaultCraftPendingComponent,
 } from '@craft-ng/core';
 import { inject } from './host-runtime';
@@ -21,7 +17,7 @@ import { div } from './hyperscript';
  * component now, and `@craft-ng/component` — the package that owns the
  * renderer — is where it belongs.
  */
-export const DefaultCraftPendingComponent = craftComponent(
+const DefaultCraftPendingComponent = craftComponent(
   'craftPending',
   {
     styles: `
@@ -40,32 +36,9 @@ export const DefaultCraftPendingComponent = craftComponent(
   craftRouteTarget(DefaultCraftPendingComponent),
 );
 
-/**
- * Mount point for the recovery UI of a failed lazy route load: it renders
- * whatever `CRAFT_ROUTE_LOAD_ERROR_COMPONENT` resolves to in the injector of
- * the route that failed.
- */
-export const CraftRouteLoadErrorHost = craftComponent(
-  'craftRouteLoadErrorHost',
-  {},
-  () => ({ active: inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR) }),
-  ({ active }) =>
-    div({ class: 'craft-route-load-error' }, function* () {
-      const current = yield* active();
-      if (!current) {
-        return [];
-      }
-      const descriptor = current.injector.get(
-        CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
-      );
-      if (!descriptor) {
-        return [];
-      }
-      const target = normalizeCraftRouteTarget(descriptor);
-      return target.kind === 'craft' ? [target.component] : [];
-    }),
-);
-
-ɵregisterCraftRouteLoadErrorHostComponent(
-  CraftRouteLoadErrorHost as never,
-);
+// TODO(sortie-angular): the lazy-route recovery host has no Craft replacement
+// yet. The Angular one mounted CRAFT_ROUTE_LOAD_ERROR_COMPONENT through
+// NgComponentOutlet, using the failing route's own injector; the Craft DSL has
+// no equivalent dynamic mount, so writing one is its own piece of work.
+// Until then core's fallback is null: a failed lazy load reports through
+// CRAFT_ROUTE_LOAD_ERROR and renders nothing, rather than throwing.

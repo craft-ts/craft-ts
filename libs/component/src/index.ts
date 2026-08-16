@@ -3,10 +3,10 @@ export * from './lib/ai/ai-send-dialog';
 export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
-export {
-  CraftRouteLoadErrorHost,
-  DefaultCraftPendingComponent,
-} from './lib/craft-defaults';
+// Registers Craft's default pending loader and lazy-route recovery host.
+// Side-effect only: nothing needs to name them, the router resolves them
+// through CRAFT_PENDING_COMPONENT / CRAFT_ROUTE_LOAD_ERROR_COMPONENT.
+import './lib/craft-defaults';
 export * from './lib/angular';
 export { ɵregisterAngularIsland } from './lib/host-runtime';
 export * from './lib/component';
