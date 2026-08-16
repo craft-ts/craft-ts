@@ -450,18 +450,38 @@ export class RegistryBridgeBroker {
       }
       return client;
     }
-    const clients = [...this.#clients.values()];
-    if (clients.length === 0) {
-      throw new Error('page client is not connected');
+    const cards = [...this.#clients.values()];
+    const ready = cards.filter(
+      (client) => client.status === 'ready' && isSocketOpen(client.socket),
+    );
+    if (ready.length === 1) {
+      return ready[0] as ClientConnection;
     }
-    if (clients.length > 1) {
+    if (ready.length > 1) {
       throw new Error(
-        `Multiple page clients are connected; clientId is required. Available clients: ${clients
-          .map((client) => client.clientId)
+        `Multiple ready page clients; clientId is required. Available clients: ${ready
+          .slice()
+          .sort((left, right) => left.clientId.localeCompare(right.clientId))
+          .map((client) => `${client.clientId} ready ${client.pageUrl ?? ''}`)
           .join(', ')}`,
       );
     }
-    return clients[0] as ClientConnection;
+    if (cards.length === 0) {
+      throw new Error('page client is not connected');
+    }
+    if (cards.length === 1) {
+      return cards[0] as ClientConnection;
+    }
+    throw new Error(
+      `No ready page client. Reloading: ${cards
+        .slice()
+        .sort((left, right) => left.clientId.localeCompare(right.clientId))
+        .map(
+          (client) =>
+            `${client.clientId} (last url ${client.pageUrl ?? 'unknown'})`,
+        )
+        .join(', ')}`,
+    );
   }
 
   #requireRegistryClient(clientId: string): ClientConnection {

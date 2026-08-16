@@ -348,7 +348,136 @@ describe('RegistryBridgeBroker', () => {
     });
   });
 
-  it('requires clientId for page when several client cards exist', async () => {
+  it('uses the ready tab when another card is still reloading', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+
+    app.close();
+    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+
+    const { port } = broker.address();
+    const replacement = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise<void>((resolve) => replacement.once('open', resolve));
+    echoPage(replacement);
+    replacement.send(
+      JSON.stringify({
+        type: 'hello',
+        role: 'registry-app',
+        clientId: 'app-b',
+        pageUrl: 'http://localhost/',
+      }),
+    );
+    publishSurface(replacement, {
+      clientId: 'app-b',
+      url: '/',
+      controls: [control('navToggle')],
+    });
+    await vi.waitFor(async () => {
+      await expect(
+        broker.request('page', { clientId: 'app-b' }),
+      ).resolves.toMatchObject({ url: '/' });
+    });
+
+    await expect(broker.request('page')).resolves.toMatchObject({
+      url: '/',
+      controls: [expect.objectContaining({ id: 'navToggle' })],
+    });
+    replacement.close();
+  });
+
+  it('requires clientId when two tabs are ready', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+
+    const { port } = broker.address();
+    const appB = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise<void>((resolve) => appB.once('open', resolve));
+    echoPage(appB);
+    appB.send(
+      JSON.stringify({
+        type: 'hello',
+        role: 'registry-app',
+        clientId: 'app-b',
+        pageUrl: 'http://localhost/',
+      }),
+    );
+    publishSurface(appB, {
+      clientId: 'app-b',
+      url: '/',
+      controls: [control('navToggle')],
+    });
+    await vi.waitFor(async () => {
+      await expect(
+        broker.request('page', { clientId: 'app-b' }),
+      ).resolves.toMatchObject({ url: '/' });
+    });
+
+    await expect(broker.request('page')).rejects.toThrow(
+      'Multiple ready page clients; clientId is required. Available clients: app-a ready /login-form, app-b ready /',
+    );
+    appB.close();
+  });
+
+  it('does not wait when several cards are reloading and none is ready', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+    const { port } = broker.address();
+    const appB = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise<void>((resolve) => appB.once('open', resolve));
+    appB.send(
+      JSON.stringify({
+        type: 'hello',
+        role: 'registry-app',
+        clientId: 'app-b',
+        pageUrl: 'http://localhost/',
+      }),
+    );
+    await vi.waitFor(() => expect(broker.clients.length).toBeGreaterThan(1));
+    app.close();
+    appB.close();
+    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
+
+    await expect(broker.request('page', { timeoutMs: 80 })).rejects.toThrow(
+      /No ready page client\. Reloading: /,
+    );
+  });
+
+  it('uses the ready tab when another client is still connecting', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+
     const { port } = broker.address();
     const appB = new WebSocket(`ws://127.0.0.1:${port}`);
     await new Promise<void>((resolve) => appB.once('open', resolve));
@@ -361,9 +490,10 @@ describe('RegistryBridgeBroker', () => {
     );
     await vi.waitFor(() => expect(broker.clients).toHaveLength(2));
 
-    await expect(broker.request('page')).rejects.toThrow(
-      'Multiple page clients are connected; clientId is required. Available clients: app-a, app-b',
-    );
+    await expect(broker.request('page')).resolves.toMatchObject({
+      url: '/login-form',
+      controls: [expect.objectContaining({ id: 'email' })],
+    });
     appB.close();
   });
 
