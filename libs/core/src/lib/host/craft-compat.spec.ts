@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { firstValueFrom, take } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  assertInInjectionContext,
   createEnvironmentInjector,
   DestroyRef,
   effect,
@@ -16,6 +17,7 @@ import {
   ɵsetCraftDevMode,
   ɵsetCraftInjectFallback,
 } from './craft-compat';
+import { craftEffect } from '../craft-effect';
 import type { CraftSignal } from './craft-signal';
 import { CRAFT_SIGNAL } from './craft-signal';
 
@@ -110,6 +112,23 @@ describe('inject fallback', () => {
 
   it('does not create an Angular require() fallback', () => {
     expect(() => inject(DestroyRef)).toThrow();
+  });
+
+  it('treats an Angular injection context as in-context', () => {
+    const host = createEnvironmentInjector([], Injector.NULL);
+    ɵsetCraftInjectFallback((token) => {
+      if (token === Injector) {
+        return host;
+      }
+      throw new Error(`No fallback for ${String(token)}`);
+    });
+
+    expect(() => inject(Injector)).not.toThrow();
+    expect(inject(Injector)).toBe(host);
+    expect(() => assertInInjectionContext()).not.toThrow();
+    expect(() =>
+      craftEffect('fallback-effect', () => undefined, { injector: host }),
+    ).not.toThrow();
   });
 });
 

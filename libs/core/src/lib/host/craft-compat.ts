@@ -429,7 +429,7 @@ export function inject<T>(
 }
 
 export function assertInInjectionContext(_fn?: (...args: never[]) => unknown): void {
-  getCurrentCraftInjector();
+  inject(Injector);
 }
 
 export function runInInjectionContext<T>(
