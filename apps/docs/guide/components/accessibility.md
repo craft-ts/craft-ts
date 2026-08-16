@@ -42,8 +42,8 @@ pas le chemin par défaut.
 
 ## Templates hyperscript
 
-`@angular-eslint/template-accessibility` ne voit que `**/*.html`. Les templates
-Craft sont du TypeScript. C’est le plugin `craft-ng` qui marche `button(...)`,
+Un template Craft est du TypeScript, pas un fichier `.html` : les règles
+d’accessibilité marchent les appels hyperscript eux-mêmes — `button(...)`,
 `img(...)` **et** `h('img', …)`.
 
 ```ts
