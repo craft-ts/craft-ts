@@ -332,7 +332,7 @@ assert what every item renders — here a translated label exposed by an
 `insertSelect` insertion:
 
 ```typescript
-import { computed } from '@angular/core';
+import { craftComputed as computed } from '@craft-ng/core';
 import { insertSelect, state } from '@craft-ng/core';
 import { craftComponent, each, span } from '@craft-ng/component';
 import type {

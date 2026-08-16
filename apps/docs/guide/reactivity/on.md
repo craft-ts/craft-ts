@@ -338,7 +338,7 @@ console.log(totalCount()); // 2
 ### Using with EventEmitter
 
 ```typescript
-import { EventEmitter } from '@angular/core';
+import { EventEmitter } from '@craft-ng/core';
 import { state } from '@craft-ng/core';
 import { on$ } from '@craft-ng/core';
 

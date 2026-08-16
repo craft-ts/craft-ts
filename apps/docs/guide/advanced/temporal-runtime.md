@@ -97,7 +97,7 @@ zero by default, orders equal deadlines by creation order, and exposes the
 pending tasks for assertions.
 
 ```typescript
-import { Injector } from '@angular/core';
+import { ɵInjector as Injector } from '@craft-ng/core';
 import {
   executeGeneratorCompatibleFactoryAsync,
   provideCraftTemporalRuntime,

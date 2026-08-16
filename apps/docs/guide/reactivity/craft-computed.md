@@ -69,7 +69,7 @@ Use the plain form only when no Craft reader needs `yield*` — typically an
 Angular `@Component` field that reads Angular signals:
 
 ```typescript
-import { signal } from '@angular/core';
+import { craftSignal as signal } from '@craft-ng/core';
 import { craftComputed } from '@craft-ng/core';
 
 class CounterComponent {

@@ -128,7 +128,7 @@ the `content` criterion. The locator does not inspect the rendered value, so
 this also works for non-text values and remains independent of formatting:
 
 ```typescript
-import { signal } from '@angular/core';
+import { craftSignal as signal } from '@craft-ng/core';
 import { span, craftComponent } from '@craft-ng/component';
 import { markYieldableValue, state } from '@craft-ng/core';
 

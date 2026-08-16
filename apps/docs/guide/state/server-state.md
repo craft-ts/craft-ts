@@ -128,7 +128,7 @@ selected item. The selector keeps the item type, so derived values can use its
 properties without casting:
 
 ```typescript
-import { computed } from '@angular/core';
+import { craftComputed as computed } from '@craft-ng/core';
 import { CraftHttpClient, insertQuerySelect, query } from '@craft-ng/core';
 
 type User = {

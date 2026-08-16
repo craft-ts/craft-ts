@@ -20,7 +20,7 @@ level. TypeScript caps how deeply it will instantiate a recursive type, so a sin
 
 ```
 TS2589: Type instantiation is excessively deep and possibly infinite.
-  app.routes.ts → ValidateCascadeRoutesFile<never, Router, typeof appRoutes>
+  app.routes.ts → ValidateCascadeRoutesFile<never, CraftRouter, typeof appRoutes>
 ```
 
 ::: warning Watch out for the knock-on collapse
@@ -46,7 +46,7 @@ import {
   type CanRun,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
-import type { Router } from '@angular/router';
+import type { CraftRouter } from '@craft-ng/core';
 
 export const { featureRoutes } = craftRoutes('feature', [
   craftRoute('', {
@@ -57,11 +57,11 @@ export const { featureRoutes } = craftRoutes('feature', [
 ]);
 
 // DI safety for THIS collection — `app.routes.ts` does NOT cover loadChildren.
-// Same parent context the parent route runs under: app-level `Router` by value,
+// Same parent context the parent route runs under: app-level `CraftRouter` by value,
 // no extra named providers.
 type _CheckFeatureDI = ValidateCascadeRoutesFile<
   never,
-  Router,
+  CraftRouter,
   typeof featureRoutes
 >;
 type _CanRunFeature = CanRun<_CheckFeatureDI>;
@@ -125,7 +125,7 @@ app.routes.ts                 # "manifest": ~N cheap { path, loadChildren } entr
 ::: tip Threading the parent DI context
 The child check's parent context (`ParentNames`, `ParentValues`) is everything provided **at its mount
 point** — app providers **plus** every ancestor route's providers. When no ancestor adds `providers`,
-this is just the app context (`<never, Router, …>`, as in the examples above), identical in every file.
+this is just the app context (`<never, CraftRouter, …>`, as in the examples above), identical in every file.
 When an ancestor route _does_ add providers, re-export its cumulative context and union your own onto it:
 
 ```ts

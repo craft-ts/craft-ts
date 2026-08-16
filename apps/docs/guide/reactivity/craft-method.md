@@ -108,20 +108,10 @@ is what the two `this`-aware overloads are for.
 Use `craftMethod(name, this, fn)` when the generator needs component state.
 
 ```typescript
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { Console, craftMethod } from '@craft-ng/core';
+import { Console, craftMethod, craftSignal } from '@craft-ng/core';
 
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <p>{{ counter() }}</p>
-    <button (click)="increment()">Increment</button>
-  `,
-})
-export class CounterComponent {
-  readonly counter = signal(0);
+export class Counter {
+  readonly counter = craftSignal(0);
 
   readonly increment = craftMethod('increment', this, function* (step = 1) {
     yield* Console.log('increment is called');
@@ -139,26 +129,19 @@ increment();
 
 ### Receiver-based form
 
-Use `craftMethod(name, fn)` when you want the exact `(click)="increment()"` shape and are fine with the receiver-dependent behavior.
+Use `craftMethod(name, fn)` when you want the method to resolve `this` from its receiver, and are fine with the receiver-dependent behavior.
 
 In strict TypeScript, annotate `this` explicitly inside the generator:
 
 ```typescript
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { Console, craftMethod } from '@craft-ng/core';
+import { Console, craftMethod, craftSignal } from '@craft-ng/core';
 
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<button (click)="increment(2)">Increment</button>`,
-})
-export class CounterComponent {
-  readonly counter = signal(0);
+export class Counter {
+  readonly counter = craftSignal(0);
 
   readonly increment = craftMethod(
     'increment',
-    function* (this: CounterComponent, step = 1) {
+    function* (this: Counter, step = 1) {
       yield* Console.log('increment is called');
       this.counter.update((value) => value + step);
       return this.counter();
@@ -170,13 +153,7 @@ export class CounterComponent {
 ### Composing services from a class
 
 ```typescript
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<button (click)="increment()">Increment</button>`,
-})
-export class CounterComponent {
+export class Counter {
   readonly increment = craftMethod(
     'increment',
     this,

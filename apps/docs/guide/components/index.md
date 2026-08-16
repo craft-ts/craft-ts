@@ -163,15 +163,15 @@ export const appConfig = craftAppConfig({
 
 ```typescript
 // main.ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { CraftRootComponentHost } from '@craft-ng/angular';
-import { toApplicationConfig } from '@craft-ng/core';
+import { bootstrapCraft } from '@craft-ng/component';
+import { appConfig } from './app.config';
 
-bootstrapApplication(CraftRootComponentHost, toApplicationConfig(appConfig));
+bootstrapCraft({ config: appConfig });
 ```
 
-`toApplicationConfig` produces the `ApplicationConfig` Angular expects, so the
-rest of your bootstrap is unchanged.
+`bootstrapCraft` builds the root injector, runs the app-start hooks, then
+mounts the root component into `<craft-root>` (or the element you pass as
+`host`).
 
 ## Pitfalls
 

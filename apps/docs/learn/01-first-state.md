@@ -99,16 +99,14 @@ export const appConfig = craftAppConfig({
 
 ```typescript
 // main.ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { CraftRootComponentHost } from '@craft-ng/angular';
-import { toApplicationConfig } from '@craft-ng/core';
+import { bootstrapCraft } from '@craft-ng/component';
 import { appConfig } from './app/app.config';
 
-bootstrapApplication(CraftRootComponentHost, toApplicationConfig(appConfig));
+bootstrapCraft({ config: appConfig });
 ```
 
-`toApplicationConfig` turns the craft config into the `ApplicationConfig`
-Angular expects, so the rest of your Angular setup is unchanged.
+`bootstrapCraft` builds the root injector, runs the app-start hooks, then
+mounts the root component into `<craft-root>`.
 
 ## The two rules of a primitive
 

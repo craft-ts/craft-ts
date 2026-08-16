@@ -331,8 +331,8 @@ describe('craftMethod doc page', () => {
       "readonly increment = craftMethod('increment', this, function* (step = 1) {",
     );
     expect(content).toContain("yield* Console.log('increment is called');");
-    expect(content).toContain('function* (this: CounterComponent, step = 1) {');
-    expect(content).toContain('this: CounterComponent,');
+    expect(content).toContain('function* (this: Counter, step = 1) {');
+    expect(content).toContain('this: Counter,');
     expect(content).toContain('return yield* CounterWorker.set(value);');
     expect(content).toContain('[`craftService`](/guide/app/craft-service)');
   });
