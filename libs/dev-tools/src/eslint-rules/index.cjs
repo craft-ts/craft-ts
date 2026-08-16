@@ -18,6 +18,7 @@ const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
 const preferCraftInputOutput = require('./prefer-craft-input-output.cjs');
 const preferCraftService = require('./prefer-craft-service.cjs');
+const noCraftServiceComponentSameFile = require('./no-craft-service-component-same-file.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
 const requirePrimitiveGeneratorUnwrap = require('./require-primitive-generator-unwrap.cjs');
@@ -99,6 +100,7 @@ const plugin = {
     'prefer-craft-http-transport': preferCraftHttpTransport,
     'prefer-craft-input-output': preferCraftInputOutput,
     'prefer-craft-service': preferCraftService,
+    'no-craft-service-component-same-file': noCraftServiceComponentSameFile,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
     'require-primitive-generator-unwrap': requirePrimitiveGeneratorUnwrap,

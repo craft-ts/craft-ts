@@ -46,6 +46,7 @@ export default [
       'craft-ng/require-yieldable-insertion-write': 'error',
       'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
+      'craft-ng/no-craft-service-component-same-file': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-craft-input-output': 'error',
@@ -81,6 +82,7 @@ What each rule does:
 - `craft-ng/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ng/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
+- `craft-ng/no-craft-service-component-same-file`: forbids declaring `craftService(...)` and `craftComponent(...)` in the same file; a route-level service provider combined with a lazy-loaded component can break lazy loading, so keep them in separate files
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
 - `craft-ng/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
 - `craft-ng/prefer-craft-input-output`: forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`
@@ -223,7 +225,8 @@ On an existing codebase, enable them in waves rather than all at once:
    generate the proofs; [architecture tests](/guide/testing/architecture#assertroutediproofs)
    (`assertRouteDiProofs`) fail CI if a proof is later removed or left unarmed.
 3. **The architecture rules last** — `no-angular-inject`, `prefer-craft-service`,
-   `prefer-craft-http-client`, `require-yieldable-reactive-read`,
+   `no-craft-service-component-same-file`, `prefer-craft-http-client`,
+   `require-yieldable-reactive-read`,
    `require-yieldable-template-method`, `require-yieldable-insertion-write`.
    These ask for real refactors.
 

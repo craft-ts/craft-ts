@@ -419,6 +419,7 @@ export default [
       'craft-ng/require-yieldable-template-method': 'error',
       'craft-ng/require-yieldable-insertion-write': 'error',
       'craft-ng/prefer-craft-service': 'error',
+      'craft-ng/no-craft-service-component-same-file': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-craft-input-output': 'error',
@@ -473,6 +474,7 @@ module.exports = defineConfig([
       'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
+      'craft-ng/no-craft-service-component-same-file': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-craft-input-output': 'error',
@@ -509,6 +511,7 @@ Notes:
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`
 - `craft-ng/no-angular-inject` now targets raw Angular `inject()` only
 - `craft-ng/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
+- `craft-ng/no-craft-service-component-same-file` keeps `craftService(...)` and `craftComponent(...)` in separate files so a route-level service provider does not break a lazy-loaded component
 - `craft-ng/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
 - `craft-ng/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
 - `craft-ng/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`

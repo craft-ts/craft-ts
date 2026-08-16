@@ -29,6 +29,7 @@ export const craftDemoRules = {
   'craft-ng/no-imperative-craft-resource-trigger': 'error',
   'craft-ng/require-craft-resource-trigger-yield': 'error',
   'craft-ng/prefer-craft-service': 'warn',
+  'craft-ng/no-craft-service-component-same-file': 'warn',
   'craft-ng/prefer-browser-boundaries': 'warn',
   'craft-ng/app-start-registry-match': 'warn',
   'craft-ng/global-exception-registry-match': 'warn',
