@@ -532,7 +532,6 @@ export type CraftNodePipe<
     PendingSources,
     SettledExceptions
   >;
-  (directive: AngularDirectiveNode): CraftNode;
   <Directive extends CraftNodeDirective<any>>(
     directive: Directive,
   ): PipedCraftNodeDirective<
@@ -650,21 +649,6 @@ export interface ComponentNode<
     PendingSources | ContentPendingSourcesFromProps<Props>,
     SettledExceptions | ContentSettledExceptionsFromProps<Props>
   >;
-}
-
-export interface AngularDirectiveNode {
-  readonly type: CraftHostType<unknown>;
-  readonly inputs?: Readonly<Record<string, unknown>>;
-  readonly outputs?: Readonly<Record<string, (value: unknown) => unknown>>;
-}
-
-export interface AngularComponentNode {
-  readonly kind: 'angular';
-  readonly component: CraftHostType<unknown>;
-  readonly injector?: HostInjector;
-  readonly inputs: Readonly<Record<string, unknown>>;
-  readonly outputs: Readonly<Record<string, (value: unknown) => unknown>>;
-  readonly directives: readonly AngularDirectiveNode[];
 }
 
 export interface CatchBlockNode<
@@ -926,7 +910,6 @@ export type CraftNode =
   | TextNode
   | ReactiveTextNode
   | ComponentNode<any, any, any, any, any, any>
-  | AngularComponentNode
   | CraftDirectiveNode<any>
   | EachNode<any, any, any, any, any, any>
   | IfBlockNode<any, any, any, any>
@@ -1226,80 +1209,9 @@ function withPipe(node: any): any {
       directive:
         | CraftDirective
         | CraftNodeDirective<any>
-        | AngularDirectiveNode
         | CraftHostType<unknown>,
     ) => pipeCraftNode(node as CraftNode, directive)) as CraftNodePipe,
   };
-}
-
-function isAngularDirectiveNode(value: unknown): value is AngularDirectiveNode {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    typeof (value as { type?: unknown }).type === 'function'
-  );
-}
-
-type AngularDirectiveWithDefinition = CraftHostType<unknown> & {
-  readonly ɵdir?: {
-    readonly inputs?: Readonly<Record<string, unknown>>;
-  };
-};
-
-function angularDirectiveInputNames(
-  directive: CraftHostType<unknown>,
-): readonly string[] {
-  return Object.keys(
-    (directive as AngularDirectiveWithDefinition).ɵdir?.inputs ?? {},
-  );
-}
-
-function applyAngularDirective(
-  node: ElementNode,
-  directive: CraftHostType<unknown>,
-): ElementNode {
-  const inputNames = angularDirectiveInputNames(directive);
-  const inputs = Object.fromEntries(
-    inputNames
-      .filter((name) => name in node.props)
-      .map((name) => [name, node.props[name]]),
-  );
-  const props = { ...node.props };
-  inputNames.forEach((name) => delete props[name]);
-  const directives = Array.isArray(props['directives'])
-    ? props['directives']
-    : [];
-
-  return appendAngularDirective(
-    node,
-    {
-      type: directive,
-      ...(Object.keys(inputs).length ? { inputs } : {}),
-    },
-    props,
-  );
-}
-
-function appendAngularDirective(
-  node: ElementNode,
-  directive: AngularDirectiveNode,
-  props: Readonly<Record<string, unknown>> = node.props,
-): ElementNode {
-  const directives = Array.isArray(props['directives'])
-    ? props['directives']
-    : [];
-
-  return withPipe({
-    ...node,
-    props: {
-      ...props,
-      directives: [
-        ...(directives as readonly AngularDirectiveNode[]),
-        directive,
-      ],
-    },
-  });
 }
 
 export function pipeCraftNode(
@@ -1307,7 +1219,6 @@ export function pipeCraftNode(
   directive:
     | CraftDirective
     | CraftNodeDirective<any>
-    | AngularDirectiveNode
     | CraftHostType<unknown>,
 ): CraftNode {
   if (isCraftNodeDirective(directive)) {
@@ -1325,13 +1236,9 @@ export function pipeCraftNode(
       });
     }
 
-    if (node.kind !== 'element') return node;
-    return isAngularDirectiveNode(directive)
-      ? appendAngularDirective(node as ElementNode, directive)
-      : applyAngularDirective(
-          node as ElementNode,
-          directive as CraftHostType<unknown>,
-        );
+    // Only Craft directives are applicable; anything else is a no-op now that
+    // Angular directive definitions (`ɵdir`) are gone.
+    return node;
   }
 
   const catchBlockDefinition = (

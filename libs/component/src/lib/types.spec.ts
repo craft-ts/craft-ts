@@ -17,7 +17,6 @@ import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { defer } from './defer';
-import { angular } from './angular';
 import { ifBlock } from './if-block';
 import { each } from './each';
 import { button, div, h2, input, li, p, section, span } from './hyperscript';
@@ -1000,21 +999,6 @@ it('reports dynamic component unions and conditional branch failures', () => {
   type BranchContract = SetupTestComponentTemplate<typeof branchParent>;
   type _BranchFailureIsDiagnosed = Expect<
     BranchContract extends { readonly error: string } ? true : false
-  >;
-});
-
-it('reports Angular component boundaries instead of introspecting them', () => {
-  class ExternalAngularComponent {}
-  const parent = craftComponent(
-    'contractAngularBoundaryParent',
-    {},
-    () => ({}),
-    () => angular(ExternalAngularComponent),
-  );
-
-  type Contract = SetupTestComponentTemplate<typeof parent>;
-  type _AngularBoundaryIsDiagnosed = Expect<
-    Contract extends { readonly error: string } ? true : false
   >;
 });
 

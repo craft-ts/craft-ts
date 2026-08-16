@@ -8,8 +8,6 @@ export { bootstrapCraft, type CraftAppRef } from './lib/bootstrap';
 // Side-effect only: nothing needs to name them, the router resolves them
 // through CRAFT_PENDING_COMPONENT / CRAFT_ROUTE_LOAD_ERROR_COMPONENT.
 import './lib/craft-defaults';
-export * from './lib/angular';
-export { ɵregisterAngularIsland } from './lib/host-runtime';
 export * from './lib/component';
 export * from './lib/css-vars';
 export type {

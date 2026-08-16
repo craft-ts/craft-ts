@@ -1,5 +1,4 @@
 import type {
-  AngularDirectiveNode,
   CraftNodeChildrenDependencies,
   CraftNodeChildrenCssVars,
   CraftNodeChildrenHandledExceptionCodes,
@@ -119,7 +118,6 @@ type ElementPropsContext<
     readonly class?: ClassValue;
     readonly style?: StyleValue;
     readonly attrs?: Readonly<Record<string, string | number | boolean | null>>;
-    readonly directives?: readonly AngularDirectiveNode[];
     readonly [dataAttribute: `data-${string}`]: unknown;
     readonly [ariaAttribute: `aria-${string}`]: unknown;
   };

@@ -62,79 +62,22 @@ type HostRuntimeApi = {
       ) => unknown;
     },
   ) => { update(...args: unknown[]): void; destroy(): void };
-  CraftAngularDirectiveHost: unknown;
-  CraftRoutedComponentHost: unknown;
 };
 
-class MissingAngularMount {
-  constructor() {
-    throw new Error(
-      'Import @craft-ng/angular to mount Angular components or directives.',
-    );
-  }
-  update(): void {}
-  destroy(): void {}
-}
-
-export let computed = ɵcomputed;
-export let createEnvironmentInjector = ɵcreateEnvironmentInjector;
-export let DestroyRef = CraftDestroyRef;
-export let ElementRef = ɵElementRef;
-export let EnvironmentInjector = ɵEnvironmentInjector;
-export let Injector = CraftInjectorToken;
-export let InjectionToken = CraftInjectionToken;
-export let inject = ɵinject;
-export let provideZonelessChangeDetection = ɵprovideZonelessChangeDetection;
-export let reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>
+export const computed = ɵcomputed;
+export const createEnvironmentInjector = ɵcreateEnvironmentInjector;
+export const DestroyRef = CraftDestroyRef;
+export const ElementRef = ɵElementRef;
+export const EnvironmentInjector = ɵEnvironmentInjector;
+export const Injector = CraftInjectorToken;
+export const InjectionToken = CraftInjectionToken;
+export const inject = ɵinject;
+export const provideZonelessChangeDetection = ɵprovideZonelessChangeDetection;
+export const reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>
   null;
-export let runInInjectionContext = ɵrunInInjectionContext;
-export let signal = ɵsignal;
-export let untracked = ɵuntracked;
-export let ɵEffectScheduler = CraftEffectScheduler;
-export let ɵINJECTOR_SCOPE = CraftInjectorScope;
-export let AngularMount: HostRuntimeApi['AngularMount'] =
-  MissingAngularMount as unknown as HostRuntimeApi['AngularMount'];
-export let CraftAngularDirectiveHost: unknown = class {};
-export let CraftRoutedComponentHost: unknown = class {
-  constructor() {
-    throw new Error(
-      'Import @craft-ng/angular to load Craft components on Angular routes.',
-    );
-  }
-};
+export const runInInjectionContext = ɵrunInInjectionContext;
+export const signal = ɵsignal;
+export const untracked = ɵuntracked;
+export const ɵEffectScheduler = CraftEffectScheduler;
+export const ɵINJECTOR_SCOPE = CraftInjectorScope;
 
-export function ɵregisterAngularIsland(
-  api: Partial<Record<keyof HostRuntimeApi, unknown>>,
-): void {
-  if (api.computed) computed = api.computed as typeof computed;
-  if (api.createEnvironmentInjector)
-    createEnvironmentInjector =
-      api.createEnvironmentInjector as typeof createEnvironmentInjector;
-  if (api.DestroyRef) DestroyRef = api.DestroyRef as typeof DestroyRef;
-  if (api.ElementRef) ElementRef = api.ElementRef as typeof ElementRef;
-  if (api.EnvironmentInjector)
-    EnvironmentInjector = api.EnvironmentInjector as typeof EnvironmentInjector;
-  if (api.Injector) Injector = api.Injector as typeof Injector;
-  if (api.inject) inject = api.inject as typeof inject;
-  if (api.provideZonelessChangeDetection)
-    provideZonelessChangeDetection =
-      api.provideZonelessChangeDetection as typeof provideZonelessChangeDetection;
-  if (api.reflectComponentType)
-    reflectComponentType =
-      api.reflectComponentType as typeof reflectComponentType;
-  if (api.runInInjectionContext)
-    runInInjectionContext =
-      api.runInInjectionContext as typeof runInInjectionContext;
-  if (api.signal) signal = api.signal as typeof signal;
-  if (api.untracked) untracked = api.untracked as typeof untracked;
-  if (api.ɵEffectScheduler)
-    ɵEffectScheduler = api.ɵEffectScheduler as typeof ɵEffectScheduler;
-  if (api.ɵINJECTOR_SCOPE)
-    ɵINJECTOR_SCOPE = api.ɵINJECTOR_SCOPE as typeof ɵINJECTOR_SCOPE;
-  if (api.AngularMount)
-    AngularMount = api.AngularMount as typeof AngularMount;
-  if (api.CraftAngularDirectiveHost)
-    CraftAngularDirectiveHost = api.CraftAngularDirectiveHost;
-  if (api.CraftRoutedComponentHost)
-    CraftRoutedComponentHost = api.CraftRoutedComponentHost;
-}

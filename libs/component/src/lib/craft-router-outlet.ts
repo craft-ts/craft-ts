@@ -2,7 +2,6 @@ import {
   createCraftRouterOutletController,
   type CraftRouterOutletController,
 } from '@craft-ng/core';
-import { angular } from './angular';
 import { craftComponent } from './component';
 import type { CraftComponent } from './types';
 import type { ComponentNode } from './render/vnode';
@@ -25,12 +24,6 @@ export const CraftRouterOutlet = craftComponent(
   ({ outlet }) => {
     const target = outlet.displayedTarget();
     if (!target) return [];
-    if (target.kind === 'angular') {
-      return angular(target.component as Parameters<typeof angular>[0], {
-        injector: outlet.displayedInjector(),
-      });
-    }
-
     const node = (target.component as CraftComponent<any>)(
       outlet.displayedProps() as never,
     ) as ComponentNode;

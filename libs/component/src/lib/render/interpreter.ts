@@ -53,8 +53,6 @@ import {
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import {
-  AngularMount,
-  CraftAngularDirectiveHost,
   computed,
   createEnvironmentInjector,
   ElementRef,
@@ -79,8 +77,6 @@ import { cssVarStyles, type CssVarDisposition } from '../css-vars';
 import {
   normalizeChildren,
   mergeHostProps,
-  type AngularComponentNode,
-  type AngularDirectiveNode,
   type AppliedCraftNodeDirective,
   type CraftDirectiveNode,
   type CraftNode,
@@ -571,24 +567,6 @@ function executeTemplateCallback(
   }
 }
 
-type AngularMountContext = {
-  readonly injector: Injector;
-  readonly resolveInput: (value: unknown) => unknown;
-  readonly executeOutput: (
-    callback: (value: unknown) => unknown,
-    value: unknown,
-  ) => unknown;
-};
-
-function angularMountContext(context: RenderContext): AngularMountContext {
-  return {
-    injector: context.injector,
-    resolveInput: (value) => (typeof value === 'function' ? value() : value),
-    executeOutput: (callback, value) =>
-      executeTemplateCallback(callback, [value], context),
-  };
-}
-
 function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
   return typeof value === 'function'
     ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
@@ -800,16 +778,6 @@ class CraftNodeDirectiveMount {
     this.cleanup?.();
     this.environmentInjector.destroy();
   }
-}
-
-function sameDirectives(
-  left: readonly AngularDirectiveNode[],
-  right: readonly AngularDirectiveNode[],
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((directive, index) => directive.type === right[index]?.type)
-  );
 }
 
 function sameCraftDirectives(
@@ -1407,8 +1375,6 @@ class ElementRenderedNode implements RenderedNode {
     string,
     { readonly source: unknown; readonly effectRef: EffectRef }
   >();
-  private angularDirectiveMount: InstanceType<typeof AngularMount> | undefined;
-  private directiveTypes: readonly AngularDirectiveNode[] = [];
   private craftNodeDirectiveTypes: readonly AppliedCraftNodeDirective[] = [];
   private craftNodeDirectiveMounts: CraftNodeDirectiveMount[] = [];
   private localName: string | undefined;
@@ -1630,27 +1596,6 @@ class ElementRenderedNode implements RenderedNode {
       }
     }
 
-    const directives = Array.isArray(next['directives'])
-      ? (next['directives'] as readonly AngularDirectiveNode[])
-      : [];
-    if (!sameDirectives(this.directiveTypes, directives)) {
-      this.angularDirectiveMount?.destroy();
-      this.angularDirectiveMount = directives.length
-        ? new AngularMount(
-            CraftAngularDirectiveHost,
-            this.node,
-            undefined,
-            {},
-            {},
-            directives,
-            angularMountContext(this.context),
-          )
-        : undefined;
-    } else {
-      this.angularDirectiveMount?.update({}, {}, directives);
-    }
-    this.directiveTypes = directives;
-
     const craftNodeDirectives = nextNode[CRAFT_NODE_DIRECTIVES] ?? [];
     if (
       !sameCraftNodeDirectives(
@@ -1781,7 +1726,6 @@ class ElementRenderedNode implements RenderedNode {
     this.bindings.clear();
     this.listeners.forEach((dispose) => dispose());
     this.listeners.clear();
-    this.angularDirectiveMount?.destroy();
     this.craftNodeDirectiveMounts.forEach((mount) => mount.destroy());
     this.craftNodeDirectiveMounts = [];
     this.children.forEach((child) => child.destroy());
@@ -3398,71 +3342,6 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
   }
 }
 
-class AngularRenderedNode implements RenderedNode {
-  readonly kind = 'angular';
-  private readonly hostElement: Element;
-  private readonly mount: InstanceType<typeof AngularMount>;
-  private node: AngularComponentNode;
-
-  private readonly context: RenderContext;
-
-  constructor(
-    node: AngularComponentNode,
-    parent: NativeParent,
-    before: NativeNode | null,
-    context: RenderContext,
-  ) {
-    this.context = context;
-    this.node = node;
-    const selector = reflectComponentType(node.component)?.selector;
-    const tag =
-      selector && /^[a-z][a-z0-9-]*$/i.test(selector) ? selector : 'div';
-    this.hostElement = context.renderer.createElement(tag) as Element;
-    context.renderer.setAttribute(
-      this.hostElement,
-      'data-craft-root',
-      scopeTokens(context.rootScope, `angular:${tag}`),
-    );
-    insertBefore(context.renderer, parent, this.hostElement, before);
-    this.mount = new AngularMount(
-      node.component,
-      this.hostElement,
-      node.injector,
-      node.inputs,
-      node.outputs,
-      node.directives,
-      angularMountContext(context),
-    );
-  }
-
-  firstNode(): NativeNode {
-    return this.hostElement;
-  }
-
-  lastNode(): NativeNode {
-    return this.hostElement;
-  }
-
-  patch(node: CraftNode): boolean {
-    if (
-      node.kind !== 'angular' ||
-      node.component !== this.node.component ||
-      node.injector !== this.node.injector ||
-      !sameDirectives(node.directives, this.node.directives)
-    ) {
-      return false;
-    }
-    this.node = node;
-    this.mount.update(node.inputs, node.outputs, node.directives);
-    return true;
-  }
-
-  destroy(): void {
-    this.mount.destroy();
-    removeNode(this.context.renderer, this.hostElement);
-  }
-}
-
 function componentHostName(injector: Injector, name: string): string {
   const tags = injector.get(HOST_TAG_LIST, []);
   const current = tags[tags.length - 1];
@@ -4842,8 +4721,6 @@ function mountNode(
         [],
         node.declarationContext as RenderContext | undefined,
       );
-    case 'angular':
-      return new AngularRenderedNode(node, parent, before, context);
     case 'directive':
       return new CraftDirectiveRenderedNode(node, parent, before, context);
     case 'each': {

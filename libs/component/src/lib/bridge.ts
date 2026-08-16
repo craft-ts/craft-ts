@@ -13,7 +13,6 @@ import {
   CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
   CRAFT_ROUTED_COMPONENT,
 } from './craft-host-tokens';
-import { CraftRoutedComponentHost } from './host-runtime';
 import {
   mountInterpretedComponent,
   type MountedCraftComponent,
@@ -155,7 +154,9 @@ export function loadCraftComponent<const Component extends CraftComponent<any>>(
   const fragment = {
     loadComponent: async (helpers: CraftRouteLazyLoadHelpers) => {
       loadedComponent = (await loader(helpers)) as Component;
-      return CraftRoutedComponentHost as Type<unknown>;
+      // The Angular host used to stand in here and read the component back out
+      // of CRAFT_ROUTE_TARGET. The outlet mounts Craft components directly.
+      return loadedComponent as unknown as Type<unknown>;
     },
     providers: [
       {

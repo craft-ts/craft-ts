@@ -297,14 +297,6 @@ export function craftAppConfig<
   };
 }
 
-export function toApplicationConfig(config: {
-  providers: readonly AngularApplicationProvider[];
-}): ApplicationConfig {
-  return {
-    providers: [...config.providers] as ApplicationConfig['providers'],
-  };
-}
-
 function collectProvidedServiceNames(
   values: readonly unknown[],
   names: Set<string> = new Set(),

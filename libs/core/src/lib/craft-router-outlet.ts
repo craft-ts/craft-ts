@@ -49,8 +49,7 @@ import {
   type TemporalTaskHandle,
 } from './temporal-runtime';
 import {
-  angularRouteTarget,
-  angularComponentFromRouteTarget,
+  craftRouteTarget,
   CRAFT_ROUTE_TARGET,
   isCraftRouteTarget,
   normalizeCraftRouteTarget,
@@ -561,7 +560,7 @@ export class CraftRouterOutletController {
     component: Type<unknown> | null,
     injector: Injector | null,
     target: CraftRouteTarget | null = component
-      ? angularRouteTarget(component)
+      ? craftRouteTarget(component)
       : null,
   ): void {
     const commit = () => {
@@ -629,7 +628,7 @@ export class CraftRouterOutletController {
   ): Promise<void> {
     const resolved = await resolveComponentInput(input);
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    const component = angularComponentFromRouteTarget(target);
+    const component = null;
     this.errorComponent.set(component);
     this.errorTarget.set(target);
     this.showComponent(
@@ -764,7 +763,7 @@ export class CraftRouterOutletController {
       meta.pendingComponent ?? this.defaultPendingComponent,
     );
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    const component = angularComponentFromRouteTarget(target);
+    const component = null;
     this.pendingComponent.set(component);
     this.pendingTarget.set(target);
   }
@@ -779,7 +778,7 @@ export class CraftRouterOutletController {
   ): CraftRouteTarget | null {
     return (
       this._activeRouteInjector?.get(CRAFT_ROUTE_TARGET, null) ??
-      (component ? angularRouteTarget(component) : null)
+      (component ? craftRouteTarget(component) : null)
     );
   }
 
@@ -833,7 +832,7 @@ export async function resolveComponentInput(
   }
   if (input.loadComponent) {
     const loaded = await input.loadComponent();
-    return typeof loaded === 'object' && 'default' in loaded
+    return loaded && typeof loaded === 'object' && 'default' in loaded
       ? loaded.default
       : loaded;
   }
