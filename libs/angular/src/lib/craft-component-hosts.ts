@@ -4,7 +4,6 @@ import {
   ElementRef,
   inject,
   Injector,
-  InjectionToken,
   Input,
   type OnChanges,
   type OnDestroy,
@@ -13,54 +12,27 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { combineLatest, type Subscription } from 'rxjs';
+import {
+  CRAFT_GLOBAL_ERROR_COMPONENT,
+  CRAFT_PENDING_COMPONENT,
+  CRAFT_ROOT_COMPONENT,
+  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
+  CRAFT_ROUTED_COMPONENT,
+  mountCraftComponent,
+  ɵregisterAngularIsland,
+} from '@craft-ng/component';
 
-export const CRAFT_ROUTED_COMPONENT = new InjectionToken<any>(
-  'CRAFT_ROUTED_COMPONENT',
-);
-export const CRAFT_ROOT_COMPONENT = new InjectionToken<any>(
-  'CRAFT_ROOT_COMPONENT',
-);
-export const CRAFT_GLOBAL_ERROR_COMPONENT = new InjectionToken<any>(
-  'CRAFT_GLOBAL_ERROR_COMPONENT',
-);
-export const CRAFT_ROUTE_LOAD_ERROR_COMPONENT = new InjectionToken<any>(
-  'CRAFT_ROUTE_LOAD_ERROR_COMPONENT',
-);
-export const CRAFT_PENDING_COMPONENT = new InjectionToken<any>(
-  'CRAFT_PENDING_COMPONENT',
-);
+export {
+  CRAFT_GLOBAL_ERROR_COMPONENT,
+  CRAFT_PENDING_COMPONENT,
+  CRAFT_ROOT_COMPONENT,
+  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
+  CRAFT_ROUTED_COMPONENT,
+};
 
 export interface CraftHostMountRef {
   updateProps(props: object): void;
   destroy(): void;
-}
-
-export type CraftHostMount = (
-  component: unknown,
-  hostElement: Element,
-  injector: Injector,
-  props?: object,
-) => CraftHostMountRef;
-
-let mountCraftComponentImpl: CraftHostMount | undefined;
-
-/** Called by `@craft-ng/component` so Angular hosts can mount Craft trees. */
-export function ɵregisterMountCraftComponent(mount: CraftHostMount): void {
-  mountCraftComponentImpl = mount;
-}
-
-function mountCraftComponent(
-  component: unknown,
-  hostElement: Element,
-  injector: Injector,
-  props: object = {},
-): CraftHostMountRef {
-  if (!mountCraftComponentImpl) {
-    throw new Error(
-      'Craft Angular hosts require @craft-ng/component to register mountCraftComponent.',
-    );
-  }
-  return mountCraftComponentImpl(component, hostElement, injector, props);
 }
 
 const ANGULAR_ROUTE_PROP_SKIP = new Set([
@@ -292,3 +264,7 @@ export class CraftPendingComponentHost implements OnDestroy {
     this.mounted?.destroy();
   }
 }
+
+ɵregisterAngularIsland({
+  CraftRoutedComponentHost,
+});

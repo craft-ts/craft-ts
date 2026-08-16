@@ -2503,7 +2503,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * });
  * ```
  */
-export function toCraftService<const Name extends string, Output>(options: {
+export function ɵtoCraftService<const Name extends string, Output>(options: {
   name: Name;
   scope: 'global';
   token: DependencySourceToken<Output>;
@@ -2515,7 +2515,7 @@ export function toCraftService<const Name extends string, Output>(options: {
   Output,
   ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
 >;
-export function toCraftService<const Name extends string, Output>(options: {
+export function ɵtoCraftService<const Name extends string, Output>(options: {
   name: Name;
   scope: 'global';
   token: DependencySourceToken<Output>;
@@ -2535,7 +2535,7 @@ export function toCraftService<const Name extends string, Output>(options: {
     false
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2569,7 +2569,7 @@ export function toCraftService<
     true
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2603,7 +2603,7 @@ export function toCraftService<
     false
   >
 >;
-export function toCraftService<const Name extends string, Output>(
+export function ɵtoCraftService<const Name extends string, Output>(
   options: GlobalInjectedDependencyOptions<Name, Output> & {
     browserBoundary: true;
   },
@@ -2614,7 +2614,7 @@ export function toCraftService<const Name extends string, Output>(
   Output,
   ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
 >;
-export function toCraftService<const Name extends string, Output>(
+export function ɵtoCraftService<const Name extends string, Output>(
   options: GlobalInjectedDependencyOptions<Name, Output> & {
     browserBoundary?: false;
   },
@@ -2633,7 +2633,7 @@ export function toCraftService<const Name extends string, Output>(
     false
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2664,7 +2664,7 @@ export function toCraftService<
     true
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2695,7 +2695,7 @@ export function toCraftService<
     false
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2721,7 +2721,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2747,7 +2747,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2791,7 +2791,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2835,7 +2835,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService(
+export function ɵtoCraftService(
   options:
     | (GlobalTokenDependencyOptions<string, DependencySourceToken<unknown>> & {
         browserBoundary?: boolean;

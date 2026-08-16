@@ -1,7 +1,7 @@
 import { Component, inject, Injectable, InjectionToken } from '@angular/core';
 import { provideRouter, Router } from '@angular/router';
 import { type GetDeps, type GetPublicComponentProperties } from '../index';
-import { craftService, toCraftService } from './craft-service';
+import { craftService, ɵtoCraftService as toCraftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 import { craftUse } from './craft-use';

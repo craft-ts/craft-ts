@@ -6,7 +6,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { craftService, toCraftService, type CraftServiceInput } from './craft-service';
+import { craftService, ɵtoCraftService as toCraftService, type CraftServiceInput } from './craft-service';
 import { craftUse } from './craft-use';
 import {
   provideReactiveReadObserver,

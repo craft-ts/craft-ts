@@ -6,7 +6,7 @@ import { RAW_REACTIVE_VALUE } from '../reactive-read';
 export const CRAFT_SIGNAL = Symbol('craft-signal');
 
 export type CraftSignal<T> = (() => T) & {
-  readonly [CRAFT_SIGNAL]?: true;
+  readonly [CRAFT_SIGNAL]: true;
 };
 
 export type CraftWritableSignal<T> = CraftSignal<T> & {
@@ -49,6 +49,10 @@ type CraftWatchOptions = {
   readonly injector?: unknown;
   readonly manualCleanup?: boolean;
 };
+
+export function ɵbrandAsCraftSignal<T>(value: () => T): CraftSignal<T> {
+  return brand(value) as CraftSignal<T>;
+}
 
 function brand<T, SignalType extends () => T>(value: SignalType): SignalType {
   Object.defineProperties(value, {

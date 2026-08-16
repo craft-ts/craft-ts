@@ -19,7 +19,7 @@ import { state } from './state';
 import {
   craftService,
   getServiceMetaData,
-  toCraftService,
+  ɵtoCraftService as toCraftService,
 } from './craft-service';
 import type {
   GetServiceDependencies,

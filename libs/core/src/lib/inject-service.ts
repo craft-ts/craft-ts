@@ -74,16 +74,16 @@ export type InjectService2Output<Service, Insertions> = Prettify<
   YieldableInsertionMethods<FilterSource<Insertions>>
 >;
 
-export function injectService<Service, Insertion1>(
+export function ɵinjectService<Service, Insertion1>(
   token: Type<Service>,
   insertion1: InjectService2InsertionFactory<Service, Insertion1>,
 ): InjectService2Output<Service, Insertion1>;
-export function injectService<Service, Insertion1, Insertion2>(
+export function ɵinjectService<Service, Insertion1, Insertion2>(
   token: Type<Service>,
   insertion1: InjectService2InsertionFactory<Service, Insertion1>,
   insertion2: InjectService2InsertionFactory<Service, Insertion2, Insertion1>,
 ): InjectService2Output<Service, Insertion1 & Insertion2>;
-export function injectService<Service, Insertion1, Insertion2, Insertion3>(
+export function ɵinjectService<Service, Insertion1, Insertion2, Insertion3>(
   token: Type<Service>,
   insertion1: InjectService2InsertionFactory<Service, Insertion1>,
   insertion2: InjectService2InsertionFactory<Service, Insertion2, Insertion1>,
@@ -93,7 +93,7 @@ export function injectService<Service, Insertion1, Insertion2, Insertion3>(
     Insertion1 & Insertion2
   >,
 ): InjectService2Output<Service, Insertion1 & Insertion2 & Insertion3>;
-export function injectService<
+export function ɵinjectService<
   Service,
   Insertion1,
   Insertion2,
@@ -117,7 +117,7 @@ export function injectService<
   Service,
   Insertion1 & Insertion2 & Insertion3 & Insertion4
 >;
-export function injectService<
+export function ɵinjectService<
   Service,
   Insertion1,
   Insertion2,
@@ -177,7 +177,7 @@ export function injectService<
  * ```ts
  * import { Component, computed } from './host/craft-compat';
  * import { Router } from './host/craft-router-types';
- * import { injectService, on$, source$ } from '@craft-ng/core';
+ * import { injectService, on$, source$ } from '@craft-ng/angular';
  *
  * @Component({
  *   selector: 'app-terms-page',
@@ -204,7 +204,7 @@ export function injectService<
  * Build a checkout-oriented facade from a broader service
  * ```ts
  * import { Component, computed, Injectable, signal } from './host/craft-compat';
- * import { injectService } from '@craft-ng/core';
+ * import { injectService } from '@craft-ng/angular';
  *
  * @Injectable({ providedIn: 'root' })
  * class CheckoutService {
@@ -260,8 +260,8 @@ export function injectService<
  * }
  * ```
  */
-export function injectService<Service>(...args: any[]): any {
-  assertInInjectionContext(injectService);
+export function ɵinjectService<Service>(...args: any[]): any {
+  assertInInjectionContext(ɵinjectService);
 
   const [token, ...insertions] = args as [
     Type<unknown>,

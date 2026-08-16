@@ -12,7 +12,7 @@ import {
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
 import { afterRecomputation } from './after-recomputation';
-import { injectService } from './inject-service';
+import { ɵinjectService as injectService } from './inject-service';
 import { on$ } from './on$';
 import { source$ } from './source$';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';

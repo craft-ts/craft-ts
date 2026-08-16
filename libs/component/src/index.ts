@@ -4,6 +4,7 @@ export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
 export * from './lib/angular';
+export { ɵregisterAngularIsland } from './lib/host-runtime';
 export * from './lib/component';
 export * from './lib/css-vars';
 export type {

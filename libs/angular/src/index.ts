@@ -1,4 +1,5 @@
 import './lib/angular';
+import './lib/register-angular-island';
 import './lib/craft-inject-fallback';
 import './lib/default-craft-pending';
 import './lib/craft-route-load-error-host';
@@ -8,7 +9,7 @@ import './lib/legacy-craft-router-link';
 
 export * from './lib/angular';
 export { injectCraft } from './lib/inject-craft';
-export { toCraftService, injectService } from '@craft-ng/core';
+export { ɵtoCraftService as toCraftService, ɵinjectService as injectService } from '@craft-ng/core';
 export {
   DefaultCraftPendingComponent,
   type GenDeps_DefaultCraftPendingComponent,
@@ -34,5 +35,5 @@ export {
   CraftRootComponentHost,
   CraftRouteLoadErrorComponentHost,
   CraftRoutedComponentHost,
-  ɵregisterMountCraftComponent,
 } from './lib/craft-component-hosts';
+export { fromAngularSignal } from './lib/from-angular-signal';

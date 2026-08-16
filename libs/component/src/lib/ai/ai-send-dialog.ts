@@ -8,7 +8,7 @@ import {
   type TemporalTaskHandle,
   type SendContextPayload,
 } from '@craft-ng/core';
-import { toCraftService } from '@craft-ng/angular';
+import { ɵtoCraftService as toCraftService } from '@craft-ng/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {

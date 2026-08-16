@@ -21,7 +21,7 @@ import type {
   CraftRouteTargetInput,
 } from './craft-route-target';
 import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   // These marker symbols are imported type-only so the generated
   // `CraftGlobalError` helper's inferred type is nameable in this
   // module's `.d.ts` (otherwise TS4023 — same recipe as `craft-router.ts`).

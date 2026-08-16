@@ -2,13 +2,17 @@ import {
   DestroyRef as AngularDestroyRef,
   inject as angularInject,
   Injector as AngularInjector,
+  isDevMode as angularIsDevMode,
 } from '@angular/core';
 import {
   DestroyRef,
   Injector,
   ɵcraftInjectorFromHost,
+  ɵsetCraftDevMode,
   ɵsetCraftInjectFallback,
 } from '@craft-ng/core';
+
+ɵsetCraftDevMode(angularIsDevMode());
 
 ɵsetCraftInjectFallback((token, options) => {
   if (token === Injector) {

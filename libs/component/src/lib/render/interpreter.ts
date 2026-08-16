@@ -54,20 +54,19 @@ import { executeCraftComponentFactory } from '../factory-runtime';
 import {
   AngularMount,
   CraftAngularDirectiveHost,
-  ɵangularComputed as computed,
-  ɵcreateAngularEnvironmentInjector as createEnvironmentInjector,
-  ɵAngularElementRef as ElementRef,
-  ɵAngularEnvironmentInjector as EnvironmentInjector,
-  ɵAngularInjector as Injector,
-  ɵreflectAngularComponentType as reflectComponentType,
-  ɵrunInAngularInjectionContext as runInInjectionContext,
-  ɵangularSignal as signal,
-  ɵangularUntracked as untracked,
-  type ɵAngularEffectRef as EffectRef,
-  type ɵAngularProvider as Provider,
-  type ɵAngularProviderToken as ProviderToken,
-  type AngularMountContext,
-} from '@craft-ng/angular';
+  computed,
+  createEnvironmentInjector,
+  ElementRef,
+  EnvironmentInjector,
+  Injector,
+  reflectComponentType,
+  runInInjectionContext,
+  signal,
+  untracked,
+  type EffectRef,
+  type Provider,
+  type ProviderToken,
+} from '../host-runtime';
 import type { HostProps } from '../hyperscript';
 import {
   CRAFT_COMPONENT,
@@ -570,6 +569,15 @@ function executeTemplateCallback(
     if (isGeneratorCallback) templateGeneratorDepth--;
   }
 }
+
+type AngularMountContext = {
+  readonly injector: Injector;
+  readonly resolveInput: (value: unknown) => unknown;
+  readonly executeOutput: (
+    callback: (value: unknown) => unknown,
+    value: unknown,
+  ) => unknown;
+};
 
 function angularMountContext(context: RenderContext): AngularMountContext {
   return {
@@ -1398,7 +1406,7 @@ class ElementRenderedNode implements RenderedNode {
     string,
     { readonly source: unknown; readonly effectRef: EffectRef }
   >();
-  private angularDirectiveMount: AngularMount | undefined;
+  private angularDirectiveMount: InstanceType<typeof AngularMount> | undefined;
   private directiveTypes: readonly AngularDirectiveNode[] = [];
   private craftNodeDirectiveTypes: readonly AppliedCraftNodeDirective[] = [];
   private craftNodeDirectiveMounts: CraftNodeDirectiveMount[] = [];
@@ -3392,7 +3400,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
 class AngularRenderedNode implements RenderedNode {
   readonly kind = 'angular';
   private readonly hostElement: Element;
-  private readonly mount: AngularMount;
+  private readonly mount: InstanceType<typeof AngularMount>;
   private node: AngularComponentNode;
 
   private readonly context: RenderContext;

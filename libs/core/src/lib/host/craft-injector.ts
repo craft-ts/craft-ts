@@ -21,6 +21,7 @@ export interface CraftInjector {
   createChild(providers: readonly CraftProvider[]): CraftInjector;
   destroy(): void;
   readonly destroyed: boolean;
+  readonly ɵparent?: CraftInjector | null;
 }
 
 type ProviderRecord = {
@@ -238,6 +239,9 @@ function createNativeCraftInjector(
     get destroyed() {
       return destroyed;
     },
+    get ɵparent() {
+      return parent;
+    },
   };
 
   Object.defineProperty(craftInjector, 'ɵonDestroy', {
@@ -324,6 +328,9 @@ export function ɵcreateCraftInjectorFromHost(
     },
     get destroyed() {
       return destroyed || host.destroyed === true;
+    },
+    get ɵparent() {
+      return null;
     },
   };
   hostInjectors.set(hostInjector, craftInjector);

@@ -1,8 +1,9 @@
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
-import '@craft-ng/angular';
 import {
   CraftGlobalErrorComponentHost,
   CraftRouteLoadErrorComponentHost,
+} from '@craft-ng/angular';
+import {
   provideCraftGlobalErrorComponent,
   provideCraftRootComponent,
   provideCraftRouteLoadErrorComponent,

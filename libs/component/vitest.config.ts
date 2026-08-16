@@ -39,13 +39,15 @@ export default defineConfig({
     name: 'ng-craft-component',
     globals: true,
     environment: 'jsdom',
-    include: [
-      'src/lib/hyperscript.spec.ts',
-      'src/lib/render/style-scope.spec.ts',
-      'src/lib/render/style-registry.spec.ts',
-      'src/lib/render/interpreter-boundary.spec.ts',
+    include: ['src/**/*.spec.ts'],
+    exclude: [
+      'src/lib/render/interpreter.spec.ts',
+      'src/lib/assert-defined-input.spec.ts',
+      'src/lib/block.spec.ts',
+      'src/lib/a11y-control.spec.ts',
+      'src/lib/composition.spec.ts',
+      'src/lib/pending-block.spec.ts',
     ],
-    exclude: ['src/lib/render/interpreter.spec.ts'],
     reporters: ['default'],
   },
 });

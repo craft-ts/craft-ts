@@ -14,7 +14,7 @@ import {
   type CraftLoadingFeature,
 } from './craft-pending';
 import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   type GetServiceYields,
   type SERVICE_HELPER_DEPENDENCIES,
   type ServiceTrackingMetadata,

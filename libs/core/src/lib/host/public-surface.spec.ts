@@ -80,4 +80,29 @@ describe('public surface', () => {
       '@nx/angular:unit-test',
     );
   });
+
+  it('does not export toCraftService or injectService from the core barrel', async () => {
+    const core = await import('@craft-ng/core');
+    expect('toCraftService' in core).toBe(false);
+    expect('injectService' in core).toBe(false);
+  });
+
+  it('covers host runtime and state in the default vitest suite', () => {
+    const vitestConfig = readFileSync(
+      join(here, '../../../vitest.config.ts'),
+      'utf8',
+    );
+    expect(vitestConfig).toContain('src/lib/state.spec.ts');
+    expect(vitestConfig).toContain('src/lib/host/**/*.spec.ts');
+  });
+
+  it('declares @angular/common as a peer of @craft-ng/angular', () => {
+    const pkg = JSON.parse(
+      readFileSync(
+        join(here, '../../../../angular/package.json'),
+        'utf8',
+      ),
+    ) as { peerDependencies: Record<string, string> };
+    expect(pkg.peerDependencies['@angular/common']).toBe('^21.0.0');
+  });
 });

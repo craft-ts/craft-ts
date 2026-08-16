@@ -27,7 +27,7 @@ import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import { CRAFT_ROUTER } from './craft-router-tokens';
 import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
   type SERVICE_EXPOSURE_TOKEN_MARKER,
   type SERVICE_HELPER_DEPENDENCIES,

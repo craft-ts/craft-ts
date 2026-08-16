@@ -230,8 +230,23 @@ export class ErrorHandler {
   }
 }
 
+let craftDevMode: boolean | undefined;
+
+export function ɵsetCraftDevMode(isDev: boolean | undefined): void {
+  craftDevMode = isDev;
+}
+
 export function isDevMode(): boolean {
-  return true;
+  if (craftDevMode !== undefined) {
+    return craftDevMode;
+  }
+  const ngDevMode = (globalThis as { ngDevMode?: boolean }).ngDevMode;
+  if (typeof ngDevMode === 'boolean') {
+    return ngDevMode;
+  }
+  return (
+    typeof process === 'undefined' || process.env?.NODE_ENV !== 'production'
+  );
 }
 
 export class ElementRef<T = HTMLElement> {
@@ -296,41 +311,6 @@ export function ɵsetCraftInjectFallback(
   injectFallback = fallback;
 }
 
-function tryCreateAngularInjectFallback(): CraftInjectFallback | undefined {
-  try {
-    const requireFn = new Function(
-      'return typeof require === "function" ? require : undefined',
-    )() as
-      | ((specifier: string) => {
-          inject: (
-            token: object,
-            options?: { optional?: boolean; skipSelf?: boolean },
-          ) => unknown;
-          Injector: object;
-          DestroyRef: object;
-        })
-      | undefined;
-    if (!requireFn) {
-      return undefined;
-    }
-    const angularCore = requireFn('@angular/core');
-    return (token, options) => {
-      if (token === Injector) {
-        return ɵcreateCraftInjectorFromHost(
-          angularCore.inject(angularCore.Injector) as object,
-          (fn) => fn(),
-        );
-      }
-      if (token === DestroyRef) {
-        return angularCore.inject(angularCore.DestroyRef, options);
-      }
-      return angularCore.inject(token, options);
-    };
-  } catch {
-    return undefined;
-  }
-}
-
 export function inject<T>(token: InjectionToken<T>): T;
 export function inject<T>(token: CraftToken<T>): T;
 export function inject<T>(token: Type<T>): T;
@@ -347,13 +327,20 @@ export function inject<T>(
   try {
     injector = getCurrentCraftInjector();
   } catch (error) {
-    if (!injectFallback) {
-      injectFallback = tryCreateAngularInjectFallback();
-    }
     if (injectFallback) {
       return injectFallback(token as object, options) as T;
     }
     throw error;
+  }
+  if (options?.skipSelf) {
+    const parent = injector.ɵparent;
+    if (!parent) {
+      if (options.optional) {
+        return null;
+      }
+      throw new Error(`No provider for Craft token "${String(token)}".`);
+    }
+    injector = parent;
   }
   if (isInjectorToken(token)) {
     return injector as T;
@@ -591,12 +578,28 @@ export function linkedSignal<T>(
   });
 }
 
+function bindWatchToDestroyRef(
+  watch: { destroy(): void },
+  options?: CreateEffectOptions,
+): void {
+  if (options?.manualCleanup) {
+    return;
+  }
+  let destroyRef: DestroyRef | null = null;
+  try {
+    destroyRef = inject(DestroyRef, { optional: true });
+  } catch {
+    destroyRef = null;
+  }
+  destroyRef?.onDestroy(() => watch.destroy());
+}
+
 export function effect(
   fn: (onCleanup: EffectCleanupRegisterFn) => void,
   options?: CreateEffectOptions,
 ): EffectRef {
-  const run = () =>
-    craftWatch(() => {
+  const run = () => {
+    const watch = craftWatch(() => {
       const cleanups: Array<() => void> = [];
       fn((cleanup) => {
         cleanups.push(cleanup);
@@ -607,6 +610,9 @@ export function effect(
         }
       };
     }, options);
+    bindWatchToDestroyRef(watch, options);
+    return watch;
+  };
   const injector = options?.injector;
   return injector ? asCraftInjector(injector).run(run) : run();
 }
@@ -651,12 +657,38 @@ export function takeUntilDestroyed<T>(
     });
 }
 
-export function toObservable<T>(source: Signal<T>): Observable<T> {
+export type ToObservableOptions = {
+  injector?: Injector;
+};
+
+export function toObservable<T>(
+  source: Signal<T>,
+  options?: ToObservableOptions,
+): Observable<T> {
   return new Observable<T>((subscriber) => {
-    subscriber.next(source());
-    const watch = craftWatch(() => {
-      subscriber.next(source());
-    });
-    return () => watch.destroy();
+    const start = () => {
+      const watch = craftWatch(() => {
+        subscriber.next(source());
+      });
+      let release: (() => void) | undefined;
+      try {
+        const destroyRef = inject(DestroyRef, { optional: true });
+        release = destroyRef?.onDestroy(() => {
+          watch.destroy();
+          if (!subscriber.closed) {
+            subscriber.complete();
+          }
+        });
+      } catch {
+        release = undefined;
+      }
+      return () => {
+        release?.();
+        watch.destroy();
+      };
+    };
+    return options?.injector
+      ? asCraftInjector(options.injector).run(start)
+      : start();
   });
 }

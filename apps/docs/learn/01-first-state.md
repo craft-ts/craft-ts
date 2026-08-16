@@ -100,7 +100,7 @@ export const appConfig = craftAppConfig({
 ```typescript
 // main.ts
 import { bootstrapApplication } from '@angular/platform-browser';
-import { CraftRootComponentHost } from '@craft-ng/component';
+import { CraftRootComponentHost } from '@craft-ng/angular';
 import { toApplicationConfig } from '@craft-ng/core';
 import { appConfig } from './app/app.config';
 

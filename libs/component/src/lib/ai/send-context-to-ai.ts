@@ -1,12 +1,12 @@
 import {
-  ɵAngularDestroyRef as DestroyRef,
-  ɵAngularElementRef as ElementRef,
-  ɵangularInject as inject,
-  ɵAngularInjector as Injector,
-  ɵrunInAngularInjectionContext as runInInjectionContext,
-  type ɵAngularProvider as Provider,
-  type ɵAngularProviderToken as ProviderToken,
-} from '@craft-ng/angular';
+  DestroyRef,
+  ElementRef,
+  inject,
+  Injector,
+  runInInjectionContext,
+  type Provider,
+  type ProviderToken,
+} from '../host-runtime';
 import {
   APP_SNAPSHOT_REGISTRY,
   craftToken,

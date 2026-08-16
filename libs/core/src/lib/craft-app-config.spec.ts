@@ -22,7 +22,7 @@ import {
   GetServiceDependencies,
   onAppStart,
   runServiceAppStart,
-  toCraftService,
+  ɵtoCraftService as toCraftService,
 } from './craft-service';
 import { craftUse } from './craft-use';
 

@@ -81,8 +81,30 @@ export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 export {
   DestroyRef,
   Injector,
+  ɵsetCraftDevMode,
   ɵsetCraftInjectFallback,
+  inject as ɵinject,
+  createEnvironmentInjector as ɵcreateEnvironmentInjector,
+  ElementRef as ɵElementRef,
+  EnvironmentInjector as ɵEnvironmentInjector,
+  runInInjectionContext as ɵrunInInjectionContext,
+  provideZonelessChangeDetection as ɵprovideZonelessChangeDetection,
+  computed as ɵcomputed,
+  signal as ɵsignal,
+  untracked as ɵuntracked,
+  ɵEffectScheduler,
+  ɵINJECTOR_SCOPE,
 } from './lib/host/craft-compat';
+export type {
+  EffectRef as ɵEffectRef,
+  Provider as ɵProvider,
+  ProviderToken as ɵProviderToken,
+} from './lib/host/craft-compat';
+export {
+  CRAFT_SIGNAL as ɵCRAFT_SIGNAL,
+  ɵbrandAsCraftSignal,
+} from './lib/host/craft-signal';
+export type { CraftSignal as ɵCraftSignal } from './lib/host/craft-signal';
 export {
   createBrowserDomAdapter,
   type CraftDomAdapter,

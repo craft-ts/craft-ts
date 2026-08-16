@@ -1,19 +1,4 @@
 import {
-  ɵAngularInjector as Injector,
-  type ɵAngularRoute as Route,
-  type ɵAngularType as Type,
-  type ɵAngularValueProvider as ValueProvider,
-} from '@craft-ng/angular';
-import {
-  CRAFT_GLOBAL_ERROR_COMPONENT,
-  CRAFT_PENDING_COMPONENT,
-  CRAFT_ROOT_COMPONENT,
-  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
-  CRAFT_ROUTED_COMPONENT,
-  CraftRoutedComponentHost,
-  ɵregisterMountCraftComponent,
-} from '@craft-ng/angular';
-import {
   CRAFT_ROUTE_TARGET,
   craftRouteTarget,
   type ComponentDepsCarrier,
@@ -21,6 +6,14 @@ import {
   type ComponentExceptionsCarrier,
   type CraftRouteLazyLoadHelpers,
 } from '@craft-ng/core';
+import {
+  CRAFT_GLOBAL_ERROR_COMPONENT,
+  CRAFT_PENDING_COMPONENT,
+  CRAFT_ROOT_COMPONENT,
+  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
+  CRAFT_ROUTED_COMPONENT,
+} from './craft-host-tokens';
+import { CraftRoutedComponentHost } from './host-runtime';
 import {
   mountInterpretedComponent,
   type MountedCraftComponent,
@@ -53,20 +46,23 @@ type RequireHandledMountFieldExceptions<Component> =
 export function mountCraftComponent<Component extends CraftComponent<any>>(
   component: Component & RequireHandledMountFieldExceptions<Component>,
   hostElement: Element,
-  injector: Injector,
+  injector: object,
   props: PropsOf<Component> = {} as PropsOf<Component>,
 ): CraftMountRef<PropsOf<Component>> {
   return mountInterpretedComponent(component, hostElement, injector, props);
 }
 
-ɵregisterMountCraftComponent((component, hostElement, injector, props) =>
-  mountCraftComponent(
-    component as CraftComponent<any>,
-    hostElement,
-    injector,
-    props as never,
-  ),
-);
+type ValueProvider = {
+  provide: object;
+  useValue: unknown;
+  multi?: boolean;
+};
+
+type Route = {
+  providers?: readonly unknown[];
+};
+
+type Type<T> = new (...args: never[]) => T;
 
 export {
   CRAFT_GLOBAL_ERROR_COMPONENT,
@@ -74,7 +70,7 @@ export {
   CRAFT_ROOT_COMPONENT,
   CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
   CRAFT_ROUTED_COMPONENT,
-} from '@craft-ng/angular';
+} from './craft-host-tokens';
 
 export function provideCraftComponent(
   component: CraftComponent<any>,
@@ -146,7 +142,7 @@ export function loadCraftComponent<const Component extends CraftComponent<any>>(
 ): {
   loadComponent: (
     helpers: CraftRouteLazyLoadHelpers,
-  ) => Promise<Type<CraftRoutedComponentHost>>;
+  ) => Promise<Type<unknown>>;
   providers: NonNullable<Route['providers']>;
 } & ComponentDepsCarrier<ComponentDepsOf<Component>> &
   ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> &
@@ -159,7 +155,7 @@ export function loadCraftComponent<const Component extends CraftComponent<any>>(
   const fragment = {
     loadComponent: async (helpers: CraftRouteLazyLoadHelpers) => {
       loadedComponent = (await loader(helpers)) as Component;
-      return CraftRoutedComponentHost;
+      return CraftRoutedComponentHost as Type<unknown>;
     },
     providers: [
       {
@@ -241,11 +237,3 @@ export function craftPendingComponentRouteData(
   return { craftPendingComponent: component };
 }
 
-export {
-  CraftComponentHostDirective,
-  CraftGlobalErrorComponentHost,
-  CraftPendingComponentHost,
-  CraftRootComponentHost,
-  CraftRouteLoadErrorComponentHost,
-  CraftRoutedComponentHost,
-} from '@craft-ng/angular';

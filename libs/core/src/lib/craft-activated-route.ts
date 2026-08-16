@@ -1,6 +1,6 @@
 import { ActivatedRoute } from './host/craft-router-types';
 import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   type SERVICE_HELPER_DEPENDENCIES,
   type ServiceYieldRequest,
   type ServiceTrackingMetadata,

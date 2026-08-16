@@ -225,7 +225,7 @@ describe('angular-brand-codemod', () => {
         import { Component, input } from '@angular/core';
         import { Router } from '@angular/router';
         import { ApiService } from './api.service';
-        import { toCraftService } from '@craft-ng/core';
+        import { toCraftService } from '@craft-ng/angular';
 
         const { Router: RouterService } = toCraftService({
           name: 'Router',
