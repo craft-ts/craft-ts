@@ -81,6 +81,17 @@ describe('DestroyRef on the Angular island', () => {
     expect(seen).toEqual([0, 1]);
   });
 
+  it('does not throw NG0205 when running after the Angular host is destroyed', () => {
+    const host = bootAngularHostInjector();
+    const craft = ɵcraftInjectorFromHost(host);
+
+    host.destroy();
+
+    expect(host.destroyed).toBe(true);
+    expect(() => craft.run(() => 'ok')).not.toThrow();
+    expect(craft.run(() => 'ok')).toBe('ok');
+  });
+
   it('constructs source$ on an Angular host injector', () => {
     const host = bootAngularHostInjector();
     const source = ɵcraftInjectorFromHost(host).run(() =>

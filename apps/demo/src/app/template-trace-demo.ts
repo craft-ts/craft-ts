@@ -24,8 +24,28 @@ import {
 
 let logging = false;
 
+function optionalAngularInjector(): Injector | undefined {
+  try {
+    return inject(Injector);
+  } catch {
+    return undefined;
+  }
+}
+
+function isDestroyedInjector(injector: Injector): boolean {
+  return (
+    'destroyed' in injector &&
+    (injector as Injector & { destroyed?: boolean }).destroyed === true
+  );
+}
+
 function logTrace(label: string, value: unknown, injector?: Injector): void {
   if (logging) {
+    return;
+  }
+
+  const resolvedInjector = injector ?? optionalAngularInjector();
+  if (!resolvedInjector || isDestroyedInjector(resolvedInjector)) {
     return;
   }
 
@@ -38,12 +58,14 @@ function logTrace(label: string, value: unknown, injector?: Injector): void {
         },
         thisArg: undefined,
         args: [],
-        getInjector: () => injector ?? inject(Injector),
+        getInjector: () => resolvedInjector,
         invalidYieldErrorMessage: 'Demo tracing yielded an invalid value',
         multipleAppStartErrorMessage:
           'Demo tracing cannot register multiple app-start hooks',
       }),
     );
+  } catch {
+    // Tracing must never throw into the app (NG0205 after destroy, NG0203, …).
   } finally {
     logging = false;
   }
@@ -65,23 +87,21 @@ function isCraftControlFlow(error: unknown): boolean {
 
 const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {
   const name = factory.name || '<anonymous>';
+  const injector = optionalAngularInjector();
   if (logging) {
     return yield* factory.apply(thisArg, args);
   }
 
   try {
-    logTrace('[trace:function:start]', {
-      name,
-      args,
-    });
+    logTrace('[trace:function:start]', { name, args }, injector);
     const result = yield* factory.apply(thisArg, args);
-    logTrace('[trace:function:end]', { name, result });
+    logTrace('[trace:function:end]', { name, result }, injector);
     return result;
   } catch (error) {
     if (isCraftControlFlow(error)) {
       throw error;
     }
-    logTrace('[trace:function:error]', { name, error });
+    logTrace('[trace:function:error]', { name, error }, injector);
     return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
   }
 };

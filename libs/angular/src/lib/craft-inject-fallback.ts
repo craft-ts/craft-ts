@@ -25,9 +25,21 @@ import {
 ɵregisterCraftTokenHostToken(ɵElementRef, AngularElementRef);
 ɵregisterCraftTokenHostToken(ActivatedRoute, AngularActivatedRoute);
 
-ɵsetCraftHostInjectorRunner((host, fn) =>
-  runInInjectionContext(host as AngularInjector, fn),
-);
+function isDestroyedHost(host: object): boolean {
+  return (
+    'destroyed' in host && (host as { destroyed?: boolean }).destroyed === true
+  );
+}
+
+ɵsetCraftHostInjectorRunner((host, fn) => {
+  // Lingering Craft work (demo traces, async loaders) can resume after the
+  // Angular host injector is gone. Entering `runInInjectionContext` then
+  // throws NG0205; run the callback in Craft's own context instead.
+  if (isDestroyedHost(host)) {
+    return fn();
+  }
+  return runInInjectionContext(host as AngularInjector, fn);
+});
 
 ɵsetCraftInjectFallback((token, options) => {
   if (token === Injector) {
