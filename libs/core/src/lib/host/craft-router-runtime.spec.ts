@@ -71,6 +71,17 @@ describe('createBrowserHistory', () => {
     expect(window.history.state).toBeNull();
   });
 
+  it('honors state on skip without writing history', () => {
+    const history = createBrowserHistory(window);
+    history.push('/a', { photo: '1' });
+    history.skip('/b', null);
+
+    expect(history.get().pathname).toBe('/b');
+    expect(window.location.pathname).toBe('/a');
+    expect(window.history.state).toEqual({ photo: '1' });
+    expect(history.getState()).toBeNull();
+  });
+
   it('does not notify popstate after dispose', () => {
     const history = createBrowserHistory(window);
     const seen: string[] = [];

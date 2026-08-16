@@ -10,7 +10,6 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
 import {
-  craftException,
   isCraftException,
   type AnyCraftException,
 } from './craft-exception';
@@ -31,6 +30,11 @@ import {
   type CraftExceptionComponentInput,
   type CraftPendingComponentInput,
 } from './craft-route-exceptions';
+import {
+  createRouteLoadError,
+  isCraftRouteLoadError,
+  setActiveCraftRouteLoadError,
+} from './craft-route-load-error';
 import { getCraftRouteMeta, type CraftRouteMeta, type CraftRouteStepFactory } from './craft-route-meta';
 import {
   CRAFT_START_VIEW_TRANSITION,
@@ -66,6 +70,7 @@ import {
 } from './host/craft-router-runtime';
 import {
   CRAFT_CHILD_MATCH,
+  CRAFT_HISTORY,
   CRAFT_MATCH,
   CRAFT_ROUTER,
   type CraftRouterNavigationApi,
@@ -164,6 +169,7 @@ export class CraftRouterOutletController {
   private readonly rootInjector = inject(EnvironmentInjector);
   private readonly router =
     inject(CRAFT_ROUTER, { optional: true }) ?? silentRouter();
+  private readonly history = inject(CRAFT_HISTORY, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly temporalRuntime = inject(CRAFT_TEMPORAL_RUNTIME);
 
@@ -300,11 +306,13 @@ export class CraftRouterOutletController {
       this._liveMatch &&
       this._childMatch &&
       this._activeRouteInjector &&
+      this.state() !== 'error' &&
       isSameActivation(this._match, activated)
     ) {
       this._liveMatch.set(activated);
       this._childMatch.set(child);
       this.displayedProps.set(collectMatchProps(activated));
+      this.publishViewTransitionPayload();
       return;
     }
 
@@ -353,7 +361,10 @@ export class CraftRouterOutletController {
       !match.route.component
     ) {
       try {
-        const loaded = await Promise.resolve(match.route.loadComponent());
+        const loaded = await runInInjectionContext(
+          this._activeRouteInjector ?? this.rootInjector,
+          () => Promise.resolve(match.route.loadComponent!()),
+        );
         if (!this.isCurrentActivation(match)) {
           return;
         }
@@ -366,18 +377,19 @@ export class CraftRouterOutletController {
         if (!this.isCurrentActivation(match)) {
           return;
         }
-        const exception = isCraftException(error)
+        const exception = isCraftRouteLoadError(error)
           ? error
-          : craftException(
-              { code: 'CRAFT_ROUTE_LOAD_ERROR', scope: 'router' },
-              {
-                phase: 'component',
-                routePath: match.route.path,
-                targetUrl: this.router.url,
-                cause: error,
-                attempt: 1,
-              },
-            );
+          : createRouteLoadError({
+              phase: 'component',
+              routePath: match.route.path,
+              targetUrl: this.router.url,
+              cause: error,
+              attempt: 1,
+            });
+        setActiveCraftRouteLoadError(
+          exception,
+          this.rootInjector,
+        );
         this.publishGlobalError(exception);
         void this.showErrorComponent(
           this._meta?.errorComponent ?? this.defaultErrorComponent,
@@ -717,15 +729,23 @@ export class CraftRouterOutletController {
   }
 
   private publishViewTransitionPayload(): void {
-    const fromNavigation = this.router.getCurrentNavigation()?.extras?.state as
+    const extras = this.router.getCurrentNavigation()?.extras;
+    const fromNavigation = extras?.state as Record<string, unknown> | undefined;
+    const craftState = this.history?.getState() as
       | Record<string, unknown>
+      | null
       | undefined;
-    const historyState =
+    const windowState =
       typeof history !== 'undefined'
         ? (history.state as Record<string, unknown> | null | undefined)
         : undefined;
+    const source = this.history
+      ? craftState
+      : extras?.skipLocationChange
+        ? fromNavigation
+        : windowState;
     const raw =
-      historyState?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
+      source?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
       fromNavigation?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
       null;
 

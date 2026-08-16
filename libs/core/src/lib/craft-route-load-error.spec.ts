@@ -11,9 +11,9 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { provideRouter, Router } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  CRAFT_ROUTE_LOAD_ERROR,
   CRAFT_ROUTE_LOAD_ERROR_CODE,
   CRAFT_ROUTE_DYNAMIC_IMPORT,
   CRAFT_ROUTE_LOAD_RECOVERY,
@@ -28,7 +28,12 @@ import {
   type CraftRouteLoadRetry,
   withRouteLoadError,
 } from './craft-route-load-error';
-import { provideCraftRouter } from './craft-router';
+import {
+  CRAFT_COMPILED_ROUTES,
+  CRAFT_ROUTER,
+  provideCraftRouter,
+} from './craft-router';
+import { createCraftRouterOutletController } from './craft-router-outlet';
 
 @Component({ standalone: true, template: 'load error' })
 class LoadErrorComponent {}
@@ -65,7 +70,7 @@ describe('route load error recovery', () => {
   ): EnvironmentInjector {
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         {
           provide: CRAFT_ROUTE_LOAD_RETRY,
           useValue: { execute: (loader: () => Promise<unknown>) => loader() },
@@ -97,7 +102,7 @@ describe('route load error recovery', () => {
     };
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         { provide: CRAFT_ROUTE_LOAD_RETRY, useValue: retry },
       ],
     });
@@ -121,7 +126,7 @@ describe('route load error recovery', () => {
     };
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         { provide: CRAFT_ROUTE_LOAD_RETRY, useValue: retry },
       ],
     });
@@ -317,7 +322,7 @@ describe('route load error recovery', () => {
     };
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         { provide: CRAFT_ROUTE_LOAD_RETRY, useValue: retry },
       ],
     });
@@ -345,7 +350,7 @@ describe('route load error recovery', () => {
   it('resolves local component and retry overrides from a route injector', () => {
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         {
           provide: CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
           useValue: { component: LoadErrorComponent, componentDeps: {} },
@@ -375,6 +380,22 @@ describe('route load error recovery', () => {
     routeInjector.destroy();
   });
 
+  it('injects CraftRouteLoadRecovery without Angular Router', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter(
+          [],
+          withRouteLoadError({
+            component: LoadErrorComponent,
+            componentDeps: {},
+          }),
+        ),
+      ],
+    });
+
+    expect(() => TestBed.inject(CRAFT_ROUTE_LOAD_RECOVERY)).not.toThrow();
+  });
+
   it('registers the eager internal recovery route', () => {
     TestBed.configureTestingModule({
       providers: [
@@ -388,7 +409,7 @@ describe('route load error recovery', () => {
       ],
     });
 
-    const route = TestBed.inject(Router).config.find(
+    const route = TestBed.inject(CRAFT_COMPILED_ROUTES).find(
       (entry) => entry.path === CRAFT_ROUTE_LOAD_ERROR_PATH,
     );
     expect(route?.component).toBe(CraftRouteLoadErrorHostComponent);
@@ -426,7 +447,8 @@ describe('route load error recovery', () => {
     expect(loader).toHaveBeenCalledTimes(2);
   });
 
-  it('manual retry re-enters the failing target route after browserUrl recovery redirect', async () => {
+  it('manual retry re-enters the failing target route', async () => {
+    window.history.replaceState(null, '', '/');
     const loader = vi
       .fn<() => Promise<typeof LoadedComponent>>()
       .mockRejectedValueOnce(new Error('blocked chunk'))
@@ -452,24 +474,31 @@ describe('route load error recovery', () => {
       ],
     });
 
-    const router = TestBed.inject(Router);
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
     await router.navigateByUrl('/lazy');
+    await flushMicrotasks();
 
     expect(loader).toHaveBeenCalledTimes(2);
-    expect(
-      router.routerState.snapshot.root.firstChild?.routeConfig?.path,
-    ).toBe(CRAFT_ROUTE_LOAD_ERROR_PATH);
+    expect(outlet.state()).toBe('error');
+    expect(TestBed.inject(CRAFT_ROUTE_LOAD_ERROR)()?.payload.targetUrl).toBe(
+      '/lazy',
+    );
 
     await TestBed.inject(CRAFT_ROUTE_LOAD_RECOVERY).retry();
+    await flushMicrotasks();
 
     expect(loader).toHaveBeenCalledTimes(3);
     expect(router.url).toBe('/lazy');
-    expect(
-      router.routerState.snapshot.root.firstChild?.routeConfig?.path,
-    ).toBe('lazy');
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(LoadedComponent);
+    window.history.replaceState(null, '', '/');
   });
 
   it('manual retry keeps the original target after another retry failure', async () => {
+    window.history.replaceState(null, '', '/');
     const loader = vi
       .fn<() => Promise<typeof LoadedComponent>>()
       .mockRejectedValueOnce(new Error('blocked chunk'))
@@ -497,21 +526,33 @@ describe('route load error recovery', () => {
       ],
     });
 
-    const router = TestBed.inject(Router);
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
     await router.navigateByUrl('/lazy');
+    await flushMicrotasks();
     expect(loader).toHaveBeenCalledTimes(2);
+    expect(outlet.state()).toBe('error');
 
     await TestBed.inject(CRAFT_ROUTE_LOAD_RECOVERY).retry();
+    await flushMicrotasks();
     expect(loader).toHaveBeenCalledTimes(4);
-    expect(
-      router.routerState.snapshot.root.firstChild?.routeConfig?.path,
-    ).toBe(CRAFT_ROUTE_LOAD_ERROR_PATH);
+    expect(outlet.state()).toBe('error');
+    expect(router.url).toBe('/lazy');
 
     await TestBed.inject(CRAFT_ROUTE_LOAD_RECOVERY).retry();
+    await flushMicrotasks();
 
     expect(loader).toHaveBeenCalledTimes(5);
-    expect(
-      router.routerState.snapshot.root.firstChild?.routeConfig?.path,
-    ).toBe('lazy');
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(LoadedComponent);
+    window.history.replaceState(null, '', '/');
   });
 });
+
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 12; i += 1) {
+    await Promise.resolve();
+  }
+}

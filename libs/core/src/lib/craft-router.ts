@@ -1,5 +1,7 @@
 import {
   DestroyRef,
+  EnvironmentInjector,
+  Injector,
   inject,
   type EnvironmentProviders,
   type Provider,
@@ -27,6 +29,7 @@ import {
   craftNodeDirective,
 } from './craft-node-directive';
 import { executeYieldable } from './yieldable';
+import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import {
   buildPathFromTemplate,
   createBrowserHistory,
@@ -627,8 +630,57 @@ function commitCraftMatch(
     resolved &&
     serializeLocation(resolved) !== serializeLocation(location)
   ) {
-    history.replace(serializeLocation(resolved), window.history.state);
+    history.replace(serializeLocation(resolved), history.getState());
   }
+}
+
+async function resolveFunctionRedirectTo(
+  match: CraftMatch,
+  parent: EnvironmentInjector,
+): Promise<string | null> {
+  const redirectTo = match.route.redirectTo;
+  if (typeof redirectTo !== 'function') {
+    return null;
+  }
+  const providers = Array.isArray(match.route.providers)
+    ? (match.route.providers as Provider[])
+    : [];
+  const injector =
+    providers.length > 0
+      ? Injector.create({
+          providers,
+          parent,
+          name: 'CraftRedirectTo',
+        })
+      : parent;
+  const settled = await executeGeneratorCompatibleFactoryAsync({
+    factory: redirectTo as (...args: unknown[]) => unknown,
+    thisArg: undefined,
+    getInjector: () => injector,
+    args: [],
+    invalidYieldErrorMessage:
+      'craft redirectTo can only yield craftService dependencies, exposed dependency helpers, or an craftUntilSettled/craftUntilDefined await request.',
+  });
+  if (settled.kind !== 'done') {
+    return null;
+  }
+  const value = settled.value;
+  if (typeof value === 'string' && value.length > 0) {
+    return value;
+  }
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { toString?: unknown }).toString === 'function'
+  ) {
+    const url = String(value);
+    return url.length > 0 && url !== '[object Object]' ? url : null;
+  }
+  return null;
+}
+
+function toAbsoluteRedirectUrl(url: string): string {
+  return url.startsWith('/') ? url : `/${url}`;
 }
 
 function provideCraftRouterRuntime(
@@ -663,12 +715,30 @@ function provideCraftRouterRuntime(
         compiled: readonly CraftCompiledRoute[],
         history: CraftHistory,
       ) => {
+        const environmentInjector = inject(EnvironmentInjector);
         const match = craftSignal<CraftMatch | null>(null);
         let generation = 0;
         craftWatch(() => {
           const nextLocation = location();
           const current = ++generation;
           const syncMatch = matchCraftRoutes(compiled, nextLocation);
+          if (typeof syncMatch?.route.redirectTo === 'function') {
+            void resolveFunctionRedirectTo(syncMatch, environmentInjector)
+              .then((redirectUrl) => {
+                if (current !== generation || !redirectUrl) {
+                  return;
+                }
+                const target = toAbsoluteRedirectUrl(redirectUrl);
+                if (target === serializeLocation(nextLocation)) {
+                  return;
+                }
+                history.replace(target, history.getState());
+              })
+              .catch(() => {
+                // Keep the previous match instead of mounting the redirect route.
+              });
+            return;
+          }
           const pendingLocation = syncMatch ?? nextLocation;
           const pending = findUnresolvedLoadChildrenRoute(
             compiled,

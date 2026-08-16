@@ -12,13 +12,6 @@ import {
   type ValueProvider,
   type WritableSignal,
 } from '@angular/core';
-import {
-  NavigationError,
-  RedirectCommand,
-  Router,
-  withNavigationErrorHandler,
-  type RouterFeatures,
-} from '@angular/router';
 import type {
   ExtractDeps,
   GetDeps,
@@ -41,6 +34,7 @@ import {
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import { normalizeCraftRouteTarget } from './craft-route-target';
+import { CRAFT_ROUTER } from './craft-router-tokens';
 import {
   toCraftService,
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
@@ -141,19 +135,25 @@ export const CRAFT_ROUTE_LOAD_RECOVERY =
   new InjectionToken<CraftRouteLoadRecovery>('CRAFT_ROUTE_LOAD_RECOVERY', {
     providedIn: 'root',
     factory: () => {
-      const router = inject(Router);
+      const router = inject(CRAFT_ROUTER);
       const active = inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
       return {
         retry: async () => {
-          const targetUrl = active()?.exception.payload.targetUrl;
-          return targetUrl
-            ? router.navigateByUrl(targetUrl, { onSameUrlNavigation: 'reload' })
-            : false;
+          const targetUrl =
+            active()?.exception.payload.targetUrl ?? router.url;
+          return targetUrl ? router.navigateByUrl(targetUrl) : false;
         },
         reload: () => globalThis.location?.reload(),
       };
     },
   });
+
+export function setActiveCraftRouteLoadError(
+  exception: CraftRouteLoadError,
+  injector: EnvironmentInjector,
+): void {
+  injector.get(CRAFT_ACTIVE_ROUTE_LOAD_ERROR).set({ exception, injector });
+}
 
 export function injectCraftRouteLoadError(): Signal<CraftRouteLoadError | null> {
   return inject(CRAFT_ROUTE_LOAD_ERROR);
@@ -213,7 +213,6 @@ function routeLoadRetryProvider(retry: CraftRouteLoadRetryConfig):
 }
 
 export interface RouteLoadErrorFeature extends CraftLoadingFeature {
-  readonly routerFeatures: readonly RouterFeatures[];
   readonly recoveryRoute: {
     readonly path: string;
     readonly component: Type<unknown>;
@@ -234,9 +233,6 @@ export function withRouteLoadError(
   const feature = craftLoadingFeature(providers) as RouteLoadErrorFeature;
 
   Object.assign(feature, {
-    routerFeatures: [
-      withNavigationErrorHandler(handleRouteLoadNavigationError),
-    ],
     recoveryRoute: {
       path: CRAFT_ROUTE_LOAD_ERROR_PATH,
       component: CraftRouteLoadErrorHostComponent,
@@ -267,7 +263,7 @@ export function loadRouteWithRetry<T>(
   let dependencies:
     | {
         injector: EnvironmentInjector;
-        router: Router;
+        router: { readonly url: string };
         retry: CraftRouteLoadRetry;
         dynamicImport: (url: string) => Promise<unknown>;
       }
@@ -275,7 +271,7 @@ export function loadRouteWithRetry<T>(
   try {
     dependencies = {
       injector: inject(EnvironmentInjector),
-      router: inject(Router),
+      router: inject(CRAFT_ROUTER),
       retry: inject(CRAFT_ROUTE_LOAD_RETRY),
       dynamicImport: inject(CRAFT_DYNAMIC_IMPORT),
     };
@@ -295,9 +291,7 @@ export function loadRouteWithRetry<T>(
         routePath,
         attempt: 1,
         error: firstError,
-        targetUrl:
-          dependencies.router.getCurrentNavigation()?.extractedUrl.toString() ??
-          dependencies.router.url,
+        targetUrl: dependencies.router.url,
       };
 
       let attempt = 1;
@@ -326,28 +320,6 @@ export function loadRouteWithRetry<T>(
       }
     }
   })();
-}
-
-function handleRouteLoadNavigationError(
-  navigationError: NavigationError,
-): RedirectCommand | void {
-  if (!isCraftRouteLoadError(navigationError.error)) return;
-
-  const exception = navigationError.error;
-  const injector = (
-    exception as CraftRouteLoadError & {
-      readonly routeInjector?: EnvironmentInjector;
-    }
-  ).routeInjector;
-  if (!injector) return;
-
-  inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR).set({ exception, injector });
-  const router = inject(Router);
-  const targetUrl = exception.payload.targetUrl;
-  return new RedirectCommand(
-    router.parseUrl(`/${CRAFT_ROUTE_LOAD_ERROR_PATH}`),
-    { browserUrl: targetUrl, replaceUrl: true },
-  );
 }
 
 @Component({

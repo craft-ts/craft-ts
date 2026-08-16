@@ -6,6 +6,7 @@ export type CraftLocation = {
 
 export interface CraftHistory {
   get(): CraftLocation;
+  getState(): unknown;
   listen(fn: (location: CraftLocation) => void): () => void;
   push(url: string, state?: unknown): void;
   replace(url: string, state?: unknown): void;
@@ -105,6 +106,7 @@ export function createBrowserHistory(win: Window): CraftHistory {
   const listeners = new Set<(location: CraftLocation) => void>();
   let disposed = false;
   let current = readWindowLocation(win);
+  let currentState: unknown = win.history.state ?? null;
 
   const notify = (): void => {
     if (disposed) {
@@ -126,18 +128,21 @@ export function createBrowserHistory(win: Window): CraftHistory {
     } else {
       win.history.replaceState(nextState, '', url);
     }
+    currentState = nextState;
     current = readWindowLocation(win);
     notify();
   };
 
-  const onPopState = (): void => {
+  const onPopState = (event: PopStateEvent): void => {
     current = readWindowLocation(win);
+    currentState = event.state ?? win.history.state ?? null;
     notify();
   };
   win.addEventListener('popstate', onPopState);
 
   return {
     get: () => current,
+    getState: () => currentState,
     listen(fn) {
       listeners.add(fn);
       return () => {
@@ -150,7 +155,8 @@ export function createBrowserHistory(win: Window): CraftHistory {
     replace(url, state) {
       write('replace', url, state);
     },
-    skip(url, _state) {
+    skip(url, state) {
+      currentState = state === undefined ? null : state;
       current = parseUrl(url);
       notify();
     },
@@ -167,6 +173,7 @@ export function createBrowserHistory(win: Window): CraftHistory {
 
 export function createMemoryHistory(initialUrl = '/'): CraftHistory {
   let current = parseUrl(initialUrl);
+  let currentState: unknown = null;
   const listeners = new Set<(location: CraftLocation) => void>();
 
   const notify = (): void => {
@@ -175,25 +182,29 @@ export function createMemoryHistory(initialUrl = '/'): CraftHistory {
     }
   };
 
+  const setLocation = (url: string, state?: unknown): void => {
+    currentState = state === undefined ? null : state;
+    current = parseUrl(url);
+    notify();
+  };
+
   return {
     get: () => current,
+    getState: () => currentState,
     listen(fn) {
       listeners.add(fn);
       return () => {
         listeners.delete(fn);
       };
     },
-    push(url) {
-      current = parseUrl(url);
-      notify();
+    push(url, state) {
+      setLocation(url, state);
     },
-    replace(url) {
-      current = parseUrl(url);
-      notify();
+    replace(url, state) {
+      setLocation(url, state);
     },
-    skip(url) {
-      current = parseUrl(url);
-      notify();
+    skip(url, state) {
+      setLocation(url, state);
     },
     dispose() {
       listeners.clear();

@@ -4,6 +4,8 @@ import {
   Component,
   createEnvironmentInjector,
   EnvironmentInjector,
+  inject,
+  InjectionToken,
   runInInjectionContext,
   signal,
 } from '@angular/core';
@@ -246,6 +248,65 @@ describe('CraftRouterOutlet', () => {
     window.history.replaceState(null, '', '/');
   });
 
+  it('follows a yielding redirectTo through the Craft injector', async () => {
+    window.history.replaceState(null, '', '/');
+    const { RedirectAuth, provideRedirectAuth } = craftService(
+      { name: 'RedirectAuth', scope: 'toProvide' },
+      () => ({ isAdmin: () => true }),
+    );
+    TestBed.configureTestingModule({
+      providers: [
+        provideRedirectAuth(),
+        provideCraftRouter([
+          {
+            path: '',
+            redirectTo: function* () {
+              const auth = yield* RedirectAuth();
+              return auth.isAdmin() ? '/admin' : '/home';
+            },
+          },
+          { path: 'admin', component: TargetCmp },
+          { path: 'home', component: ParentCmp },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    await flush();
+
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/admin');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('follows an inject-backed redirectTo through the Craft injector', async () => {
+    window.history.replaceState(null, '', '/');
+    const DEST = new InjectionToken<string>('redirect-dest');
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DEST, useValue: '/home' },
+        provideCraftRouter([
+          {
+            path: '',
+            redirectTo: () => inject(DEST),
+          },
+          { path: 'home', component: TargetCmp },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    await flush();
+
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
   it('mounts a lazy loadComponent target after a compiled redirectTo', async () => {
     let resolveHome!: (mod: { default: typeof TargetCmp }) => void;
     const pending = new Promise<{ default: typeof TargetCmp }>((resolve) => {
@@ -416,6 +477,60 @@ describe('CraftRouterOutlet', () => {
 
     await router.navigateByUrl('/about');
     expect(outlet.targetComponent()).toBe(ParentCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('does not republish a view-transition payload on skipLocationChange without viewTransition', async () => {
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'photos', component: TargetCmp },
+          { path: 'about', component: ParentCmp },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const payload = { name: 'photo-1', image: null };
+
+    await router.navigateByUrl('/photos', {
+      state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
+    });
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+
+    await router.navigateByUrl('/about', { skipLocationChange: true });
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    expect(window.location.pathname).toBe('/photos');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('does not republish a view-transition payload on a query-only navigation', async () => {
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([{ path: 'photos', component: TargetCmp }]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const payload = { name: 'photo-1', image: null };
+
+    await router.navigateByUrl('/photos', {
+      state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
+    });
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+
+    await router.navigateByUrl('/photos?tab=info');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
     window.history.replaceState(null, '', '/');
   });
