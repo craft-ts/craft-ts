@@ -54,7 +54,10 @@ import {
   craftWatch,
   type CraftWritableSignal,
 } from './host/craft-signal';
-import type { CraftMatch } from './host/craft-router-runtime';
+import {
+  serializeLocation,
+  type CraftMatch,
+} from './host/craft-router-runtime';
 import {
   CRAFT_MATCH,
   CRAFT_ROUTER,
@@ -205,6 +208,7 @@ export class CraftRouterOutletController {
     craftSignal<CraftRouteTarget | null>(null);
 
   private _match: CraftMatch | null = null;
+  private _liveMatch: CraftWritableSignal<CraftMatch> | null = null;
   private _activeRouteInjector: Injector | null = null;
   private _meta: CraftRouteMeta | null = null;
   private _navId = 0;
@@ -253,6 +257,7 @@ export class CraftRouterOutletController {
   deactivate(): void {
     this.teardown();
     this._match = null;
+    this._liveMatch = null;
     this._activeRouteInjector = null;
     this._meta = null;
     this._previousUrl = this.router.url;
@@ -274,15 +279,33 @@ export class CraftRouterOutletController {
     environmentInjector?: EnvironmentInjector,
   ): void {
     this._pendingDeactivation = false;
+    const previousMatchUrl = this._match
+      ? serializeLocation(this._match)
+      : this._previousUrl;
+
+    if (
+      this._match &&
+      this._liveMatch &&
+      this._activeRouteInjector &&
+      isSameActivation(this._match, match)
+    ) {
+      this._match = match;
+      this._liveMatch.set(match);
+      this.displayedProps.set(collectMatchProps(match));
+      return;
+    }
+
+    this._previousUrl = previousMatchUrl;
     this.teardown();
     this._match = match;
+    this._liveMatch = craftSignal(match);
     const routeProviders = match.routes.flatMap((route) => {
       const providers = route.providers;
       return Array.isArray(providers) ? providers : [];
     });
     this._activeRouteInjector = Injector.create({
       providers: [
-        { provide: CRAFT_MATCH, useValue: constantMatchSignal(match) },
+        { provide: CRAFT_MATCH, useValue: this._liveMatch },
         ...(routeProviders as never[]),
       ],
       parent: environmentInjector ?? this.rootInjector,
@@ -454,7 +477,9 @@ export class CraftRouterOutletController {
         void this.router.navigateByUrl(String(outcome.target));
         return;
       case 'stay':
-        void this.router.navigateByUrl(this._previousUrl);
+        if (this._previousUrl !== this.router.url) {
+          void this.router.navigateByUrl(this._previousUrl);
+        }
         return;
       case 'render':
         meta.exceptionSinks[outcome.exception.code]?.set(outcome.exception);
@@ -791,9 +816,16 @@ function silentRouter(): CraftRouterNavigationApi {
   };
 }
 
-function constantMatchSignal(match: CraftMatch): () => CraftMatch {
-  const value = craftSignal(match);
-  return value;
+function isSameActivation(current: CraftMatch, next: CraftMatch): boolean {
+  if (current.route !== next.route || current.pathname !== next.pathname) {
+    return false;
+  }
+  const currentKeys = Object.keys(current.params);
+  const nextKeys = Object.keys(next.params);
+  if (currentKeys.length !== nextKeys.length) {
+    return false;
+  }
+  return currentKeys.every((key) => current.params[key] === next.params[key]);
 }
 
 function matchToSnapshot(match: CraftMatch): {

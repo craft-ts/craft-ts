@@ -40,6 +40,7 @@ import type {
 } from './host/craft-router-runtime';
 import {
   CRAFT_HISTORY,
+  CRAFT_MATCH,
   CRAFT_ROUTER,
   provideCraftRouter,
   type CraftRouterNavigationApi,
@@ -100,6 +101,7 @@ function makeMatch(
   meta: CraftRouteMeta | undefined,
   component: unknown = TargetCmp,
   extras: Partial<CraftCompiledRoute> = {},
+  location: { pathname?: string; search?: string } = {},
 ): CraftMatch {
   const data = meta ? { [CRAFT_ROUTE_META]: meta } : {};
   const route: CraftCompiledRoute = {
@@ -108,9 +110,11 @@ function makeMatch(
     data,
     ...extras,
   };
+  const pathname = location.pathname ?? '/a';
+  const search = location.search ?? '';
   return {
-    pathname: '/a',
-    search: '',
+    pathname,
+    search,
     hash: '',
     params: {},
     queryParams: {},
@@ -258,6 +262,98 @@ describe('CraftRouterOutlet', () => {
 
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('does not remount the outlet on a query-only history update', () => {
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter([{ path: 'a', component: TargetCmp }])],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/a');
+    expect(outlet.state()).toBe('loaded');
+    const injector = outlet.displayedInjector();
+    const matchSignal = injector?.get(CRAFT_MATCH);
+
+    TestBed.inject(CRAFT_HISTORY).push('/a?tab=info');
+
+    expect(outlet.displayedInjector()).toBe(injector);
+    expect(outlet.displayedProps()).toEqual({ tab: 'info' });
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    const liveMatch = matchSignal?.();
+    expect(liveMatch?.queryParams).toEqual({ tab: 'info' });
+  });
+
+  it('keeps the previous page until loadChildren rematch', async () => {
+    let resolveChildren!: (routes: CraftCompiledRoute[]) => void;
+    const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
+      resolveChildren = resolve;
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'a', component: TargetCmp },
+          {
+            path: 'slow-page',
+            loadChildren: () => pending,
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/a');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    const injector = outlet.displayedInjector();
+
+    TestBed.inject(CRAFT_HISTORY).push('/slow-page');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.displayedInjector()).toBe(injector);
+    expect(outlet.state()).toBe('loaded');
+
+    resolveChildren([{ path: '', component: ErrCmp }]);
+    await flush();
+
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(ErrCmp);
+  });
+
+  it('keeps the previous page when loadChildren rematch has remaining segments', async () => {
+    let resolveChildren!: (routes: CraftCompiledRoute[]) => void;
+    const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
+      resolveChildren = resolve;
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'a', component: TargetCmp },
+          {
+            path: 'view-transitions',
+            loadChildren: () => pending,
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/a');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+
+    TestBed.inject(CRAFT_HISTORY).push('/view-transitions/42');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+
+    resolveChildren([{ path: ':photoId', component: ErrCmp }]);
+    await flush();
+
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(ErrCmp);
   });
 
   it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {
@@ -492,11 +588,23 @@ describe('CraftRouterOutlet', () => {
   it('stay outcome restores the previous URL', async () => {
     const { outlet, router } = setup();
     const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    activate(outlet, makeMeta());
+    const previous = makeMatch(undefined);
+    previous.pathname = '/home';
+    (router as { url: string }).url = '/home';
+    outlet.activateMatch(previous, TestBed.inject(EnvironmentInjector));
+    expect(outlet.state()).toBe('loaded');
+
+    (router as { url: string }).url = '/secret';
+    outlet.activateMatch(
+      makeMatch(makeMeta(), TargetCmp, {}, { pathname: '/secret' }),
+      TestBed.inject(EnvironmentInjector),
+    );
     deferred.resolve({ kind: 'stay' });
     await flush();
-    expect(navigate).toHaveBeenCalledWith(router.url);
-    expect(outlet.targetComponent()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith('/home');
+    expect(navigate).not.toHaveBeenCalledWith('/secret');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('stay');
   });
 
   it('global outcome feeds CRAFT_GLOBAL_ERROR and renders the error component', async () => {
@@ -605,9 +713,50 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
     outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
     await flushChain();
 
-    expect(router.navigateByUrl).toHaveBeenCalledWith(router.url);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
     expect(outlet.targetComponent()).toBeNull();
     expect(outlet.state()).not.toBe('loaded');
+  });
+
+  it('does not loop when a guard returns false on the initial URL', async () => {
+    window.history.replaceState(null, '', '/secret');
+    let guardRuns = 0;
+    const meta = makeMeta({
+      stayMs: 0,
+      blankMs: 0,
+      resolve: undefined,
+      guard: function* () {
+        guardRuns += 1;
+        if (guardRuns > 8) {
+          throw new Error('stay loop: guard re-entered on the committed URL');
+        }
+        return false;
+      },
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'secret',
+            component: TargetCmp,
+            data: { [CRAFT_ROUTE_META]: meta },
+          },
+        ]),
+      ],
+    });
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const navigate = vi.spyOn(router, 'navigateByUrl');
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    await flushChain();
+    await flushChain();
+
+    expect(guardRuns).toBe(1);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(outlet.targetComponent()).toBeNull();
+    expect(outlet.state()).not.toBe('loaded');
+    window.history.replaceState(null, '', '/');
   });
 
   it('writes generator guard data after yielding a craft service', async () => {

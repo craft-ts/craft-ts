@@ -26,14 +26,17 @@ import {
   buildPathFromTemplate,
   createBrowserHistory,
   createUrlFromParts,
+  findUnresolvedLoadChildrenRoute,
   matchCraftRoutes,
   matchCraftRoutesAsync,
   parseSearchParams,
   parseUrl,
   serializeLocation,
+  splitPath,
   type CraftCompiledRoute,
   type CraftHistory,
   type CraftLocation,
+  type CraftMatch,
 } from './host/craft-router-runtime';
 import {
   craftSignal,
@@ -634,27 +637,27 @@ function provideCraftRouterRuntime(
         location: CraftWritableSignal<CraftLocation>,
         compiled: readonly CraftCompiledRoute[],
       ) => {
-        const match = craftSignal(matchCraftRoutes(compiled, location()));
+        const match = craftSignal<CraftMatch | null>(null);
         let generation = 0;
         craftWatch(() => {
           const nextLocation = location();
           const current = ++generation;
-          const syncMatch = matchCraftRoutes(compiled, nextLocation);
-          match.set(syncMatch);
-          void matchCraftRoutesAsync(compiled, nextLocation).then(
-            (resolved) => {
-              if (current !== generation) {
-                return;
-              }
-              const currentMatch = match();
-              if (
-                resolved?.route !== currentMatch?.route ||
-                resolved?.pathname !== currentMatch?.pathname
-              ) {
-                match.set(resolved);
-              }
-            },
+          const pending = findUnresolvedLoadChildrenRoute(
+            compiled,
+            splitPath(nextLocation.pathname || '/'),
           );
+          if (pending) {
+            void matchCraftRoutesAsync(compiled, nextLocation).then(
+              (resolved) => {
+                if (current !== generation) {
+                  return;
+                }
+                match.set(resolved);
+              },
+            );
+            return;
+          }
+          match.set(matchCraftRoutes(compiled, nextLocation));
         });
         return match;
       },

@@ -162,7 +162,7 @@ export function createMemoryHistory(initialUrl = '/'): CraftHistory {
   };
 }
 
-function splitPath(pathname: string): string[] {
+export function splitPath(pathname: string): string[] {
   return pathname.split('/').filter(Boolean);
 }
 
@@ -323,7 +323,7 @@ function hasUnresolvedLoadChildren(route: CraftCompiledRoute): boolean {
   );
 }
 
-function findUnresolvedLoadChildrenRoute(
+export function findUnresolvedLoadChildrenRoute(
   routes: readonly CraftCompiledRoute[],
   remaining: readonly string[],
 ): CraftCompiledRoute | null {
