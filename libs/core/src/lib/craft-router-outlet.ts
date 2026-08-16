@@ -27,7 +27,7 @@ import {
   type CraftExceptionComponentInput,
   type CraftPendingComponentInput,
 } from './craft-route-exceptions';
-import { getCraftRouteMeta, type CraftRouteMeta } from './craft-route-meta';
+import { getCraftRouteMeta, type CraftRouteMeta, type CraftRouteStepFactory } from './craft-route-meta';
 import {
   CRAFT_START_VIEW_TRANSITION,
   CRAFT_VIEW_TRANSITION,
@@ -57,6 +57,7 @@ import {
 import {
   serializeLocation,
   sliceCraftMatchForOutlet,
+  type CraftCompiledRoute,
   type CraftMatch,
 } from './host/craft-router-runtime';
 import {
@@ -322,11 +323,15 @@ export class CraftRouterOutletController {
 
     this.publishViewTransitionPayload();
 
-    const meta = getCraftRouteMeta(
+    const leafMeta = getCraftRouteMeta(
       (activated.route.data ?? activated.data) as Record<
         string | symbol,
         unknown
       >,
+    );
+    const meta = composeRouteMetas(
+      collectAncestorGuardMetas(match, activated),
+      leafMeta ?? null,
     );
     this._meta = meta ?? null;
     this.clearExceptionSinks(meta);
@@ -827,16 +832,117 @@ function silentRouter(): CraftRouterNavigationApi {
   };
 }
 
+function collectAncestorGuardMetas(
+  fullMatch: CraftMatch,
+  activated: CraftMatch,
+): CraftRouteMeta[] {
+  const index = fullMatch.routes.indexOf(activated.route);
+  if (index <= 0) {
+    return [];
+  }
+  const metas: CraftRouteMeta[] = [];
+  for (const route of fullMatch.routes.slice(0, index)) {
+    const meta = getCraftRouteMeta(
+      route.data as Record<string | symbol, unknown> | undefined,
+    );
+    if (meta?.match || meta?.guard) {
+      metas.push(meta);
+    }
+  }
+  return metas;
+}
+
+function composeRouteMetas(
+  ancestors: CraftRouteMeta[],
+  leaf: CraftRouteMeta | null,
+): CraftRouteMeta | null {
+  if (ancestors.length === 0) {
+    return leaf;
+  }
+  const guard: CraftRouteStepFactory = function* (route, state) {
+    for (const ancestor of ancestors) {
+      if (ancestor.match) {
+        const matchResult = yield* ancestor.match(route, state);
+        if (matchResult === false) {
+          return false;
+        }
+      }
+      if (ancestor.guard) {
+        const guardResult = yield* ancestor.guard(route, state);
+        if (guardResult === false) {
+          return false;
+        }
+      }
+    }
+    if (leaf?.match) {
+      const matchResult = yield* leaf.match(route, state);
+      if (matchResult === false) {
+        return false;
+      }
+    }
+    if (leaf?.guard) {
+      return yield* leaf.guard(route, state);
+    }
+    return true;
+  };
+  if (!leaf) {
+    return {
+      match: undefined,
+      guard,
+      resolve: undefined,
+      handleExceptions: Object.assign(
+        {},
+        ...ancestors.map((ancestor) => ancestor.handleExceptions),
+      ),
+      guardDataSink: null,
+      resolveDataSink: null,
+      exceptionSinks: {},
+      reactiveGuards: false,
+    };
+  }
+  return {
+    ...leaf,
+    match: undefined,
+    guard,
+  };
+}
+
+function paramNamesForPath(path: string): string[] {
+  if (!path || path === '**') {
+    return [];
+  }
+  return path
+    .split('/')
+    .filter((segment) => segment.startsWith(':'))
+    .map((segment) => segment.slice(1).replace(/\?$/, ''));
+}
+
+function paramsForActivatedRoute(
+  route: CraftCompiledRoute,
+  params: Record<string, string>,
+): Record<string, string> {
+  const names = paramNamesForPath(route.path);
+  const owned: Record<string, string> = {};
+  for (const name of names) {
+    if (params[name] !== undefined) {
+      owned[name] = params[name];
+    }
+  }
+  return owned;
+}
+
 function isSameActivation(current: CraftMatch, next: CraftMatch): boolean {
-  if (current.route !== next.route || current.pathname !== next.pathname) {
+  if (current.route !== next.route) {
     return false;
   }
-  const currentKeys = Object.keys(current.params);
-  const nextKeys = Object.keys(next.params);
+  const currentParams = paramsForActivatedRoute(current.route, current.params);
+  const nextParams = paramsForActivatedRoute(next.route, next.params);
+  const currentKeys = Object.keys(currentParams);
+  const nextKeys = Object.keys(nextParams);
   if (currentKeys.length !== nextKeys.length) {
     return false;
   }
-  return currentKeys.every((key) => current.params[key] === next.params[key]);
+  return currentKeys.every((key) => currentParams[key] === nextParams[key]);
 }
 
 function matchToSnapshot(match: CraftMatch): {

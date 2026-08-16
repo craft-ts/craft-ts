@@ -299,6 +299,12 @@ function matchRouteList(
   return null;
 }
 
+function resolveRedirectUrl(redirectTo: string, match: CraftMatch): string {
+  const absolute = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
+  const parsed = parseUrl(absolute);
+  return `${buildPathFromTemplate(parsed.pathname, match.params)}${parsed.search}${parsed.hash}`;
+}
+
 export function matchCraftRoutes(
   routes: unknown,
   location: CraftLocation,
@@ -306,14 +312,37 @@ export function matchCraftRoutes(
   if (!Array.isArray(routes)) {
     return null;
   }
-  const pathname = location.pathname || '/';
-  return matchRouteList(
-    routes as CraftCompiledRoute[],
-    splitPath(pathname),
-    [],
-    {},
-    { ...location, pathname },
-  );
+  const compiled = routes as CraftCompiledRoute[];
+  const seen = new Set<string>();
+  let current: CraftLocation = {
+    ...location,
+    pathname: location.pathname || '/',
+  };
+
+  for (;;) {
+    const key = serializeLocation(current);
+    if (seen.has(key)) {
+      return null;
+    }
+    seen.add(key);
+    const match = matchRouteList(
+      compiled,
+      splitPath(current.pathname),
+      [],
+      {},
+      current,
+    );
+    if (!match) {
+      return null;
+    }
+    if (
+      typeof match.route.redirectTo !== 'string' ||
+      match.route.redirectTo.length === 0
+    ) {
+      return match;
+    }
+    current = parseUrl(resolveRedirectUrl(match.route.redirectTo, match));
+  }
 }
 
 function hasUnresolvedLoadChildren(route: CraftCompiledRoute): boolean {
@@ -422,11 +451,17 @@ async function ensureChildrenLoaded(route: CraftCompiledRoute): Promise<void> {
     await existing;
     return;
   }
-  const pending = Promise.resolve(route.loadChildren!()).then((loaded) => {
-    route.children = normalizeLoadedChildren(loaded);
-    route.loadChildren = undefined;
-    loadChildrenInflight.delete(route);
-  });
+  const pending = Promise.resolve(route.loadChildren!()).then(
+    (loaded) => {
+      route.children = normalizeLoadedChildren(loaded);
+      route.loadChildren = undefined;
+      loadChildrenInflight.delete(route);
+    },
+    (error) => {
+      loadChildrenInflight.delete(route);
+      throw error;
+    },
+  );
   loadChildrenInflight.set(route, pending);
   await pending;
 }

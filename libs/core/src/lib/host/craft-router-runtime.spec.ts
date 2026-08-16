@@ -142,6 +142,35 @@ describe('matchCraftRoutes', () => {
     expect(parent.children).toEqual([child]);
   });
 
+  it('clears inflight after a failed loadChildren so a later match can retry', async () => {
+    let attempts = 0;
+    const child: CraftCompiledRoute = {
+      path: '',
+      component: { name: 'Child' },
+    };
+    const routes: CraftCompiledRoute[] = [
+      {
+        path: 'lazy',
+        loadChildren: async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            throw new Error('chunk failed');
+          }
+          return [child];
+        },
+      },
+    ];
+
+    await expect(
+      matchCraftRoutesAsync(routes, locationOf('/lazy')),
+    ).rejects.toThrow('chunk failed');
+
+    const match = await matchCraftRoutesAsync(routes, locationOf('/lazy'));
+
+    expect(attempts).toBe(2);
+    expect(match?.route).toBe(child);
+  });
+
   it('slices a parent+child match so the outlet activates the parent and the suffix is the child', () => {
     const child: CraftCompiledRoute = {
       path: 'child',
@@ -178,6 +207,21 @@ describe('matchCraftRoutes', () => {
 
     expect(sliced.activated.route).toBe(child);
     expect(sliced.child).toBeNull();
+  });
+
+  it('follows a compiled redirectTo instead of matching the redirect route', () => {
+    const home: CraftCompiledRoute = {
+      path: 'home',
+      component: { name: 'Home' },
+    };
+    const routes: CraftCompiledRoute[] = [
+      { path: '', redirectTo: '/home' },
+      home,
+    ];
+    const match = matchCraftRoutes(routes, locationOf('/'));
+
+    expect(match?.route).toBe(home);
+    expect(match?.pathname).toBe('/home');
   });
 });
 

@@ -612,6 +612,21 @@ export function shouldHandleCraftRouterLinkClick(
   return true;
 }
 
+function commitCraftMatch(
+  match: CraftWritableSignal<CraftMatch | null>,
+  history: CraftHistory,
+  location: CraftLocation,
+  resolved: CraftMatch | null,
+): void {
+  match.set(resolved);
+  if (
+    resolved &&
+    serializeLocation(resolved) !== serializeLocation(location)
+  ) {
+    history.replace(serializeLocation(resolved));
+  }
+}
+
 function provideCraftRouterRuntime(
   routes: readonly CraftCompiledRoute[] = [],
   ..._features: unknown[]
@@ -636,6 +651,7 @@ function provideCraftRouterRuntime(
       useFactory: (
         location: CraftWritableSignal<CraftLocation>,
         compiled: readonly CraftCompiledRoute[],
+        history: CraftHistory,
       ) => {
         const match = craftSignal<CraftMatch | null>(null);
         let generation = 0;
@@ -652,16 +668,25 @@ function provideCraftRouterRuntime(
                 if (current !== generation) {
                   return;
                 }
-                match.set(resolved);
+                commitCraftMatch(match, history, nextLocation, resolved);
+              },
+              () => {
+                // Keep the previous match. Inflight is cleared in
+                // ensureChildrenLoaded so a later navigation can retry.
               },
             );
             return;
           }
-          match.set(matchCraftRoutes(compiled, nextLocation));
+          commitCraftMatch(
+            match,
+            history,
+            nextLocation,
+            matchCraftRoutes(compiled, nextLocation),
+          );
         });
         return match;
       },
-      deps: [CRAFT_LOCATION, CRAFT_COMPILED_ROUTES],
+      deps: [CRAFT_LOCATION, CRAFT_COMPILED_ROUTES, CRAFT_HISTORY],
     },
     {
       provide: CRAFT_ROUTER,

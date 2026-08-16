@@ -224,6 +224,26 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.targetComponent()).toBe(TargetCmp);
   });
 
+  it('replaces the URL for a compiled redirectTo and mounts the target', () => {
+    window.history.replaceState(null, '', '/');
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: '', redirectTo: '/home' },
+          { path: 'home', component: TargetCmp },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.state()).toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
   it('activates the lazy child after resolving loadChildren for /slow-page', async () => {
     TestBed.configureTestingModule({
       providers: [
@@ -363,6 +383,45 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.targetComponent()).toBe(ErrCmp);
   });
 
+  it('keeps the previous page when loadChildren fails without an unhandled rejection', async () => {
+    const rejections: unknown[] = [];
+    const onUnhandled = (event: PromiseRejectionEvent) => {
+      rejections.push(event.reason);
+      event.preventDefault();
+    };
+    window.addEventListener('unhandledrejection', onUnhandled);
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          { path: 'a', component: TargetCmp },
+          {
+            path: 'slow-page',
+            loadChildren: async () => {
+              throw new Error('chunk failed');
+            },
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/a');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    const injector = outlet.displayedInjector();
+
+    TestBed.inject(CRAFT_HISTORY).push('/slow-page');
+    await flush();
+
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+    expect(outlet.displayedInjector()).toBe(injector);
+    expect(outlet.state()).toBe('loaded');
+    expect(rejections).toEqual([]);
+    window.removeEventListener('unhandledrejection', onUnhandled);
+  });
+
   it('mounts the parent at the root outlet and the child at the nested outlet', () => {
     TestBed.configureTestingModule({
       providers: [
@@ -442,6 +501,40 @@ describe('CraftRouterOutlet', () => {
     );
 
     expect(nested.targetComponent()).toBe(ChildCmp);
+  });
+
+  it('reuses the layout injector when only the child URL params change', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'layout/:teamId',
+            component: ParentCmp,
+            children: [{ path: 'users/:userId', component: ChildCmp }],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/layout/t1/users/1');
+
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+    const injector = outlet.displayedInjector();
+    const nested = runInInjectionContext(injector!, () =>
+      createCraftRouterOutletController(),
+    );
+    expect(nested.targetComponent()).toBe(ChildCmp);
+
+    TestBed.inject(CRAFT_HISTORY).push('/layout/t1/users/2');
+
+    expect(outlet.displayedInjector()).toBe(injector);
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+    expect(nested.targetComponent()).toBe(ChildCmp);
+    expect(nested.displayedProps()).toEqual(
+      expect.objectContaining({ teamId: 't1', userId: '2' }),
+    );
   });
 
   it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {
@@ -842,6 +935,57 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
 
     expect(guardRuns).toBe(1);
     expect(navigate).not.toHaveBeenCalled();
+    expect(outlet.targetComponent()).toBeNull();
+    expect(outlet.state()).not.toBe('loaded');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('stays when a parent without a component has canActivate false', async () => {
+    window.history.replaceState(null, '', '/admin');
+    let parentGuardRuns = 0;
+    let childGuardRuns = 0;
+    const parentMeta = makeMeta({
+      stayMs: 0,
+      blankMs: 0,
+      resolve: undefined,
+      guard: function* () {
+        parentGuardRuns += 1;
+        return false;
+      },
+    });
+    const childMeta = makeMeta({
+      stayMs: 0,
+      blankMs: 0,
+      resolve: undefined,
+      guard: function* () {
+        childGuardRuns += 1;
+        return true;
+      },
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'admin',
+            data: { [CRAFT_ROUTE_META]: parentMeta },
+            children: [
+              {
+                path: '',
+                component: TargetCmp,
+                data: { [CRAFT_ROUTE_META]: childMeta },
+              },
+            ],
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    await flushChain();
+
+    expect(parentGuardRuns).toBe(1);
+    expect(childGuardRuns).toBe(0);
     expect(outlet.targetComponent()).toBeNull();
     expect(outlet.state()).not.toBe('loaded');
     window.history.replaceState(null, '', '/');
