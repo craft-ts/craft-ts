@@ -39,6 +39,7 @@ export type PageMatch = Readonly<{
 }>;
 
 export type PageAction =
+  | Readonly<{ goto: string }>
   | Readonly<{ id: string; fill: unknown; match?: PageMatch }>
   | Readonly<{ id: string; press?: string; match?: PageMatch }>
   | Readonly<{ id: string; match?: PageMatch }>;
@@ -68,6 +69,11 @@ export type PageSurface = Readonly<{
   url: string;
   title?: string;
   controls: readonly PageControl[];
+}>;
+
+export type PageGoodbye = Readonly<{
+  type: 'page/goodbye';
+  clientId: string;
 }>;
 
 export type RegistryRequest = Readonly<{

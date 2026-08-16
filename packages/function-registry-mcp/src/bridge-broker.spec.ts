@@ -12,6 +12,7 @@ describe('RegistryBridgeBroker', () => {
     const { port } = broker.address();
     app = new WebSocket(`ws://127.0.0.1:${port}`);
     await new Promise<void>((resolve) => app.once('open', resolve));
+    echoPage(app);
     app.send(
       JSON.stringify({
         type: 'hello',
@@ -201,6 +202,7 @@ describe('RegistryBridgeBroker', () => {
     const { port } = broker.address();
     const replacement = new WebSocket(`ws://127.0.0.1:${port}`);
     await new Promise<void>((resolve) => replacement.once('open', resolve));
+    echoPage(replacement);
     replacement.send(
       JSON.stringify({
         type: 'hello',
@@ -227,7 +229,47 @@ describe('RegistryBridgeBroker', () => {
     replacement.close();
   });
 
-  it('reads page controls from broker memory when the client is ready', async () => {
+  it('deletes the client card on page/goodbye instead of keeping it reloading', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+
+    app.send(JSON.stringify({ type: 'page/goodbye', clientId: 'app-a' }));
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).rejects.toThrow(
+        'page client is not connected',
+      );
+    });
+  });
+
+  it('keeps the card reloading when the socket closes without goodbye', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+
+    app.close();
+    await expect(
+      broker.request('page', { timeoutMs: 80 }),
+    ).rejects.toThrow(
+      /page reloading since .+s, last url \/login-form, generation 1 → still 1/,
+    );
+  });
+
+  it('asks the live page even when broker memory is ready', async () => {
     const received: string[] = [];
     app.on('message', (raw) => received.push(raw.toString()));
     publishSurface(app, {
@@ -238,18 +280,27 @@ describe('RegistryBridgeBroker', () => {
     });
 
     await vi.waitFor(async () => {
-      await expect(broker.request('page')).resolves.toEqual({
-        generation: 1,
-        surfaceRev: 1,
+      await expect(broker.request('page')).resolves.toMatchObject({
         url: '/login-form',
         title: 'Login',
         status: 'ready',
         controls: [control('email')],
       });
     });
-    expect(received.filter((message) => message.includes('"method":"page"'))).toEqual(
-      [],
-    );
+    expect(
+      received.filter((message) => message.includes('"method":"page"')).length,
+    ).toBeGreaterThan(0);
+
+    livePage = {
+      url: '/login-form',
+      title: 'Login',
+      status: 'ready',
+      controls: [control('email'), control('submit')],
+    };
+    await expect(broker.request('page')).resolves.toMatchObject({
+      url: '/login-form',
+      controls: [control('email'), control('submit')],
+    });
   });
 
   it('forwards page act then returns the browser result', async () => {
@@ -333,6 +384,36 @@ function control(id: string) {
   };
 }
 
+let livePage: {
+  url: string;
+  title?: string;
+  status: 'ready';
+  controls: ReturnType<typeof control>[];
+} = { url: '', status: 'ready', controls: [] };
+
+function echoPage(socket: WebSocket) {
+  socket.on('message', (raw) => {
+    const request = JSON.parse(raw.toString()) as {
+      callId?: string;
+      method?: string;
+      params?: { act?: unknown };
+    };
+    if (request.method !== 'page' || request.callId === undefined) {
+      return;
+    }
+    if (Array.isArray(request.params?.act) && request.params.act.length > 0) {
+      return;
+    }
+    socket.send(
+      JSON.stringify({
+        type: 'response',
+        callId: request.callId,
+        result: livePage,
+      }),
+    );
+  });
+}
+
 function publishSurface(
   socket: WebSocket,
   surface: {
@@ -342,6 +423,12 @@ function publishSurface(
     controls: ReturnType<typeof control>[];
   },
 ): void {
+  livePage = {
+    url: surface.url,
+    ...(surface.title === undefined ? {} : { title: surface.title }),
+    status: 'ready',
+    controls: surface.controls,
+  };
   socket.send(
     JSON.stringify({
       type: 'page/surface',

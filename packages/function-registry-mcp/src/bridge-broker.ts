@@ -6,7 +6,6 @@ import {
   type ServerOptions,
 } from 'ws';
 import type {
-  PageControls,
   PageSurface,
   RegistryBrokerMethod,
   RegistryClient,
@@ -156,7 +155,6 @@ export class RegistryBridgeBroker {
     ]);
     const client = this.#resolvePageClient(clientId);
     const deadline = Date.now() + timeoutMs;
-    const act = forwardedParams?.['act'];
     const clientIdForWait = client.clientId;
 
     while (true) {
@@ -164,9 +162,6 @@ export class RegistryBridgeBroker {
       const current = this.#clients.get(clientIdForWait);
       if (current === undefined) {
         throw new Error('page client is not connected');
-      }
-      if (act === undefined) {
-        return this.#pageResult(current);
       }
       try {
         const result = await this.#forward(
@@ -217,21 +212,6 @@ export class RegistryBridgeBroker {
       }, remaining);
       client.readyWaiters.push({ resolve, reject, timeout });
     });
-  }
-
-  #pageResult(client: ClientConnection): PageControls {
-    const surface = client.surface;
-    if (surface === undefined) {
-      throw new Error(reloadingMessage(client));
-    }
-    return {
-      generation: client.generation,
-      surfaceRev: client.surfaceRev,
-      url: surface.url,
-      ...(surface.title === undefined ? {} : { title: surface.title }),
-      status: 'ready',
-      controls: surface.controls,
-    };
   }
 
   #mergeForwardedPageResult(
@@ -310,7 +290,10 @@ export class RegistryBridgeBroker {
         return;
       }
       const client = this.#clients.get(clientId);
-      if (client?.socket !== socket) {
+      if (client === undefined) {
+        return;
+      }
+      if (client.socket !== socket) {
         return;
       }
       client.socket = undefined;
@@ -343,6 +326,15 @@ export class RegistryBridgeBroker {
     const record = message as Record<string, unknown>;
     if (isHello(record)) {
       this.#registerClient(socket, record);
+      return;
+    }
+
+    if (record['type'] === 'page/goodbye') {
+      const mappedId = this.#socketClientIds.get(socket);
+      if (mappedId === undefined) {
+        return;
+      }
+      this.#dropClient(mappedId, 'page client is not connected');
       return;
     }
 
@@ -498,6 +490,19 @@ export class RegistryBridgeBroker {
       clearTimeout(waiter.timeout);
       waiter.reject(new Error(message));
     }
+  }
+
+  #dropClient(clientId: string, waiterMessage: string): void {
+    const client = this.#clients.get(clientId);
+    if (client === undefined) {
+      return;
+    }
+    if (client.expireTimer !== undefined) {
+      clearTimeout(client.expireTimer);
+    }
+    this.#rejectReadyWaiters(client, waiterMessage);
+    this.#rejectPending(waiterMessage, clientId);
+    this.#clients.delete(clientId);
   }
 }
 
