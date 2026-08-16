@@ -1,4 +1,8 @@
-import { computed, Signal, signal } from '@angular/core';
+import {
+  computed,
+  Signal,
+  signal,
+} from './host/craft-compat';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService, type CraftServiceProvider } from './craft-service';

@@ -1,9 +1,12 @@
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
 import { query, ResourceByIdLikeQueryRef } from './query';
 import { craftService } from './craft-service';
 import { craftPipe } from './craft-pipe';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { computed, signal } from '@angular/core';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';

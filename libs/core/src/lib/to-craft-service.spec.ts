@@ -1,20 +1,11 @@
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import {
-  Component,
-  Injectable,
   inject,
   InjectionToken,
   signal,
-} from '@angular/core';
-import {
-  provideRouter,
-  Router,
-  withComponentInputBinding,
-} from '@angular/router';
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { Component, Injectable } from '@angular/core';
+import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { state } from './state';
 import {
   craftService,
@@ -35,21 +26,6 @@ import { CraftActivatedRoute } from './craft-activated-route';
   template: '',
 })
 class CheckoutPage {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 beforeEach(() => {
   TestBed.resetTestingModule();

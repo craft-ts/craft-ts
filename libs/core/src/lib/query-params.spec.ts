@@ -1,9 +1,5 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from './host/craft-test-bed';
 import { queryParams } from './query-params';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { craftService } from './craft-service';
@@ -44,21 +40,6 @@ const queryParamsRuntimeContextWrapper: FnWrapper = function* (
   }
   return yield* factory.apply(thisArg, args);
 };
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('queryParams', () => {
   beforeEach(() => {

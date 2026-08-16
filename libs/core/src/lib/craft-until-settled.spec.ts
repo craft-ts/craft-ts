@@ -1,6 +1,10 @@
+import {
+  Injector,
+  signal,
+  type WritableSignal,
+} from './host/craft-compat';
+import type { CraftRouter as Router } from './craft-router';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
-import { Injector, signal, type WritableSignal } from '@angular/core';
-import type { Router } from '@angular/router';
 import { craftException, type AnyCraftException } from './craft-exception';
 import {
   craftGen,

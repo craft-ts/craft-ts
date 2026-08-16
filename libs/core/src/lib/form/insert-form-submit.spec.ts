@@ -1,5 +1,7 @@
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  signal,
+} from '../host/craft-compat';
+import { TestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { mutation } from '../mutation';
 import { state } from '../state';

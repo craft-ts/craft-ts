@@ -1,7 +1,7 @@
+import { TestBed } from './host/craft-test-bed';
+import { Component } from '@angular/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sourceFromEvent, SourceFromEvent } from './source-from-event';
-import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
 
 describe('sourceFromEvent', () => {
   let button: HTMLButtonElement;

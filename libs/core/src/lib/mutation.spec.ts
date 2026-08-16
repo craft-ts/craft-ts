@@ -1,4 +1,8 @@
-import { Signal, WritableSignal, signal } from '@angular/core';
+import {
+  Signal,
+  signal,
+  WritableSignal,
+} from './host/craft-compat';
 import { CraftResourceStatus } from './util/craft-resource-status';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';

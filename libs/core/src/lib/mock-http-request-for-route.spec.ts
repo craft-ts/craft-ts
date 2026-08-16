@@ -1,5 +1,6 @@
-import '@angular/compiler';
-import { Type } from '@angular/core';
+import {
+  Type,
+} from './host/craft-compat';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { GetDeps } from './branded-component/branded-component';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';

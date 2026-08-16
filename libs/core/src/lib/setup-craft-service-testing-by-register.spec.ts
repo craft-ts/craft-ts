@@ -1,5 +1,8 @@
+import {
+  signal,
+} from './host/craft-compat';
+import { Component } from '@angular/core';
 import { craftUse } from './craft-use';
-import { Component, signal } from '@angular/core';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import {
   craftService,

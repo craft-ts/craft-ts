@@ -1,10 +1,9 @@
-import '@angular/compiler';
-import { ApplicationInitStatus, InjectionToken, Type } from '@angular/core';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
+  InjectionToken,
+  Type,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { ApplicationInitStatus } from '@angular/core';
 import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 import type { AppCheckedDI } from './app-checked-di';
 import { GetDeps } from './branded-component/branded-component';
@@ -25,21 +24,6 @@ import {
   ɵtoCraftService as toCraftService,
 } from './craft-service';
 import { craftUse } from './craft-use';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craftAppConfig', () => {
   it('should expose APP_CONFIG_META_DATA with computed missing providers', () => {

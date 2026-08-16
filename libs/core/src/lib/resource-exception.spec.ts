@@ -1,4 +1,6 @@
-import { signal } from '@angular/core';
+import {
+  signal,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import {

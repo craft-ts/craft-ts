@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
   createEnvironmentInjector,
   EnvironmentInjector,
@@ -7,7 +6,7 @@ import {
   runInInjectionContext as runInAngularInjectionContext,
   signal,
   type EffectCleanupRegisterFn,
-} from '@angular/core';
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';

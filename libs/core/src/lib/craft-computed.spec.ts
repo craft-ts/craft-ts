@@ -1,10 +1,8 @@
-import '@angular/compiler';
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -25,21 +23,6 @@ import {
 import type { YieldableReactiveValue } from './reactive-read';
 import { craftUse } from './craft-use';
 import { craftSignal } from './host/craft-signal';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craftComputed', () => {
   beforeEach(() => {

@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
+import { TestBed } from './host/craft-test-bed';
 import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { craftUse } from './craft-use';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
@@ -126,21 +122,6 @@ declare module './craft-router' {
   template: '',
 })
 class CraftRouterLinkHostComponent {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 beforeEach(() => {
   TestBed.resetTestingModule();

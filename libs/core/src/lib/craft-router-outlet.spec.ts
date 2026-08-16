@@ -1,19 +1,14 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
-  Component,
   createEnvironmentInjector,
   EnvironmentInjector,
   inject,
   InjectionToken,
   runInInjectionContext,
   signal,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { Component } from '@angular/core';
 import {
   afterEach,
   beforeAll,
@@ -55,21 +50,6 @@ import {
   CRAFT_VIEW_TRANSITION_STATE_KEY,
   CRAFT_VIEW_TRANSITIONS_ENABLED,
 } from './craft-view-transition';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 @Component({ selector: 'spec-target', standalone: true, template: `target` })
 class TargetCmp {}

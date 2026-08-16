@@ -1,4 +1,6 @@
-import { signal } from '@angular/core';
+import {
+  signal,
+} from '../host/craft-compat';
 import { CRAFT_EXCEPTION_SYMBOL, craftException } from '../craft-exception';
 import { query } from '../query';
 import { state } from '../state';

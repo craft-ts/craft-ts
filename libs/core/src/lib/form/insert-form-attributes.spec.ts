@@ -1,4 +1,7 @@
-import { computed, signal } from '@angular/core';
+import {
+  computed,
+  signal,
+} from '../host/craft-compat';
 import { craftException } from '../craft-exception';
 import { provideFnWrapper } from '../fn-wrapper';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';

@@ -1,5 +1,7 @@
-import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import {
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asyncProcess } from './async-process';
 import { craftUnique } from './craft-unique';

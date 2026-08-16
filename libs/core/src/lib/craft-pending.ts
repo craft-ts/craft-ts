@@ -7,7 +7,10 @@ import {
   type Signal,
 } from './host/craft-compat';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
-import type { CraftRouteTargetInput } from './craft-route-target';
+import {
+  craftRouteTarget,
+  type CraftRouteTargetInput,
+} from './craft-route-target';
 
 /**
  * The non-blocking router outlet ({@link CraftRouterOutletController}) commits
@@ -63,20 +66,23 @@ export const CRAFT_LOADING_TEXT = new InjectionToken<Signal<string>>(
 
 let defaultCraftPendingComponent: CraftRouteTargetInput | undefined;
 
-/** Registers the Angular default pending component from `@craft-ng/angular`. */
+/**
+ * Installs the real loader. `@craft-ng/component` calls this on import, since
+ * rendering anything at all needs the renderer that only it owns.
+ */
 export function ɵregisterDefaultCraftPendingComponent(
   component: CraftRouteTargetInput,
 ): void {
   defaultCraftPendingComponent = component;
 }
 
+/**
+ * Core alone can render nothing, so the fallback is an empty target rather
+ * than a throw: a router used without `@craft-ng/component` still navigates,
+ * it just shows nothing during the pending phase.
+ */
 function getDefaultCraftPendingComponent(): CraftRouteTargetInput {
-  if (!defaultCraftPendingComponent) {
-    throw new Error(
-      'DefaultCraftPendingComponent is provided by @craft-ng/angular.',
-    );
-  }
-  return defaultCraftPendingComponent;
+  return defaultCraftPendingComponent ?? craftRouteTarget(null);
 }
 
 /**

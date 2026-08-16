@@ -1,16 +1,15 @@
+import {
+  Signal,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { asyncProcess } from './async-process';
-import { Signal, signal } from '@angular/core';
 import { CraftResourceStatus } from './util/craft-resource-status';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
-import { TestBed } from '@angular/core/testing';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';
 import {
@@ -46,21 +45,6 @@ function removeMethod<T extends object>(resource: T): Omit<T, 'method'> {
   const { method: _method, ...rest } = resource as T & { method?: unknown };
   return rest as Omit<T, 'method'>;
 }
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('AsyncProcess', () => {
   beforeEach(() => {

@@ -3,6 +3,10 @@ export * from './lib/ai/ai-send-dialog';
 export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
+export {
+  CraftRouteLoadErrorHost,
+  DefaultCraftPendingComponent,
+} from './lib/craft-defaults';
 export * from './lib/angular';
 export { ɵregisterAngularIsland } from './lib/host-runtime';
 export * from './lib/component';

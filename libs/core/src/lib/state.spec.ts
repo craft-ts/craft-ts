@@ -1,4 +1,9 @@
-import { computed, linkedSignal, Signal, signal } from '@angular/core';
+import {
+  computed,
+  linkedSignal,
+  Signal,
+  signal,
+} from './host/craft-compat';
 import { state, StateOutput } from './state';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';

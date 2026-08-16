@@ -1,4 +1,7 @@
-import { resource, signal } from '@angular/core';
+import { craftResource } from './craft-resource';
+import {
+  signal,
+} from './host/craft-compat';
 import { createStoragePersister } from './local-storage-persister';
 import type { StorageServiceApi } from './browser-boundaries';
 import { vi } from 'vitest';
@@ -49,7 +52,7 @@ describe('createStoragePersister', () => {
   it('1 Should add a query to persist and store the query result in localStorage when the query is resolved', async () => {
     await runInInjectionContext(async () => {
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -104,7 +107,7 @@ describe('createStoragePersister', () => {
         }),
       );
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -141,7 +144,7 @@ describe('createStoragePersister', () => {
         }),
       );
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -189,7 +192,7 @@ describe('createStoragePersister', () => {
         }),
       );
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -200,7 +203,7 @@ describe('createStoragePersister', () => {
       const queryUSersParamsFnSignal = signal<{ id: number } | undefined>(
         undefined,
       );
-      const queryUsersResource = resource({
+      const queryUsersResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -246,7 +249,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -286,7 +289,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -336,7 +339,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -378,7 +381,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -422,7 +425,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -475,7 +478,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -520,7 +523,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -558,7 +561,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -595,7 +598,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -636,7 +639,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -677,7 +680,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -718,7 +721,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -756,7 +759,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -794,7 +797,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -834,7 +837,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -872,7 +875,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -912,7 +915,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);

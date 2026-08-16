@@ -1,8 +1,11 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  EventEmitter,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { Component } from '@angular/core';
 import { on$ } from './on$';
 import { source$ } from './source$';
 import { Subject } from 'rxjs';
-import { Component, EventEmitter } from '@angular/core';
 import { SourceBranded } from './util/util';
 
 describe('on$', () => {

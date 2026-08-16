@@ -1,30 +1,12 @@
-import '@angular/compiler';
-import { Injector } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  Injector,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { provideCorrelationIdTracking } from './correlation-id-plugin';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import { CRAFT_DOM_EVENT_HOOK } from './dom-event-hook';
 import { FN_WRAPPER } from './fn-wrapper';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('provideCorrelationIdTracking', () => {
   beforeEach(() => {

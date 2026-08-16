@@ -1,4 +1,8 @@
-import { inject, InjectionToken, Injector } from '@angular/core';
+import {
+  inject,
+  InjectionToken,
+  Injector,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   executeTemplateTrace,

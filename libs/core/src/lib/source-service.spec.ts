@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from './host/craft-test-bed';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   craftService,

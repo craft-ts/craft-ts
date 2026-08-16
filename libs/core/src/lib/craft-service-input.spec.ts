@@ -1,10 +1,8 @@
-import '@angular/compiler';
-import { InjectionToken, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  InjectionToken,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { craftService, ɵtoCraftService as toCraftService, type CraftServiceInput } from './craft-service';
 import { craftUse } from './craft-use';
@@ -13,21 +11,6 @@ import {
   type ReactiveReadEdge,
 } from './reactive-read';
 import { state } from './state';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craft service inputs', () => {
   beforeEach(() => TestBed.resetTestingModule());

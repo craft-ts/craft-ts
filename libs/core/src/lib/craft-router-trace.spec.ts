@@ -1,18 +1,13 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
   APP_INITIALIZER,
   createEnvironmentInjector,
-  getPlatform,
   Injector,
   runInInjectionContext,
   type EnvironmentInjector,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { getPlatform } from '@angular/core';
 import { Router } from '@angular/router';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
@@ -30,21 +25,6 @@ const context: CraftRouterTraceContext = {
   routePhase: 'enter',
   url: '/demo',
 };
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 function runAppInitializers(injector: EnvironmentInjector): void {
   const initializers = injector.get(APP_INITIALIZER, []);

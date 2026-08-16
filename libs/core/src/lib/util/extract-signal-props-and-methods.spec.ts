@@ -1,4 +1,6 @@
-import { Signal } from '@angular/core';
+import {
+  Signal,
+} from '../host/craft-compat';
 import { ExtractSignalPropsAndMethods } from './extract-signal-props-and-methods';
 
 describe('ExtractSignalPropsAndMethods', () => {

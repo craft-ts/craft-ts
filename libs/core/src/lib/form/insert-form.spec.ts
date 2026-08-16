@@ -4,8 +4,8 @@ import {
   inject,
   Injector,
   signal,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+} from '../host/craft-compat';
+import { TestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { angularLinkedSignal } from '../host/angular-linked-signal';
 import { craftSignal } from '../host/craft-signal';

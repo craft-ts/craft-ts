@@ -1,10 +1,5 @@
+import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import {
   BrowserCrypto,
   BrowserDocument,
@@ -23,21 +18,6 @@ import {
   SessionStorageService,
 } from './browser-boundaries';
 import { craftService, getServiceMetaData } from './craft-service';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 function clearCookies() {
   for (const cookie of document.cookie.split(';')) {

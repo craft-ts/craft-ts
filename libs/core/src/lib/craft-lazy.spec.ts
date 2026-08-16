@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { TestBed } from './host/craft-test-bed';
 import {
   afterEach,
   beforeAll,
@@ -35,21 +30,6 @@ import {
   type CraftLazyLoadHelpers,
 } from './craft-load-retry';
 import { craftUntilSettled } from './craft-until-settled';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 // Reads the promise an `await`-request suspends on so a hand-driven test can
 // resolve it itself and feed the value back — no async pump needed.

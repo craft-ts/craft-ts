@@ -6,7 +6,9 @@ import {
   Injector,
   provideZonelessChangeDetection,
   runInInjectionContext,
+  type Signal,
   type Type,
+  type WritableSignal,
   ɵINJECTOR_SCOPE,
 } from './host/craft-compat';
 import {
@@ -99,11 +101,8 @@ type DependencyOutputRecordFromTracking<Tracking> =
     any
   >
     ? {
-        [Key in Name]: Output extends import('@angular/core').WritableSignal<
-          infer Value
-        >
-          ? import('@angular/core').Signal<Value> &
-              Omit<Output, 'set' | 'update' | 'asReadonly'>
+        [Key in Name]: Output extends WritableSignal<infer Value>
+          ? Signal<Value> & Omit<Output, 'set' | 'update' | 'asReadonly'>
           : Output;
       }
     : never;

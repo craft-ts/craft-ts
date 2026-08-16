@@ -1,10 +1,7 @@
-import '@angular/compiler';
-import { inject } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  inject,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -28,21 +25,6 @@ import {
 import type { AnyCraftException } from './craft-exception';
 import { craftUse } from './craft-use';
 import type { ComponentExceptionsCarrier } from './branded-component/branded-component';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 // --- Type-level fixtures: a route whose three steps advertise codes A, B, C ---
 

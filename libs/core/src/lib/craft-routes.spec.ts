@@ -1,39 +1,18 @@
-import '@angular/compiler';
 import {
-  Component,
   computed,
   EnvironmentInjector,
   inject,
   InjectionToken,
   Injector,
-  input,
-  type Provider,
   runInInjectionContext,
   signal,
   Type,
+  type Provider,
   type Signal,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import {
-  ActivatedRoute,
-  type ActivatedRouteSnapshot,
-  type CanActivateFn,
-  type CanMatchFn,
-  type Data,
-  type GuardResult,
-  type Params,
-  type PartialMatchRouteSnapshot,
-  type Route,
-  Router,
-  NavigationEnd,
-  type RouterStateSnapshot,
-  type UrlSegment,
-  UrlTree,
-} from '@angular/router';
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { Component, input } from '@angular/core';
+import { ActivatedRoute, NavigationEnd, Router, UrlTree, type ActivatedRouteSnapshot, type CanActivateFn, type CanMatchFn, type Data, type GuardResult, type Params, type PartialMatchRouteSnapshot, type Route, type RouterStateSnapshot, type UrlSegment } from '@angular/router';
 import {
   BehaviorSubject,
   combineLatest,
@@ -461,21 +440,6 @@ function fakeHttpCall<T>(
     return resolved;
   })();
 }
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 beforeEach(() => {
   TestBed.resetTestingModule();

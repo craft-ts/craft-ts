@@ -1,7 +1,10 @@
-import { computed, signal } from '@angular/core';
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { preservedResource } from './preserved-resource';
 import { vi } from 'vitest';
-import { TestBed } from '@angular/core/testing';
 
 describe('Preserved Resource', () => {
   beforeEach(() => {

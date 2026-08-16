@@ -1,5 +1,8 @@
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  signal,
+} from '../host/craft-compat';
+import { TestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { craftField, CraftValidator, FieldAttributeMeta } from './craft-field';
 

@@ -1,4 +1,6 @@
-import { computed } from '@angular/core';
+import {
+  computed,
+} from './host/craft-compat';
 import { stackedSource } from './stacked-source';
 
 describe('stackedSource', () => {

@@ -1,6 +1,8 @@
-import { computed } from '@angular/core';
+import {
+  computed,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { source$ } from './source$';
-import { TestBed } from '@angular/core/testing';
 
 describe('source$', () => {
   beforeEach(() => {

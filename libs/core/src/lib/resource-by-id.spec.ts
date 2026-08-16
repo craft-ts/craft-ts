@@ -1,4 +1,7 @@
-import { ResourceStatus, signal } from '@angular/core';
+import {
+  ResourceStatus,
+  signal,
+} from './host/craft-compat';
 import { resourceById } from './resource-by-id';
 import { craftSignal } from './host/craft-signal';
 import { setupCraftServiceTest } from './setup-craft-service-test';

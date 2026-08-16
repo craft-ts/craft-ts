@@ -1,5 +1,7 @@
-import '@angular/compiler';
-import { computed, inject } from '@angular/core';
+import {
+  computed,
+  inject,
+} from './host/craft-compat';
 import { craftService, onAppStart, type CraftServiceProvider } from './craft-service';
 import { HOST_TAG_LIST } from './host-tag';
 import { insertSelect } from './insert-select';

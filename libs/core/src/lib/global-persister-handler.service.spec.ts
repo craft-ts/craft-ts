@@ -1,9 +1,4 @@
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { TestBed } from './host/craft-test-bed';
 import { LocalStorageService, SessionStorageService } from './browser-boundaries';
 import {
   GlobalPersisterHandlerService,
@@ -17,21 +12,6 @@ import {
   provideStoragePersister,
   SessionStoragePersister,
 } from './storage-persister.service';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('global persister handler service', () => {
   beforeEach(() => {

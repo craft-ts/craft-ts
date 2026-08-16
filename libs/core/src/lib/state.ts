@@ -7,6 +7,7 @@ import {
   isWritableSignal,
   linkedSignal,
   runInInjectionContext,
+  type Provider,
   Signal,
   WritableSignal,
 } from './host/craft-compat';
@@ -182,7 +183,7 @@ export type StateSchemaConfig<Schema extends CraftSchema> = {
     | StandardSchemaV1InferInput<Schema>
     | Signal<StandardSchemaV1InferInput<Schema>>;
   readonly schema: Schema;
-  readonly providers?: readonly import('@angular/core').Provider[];
+  readonly providers?: readonly Provider[];
   readonly schemaValidationPolicy?: SchemaValidationPolicy;
 };
 

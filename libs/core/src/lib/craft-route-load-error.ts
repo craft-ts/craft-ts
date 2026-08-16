@@ -109,20 +109,23 @@ export const CRAFT_ACTIVE_ROUTE_LOAD_ERROR = new InjectionToken<
 
 let craftRouteLoadErrorHostComponent: Type<unknown> | undefined;
 
-/** Registers the Angular recovery host from `@craft-ng/angular`. */
+/**
+ * Installs the recovery host. `@craft-ng/component` calls this on import —
+ * mounting the recovery UI needs the renderer that only it owns.
+ */
 export function ɵregisterCraftRouteLoadErrorHostComponent(
   component: Type<unknown>,
 ): void {
   craftRouteLoadErrorHostComponent = component;
 }
 
-function getCraftRouteLoadErrorHostComponent(): Type<unknown> {
-  if (!craftRouteLoadErrorHostComponent) {
-    throw new Error(
-      'CraftRouteLoadErrorHostComponent is provided by @craft-ng/angular.',
-    );
-  }
-  return craftRouteLoadErrorHostComponent;
+/**
+ * Without `@craft-ng/component` there is nothing that can render the recovery
+ * UI, so the host is null and the outlet simply shows nothing. The error is
+ * still reported through `CRAFT_ROUTE_LOAD_ERROR`.
+ */
+function getCraftRouteLoadErrorHostComponent(): Type<unknown> | null {
+  return craftRouteLoadErrorHostComponent ?? null;
 }
 
 export const CRAFT_ROUTE_LOAD_ERROR = new InjectionToken<

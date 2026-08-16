@@ -1,4 +1,7 @@
-import { computed, inject } from '@angular/core';
+import {
+  computed,
+  inject,
+} from '../host/craft-compat';
 import { HOST_TAG_LIST } from '../host-tag';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftService, onAppStart } from '../craft-service';

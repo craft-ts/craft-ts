@@ -3,7 +3,7 @@ import {
   ResourceStreamItem,
   Signal,
   signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { vi } from 'vitest';
 import { asyncProcess } from './async-process';
 import { craftService } from './craft-service';

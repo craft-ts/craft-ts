@@ -1,4 +1,7 @@
-import { InjectionToken, Injector } from '@angular/core';
+import {
+  InjectionToken,
+  Injector,
+} from './craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   craftToken,

@@ -1,5 +1,7 @@
-import { computed } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { SignalSource, signalSource } from './signal-source';
 
 describe('source', () => {

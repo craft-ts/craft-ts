@@ -1,4 +1,6 @@
-import { Injector } from '@angular/core';
+import {
+  Injector,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   executeGeneratorCompatibleFactory,

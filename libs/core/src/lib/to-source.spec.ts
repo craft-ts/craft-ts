@@ -1,4 +1,7 @@
-import { computed, signal } from '@angular/core';
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
 import { toSource } from './to-source';
 import { ReadonlySource } from './util/source.type';
 

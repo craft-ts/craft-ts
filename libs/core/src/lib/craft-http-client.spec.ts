@@ -1,10 +1,5 @@
+import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { vi } from 'vitest';
 import {
   CraftHttpClient,
@@ -101,21 +96,6 @@ class FetchTestingController {
 }
 
 let fetchTesting: FetchTestingController;
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('CraftHttpClient', () => {
   beforeEach(() => {

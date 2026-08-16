@@ -1,4 +1,7 @@
-import { Injector, runInInjectionContext } from '@angular/core';
+import {
+  Injector,
+  runInInjectionContext,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   CRAFT_REGISTRATION_TARGET,

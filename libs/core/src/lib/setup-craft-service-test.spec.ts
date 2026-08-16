@@ -1,5 +1,9 @@
-import { Component, inject, Injectable, InjectionToken } from '@angular/core';
-import { provideRouter, Router } from '@angular/router';
+import {
+  inject,
+  InjectionToken,
+} from './host/craft-compat';
+import { Component, Injectable } from '@angular/core';
+import { Router, provideRouter } from '@angular/router';
 import { type GetDeps, type GetPublicComponentProperties } from '../index';
 import { craftService, ɵtoCraftService as toCraftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';

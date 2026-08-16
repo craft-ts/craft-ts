@@ -1,43 +1,21 @@
 import {
   computed,
-  Injectable,
   Signal,
   signal,
+  takeUntilDestroyed,
   WritableSignal,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { afterRecomputation } from './after-recomputation';
 import { ɵinjectService as injectService } from './inject-service';
 import { on$ } from './on$';
 import { source$ } from './source$';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { signalSource } from './signal-source';
 
 describe('Service2', () => {
-  beforeAll(() => {
-    try {
-      TestBed.initTestEnvironment(
-        BrowserTestingModule,
-        platformBrowserTesting(),
-      );
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        !error.message.includes(
-          'Cannot set base providers because it has already been called',
-        )
-      ) {
-        throw error;
-      }
-    }
-  });
-
-  beforeEach(() => {
+    beforeEach(() => {
     vi.useFakeTimers();
   });
 

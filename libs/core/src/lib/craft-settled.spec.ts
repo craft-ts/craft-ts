@@ -1,4 +1,9 @@
 import {
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import {
   afterEach,
   beforeAll,
   beforeEach,
@@ -8,12 +13,6 @@ import {
   it,
   vi,
 } from 'vitest';
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { craftException } from './craft-exception';
 import { isCraftGenShortCircuit } from './craft-gen';
 import { craftComputed } from './craft-computed';
@@ -37,21 +36,6 @@ interface User {
   readonly id: string;
   readonly name: string;
 }
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 beforeEach(() => {
   vi.useFakeTimers();

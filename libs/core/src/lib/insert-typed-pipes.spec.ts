@@ -1,10 +1,9 @@
+import { provideCraftRouter } from './craft-router';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { computed, Signal } from '@angular/core';
+  computed,
+  Signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   insertAsyncProcessPipe,
   insertMutationPipe,
@@ -18,21 +17,6 @@ import { mutation } from './mutation';
 import { query } from './query';
 import { queryParams } from './query-params';
 import { state } from './state';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('typed insertion pipes', () => {
   it('composes state insertions, exposes previous outputs, and supports generators', () => {
@@ -114,7 +98,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes queryParams insertions without an explicit context', () => {
-    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
     TestBed.runInInjectionContext(() => {
       const pagination = craftUse(
         queryParams(

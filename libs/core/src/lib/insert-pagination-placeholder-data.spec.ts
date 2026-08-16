@@ -1,5 +1,8 @@
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';

@@ -1,10 +1,10 @@
+import { TestBed } from './host/craft-test-bed';
+import { Component } from '@angular/core';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import {
   fromEventToSource$,
   FromEventToSource$,
 } from './from-event-to-source$';
-import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
 import {
   craftService,
   craftUse,

@@ -1,6 +1,9 @@
+import {
+  Injector,
+  runInInjectionContext,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { CraftGenShortCircuit } from './craft-gen';
 import { craftException } from './craft-exception';
 import { CraftNotSettled, isCraftNotSettled } from './craft-settled';

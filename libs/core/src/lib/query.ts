@@ -1317,11 +1317,11 @@ function createQueryRef<
     // e.g. a non-blocking route guard awaiting the resource via
     // `craftUntilSettled(...)`, which subscribes outside one. Without an eagerly
     // captured injector, `getInjector()` below would fall back to the (absent)
-    // ambient context and throw NG0203.
+    // ambient context and throw.
     //
-    // `isInInjectionContext` is not part of @angular/core's public API in this
-    // version, so probe by attempting `inject(Injector)` and falling back to the
-    // lazy `getInjector()` if `query()` was genuinely constructed out of context.
+    // There is no `isInInjectionContext` on the Craft injector, so probe by
+    // attempting `inject(Injector)` and fall back to the lazy `getInjector()`
+    // if `query()` was genuinely constructed out of context.
     try {
       injector = ɵcreateHostTaggedInjector(
         inject(Injector),

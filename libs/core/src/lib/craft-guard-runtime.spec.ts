@@ -1,5 +1,6 @@
-import '@angular/compiler';
-import { Injector } from '@angular/core';
+import {
+  Injector,
+} from './host/craft-compat';
 import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';

@@ -1,8 +1,4 @@
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { TestBed } from '../host/craft-test-bed';
 import { provideRouter } from '@angular/router';
 import { craftService } from '../craft-service';
 import { query } from '../query';
@@ -16,21 +12,6 @@ type User = {
   name: string;
   email: string;
 };
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('insertForm compatibility with queryParams', () => {
   beforeEach(() => {

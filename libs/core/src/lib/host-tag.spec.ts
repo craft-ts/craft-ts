@@ -1,13 +1,12 @@
-import '@angular/compiler';
 import {
   createEnvironmentInjector,
   EnvironmentInjector,
   inject,
   Injector,
-  type Provider,
   runInInjectionContext,
-  ɵINJECTOR_SCOPE,
-} from '@angular/core';
+  type Provider,
+} from './host/craft-compat';
+import { ɵINJECTOR_SCOPE } from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { COMPONENT_REGISTER, createComponentRegister } from './component-register';
 import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';

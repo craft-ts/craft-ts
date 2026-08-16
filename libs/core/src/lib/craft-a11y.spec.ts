@@ -1,11 +1,6 @@
-import '@angular/compiler';
+import { TestBed } from './host/craft-test-bed';
 import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { provideRouter, Router, TitleStrategy } from '@angular/router';
+import { Router, TitleStrategy, provideRouter } from '@angular/router';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { isCraftLoadingFeature } from './craft-pending';
 import {
@@ -19,21 +14,6 @@ import {
   template: '',
 })
 class TitleProbeComponent {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craft a11y navigation', () => {
   it('exposes withA11yNavigationFocus as a loading feature', () => {

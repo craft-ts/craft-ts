@@ -1,10 +1,10 @@
-import { TestBed } from '@angular/core/testing';
-import { state } from './state';
-import { inject, InjectionToken, signal } from '@angular/core';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  inject,
+  InjectionToken,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { state } from './state';
 import { Subject } from 'rxjs';
 import { Console, ConsoleService } from './browser-boundaries';
 import {
@@ -33,21 +33,6 @@ import { craftYieldRecord } from './craft-primitive-gen';
 import { craftGen } from './craft-gen';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craftService', () => {
   it('should enable to create a craftService-like using craftService and inject it.', () => {
