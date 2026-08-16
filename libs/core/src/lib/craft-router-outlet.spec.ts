@@ -11,7 +11,6 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { ActivatedRoute, provideRouter, Router } from '@angular/router';
 import {
   afterEach,
   beforeAll,
@@ -28,11 +27,18 @@ import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
 import { CRAFT_ROUTE_TARGET, craftRouteTarget } from './craft-route-target';
 import {
   CRAFT_ROUTE_CHAIN_RUNNER,
-  collectActivatedRouteProps,
+  collectMatchProps,
   createCraftRouterOutletController,
   type CraftRouterOutletController,
   resolveComponentInput,
 } from './craft-router-outlet';
+import type { CraftCompiledRoute, CraftMatch } from './host/craft-router-runtime';
+import {
+  CRAFT_HISTORY,
+  CRAFT_ROUTER,
+  provideCraftRouter,
+  type CraftRouterNavigationApi,
+} from './craft-router';
 import {
   CRAFT_START_VIEW_TRANSITION,
   CRAFT_VIEW_TRANSITION_SKIP_BLANK,
@@ -85,16 +91,40 @@ function makeMeta(overrides: Partial<CraftRouteMeta> = {}): CraftRouteMeta {
   };
 }
 
-function makeRoute(meta: CraftRouteMeta | undefined): ActivatedRoute {
+function makeMatch(
+  meta: CraftRouteMeta | undefined,
+  component: unknown = TargetCmp,
+): CraftMatch {
   const data = meta ? { [CRAFT_ROUTE_META]: meta } : {};
+  const route: CraftCompiledRoute = {
+    path: 'a',
+    component,
+    data,
+  };
   return {
-    component: TargetCmp,
-    snapshot: {
-      data,
-      component: TargetCmp,
-      routeConfig: { component: TargetCmp },
-    },
-  } as unknown as ActivatedRoute;
+    pathname: '/a',
+    search: '',
+    hash: '',
+    params: {},
+    queryParams: {},
+    route,
+    routes: [route],
+    data,
+  };
+}
+
+function stubRouter(): CraftRouterNavigationApi {
+  return {
+    url: '/',
+    createUrlTree: (input) => ({
+      toString: () => `/${input.to}`,
+      __craftUrlTree: true as const,
+    }),
+    navigate: vi.fn(async () => true),
+    navigateByUrl: vi.fn(async () => true),
+    serializeUrl: (tree) => tree.toString(),
+    getCurrentNavigation: () => null,
+  };
 }
 
 const flush = async () => {
@@ -112,16 +142,17 @@ describe('CraftRouterOutlet', () => {
 
   function setup(): {
     outlet: CraftRouterOutletController;
-    router: Router;
+    router: CraftRouterNavigationApi;
   } {
     let resolve!: (outcome: RouteChainOutcome) => void;
     const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));
     deferred = { promise, resolve };
     runner = vi.fn(() => deferred.promise);
+    const router = stubRouter();
 
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        { provide: CRAFT_ROUTER, useValue: router },
         { provide: CRAFT_ROUTE_CHAIN_RUNNER, useValue: runner },
       ],
     });
@@ -130,7 +161,7 @@ describe('CraftRouterOutlet', () => {
       outlet: TestBed.runInInjectionContext(() =>
         createCraftRouterOutletController(),
       ),
-      router: TestBed.inject(Router),
+      router,
     };
   }
 
@@ -138,7 +169,7 @@ describe('CraftRouterOutlet', () => {
     outlet: CraftRouterOutletController,
     meta: CraftRouteMeta | undefined,
   ) {
-    outlet.activateWith(makeRoute(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
   }
 
   beforeEach(() => {
@@ -157,6 +188,18 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.targetComponent()).toBe(TargetCmp);
   });
 
+  it('activates the matched route after a Craft history push', () => {
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter([{ path: 'a', component: TargetCmp }])],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/a');
+    expect(outlet.state()).toBe('loaded');
+    expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
   it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {
     const { outlet } = setup();
     const component = { name: 'FunctionalRoute' };
@@ -165,7 +208,7 @@ describe('CraftRouterOutlet', () => {
       TestBed.inject(EnvironmentInjector),
     );
 
-    outlet.activateWith(makeRoute(undefined), routeInjector);
+    outlet.activateMatch(makeMatch(undefined), routeInjector);
 
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.displayedComponent()).toBe(TargetCmp);
@@ -460,7 +503,7 @@ describe('CraftRouterOutlet (view transitions)', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        { provide: CRAFT_ROUTER, useValue: stubRouter() },
         { provide: CRAFT_ROUTE_CHAIN_RUNNER, useValue: () => deferred.promise },
         { provide: CRAFT_VIEW_TRANSITIONS_ENABLED, useValue: true },
         {
@@ -486,7 +529,7 @@ describe('CraftRouterOutlet (view transitions)', () => {
   }
 
   function activate(outlet: CraftRouterOutletController, meta: CraftRouteMeta) {
-    outlet.activateWith(makeRoute(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
   }
 
   beforeEach(() => {
@@ -552,30 +595,28 @@ describe('CraftRouterOutlet (view transitions)', () => {
   });
 });
 
-describe('collectActivatedRouteProps', () => {
+describe('collectMatchProps', () => {
   it('merges parent params and data before the leaf segment', () => {
-    const leaf = {
-      snapshot: {
-        params: { userId: '42' },
-        data: { craftComponent: () => undefined },
-        queryParams: { tab: 'info' },
-        pathFromRoot: [
-          { params: {}, data: {}, queryParams: {} },
-          {
-            params: { teamId: '100' },
-            data: { someParentRouteData: 'foo' },
-            queryParams: {},
-          },
-          {
-            params: { userId: '42' },
-            data: { craftComponent: () => undefined },
-            queryParams: { tab: 'info' },
-          },
-        ],
-      },
-    } as unknown as ActivatedRoute;
+    const parent: CraftCompiledRoute = {
+      path: 'team/:teamId',
+      data: { someParentRouteData: 'foo' },
+    };
+    const leaf: CraftCompiledRoute = {
+      path: 'user/:userId',
+      data: { craftComponent: () => undefined },
+    };
+    const match: CraftMatch = {
+      pathname: '/team/100/user/42',
+      search: '?tab=info',
+      hash: '',
+      params: { teamId: '100', userId: '42' },
+      queryParams: { tab: 'info' },
+      route: leaf,
+      routes: [parent, leaf],
+      data: { someParentRouteData: 'foo', craftComponent: () => undefined },
+    };
 
-    expect(collectActivatedRouteProps(leaf)).toEqual({
+    expect(collectMatchProps(match)).toEqual({
       teamId: '100',
       someParentRouteData: 'foo',
       userId: '42',
@@ -583,16 +624,23 @@ describe('collectActivatedRouteProps', () => {
     });
   });
 
-  it('falls back to the leaf snapshot when pathFromRoot is absent', () => {
-    const leaf = {
-      snapshot: {
-        params: { userId: '7' },
-        data: { label: 'solo' },
-        queryParams: {},
-      },
-    } as unknown as ActivatedRoute;
+  it('falls back to the leaf params when there is a single route', () => {
+    const route: CraftCompiledRoute = {
+      path: 'user/:userId',
+      data: { label: 'solo' },
+    };
+    const match: CraftMatch = {
+      pathname: '/user/7',
+      search: '',
+      hash: '',
+      params: { userId: '7' },
+      queryParams: {},
+      route,
+      routes: [route],
+      data: { label: 'solo' },
+    };
 
-    expect(collectActivatedRouteProps(leaf)).toEqual({
+    expect(collectMatchProps(match)).toEqual({
       userId: '7',
       label: 'solo',
     });

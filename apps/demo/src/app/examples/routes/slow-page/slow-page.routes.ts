@@ -16,7 +16,6 @@ import {
   type ComponentDepsOf,
   type RouteCheckedDI,
 } from '@craft-ng/core';
-import type { Router } from '@angular/router';
 import {
   loadCraftComponent,
 } from '@craft-ng/component';
@@ -135,7 +134,7 @@ assertExhaustiveRouteExceptions(slowPageRoutes);
 type _CheckSlowPageDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./slow-page'))['default']>,
   never,
-  Router,
+  never,
   'component: slow-page'
 >;
 type _CanRunSlowPage = CanRun<_CheckSlowPageDI>;

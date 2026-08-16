@@ -1,32 +1,10 @@
-import {
-  Directive,
-  effect,
-  inject,
-  input,
-  type EnvironmentProviders,
-  type Provider,
-} from '@angular/core';
-import {
-  NavigationEnd,
-  Router,
-  RouterLink,
-  provideRouter,
-  TitleStrategy,
-  type NavigationBehaviorOptions,
-  type NavigationExtras,
-  type Params,
-  type RouterFeatures,
-  type Routes,
-  type UrlCreationOptions,
-  type UrlTree,
-} from '@angular/router';
+import { type EnvironmentProviders, type Provider } from '@angular/core';
 import type { GetDeps } from './branded-component/branded-component';
 import {
   isCraftLoadingFeature,
   provideCraftLoading,
   type CraftLoadingFeature,
 } from './craft-pending';
-import { createCraftTitleStrategy } from './craft-a11y';
 import {
   toCraftService,
   type GetServiceYields,
@@ -44,6 +22,54 @@ import {
   craftNodeDirective,
 } from './craft-node-directive';
 import { executeYieldable } from './yieldable';
+import {
+  buildPathFromTemplate,
+  createBrowserHistory,
+  createUrlFromParts,
+  matchCraftRoutes,
+  parseSearchParams,
+  parseUrl,
+  serializeLocation,
+  type CraftCompiledRoute,
+  type CraftHistory,
+  type CraftLocation,
+} from './host/craft-router-runtime';
+import {
+  craftComputed,
+  craftSignal,
+  type CraftWritableSignal,
+} from './host/craft-signal';
+import {
+  CRAFT_COMPILED_ROUTES,
+  CRAFT_HISTORY,
+  CRAFT_LOCATION,
+  CRAFT_MATCH,
+  CRAFT_ROUTER,
+  type CraftNavigation,
+  type CraftNavigationExtras,
+  type CraftRouterEvent,
+  type CraftUrlTree,
+} from './craft-router-tokens';
+
+export {
+  createBrowserHistory,
+  createMemoryHistory,
+  matchCraftRoutes,
+  type CraftCompiledRoute,
+  type CraftHistory,
+  type CraftLocation,
+  type CraftMatch,
+} from './host/craft-router-runtime';
+export {
+  CRAFT_COMPILED_ROUTES,
+  CRAFT_HISTORY,
+  CRAFT_LOCATION,
+  CRAFT_MATCH,
+  CRAFT_ROUTER,
+  type CraftNavigationExtras,
+  type CraftRouterNavigationApi,
+  type CraftUrlTree,
+} from './craft-router-tokens';
 
 export interface CraftRouterRoutesRegistry {}
 
@@ -147,24 +173,16 @@ type CraftRouterAbsoluteTarget<Path extends NavigableRoutePath> = Simplify<
 >;
 
 type CraftRouterUrlCreationOptions<Path extends string> = Simplify<
-  Omit<UrlCreationOptions, 'relativeTo' | 'queryParams'> &
+  Omit<CraftNavigationExtras, 'state'> &
     RouteQueryParamsField<Path>
 >;
 
 type CraftRouterNavigationOptions<Path extends string> = Simplify<
-  Omit<NavigationExtras, 'relativeTo' | 'queryParams'> &
-    RouteQueryParamsField<Path>
+  CraftNavigationExtras & RouteQueryParamsField<Path>
 >;
 
 type CraftRouterLinkOptions<Path extends string> = Simplify<
-  Omit<
-    NavigationExtras,
-    | 'relativeTo'
-    | 'queryParams'
-    | 'onSameUrlNavigation'
-    | 'browserUrl'
-    | 'scroll'
-  > &
+  Omit<CraftNavigationExtras, 'onSameUrlNavigation' | 'browserUrl' | 'scroll'> &
     RouteQueryParamsField<Path>
 >;
 
@@ -195,13 +213,29 @@ export type CraftRouterLinkInput<
     >
   : never;
 
-export type CraftRouter = Omit<
-  Router,
-  'createUrlTree' | 'navigate' | 'navigateByUrl'
-> & {
-  createUrlTree(input: CraftRouterUrlTreeInput): UrlTree;
+export type CraftRouter = {
+  readonly url: string;
+  createUrlTree(input: CraftRouterUrlTreeInput): CraftUrlTree;
   navigate(input: CraftRouterNavigationInput): Promise<boolean>;
+  navigateByUrl(
+    url: string | CraftUrlTree,
+    extras?: CraftNavigationExtras,
+  ): Promise<boolean>;
   navigateByUrl(input: CraftRouterNavigationInput): Promise<boolean>;
+  serializeUrl(tree: CraftUrlTree): string;
+  isActive(
+    url: string | CraftUrlTree,
+    extras?: {
+      paths?: 'exact' | 'subset';
+      queryParams?: string;
+      fragment?: string;
+      matrixParams?: string;
+    },
+  ): boolean;
+  events: {
+    subscribe(fn: (event: CraftRouterEvent) => void): { unsubscribe(): void };
+  };
+  getCurrentNavigation(): CraftNavigation | null;
 };
 
 type HelperDependencies<Helper> = Helper extends {
@@ -220,12 +254,13 @@ type GeneratorYield<GeneratorValue> =
 type CraftRouterInputWithOptionalQueryParams = {
   to: string;
   params?: Record<string, string>;
-  queryParams?: Params | null;
+  queryParams?: Record<string, string> | null;
+  fragment?: string | null;
   viewTransition?: CraftViewTransitionInput;
 };
 
 type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
-  NavigationExtras;
+  CraftNavigationExtras;
 
 // The `toCraftService` return type references internal Angular symbols
 // (`SIGNAL`, `[iterator]`, `[unscopables]`) that ng-packagr cannot serialize to
@@ -237,26 +272,22 @@ const _routerService = toCraftService(
   {
     name: 'CraftRouter',
     scope: 'manuallyProvidedAtRoot',
-    token: Router,
-    provide: provideRouter,
+    token: CRAFT_ROUTER,
+    provide: provideCraftRouterRuntime,
   },
-  (router): Router => createCraftRouter(router),
+  (router): CraftRouter => router as CraftRouter,
 ) as unknown as {
   provideCraftRouter: Function;
   CraftRouter: Function & CraftRouterTrackedHelper;
 };
 
-// Serializable stand-in for the tracked metadata the `Function` erasure above
-// would otherwise lose — without it, `GetServiceYields` / dependency tracking
-// (`ExtractDeps` through `yield* CraftRouter()`) collapse to `never`.
-// Mirrors exactly what `toCraftService` infers for this definition.
 type CraftRouterTrackingMetadata = ServiceTrackingMetadata<
   'CraftRouter',
   'manuallyProvidedAtRoot',
-  Router,
+  CraftRouter,
   never,
   undefined,
-  [routes: Routes, ...features: RouterFeatures[]],
+  [routes: readonly CraftCompiledRoute[], ...features: unknown[]],
   false,
   false
 >;
@@ -285,15 +316,15 @@ type StructuralRouteParamsField<Path extends string> = [
 
 type DerivedNavigationInput<Path extends string> = Simplify<
   { to: Path } & StructuralRouteParamsField<Path> &
-    Omit<NavigationExtras, 'relativeTo' | 'queryParams'> & {
-      queryParams?: Params | null;
+    CraftNavigationExtras & {
+      queryParams?: Record<string, string> | null;
     }
 >;
 
 type DerivedUrlTreeInput<Path extends string> = Simplify<
   { to: Path } & StructuralRouteParamsField<Path> &
-    Omit<UrlCreationOptions, 'relativeTo' | 'queryParams'> & {
-      queryParams?: Params | null;
+    Omit<CraftNavigationExtras, 'state'> & {
+      queryParams?: Record<string, string> | null;
     }
 >;
 
@@ -330,7 +361,7 @@ type RoutePathFromInput<Input extends { to: NavigableRoutePath }> = Extract<
 type CraftRouterCraftMethodShortcuts = {
   createUrlTree: <Input extends { to: NavigableRoutePath }>(
     input: Input & CraftRouterUrlTreeInput<RoutePathFromInput<Input>>,
-  ) => Generator<CraftRouterYieldRequest, UrlTree, unknown>;
+  ) => Generator<CraftRouterYieldRequest, CraftUrlTree, unknown>;
   navigate: <Input extends { to: NavigableRoutePath }>(
     input: Input & CraftRouterNavigationInput<RoutePathFromInput<Input>>,
   ) => Generator<CraftRouterYieldRequest, Promise<boolean>, unknown>;
@@ -352,9 +383,9 @@ type RouterPropertyShortcut<Value> = Value extends (
 
 type CraftRouterPropertyShortcuts = CraftRouterCraftMethodShortcuts & {
   [Key in Exclude<
-    keyof Router,
+    keyof CraftRouter,
     keyof Function | 'then' | 'createUrlTree' | 'navigate' | 'navigateByUrl'
-  >]: RouterPropertyShortcut<Router[Key]>;
+  >]: RouterPropertyShortcut<CraftRouter[Key]>;
 };
 
 export type CraftRouterHelper = WithInternalHelperDependencies<
@@ -369,53 +400,39 @@ export type CraftRouterHelper = WithInternalHelperDependencies<
   };
 
 /**
- * Registers the router (Angular `provideRouter` under the hood) AND the
- * non-blocking outlet's pending/error surface in one call. Angular
- * `RouterFeatures` (`withComponentInputBinding()`, `withViewTransitions()`, …)
- * and craft loading features (`withErrorComponent()`, `withTransitionTimings()`,
- * `withPendingComponent()`, `withLoadingText()`) can be mixed freely — they are
- * split apart and routed to `provideRouter` / `provideCraftLoading` accordingly.
+ * Registers the Craft history matcher AND the non-blocking outlet's
+ * pending/error surface in one call. Craft loading features
+ * (`withErrorComponent()`, `withTransitionTimings()`, `withPendingComponent()`,
+ * `withLoadingText()`, `withCraftViewTransitions()`) are applied; leftover
+ * Angular `RouterFeatures` such as `withComponentInputBinding()` are ignored
+ * (input binding is owned by the outlet).
  *
  * ```ts
  * provideCraftRouter(
  *   demoRoutes.toRoutes(),
- *   withComponentInputBinding(),
- *   // The functional error SFC is checked separately through ComponentDepsOf.
  *   withErrorComponent({ component: CraftGlobalErrorComponentHost }),
  *   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
  * )
  * ```
- *
- * Equivalent to a separate `provideRouter(...)` + `provideCraftLoading(...)`,
- * but keeps all routing configuration in a single provider.
  */
 export function provideCraftRouter(
-  routes: Routes,
-  ...features: Array<RouterFeatures | CraftLoadingFeature>
+  routes: readonly CraftCompiledRoute[] | readonly { readonly path?: string }[],
+  ...features: Array<CraftLoadingFeature | unknown>
 ): (Provider | EnvironmentProviders)[] {
-  const routerFeatures: RouterFeatures[] = [];
   const loadingFeatures: CraftLoadingFeature[] = [];
-  const configuredRoutes = [...routes];
+  const configuredRoutes = [...(routes as readonly CraftCompiledRoute[])];
 
   for (const feature of features) {
     if (isCraftLoadingFeature(feature)) {
       loadingFeatures.push(feature);
-      if (feature.routerFeatures) {
-        routerFeatures.push(
-          ...(feature.routerFeatures as readonly RouterFeatures[]),
-        );
-      }
       if (feature.recoveryRoute) {
-        configuredRoutes.push(feature.recoveryRoute as Routes[number]);
+        configuredRoutes.push(feature.recoveryRoute as CraftCompiledRoute);
       }
-    } else {
-      routerFeatures.push(feature);
     }
   }
 
   return [
-    provideCraftRouterInternal(configuredRoutes, ...routerFeatures),
-    { provide: TitleStrategy, useFactory: createCraftTitleStrategy },
+    provideCraftRouterInternal(configuredRoutes),
     ...provideCraftLoading(...loadingFeatures),
   ];
 }
@@ -466,61 +483,6 @@ export function provideCraftRouter(
  */
 export const CraftRouter = CraftRouterInternal as unknown as CraftRouterHelper;
 
-/** @deprecated Use the functional `CraftRouterLink` on Craft nodes. */
-@Directive({
-  selector: '[craftRouterLink]',
-  standalone: true,
-  hostDirectives: [
-    {
-      directive: RouterLink,
-      inputs: ['target'],
-    },
-  ],
-})
-export class LegacyCraftRouterLink {
-  private readonly routerLink = inject(RouterLink, { self: true });
-
-  readonly craftRouterLink = input<CraftRouterLinkInput | null | undefined>(
-    undefined,
-    { alias: 'craftRouterLink' },
-  );
-
-  constructor() {
-    effect(() => {
-      const input = this.craftRouterLink();
-
-      if (!input) {
-        this.routerLink.routerLink = null;
-        this.routerLink.queryParams = undefined;
-        this.routerLink.fragment = undefined;
-        this.routerLink.queryParamsHandling = undefined;
-        this.routerLink.preserveFragment = false;
-        this.routerLink.skipLocationChange = false;
-        this.routerLink.replaceUrl = false;
-        this.routerLink.state = undefined;
-        this.routerLink.info = undefined;
-        this.routerLink.ngOnChanges();
-        return;
-      }
-
-      this.routerLink.routerLink = createCraftRouterCommands(input);
-      this.routerLink.queryParams = input.queryParams;
-      this.routerLink.fragment = input.fragment;
-      this.routerLink.queryParamsHandling = input.queryParamsHandling;
-      this.routerLink.preserveFragment = input.preserveFragment ?? false;
-      this.routerLink.skipLocationChange = input.skipLocationChange ?? false;
-      this.routerLink.replaceUrl = input.replaceUrl ?? false;
-      this.routerLink.state = withViewTransitionState(
-        input as { viewTransition?: CraftViewTransitionInput },
-        input.state,
-      );
-      this.routerLink.info = input.info;
-      this.routerLink.relativeTo = null;
-      this.routerLink.ngOnChanges();
-    });
-  }
-}
-
 type CraftRouterLinkProps = {
   readonly craftRouterLink: CraftRouterLinkInput | null | undefined;
 };
@@ -535,9 +497,9 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
   'CraftRouterLink',
   ['craftRouterLink'],
   (context) => {
-    const router = context.injector.get(Router);
+    const router = context.injector.get(CRAFT_ROUTER) as CraftRouter;
     let currentInput: CraftRouterLinkInput | null | undefined;
-    let currentUrlTree: UrlTree | undefined;
+    let currentUrlTree: CraftUrlTree | undefined;
 
     const syncAriaCurrent = () => {
       if (!currentUrlTree) {
@@ -577,10 +539,7 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
           return;
         }
 
-        currentUrlTree = router.createUrlTree(
-          createCraftRouterCommands(currentInput),
-          getUrlCreationOptions(currentInput),
-        );
+        currentUrlTree = router.createUrlTree(currentInput);
         context.renderer.setAttribute(
           context.element,
           'href',
@@ -591,7 +550,7 @@ export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
     );
 
     const navigation = router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd) syncAriaCurrent();
+      if (event.type === 'NavigationEnd') syncAriaCurrent();
     });
 
     const removeClickListener = context.renderer.listen(
@@ -649,37 +608,156 @@ export function shouldHandleCraftRouterLinkClick(
   return true;
 }
 
-function createCraftRouter(router: Router): Router {
-  const createUrlTree = (input: CraftRouterUrlTreeInput) =>
-    router.createUrlTree(
-      createCraftRouterCommands(input),
-      getUrlCreationOptions(input),
-    );
-  const navigate = (input: CraftRouterNavigationInput) =>
-    router.navigate(
-      createCraftRouterCommands(input),
-      getNavigationOptions(input),
-    );
-  const navigateByUrl = (input: CraftRouterNavigationInput) =>
-    router.navigateByUrl(
-      createUrlTree(input),
-      getNavigationBehaviorOptions(input),
-    );
-
-  return new Proxy(router, {
-    get(target, property, receiver) {
-      switch (property) {
-        case 'createUrlTree':
-          return createUrlTree;
-        case 'navigate':
-          return navigate;
-        case 'navigateByUrl':
-          return navigateByUrl;
-        default:
-          return Reflect.get(target, property, receiver);
-      }
+function provideCraftRouterRuntime(
+  routes: readonly CraftCompiledRoute[] = [],
+  ..._features: unknown[]
+): Provider[] {
+  return [
+    { provide: CRAFT_COMPILED_ROUTES, useValue: routes },
+    {
+      provide: CRAFT_HISTORY,
+      useFactory: () => createBrowserHistory(window),
     },
-  }) as unknown as Router;
+    {
+      provide: CRAFT_LOCATION,
+      useFactory: (history: CraftHistory) => {
+        const location = craftSignal(history.get());
+        history.listen((next) => location.set(next));
+        return location;
+      },
+      deps: [CRAFT_HISTORY],
+    },
+    {
+      provide: CRAFT_MATCH,
+      useFactory: (
+        location: CraftWritableSignal<CraftLocation>,
+        compiled: readonly CraftCompiledRoute[],
+      ) => craftComputed(() => matchCraftRoutes(compiled, location())),
+      deps: [CRAFT_LOCATION, CRAFT_COMPILED_ROUTES],
+    },
+    {
+      provide: CRAFT_ROUTER,
+      useFactory: (
+        history: CraftHistory,
+        location: CraftWritableSignal<CraftLocation>,
+      ) => createNativeCraftRouter(history, location),
+      deps: [CRAFT_HISTORY, CRAFT_LOCATION],
+    },
+  ];
+}
+
+function createNativeCraftRouter(
+  history: CraftHistory,
+  location: CraftWritableSignal<CraftLocation>,
+): CraftRouter {
+  const listeners = new Set<(event: CraftRouterEvent) => void>();
+  let currentNavigation: CraftNavigation | null = null;
+
+  const toUrl = (
+    input: CraftRouterInputWithOptionalQueryParams & CraftNavigationExtras,
+  ): string => {
+    const current = history.get();
+    let query = input.queryParams ?? undefined;
+    if (input.queryParamsHandling === 'preserve') {
+      query = parseSearchParams(current.search);
+    } else if (input.queryParamsHandling === 'merge') {
+      query = {
+        ...parseSearchParams(current.search),
+        ...(input.queryParams ?? {}),
+      };
+    }
+    const fragment = input.preserveFragment
+      ? current.hash.replace(/^#/, '') || undefined
+      : (input.fragment ?? undefined);
+    return createUrlFromParts(
+      buildPathFromTemplate(input.to, input.params),
+      query,
+      fragment,
+    );
+  };
+
+  const createUrlTree = (input: CraftRouterUrlTreeInput): CraftUrlTree => {
+    const url = toUrl(input);
+    return { toString: () => url, __craftUrlTree: true as const };
+  };
+
+  const commit = (
+    url: string,
+    extras?: CraftNavigationExtras,
+  ): Promise<boolean> => {
+    const withVt = extras
+      ? {
+          ...extras,
+          state: withViewTransitionState(
+            extras as { viewTransition?: CraftViewTransitionInput },
+            extras.state,
+          ),
+        }
+      : extras;
+    currentNavigation = { extras: withVt };
+    for (const listener of listeners) {
+      listener({ type: 'NavigationStart', url });
+    }
+    if (withVt?.skipLocationChange) {
+      location.set(parseUrl(url));
+    } else if (withVt?.replaceUrl) {
+      history.replace(url);
+    } else {
+      history.push(url);
+    }
+    for (const listener of listeners) {
+      listener({ type: 'NavigationEnd', url });
+    }
+    currentNavigation = null;
+    return Promise.resolve(true);
+  };
+
+  return {
+    get url() {
+      return serializeLocation(history.get());
+    },
+    createUrlTree,
+    navigate: (input) =>
+      commit(toUrl(input), input as CraftNavigationExtras),
+    navigateByUrl: ((input: unknown, extras?: CraftNavigationExtras) => {
+      if (typeof input === 'string') {
+        return commit(input, extras);
+      }
+      if (
+        input &&
+        typeof input === 'object' &&
+        'to' in input &&
+        typeof (input as { to?: unknown }).to === 'string'
+      ) {
+        const navigationInput = input as CraftRouterNavigationInput;
+        return commit(toUrl(navigationInput), {
+          ...extras,
+          ...(navigationInput as CraftNavigationExtras),
+        });
+      }
+      return commit(String(input), extras);
+    }) as CraftRouter['navigateByUrl'],
+    serializeUrl: (tree) => tree.toString(),
+    isActive: (tree, extras) => {
+      const target = String(tree).split('?')[0]?.split('#')[0] ?? '';
+      const current = history.get().pathname;
+      if (extras?.paths === 'subset') {
+        return current === target || current.startsWith(`${target}/`);
+      }
+      return current === target;
+    },
+    events: {
+      subscribe(fn) {
+        listeners.add(fn);
+        return {
+          unsubscribe: () => {
+            listeners.delete(fn);
+          },
+        };
+      },
+    },
+    getCurrentNavigation: () => currentNavigation,
+  };
 }
 
 export function createCraftRouterCommands(
@@ -720,50 +798,16 @@ function resolveRouteParamValue(
   return value;
 }
 
-function getUrlCreationOptions(
-  input: CraftRouterInputExtras,
-): UrlCreationOptions {
-  return {
-    queryParams: input.queryParams,
-    fragment: input.fragment,
-    queryParamsHandling: input.queryParamsHandling,
-    preserveFragment: input.preserveFragment,
-    relativeTo: null,
-  };
-}
-
-function getNavigationOptions(input: CraftRouterInputExtras): NavigationExtras {
-  return {
-    ...getUrlCreationOptions(input),
-    onSameUrlNavigation: input.onSameUrlNavigation,
-    skipLocationChange: input.skipLocationChange,
-    replaceUrl: input.replaceUrl,
-    state: withViewTransitionState(input, input.state),
-    info: input.info,
-    browserUrl: input.browserUrl,
-    scroll: input.scroll,
-  };
-}
-
 function getNavigationBehaviorOptions(
   input: CraftRouterInputExtras,
-): NavigationBehaviorOptions {
+): CraftNavigationExtras {
   return {
-    onSameUrlNavigation: input.onSameUrlNavigation,
-    skipLocationChange: input.skipLocationChange,
     replaceUrl: input.replaceUrl,
+    skipLocationChange: input.skipLocationChange,
     state: withViewTransitionState(input, input.state),
-    info: input.info,
-    browserUrl: input.browserUrl,
-    scroll: input.scroll,
   };
 }
 
-/**
- * Threads the view-transition payload into Angular's navigation `state` under
- * {@link CRAFT_VIEW_TRANSITION_STATE_KEY}, where the outlet reads it. Leaves the
- * caller's `state` untouched when no `viewTransition` was passed.
- */
 function withViewTransitionState(
   input: { viewTransition?: CraftViewTransitionInput },
   state: { [k: string]: unknown } | undefined,
@@ -777,16 +821,11 @@ function withViewTransitionState(
   };
 }
 
+/** @deprecated Moved to `@craft-ng/angular`. */
 export type GenDeps_LegacyCraftRouterLink = GetDeps<{
-  deps: {
-    RouterLink: RouterLink;
-    Router: Router;
-  };
+  deps: Record<string, never>;
   provided: Record<never, never>;
-  missingProvider: {
-    RouterLink: RouterLink;
-    Router: Router;
-  };
+  missingProvider: Record<string, never>;
 }>;
 
 /** @deprecated DI metadata belongs to `LegacyCraftRouterLink` only. */

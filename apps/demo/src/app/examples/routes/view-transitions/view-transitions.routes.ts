@@ -15,7 +15,6 @@ import {
   type ParentRoutes,
   type RouteCheckedDI,
 } from '@craft-ng/core';
-import type { Router } from '@angular/router';
 import {
   CraftPendingComponentHost,
   loadCraftComponent,
@@ -121,7 +120,7 @@ assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 type _CheckViewTransitionsGalleryDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./gallery'))['default']>,
   'CraftRouter',
-  Router,
+  never,
   'component: view-transitions gallery'
 >;
 type _CanRunViewTransitionsGallery = CanRun<_CheckViewTransitionsGalleryDI>;
@@ -129,7 +128,7 @@ type _CanRunViewTransitionsGallery = CanRun<_CheckViewTransitionsGalleryDI>;
 type _CheckViewTransitionsDetailDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./photo-detail'))['default']>,
   'CraftRouter',
-  Router,
+  never,
   'component: view-transitions/:photoId',
   'photoId'
 >;
@@ -139,7 +138,7 @@ type _CanRunViewTransitionsDetail = CanRun<_CheckViewTransitionsDetailDI>;
 type _CheckViewTransitionsPendingDI = RouteCheckedDI<
   ComponentDepsOf<typeof PhotoSkeleton>,
   'ViewTransitionsPhotoIdParams' | 'ViewTransitionsPhotoIdViewTransition',
-  Router,
+  never,
   'pending component: view-transitions/:photoId',
   'photoId' | 'viewTransition'
 >;

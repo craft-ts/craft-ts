@@ -1,4 +1,3 @@
-import type { Router } from '@angular/router';
 import {
   loadCraftComponent,
 } from '@craft-ng/component';
@@ -26,7 +25,7 @@ assertExhaustiveRouteExceptions(lazyLayoutRoutes);
 type _CheckLazyLayoutDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./lazy-layout-child'))['default']>,
   never,
-  Router,
+  never,
   'component: craft/lazy-layout/:teamId/users/:userId',
   'teamId' | 'someParentRouteData'
 >;

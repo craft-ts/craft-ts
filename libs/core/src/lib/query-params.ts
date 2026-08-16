@@ -19,7 +19,6 @@ import {
 import { MergeObjects } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { Prettify } from './util/util.type';
-import { ActivatedRoute, Router } from '@angular/router';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import {
@@ -36,8 +35,6 @@ import {
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYieldedAndValues,
-  ServiceTrackingMetadata,
-  ServiceYieldRequest,
 } from './craft-service';
 import {
   APP_SNAPSHOT_REGISTRY,
@@ -55,6 +52,12 @@ import {
   isNonYieldableInsertionMethod,
   yieldableInvocation,
 } from './yieldable';
+import { CRAFT_HISTORY, CRAFT_LOCATION } from './craft-router-tokens';
+import {
+  parseSearchParams,
+  serializeSearchParams,
+} from './host/craft-router-runtime';
+import { craftWatch } from './host/craft-signal';
 import {
   createYieldableReactiveFacade,
   createYieldableReactiveValue,
@@ -72,33 +75,17 @@ export interface QueryParamsNavigationOptions {
   onSameUrlNavigation?: 'reload' | 'ignore';
   replaceUrl?: boolean;
   skipLocationChange?: boolean;
+  preserveFragment?: boolean;
 }
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
-type RouterQueryParamsYield = ServiceYieldRequest<
-  'global',
-  Router,
-  ServiceTrackingMetadata<
-    'Router',
-    'global',
-    Router,
-    never,
-    undefined,
-    never,
-    false
-  >
->;
-
 type QueryParamsTrackedDependencies<
   QueryParamsType,
   InsertionsYielded = never,
   Insertions = never,
-> = ServiceDependencyMapFromYieldedAndValues<
-  RouterQueryParamsYield | InsertionsYielded,
-  Insertions
->;
+> = ServiceDependencyMapFromYieldedAndValues<InsertionsYielded, Insertions>;
 
 type AnyQueryParamsConfig = {
   codec: QueryParamsCodec<any, any>;
@@ -487,18 +474,19 @@ function createQueryParamsRef<
       },
     ],
   );
-  const router = inject(Router);
-  const activatedRoute = inject(ActivatedRoute);
+  const history = inject(CRAFT_HISTORY);
+  const location = inject(CRAFT_LOCATION);
 
   const { state: queryParamsConfig, ...options } = config;
 
   // Create signals for each query parameter
-  const queryParamsFromUrl = linkedSignal(() => {
-    return (
-      router.currentNavigation()?.extractedUrl.queryParams ??
-      activatedRoute.snapshot.queryParams
-    );
+  const queryParamsFromUrl = linkedSignal(() =>
+    parseSearchParams(location().search),
+  );
+  const locationWatch = craftWatch(() => {
+    queryParamsFromUrl.set(parseSearchParams(location().search));
   });
+  inject(DestroyRef).onDestroy(() => locationWatch.destroy());
 
   // Create computed signals for each query parameter with parsing
   const queryParamsState = linkedSignal(() =>
@@ -600,19 +588,32 @@ function createQueryParamsRef<
     // Update the local state only after all codecs have encoded successfully.
     originalSet(newState);
 
-    // Then navigate without triggering another update
     const mergedOptions = { ...options, ...navOptions };
 
-    // Use queueMicrotask to avoid call stack issues
     queueMicrotask(() => {
-      router.navigate([], {
-        relativeTo: activatedRoute,
-        queryParams: serializedParams,
-        queryParamsHandling: mergedOptions.queryParamsHandling,
-        onSameUrlNavigation: mergedOptions.onSameUrlNavigation,
-        replaceUrl: mergedOptions.replaceUrl,
-        skipLocationChange: mergedOptions.skipLocationChange,
-      });
+      const current = history.get();
+      let nextParams = serializedParams as Record<string, string>;
+      if (mergedOptions.queryParamsHandling === 'preserve') {
+        nextParams = parseSearchParams(current.search);
+      } else if (mergedOptions.queryParamsHandling === 'merge') {
+        nextParams = {
+          ...parseSearchParams(current.search),
+          ...nextParams,
+        };
+      }
+      const search = serializeSearchParams(nextParams);
+      const url = `${current.pathname}${search}${
+        mergedOptions.preserveFragment === false ? '' : current.hash
+      }`;
+      if (mergedOptions.skipLocationChange) {
+        location.set({ ...current, search });
+        return;
+      }
+      if (mergedOptions.replaceUrl) {
+        history.replace(url);
+        return;
+      }
+      history.push(url);
     });
   };
 

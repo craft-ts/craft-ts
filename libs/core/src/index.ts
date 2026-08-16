@@ -81,6 +81,25 @@ export {
   createBrowserDomAdapter,
   type CraftDomAdapter,
 } from './lib/host/craft-dom';
+export {
+  createBrowserHistory,
+  createMemoryHistory,
+  matchCraftRoutes,
+  parseSearchParams,
+  parseUrl,
+  serializeLocation,
+  type CraftCompiledRoute,
+  type CraftHistory,
+  type CraftLocation,
+  type CraftMatch,
+} from './lib/host/craft-router-runtime';
+export {
+  CRAFT_COMPILED_ROUTES,
+  CRAFT_HISTORY,
+  CRAFT_LOCATION,
+  CRAFT_MATCH,
+  CRAFT_ROUTER,
+} from './lib/craft-router-tokens';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
 export * from './lib/yieldable';

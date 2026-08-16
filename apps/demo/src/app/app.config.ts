@@ -1,5 +1,4 @@
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
-import { withComponentInputBinding } from '@angular/router';
 import {
   CraftGlobalErrorComponentHost,
   CraftRouteLoadErrorComponentHost,
@@ -65,12 +64,9 @@ export const appConfig = craftAppConfig({
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
     provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),
-    // Routing + non-blocking outlet config in one provider: Angular router
-    // features and craft loading features (global error component, pending
-    // thresholds) are mixed freely and split apart internally.
+    // Routing + non-blocking outlet config in one provider.
     provideCraftRouter(
       demoRoutes.toRoutes(),
-      withComponentInputBinding(),
       // Outlet-driven View Transitions: unlike Angular's withViewTransitions()
       // (which brackets only the synchronous URL commit), the CraftRouterOutlet
       // drives document.startViewTransition() around its OWN swaps, so the

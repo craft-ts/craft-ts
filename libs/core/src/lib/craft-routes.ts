@@ -1,5 +1,4 @@
 import {
-  computed,
   inject,
   Injector,
   isSignal,
@@ -86,6 +85,12 @@ import {
   loadRouteWithRetry,
   type CraftRouteLazyLoadHelpers,
 } from './craft-route-load-error';
+import type {
+  CraftCompiledRoute,
+  CraftMatch,
+} from './host/craft-router-runtime';
+import { CRAFT_MATCH } from './craft-router-tokens';
+import { craftComputed } from './host/craft-signal';
 
 type AngularRouteBase = Omit<
   Route,
@@ -2067,7 +2072,7 @@ export type CraftRoutesApp<
   readonly __craftParentMount?: ParentMount;
   /** @internal phantom property for fast type inference — do not use at runtime */
   readonly _routes: Routes;
-  toRoutes(): Route[];
+  toRoutes(): CraftCompiledRoute[];
   /**
    * Full per-route metadata — includes `path`, `queryParams`, and the
    * `componentDeps`-derived shape (`deps`, `missingProvider`, `httpDeps`,
@@ -2374,49 +2379,56 @@ function findSnapshotRouteByPath(
   return null;
 }
 
+function paramsForRoutePath(
+  match: CraftMatch | null,
+  routePath: string,
+): Record<string, string> | null {
+  if (!match || !match.routes.some((route) => route.path === routePath)) {
+    return null;
+  }
+  const names = extractRouteParamNames(routePath);
+  if (names.length === 0) {
+    return {};
+  }
+  const params: Record<string, string> = {};
+  for (const name of names) {
+    const value = match.params[name];
+    if (value !== undefined) {
+      params[name] = value;
+    }
+  }
+  return params;
+}
+
 function injectRouteParamsSignal(
   routePath: string,
 ): Signal<Record<string, string>> {
-  // Read the params off the LIVE router snapshot on each navigation, rather than
-  // capturing one `ActivatedRoute` and subscribing to its `params`. The route's
-  // value service is a singleton cached on the (reused) route-`providers`
-  // injector, while Angular creates a fresh `ActivatedRoute` on every
-  // (re)activation — so a captured `route.params` observable goes stale the
-  // moment the route is left and re-entered (e.g. list → detail → list →
-  // detail). Driving off `Router.events` keeps the signal correct across
-  // activations.
-  const router = inject(Router);
-
-  const readSnapshot = (): ActivatedRouteSnapshot | null =>
-    findSnapshotRouteByPath(router.routerState.snapshot.root, routePath);
-
-  // Only emit while this route is part of the active tree. When it deactivates
-  // we deliberately DON'T emit (so `toSignal` retains the last params): the
-  // component is being torn down, and clearing to `{}` mid-teardown would drop
-  // anything bound to the params — e.g. a leaving page's `view-transition-name`
-  // would vanish before the browser snapshots the outgoing ("old") frame,
-  // killing the shared-element morph.
-  return toSignal(
-    router.events.pipe(
-      filter((event) => event instanceof NavigationEnd),
-      map(() => readSnapshot()),
-      filter(
-        (snapshot): snapshot is ActivatedRouteSnapshot => snapshot !== null,
-      ),
-      map((snapshot) => snapshot.params),
-    ),
-    { initialValue: readSnapshot()?.params ?? {} },
-  ) as Signal<Record<string, string>>;
+  const matchSignal = inject(CRAFT_MATCH);
+  let last: Record<string, string> =
+    paramsForRoutePath(matchSignal(), routePath) ?? {};
+  return craftComputed(() => {
+    const current = paramsForRoutePath(matchSignal(), routePath);
+    if (current) {
+      last = current;
+    }
+    return last;
+  }) as unknown as Signal<Record<string, string>>;
 }
 
 function injectRouteDataSignal<RouteData extends Data>(
   routePath: string,
 ): Signal<RouteData> {
-  const resolvedRoute = resolveActivatedRouteByPath(routePath);
-
-  return toSignal(resolvedRoute.data, {
-    initialValue: resolvedRoute.snapshot.data,
-  }) as Signal<RouteData>;
+  const matchSignal = inject(CRAFT_MATCH);
+  let last = (matchSignal()?.routes.find((route) => route.path === routePath)
+    ?.data ?? {}) as RouteData;
+  return craftComputed(() => {
+    const match = matchSignal();
+    const route = match?.routes.find((candidate) => candidate.path === routePath);
+    if (route) {
+      last = (route.data ?? {}) as RouteData;
+    }
+    return last;
+  }) as unknown as Signal<RouteData>;
 }
 
 const ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE =
@@ -2425,22 +2437,12 @@ const ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE =
   'route queryParams generators do not support onAppStart(...).';
 
 function executeRouteQueryParamsFactory<Output>(
-  routePath: string,
+  _routePath: string,
   factory: RouteQueryParamsFactory<Output>,
 ): Output {
-  const parentInjector = inject(Injector);
-  const resolvedRoute = resolveActivatedRouteByPath(routePath);
-  const routeScopedInjector = Injector.create({
-    parent: parentInjector,
-    providers: [
-      {
-        provide: ActivatedRoute,
-        useValue: resolvedRoute,
-      },
-    ],
-  });
+  const injector = inject(Injector);
 
-  return runInInjectionContext(routeScopedInjector, () => {
+  return runInInjectionContext(injector, () => {
     const result = factory();
 
     if (!isGenerator(result)) {
@@ -2449,7 +2451,7 @@ function executeRouteQueryParamsFactory<Output>(
 
     return runCraftGenerator({
       iterator: result,
-      injector: routeScopedInjector,
+      injector,
       hostScope: 'function',
       invalidYieldErrorMessage: ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE,
       multipleAppStartErrorMessage: ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
@@ -2563,7 +2565,7 @@ function isCraftRoutesApp(value: unknown): value is CraftRoutesApp {
 function createLoadChildren(
   routePath: string,
   loadChildren: AnyCraftLazyRouteDefinition['loadChildren'],
-): NonNullable<Route['loadChildren']> {
+): NonNullable<CraftCompiledRoute['loadChildren']> {
   return () =>
     loadRouteWithRetry(
       (helpers) => Promise.resolve(loadChildren(helpers)),
@@ -2575,11 +2577,11 @@ function createLoadChildren(
       }
 
       if (Array.isArray(childRoutes)) {
-        return childRoutes as Route[];
+        return childRoutes as CraftCompiledRoute[];
       }
 
       throw new Error(
-        `Route "${routePath}" loadChildren must return a craftRoutes routes object or an Angular Route array.`,
+        `Route "${routePath}" loadChildren must return a craftRoutes routes object or a Craft compiled route array.`,
       );
     });
 }
@@ -2956,7 +2958,7 @@ export function craftRoutes<
   const craftedRoutes: CraftRoutesApp<Routes, Name> = {
     name: routeCollectionName,
     _routes: [] as unknown as Routes,
-    toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
+    toRoutes: () => routes.map((route, index) => toCraftRoute(route, index)),
     META_DATA,
     META_PATHS: META_DATA as unknown as CraftRoutesPathRegistry<Routes>,
   };
@@ -2994,10 +2996,10 @@ export function craftRoutes<
     }
   }
 
-  function toAngularRoute(
+  function toCraftRoute(
     route: AnyCraftRouteDefinition,
     routeIndex: number,
-  ): Route {
+  ): CraftCompiledRoute {
     const autoProviders: AngularRouteProviders = [
       provideHostName('route:' + route.path),
     ];
@@ -3027,7 +3029,7 @@ export function craftRoutes<
             return providedParams[paramName];
           }
 
-          return computed(() => paramsSignal()[paramName]);
+          return craftComputed(() => paramsSignal()[paramName]);
         }),
       );
     }
@@ -3189,31 +3191,7 @@ export function craftRoutes<
       typeof redirectTo === 'function'
         ? createRedirectTo(redirectTo)
         : redirectTo;
-    const wrappedCanActivate =
-      canActivate !== undefined
-        ? [
-            createAngularGuard(
-              route.path,
-              'canActivate',
-              canActivate as CraftRouteCanActivateGuard,
-              guardDataSignal ?? undefined,
-            ),
-          ]
-        : undefined;
-    const wrappedCanMatch =
-      canMatch !== undefined
-        ? [
-            createAngularGuard(
-              route.path,
-              'canMatch',
-              canMatch as CraftRouteCanMatchGuard,
-            ),
-          ]
-        : undefined;
 
-    // Angular guards keep router matching/activation semantics intact. The
-    // outlet also reads this meta to publish guarded/resolved data and route
-    // exceptions through Craft's typed handlers.
     const hasCraftChain =
       canActivate !== undefined ||
       canMatch !== undefined ||
@@ -3253,15 +3231,11 @@ export function craftRoutes<
       ...(wrappedLoadComponent !== undefined
         ? { loadComponent: wrappedLoadComponent }
         : {}),
-      ...(wrappedCanActivate !== undefined
-        ? { canActivate: wrappedCanActivate }
-        : {}),
-      ...(wrappedCanMatch !== undefined ? { canMatch: wrappedCanMatch } : {}),
       providers:
         autoProviders.length > 0 || resolvedRouteProviders.length
           ? [...autoProviders, ...resolvedRouteProviders]
           : undefined,
-    };
+    } as CraftCompiledRoute;
   }
 
   function buildRouteProviderHelpers(

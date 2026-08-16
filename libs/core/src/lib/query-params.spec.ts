@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { queryParams } from './query-params';
-import { provideRouter, Router } from '@angular/router';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -24,6 +23,7 @@ import {
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { craftUse } from './craft-use';
+import { CRAFT_HISTORY, CRAFT_ROUTER, provideCraftRouter } from './craft-router';
 
 let queryParamsResourceObserver:
   | ((context: PrimitiveResourceRuntimeContext) => void)
@@ -63,12 +63,13 @@ beforeAll(() => {
 describe('queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    window.history.replaceState(null, '', '/');
     queryParamsResourceObserver = undefined;
     queryParamsWrapObserver = undefined;
     queryParamsRuntimeContextObserver = undefined;
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         providePrimitiveResourceRuntimeObserver((context) => {
           queryParamsResourceObserver?.(context);
         }),
@@ -297,12 +298,6 @@ describe('queryParams', () => {
       );
 
       expectTypeOf<ExtractDeps<typeof myQueryParams>>().toEqualTypeOf<{
-        Router: {
-          scope: 'global';
-          dependencies: {};
-          browserBoundary: false;
-          appStart: false;
-        };
         PaginationRulesDeps: GetServiceDependencies<typeof PaginationRulesDeps>;
       }>();
     });
@@ -565,7 +560,7 @@ describe('queryParams', () => {
 
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
+      const router = TestBed.inject(CRAFT_ROUTER);
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -625,8 +620,9 @@ describe('queryParams', () => {
 describe('queryParams codecs', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    window.history.replaceState(null, '', '/');
     TestBed.configureTestingModule({
-      providers: [provideRouter([])],
+      providers: [provideCraftRouter([])],
     }).compileComponents();
   });
 
@@ -636,7 +632,7 @@ describe('queryParams codecs', () => {
 
   it('decodes and encodes values through a synchronous codec', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
+      const router = TestBed.inject(CRAFT_ROUTER);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -657,7 +653,7 @@ describe('queryParams codecs', () => {
 
       expectTypeOf(craftUse(filters.page())).toEqualTypeOf<number>();
 
-      await router.navigate([], { queryParams: { page: '4' } });
+      await router.navigateByUrl('/?page=4');
       expect(craftUse(filters.page())).toBe(4);
 
       filters.set({ page: 5 });
@@ -670,7 +666,7 @@ describe('queryParams codecs', () => {
     const nativeError = new Error('invalid page');
 
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
+      const router = TestBed.inject(CRAFT_ROUTER);
       const filters = craftUse(
         queryParams('filters', {
           state: {
@@ -687,7 +683,7 @@ describe('queryParams codecs', () => {
         }),
       );
 
-      await router.navigate([], { queryParams: { page: 'invalid' } });
+      await router.navigateByUrl('/?page=invalid');
 
       expect(craftUse(filters.page())).toBe(1);
       expect(craftUse(filters.exceptions()).parse.page?.code).toBe(
@@ -703,8 +699,8 @@ describe('queryParams codecs', () => {
 
   it('throws a QueryParamEncodeError before navigation', () => {
     TestBed.runInInjectionContext(() => {
-      const router = TestBed.inject(Router);
-      const navigate = vi.spyOn(router, 'navigate');
+      const router = TestBed.inject(CRAFT_ROUTER);
+      const navigate = vi.spyOn(TestBed.inject(CRAFT_HISTORY), 'push');
       const filters = craftUse(
         queryParams(
           'filters',

@@ -1,5 +1,12 @@
 import { Injector, runInInjectionContext } from '@angular/core';
-import type { Router, UrlTree } from '@angular/router';
+import type { CraftRouter, CraftUrlTree } from './craft-router';
+
+type CraftRouteRouterLike = {
+  readonly url?: string;
+  createUrlTree: (...args: any[]) => unknown;
+  navigate: (...args: any[]) => Promise<boolean>;
+  navigateByUrl: (...args: any[]) => Promise<boolean>;
+};
 import { isCraftException, type AnyCraftException } from './craft-exception';
 import {
   craftExceptionOutcomeApi,
@@ -86,7 +93,7 @@ export function evaluateCraftGuardSync(
 /** The settled result of a route's guard/resolve chain, consumed by the outlet. */
 export type RouteChainOutcome =
   | { kind: 'data'; guardData: unknown; resolveData: unknown }
-  | { kind: 'redirect'; target: UrlTree | string }
+  | { kind: 'redirect'; target: CraftUrlTree | string }
   | {
       kind: 'render';
       component: CraftExceptionComponentInput;
@@ -139,7 +146,7 @@ function mapOutcome(
 // reach the driver, exactly like a generator guard/resolve stage.
 function* resolveRouteException(
   exception: AnyCraftException,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Generator<unknown, RouteChainOutcome, unknown> {
@@ -156,10 +163,12 @@ function* resolveRouteException(
     exception,
     payload: exception.payload,
     phase,
-    router,
-    createUrlTree: router.createUrlTree.bind(router),
-    navigate: router.navigate.bind(router),
-    navigateByUrl: router.navigateByUrl.bind(router),
+    router: router as CraftRouter,
+    createUrlTree: router.createUrlTree.bind(router) as CraftRouter['createUrlTree'],
+    navigate: router.navigate.bind(router) as CraftRouter['navigate'],
+    navigateByUrl: router.navigateByUrl.bind(
+      router,
+    ) as CraftRouter['navigateByUrl'],
   };
 
   const result = handler(context);
@@ -190,7 +199,7 @@ async function driveStageToSettled(
 async function resolveExceptionOutcomeInternal(
   exception: AnyCraftException,
   injector: Injector,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Promise<RouteChainOutcome> {
@@ -220,7 +229,7 @@ async function resolveExceptionOutcomeInternal(
 async function resolveExceptionOutcome(
   exception: AnyCraftException,
   injector: Injector,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Promise<RouteChainOutcome> {
@@ -231,7 +240,7 @@ async function resolveExceptionOutcome(
       phase: 'run',
       stage: 'exceptionHandler',
       routePhase: phase,
-      url: router.url,
+      url: router.url ?? '',
     },
     () =>
       resolveExceptionOutcomeInternal(
@@ -250,7 +259,7 @@ async function resolveExceptionOutcome(
 async function driveDataStage(
   iterator: Generator<unknown, unknown, unknown>,
   injector: Injector,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Promise<{ outcome: RouteChainOutcome } | { data: unknown }> {
@@ -284,7 +293,7 @@ async function driveTracedDataStage(
   stage: 'match' | 'guard' | 'resolve',
   iterator: Generator<unknown, unknown, unknown>,
   injector: Injector,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Promise<{ outcome: RouteChainOutcome } | { data: unknown }> {
@@ -295,7 +304,7 @@ async function driveTracedDataStage(
       phase: 'run',
       stage,
       routePhase: phase,
-      url: router.url,
+      url: router.url ?? '',
     },
     () => driveDataStage(iterator, injector, router, handleExceptions, phase),
   );
@@ -311,7 +320,7 @@ async function driveTracedDataStage(
 async function runCraftRouteChainAsyncInternal(
   steps: CraftRouteChainSteps,
   injector: Injector,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase = 'enter',
 ): Promise<RouteChainOutcome> {
@@ -397,7 +406,7 @@ async function runCraftRouteChainAsyncInternal(
 export function runCraftRouteChainAsync(
   steps: CraftRouteChainSteps,
   injector: Injector,
-  router: Router,
+  router: CraftRouteRouterLike,
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase = 'enter',
 ): Promise<RouteChainOutcome> {
@@ -407,7 +416,7 @@ export function runCraftRouteChainAsync(
       kind: 'routeChain',
       phase: 'run',
       routePhase: phase,
-      url: router.url,
+      url: router.url ?? '',
     },
     () =>
       runCraftRouteChainAsyncInternal(
