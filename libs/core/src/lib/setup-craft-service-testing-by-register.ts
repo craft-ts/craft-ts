@@ -4,7 +4,6 @@ import {
   type InputSignal,
   type InputSignalWithTransform,
   Injector,
-  provideZonelessChangeDetection,
   runInInjectionContext,
   type Signal,
   type Type,
@@ -1596,7 +1595,6 @@ function createTestingInjector(providers: CraftServiceProvider[]) {
   const environmentInjector = createEnvironmentInjector(
     [
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
-      provideZonelessChangeDetection(),
       ...providers,
     ],
     Injector.NULL as EnvironmentInjector,

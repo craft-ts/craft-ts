@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from '@craft-ng/core';
 import { setupCraftComponentLogicTest } from '@craft-ng/component';
 import { craftUse } from '@craft-ng/core';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { initDocsAngularTestBed } from '../../angular-test-bed';
 
 // #region user-card
 import {
@@ -39,7 +38,6 @@ const UserCard = craftComponent(
 // #endregion user-card
 
 beforeAll(() => {
-  initDocsAngularTestBed();
 });
 
 beforeEach(() => {

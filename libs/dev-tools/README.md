@@ -75,8 +75,6 @@ Discovery behavior:
 - `craft-brand` auto-discovers `craft-brand.config.ts` by walking upward from `--root`
 - the ESLint rules `brand-angular-gen-deps-required` and `brand-angular-deps-match` use the same upward discovery from the analyzed file, bounded by `context.cwd`
 - `--config <path>` overrides auto-discovery for the CLI
-- `brand-angular-gen-deps-required` can generate a missing `GenDeps_*` alias in the current file
-- `brand-angular-deps-match` can autofix an existing `GenDeps_*` alias in the current file
 - `component-test-gen-deps-match` verifies component test helpers use the matching `GenDeps_*` alias
 
 `typeText` supports generic dependency spellings that cannot be inferred from
@@ -402,12 +400,8 @@ export default [
     },
     rules: {
       // Adds a Quick Fix in VS Code through the ESLint extension
-      'craft-ng/brand-angular-gen-deps-required': 'error',
-      'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/component-test-gen-deps-match': 'error',
-      'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
-      'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/no-imperative-craft-resource-trigger': 'error',
       'craft-ng/require-craft-resource-trigger-yield': 'error',
       'craft-ng/no-craft-computed-side-effects': 'error',
@@ -416,10 +410,7 @@ export default [
       'craft-ng/require-yieldable-reactive-read': 'error',
       'craft-ng/require-yieldable-template-method': 'error',
       'craft-ng/require-yieldable-insertion-write': 'error',
-      'craft-ng/prefer-craft-service': 'error',
-      'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
-      'craft-ng/prefer-craft-input-output': 'error',
       'craft-ng/require-primitive-derived-property': 'error',
       'craft-ng/no-async-await': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
@@ -464,16 +455,8 @@ module.exports = defineConfig([
         },
       ],
       '@typescript-eslint/consistent-type-definitions': 'off',
-      // `brand-angular-gen-deps-required` generates missing GenDeps aliases with ESLint autofix
-      'craft-ng/brand-angular-gen-deps-required': 'error',
-      // `brand-angular-deps-match` refreshes existing GenDeps aliases with ESLint autofix
-      'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/component-test-gen-deps-match': 'error',
-      'craft-ng/no-angular-inject': 'error',
-      'craft-ng/prefer-craft-service': 'error',
-      'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
-      'craft-ng/prefer-craft-input-output': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
     },
   },

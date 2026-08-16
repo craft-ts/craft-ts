@@ -5,7 +5,6 @@ import {
   type EnvironmentInjector,
   inject,
   Injector,
-  provideZonelessChangeDetection,
   runInInjectionContext,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
@@ -423,7 +422,6 @@ function createAngularHostCraftInjector(
     [
       ...getCraftRootDefaultProviders(),
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
-      provideZonelessChangeDetection(),
       { provide: ErrorHandler, useClass: ErrorHandler },
       ...extraProviders,
     ],

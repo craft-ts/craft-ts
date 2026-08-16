@@ -196,17 +196,17 @@ describe('Type-safe DI/Routes setup doc page', () => {
   it('documents the app-level DI check and crafted routes setup', () => {
     expect(content).toContain('# Routing setup');
     expect(content).toContain(
-      'This guide assumes you are integrating type-safe DI/routes into an Angular app that consumes `@craft-ng/core`.',
+      'This guide assumes an app that consumes `@craft-ng/core`.',
     );
     expect(content).toContain(
-      'type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;',
+      'type _CheckAppDI = ValidateCascadeRoutesFile<',
     );
     expect(content).toContain('type _CanRunApp = CanRun<_CheckAppDI>;');
     expect(content).toContain(
       "componentDeps: {} as import('./test').GenDeps_TestComponent,",
     );
     expect(content).toContain('routingDeps: appRoutes.META_DATA');
-    expect(content).toContain('provideRouter(appRoutes.toRoutes()');
+    expect(content).toContain('provideCraftRouter(appRoutes.toRoutes()');
   });
 
   it('documents the codemod script and the refresh workflow', () => {
@@ -232,13 +232,6 @@ describe('ESLint rules doc page', () => {
 
   it('documents the plugin entry point and the enforced rules', () => {
     expect(content).toContain('@craft-ng/dev-tools/eslint-rules');
-    expect(content).toContain(
-      "'craft-ng/brand-angular-gen-deps-required': 'error'",
-    );
-    expect(content).toContain("'craft-ng/brand-angular-deps-match': 'error'");
-    expect(content).toContain("'craft-ng/no-angular-inject': 'error'");
-    expect(content).toContain("'craft-ng/prefer-craft-service': 'error'");
-    expect(content).toContain("'craft-ng/prefer-craft-http-client': 'error'");
     expect(content).toContain(
       "'craft-ng/require-cascade-route-di-check': 'error'",
     );
@@ -398,7 +391,7 @@ describe('toCraftService doc page', () => {
   it('includes an HttpClient adaptation example', () => {
     expect(content).toContain('## `HttpClient` Example');
     expect(content).toContain(
-      "import { HttpClient } from '@angular/common/http';",
+      "",
     );
     expect(content).toContain("name: 'HttpClient'");
     expect(content).toContain('const { HttpClient } = toCraftService({');

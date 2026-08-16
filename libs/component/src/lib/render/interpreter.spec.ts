@@ -7,7 +7,6 @@ import {
   InjectionToken,
   Injector,
   createEnvironmentInjector,
-  provideZonelessChangeDetection,
   signal,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
@@ -2031,7 +2030,6 @@ describe('functional component interpreter', () => {
     const parent = createEnvironmentInjector(
       [
         { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
-        provideZonelessChangeDetection(),
       ],
       Injector.NULL as EnvironmentInjector,
       'interpreter-fragment-spec',

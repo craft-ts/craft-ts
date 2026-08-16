@@ -109,7 +109,6 @@ export {
   ElementRef as ɵElementRef,
   EnvironmentInjector as ɵEnvironmentInjector,
   runInInjectionContext as ɵrunInInjectionContext,
-  provideZonelessChangeDetection as ɵprovideZonelessChangeDetection,
   computed as ɵcomputed,
   effect as ɵeffect,
   signal as ɵsignal,

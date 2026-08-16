@@ -9,7 +9,6 @@ import {
   ɵINJECTOR_SCOPE as CraftInjectorScope,
   ɵinject,
   ɵInjectionToken as CraftInjectionToken,
-  ɵprovideZonelessChangeDetection,
   ɵrunInInjectionContext,
   ɵsignal,
   ɵuntracked,
@@ -37,7 +36,6 @@ type HostRuntimeApi = {
   EnvironmentInjector: typeof ɵEnvironmentInjector;
   Injector: typeof CraftInjectorToken;
   inject: typeof ɵinject;
-  provideZonelessChangeDetection: typeof ɵprovideZonelessChangeDetection;
   reflectComponentType: (
     component: unknown,
   ) => { selector?: string | null } | null;
@@ -72,7 +70,6 @@ export const EnvironmentInjector = ɵEnvironmentInjector;
 export const Injector = CraftInjectorToken;
 export const InjectionToken = CraftInjectionToken;
 export const inject = ɵinject;
-export const provideZonelessChangeDetection = ɵprovideZonelessChangeDetection;
 export const reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>
   null;
 export const runInInjectionContext = ɵrunInInjectionContext;

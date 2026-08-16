@@ -7,14 +7,12 @@ useSnippetHarness();
 
 // #region craft-router
 import { craftAppConfig, provideCraftRouter, withTransitionTimings } from '@craft-ng/core';
-import { withComponentInputBinding } from '@angular/router';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_DATA,
   providers: [
     provideCraftRouter(
       appRoutes.toRoutes(),
-      withComponentInputBinding(),
       withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
     ),
   ],

@@ -11,7 +11,6 @@ export default defineConfig(() => ({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    setupFiles: ['./tests/snippets/angular-test-bed.ts'],
     reporters: ['default'],
     coverage: {
       reportsDirectory: '../../coverage/apps/docs',

@@ -295,16 +295,10 @@ export default [
       'craft-ng': craftRules,
     },
     rules: {
-      'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/craft-method-name-match': 'error',
-      'craft-ng/no-angular-inject': 'error',
-      'craft-ng/no-angular-signal-forms': 'error',
       'craft-ng/provide-host-name-match-component': 'error',
-      'craft-ng/prefer-craft-http-client': 'error',
-      'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/app-start-registry-match': 'error',
-      'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/require-component-monitoring': 'error',
       '@angular-eslint/directive-selector': [
         'error',

@@ -583,10 +583,6 @@ export function provideAppInitializer(fn: () => unknown): Provider {
   return { provide: APP_INITIALIZER, useValue: fn, multi: true };
 }
 
-export function provideZonelessChangeDetection(): Provider {
-  return { provide: new InjectionToken('Zoneless'), useValue: true };
-}
-
 export const ɵINJECTOR_SCOPE = new InjectionToken<string>('INJECTOR_SCOPE', {
   factory: () => 'root',
 });

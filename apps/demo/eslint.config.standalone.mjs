@@ -47,15 +47,12 @@ export default defineConfig([
   {
     files: ['**/src/app/function-registry.ts'],
     rules: {
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-state': 'off',
       'craft-ng/no-throw': 'off',
     },
   },
   {
     files: ['**/src/app/function-registry.spec.ts'],
     rules: {
-      'craft-ng/prefer-craft-computed': 'off',
       'craft-ng/no-craft-computed-side-effects': 'off',
     },
   },
@@ -71,7 +68,6 @@ export default defineConfig([
   {
     files: ['**/src/app/template-trace-demo.ts'],
     rules: {
-      'craft-ng/no-angular-inject': 'off',
     },
   },
   {
@@ -94,9 +90,6 @@ export default defineConfig([
     files: ['**/*.spec.ts', '**/*.test.ts'],
     rules: {
       'craft-ng/prefer-craft-template-blocks': 'off',
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/prefer-craft-effect': 'off',
       'craft-ng/no-async-await': 'off',
       'craft-ng/no-throw': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
@@ -111,19 +104,11 @@ export default defineConfig([
       'craft-ng/craft-signal-source-name-match': 'off',
       'craft-ng/craft-component-name-match': 'off',
       'craft-ng/craft-directive-name-match': 'off',
-      'craft-ng/no-angular-inject': 'off',
-      'craft-ng/no-angular-signal-forms': 'off',
       'craft-ng/no-direct-temporal-globals': 'off',
       'craft-ng/prefer-craft-template-blocks': 'off',
       'craft-ng/no-render-writes': 'off',
       'craft-ng/require-reactive-template-bindings': 'off',
-      'craft-ng/prefer-craft-computed': 'off',
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-http-client': 'off',
       'craft-ng/prefer-craft-http-transport': 'off',
-      'craft-ng/prefer-craft-input-output': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/prefer-craft-effect': 'off',
       'craft-ng/no-imperative-craft-resource-trigger': 'off',
       'craft-ng/require-craft-resource-trigger-yield': 'off',
       'craft-ng/require-yieldable-template-method': 'off',

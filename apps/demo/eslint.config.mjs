@@ -36,8 +36,6 @@ export default [
   {
     files: ['**/src/app/function-registry.ts'],
     rules: {
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-state': 'off',
       // The registry is a JavaScript-facing diagnostic boundary, not a Craft
       // primitive. Its public API reports malformed calls by throwing.
       'craft-ng/no-throw': 'off',
@@ -48,7 +46,6 @@ export default [
     // standalone computed primitive and does not mount authored Craft code.
     files: ['**/src/app/function-registry.spec.ts'],
     rules: {
-      'craft-ng/prefer-craft-computed': 'off',
       'craft-ng/no-craft-computed-side-effects': 'off',
     },
   },
@@ -68,7 +65,6 @@ export default [
     // Injector, but it must still preserve Craft's no-throw contract.
     files: ['**/src/app/template-trace-demo.ts'],
     rules: {
-      'craft-ng/no-angular-inject': 'off',
       // These wrappers rethrow Craft's control-flow sentinels so the runtime
       // can handle them at the correct boundary.
       'craft-ng/no-throw': 'off',
@@ -99,9 +95,6 @@ export default [
     files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
     rules: {
       'craft-ng/prefer-craft-template-blocks': 'off',
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/prefer-craft-effect': 'off',
       'craft-ng/no-async-await': 'off',
       'craft-ng/no-throw': 'off',
       'playwright/no-standalone-expect': 'off',
@@ -122,19 +115,11 @@ export default [
       'craft-ng/craft-signal-source-name-match': 'off',
       'craft-ng/craft-component-name-match': 'off',
       'craft-ng/craft-directive-name-match': 'off',
-      'craft-ng/no-angular-inject': 'off',
-      'craft-ng/no-angular-signal-forms': 'off',
       'craft-ng/no-direct-temporal-globals': 'off',
       'craft-ng/prefer-craft-template-blocks': 'off',
       'craft-ng/no-render-writes': 'off',
       'craft-ng/require-reactive-template-bindings': 'off',
-      'craft-ng/prefer-craft-computed': 'off',
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-http-client': 'off',
       'craft-ng/prefer-craft-http-transport': 'off',
-      'craft-ng/prefer-craft-input-output': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/prefer-craft-effect': 'off',
       'craft-ng/no-imperative-craft-resource-trigger': 'off',
       'craft-ng/require-craft-resource-trigger-yield': 'off',
       'craft-ng/require-yieldable-template-method': 'off',

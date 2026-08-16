@@ -3,7 +3,6 @@ import {
   ElementRef,
   EnvironmentInjector,
   Injector,
-  provideZonelessChangeDetection,
   runInInjectionContext,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
@@ -216,7 +215,6 @@ function createTestingInjector(
   return createEnvironmentInjector(
     [
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
-      provideZonelessChangeDetection(),
       ...(providers ?? []),
     ],
     Injector.NULL as EnvironmentInjector,

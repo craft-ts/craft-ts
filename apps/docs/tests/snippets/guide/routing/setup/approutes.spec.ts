@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { CraftRouter } from '@craft-ng/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
@@ -10,13 +11,16 @@ import {
   type CanRun,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
-import type { Router } from '@angular/router';
 
 export const { appRoutes } = craftRoutes('app', [
   /* routes */
 ]);
 
-type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;
+type _CheckAppDI = ValidateCascadeRoutesFile<
+  never,
+  CraftRouter,
+  typeof appRoutes
+>;
 type _CanRunApp = CanRun<_CheckAppDI>;
 // #endregion approutes
 

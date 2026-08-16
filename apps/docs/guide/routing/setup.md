@@ -1,14 +1,14 @@
 # Routing setup
 
-Six steps turn Angular's routes into routes the compiler checks: a missing
-provider, a misspelled input or a route pointing at nothing becomes a build
-error instead of a blank screen. Architecture tests then keep those proofs
-from quietly disappearing.
+Six steps turn plain route definitions into routes the compiler checks: a
+missing provider, a misspelled input or a route pointing at nothing becomes a
+build error instead of a blank screen. Architecture tests then keep those
+proofs from quietly disappearing.
 
 **Do this once per app**, then let [the CLI](/guide/routing/automation) write
 new routes for you.
 
-This guide assumes you are integrating type-safe DI/routes into an Angular app that consumes `@craft-ng/core`.
+This guide assumes an app that consumes `@craft-ng/core`.
 
 ::: tip Prefer the guided version
 [Learn step 9](/learn/09-routing) walks through the same setup on a single
@@ -112,27 +112,27 @@ paths without mutating files, so business logic is never guessed.
 Then wire the crafted routes into your application config:
 
 ```ts
-import { craftAppConfig } from '@craft-ng/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { craftAppConfig, provideCraftRouter } from '@craft-ng/core';
 import { appRoutes } from './app.routes';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_DATA,
-  providers: [provideRouter(appRoutes.toRoutes(), withComponentInputBinding())],
+  providers: [provideCraftRouter(appRoutes.toRoutes())],
 });
 ```
 
 Notes:
 
-- `appRoutes.toRoutes()` gives Angular the real runtime routes.
+- `appRoutes.toRoutes()` gives the router the real runtime routes.
 - `appRoutes.META_DATA` gives `craftAppConfig(...)` the compile-time route dependency graph.
-- For **non-blocking navigation** (immediate URL commit, pending UI, centralised exception
-  handling), render `CraftRouterOutlet()` from `@craft-ng/component` inside a
-  Craft component tree instead of `<router-outlet>`, and use
-  `provideCraftRouter(...)` instead of `provideRouter(...)` — it accepts Angular router features
-  **and** craft loading features (`withErrorComponent`, `withRouteLoadError`,
-  `withTransitionTimings`, …) in one call,
-  e.g. `provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding(), withErrorComponent({ component: MyGlobalErrorScreen, componentDeps }))`.
+- Route params are bound to component inputs by name; there is nothing to opt into.
+- `provideCraftRouter(...)` also takes the craft loading features
+  (`withErrorComponent`, `withRouteLoadError`, `withTransitionTimings`, …) in
+  the same call, e.g.
+  `provideCraftRouter(appRoutes.toRoutes(), withErrorComponent({ component: MyGlobalErrorScreen }))`.
+- Render `CraftRouterOutlet()` from `@craft-ng/component` inside your Craft
+  component tree: the URL commits immediately and the outlet drives the
+  pending UI and centralised exception handling.
   (The features also work standalone via `provideCraftLoading(...)`.)
   `withRouteLoadError(...)` must stay in `provideCraftRouter(...)` because it also registers an
   Angular navigation error handler and an internal recovery route. See
