@@ -13,6 +13,7 @@ import {
   HOST_TAG_LIST,
   injectPrimitiveMethodRuntimeContext,
   provideFnWrapper,
+  ɵinject,
   type PrimitiveMethodRuntimeContext,
   type PrimitiveResourceRuntimeContext,
 } from '@craft-ng/core';
@@ -39,7 +40,7 @@ export function ensureFunctionRegistryEntry(
   runtimeContext: PrimitiveMethodRuntimeContext | undefined,
 ): string {
   // eslint-disable-next-line craft-ng/no-angular-inject
-  const hostTags = inject(HOST_TAG_LIST);
+  const hostTags = ɵinject(HOST_TAG_LIST);
   const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
   const ancestry = hostTags.slice(0, -1);
   const key = buildFunctionRegistryKey(hostName, ancestry);
@@ -78,7 +79,7 @@ export function ensureResourceRegistryEntry(
   resourceContext: PrimitiveResourceRuntimeContext,
 ): string {
   // eslint-disable-next-line craft-ng/no-angular-inject
-  const hostTags = inject(HOST_TAG_LIST);
+  const hostTags = ɵinject(HOST_TAG_LIST);
   const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
   const ancestry = hostTags.slice(0, -1);
   const key = buildFunctionRegistryKey(hostName, ancestry);

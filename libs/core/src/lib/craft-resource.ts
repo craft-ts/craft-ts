@@ -22,24 +22,22 @@ import {
 import { RAW_REACTIVE_VALUE } from './reactive-read';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { angularLinkedSignal } from './host/angular-linked-signal';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
 
 type CraftResourceOptions<Value, Params> = Omit<
   ResourceOptions<Value, Params>,
   'loader' | 'stream'
 > & {
   loader?: (params: ResourceLoaderParams<Params>) => Value | PromiseLike<Value>;
-  stream?: ResourceOptions<Value, Params> extends infer Options
-    ? Options extends { stream: infer Stream }
-      ? Stream
-      : never
-    : never;
-  injector?: Injector;
+  stream?: ResourceOptions<Value, Params>['stream'];
 };
 
 export function craftResource<Value, Params>(
   options: CraftResourceOptions<Value, Params>,
 ): CraftResourceRef<Value, Params> {
-  const injector = options.injector ?? inject(Injector);
+  const injector = ɵcraftInjectorFromHost(
+    options.injector ?? inject(Injector),
+  );
   const valueState = craftSignal<Value | undefined>(options.defaultValue, {
     equal: options.equal as
       | ((a: Value | undefined, b: Value | undefined) => boolean)
@@ -123,7 +121,13 @@ export function craftResource<Value, Params>(
           }
           const streamEffect = effect(
             () => {
-              const item = stream();
+              const item =
+                typeof stream === 'function'
+                  ? stream()
+                  : { value: undefined as Value };
+              if (!item) {
+                return;
+              }
               if ('error' in item) {
                 finishWithError(version, item.error);
               } else {

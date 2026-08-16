@@ -13,7 +13,7 @@ import {
   type Simplify,
 } from './craft-service.shared';
 
-type AngularApplicationProvider = ApplicationConfig['providers'][number];
+type AngularApplicationProvider = ApplicationConfig['providers'][number] | object;
 type AngularApplicationProviders = readonly AngularApplicationProvider[];
 export type AppConfigProvidedServiceNamesKey =
   '__craftAppProvidedServiceNames__';
@@ -301,7 +301,7 @@ export function toApplicationConfig(config: {
   providers: readonly AngularApplicationProvider[];
 }): ApplicationConfig {
   return {
-    providers: [...config.providers],
+    providers: [...config.providers] as ApplicationConfig['providers'],
   };
 }
 

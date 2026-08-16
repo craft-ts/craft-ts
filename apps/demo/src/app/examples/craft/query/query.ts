@@ -33,7 +33,7 @@ const { UserQuery } = craftService(
         params: inputs.userId,
         loader: function* ({ params }) {
           yield* Console.log('Loading user with id:', params);
-          return yield* ApiService.getItemById(params);
+          return yield* ApiService.getItemById(params as string);
         },
       },
       insertStoragePersister(craftUnique({

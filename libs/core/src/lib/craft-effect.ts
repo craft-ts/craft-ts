@@ -12,6 +12,7 @@ import {
   type EffectRef,
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
 import { craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -82,7 +83,9 @@ export function craftEffect(
 
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
-  const ownerInjector = options?.injector ?? parentInjector;
+  const ownerInjector = ɵcraftInjectorFromHost(
+    options?.injector ?? parentInjector,
+  );
   const ownerDestroyRef = ownerInjector.get(DestroyRef);
   const effectInjector = ɵcreateHostTaggedInjector(
     ownerInjector,

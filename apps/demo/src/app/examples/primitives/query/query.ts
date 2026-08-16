@@ -41,7 +41,7 @@ const GlobalQuery = craftComponent(
         params: userId,
         preservePreviousValue: () => true,
         loader: function* ({ params }) {
-          return yield* ApiService.getItemById(params);
+          return yield* ApiService.getItemById(params as string);
         },
       },
       insertQueryPipe(

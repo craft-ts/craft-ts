@@ -80,8 +80,8 @@ export {
 } from './lib/host/craft-injector';
 export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 export {
-  DestroyRef,
-  Injector,
+  DestroyRef as ɵDestroyRef,
+  Injector as ɵInjector,
   ɵsetCraftDevMode,
   ɵsetCraftHostInjectorRunner,
   ɵsetCraftInjectFallback,
@@ -230,6 +230,7 @@ export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';
 export * from './lib/craft-router';
 export * from './lib/craft-activated-route';
+export { ActivatedRoute } from './lib/host/craft-router-types';
 export * from './lib/craft-routes';
 export * from './lib/craft-resolve';
 export * from './lib/craft-route-exceptions';

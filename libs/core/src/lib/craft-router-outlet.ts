@@ -803,6 +803,7 @@ export class CraftRouterOutletController {
   }
 
   private teardown(): void {
+    this._navId++;
     this.clearTimers();
     this._reactiveWatch?.destroy();
     this._reactiveWatch = null;

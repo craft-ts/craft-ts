@@ -155,7 +155,7 @@ export function isGuardAwaitRequest(
 
 type RunCraftGeneratorOptions = {
   iterator: Generator<unknown, unknown, unknown>;
-  injector: Injector;
+  injector: Injector | object;
   hostScope: ConcreteServiceScope;
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
@@ -170,7 +170,7 @@ type RunCraftGeneratorOptions = {
 
 export function runCraftGenerator({
   iterator,
-  injector,
+  injector: injectorInput,
   hostScope,
   invalidYieldErrorMessage,
   multipleAppStartErrorMessage,
@@ -182,6 +182,7 @@ export function runCraftGenerator({
   value: unknown;
   appStartHook?: () => AppStartResult;
 } {
+  const injector = ɵcraftInjectorFromHost(injectorInput);
   let appStartHook: (() => AppStartResult) | undefined;
   let current = iterator.next();
 
@@ -288,7 +289,7 @@ export function executeGeneratorCompatibleFactory<
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
-  getInjector: () => Injector;
+  getInjector: () => Injector | object;
   args: Args;
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;

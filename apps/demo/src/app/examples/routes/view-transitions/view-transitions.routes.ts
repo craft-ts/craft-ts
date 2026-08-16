@@ -61,11 +61,7 @@ const slowDetailGuard = craftGen(function* () {
   return access.allowed ? access : craftException({ code: 'DENIED' });
 });
 
-export const {
-  viewTransitionsRoutes,
-  injectViewTransitionsPhotoIdParams,
-  injectViewTransitionsPhotoIdViewTransition,
-} = craftRoutes('viewTransitions', [
+export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
   {
     path: '',
     ...loadCraftComponent(({ withRetry }) =>
@@ -106,7 +102,7 @@ export const {
         return redirectUrl('/view-transitions');
       }),
     },
-  ),
+  ) as never,
   // Pin this lazy child collection to its mount path: the `loadChildren` slot of
   // the `view-transitions` route in `app.routes` only accepts a collection
   // branded for that exact path — a wrong placement is a compile error.

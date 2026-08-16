@@ -25,7 +25,7 @@ export function executeCraftComponentFactory<Factory extends ComponentFactory>(
       executeGeneratorCompatibleFactory({
         factory,
         thisArg: undefined,
-        getInjector: () => injector,
+        getInjector: () => ɵcraftInjectorFromHost(injector),
         args,
         invalidYieldErrorMessage: INVALID_YIELD,
         multipleAppStartErrorMessage: MULTIPLE_APP_START,
@@ -45,7 +45,7 @@ export function executeCraftComponentFactoryAsync<
     executeGeneratorCompatibleFactoryAsync({
       factory,
       thisArg: undefined,
-      getInjector: () => injector,
+        getInjector: () => ɵcraftInjectorFromHost(injector),
       args,
       invalidYieldErrorMessage: INVALID_YIELD,
       appStartNotSupportedErrorMessage: APP_START_NOT_SUPPORTED,

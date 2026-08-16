@@ -4,6 +4,8 @@
  * types are local.
  */
 
+import { InjectionToken } from './craft-compat';
+
 export type Data = Record<string, unknown>;
 
 export type UrlSegment = {
@@ -71,6 +73,10 @@ export type ActivatedRoute = {
   snapshot: ActivatedRouteSnapshot;
   pathFromRoot: ActivatedRoute[];
 };
+
+export const ActivatedRoute = new InjectionToken<ActivatedRoute>(
+  'ActivatedRoute',
+);
 
 export abstract class TitleStrategy {
   abstract updateTitle(snapshot: RouterStateSnapshot): void;

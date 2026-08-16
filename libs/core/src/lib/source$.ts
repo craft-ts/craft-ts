@@ -212,12 +212,12 @@ export function source$<T, Name extends string = string>(
         },
         subscribe: (callback: (value: T) => void) => {
           sourceWithLastValueRef.subscribe(callback);
-          sourceWithLastValueRef.emit(sourceAsSignal());
+          sourceWithLastValueRef.emit(sourceAsSignal() as T);
         },
         asReadonly: () => ({
           subscribe: (callback: (value: T) => void) => {
             sourceWithLastValueRef.subscribe(callback);
-            sourceWithLastValueRef.emit(sourceAsSignal());
+            sourceWithLastValueRef.emit(sourceAsSignal() as T);
           },
           value: sourceAsSignal.asReadonly(),
         }),

@@ -1058,7 +1058,7 @@ describe('CraftRouterOutlet', () => {
     },
   );
 
-  it.fails(
+  it(
     'ignores a late chain resolution after navigation cancellation',
     async () => {
       const { outlet } = setup();

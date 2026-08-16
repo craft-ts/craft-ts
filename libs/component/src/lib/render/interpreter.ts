@@ -36,6 +36,7 @@ import {
   yieldableInvocation,
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
+  ɵcraftInjectorFromHost,
   type CraftServiceProvider,
   type CraftDomAdapter,
   type CraftDomEvent,
@@ -5044,9 +5045,10 @@ export interface MountedCraftTemplate<Context> {
 export function mountInterpretedComponent<Props extends object>(
   component: CraftComponent<Props>,
   host: Element,
-  injector: Injector,
+  injector: Injector | object,
   props: Props,
 ): MountedCraftComponent<Props> {
+  const craftInjector = ɵcraftInjectorFromHost(injector);
   const renderer = createBrowserDomAdapter(host.ownerDocument);
   const rootNode = host.getRootNode();
   const styleRoot: Document | ShadowRoot =
@@ -5054,7 +5056,7 @@ export function mountInterpretedComponent<Props extends object>(
     (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
-  const styles = injector.get(
+  const styles = craftInjector.get(
     CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
     ɵfallbackCraftStyleRegistry,
   );
@@ -5065,7 +5067,7 @@ export function mountInterpretedComponent<Props extends object>(
       props,
       host,
       null,
-      { renderer, injector, styleRoot, styles },
+      { renderer, injector: craftInjector, styleRoot, styles },
       host,
     );
   } catch (error) {
@@ -5088,10 +5090,11 @@ export function mountInterpretedComponent<Props extends object>(
 export function mountInterpretedComponentTemplate<Context>(
   component: CraftComponent<any>,
   host: Element,
-  injector: Injector,
+  injector: Injector | object,
   context: Context,
   additionalProviders: readonly CraftServiceProvider[] = [],
 ): MountedCraftTemplate<Context> {
+  const craftInjector = ɵcraftInjectorFromHost(injector);
   const renderer = createBrowserDomAdapter(host.ownerDocument);
   const rootNode = host.getRootNode();
   const styleRoot: Document | ShadowRoot =
@@ -5099,7 +5102,7 @@ export function mountInterpretedComponentTemplate<Context>(
     (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
-  const styles = injector.get(
+  const styles = craftInjector.get(
     CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
     ɵfallbackCraftStyleRegistry,
   );
@@ -5110,7 +5113,7 @@ export function mountInterpretedComponentTemplate<Context>(
       {},
       host,
       null,
-      { renderer, injector, styleRoot, styles },
+      { renderer, injector: craftInjector, styleRoot, styles },
       host,
       { value: context },
       additionalProviders,

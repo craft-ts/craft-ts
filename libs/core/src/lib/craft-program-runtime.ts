@@ -17,6 +17,7 @@ import {
   type RuntimeAwaitRequest,
 } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   isTemporalAwaitRequest,
@@ -223,13 +224,13 @@ export async function executeGeneratorCompatibleFactoryAsync<
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
-  getInjector: () => Injector;
+  getInjector: () => Injector | object;
   args: Args;
   invalidYieldErrorMessage: string;
   appStartNotSupportedErrorMessage?: string;
   abortSignal?: AbortSignal;
 }): Promise<CraftProgramSettledStep> {
-  const injector = getInjector();
+  const injector = ɵcraftInjectorFromHost(getInjector());
   const options: CraftProgramPumpOptions = {
     invalidYieldErrorMessage,
     appStartNotSupportedErrorMessage,

@@ -132,10 +132,6 @@ export function craftComputed<T>(
 export function craftLinkedSignal<T>(options: {
   source: () => unknown;
   computation: () => T;
-}): CraftWritableSignal<T>;
-export function craftLinkedSignal<T>(options: {
-  source: () => unknown;
-  computation: () => T;
   equal?: (a: T, b: T) => boolean;
   debugName?: string;
 }): CraftWritableSignal<T> {
@@ -183,11 +179,6 @@ export function craftLinkedSignal<T>(options: {
   return branded;
 }
 
-export function craftWatch(fn: () => void | (() => void)): { destroy(): void };
-export function craftWatch(
-  fn: () => void | (() => void),
-  options: CraftWatchOptions,
-): { destroy(): void };
 export function craftWatch(
   fn: () => void | (() => void),
   _options?: CraftWatchOptions,

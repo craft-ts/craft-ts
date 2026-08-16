@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,14 +88,25 @@ describe('public surface', () => {
     expect('injectService' in core).toBe(false);
   });
 
-  it('covers host runtime and state in the default vitest suite', () => {
+  it('covers the default vitest suite beyond host and state', () => {
     const vitestConfig = readFileSync(
       join(here, '../../../vitest.config.ts'),
       'utf8',
     );
-    expect(vitestConfig).toContain('src/lib/state.spec.ts');
-    expect(vitestConfig).toContain('src/lib/host/**/*.spec.ts');
+    expect(vitestConfig).toContain("include: ['src/**/*.spec.ts']");
+    expect(vitestConfig).toContain('test-angular');
   });
+
+  it(
+    'typechecks that Angular DI names stay off the public index',
+    { timeout: 20_000 },
+    () => {
+    execSync('npx tsc -p libs/core/tsconfig.public-surface.json --noEmit', {
+      encoding: 'utf8',
+      cwd: join(here, '../../../../../'),
+    });
+    },
+  );
 
   it('declares @angular/common as a peer of @craft-ng/angular', () => {
     const pkg = JSON.parse(

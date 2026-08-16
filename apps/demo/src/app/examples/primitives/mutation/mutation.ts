@@ -49,7 +49,7 @@ const MutationDemoComponent = craftComponent(
       {
         params: userId,
         loader: function* ({ params }) {
-          return yield* ApiService.getItemById(params);
+          return yield* ApiService.getItemById(params as string);
         },
         preservePreviousValue: () => true,
       },
@@ -63,7 +63,8 @@ const MutationDemoComponent = craftComponent(
         })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
-            name: ({ mutationParams: { name } }) => name,
+            name: ({ mutationParams }: { mutationParams: { name: string } }) =>
+              mutationParams.name,
           },
         }),
       ),
@@ -88,7 +89,7 @@ const MutationDemoComponent = craftComponent(
       if (user) {
         yield* updateUserName.mutate({
           userName: name,
-          user,
+          user: user as User,
         });
       }
     });

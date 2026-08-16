@@ -14,6 +14,17 @@ import {
   type CraftLoadingFeature,
 } from './craft-pending';
 import {
+  CRAFT_TITLE_STRATEGY,
+  createCraftTitleStrategy,
+  type CraftTitleStrategy,
+} from './craft-a11y';
+import type {
+  ActivatedRouteSnapshot,
+  Data,
+  ParamMap,
+  RouterStateSnapshot,
+} from './host/craft-router-types';
+import {
   ɵtoCraftService as toCraftService,
   type GetServiceYields,
   type SERVICE_HELPER_DEPENDENCIES,
@@ -621,11 +632,62 @@ export function shouldHandleCraftRouterLinkClick(
   return true;
 }
 
+function emptyParamMap(): ParamMap {
+  return {
+    has: () => false,
+    get: () => null,
+    getAll: () => [],
+    keys: [],
+  };
+}
+
+function matchToRouterStateSnapshot(match: CraftMatch): RouterStateSnapshot {
+  const makeNode = (
+    route: CraftCompiledRoute,
+    firstChild: ActivatedRouteSnapshot | null,
+  ): ActivatedRouteSnapshot => ({
+    routeConfig: route,
+    url: [],
+    params: match.params,
+    queryParams: match.queryParams,
+    fragment: match.hash ? match.hash.replace(/^#/, '') || null : null,
+    data: ((route.data ?? match.data) ?? {}) as Data,
+    outlet: 'primary',
+    title: typeof route.title === 'string' ? route.title : undefined,
+    paramMap: emptyParamMap(),
+    queryParamMap: emptyParamMap(),
+    parent: null,
+    root: null as unknown as ActivatedRouteSnapshot,
+    firstChild,
+    children: firstChild ? [firstChild] : [],
+    pathFromRoot: [],
+  });
+
+  let child: ActivatedRouteSnapshot | null = null;
+  for (let index = match.routes.length - 1; index >= 0; index -= 1) {
+    child = makeNode(match.routes[index]!, child);
+  }
+  const root = child ?? makeNode(match.route, null);
+  const path: ActivatedRouteSnapshot[] = [];
+  let current: ActivatedRouteSnapshot | null = root;
+  while (current) {
+    path.push(current);
+    current = current.firstChild;
+  }
+  path.forEach((node, index) => {
+    node.parent = index > 0 ? path[index - 1]! : null;
+    node.pathFromRoot = path.slice(0, index + 1);
+    node.root = root;
+  });
+  return { url: serializeLocation(match), root };
+}
+
 function commitCraftMatch(
   match: CraftWritableSignal<CraftMatch | null>,
   history: CraftHistory,
   location: CraftLocation,
   resolved: CraftMatch | null,
+  titleStrategy: CraftTitleStrategy,
 ): void {
   match.set(resolved);
   if (
@@ -633,6 +695,9 @@ function commitCraftMatch(
     serializeLocation(resolved) !== serializeLocation(location)
   ) {
     history.replace(serializeLocation(resolved), history.getState());
+  }
+  if (resolved) {
+    titleStrategy.updateTitle(matchToRouterStateSnapshot(resolved));
   }
 }
 
@@ -693,6 +758,10 @@ function provideCraftRouterRuntime(
   return [
     { provide: CRAFT_COMPILED_ROUTES, useValue: routes },
     {
+      provide: CRAFT_TITLE_STRATEGY,
+      useFactory: () => createCraftTitleStrategy(),
+    },
+    {
       provide: CRAFT_HISTORY,
       useFactory: () => {
         const history = createBrowserHistory(window);
@@ -718,6 +787,9 @@ function provideCraftRouterRuntime(
         history: CraftHistory,
       ) => {
         const environmentInjector = inject(EnvironmentInjector);
+        const titleStrategy =
+          inject(CRAFT_TITLE_STRATEGY, { optional: true }) ??
+          createCraftTitleStrategy();
         const match = craftSignal<CraftMatch | null>(null);
         let generation = 0;
         craftWatch(() => {
@@ -757,7 +829,13 @@ function provideCraftRouterRuntime(
                 if (current !== generation) {
                   return;
                 }
-                commitCraftMatch(match, history, nextLocation, resolved);
+                commitCraftMatch(
+                  match,
+                  history,
+                  nextLocation,
+                  resolved,
+                  titleStrategy,
+                );
                 navigation.current = null;
               },
               () => {
@@ -767,7 +845,13 @@ function provideCraftRouterRuntime(
             );
             return;
           }
-          commitCraftMatch(match, history, nextLocation, syncMatch);
+          commitCraftMatch(
+            match,
+            history,
+            nextLocation,
+            syncMatch,
+            titleStrategy,
+          );
           navigation.current = null;
         });
         return match;

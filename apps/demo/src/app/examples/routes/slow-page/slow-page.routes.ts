@@ -85,7 +85,7 @@ const loadSlowReport = craftGen(function* () {
     : report;
 });
 
-export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
+export const { slowPageRoutes } = craftRoutes(
   'slowPage',
   [
     craftRoute(
@@ -121,7 +121,7 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
           return redirectUrl('/login-form');
         }),
       },
-    ),
+    ) as never,
   ],
 );
 

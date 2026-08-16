@@ -223,17 +223,20 @@ export function resourceById<
       });
       rememberLinkedParams(group, filteredRequestByGroup);
 
-      //@ts-expect-error TypeScript misinterpreting
       const paramsWithEqualRule = computed(() => filteredRequestByGroup(), {
-        ...(equalParams !== 'default' && { equal: resourceEqualParams }),
+        ...(equalParams !== 'default' && {
+          equal: resourceEqualParams as (
+            a: ReturnType<typeof filteredRequestByGroup>,
+            b: ReturnType<typeof filteredRequestByGroup>,
+          ) => boolean,
+        }),
       });
 
       const CraftResourceRef = createDynamicResource(injector, {
         group,
-        //@ts-expect-error stream and loader conflict
         resourceOptions: {
           loader,
-          params: paramsWithEqualRule,
+          params: paramsWithEqualRule as () => ResourceParams,
           stream,
         },
       });

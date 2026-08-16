@@ -1,6 +1,6 @@
 import {
-  DestroyRef as CraftDestroyRef,
-  Injector as CraftInjectorToken,
+  ɵDestroyRef as CraftDestroyRef,
+  ɵInjector as CraftInjectorToken,
   ɵcomputed,
   ɵcreateEnvironmentInjector,
   ɵEffectScheduler as CraftEffectScheduler,
@@ -12,6 +12,7 @@ import {
   ɵrunInInjectionContext,
   ɵsignal,
   ɵuntracked,
+  type CraftInjector,
   type ɵEffectRef,
   type ɵProvider,
   type ɵProviderToken,
@@ -20,6 +21,12 @@ import {
 export type EffectRef = ɵEffectRef;
 export type Provider = ɵProvider;
 export type ProviderToken<T> = ɵProviderToken<T>;
+export type DestroyRef = InstanceType<typeof CraftDestroyRef>;
+export type Injector = CraftInjector;
+export type EnvironmentInjector = CraftInjector;
+export type ElementRef<T = HTMLElement> = InstanceType<typeof ɵElementRef> & {
+  nativeElement: T;
+};
 
 type HostRuntimeApi = {
   computed: typeof ɵcomputed;

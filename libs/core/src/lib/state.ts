@@ -273,7 +273,7 @@ function isGeneratorFunction(value: unknown): value is AnyGeneratorFunction {
 function executeStateFactory<This, Args extends unknown[], Result>(
   factory: (this: This, ...args: Args) => Result,
   thisArg: This,
-  getInjector: () => Injector,
+  getInjector: () => Injector | object,
   ...args: Args
 ): ResolveGeneratorResult<Result> {
   const injector = getInjector();
@@ -630,8 +630,9 @@ function createStateRef<StateType>(
       : isCraftSignal(stateSignal)
         ? craftComputed(() => stateSignal())
         : 'asReadonly' in stateSignal &&
-            typeof stateSignal.asReadonly === 'function'
-          ? stateSignal.asReadonly()
+            typeof (stateSignal as { asReadonly?: unknown }).asReadonly ===
+              'function'
+          ? (stateSignal as CraftWritableSignal<StateType>).asReadonly()
           : (stateSignal as Signal<StateType>);
   const publicStateReader = createYieldableReactiveValue(
     readonlyStateSignal as Signal<StateType>,

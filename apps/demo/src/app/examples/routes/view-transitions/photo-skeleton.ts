@@ -33,7 +33,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
     `,
   },
   (photoId: Input<string>) => {
-    const viewTransition = injectCraftViewTransition() as Signal<
+    const viewTransition = injectCraftViewTransition() as unknown as Signal<
       TransitionPayload | null
     >;
     const hasImage = craftComputed(

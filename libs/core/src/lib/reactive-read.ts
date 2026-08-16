@@ -642,6 +642,7 @@ function createFacade(
   path: string,
 ): unknown {
   if (typeof value !== 'object' && typeof value !== 'function') return value;
+  if (value === null) return value;
   if (isYieldableReactiveValue(value)) return value;
 
   const cacheKey = `${identity.primitive ?? ''}|${identity.computed ?? ''}|${path}`;

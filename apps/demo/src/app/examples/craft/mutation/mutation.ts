@@ -46,7 +46,7 @@ export const { provideUserMutation, UserMutation } = craftService(
       {
         params: inputs.userId,
         loader: function* ({ params: userId }) {
-          return yield* ApiService.getItemById(userId);
+          return yield* ApiService.getItemById(userId as string);
         },
         preservePreviousValue: () => true,
       },
@@ -57,7 +57,8 @@ export const { provideUserMutation, UserMutation } = craftService(
         })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
-            name: ({ mutationParams: { name } }) => name,
+            name: ({ mutationParams }: { mutationParams: { name: string } }) =>
+              mutationParams.name,
           },
         }),
       ),
@@ -95,7 +96,7 @@ const MutationCraft = craftComponent(
         if (userValue) {
           yield* updateUserName.mutate({
             userName: newName,
-            user: userValue,
+            user: userValue as User,
           });
         }
       },

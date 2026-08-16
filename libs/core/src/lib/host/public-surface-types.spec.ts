@@ -11,6 +11,8 @@ type _SignalSourceStaysYieldable = AssertAssignable<
 import type { Signal } from '@craft-ng/core';
 // @ts-expect-error Angular Injector must not leak from the public index
 import type { Injector } from '@craft-ng/core';
+// @ts-expect-error Angular DestroyRef must not leak from the public index
+import type { DestroyRef } from '@craft-ng/core';
 // @ts-expect-error Angular Provider must not leak from the public index
 import type { Provider } from '@craft-ng/core';
 // @ts-expect-error Angular Type must not leak from the public index

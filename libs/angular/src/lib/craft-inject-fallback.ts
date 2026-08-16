@@ -6,9 +6,11 @@ import {
   isDevMode as angularIsDevMode,
   runInInjectionContext,
 } from '@angular/core';
+import { ActivatedRoute as AngularActivatedRoute } from '@angular/router';
 import {
-  DestroyRef,
-  Injector,
+  ActivatedRoute,
+  ɵDestroyRef as DestroyRef,
+  ɵInjector as Injector,
   ɵcraftInjectorFromHost,
   ɵElementRef,
   ɵregisterCraftTokenHostToken,
@@ -21,6 +23,7 @@ import {
 
 ɵregisterCraftTokenHostToken(DestroyRef, AngularDestroyRef);
 ɵregisterCraftTokenHostToken(ɵElementRef, AngularElementRef);
+ɵregisterCraftTokenHostToken(ActivatedRoute, AngularActivatedRoute);
 
 ɵsetCraftHostInjectorRunner((host, fn) =>
   runInInjectionContext(host as AngularInjector, fn),
@@ -32,6 +35,9 @@ import {
   }
   if (token === DestroyRef) {
     return angularInject(AngularDestroyRef, options);
+  }
+  if (token === ActivatedRoute) {
+    return angularInject(AngularActivatedRoute, options);
   }
   return angularInject(token as never, options);
 });

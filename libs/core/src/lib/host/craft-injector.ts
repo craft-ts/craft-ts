@@ -13,10 +13,24 @@ export type CraftProvider<T = unknown> =
       multi?: boolean;
     };
 
+export type CraftInjectToken<T> =
+  | CraftToken<T>
+  | (abstract new (...args: never[]) => T)
+  | {
+      readonly debugName?: string;
+      readonly ɵfactory?: () => T;
+    };
+
 export interface CraftInjector {
-  get<T>(token: CraftToken<T> | object): T;
-  get<T>(token: CraftToken<T> | object, notFoundValue: T): T;
-  getOptional<T>(token: CraftToken<T> | object): T | null;
+  get<T>(token: CraftInjectToken<T>): T;
+  get<T>(token: CraftInjectToken<T>, notFoundValue: null): T | null;
+  get<T>(token: CraftInjectToken<T>, notFoundValue: T): T;
+  get<T>(
+    token: CraftInjectToken<T>,
+    notFoundValue: T | null,
+    flags?: object,
+  ): T | null;
+  getOptional<T>(token: CraftInjectToken<T> | object): T | null;
   run<T>(fn: () => T): T;
   createChild(providers: readonly CraftProvider[]): CraftInjector;
   destroy(): void;
@@ -337,8 +351,8 @@ export function ɵcreateCraftInjectorFromHost(
   return craftInjector;
 }
 
-export function ɵregisterCraftTokenHostToken<T>(
-  token: CraftToken<T>,
+export function ɵregisterCraftTokenHostToken(
+  token: object,
   hostToken: object,
 ): void {
   hostTokens.set(token, hostToken);
