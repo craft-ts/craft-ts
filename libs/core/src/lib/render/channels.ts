@@ -54,18 +54,24 @@ export type MergeChannels<L extends CraftChannels, R extends CraftChannels> = {
 };
 
 /**
- * Folds a list of channel sets — the shape children arrive in.
+ * Merges a *union* of channel sets — the shape siblings arrive in, since the
+ * render tree collects children as a union rather than a tuple.
  *
- * Written as a left fold rather than a naive union of every field, because a
- * discharge in the third child has to cancel an obligation raised by the first.
+ * Equivalent to folding {@link MergeChannels} over the same sets in any order:
+ * `Exclude` distributes, so a discharge in the third child still cancels an
+ * obligation raised by the first. Written as a union merge because that is
+ * cheaper than a recursive fold and because the node types have no tuple to
+ * fold over.
  */
-export type MergeChannelList<Channels extends readonly CraftChannels[]> =
-  Channels extends readonly [
-    infer Head extends CraftChannels,
-    ...infer Tail extends readonly CraftChannels[],
-  ]
-    ? MergeChannels<Head, MergeChannelList<Tail>>
-    : EmptyChannels;
+export type MergeChannelUnion<Channels extends CraftChannels> = {
+  readonly accumulate: Channels['accumulate'];
+  readonly obligations: Exclude<
+    Channels['obligations'],
+    Channels['discharges']
+  >;
+  readonly discharges: Channels['discharges'];
+  readonly violates: Channels['violates'];
+};
 
 /**
  * Non-empty when some node on the path violates an obligation that is still
@@ -83,15 +89,32 @@ export type UndischargedObligations<C extends CraftChannels> =
   C['obligations'];
 
 /** Reads a channel set off a carrier, falling back to the neutral element. */
-export type ChannelsOf<Value> = Value extends CraftChannelsCarrier<
-  infer Channels
->
-  ? [Channels] extends [never]
-    ? EmptyChannels
-    : Channels
-  : EmptyChannels;
+export type ChannelsOf<Value> = [HasChannels<Value>] extends [never]
+  ? EmptyChannels
+  : HasChannels<Value>;
 
-declare const CRAFT_CHANNELS: unique symbol;
+/**
+ * The channel set a value declares, or `never` if it declares none.
+ *
+ * The `keyof` guard is what makes this sound. Testing `Value extends
+ * CraftChannelsCarrier<infer C>` alone is not enough: the carrier property is
+ * optional, so *every* type passes the check, and for one that has no
+ * inference site — a bare `string` child, say — TypeScript falls back to the
+ * constraint and hands back `CraftChannels` itself. That set has `unknown` for
+ * `discharges`, and one `Exclude<…, unknown>` downstream silently erases every
+ * obligation in the tree. Asking whether the key is actually there first is
+ * the difference between a channel that works and one that reports `never`
+ * everywhere while looking correct.
+ */
+type HasChannels<Value> = Value extends object
+  ? typeof CRAFT_CHANNELS extends keyof Value
+    ? Value extends CraftChannelsCarrier<infer Channels extends CraftChannels>
+      ? Channels
+      : never
+    : never
+  : never;
+
+export declare const CRAFT_CHANNELS: unique symbol;
 
 /**
  * Type-only carrier. Optional, so an untouched node stays structurally

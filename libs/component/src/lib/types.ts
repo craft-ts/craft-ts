@@ -20,6 +20,8 @@ import type {
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type {
+  CraftChannels,
+  EmptyChannels,
   RAW_REACTIVE_VALUE,
   REACTIVE_VALUE_TYPE,
   YIELDABLE_VALUE,
@@ -40,6 +42,7 @@ import type {
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeDepsCarrier,
   ComponentNode,
+  ComponentTemplateChannels,
   ContentDependenciesFromProps,
   ElementNodeBase,
 } from './render/vnode';
@@ -1065,6 +1068,7 @@ type ComponentCallNode<
   InputProps extends object = {},
   CssVars extends
     CssVarContract = import('./css-vars.type').EmptyCssVarContract,
+  Channels extends CraftChannels = EmptyChannels,
 > =
   ComponentInputExceptionsOf<
     Pick<CallProps, keyof InputProps & keyof CallProps>
@@ -1079,7 +1083,10 @@ type ComponentCallNode<
           Component,
           ContentDependenciesFromProps<CallProps>,
           InputExceptions,
-          CssVars
+          CssVars,
+          never,
+          never,
+          Channels
         > &
           ProjectionUnit<Contract, Key>
       : ComponentNode<
@@ -1088,7 +1095,10 @@ type ComponentCallNode<
           Component,
           ContentDependenciesFromProps<CallProps>,
           InputExceptions,
-          CssVars
+          CssVars,
+          never,
+          never,
+          Channels
         >
     : never;
 
@@ -1259,7 +1269,8 @@ export interface CraftComponent<
     >,
     Factory,
     Props,
-    CssVarsAfterCall<ComponentCssVars<Meta, Template>, CallProps>
+    CssVarsAfterCall<ComponentCssVars<Meta, Template>, CallProps>,
+    ComponentTemplateChannels<Template>
   >;
   readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {
     readonly name: Name;

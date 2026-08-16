@@ -1,6 +1,11 @@
 import type { Injector, Type } from '@angular/core';
 import type {
   AnyCraftException,
+  CraftChannels,
+  CraftChannelsCarrier,
+  CRAFT_CHANNELS,
+  EmptyChannels,
+  MergeChannelUnion,
   CraftNodeDirective,
   CraftLazyLoadHelpers,
   CatchTagExhaustiveCodesCheck,
@@ -243,6 +248,79 @@ export type CraftNodeChildrenCssVars<Value> = [CraftNodeChildren] extends [
             : false;
         };
 
+/**
+ * Every channel set reachable from a value the tree holds — children, or a prop
+ * that carries one. Recursive over arrays, since children arrive nested as
+ * often as flat; distributive over unions, so siblings come back as a union of
+ * channel sets rather than a single collapsed one.
+ *
+ * Kept raw (un-merged) on purpose: merging is what cancels obligations against
+ * discharges, and that must happen once, at the node that contains both sides,
+ * not at every level of array nesting on the way there.
+ */
+type CraftNodeRawChannelsOf<
+  Value,
+  Depth extends unknown[] = [],
+> = Depth['length'] extends 8
+  ? never
+  : IsAny<Value> extends true
+    ? never
+    : Value extends readonly (infer Child)[]
+      ? CraftNodeRawChannelsOf<Child, [...Depth, unknown]>
+      : DeclaredChannelsOf<Value>;
+
+/**
+ * The channel a value declares, `never` if it declares none.
+ *
+ * The `keyof` guard is load-bearing: the carrier property is optional, so a
+ * bare `extends CraftChannelsCarrier<infer C>` matches every type, and for a
+ * plain `string` child TypeScript falls back to the constraint and yields
+ * `CraftChannels` — whose `discharges` is `unknown`, which then erases every
+ * obligation in the tree through `Exclude`. Same guard the deps carrier uses.
+ */
+type DeclaredChannelsOf<Value> = Value extends object
+  ? typeof CRAFT_CHANNELS extends keyof Value
+    ? Value extends CraftChannelsCarrier<infer Channels extends CraftChannels>
+      ? Channels
+      : never
+    : never
+  : never;
+
+/** The single channel set a children list hands its parent. */
+export type CraftNodeChildrenChannels<Value> = MergeChannelUnion<
+  CraftNodeRawChannelsOf<Value>
+>;
+
+/**
+ * What an element contributes: its own channel, its children's, and the ones
+ * riding on its props. Props matter because that is where a style class and a
+ * `provides(...)` arrive — an element that answers its child's demand does so
+ * through a prop, and the answer has to meet the demand here.
+ */
+type ElementNodeChannels<
+  Props extends object,
+  Children extends CraftNodeChildren,
+> = MergeChannelUnion<
+  CraftNodeRawChannelsOf<Children> | CraftNodeRawChannelsOf<Props[keyof Props]>
+>;
+
+declare const CHANNEL_PROP: unique symbol;
+
+/**
+ * Props that carry a channel nothing else can reach.
+ *
+ * Only `PipedCraftNodeDirective` needs this: piping a node directive erases the
+ * node's props and children, so the demands it had collected would vanish. A
+ * phantom prop puts them back on the one path where deriving them is not
+ * possible — and, being keyed by a `unique symbol`, it cannot collide with an
+ * actual DOM property.
+ */
+type ChannelCarryingProps<Channels extends CraftChannels> = Readonly<
+  Record<string, unknown>
+> & {
+  readonly [CHANNEL_PROP]?: CraftChannelsCarrier<Channels>;
+};
+
 export type CraftTextValue = string | number | bigint | boolean;
 
 /**
@@ -301,6 +379,7 @@ export interface ElementNodeBase<
     CraftNodeExceptionsCarrier<
       ElementNodeExceptions<Children, Exceptions>
     >,
+    CraftChannelsCarrier<ElementNodeChannels<Props, Children>>,
     CraftNodeHandledExceptionsCarrier<HandledExceptions>,
     CraftNodePendingCarrier<
       ElementNodePendingSources<Props, Children, PendingSources>
@@ -357,7 +436,8 @@ export interface ElementNode<
     ElementNodeExceptions<Children, Exceptions>,
     FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>,
     ElementNodePendingSources<Props, Children, PendingSources>,
-    ElementNodeSettledExceptions<Props, Children, SettledExceptions>
+    ElementNodeSettledExceptions<Props, Children, SettledExceptions>,
+    ElementNodeChannels<Props, Children>
   >;
 }
 
@@ -368,6 +448,7 @@ type PipedNode<
   Directive extends CraftDirective,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > =
   Directive extends PendingBlockDirective<
     infer Handlers extends PendingBlockHandlers | undefined,
@@ -383,7 +464,12 @@ type PipedNode<
         // A pending boundary is not an exception boundary: settled exceptions
         // pass straight through it.
         | SettledExceptions
-        | CraftNodeChildrenSettledExceptions<FallbackChildren>
+        | CraftNodeChildrenSettledExceptions<FallbackChildren>,
+        // A pending boundary answers nothing and breaks nothing: whatever the
+        // source demanded, the fallback's own demands join it.
+        MergeChannelUnion<
+          Channels | CraftNodeRawChannelsOf<FallbackChildren>
+        >
       >
     : PipedNodeWithoutPending<
         Dependencies,
@@ -391,7 +477,8 @@ type PipedNode<
         FieldExceptions,
         Directive,
         PendingSources,
-        SettledExceptions
+        SettledExceptions,
+        Channels
       >;
 
 type PipedNodeWithoutPending<
@@ -401,6 +488,7 @@ type PipedNodeWithoutPending<
   Directive extends CraftDirective,
   PendingSources extends string,
   SettledExceptions extends string,
+  Channels extends CraftChannels,
 > =
   Directive extends FieldExceptionBlockDirective<
     infer FieldHandlers extends FieldExceptionHandlers,
@@ -429,7 +517,13 @@ type PipedNodeWithoutPending<
         | SettledExceptions
         | CraftNodeChildrenSettledExceptions<
             FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
-          >
+          >,
+        MergeChannelUnion<
+          | Channels
+          | CraftNodeRawChannelsOf<
+              FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
+            >
+        >
       >
     : Directive extends CatchBlockDirective<
           infer Handlers extends CatchBlockHandlers
@@ -452,14 +546,24 @@ type PipedNodeWithoutPending<
           | Exclude<SettledExceptions, Extract<keyof Handlers, string>>
           | CraftNodeChildrenSettledExceptions<
               CatchBlockHandlerChildren<Handlers[keyof Handlers]>
-            >
+            >,
+          // An exception boundary is not a style boundary. A demand raised
+          // under it still has to be answered above it, and the handlers'
+          // own demands join in.
+          MergeChannelUnion<
+            | Channels
+            | CraftNodeRawChannelsOf<
+                CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+              >
+          >
         >
       : CraftDirectiveNode<
           Dependencies | CraftDirectiveTemplateDependencies<Directive>,
           Exceptions,
           FieldExceptions,
           PendingSources,
-          SettledExceptions
+          SettledExceptions,
+          Channels
         >;
 
 type PipedCraftNodeDirective<
@@ -469,10 +573,11 @@ type PipedCraftNodeDirective<
   Directive extends CraftNodeDirective<any>,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > = ElementNode<
   Dependencies,
   string,
-  Readonly<Record<string, unknown>>,
+  ChannelCarryingProps<Channels>,
   CraftNodeChildren,
   string | undefined,
   Exceptions,
@@ -489,6 +594,7 @@ export type CraftNodePipe<
   FieldExceptions = never,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > = {
   <Directive extends CraftDirective>(
     directive: Directive &
@@ -530,7 +636,8 @@ export type CraftNodePipe<
     FieldExceptions,
     Directive,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    Channels
   >;
   (directive: AngularDirectiveNode): CraftNode;
   <Directive extends CraftNodeDirective<any>>(
@@ -541,7 +648,8 @@ export type CraftNodePipe<
     FieldExceptions,
     Directive,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    Channels
   >;
   (directive: Type<unknown>): CraftNode;
 };
@@ -557,8 +665,10 @@ export interface CraftDirectiveNode<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
+    CraftChannelsCarrier<Channels>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
@@ -572,7 +682,8 @@ export interface CraftDirectiveNode<
     Exceptions,
     FieldExceptions,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    Channels
   >;
 }
 
@@ -610,8 +721,10 @@ export interface ComponentNode<
   CssVars extends CssVarContract = EmptyCssVarContract,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > extends CraftNodeDepsCarrier<ComponentDeps & ContentDependencies>,
     CraftNodeCssVarsCarrier<CssVars>,
+    CraftChannelsCarrier<ComponentNodeChannels<Props, Channels>>,
     CraftNodeExceptionsCarrier<
       ComponentInitializationExceptionsOf<Component> | InputExceptions
     >,
@@ -649,7 +762,8 @@ export interface ComponentNode<
     | ComponentFieldExceptionsOf<Component>
     | ContentFieldExceptionsFromProps<Props>,
     PendingSources | ContentPendingSourcesFromProps<Props>,
-    SettledExceptions | ContentSettledExceptionsFromProps<Props>
+    SettledExceptions | ContentSettledExceptionsFromProps<Props>,
+    ComponentNodeChannels<Props, Channels>
   >;
 }
 
@@ -676,8 +790,10 @@ export interface CatchBlockNode<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
+    CraftChannelsCarrier<Channels>,
     CraftNodeHandledExceptionsCarrier<Extract<keyof Handlers, string>>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
@@ -695,8 +811,10 @@ export interface FieldExceptionBlockNode<
   Handlers extends FieldExceptionHandlers = FieldExceptionHandlers,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
+    CraftChannelsCarrier<Channels>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
@@ -713,7 +831,8 @@ export interface FieldExceptionBlockNode<
     Exceptions,
     FieldExceptions,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    Channels
   >;
 }
 
@@ -725,6 +844,7 @@ export interface MatchBlockNode<
   HandledExceptions extends string = string,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeHandledExceptionsCarrier<HandledExceptions>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
@@ -745,6 +865,9 @@ export interface EachNode<
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<
       CraftNodeChildrenCssVars<ItemChildren | EmptyChildren>
+    >,
+    CraftChannelsCarrier<
+      CraftNodeChildrenChannels<ItemChildren | EmptyChildren>
     >,
     CraftNodePendingCarrier<
       | CraftNodeChildrenPendingSources<ItemChildren>
@@ -784,6 +907,13 @@ export interface IfBlockNode<
     CraftNodeCssVarsCarrier<
       CraftNodeChildrenCssVars<TrueChildren | FalseChildren>
     >,
+    // A union, not a product: what the two branches demand is the sum of what
+    // each demands, and a discharge in either branch is not a discharge for
+    // the other. Task 16 tags the branches so the *variant* contract can tell
+    // them apart; the demands themselves merge here.
+    CraftChannelsCarrier<
+      CraftNodeChildrenChannels<TrueChildren | FalseChildren>
+    >,
     CraftNodePendingCarrier<
       | CraftNodeChildrenPendingSources<TrueChildren>
       | CraftNodeChildrenPendingSources<FalseChildren>
@@ -818,6 +948,7 @@ export interface HeadingNode<
   Need extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
@@ -834,7 +965,8 @@ export interface HeadingNode<
     CraftNodeChildrenExceptions<Children>,
     CraftNodeChildrenRawFieldExceptions<Children>,
     CraftNodeChildrenPendingSources<Children>,
-    CraftNodeChildrenSettledExceptions<Children>
+    CraftNodeChildrenSettledExceptions<Children>,
+    CraftNodeChildrenChannels<Children>
   >;
 }
 
@@ -849,6 +981,7 @@ export interface HeadingSectionNode<
   Children extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
@@ -870,6 +1003,7 @@ export interface DeferNode<
   Children extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
@@ -897,8 +1031,10 @@ export interface PendingBlockNode<
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
+  Channels extends CraftChannels = EmptyChannels,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
+    CraftChannelsCarrier<Channels>,
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
@@ -914,7 +1050,8 @@ export interface PendingBlockNode<
     Exceptions,
     FieldExceptions,
     PendingSources,
-    SettledExceptions
+    SettledExceptions,
+    Channels
   >;
 }
 
@@ -982,6 +1119,38 @@ export type ContentSettledExceptionsFromProps<Props extends object> =
 export type ContentHeadingNeedFromProps<Props extends object> =
   CraftNodeChildrenHeadingNeed<ContentChildrenFromProps<Props>>;
 
+/**
+ * What a component's own template still demands of whoever renders it — read
+ * off the template's return type, the same way the css-var contract is.
+ *
+ * A component boundary is not a boundary for these: an obligation the template
+ * could not answer internally is exactly the one the caller must answer.
+ *
+ * Computed from `Template`, never from the assembled `CraftComponent`. Going
+ * through the component would re-derive the whole component type at every call
+ * site, and since a template's children are themselves component nodes, that
+ * nests until TypeScript gives up with TS2589. Reading `Template` once — and
+ * letting each child node hand back the channel it already carries — keeps the
+ * work flat, which is the same reason `ComponentCssVars` is written this way.
+ */
+export type ComponentTemplateChannels<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenChannels<Output>
+  : EmptyChannels;
+
+/**
+ * A component call site merges two sources: what the component's own template
+ * still demands, and what the content projected into it demands — the caller
+ * wrote those nodes, so they are the caller's problem.
+ */
+type ComponentNodeChannels<
+  Props extends object,
+  Channels extends CraftChannels,
+> = MergeChannelUnion<
+  Channels | CraftNodeRawChannelsOf<ContentChildrenFromProps<Props>>
+>;
+
 export type ComponentHeadingNeedOf<Component> = Component extends CraftComponent<
   any,
   any,
@@ -1001,6 +1170,7 @@ export interface ProjectionNode<
   Output extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Output>>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Output>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Output>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Output>
@@ -1020,6 +1190,7 @@ export interface TemplateNode<
   Output extends CraftNodeChildren = CraftNodeChildren,
   Dependencies extends object = CraftNodeChildrenDependencies<Output>,
 > extends CraftNodeDepsCarrier<Dependencies>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Output>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Output>>,
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Output>

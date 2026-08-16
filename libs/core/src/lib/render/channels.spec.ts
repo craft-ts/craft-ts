@@ -3,8 +3,8 @@ import type { Equal, Expect } from 'test-type';
 import type {
   CraftChannels,
   EmptyChannels,
-  MergeChannelList,
   MergeChannels,
+  MergeChannelUnion,
   PathViolations,
 } from './channels';
 
@@ -78,21 +78,30 @@ describe('channel algebra', () => {
     expect(true).toBe(true);
   });
 
-  it('folds a child list so a later sibling can discharge an earlier demand', () => {
-    type Children = [
-      Channels<{ obligations: NeedsPort }>,
-      Channels<{ accumulate: 'text' }>,
-      Channels<{ discharges: NeedsPort }>,
-    ];
-    type Merged = MergeChannelList<Children>;
+  it('merges a sibling union so a later sibling discharges an earlier demand', () => {
+    type Siblings =
+      | Channels<{ obligations: NeedsPort }>
+      | Channels<{ accumulate: 'text' }>
+      | Channels<{ discharges: NeedsPort }>;
+    type Merged = MergeChannelUnion<Siblings>;
 
     type _obligations = Expect<Equal<Merged['obligations'], never>>;
     type _accumulate = Expect<Equal<Merged['accumulate'], 'text'>>;
     expect(true).toBe(true);
   });
 
-  it('folds an empty list to the neutral element', () => {
-    type _ = Expect<Equal<MergeChannelList<[]>, EmptyChannels>>;
+  it('merges an empty sibling union to the neutral element', () => {
+    type _ = Expect<Equal<MergeChannelUnion<never>, EmptyChannels>>;
+    expect(true).toBe(true);
+  });
+
+  it('agrees with the pairwise merge on the same operands', () => {
+    type Left = Channels<{ obligations: NeedsPort; accumulate: 'a' }>;
+    type Right = Channels<{ discharges: NeedsPort; violates: Clips }>;
+
+    type _ = Expect<
+      Equal<MergeChannels<Left, Right>, MergeChannelUnion<Left | Right>>
+    >;
     expect(true).toBe(true);
   });
 });
