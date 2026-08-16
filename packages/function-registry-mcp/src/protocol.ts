@@ -76,6 +76,11 @@ export type PageGoodbye = Readonly<{
   clientId: string;
 }>;
 
+export type HelloOk = Readonly<{
+  type: 'hello/ok';
+  clientId: string;
+}>;
+
 export type RegistryRequest = Readonly<{
   type: 'request';
   callId: string;

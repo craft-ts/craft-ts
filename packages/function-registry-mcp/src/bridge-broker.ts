@@ -6,6 +6,7 @@ import {
   type ServerOptions,
 } from 'ws';
 import type {
+  HelloOk,
   PageSurface,
   RegistryBrokerMethod,
   RegistryClient,
@@ -395,29 +396,45 @@ export class RegistryBridgeBroker {
       pageTitle?: string;
     }>,
   ): void {
-    const previous = this.#clients.get(hello.clientId);
-    if (previous?.expireTimer !== undefined) {
+    let clientId = hello.clientId;
+    const previous = this.#clients.get(clientId);
+    const previousOpenOnOtherSocket =
+      previous !== undefined &&
+      isSocketOpen(previous.socket) &&
+      previous.socket !== socket;
+
+    if (previousOpenOnOtherSocket) {
+      clientId = randomUUID();
+    } else if (previous?.expireTimer !== undefined) {
       clearTimeout(previous.expireTimer);
     }
-    this.#socketClientIds.set(socket, hello.clientId);
-    const generation = (previous?.generation ?? 0) + 1;
-    const surfaceRev = previous?.surfaceRev ?? 0;
-    const readyWaiters = previous?.readyWaiters ?? [];
-    this.#clients.set(hello.clientId, {
+
+    const reused = previousOpenOnOtherSocket ? undefined : previous;
+    this.#socketClientIds.set(socket, clientId);
+    const generation = (reused?.generation ?? 0) + 1;
+    const surfaceRev = reused?.surfaceRev ?? 0;
+    const readyWaiters = reused?.readyWaiters ?? [];
+    this.#clients.set(clientId, {
       socket,
-      clientId: hello.clientId,
+      clientId,
       connectedAt: new Date().toISOString(),
       ...(hello.pageUrl === undefined ? {} : { pageUrl: hello.pageUrl }),
       ...(hello.pageTitle === undefined ? {} : { pageTitle: hello.pageTitle }),
-      snapshot: emptySnapshot(hello.clientId, hello.pageUrl, hello.pageTitle),
+      snapshot: emptySnapshot(clientId, hello.pageUrl, hello.pageTitle),
       status: 'connecting',
       generation,
       surfaceRev,
       surface: undefined,
       readyWaiters,
     });
-    if (previous !== undefined && previous.socket !== socket) {
-      this.#rejectPending('Registry app reconnected', hello.clientId);
+    const helloOk: HelloOk = { type: 'hello/ok', clientId };
+    socket.send(JSON.stringify(helloOk));
+    if (
+      !previousOpenOnOtherSocket &&
+      previous !== undefined &&
+      previous.socket !== socket
+    ) {
+      this.#rejectPending('Registry app reconnected', clientId);
       previous.socket?.close();
     }
   }

@@ -119,6 +119,8 @@ describe('RegistryBridgeBroker', () => {
       expect(broker.snapshot('app-a').entries).toEqual([{ key: 'stale' }]),
     );
 
+    app.close();
+    await vi.waitFor(() => expect(broker.clients).toHaveLength(0));
     const { port } = broker.address();
     const replacement = new WebSocket(`ws://127.0.0.1:${port}`);
     await new Promise<void>((resolve) => replacement.once('open', resolve));
@@ -502,6 +504,87 @@ describe('RegistryBridgeBroker', () => {
       broker.request('page', { clientId: 'missing' }),
     ).rejects.toThrow('page client "missing" is not connected');
   });
+
+  it('replies hello/ok with the same clientId when it is not already open', async () => {
+    const { port } = broker.address();
+    const extra = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise<void>((resolve) => extra.once('open', resolve));
+    const assigned = new Promise<string>((resolve) => {
+      extra.on('message', (raw) => {
+        const message = JSON.parse(raw.toString()) as {
+          type?: string;
+          clientId?: string;
+        };
+        if (message.type === 'hello/ok' && message.clientId !== undefined) {
+          resolve(message.clientId);
+        }
+      });
+    });
+    extra.send(
+      JSON.stringify({
+        type: 'hello',
+        role: 'registry-app',
+        clientId: 'app-b',
+        pageUrl: 'http://localhost/',
+      }),
+    );
+    await expect(assigned).resolves.toBe('app-b');
+    extra.close();
+  });
+
+  it('assigns a new clientId when a second socket hellos with an id that is already open', async () => {
+    publishSurface(app, {
+      clientId: 'app-a',
+      url: '/login-form',
+      controls: [control('email')],
+    });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({
+        status: 'ready',
+      });
+    });
+
+    const { port } = broker.address();
+    const duplicate = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise<void>((resolve) => duplicate.once('open', resolve));
+    const assigned = new Promise<string>((resolve) => {
+      duplicate.on('message', (raw) => {
+        const message = JSON.parse(raw.toString()) as {
+          type?: string;
+          clientId?: string;
+        };
+        if (message.type === 'hello/ok' && message.clientId !== undefined) {
+          resolve(message.clientId);
+        }
+      });
+    });
+    duplicate.send(
+      JSON.stringify({
+        type: 'hello',
+        role: 'registry-app',
+        clientId: 'app-a',
+        pageUrl: 'http://localhost/',
+      }),
+    );
+    const newId = await assigned;
+    expect(newId).not.toBe('app-a');
+    expect(app.readyState).toBe(WebSocket.OPEN);
+
+    echoPage(duplicate);
+    publishSurface(duplicate, {
+      clientId: newId,
+      url: '/',
+      controls: [control('navToggle')],
+    });
+
+    await expect(
+      broker.request('page', { clientId: 'app-a' }),
+    ).resolves.toMatchObject({ url: '/login-form' });
+    await expect(
+      broker.request('page', { clientId: newId }),
+    ).resolves.toMatchObject({ url: '/' });
+    duplicate.close();
+  });
 });
 
 function control(id: string) {
@@ -521,6 +604,9 @@ let livePage: {
   controls: ReturnType<typeof control>[];
 } = { url: '', status: 'ready', controls: [] };
 
+const livePageBySocket = new WeakMap<WebSocket, typeof livePage>();
+let lastLivePageSocket: WebSocket | undefined;
+
 function echoPage(socket: WebSocket) {
   socket.on('message', (raw) => {
     const request = JSON.parse(raw.toString()) as {
@@ -534,11 +620,15 @@ function echoPage(socket: WebSocket) {
     if (Array.isArray(request.params?.act) && request.params.act.length > 0) {
       return;
     }
+    const result =
+      socket === lastLivePageSocket
+        ? livePage
+        : (livePageBySocket.get(socket) ?? livePage);
     socket.send(
       JSON.stringify({
         type: 'response',
         callId: request.callId,
-        result: livePage,
+        result,
       }),
     );
   });
@@ -559,6 +649,8 @@ function publishSurface(
     status: 'ready',
     controls: surface.controls,
   };
+  lastLivePageSocket = socket;
+  livePageBySocket.set(socket, livePage);
   socket.send(
     JSON.stringify({
       type: 'page/surface',
