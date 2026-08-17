@@ -4,6 +4,7 @@ import {
   inject,
   isSignal,
   runInInjectionContext,
+  untracked,
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
 import { InsertionsStateFactory } from './query.core';
@@ -479,7 +480,19 @@ function createInsertSelectItemRuntime(
             return Reflect.get(target, property, receiver);
           }
 
-          const stateValue = select(id);
+          // Read through the per-item signal, NOT `select(id)`.
+          //
+          // `select(id)` reads the whole array and then indexes it, so a
+          // template binding that reached a field this way subscribed to the
+          // ENTIRE collection: any write to any item re-ran every binding. A
+          // 16x16 grid spent ~400ms of a single paint re-evaluating all 256
+          // cells — and re-evaluated them again on changes that touched no
+          // cell at all.
+          //
+          // `selectedStateSignal` recomputes off the same array but keeps its
+          // previous value when this item is untouched, so it only notifies
+          // the readers of the item that actually changed.
+          const stateValue = selectedStateSignal();
           if (!stateValue || typeof stateValue !== 'object') {
             return undefined;
           }
@@ -856,7 +869,14 @@ function createDeferredInsertSelectRuntime(
     let activeRuntime: any;
 
     const getActiveRuntime = () => {
-      const isArray = Array.isArray(readInsertionState(context.state));
+      // Untracked on purpose. Whether the state is an array picks which runtime
+      // to build — a structural question, not a value this selector depends on.
+      // Reading it tracked subscribed EVERY caller to the whole collection, so
+      // a template binding that selected one item re-ran whenever any item
+      // changed, and even when something unrelated did.
+      const isArray = Array.isArray(
+        untracked(() => readInsertionState(context.state)),
+      );
       if (activeRuntime && activeIsArray === isArray) {
         return activeRuntime;
       }
