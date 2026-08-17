@@ -50,16 +50,13 @@ import {
   CRAFT_VIEW_TRANSITIONS_ENABLED,
 } from './craft-view-transition';
 
-@Component({ selector: 'spec-target', standalone: true, template: `target` })
+// The outlet only ever stores and compares the component it is given — core
+// has no renderer — so these are plain identities. They used to carry
+// `@Component`, which is what made this whole file fail to load once Angular
+// was uninstalled.
 class TargetCmp {}
-
-@Component({ selector: 'spec-err', standalone: true, template: `error` })
 class ErrCmp {}
-
-@Component({ selector: 'spec-parent', standalone: true, template: `parent` })
 class ParentCmp {}
-
-@Component({ selector: 'spec-child', standalone: true, template: `child` })
 class ChildCmp {}
 
 function dummyGen(): Generator<unknown, unknown, unknown> {
@@ -838,6 +835,66 @@ describe('CraftRouterOutlet', () => {
     expect(nested.displayedProps()).toEqual(
       expect.objectContaining({ teamId: 't1', userId: '2' }),
     );
+  });
+
+  // Angular decides a component's lifetime on the route config alone. Craft
+  // used to fold the param values into that decision, so `/query/1` ->
+  // `/query/2` tore the component down and every bit of state it held — a
+  // `preservePreviousValue` query could never preserve anything.
+  it('keeps the live component when only a path param changes', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([{ path: 'query/:userId', component: TargetCmp }]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/query/1');
+
+    const injector = outlet.displayedInjector();
+    expect(injector).toBeDefined();
+    expect(outlet.displayedProps()).toEqual(
+      expect.objectContaining({ userId: '1' }),
+    );
+
+    TestBed.inject(CRAFT_HISTORY).push('/query/2');
+
+    // Same injector === same mounted component: the interpreter only reuses a
+    // component node when the injector is identical.
+    expect(outlet.displayedInjector()).toBe(injector);
+    expect(outlet.displayedProps()).toEqual(
+      expect.objectContaining({ userId: '2' }),
+    );
+  });
+
+  it('activates afresh on a param change when the route has a resolver', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter([
+          {
+            path: 'query/:userId',
+            component: TargetCmp,
+            data: { [CRAFT_ROUTE_META]: makeMeta() },
+          },
+        ]),
+      ],
+    });
+    const outlet = TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+    TestBed.inject(CRAFT_HISTORY).push('/query/1');
+    await flushChain();
+
+    const injector = outlet.displayedInjector();
+    expect(injector).toBeDefined();
+
+    TestBed.inject(CRAFT_HISTORY).push('/query/2');
+    await flushChain();
+
+    // `meta.resolve` runs once, in the 'enter' phase, and nothing re-runs it
+    // reactively — so reusing here would leave resolve data on the old param.
+    expect(outlet.displayedInjector()).not.toBe(injector);
   });
 
   it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {

@@ -306,7 +306,7 @@ export class CraftRouterOutletController {
       this._childMatch &&
       this._activeRouteInjector &&
       this.state() !== 'error' &&
-      isSameActivation(this._match, activated)
+      canReuseActivation(this._match, activated, this._meta)
     ) {
       this._liveMatch.set(activated);
       this._childMatch.set(child);
@@ -628,7 +628,11 @@ export class CraftRouterOutletController {
   ): Promise<void> {
     const resolved = await resolveComponentInput(input);
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    const component = null;
+    // Removing the Angular interop left this pinned at `null`, which silently
+    // emptied the error surface: nothing was reported through
+    // `errorComponent()` and nothing was mounted. The component IS the
+    // normalized target's — everything Craft renders is a Craft component.
+    const component = (target?.component ?? null) as Type<unknown> | null;
     this.errorComponent.set(component);
     this.errorTarget.set(target);
     this.showComponent(
@@ -976,6 +980,36 @@ function paramsForActivatedRoute(
     }
   }
   return owned;
+}
+
+/**
+ * Whether the live component survives this navigation.
+ *
+ * Angular decides this on the route config ALONE — `RouteReuseStrategy` keeps
+ * the instance when `future.routeConfig === curr.routeConfig`, and a separate
+ * `runGuardsAndResolvers` decides whether the chain re-runs on a param change.
+ * Craft drove both from one comparison, so changing `:userId` tore the
+ * component down and took with it whatever state it held — which is why a
+ * `preservePreviousValue` query could never preserve anything across a
+ * navigation.
+ *
+ * Craft keeps the component and lets reactivity carry the new params: the
+ * fast-path publishes them on the live match signal, `injectRouteParamsSignal`
+ * derives from it, and reactive guards re-evaluate off their own watch.
+ *
+ * Resolvers have no such reactivity yet — `meta.resolve` runs once, in the
+ * `'enter'` phase — so a route carrying one still gets a full activation
+ * instead of silently stale resolve data.
+ */
+function canReuseActivation(
+  current: CraftMatch,
+  next: CraftMatch,
+  meta: CraftRouteMeta | null,
+): boolean {
+  if (current.route !== next.route) {
+    return false;
+  }
+  return meta?.resolve ? isSameActivation(current, next) : true;
 }
 
 function isSameActivation(current: CraftMatch, next: CraftMatch): boolean {
