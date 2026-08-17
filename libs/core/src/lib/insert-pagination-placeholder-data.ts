@@ -240,35 +240,24 @@ export function insertPaginationPlaceholderData<
       PrimitiveName
     >;
 
-    let previousPageKey: string | undefined;
-    const showPlaceHolderData = craftComputed(
-      'showPlaceHolderData',
-      function* () {
-        const page = yield* readPaginationReactive(resourceParamsSrc);
-        const resources = (yield* readPaginationReactive(
-          resourceById,
-        )) as Partial<
-          Record<string, CraftResourceRef<PageState & object, unknown>>
-        >;
-        const pageKey = page != null ? identifier(page) : undefined;
-        if (!pageKey) {
-          return false;
-        }
-        const currentResource = resources[pageKey];
-        // true if loading and previousPage is used
-        if (
-          currentResource?.status() === 'loading' &&
-          !currentResource?.value() &&
-          previousPageKey !== undefined &&
-          resources[previousPageKey]
-        ) {
-          return true;
-        }
-        return false;
-      },
-    );
+    /**
+     * The rows currently on screen, whichever page they came from.
+     *
+     * This used to be tracked as a previous page KEY, which could not survive
+     * the case it exists for: on a page change the incoming page has no
+     * resource yet, so there was no 'loading' status to recognise, the
+     * placeholder branch was skipped, and the key was overwritten with the new
+     * page before it could ever be used — the list blanked on every
+     * navigation. Holding the VALUE needs neither the old resource to still be
+     * cached nor the new one to exist yet.
+     */
+    let lastShownValue: PageState | undefined;
 
-    const currentPageData = craftComputed('currentPageData', function* () {
+    const currentPageValue = function* (): Generator<
+      unknown,
+      { readonly pageKey: string | undefined; readonly hasOwnValue: boolean },
+      unknown
+    > {
       const page = yield* readPaginationReactive(resourceParamsSrc);
       const resources = (yield* readPaginationReactive(
         resourceById,
@@ -276,26 +265,36 @@ export function insertPaginationPlaceholderData<
         Record<string, CraftResourceRef<PageState & object, unknown>>
       >;
       const pageKey = page != null ? identifier(page) : undefined;
-      if (!pageKey) {
-        return config.initialValue;
+      return {
+        pageKey,
+        hasOwnValue:
+          pageKey !== undefined && resources[pageKey]?.value() !== undefined,
+      };
+    };
+
+    const showPlaceHolderData = craftComputed(
+      'showPlaceHolderData',
+      function* () {
+        const { pageKey, hasOwnValue } = yield* currentPageValue();
+        if (!pageKey) {
+          return false;
+        }
+        // Placeholder: the page in the URL has nothing of its own yet, and
+        // rows from an earlier one are still on screen.
+        return !hasOwnValue && lastShownValue !== undefined;
+      },
+    );
+
+    const currentPageData = craftComputed('currentPageData', function* () {
+      const { pageKey, hasOwnValue } = yield* currentPageValue();
+      if (pageKey !== undefined && hasOwnValue) {
+        const settled = (yield* settledState()) as PageState;
+        lastShownValue = settled;
+        return settled;
       }
-      const previousKey = previousPageKey;
-      const currentResource = resources[pageKey];
-      const showPlaceholder =
-        currentResource?.status() === 'loading' &&
-        !currentResource?.value() &&
-        previousKey !== undefined &&
-        resources[previousKey] !== undefined;
-      if (showPlaceholder && previousKey !== undefined) {
-        return resources[previousKey]?.hasValue()
-          ? (resources[previousKey]?.value() as PageState)
-          : config.initialValue;
-      }
-      previousPageKey = pageKey;
-      if (currentResource?.value() === undefined) {
-        return config.initialValue;
-      }
-      return yield* settledState();
+      // Nothing for this page yet: keep what is already on screen instead of
+      // blanking the list, which is the entire point of the placeholder.
+      return lastShownValue ?? config.initialValue;
     });
 
     const currentPageStatus = craftComputed('currentPageStatus', function* () {
