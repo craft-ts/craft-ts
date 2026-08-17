@@ -146,9 +146,14 @@ const GranularMutation = craftComponent(
                             { type: 'button',
                               class: 'action-btn',
                               disabled: function* () {
-                                return updateUserName
-                                  .select((yield* user()).id)
-                                  ?.isLoading();
+                                // `isLoading()` is a reactive read: without
+                                // `yield*` it returns the generator itself,
+                                // which is truthy — every button rendered
+                                // disabled before it had ever been clicked.
+                                const pending = updateUserName.select(
+                                  (yield* user()).id,
+                                );
+                                return pending ? yield* pending.isLoading() : false;
                               },
                               *click() {
                                 yield* updateUserName.mutate(yield* user());

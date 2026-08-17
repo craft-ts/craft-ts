@@ -1413,6 +1413,40 @@ class ElementRenderedNode implements RenderedNode {
       null,
       nested,
     );
+    this.reapplySelectValue(initial);
+  }
+
+  /**
+   * A `<select>` only accepts a `value` that matches one of its `<option>`s,
+   * and props are applied before children are mounted — so the initial
+   * assignment lands on an empty element, is dropped, and the browser falls
+   * back to the first option. The control then disagrees with the state it is
+   * bound to, silently.
+   *
+   * Re-assert it now that the options exist. Later updates arrive through the
+   * binding, by which point there is nothing to correct.
+   */
+  private reapplySelectValue(
+    node: ElementNodeBase<any, any, any, any, any, any, any, any>,
+  ): void {
+    if (this.tag !== 'select') {
+      return;
+    }
+    const value = flattenAttributes(node.props).get('value');
+    if (value === null || value === undefined) {
+      return;
+    }
+    const resolved =
+      typeof value === 'function'
+        ? untracked(() => resolveTemplateValue(value, this.context))
+        : value;
+    applyAttribute(
+      this.context.renderer,
+      this.node,
+      'value',
+      resolved,
+      this.context,
+    );
   }
 
   firstNode(): NativeNode {
