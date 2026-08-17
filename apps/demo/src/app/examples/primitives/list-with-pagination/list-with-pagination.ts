@@ -162,7 +162,11 @@ const ListWithPagination = craftComponent(
             ),
           ),
         ),
-        button('PreviousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
+        button(
+          'PreviousPage',
+          { type: 'button', class: 'btn', click: pagination.previousPage },
+          'Previous',
+        ),
         span(
           'CurrentPage',
           { class: 'current-page' },
@@ -170,7 +174,11 @@ const ListWithPagination = craftComponent(
             return (yield* pagination()).page;
           },
         ),
-        button('NextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
+        button(
+          'NextPage',
+          { type: 'button', class: 'btn', click: pagination.nextPage },
+          'Next',
+        ),
       ]),
     ]);
   },
