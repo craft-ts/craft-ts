@@ -14,8 +14,35 @@ import {
   PersistedQueryById,
   QueriesPersister,
 } from './util/persister.type';
-import { nestedEffect } from './util/types/util';
+import {
+  nestedEffect,
+  selfStoppingNestedEffect,
+} from './util/types/util';
 import { ResourceByIdRef } from './resource-by-id';
+
+/**
+ * The keys registered since the last time, plus the full key set they were
+ * diffed against.
+ *
+ * Carrying `allKeys` is what makes the diff correct: the registration maps are
+ * mutated in place and re-published (`equal: () => false`), so the previous
+ * SOURCE is the very same Map instance as the current one and diffing against
+ * it always yields nothing. Diffing against the previous RESULT — a snapshot
+ * this computation owns — holds whether the computation runs eagerly or is
+ * deferred to a later flush.
+ */
+type NewKeys = { newKeys: string[]; allKeys: string[] } | undefined;
+
+function diffNewKeys(currentKeys: readonly string[], previous: NewKeys): NewKeys {
+  if (currentKeys.length === 0) {
+    return undefined;
+  }
+  const previousKeys = previous?.allKeys ?? [];
+  const newKeys = currentKeys.filter((key) => !previousKeys.includes(key));
+  return newKeys.length > 0
+    ? { newKeys, allKeys: [...currentKeys] }
+    : previous;
+}
 
 export function createStoragePersister(
   prefix: string,
@@ -36,24 +63,10 @@ export function createStoragePersister(
     }
   );
 
-  const newQueryKeysForNestedEffect = linkedSignal<
-    any,
-    { newKeys: string[] } | undefined
-  >({
+  const newQueryKeysForNestedEffect = linkedSignal<any, NewKeys>({
     source: queriesMap,
-    computation: (currentSource, previous) => {
-      if (!currentSource || !Array.from(currentSource.keys()).length) {
-        return undefined;
-      }
-
-      const currentKeys = Array.from(currentSource.keys());
-      const previousKeys = Array.from(previous?.source?.keys() || []);
-      // Find keys that exist in current but not in previous
-      const newKeys = currentKeys.filter(
-        (key) => !previousKeys.includes(key)
-      ) as string[];
-      return newKeys.length > 0 ? { newKeys } : previous?.value;
-    },
+    computation: (currentSource, previous) =>
+      diffNewKeys(Array.from(currentSource?.keys() ?? []), previous?.value),
   });
 
   effect(() => {
@@ -88,9 +101,9 @@ export function createStoragePersister(
       });
 
       if (data?.waitForParamsSrcToBeEqualToPreviousValue) {
-        const waitForParamsSrcToBeEqualToPreviousValueEffect = nestedEffect(
+        selfStoppingNestedEffect(
           _injector,
-          () => {
+          (stop) => {
             const { queryResourceParamsSrc, storageKey, queryResource, staleTime, validate } = data;
             const params = queryResourceParamsSrc();
             if (params === undefined) {
@@ -98,7 +111,7 @@ export function createStoragePersister(
             }
             const storedValue = storage.getItem(storageKey);
             if (!storedValue) {
-              waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+              stop();
               return;
             }
             try {
@@ -107,7 +120,7 @@ export function createStoragePersister(
 
               if (validate && !validate(queryValue)) {
                 storage.removeItem(storageKey);
-                waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+                stop();
                 return;
               }
 
@@ -118,14 +131,14 @@ export function createStoragePersister(
                 isValueExpired(timestamp, data.cacheTime)
               ) {
                 storage.removeItem(storageKey);
-                waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+                stop();
                 return;
               }
 
               const isEqualParams = isEqual(params, queryParams);
               if (!isEqualParams) {
                 storage.removeItem(storageKey);
-                waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+                stop();
                 return;
               }
               if (isEqualParams) {
@@ -134,10 +147,10 @@ export function createStoragePersister(
                   queryResource.reload();
                 }
               }
-              waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+              stop();
             } catch (e) {
               console.error('Error parsing stored value from localStorage', e);
-              waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+              stop();
               return;
             }
           }
@@ -146,23 +159,10 @@ export function createStoragePersister(
     });
   });
 
-  const newQueryByIdKeysForNestedEffect = linkedSignal<
-    any,
-    { newKeys: string[] } | undefined
-  >({
+  const newQueryByIdKeysForNestedEffect = linkedSignal<any, NewKeys>({
     source: queriesByIdMap,
-    computation: (currentSource, previous) => {
-      if (!currentSource || !Array.from(currentSource.keys()).length) {
-        return undefined;
-      }
-
-      const currentKeys = Array.from(currentSource.keys());
-      const previousKeys = Array.from(previous?.source?.keys() || []);
-      const newKeys = currentKeys.filter(
-        (key) => !previousKeys.includes(key)
-      ) as string[];
-      return newKeys.length > 0 ? { newKeys } : previous?.value;
-    },
+    computation: (currentSource, previous) =>
+      diffNewKeys(Array.from(currentSource?.keys() ?? []), previous?.value),
   });
 
   effect(() => {
@@ -180,28 +180,14 @@ export function createStoragePersister(
 
         const { queryByIdResource, queryResourceParamsSrc, storageKey } = data;
 
-        const newRecordInQueryByIdForNestedEffect = linkedSignal<
-          any,
-          { newKeys: string[] } | undefined
-        >({
+        const newRecordInQueryByIdForNestedEffect = linkedSignal<any, NewKeys>({
           source: queryByIdResource,
           computation: (
             currentSource: ReturnType<
               ResourceByIdRef<string, unknown, unknown>
             >,
-            previous
-          ) => {
-            if (!currentSource || !Object.keys(currentSource).length) {
-              return undefined;
-            }
-
-            const currentKeys = Object.keys(currentSource);
-            const previousKeys = Array.from(previous?.source?.keys() || []);
-            const newKeys = currentKeys.filter(
-              (key) => !previousKeys.includes(key)
-            ) as string[];
-            return newKeys.length > 0 ? { newKeys } : previous?.value;
-          },
+            previous,
+          ) => diffNewKeys(Object.keys(currentSource ?? {}), previous?.value),
         });
         newRecordInQueryByIdForNestedEffect()?.newKeys.forEach((newRecord) => {
           const data = untracked(() => queryByIdResource()[newRecord]);
