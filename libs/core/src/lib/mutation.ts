@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  batch,
   computed,
   DestroyRef,
   inject,
@@ -2012,13 +2013,18 @@ function createMutationRef<
               if (methodParamsException()) {
                 methodParamsException.set(undefined);
               }
-              // Bump before the set so both writes land in the same tick and the
-              // resource request changes on every call.
-              methodTriggerSeq.update((n) => n + 1);
-              // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
-              mutationResourceParamsFnSignal.set(
-                paramsResult as MutationParams,
-              );
+              // The nonce and the params it tags are ONE request. Published
+              // separately they are two: the resource would see the new nonce
+              // while the params signal still holds the previous call's value
+              // (`undefined` on the first one) and run the loader on it before
+              // running it again on the real params.
+              batch(() => {
+                methodTriggerSeq.update((n) => n + 1);
+                // set before calling addById below, which reads the params
+                mutationResourceParamsFnSignal.set(
+                  paramsResult as MutationParams,
+                );
+              });
               if (isUsingIdentifier) {
                 const id = mutationConfig.identifier?.(paramsResult as any);
                 (
