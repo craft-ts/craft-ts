@@ -1,22 +1,14 @@
 import {
   assertInInjectionContext,
-  computed,
   DestroyRef,
   inject,
   Injector,
   runInInjectionContext,
-  signal,
-  untracked,
   type CreateComputedOptions,
   type Signal,
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
-import {
-  captureCraftSignalReads,
-  craftComputed as createCraftComputed,
-  craftSignal,
-  craftWatch,
-} from './host/craft-signal';
+import { craftComputed as createCraftComputed } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -174,70 +166,10 @@ export function craftComputed<T>(
       : (computation as () => T);
   }
 
-  const angularRevision = craftSignal(0);
-  let capturedCraftReads: readonly (() => unknown)[] = [];
-  let evaluationVersion = 0;
-  const memoized = createComputedWithOptions(() => {
-    angularRevision();
-    try {
-      return captureCraftSignalReads(evaluate, (reads) => {
-        capturedCraftReads = reads;
-      }).value;
-    } finally {
-      evaluationVersion++;
-    }
-  }, options);
-  const angularMemoRevision = signal(0);
-  let angularMemoInitialized = false;
-  const angularMemo = computed(() => {
-    angularMemoRevision();
-    if (angularMemoInitialized) {
-      angularRevision.update((revision) => revision + 1);
-    }
-    angularMemoInitialized = true;
-    return memoized();
-  });
-  const craftBridgeRevision = signal(0);
-  let craftBridgeWatch: { destroy(): void } | undefined;
-  let installedEvaluationVersion = -1;
-  const installCraftBridge = (): void => {
-    craftBridgeWatch?.destroy();
-    let initialRun = true;
-    craftBridgeWatch = craftWatch(() => {
-      if (initialRun) {
-        for (const read of capturedCraftReads) {
-          read();
-        }
-        return undefined;
-      }
-      untracked(() => craftBridgeRevision.update((revision) => revision + 1));
-      return undefined;
-    });
-    initialRun = false;
-    installedEvaluationVersion = evaluationVersion;
-  };
-  computedInjector.get(DestroyRef).onDestroy(() => craftBridgeWatch?.destroy());
-  let previousCraftBridgeRevision = -1;
-  const result = (() => {
-    const currentCraftBridgeRevision = craftBridgeRevision();
-    if (
-      previousCraftBridgeRevision !== -1 &&
-      currentCraftBridgeRevision !== previousCraftBridgeRevision
-    ) {
-      untracked(() => angularMemoRevision.update((revision) => revision + 1));
-    }
-    try {
-      return angularMemo();
-    } finally {
-      if (
-        !craftBridgeWatch ||
-        installedEvaluationVersion !== evaluationVersion
-      ) {
-        installCraftBridge();
-      }
-      previousCraftBridgeRevision = currentCraftBridgeRevision;
-    }
-  }) as Signal<T>;
+  // One computation, tracked natively. Craft signals ARE the reactive graph
+  // now, so a read inside `evaluate` subscribes this computed on its own —
+  // there is nothing to capture, mirror or re-publish.
+  const result = createComputedWithOptions(evaluate, options) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {

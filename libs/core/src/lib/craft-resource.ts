@@ -3,8 +3,6 @@ import {
   effect,
   inject,
   Injector,
-  signal as ngSignal,
-  untracked as ngUntracked,
   type ResourceLoaderParams,
   type ResourceOptions,
   type ResourceSnapshot,
@@ -12,16 +10,13 @@ import {
   type Signal,
 } from './host/craft-compat';
 import {
-  CRAFT_SIGNAL,
+  craftBatch,
   craftComputed,
   craftSignal,
   craftWatch,
   untracked,
-  type CraftSignal,
 } from './host/craft-signal';
-import { RAW_REACTIVE_VALUE } from './reactive-read';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { angularLinkedSignal } from './host/angular-linked-signal';
 import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
 
 type CraftResourceOptions<Value, Params> = Omit<
@@ -58,9 +53,11 @@ export function craftResource<Value, Params>(
 
   const finishWithError = (version: number, error: unknown): void => {
     if (destroyed || version !== requestVersion) return;
-    valueState.set(undefined);
-    errorState.set(error instanceof Error ? error : new Error(String(error)));
-    statusState.set('error');
+    craftBatch(() => {
+      valueState.set(undefined);
+      errorState.set(error instanceof Error ? error : new Error(String(error)));
+      statusState.set('error');
+    });
   };
 
   const startLoad = (params: Params, reload: boolean): void => {
@@ -71,13 +68,20 @@ export function craftResource<Value, Params>(
     abortController = controller;
     const version = ++requestVersion;
     const previousStatus = statusState();
-    errorState.set(undefined);
-    if (reload && valueState() !== undefined) {
-      statusState.set('reloading');
-    } else {
-      statusState.set('loading');
-      valueState.set(options.defaultValue);
-    }
+    // One transition, one notification. These writes describe a single state,
+    // and every write notifies synchronously — a reader let in between them
+    // sees a resource half in its old state and half in its new one, and code
+    // it wakes (a cache restoring a value, say) is then overwritten by the
+    // rest of this very function.
+    craftBatch(() => {
+      errorState.set(undefined);
+      if (reload && valueState() !== undefined) {
+        statusState.set('reloading');
+      } else {
+        statusState.set('loading');
+        valueState.set(options.defaultValue);
+      }
+    });
     const loaderParams: ResourceLoaderParams<Params> = {
       params: params as Exclude<Params, undefined>,
       abortSignal: controller.signal,
@@ -101,8 +105,10 @@ export function craftResource<Value, Params>(
           ) {
             return;
           }
-          valueState.set(value);
-          statusState.set('resolved');
+          craftBatch(() => {
+            valueState.set(value);
+            statusState.set('resolved');
+          });
         },
         (error) => finishWithError(version, error),
       );
@@ -131,8 +137,10 @@ export function craftResource<Value, Params>(
               if ('error' in item) {
                 finishWithError(version, item.error);
               } else {
-                valueState.set(item.value);
-                statusState.set('resolved');
+                craftBatch(() => {
+                  valueState.set(item.value);
+                  statusState.set('resolved');
+                });
               }
             },
             { injector },
@@ -152,79 +160,37 @@ export function craftResource<Value, Params>(
     if (params === undefined) {
       abortController?.abort();
       ++requestVersion;
-      errorState.set(undefined);
-      if (statusState() !== 'local') {
-        valueState.set(options.defaultValue);
-        statusState.set('idle');
-      }
+      craftBatch(() => {
+        errorState.set(undefined);
+        if (statusState() !== 'local') {
+          valueState.set(options.defaultValue);
+          statusState.set('idle');
+        }
+      });
       return;
     }
     startLoad(params, false);
   };
 
-  const angularParams = options.params
-    ? angularLinkedSignal({
-        source: () => options.params!(),
-        computation: (current) => current,
-        injector,
+  // The params source is a craft signal like everything else, so one watch
+  // keeps the resource in step with it. This used to be an Angular linkedSignal,
+  // an effect reading it, and a craft watch underneath — three ways of noticing
+  // the same change, needed only while two reactive systems had to agree.
+  const paramsWatch = options.params
+    ? craftWatch(() => {
+        const params = options.params!();
+        untracked(() => synchronizeParams(params));
       })
     : undefined;
-  let craftParamsWatch: { destroy(): void } | undefined;
-  const paramsEffect = angularParams
-    ? effect(
-        () => {
-          const params = angularParams();
-          ngUntracked(() => synchronizeParams(params));
-          if (!craftParamsWatch) {
-            ngUntracked(() => {
-              let initialized = false;
-              craftParamsWatch = craftWatch(() => {
-                const craftParams = options.params?.();
-                if (initialized) {
-                  untracked(() => synchronizeParams(craftParams));
-                } else {
-                  initialized = true;
-                }
-              });
-            });
-          }
-        },
-        { injector },
-      )
-    : undefined;
 
-  const graphWatches: { destroy(): void }[] = [];
-  const synchronizeReader = <T>(
-    source: CraftSignal<T>,
-    synchronize = true,
-  ): CraftSignal<T> => {
-    const angularMirror = ngSignal(untracked(source));
-    graphWatches.push(
-      craftWatch(() => {
-        const next = source();
-        ngUntracked(() => angularMirror.set(next));
-      }),
-    );
-    const reader = (() => {
-      if (synchronize && !destroyed && angularParams) {
-        synchronizeParams(angularParams());
-      }
-      angularMirror();
-      return source();
-    }) as CraftSignal<T>;
-    Object.defineProperties(reader, {
-      [CRAFT_SIGNAL]: { value: true, enumerable: false },
-      [RAW_REACTIVE_VALUE]: { value: reader, enumerable: false },
-    });
-    return reader;
-  };
-  const value = synchronizeReader(craftComputed(() => valueState()));
-  const status = synchronizeReader(craftComputed(() => statusState()));
-  const publicIsLoading = synchronizeReader(isLoading, false);
-  const error = synchronizeReader(
-    craftComputed(() => errorState()),
-    false,
-  );
+  // Readers are the state signals themselves. They used to be wrappers that
+  // mirrored each value into an Angular signal AND re-synchronized the params on
+  // every read — a lazy pull that could restart a load from inside an unrelated
+  // read, wiping whatever was being written at the time.
+  const value = craftComputed(() => valueState());
+  const status = craftComputed(() => statusState());
+  const publicIsLoading = isLoading;
+  const error = craftComputed(() => errorState());
   const snapshot = craftComputed(
     () =>
       (status() === 'error'
@@ -239,26 +205,30 @@ export function craftResource<Value, Params>(
     abortController?.abort();
     stopStream?.();
     ++requestVersion;
-    valueState.set(options.defaultValue);
-    errorState.set(undefined);
-    statusState.set('idle');
-    paramsEffect?.destroy();
-    craftParamsWatch?.destroy();
-    angularParams?.destroy();
-    graphWatches.forEach((watch) => watch.destroy());
+    craftBatch(() => {
+      valueState.set(options.defaultValue);
+      errorState.set(undefined);
+      statusState.set('idle');
+    });
+    paramsWatch?.destroy();
   };
   const set = (next: Value | undefined): void => {
     abortController?.abort();
     stopStream?.();
     stopStream = undefined;
     ++requestVersion;
-    valueState.set(next);
-    errorState.set(undefined);
-    statusState.set('local');
-    if (angularParams) {
-      currentParams = ngUntracked(() => angularParams());
+    // Claim the params before publishing: a locally set value belongs to the
+    // params in force, so the watch must not read the write back as a new
+    // request and reload over it.
+    if (options.params) {
+      currentParams = untracked(() => options.params!());
       hasCurrentParams = true;
     }
+    craftBatch(() => {
+      valueState.set(next);
+      errorState.set(undefined);
+      statusState.set('local');
+    });
   };
   const update = (
     updater: (value: Value | undefined) => Value | undefined,
