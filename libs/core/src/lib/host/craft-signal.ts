@@ -1,4 +1,11 @@
-import { computed, effect, setActiveSub, signal } from 'alien-signals';
+import {
+  computed,
+  effect,
+  endBatch,
+  setActiveSub,
+  signal,
+  startBatch,
+} from 'alien-signals';
 import { RAW_REACTIVE_VALUE } from '../reactive-read';
 
 // alien-signals v3 flushes effects synchronously. Outlet view-transition
@@ -14,30 +21,6 @@ export type CraftWritableSignal<T> = CraftSignal<T> & {
   update(fn: (value: T) => T): void;
   asReadonly(): CraftSignal<T>;
 };
-
-let activeCraftReadCollector: Set<CraftSignal<unknown>> | undefined;
-
-function trackCraftRead(value: CraftSignal<unknown>): void {
-  activeCraftReadCollector?.add(value);
-}
-
-export function captureCraftSignalReads<T>(
-  fn: () => T,
-  onReads?: (reads: readonly CraftSignal<unknown>[]) => void,
-): {
-  readonly value: T;
-  readonly reads: readonly CraftSignal<unknown>[];
-} {
-  const previous = activeCraftReadCollector;
-  const reads = new Set<CraftSignal<unknown>>();
-  activeCraftReadCollector = reads;
-  try {
-    return { value: fn(), reads: [...reads] };
-  } finally {
-    activeCraftReadCollector = previous;
-    onReads?.([...reads]);
-  }
-}
 
 type CraftSignalOptions<T> = {
   readonly equal?: (a: T, b: T) => boolean;
@@ -82,27 +65,43 @@ export function craftSignal<T>(
   initial: T,
   options?: CraftSignalOptions<T>,
 ): CraftWritableSignal<T> {
-  const raw = signal(initial);
+  // The value travels in a fresh box on every accepted write. alien-signals
+  // compares the stored value by identity and drops a write that does not
+  // change it — which would silently override `equal`, the very option callers
+  // use to publish an in-place mutation (`map.set(k, v); return map`). Boxing
+  // makes `equal` the only thing that decides whether a write propagates.
+  const raw = signal<{ value: T }>({ value: initial });
   const equal = options?.equal ?? Object.is;
-  const value = (() => {
-    trackCraftRead(value);
-    return raw();
-  }) as CraftWritableSignal<T>;
+  const read = () => raw().value;
+  const value = (() => read()) as CraftWritableSignal<T>;
   value.set = (next) => {
     if (
       !equal(
-        untracked(() => raw()),
+        untracked(read),
         next,
       )
     ) {
-      raw(next);
+      raw({ value: next });
     }
   };
-  value.update = (update) => value.set(update(untracked(() => raw())));
+  value.update = (update) => value.set(update(untracked(read)));
   const branded = brand(value);
   branded.asReadonly = () => craftComputed(() => branded());
   return branded;
 }
+
+/**
+ * A computation's outcome, value or throw. Craft signals suspension
+ * (`CraftNotSettled`) and business exceptions (`CraftGenShortCircuit`) by
+ * throwing out of a computation, and alien-signals leaves a getter that threw
+ * marked CLEAN with its value never assigned — every later read would then hand
+ * back a stale value (or `undefined`) instead of raising again. Settling the
+ * throw into a value keeps the node honest: it is cached, re-raised on read,
+ * and invalidated by the same dependencies as a normal result.
+ */
+type CraftSettlement<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: unknown };
 
 export function craftComputed<T>(compute: () => T): CraftSignal<T>;
 export function craftComputed<T>(
@@ -115,16 +114,26 @@ export function craftComputed<T>(
 ): CraftSignal<T> {
   const equal = options?.equal ?? Object.is;
   let hasPrevious = false;
-  const derived = computed<T>((previous) => {
-    const next = compute();
+  const derived = computed<CraftSettlement<T>>((previous) => {
+    let next: CraftSettlement<T>;
+    try {
+      next = { ok: true, value: compute() };
+    } catch (error) {
+      next = { ok: false, error };
+    }
+    // Identity is preserved only between two equal VALUES: a throw is never
+    // equal to anything, so a recovering computation always notifies.
     const result =
-      hasPrevious && equal(previous as T, next) ? (previous as T) : next;
+      hasPrevious && previous?.ok && next.ok && equal(previous.value, next.value)
+        ? previous
+        : next;
     hasPrevious = true;
     return result;
   });
   const value = (() => {
-    trackCraftRead(value);
-    return derived();
+    const settlement = derived();
+    if (!settlement.ok) throw settlement.error;
+    return settlement.value;
   }) as CraftSignal<T>;
   return withAsReadonly(brand(value)) as CraftSignal<T>;
 }
@@ -160,10 +169,7 @@ export function craftLinkedSignal<T>(options: {
     hasComputedValue = true;
     return result;
   });
-  const value = (() => {
-    trackCraftRead(value);
-    return derived();
-  }) as CraftWritableSignal<T>;
+  const value = (() => derived()) as CraftWritableSignal<T>;
   value.set = (next) => {
     if (!hasSource) {
       previousSource = untracked(options.source);
@@ -189,6 +195,24 @@ export function craftWatch(
   // independently-owned watch is not disposed with a transient parent effect.
   const destroy = untracked(() => effect(fn));
   return { destroy };
+}
+
+/**
+ * Publishes every write made inside `fn` as ONE update: readers and effects run
+ * after the last write, never between two of them.
+ *
+ * Craft effects run synchronously, so two writes that only make sense together
+ * — a nonce and the params it tags, a value and the status that describes it —
+ * have to say so, or a reader woken by the first one observes the half-written
+ * state and acts on it.
+ */
+export function craftBatch<T>(fn: () => T): T {
+  startBatch();
+  try {
+    return fn();
+  } finally {
+    endBatch();
+  }
 }
 
 export function untracked<T>(fn: () => T): T {

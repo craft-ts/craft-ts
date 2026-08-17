@@ -10,6 +10,7 @@ import {
   type CraftToken,
 } from './craft-injector';
 import {
+  craftBatch,
   craftComputed,
   craftLinkedSignal,
   craftSignal,
@@ -710,6 +711,10 @@ export function effect(
 
 export function untracked<T>(fn: () => T): T {
   return craftUntracked(fn);
+}
+
+export function batch<T>(fn: () => T): T {
+  return craftBatch(fn);
 }
 
 function isAngularSignalLike(value: unknown): boolean {
