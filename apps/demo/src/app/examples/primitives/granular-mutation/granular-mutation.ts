@@ -8,6 +8,7 @@ import {
   main,
   option,
   select,
+  pendingBlock,
   span,
   table,
   thead,
@@ -112,9 +113,15 @@ const GranularMutation = craftComponent(
           div({ class: 'card' }, [
             heading({ class: 'card-title' }, [
               'User Management: ',
-              StatusComponent({
-                status: usersQuery.currentPageStatus,
-              }),
+              // `currentPageStatus` is a settled read: it suspends whenever the
+              // page on screen has no value of its own. Its own boundary keeps
+              // the suspension off the rows, which the placeholder insertion
+              // keeps showing across a page change.
+              span({}, [
+                StatusComponent({
+                  status: usersQuery.currentPageStatus,
+                }),
+              ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
             ]),
             div({ class: 'table-container' }, [
               table( { class: 'table' }, [

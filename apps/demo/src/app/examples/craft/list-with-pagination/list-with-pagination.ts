@@ -9,6 +9,7 @@ import {
   main,
   option,
   select,
+  pendingBlock,
   span,
   table,
   thead,
@@ -111,9 +112,15 @@ const ListWithPaginationCraft = craftComponent(
           div({ class: 'card' }, [
             heading({ class: 'card-title' }, [
               'User Management: ',
-              StatusComponent({
-                status: store.users.currentPageStatus,
-              }),
+              // `currentPageStatus` is a settled read: it suspends whenever the
+              // page on screen has no value of its own. Its own boundary keeps
+              // the suspension off the rows, which the placeholder insertion
+              // keeps showing across a page change.
+              span({}, [
+                StatusComponent({
+                  status: store.users.currentPageStatus,
+                }),
+              ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
               span(
                 'TotalUsers',
                 { class: 'current-page' },
@@ -122,6 +129,9 @@ const ListWithPaginationCraft = craftComponent(
                 },
               ),
             ]),
+            // Only reached on the very first load: once a page has been
+            // shown, the placeholder keeps `currentPageData` non-empty, so the
+            // empty slot — and the settled read inside it — never runs again.
             div({ class: 'table-container' }, [
               table( { class: 'table' }, [
                 thead( tr( [th( 'ID'), th( 'Name')])),
@@ -160,7 +170,7 @@ const ListWithPaginationCraft = craftComponent(
                   ),
                 ),
               ]),
-            ]),
+            ]).pipe(pendingBlock({ fallback: () => div('⏳ Loading users…') })),
             div({ class: 'pagination' }, [
               select(
                 'PageSize',

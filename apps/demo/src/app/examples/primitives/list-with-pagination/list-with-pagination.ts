@@ -7,6 +7,7 @@ import {
   each,
   ifBlock,
   option,
+  pendingBlock,
   select,
   span,
   heading,
@@ -91,12 +92,20 @@ const ListWithPagination = craftComponent(
     return { pagination, usersQuery, updatePageSize };
   },
   ({ pagination, usersQuery, updatePageSize }) => {
+    // `currentPageStatus` is a settled read: it suspends whenever the page on
+    // screen has no value of its own — on the first load, and again on every
+    // page change. The badge and the table each get their OWN boundary, so a
+    // page change suspends the badge alone while the table keeps showing the
+    // previous page's rows, which is the whole point of the placeholder
+    // insertion. One boundary around both would hide them.
     return div([
       heading([
         'User Management: ',
-        StatusComponent({
-          status: usersQuery.currentPageStatus,
-        }),
+        span({}, [
+          StatusComponent({
+            status: usersQuery.currentPageStatus,
+          }),
+        ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
       ]),
       table(
         { class: 'table' },
@@ -127,7 +136,10 @@ const ListWithPagination = craftComponent(
               ]),
           ),
         ),
-      ),
+      // Only reached on the very first load: once a page has been shown, the
+      // placeholder keeps `currentPageData` non-empty, so the empty slot (and
+      // the settled read inside it) never runs again.
+      ).pipe(pendingBlock({ fallback: () => div('⏳ Loading users…') })),
       div({ class: 'pagination' }, [
         select(
           'PageSize',
