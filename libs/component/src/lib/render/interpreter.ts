@@ -2783,6 +2783,10 @@ class PendingBlockRenderedNode implements RenderedNode {
   private reloadWatch: EffectRef | undefined;
   private reloadingSource: string | undefined;
   private detached: DocumentFragment | undefined;
+  /** Depth of an in-flight render into the source range. */
+  private rendering = 0;
+  /** A fallback render asked for while the source range was mid-render. */
+  private renderDeferred = false;
 
   private node: PendingBlockNode<any, any, any, any>;
   private readonly parent: NativeParent;
@@ -2818,16 +2822,41 @@ class PendingBlockRenderedNode implements RenderedNode {
         parent,
         this.end,
         this.boundaryContext(),
-        [node.source],
+        [],
         'craft-pending-source',
       );
 
+    // Both ranges are staked out EMPTY first. A binding below this boundary
+    // suspends on its very first run, synchronously, from inside the source
+    // range's own construction — so both views have to exist (and the range has
+    // to be complete) before that first run happens.
     if (this.position === 'before') {
       this.fallbackView = createFallback();
       this.sourceView = createSource();
     } else {
       this.sourceView = createSource();
       this.fallbackView = createFallback();
+    }
+
+    this.renderSource([node.source]);
+  }
+
+  /**
+   * Fills the source range, deferring any fallback render that a synchronous
+   * suspension asks for until the range is whole again. Rendering the fallback
+   * mid-pass would detach the range out from under the insertion that is still
+   * walking it.
+   */
+  private renderSource(children: CraftNodeChildren): void {
+    this.rendering += 1;
+    try {
+      this.sourceView.patchChildren(children);
+    } finally {
+      this.rendering -= 1;
+    }
+    if (this.rendering === 0 && this.renderDeferred) {
+      this.renderDeferred = false;
+      this.renderFallback();
     }
   }
 
@@ -2848,12 +2877,10 @@ class PendingBlockRenderedNode implements RenderedNode {
       return false;
     }
     this.node = next;
-    this.sourceView.patchChildren([next.source]);
-    if (this.held.size > 0) {
-      // A re-render re-materialises the source range: hide it again.
-      this.detached = undefined;
-      this.showFallback();
-    }
+    // A re-render re-materialises the source range: hide it again.
+    if (this.held.size > 0) this.detached = undefined;
+    this.renderSource([next.source]);
+    if (this.held.size > 0) this.showFallback();
     return true;
   }
 
@@ -2916,7 +2943,7 @@ class PendingBlockRenderedNode implements RenderedNode {
     if (reloading === this.reloadingSource) return;
     this.reloadingSource = reloading;
     // A suspension outranks a reload: it already owns the fallback slot.
-    if (this.held.size === 0) this.renderFallback();
+    if (this.held.size === 0) this.requestFallbackRender();
   }
 
   private suspend(token: object, source: string): void {
@@ -3003,10 +3030,18 @@ class PendingBlockRenderedNode implements RenderedNode {
   }
 
   private showFallback(): void {
-    this.renderFallback();
+    this.requestFallbackRender();
   }
 
   private hideFallback(): void {
+    this.requestFallbackRender();
+  }
+
+  private requestFallbackRender(): void {
+    if (this.rendering > 0) {
+      this.renderDeferred = true;
+      return;
+    }
     this.renderFallback();
   }
 
