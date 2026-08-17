@@ -132,6 +132,12 @@ export function craftComputed<T>(
   });
   const value = (() => {
     const settlement = derived();
+    // A computed read from inside its own first evaluation has nothing settled
+    // yet, and alien-signals hands back the node's still-unassigned value. That
+    // is a cycle in the graph, and it stays the caller's to resolve — but it
+    // reads as `undefined`, exactly as it did before outcomes were boxed, and
+    // not as a TypeError raised in here about a wrapper the caller never saw.
+    if (settlement === undefined) return undefined as T;
     if (!settlement.ok) throw settlement.error;
     return settlement.value;
   }) as CraftSignal<T>;
