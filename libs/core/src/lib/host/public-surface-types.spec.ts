@@ -7,18 +7,22 @@ type _SignalSourceStaysYieldable = AssertAssignable<
   YieldableReactiveValue<number | undefined, string>,
   SignalSource<number>
 >;
-// @ts-expect-error Angular Signal must not leak from the public index
-import type { Signal } from '@craft-ng/core';
+// Craft owns these four outright now — they name generic concepts an app
+// authors against (a value that changes, a teardown hook, a way to register
+// something, a handle to stop an effect), not Angular ones. The public index
+// exports them on purpose; importing them here is the assertion.
+import type {
+  DestroyRef,
+  EffectRef,
+  Provider,
+  Signal,
+} from '@craft-ng/core';
+type _CraftOwnedSurface = [Signal<number>, DestroyRef, Provider, EffectRef];
+
 // @ts-expect-error Angular Injector must not leak from the public index
 import type { Injector } from '@craft-ng/core';
-// @ts-expect-error Angular DestroyRef must not leak from the public index
-import type { DestroyRef } from '@craft-ng/core';
-// @ts-expect-error Angular Provider must not leak from the public index
-import type { Provider } from '@craft-ng/core';
 // @ts-expect-error Angular Type must not leak from the public index
 import type { Type } from '@craft-ng/core';
-// @ts-expect-error Angular EffectRef must not leak from the public index
-import type { EffectRef } from '@craft-ng/core';
 // @ts-expect-error Angular HttpClient must not leak from the public index
 import type { HttpClient } from '@craft-ng/core';
 // @ts-expect-error Angular HttpParams must not leak from the public index

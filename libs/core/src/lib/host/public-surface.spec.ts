@@ -72,14 +72,12 @@ describe('public surface', () => {
     expect(decorated).toEqual([]);
   });
 
-  it('keeps TestBed specs on the Angular unit-test target', () => {
+  it('runs the core suite off a plain command, with no Angular target left', () => {
     const project = JSON.parse(readFileSync(coreProject, 'utf8')) as {
-      targets: { test: { executor: string }; 'test-angular': { executor: string } };
+      targets: Record<string, { executor: string }>;
     };
-    expect(project.targets.test.executor).toBe('nx:run-commands');
-    expect(project.targets['test-angular'].executor).toBe(
-      '@nx/angular:unit-test',
-    );
+    expect(project.targets['test'].executor).toBe('nx:run-commands');
+    expect(Object.keys(project.targets)).not.toContain('test-angular');
   });
 
   it('does not export toCraftService or injectService from the core barrel', async () => {
@@ -88,13 +86,17 @@ describe('public surface', () => {
     expect('injectService' in core).toBe(false);
   });
 
-  it('covers the default vitest suite beyond host and state', () => {
+  // The Angular exit narrowed this suite to a handful of files, which hid a
+  // batch of real regressions until it was widened again. Whole directories, or
+  // the guard is worthless.
+  it('runs every core and component spec, with nothing carved out', () => {
     const vitestConfig = readFileSync(
-      join(here, '../../../vitest.config.ts'),
+      join(here, '../../../../../vitest.config.ts'),
       'utf8',
     );
-    expect(vitestConfig).toContain("include: ['src/**/*.spec.ts']");
-    expect(vitestConfig).toContain('test-angular');
+    expect(vitestConfig).toContain("'libs/core/src/**/*.spec.ts'");
+    expect(vitestConfig).toContain("'libs/component/src/**/*.spec.ts'");
+    expect(vitestConfig).not.toMatch(/^\s*exclude:/m);
   });
 
   it(
@@ -108,13 +110,14 @@ describe('public surface', () => {
     },
   );
 
-  it('declares @angular/common as a peer of @craft-ng/angular', () => {
+  it('ships no Angular peer dependency', () => {
     const pkg = JSON.parse(
-      readFileSync(
-        join(here, '../../../../angular/package.json'),
-        'utf8',
+      readFileSync(join(here, '../../../package.json'), 'utf8'),
+    ) as { peerDependencies?: Record<string, string> };
+    expect(
+      Object.keys(pkg.peerDependencies ?? {}).filter((name) =>
+        name.startsWith('@angular/'),
       ),
-    ) as { peerDependencies: Record<string, string> };
-    expect(pkg.peerDependencies['@angular/common']).toBe('^21.0.0');
+    ).toEqual([]);
   });
 });
