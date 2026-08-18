@@ -1,14 +1,4 @@
 
-/**
- * A stand-in DI token. These specs never drove a real router — they only
- * needed some external service to adapt through `toCraftService`.
- */
-class Router {
-  readonly url: string = '/';
-  navigateByUrl(_url: string): Promise<boolean> {
-    return Promise.resolve(true);
-  }
-}
 import {
   Injector,
 } from './host/craft-compat';
@@ -18,7 +8,7 @@ import { craftGen, CraftGenShortCircuit } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
 import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
-import { provideCraftRouter } from './craft-router';
+import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 
 declare module './craft-router' {
@@ -41,7 +31,7 @@ const router = {
   createUrlTree: () => ({}) as unknown,
   navigate: () => Promise.resolve(true),
   navigateByUrl: () => Promise.resolve(true),
-} as unknown as Router;
+} as unknown as typeof CRAFT_ROUTER;
 
 function* returns<T>(value: T): Generator<unknown, T, unknown> {
   return value;
@@ -332,13 +322,13 @@ describe('runCraftRouteChainAsync', () => {
     const activeRouter = {
       ...router,
       createUrlTree: () => target,
-    } as unknown as Router;
+    } as unknown as typeof CRAFT_ROUTER;
     const activeInjector = Injector.create({
       providers: [
         // provideCraftRouter's type admits EnvironmentProviders, but with no
         // features it only returns plain providers — safe for Injector.create.
-        ...(provideCraftRouter([]) as import('@angular/core').Provider[]),
-        { provide: Router, useValue: activeRouter },
+        ...provideCraftRouter([]),
+        { provide: CRAFT_ROUTER, useValue: activeRouter },
         { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
         { provide: FN_WRAPPER, useValue: [] },
         { provide: FN_WRAP_OBSERVER, useValue: [] },

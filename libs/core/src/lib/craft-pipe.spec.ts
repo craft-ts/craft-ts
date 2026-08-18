@@ -690,7 +690,7 @@ describe('craftPipe — injector capture timing', () => {
           ),
         ),
       ),
-    ).toThrowError(/NG0203|injection context/);
+    ).toThrowError(/injection context/);
   });
 
   it('constructed inside a context, insertion methods stay callable outside any context', async () => {

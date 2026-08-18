@@ -133,7 +133,6 @@ describe('queryParams', () => {
 
       expect(craftUse(myQueryParams.page())).toBe(1);
       expect(craftUse(myQueryParams.pageSize())).toBe(10);
-      console.log('myQueryParams', myQueryParams);
       myQueryParams.set({
         page: 2,
         pageSize: 20,

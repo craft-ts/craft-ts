@@ -1,18 +1,6 @@
 import {
   TitleStrategy,
 } from './host/craft-router-types';
-import { provideCraftRouter as provideRouter } from './craft-router';
-
-/**
- * A stand-in DI token. These specs never drove a real router — they only
- * needed some external service to adapt through `toCraftService`.
- */
-class Router {
-  readonly url: string = '/';
-  navigateByUrl(_url: string): Promise<boolean> {
-    return Promise.resolve(true);
-  }
-}
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { isCraftLoadingFeature } from './craft-pending';
@@ -21,6 +9,11 @@ import {
   createCraftTitleStrategy,
   withA11yNavigationFocus,
 } from './craft-a11y';
+import {
+  CRAFT_MATCH,
+  CRAFT_ROUTER,
+  provideCraftRouter as provideRouter,
+} from './craft-router';
 
 class TitleProbeComponent {}
 
@@ -53,7 +46,8 @@ describe('craft a11y navigation', () => {
         { provide: TitleStrategy, useFactory: createCraftTitleStrategy },
       ],
     });
-    const router = TestBed.inject(Router);
+    TestBed.inject(CRAFT_MATCH);
+    const router = TestBed.inject(CRAFT_ROUTER);
     await router.navigateByUrl('/hello');
     expect(document.title).toBe('Hello page');
   });

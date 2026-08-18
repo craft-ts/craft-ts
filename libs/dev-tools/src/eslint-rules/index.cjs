@@ -1,6 +1,5 @@
 const appStartRegistryMatch = require('./app-start-registry-match.cjs');
 const globalExceptionRegistryMatch = require('./global-exception-registry-match.cjs');
-const componentTestGenDepsMatch = require('./component-test-gen-deps-match.cjs');
 const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
@@ -68,7 +67,6 @@ const plugin = {
   rules: {
     'app-start-registry-match': appStartRegistryMatch,
     'global-exception-registry-match': globalExceptionRegistryMatch,
-    'component-test-gen-deps-match': componentTestGenDepsMatch,
     'craft-method-name-match': craftMethodNameMatch,
     'craft-computed-name-match': craftComputedNameMatch,
     'craft-source-name-match': craftSourceNameMatch,

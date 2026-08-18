@@ -297,6 +297,15 @@ export function craftAppConfig<
   };
 }
 
+/** Returns a fresh host application config containing the Craft providers. */
+export function toApplicationConfig(
+  config: Pick<CraftAppConfigResult<readonly unknown[]>, 'providers'>,
+): ApplicationConfig {
+  return {
+    providers: [...config.providers] as ApplicationConfig['providers'],
+  };
+}
+
 function collectProvidedServiceNames(
   values: readonly unknown[],
   names: Set<string> = new Set(),

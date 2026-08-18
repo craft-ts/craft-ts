@@ -72,7 +72,7 @@ import {
   type CraftToken,
   ɵregisterCraftTokenHostToken,
 } from './host/craft-injector';
-import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;

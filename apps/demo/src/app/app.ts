@@ -22,7 +22,7 @@ import {
   type CraftRouterLinkInput,
   state,
 } from '@craft-ng/core';
-import { demoEnabledRoutePaths } from './app.routes.runtime';
+import { demoEnabledRoutePaths } from './app.routes';
 
 const DOCS_URL = 'https://ng-angular-stack.github.io/craft/';
 const FEEDBACK_URL = 'https://github.com/ng-angular-stack/ng-craft/discussions';

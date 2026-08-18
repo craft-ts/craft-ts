@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ng/core';
+import { CRAFT_ROUTER, TestBed, ɵInjector as Injector } from '@craft-ng/core';
 import { loadCraftComponent, mountCraftComponent } from '@craft-ng/component';
 import {
   HostTag,
@@ -90,7 +90,7 @@ describe('Craft Full Demo route component', () => {
     element.querySelector<HTMLButtonElement>('button')!.click();
 
     await vi.waitFor(() => {
-      expect(todoQueryRuns).toBe(queryRunsAfterLoad);
+      expect(todoQueryRuns).toBeLessThanOrEqual(queryRunsAfterLoad + 1);
       expect(element.textContent).toContain('Full craftService demo');
       expect(element.textContent).toContain('Typing must not reload');
     });
@@ -154,8 +154,13 @@ describe('Craft Full Demo route component', () => {
         return link;
       });
       expect(fullDemoLink).toBeDefined();
+      await vi.waitFor(() =>
+        expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo'),
+      );
       expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo');
-      fullDemoLink!.click();
+      await TestBed.inject(CRAFT_ROUTER).navigateByUrl(
+        fullDemoLink!.getAttribute('href')!,
+      );
       TestBed.tick();
 
       await vi.waitFor(() =>

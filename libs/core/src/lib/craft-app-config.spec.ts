@@ -1,4 +1,5 @@
 import {
+  ApplicationInitStatus,
   InjectionToken,
   Type,
 } from './host/craft-compat';

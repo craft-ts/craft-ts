@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { provideCraftRouter as provideRouter } from '@craft-ng/core';
 import {
+  deepYieldable,
+  markYieldableMethod,
+  markYieldableValue,
+} from '@craft-ng/core';
+import {
   ComponentLogicOutputOf,
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
@@ -115,27 +120,36 @@ function createTemplateContext(
   loadingUserIds = new Set<string>(),
 ) {
   const paginationState = { page: 1, pageSize: 4 };
-  const pagination = Object.assign(
-    vi.fn(() => ({ ...paginationState })),
+  const pagination = deepYieldable(Object.assign(
+    vi.fn(function* () {
+      return { ...paginationState };
+    }),
     {
-      previousPage: vi.fn(),
-      nextPage: vi.fn(),
-      updatePageSize: vi.fn((pageSize: number) => {
+      previousPage: markYieldableMethod(vi.fn()),
+      nextPage: markYieldableMethod(vi.fn()),
+      updatePageSize: markYieldableMethod(vi.fn((pageSize: number) => {
         paginationState.pageSize = pageSize;
-      }),
+      })),
     },
-  );
-  const mutate = vi.fn(function* (user: User) {
+  ));
+  const mutate = markYieldableMethod(vi.fn(function* (user: User) {
     return user;
-  });
+  }));
   const selectOrCreate = vi.fn((userId: string) => ({
-    isLoading: vi.fn(() => loadingUserIds.has(userId)),
-    status: vi.fn(() => 'idle' as const),
+    isLoading: function* () {
+      return loadingUserIds.has(userId);
+    },
+    status: function* () {
+      return 'idle' as const;
+    },
   }));
   const updateUserName = { mutate, selectOrCreate };
   const usersStore = {
-    currentPageData: vi.fn(() => users),
-    currentPageStatus: vi.fn(() => 'resolved' as const),
+    currentPageData: markYieldableValue(vi.fn(() => users), 'currentPageData'),
+    currentPageStatus: markYieldableValue(
+      vi.fn(() => 'resolved' as const),
+      'currentPageStatus',
+    ),
   };
 
   return {

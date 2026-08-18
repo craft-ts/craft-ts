@@ -153,14 +153,23 @@ function createTemplateContext(
   );
   const goTo = vi.fn();
   const userQuery = {
-    status: vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
+    status: markYieldableValue(
+      vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
+      'status',
+    ),
     hasUser: markYieldableValue(signal(user !== undefined), 'hasUser'),
-    value: vi.fn(() => user),
+    value: markYieldableValue(vi.fn(() => user), 'value'),
   };
   const updateUserName = {
-    isLoading: vi.fn(() => mutationLoading),
-    status: vi.fn(() =>
-      mutationLoading ? ('loading' as const) : ('idle' as const),
+    isLoading: markYieldableValue(
+      vi.fn(() => mutationLoading),
+      'isLoading',
+    ),
+    status: markYieldableValue(
+      vi.fn(() =>
+        mutationLoading ? ('loading' as const) : ('idle' as const),
+      ),
+      'status',
     ),
   };
 

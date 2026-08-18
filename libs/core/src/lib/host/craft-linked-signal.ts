@@ -16,11 +16,10 @@ type PreviousValue<Source, Value> = {
 };
 
 /**
- * Angular linkedSignal bridged to Craft-native dependencies.
+ * A linked signal bridged to Craft-native dependencies.
  *
- * The Angular source remains responsible for Angular dependency tracking. The
- * synchronous Craft watch only increments an Angular revision when the source
- * reads an alien-signals value.
+ * The synchronous Craft watch increments a revision when the source reads a
+ * Craft signal, allowing the linked signal to recompute from both systems.
  */
 function optionalDestroyRef(injector?: Injector): DestroyRef | null {
   if (injector) {
@@ -33,11 +32,11 @@ function optionalDestroyRef(injector?: Injector): DestroyRef | null {
   }
 }
 
-export type AngularLinkedSignal<T> = WritableSignal<T> & {
+export type CraftLinkedSignal<T> = WritableSignal<T> & {
   destroy(): void;
 };
 
-export function angularLinkedSignal<Source, Value>(options: {
+export function craftLinkedSignal<Source, Value>(options: {
   readonly source: () => Source;
   readonly computation: (
     source: Source,
@@ -46,7 +45,7 @@ export function angularLinkedSignal<Source, Value>(options: {
   readonly equal?: ValueEqualityFn<Value>;
   readonly debugName?: string;
   readonly injector?: Injector;
-}): AngularLinkedSignal<Value> {
+}): CraftLinkedSignal<Value> {
   const destroyRef = optionalDestroyRef(options.injector);
   const revision = signal(0);
   let initialized = false;

@@ -269,8 +269,8 @@ describe('createStoragePersister', () => {
 
       expect(queryResource.value()).toEqual(undefined);
       queryParamsFnSignal.set({ id: 1 });
-      expect(queryResource.status()).toBe('loading');
-      flushHost();
+      // Craft effects flush synchronously, so the cache restore completes in
+      // the same turn as the params write.
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
@@ -936,9 +936,10 @@ describe('createStoragePersister', () => {
       });
 
       expect(reloadSpy).toHaveBeenCalledOnce();
-      // No params request is active in this scenario; Angular keeps the raw
-      // resource status at `idle`. The reload call above is the contract.
-      expect(queryResource.status()).toBe('idle');
+      // With no active params request, a restored value remains local. The
+      // reload call above is the contract; there is no Angular status mirror
+      // to transiently report idle here.
+      expect(queryResource.status()).toBe('local');
     });
   });
 });

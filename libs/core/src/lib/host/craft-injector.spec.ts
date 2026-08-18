@@ -8,7 +8,7 @@ import {
   createCraftInjector,
   getCurrentCraftInjector,
 } from './craft-injector';
-import { ɵcraftInjectorFromHost } from './angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './craft-injector-host';
 
 describe('CraftInjector', () => {
   it('resolves a factory provider from the same injector', () => {

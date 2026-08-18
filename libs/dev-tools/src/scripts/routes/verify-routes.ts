@@ -1000,6 +1000,8 @@ export const { VerifyMissingService, provideVerifyMissingService } = craftServic
   () => ({ value: 1 }),
 );
 
+export type Router = { readonly __routeVerifierRouter: unique symbol };
+
 export class VerifyComponent {}
 export class VerifyPendingComponent {}
 export class VerifyErrorComponent {}
@@ -1025,22 +1027,15 @@ export type InputDeps = GetDeps<{
 `;
 
   const validRoutes = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import {
   assertExhaustiveRouteExceptions,
-  craftException,
-  craftExceptionHandler,
-  craftGen,
   craftRoute,
   craftRoutes,
   type CanRun,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
-
-const verifyFailure = craftGen(function* () {
-  return craftException({ code: 'VERIFY_FAILURE' });
-});
 
 export const { validRoutes } = craftRoutes('valid', [
   craftRoute('app-provider', {
@@ -1050,10 +1045,7 @@ export const { validRoutes } = craftRoutes('valid', [
   craftRoute('exceptions', {
     loadComponent: ({ withRetry }: import('@craft-ng/core').CraftRouteLazyLoadHelpers) => withRetry(import('./support')).then(({ VerifyComponent }) => VerifyComponent),
     componentDeps: {} as ProvidedDeps,
-    canMatch: function* () { return yield* verifyFailure(); },
-    canActivate: function* () { return yield* verifyFailure(); },
-    resolve: function* () { return yield* verifyFailure(); },
-  }, { VERIFY_FAILURE: craftExceptionHandler(function* ({ noop }) { return noop(); }) }),
+  }),
 ]);
 
 assertExhaustiveRouteExceptions(validRoutes);
@@ -1062,7 +1054,7 @@ type _CanRunValid = CanRun<_CheckValidDI>;
 `;
 
   const lazyParent = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 
 export const { lazyParentRoutes } = craftRoutes('lazyParent', [
@@ -1078,7 +1070,7 @@ type _CanRunLazyParent = CanRun<_CheckLazyParentDI>;
 `;
 
   const routeProvider = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI } from '@craft-ng/core';
 import { MissingDeps, provideVerifyMissingService } from './support';
 
@@ -1100,7 +1092,7 @@ type _CanRunRouteProvider = CanRun<_CheckRouteProviderDI>;
 `;
 
   const lazyChild = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
 
@@ -1116,7 +1108,7 @@ type _CanRunLazyChild = CanRun<_CheckLazyChildDI>;
 `;
 
   const pending = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
 
@@ -1140,7 +1132,7 @@ type _CanRunPendingComponent = CanRun<_CheckPendingComponentDI>;
 `;
 
   const exceptionComponents = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import {
   RouteExceptionComponentCheckedDI,
   craftExceptionHandler,
@@ -1194,10 +1186,8 @@ type _CanRunRouteError = CanRun<_CheckRouteErrorDI>;
 `;
 
   const templatePipe = `
-import { Pipe } from '@angular/core';
 import type { GetDeps } from '@craft-ng/core';
 
-@Pipe({ name: 'verifyTemplate', standalone: true })
 export class VerifyTemplatePipe {
   transform(value: string): string {
     return value;
@@ -1213,22 +1203,24 @@ export type GenDeps_VerifyTemplatePipe = GetDeps<{
 
   const templateComponent = `
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-import { Component } from '@angular/core';
+import type { GetDeps, GetServiceDependencies } from '@craft-ng/core';
 import { VerifyTemplatePipe } from './template-pipe';
 import { VerifyMissingService } from './support';
 
-@Component({
-  standalone: true,
-  imports: [VerifyTemplatePipe],
-  template: '{{ value | verifyTemplate }}',
-})
 export class TemplateMissingComponent {
   readonly value = 'verify';
 }
+
+export type GenDeps_TemplateMissingComponent = GetDeps<{
+  deps: { VerifyMissingService: GetServiceDependencies<typeof VerifyMissingService> };
+  provided: {};
+  missingProvider: { VerifyMissingService: GetServiceDependencies<typeof VerifyMissingService> };
+  publicProperties: {};
+}>;
 `;
 
   const templateRoutes = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI } from '@craft-ng/core';
 
 export const { templateRoutes } = craftRoutes('template', [
@@ -1248,7 +1240,7 @@ type _CanRunTemplate = CanRun<_CheckTemplateDI>;
 `;
 
   const missingProvider = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { MissingDeps } from './support';
 
@@ -1264,7 +1256,7 @@ type _CanRunMissingProvider = CanRun<_CheckMissingProviderDI>;
 `;
 
   const missingInput = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { InputDeps } from './support';
 
@@ -1280,7 +1272,7 @@ type _CanRunMissingInput = CanRun<_CheckMissingInputDI>;
 `;
 
   const pendingMissing = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
 
@@ -1304,7 +1296,7 @@ type _CanRunPendingMissingComponent = CanRun<_CheckPendingMissingComponentDI>;
 `;
 
   const exceptionMissing = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { RouteExceptionComponentCheckedDI, type CanRun } from '@craft-ng/core';
 import { MissingDeps } from './support';
 
@@ -1318,7 +1310,7 @@ type _CanRunExceptionComponent = CanRun<_CheckExceptionComponentDI>;
 `;
 
   const exceptionMissingRoutes = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { assertExhaustiveRouteExceptions, craftException, craftGen, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
 
@@ -1342,7 +1334,7 @@ type _CanRunExceptionMissing = CanRun<_CheckExceptionMissingDI>;
 `;
 
   const exceptionExtraRoutes = `
-import type { Router } from '@angular/router';
+import type { Router } from './support';
 import { assertExhaustiveRouteExceptions, craftException, craftExceptionHandler, craftGen, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
 

@@ -12,7 +12,7 @@ import {
   type EffectRef,
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
-import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import { craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,

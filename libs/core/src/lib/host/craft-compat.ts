@@ -274,6 +274,43 @@ export const APP_INITIALIZER = new InjectionToken<Array<() => unknown>>(
   { factory: () => [], multi: true },
 );
 
+/**
+ * Pure-Craft equivalent of Angular's initialization status.
+ *
+ * Initializers are invoked synchronously when the status is first resolved;
+ * the promise only represents completion of any asynchronous results they
+ * return. That keeps startup side effects observable immediately while still
+ * giving hosts one completion point to await.
+ */
+export class ApplicationInitStatus {
+  private _done = false;
+  readonly donePromise: Promise<void>;
+
+  constructor(
+    initializers: readonly (() => unknown)[],
+    run: <T>(initializer: () => T) => T = (initializer) => initializer(),
+  ) {
+    this.donePromise = new Promise<void>((resolve, reject) => {
+      try {
+        const results = initializers.map((initializer) => run(initializer));
+        void Promise.all(results).then(
+          () => {
+            this._done = true;
+            resolve();
+          },
+          reject,
+        );
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  get done(): boolean {
+    return this._done;
+  }
+}
+
 export class ErrorHandler {
   handleError(error: unknown): void {
     console.error(error);
@@ -571,6 +608,13 @@ export function createEnvironmentInjector(
     { token: DestroyRef, useValue: destroyRef },
     { token: INJECTOR_TOKEN, useFactory: (injector) => injector },
     { token: ENVIRONMENT_INJECTOR_TOKEN, useFactory: (injector) => injector },
+    {
+      token: ApplicationInitStatus,
+      useFactory: (injector) =>
+        new ApplicationInitStatus(injector.get(APP_INITIALIZER, []), (fn) =>
+          injector.run(fn),
+        ),
+    },
     ...toCraftProviders(providers),
   ]);
   Object.assign(child, { ɵdestroyRef: destroyRef });

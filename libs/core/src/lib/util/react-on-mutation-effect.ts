@@ -7,7 +7,7 @@ import {
   inject,
   computed,
 } from '../host/craft-compat';
-import { angularLinkedSignal as linkedSignal } from '../host/angular-linked-signal';
+import { craftLinkedSignal as linkedSignal } from '../host/craft-linked-signal';
 import {
   ResourceLikeMutationRef,
   ResourceByIdLikeMutationRef,

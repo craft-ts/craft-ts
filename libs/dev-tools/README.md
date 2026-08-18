@@ -75,7 +75,6 @@ Discovery behavior:
 - `craft-brand` auto-discovers `craft-brand.config.ts` by walking upward from `--root`
 - the ESLint rules `brand-angular-gen-deps-required` and `brand-angular-deps-match` use the same upward discovery from the analyzed file, bounded by `context.cwd`
 - `--config <path>` overrides auto-discovery for the CLI
-- `component-test-gen-deps-match` verifies component test helpers use the matching `GenDeps_*` alias
 
 `typeText` supports generic dependency spellings that cannot be inferred from
 Angular metadata. Service overrides match by file/module/symbol; later matching
@@ -399,8 +398,6 @@ export default [
       'craft-ng': craftRules
     },
     rules: {
-      // Adds a Quick Fix in VS Code through the ESLint extension
-      'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
       'craft-ng/no-imperative-craft-resource-trigger': 'error',
       'craft-ng/require-craft-resource-trigger-yield': 'error',
@@ -455,7 +452,6 @@ module.exports = defineConfig([
         },
       ],
       '@typescript-eslint/consistent-type-definitions': 'off',
-      'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
     },

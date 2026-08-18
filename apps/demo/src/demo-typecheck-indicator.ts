@@ -1,0 +1,45 @@
+/// <reference types="vite/client" />
+
+/* eslint-disable craft-ng/prefer-browser-boundaries, craft-ng/no-direct-temporal-globals, craft-ng/prefer-craft-http-client, craft-ng/prefer-craft-http-transport, craft-ng/no-async-await -- Dev-server bootstrap adapter, intentionally outside the Craft component tree. */
+/*
+ * This is a small dev-server bridge, deliberately kept outside the Craft
+ * component tree so it can appear as soon as the page is loaded.
+ */
+export function startDemoTypecheckIndicator(): void {
+  if (!import.meta.env.DEV) return;
+
+  const indicator = document.createElement('div');
+  indicator.className = 'demo-typecheck-indicator';
+  indicator.setAttribute('role', 'status');
+  indicator.setAttribute('aria-live', 'polite');
+  indicator.textContent = 'Type checking in progress…';
+  document.body.append(indicator);
+
+  const poll = async (): Promise<void> => {
+    try {
+      const response = await fetch('/__demo/typecheck', {
+        cache: 'no-store',
+      });
+      const payload = (await response.json()) as {
+        status?: 'running' | 'passed' | 'failed';
+      };
+
+      if (payload.status === 'passed') {
+        indicator.remove();
+        return;
+      }
+      if (payload.status === 'failed') {
+        indicator.dataset['status'] = 'failed';
+        indicator.textContent =
+          'Type checking failed — the app is still running';
+        return;
+      }
+    } catch {
+      // Keep the indicator visible while Vite is still starting.
+    }
+
+    window.setTimeout(() => void poll(), 250);
+  };
+
+  void poll();
+}

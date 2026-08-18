@@ -95,7 +95,7 @@ export function getCurrentCraftInjector(): CraftInjector {
     browserInjectorStack[browserInjectorStack.length - 1];
   if (!injector) {
     throw new Error(
-      'getCurrentCraftInjector() must be called inside injector.run().',
+      'getCurrentCraftInjector() must be called inside an injection context (injector.run()).',
     );
   }
   return injector;

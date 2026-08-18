@@ -10,7 +10,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/demo",
-        "command": "tsgo -p tsconfig.app.json --noEmit --pretty false"
+        "command": "node ../../tools/demo-typecheck.mjs"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
@@ -74,7 +74,17 @@
       "continuous": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "node tools/serve-demo.mjs"
+        "commands": [
+          {
+            "command": "npx vite --config apps/demo/vite.config.ts",
+            "forwardAllArgs": true
+          },
+          {
+            "command": "node tools/demo-typecheck.mjs --non-blocking",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": true
       }
     },
     "lint": {

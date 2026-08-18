@@ -46,30 +46,24 @@ describe('sourceFromEvent', () => {
   });
 
   it('should call dispose when DestroyRef triggers onDestroy', () => {
-        class TestComponent {
+    let eventSource!: SourceFromEvent<MouseEvent>;
+    TestBed.runInInjectionContext(() => {
       eventSource = sourceFromEvent<MouseEvent>(button, 'click');
-    }
-
-    TestBed.configureTestingModule({
-      imports: [TestComponent],
     });
 
-    const fixture = TestBed.createComponent(TestComponent);
-    const component = fixture.componentInstance;
-
     // Verify initial state and listener works
-    expect(component.eventSource()).toBe(undefined);
+    expect(eventSource()).toBe(undefined);
     const clickEvent = new MouseEvent('click');
     button.dispatchEvent(clickEvent);
-    expect(component.eventSource()).toBe(clickEvent);
+    expect(eventSource()).toBe(clickEvent);
 
-    // Destroy the component (this should trigger DestroyRef.onDestroy)
-    fixture.destroy();
+    // Destroy the pure Craft test injector (this triggers DestroyRef.onDestroy).
+    TestBed.resetTestingModule();
 
     // Fire another event - it should not update the signal after component destruction
     const clickEvent2 = new MouseEvent('click');
     button.dispatchEvent(clickEvent2);
-    expect(component.eventSource()).toBe(clickEvent); // Should still be the first event
+    expect(eventSource()).toBe(clickEvent); // Should still be the first event
   });
 
   it('should create a signal source that updates on event and use computed value', () => {

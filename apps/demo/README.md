@@ -11,8 +11,10 @@ From the repository root:
 npx nx serve demo
 ```
 
-See the root [README](../../README.md#run-the-project-locally) for the route
-selector and `--all-routes` / `--demo-routes`.
+The development server starts every demo route. The TypeScript type-check runs
+in parallel with Vite, with a small `Type checking in progress…` indicator in
+the top-right corner of the page until it completes. If it fails, a large
+overlay reports the failure while the development server remains available.
 
 ## Architecture tests
 

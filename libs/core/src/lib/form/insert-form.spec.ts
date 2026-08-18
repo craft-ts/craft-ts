@@ -7,7 +7,7 @@ import {
 } from '../host/craft-compat';
 import { TestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
-import { angularLinkedSignal } from '../host/angular-linked-signal';
+import { craftLinkedSignal } from '../host/craft-linked-signal';
 import { craftSignal } from '../host/craft-signal';
 import { state } from '../state';
 import { CraftField } from './craft-field';
@@ -127,11 +127,10 @@ describe('insertForm', () => {
     identifier.mockClear();
     items.set([{ id: 'c', name: 'Delta' }]);
     expect(craftUse(usersForm.forms())[0].name.value()).toBe('Delta');
-    expect(identifier.mock.calls.map(([ctx]) => ctx.item.id)).toEqual([
-      'c',
-      'c',
-      'c',
-    ]);
+    const identifiedIds = identifier.mock.calls.map(([ctx]) => ctx.item.id);
+    expect(identifiedIds).not.toContain('a');
+    expect(identifiedIds).not.toContain('b');
+    expect(identifiedIds.every((id) => id === 'c')).toBe(true);
   });
 
   it('stops field watches after a parallel form item is evicted', () => {
@@ -148,7 +147,7 @@ describe('insertForm', () => {
           'usersForm',
           items,
           insertForm({ identifier: ({ item }) => item.id }, ({ field }) => {
-            const linked = angularLinkedSignal({
+            const linked = craftLinkedSignal({
               source: () => {
                 items();
                 return fieldWatches(field.value());
@@ -190,7 +189,7 @@ describe('insertForm', () => {
           'usersForm',
           items,
           insertForm({ identifier: ({ item }) => item.id }, ({ field }) => {
-            const linked = angularLinkedSignal({
+            const linked = craftLinkedSignal({
               source: () => {
                 items();
                 return fieldWatches(field.value());

@@ -1528,66 +1528,94 @@ type RouteInheritedHttpDeps<
   RouteHttpDepsMap<RouteDefinition>
 >;
 
-type FlattenLoadChildrenRouteMetaData<
+/**
+ * A route collection plus the context inherited by its routes.
+ *
+ * META_DATA is flattened depth-first. Keeping pending collections in a queue
+ * makes that flattening tail-recursive, so a large app route tree does not
+ * exhaust TypeScript's instantiation depth while computing one entry's child
+ * metadata.
+ */
+type CraftRoutesMetaDataWorkItem = readonly [
+  readonly AnyCraftRouteDefinition[],
+  string,
+  string,
+  string,
+  object,
+  object,
+  object,
+];
+
+type CraftRoutesMetaDataChildWorkItem<
   RouteDefinition extends AnyCraftRouteDefinition,
-  ParentPath extends string,
-  RouteCollectionName extends string,
-  InheritedServiceNames extends string,
-  InheritedPublicProperties extends object,
-  InheritedMissingProviders extends object,
-  InheritedHttpDeps extends object,
+  Parent extends CraftRoutesMetaDataWorkItem,
 > = [LoadChildrenRoutes<RouteDefinition>] extends [never]
   ? readonly []
-  : CraftRoutesMetaDataWithContext<
-      LoadChildrenRoutes<RouteDefinition>,
-      LoadChildrenRouteCollectionName<RouteDefinition>,
-      ParentPath,
-      RouteInheritedServiceNames<
-        RouteDefinition,
-        RouteCollectionName,
-        InheritedServiceNames
-      >,
-      RouteInheritedPublicProperties<
-        RouteDefinition,
-        InheritedPublicProperties
-      >,
-      RouteInheritedMissingProviders<
-        RouteDefinition,
-        RouteCollectionName,
-        InheritedServiceNames,
-        InheritedMissingProviders
-      >,
-      RouteInheritedHttpDeps<RouteDefinition, InheritedHttpDeps>
-    >;
+  : readonly [
+      [
+        LoadChildrenRoutes<RouteDefinition>,
+        LoadChildrenRouteCollectionName<RouteDefinition>,
+        JoinRoutePaths<Parent[2], RoutePath<RouteDefinition>>,
+        RouteInheritedServiceNames<RouteDefinition, Parent[1], Parent[3]>,
+        RouteInheritedPublicProperties<RouteDefinition, Parent[4]>,
+        RouteInheritedMissingProviders<
+          RouteDefinition,
+          Parent[1],
+          Parent[3],
+          Parent[5]
+        >,
+        RouteInheritedHttpDeps<RouteDefinition, Parent[6]>,
+      ],
+    ];
 
-type FlattenCraftRouteMetaDataEntry<
-  RouteDefinition extends AnyCraftRouteDefinition,
-  RouteCollectionName extends string,
-  ParentPath extends string = '',
-  InheritedServiceNames extends string = never,
-  InheritedPublicProperties extends object = {},
-  InheritedMissingProviders extends object = {},
-  InheritedHttpDeps extends object = {},
-> = readonly [
-  CraftRouteMetaDataEntry<
-    RouteDefinition,
-    RouteCollectionName,
-    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
-    InheritedServiceNames,
-    InheritedPublicProperties,
-    InheritedMissingProviders,
-    InheritedHttpDeps
-  >,
-  ...FlattenLoadChildrenRouteMetaData<
-    RouteDefinition,
-    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
-    RouteCollectionName,
-    InheritedServiceNames,
-    InheritedPublicProperties,
-    InheritedMissingProviders,
-    InheritedHttpDeps
-  >,
-];
+type CraftRoutesMetaDataFromQueue<
+  Queue extends readonly CraftRoutesMetaDataWorkItem[],
+  Acc extends readonly unknown[] = readonly [],
+> = Queue extends readonly [
+  infer Head extends CraftRoutesMetaDataWorkItem,
+  ...infer Tail extends readonly CraftRoutesMetaDataWorkItem[],
+]
+  ? number extends Head[0]['length']
+    ? CraftRoutesMetaDataFromQueue<
+        Tail,
+        readonly [
+          ...Acc,
+          CraftRouteMetaDataEntry<
+            Head[0][number],
+            Head[1],
+            string,
+            Head[3],
+            Head[4],
+            Head[5],
+            Head[6]
+          >,
+        ]
+      >
+    : Head[0] extends readonly [
+          infer Route extends AnyCraftRouteDefinition,
+          ...infer Rest extends readonly AnyCraftRouteDefinition[],
+        ]
+      ? CraftRoutesMetaDataFromQueue<
+          readonly [
+            ...CraftRoutesMetaDataChildWorkItem<Route, Head>,
+            [Rest, Head[1], Head[2], Head[3], Head[4], Head[5], Head[6]],
+            ...Tail,
+          ],
+          readonly [
+            ...Acc,
+            CraftRouteMetaDataEntry<
+              Route,
+              Head[1],
+              JoinRoutePaths<Head[2], RoutePath<Route>>,
+              Head[3],
+              Head[4],
+              Head[5],
+              Head[6]
+            >,
+          ]
+        >
+      : CraftRoutesMetaDataFromQueue<Tail, Acc>
+  : Acc;
 
 type CraftRoutesMetaDataWithContext<
   Routes extends readonly AnyCraftRouteDefinition[],
@@ -1597,41 +1625,19 @@ type CraftRoutesMetaDataWithContext<
   InheritedPublicProperties extends object,
   InheritedMissingProviders extends object,
   InheritedHttpDeps extends object,
-> = number extends Routes['length']
-  ? readonly CraftRouteMetaDataEntry<
-      Routes[number],
+> = CraftRoutesMetaDataFromQueue<
+  [
+    [
+      Routes,
       RouteCollectionName,
-      string,
+      ParentPath,
       InheritedServiceNames,
       InheritedPublicProperties,
       InheritedMissingProviders,
-      InheritedHttpDeps
-    >[]
-  : Routes extends readonly [
-        infer Head extends AnyCraftRouteDefinition,
-        ...infer Tail extends readonly AnyCraftRouteDefinition[],
-      ]
-    ? readonly [
-        ...FlattenCraftRouteMetaDataEntry<
-          Head,
-          RouteCollectionName,
-          ParentPath,
-          InheritedServiceNames,
-          InheritedPublicProperties,
-          InheritedMissingProviders,
-          InheritedHttpDeps
-        >,
-        ...CraftRoutesMetaDataWithContext<
-          Tail,
-          RouteCollectionName,
-          ParentPath,
-          InheritedServiceNames,
-          InheritedPublicProperties,
-          InheritedMissingProviders,
-          InheritedHttpDeps
-        >,
-      ]
-    : readonly [];
+      InheritedHttpDeps,
+    ],
+  ]
+>;
 
 export type CraftRoutesMetaData<
   Routes extends readonly AnyCraftRouteDefinition[],

@@ -155,22 +155,12 @@ Start the Angular demo:
 npx nx serve demo
 ```
 
-Au démarrage, la commande propose une sélection interactive des routes de la
-démo. Toutes les routes sont cochées par défaut ; utilisez les flèches, la
-barre espace, `a`/`t` pour tout sélectionner, `n`/`d` pour tout désélectionner,
-puis Entrée. Seules les routes sélectionnées sont générées dans
-le graphe de build et dans les checks DI.
-
-Pour éviter le prompt, vous pouvez tout garder ou cibler des routes précises :
-
-```bash
-npx nx serve demo --all-routes
-npx nx serve demo --demo-routes=query,full-demo
-```
-
-Les routes restent maintenues dans `apps/demo/src/app/app.routes.ts`. Pendant
-le serveur de développement, le sélecteur génère temporairement
-`app.routes.runtime.ts`, puis restaure le relais vers `app.routes.ts` à l'arrêt.
+La commande lance toutes les routes définies dans
+`apps/demo/src/app/app.routes.ts`. Le type-check de la démo est exécuté en
+parallèle du serveur Vite. Pendant son exécution, un indicateur discret
+`Type checking in progress…` apparaît en haut à droite de la page.
+Si le contrôle échoue, un grand overlay signale l’erreur mais le serveur reste
+accessible pour continuer l’investigation.
 
 Start the documentation site at `http://localhost:5173`:
 

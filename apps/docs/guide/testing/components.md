@@ -18,21 +18,9 @@ import {
 } from '@craft-ng/component/testing';
 ```
 
-They complement the existing Angular setup and deliberately separate the
-factory from rendering. Each utility also exposes a `.byRegister(...)` form,
-which makes the services used by the tested code explicit.
-
-The package also re-exports the legacy registry-based setups:
-
-```ts
-import {
-  setupCraftServiceTestingByRegister,
-  setupCraftComponentTestingByRegister,
-} from '@craft-ng/component/testing';
-```
-
-They remain compatible with the existing test setup and can be used in the
-same file as the logic/template utilities.
+They deliberately separate the factory from rendering. Each utility also
+exposes a `.byRegister(...)` form, which makes the services used by the tested
+code explicit.
 
 ## Component logic
 

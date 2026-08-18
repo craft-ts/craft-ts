@@ -17,7 +17,7 @@ import {
   type RuntimeAwaitRequest,
 } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   isTemporalAwaitRequest,

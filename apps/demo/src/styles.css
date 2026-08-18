@@ -5,6 +5,63 @@
 * {
   font-family: 'Chivo', Arial, Helvetica, sans-serif !important;
 }
+
+.demo-typecheck-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  box-shadow: 0 4px 12px #1e3a8a1f;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.demo-typecheck-indicator::before {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  content: '';
+  animation: demo-typecheck-spin 0.8s linear infinite;
+}
+
+.demo-typecheck-indicator[data-status='failed'] {
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 1rem;
+  border: 0;
+  border-radius: 0;
+  color: #991b1b;
+  background: #fef2f2eF;
+  box-shadow: none;
+  font-size: clamp(1.25rem, 3vw, 2.5rem);
+  text-align: center;
+  pointer-events: none;
+}
+
+.demo-typecheck-indicator[data-status='failed']::before {
+  border: 0;
+  content: '⚠';
+  animation: none;
+  font-size: clamp(2rem, 6vw, 5rem);
+  justify-self: center;
+}
+
+@keyframes demo-typecheck-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 /* Functional component demo: these nodes are produced by @craft-ng/component,
    so their styles live at the application boundary rather than in an Angular
    component stylesheet. */

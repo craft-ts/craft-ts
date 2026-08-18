@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   computed,
+  batch as craftBatch,
   DestroyRef,
   inject,
   Injector,
@@ -1719,10 +1720,13 @@ function createAsyncProcessRef<
                       >
                     ).addById(id as GroupIdentifier & string);
                   }
-                  // Bump before the set so both writes land in the same tick and
-                  // the resource request changes on every call.
-                  methodTriggerSeq.update((n) => n + 1);
-                  AsyncProcessResourceParamsFnSignal.set(paramsResult);
+                  // These two signals form one method request. Publish them as
+                  // one batch so the resource watch cannot start the loader
+                  // once for the nonce and once again for the params.
+                  craftBatch(() => {
+                    methodTriggerSeq.update((n) => n + 1);
+                    AsyncProcessResourceParamsFnSignal.set(paramsResult);
+                  });
                   return yieldableInvocation<MethodYielded, AsyncProcessParams>(
                     paramsResult,
                   );

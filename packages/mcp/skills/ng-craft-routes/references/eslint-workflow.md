@@ -14,7 +14,6 @@ under the `craft-ng/` namespace):
 | --- | --- |
 | `brand-angular-gen-deps-required` | creates a missing `GenDeps_*` alias for a component/directive/pipe |
 | `brand-angular-deps-match` | refreshes an existing `GenDeps_*` when the component's DI changes |
-| `component-test-gen-deps-match` | the `GenDeps_*` passed in component tests |
 | `require-assert-exhaustive-route-exceptions` | adds `assertExhaustiveRouteExceptions(xRoutes)` (+ import) per collection |
 | `require-pending-component-di-check` | generates/refreshes the `RouteCheckedDI` block for a `pendingComponent` |
 | `require-child-route-mount-check` | adds `assertChildRouteMounts(xRoutes)` (+ import) for collections mounting lazy `loadChildren` |

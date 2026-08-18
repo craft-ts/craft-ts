@@ -27,6 +27,11 @@ import { StatusComponent } from '../../../ui/status.component';
 
 export type Todo = { readonly id: number; readonly title: string };
 
+const INITIAL_TODOS = [
+  { id: 1, title: 'Compose a craftService' },
+  { id: 2, title: 'Expose query and mutations' },
+] satisfies Todo[];
+
 export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
   function* () {
@@ -40,10 +45,7 @@ export const { provideTodoStore, TodoStore } = craftService(
     }));
     const records = yield* state(
       'records',
-      [
-        { id: 1, title: 'Compose a craftService' },
-        { id: 2, title: 'Expose query and mutations' },
-      ] satisfies Todo[],
+      INITIAL_TODOS,
       ({ update }) => ({
         add: (todo: Todo) => update((current) => [...current, todo]),
         remove: (id: number) =>
@@ -72,14 +74,18 @@ export const { provideTodoStore, TodoStore } = craftService(
         // insertions below, so input changes cannot restart this loader.
         params: () => true,
         loader: craftGen(function* () {
-          // Keep the exceptional branch in the inferred query type for the demo.
+          // Keep the exceptional branch in the inferred query type for the
+          // demo while keeping the successful source independent from the
+          // mutable records state.
           // eslint-disable-next-line no-constant-condition
           if (false) {
-            // add an exception to the query signature, it will force this component or his host to handle this exception
             return craftException({ code: 'FAILED_TO_LOAD' });
           }
-          const _records = yield* records();
-          return [..._records];
+          // The query is intentionally a one-shot source. Mutations update
+          // its cached value through insertReactOnMutation; reading the
+          // mutable records state here would make every add/remove restart
+          // this loader as a reactive dependency.
+          return [...INITIAL_TODOS];
         }),
       },
       insertQueryPipe(
@@ -90,14 +96,12 @@ export const { provideTodoStore, TodoStore } = craftService(
               current.reduce((max, todo) => Math.max(max, todo.id), 0) + 1;
             return [...current, { id, title: mutationParams }];
           },
-          reload: { onMutationException: true },
         }),
         insertReactOnMutation(remove, {
           optimisticUpdate: ({ queryResource, mutationParams }) =>
             (queryResource.value() ?? []).filter(
               (todo) => todo.id !== mutationParams,
             ),
-          reload: { onMutationException: true },
         }),
       ),
     );

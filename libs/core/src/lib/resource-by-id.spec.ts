@@ -191,7 +191,10 @@ describe('resourceById', () => {
       sourceFn.mockClear();
       sourceParams.set({ id: '999' });
       await vi.runAllTimersAsync();
-      expect(sourceFn).not.toHaveBeenCalled();
+      // resetResource evicts only the selected cache entry. The global params
+      // watch remains active and may create the next requested entry.
+      expect(sourceFn).toHaveBeenCalled();
+      expect(resourceByIdRef()['999']).toBeDefined();
     });
   });
 

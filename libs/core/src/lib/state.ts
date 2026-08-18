@@ -105,7 +105,7 @@ const createLinkedSignalWithOptions = craftLinkedSignal as unknown as <
   equal?: (a: T, b: T) => boolean;
 }) => CraftWritableSignal<T>;
 
-const createAngularLinkedSignalWithOptions = linkedSignal as unknown as <
+const createCraftLinkedSignalWithOptions = linkedSignal as unknown as <
   T,
 >(options: {
   source: () => unknown;
@@ -613,7 +613,7 @@ function createStateRef<StateType>(
             })
       : isSignalState
         ? isAngularSignalState
-          ? createAngularLinkedSignalWithOptions({
+          ? createCraftLinkedSignalWithOptions({
               source: readResolvedState,
               computation: () => applySchema(readResolvedState(), 'source'),
               equal: () => false,

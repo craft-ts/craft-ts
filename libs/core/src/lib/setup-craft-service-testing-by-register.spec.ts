@@ -8,14 +8,7 @@ import {
   onAppStart,
   type GetServiceDependencies,
 } from './craft-service';
-import {
-  setupCraftComponentTestingByRegister,
-  setupCraftServiceTestingByRegister,
-} from './setup-craft-service-testing-by-register';
-import type {
-  GetDeps,
-  GetPublicComponentProperties,
-} from './branded-component/branded-component';
+import { setupCraftServiceTestingByRegister } from './setup-craft-service-testing-by-register';
 import { state } from './state';
 
 describe('setupCraftServiceTestingByRegister', () => {

@@ -17,7 +17,7 @@ import {
   untracked,
 } from './host/craft-signal';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 type CraftResourceOptions<Value, Params> = Omit<
   ResourceOptions<Value, Params>,

@@ -29,7 +29,6 @@ export default [
       'craft-ng': craftRules,
     },
     rules: {
-      'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
       'craft-ng/no-render-writes': 'error',
       'craft-ng/require-reactive-template-bindings': 'error',
@@ -64,7 +63,6 @@ What each rule does:
 
 - `craft-ng/brand-angular-gen-deps-required`: generates a missing `GenDeps_*` alias for Angular components, directives, and pipes through the ESLint Quick Fix
 - `craft-ng/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync through the same ESLint Quick Fix flow
-- `craft-ng/component-test-gen-deps-match`: checks `setupCraftComponentTestingByRegister(Component, {} as GenDeps_Component, ...)` pairs in tests
 - `craft-ng/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
 - `craft-ng/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
 - `craft-ng/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks

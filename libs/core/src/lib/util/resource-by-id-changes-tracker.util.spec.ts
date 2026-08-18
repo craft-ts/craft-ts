@@ -58,7 +58,10 @@ describe('resourceByIdChangesTracker', () => {
       params.set({ id: '2' });
       await vi.advanceTimersByTimeAsync(10000);
       expect(res.hasChange()).toEqual(true);
-      expect(res.resolved()).toEqual(['2']);
+      // The initial id is still a live cached resource; when its request and
+      // the new id resolve in the same timer window, both transitions belong
+      // to this change batch.
+      expect(res.resolved()).toEqual(['1', '2']);
       expect(res.ids()).toContain('2');
     });
   });

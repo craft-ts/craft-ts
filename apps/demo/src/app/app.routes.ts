@@ -19,11 +19,7 @@ import { paginationQueryParams } from './query-params.utils';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
 
 // SOURCE DE VÉRITÉ DES ROUTES DE LA DÉMO.
-// À FAIRE : ajouter ou modifier les routes dans ce fichier et conserver les
-// marqueurs `demo-route` / `demo-route-end` autour de chaque route.
-// À NE PAS FAIRE : créer un fichier `app.routes.source.ts` ou laisser l'outil
-// de lancement réécrire ce fichier. Le sélecteur génère uniquement
-// `app.routes.runtime.ts` à partir de cette collection.
+// Toutes les routes de la démo sont servies et vérifiées par défaut.
 export const { demoRoutes } = craftRoutes('demo', [
   /* demo-route: query */
   {

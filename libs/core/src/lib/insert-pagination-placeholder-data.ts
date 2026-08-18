@@ -296,6 +296,24 @@ export function insertPaginationPlaceholderData<
         lastShownValue = settled;
         return settled;
       }
+      if (lastShownValue === undefined) {
+        const resources = (yield* readPaginationReactive(
+          resourceById,
+        )) as Partial<
+          Record<string, CraftResourceRef<PageState & object, unknown>>
+        >;
+        // A page can change before its rows were read (for example, a store
+        // test can wait only for the loader). Recover the most recently
+        // inserted resolved page so the placeholder still has something to
+        // display while the new page is loading.
+        for (const resource of Object.values(resources).reverse()) {
+          const value = resource?.value();
+          if (value !== undefined) {
+            lastShownValue = value as PageState;
+            break;
+          }
+        }
+      }
       // Nothing for this page yet: keep what is already on screen instead of
       // blanking the list, which is the entire point of the placeholder.
       return lastShownValue ?? config.initialValue;

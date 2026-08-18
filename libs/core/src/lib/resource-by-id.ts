@@ -10,7 +10,7 @@ import {
   computed,
   Signal,
 } from './host/craft-compat';
-import { angularLinkedSignal as linkedSignal } from './host/angular-linked-signal';
+import { craftLinkedSignal as linkedSignal } from './host/craft-linked-signal';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
@@ -386,8 +386,16 @@ export function resourceById<
       },
     ) => {
       // Check if the resource already exist
-      if (resourceByGroup()[group]) {
-        return resourceByGroup()[group] as CraftResourceRef<
+      const existing = resourceByGroup()[group];
+      if (existing) {
+        // A global params watch may have created this entry just before a
+        // persister restores its cached value. Apply that value to the
+        // existing ref as well; otherwise the restore is silently discarded
+        // and the in-flight request wins with a loading status.
+        if (options?.defaultValue !== undefined && !existing.hasValue()) {
+          existing.set(options.defaultValue);
+        }
+        return existing as CraftResourceRef<
           State,
           ResourceParams
         >;

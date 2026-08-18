@@ -20,7 +20,6 @@ are what keep these tests short — see
 
 ```typescript
 import {
-  setupCraftComponentTestingByRegister,
   setupCraftServiceTestingByRegister,
 } from '@craft-ng/core';
 ```
@@ -221,40 +220,9 @@ const { sut, mocks } = await setupCraftServiceTestingByRegister.boundaryOnly(
 - non-boundary services cannot be mocked in this mode.
 - descendants of a mocked boundary are pruned and do not need entries.
 
-The component helper exposes the same mode:
-
-```typescript
-const { fixture, component, mocks } =
-  await setupCraftComponentTestingByRegister.boundaryOnly(
-    DashboardPage,
-    {} as GenDeps_DashboardPage,
-    {
-      boundaryRegister: {
-        BrowserWindowService: 'real',
-        LocalStorageService: {
-          getItem: vi.fn(() => 'cached'),
-        },
-      },
-      inputs: {
-        userId: '42',
-      },
-    },
-  );
-```
-
-The helper never decides automatically from `jsdom` or another test
-environment. Use `'real'` when the real boundary is appropriate, and provide a
-mock when the test needs deterministic platform behavior.
-
-## Extra Angular Providers
-
-When the graph depends on real Angular infrastructure, append providers through the third argument.
-
-```typescript
-const { sut } = await setupCraftServiceTestingByRegister(Navigation, register, {
-  providers: [provideRouter([])],
-});
-```
+The helper never decides automatically from the test environment. Use `'real'`
+when the real boundary is appropriate, and provide a mock when the test needs
+deterministic platform behavior.
 
 ## Alias
 

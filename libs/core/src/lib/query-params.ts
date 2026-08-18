@@ -5,9 +5,9 @@ import {
   inject,
   Injector,
   isSignal,
-  linkedSignal,
   runInInjectionContext,
   Signal,
+  signal,
   WritableSignal,
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
@@ -479,20 +479,10 @@ function createQueryParamsRef<
 
   const { state: queryParamsConfig, ...options } = config;
 
-  // Create signals for each query parameter
-  const queryParamsFromUrl = linkedSignal(() =>
-    parseSearchParams(location().search),
-  );
-  const locationWatch = craftWatch(() => {
-    queryParamsFromUrl.set(parseSearchParams(location().search));
-  });
-  inject(DestroyRef).onDestroy(() => locationWatch.destroy());
-
-  // Create computed signals for each query parameter with parsing
-  const queryParamsState = linkedSignal(() =>
+  const decodeQueryParamsState = (rawParams: Record<string, string>) =>
     Object.entries(queryParamsConfig).reduce(
       (acc, [key, config]) => {
-        const rawValue = queryParamsFromUrl()?.[key];
+        const rawValue = rawParams[key];
         if (rawValue === undefined || rawValue === null) {
           acc[key] = config.fallbackValue;
           return acc;
@@ -507,8 +497,21 @@ function createQueryParamsRef<
         }
       },
       {} as Record<string, unknown>,
-    ),
+    ) as QueryParamsToState<QueryParamsType>;
+
+  // URL state is updated by the router watch; the public state is a separate
+  // writable Craft signal so a local set is visible synchronously and is not
+  // accidentally reset by a new object returned while parsing the URL.
+  const queryParamsFromUrl = signal(parseSearchParams(location().search));
+  const queryParamsState = signal(
+    decodeQueryParamsState(queryParamsFromUrl()),
   ) as WritableSignal<QueryParamsToState<QueryParamsType>>;
+  const locationWatch = craftWatch(() => {
+    const rawParams = parseSearchParams(location().search);
+    queryParamsFromUrl.set(rawParams);
+    queryParamsState.set(decodeQueryParamsState(rawParams));
+  });
+  inject(DestroyRef).onDestroy(() => locationWatch.destroy());
 
   const parseExceptions = computed(() =>
     Object.entries(queryParamsConfig).reduce(

@@ -15,9 +15,9 @@ import {
 } from '../query.core';
 import { createCraftFieldTree, CraftFieldTree } from './craft-field';
 import {
-  angularLinkedSignal,
-  type AngularLinkedSignal,
-} from '../host/angular-linked-signal';
+  craftLinkedSignal,
+  type CraftLinkedSignal,
+} from '../host/craft-linked-signal';
 import {
   createFormExceptions,
   createSubmissionController,
@@ -112,7 +112,7 @@ function buildSimpleForm<Model>(
 ): FormWithInsertions<Model, Record<string, unknown>> {
   const submission = createSubmissionController();
   const rawState = rawReactiveValue(context.state);
-  const fieldState = angularLinkedSignal({
+  const fieldState = craftLinkedSignal({
     source: rawState,
     computation: (current) => current,
     injector,
@@ -778,7 +778,7 @@ export function insertForm(...args: any[]): any {
     type ParallelEntry = {
       formIdentifier: string | number;
       form: FormWithInsertions<unknown, Record<string, unknown>>;
-      itemState: AngularLinkedSignal<unknown>;
+      itemState: CraftLinkedSignal<unknown>;
       itemInjector: EnvironmentInjector;
     };
 
@@ -827,7 +827,7 @@ export function insertForm(...args: any[]): any {
       const existing = formsByIdentifier.get(formIdentifier);
       if (existing) return existing;
 
-      const itemState = angularLinkedSignal({
+      const itemState = craftLinkedSignal({
         source: () => selectItem(formIdentifier),
         computation: (current) => current,
         injector: formInjector,
@@ -904,7 +904,7 @@ export function insertForm(...args: any[]): any {
       return entry;
     };
 
-    const formsSignal = angularLinkedSignal({
+    const formsSignal = craftLinkedSignal({
       source: () => rawReactiveValue(context.state)(),
       injector: formInjector,
       computation: (currentState) => {

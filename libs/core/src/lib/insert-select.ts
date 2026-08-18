@@ -33,7 +33,7 @@ import {
   isYieldableReactiveValue,
   rawReactiveValue,
 } from './reactive-read';
-import { angularLinkedSignal } from './host/angular-linked-signal';
+import { craftLinkedSignal } from './host/craft-linked-signal';
 
 function readInsertionState(state: () => unknown): unknown {
   return isYieldableReactiveValue(state) ? rawReactiveValue(state)() : state();
@@ -243,7 +243,7 @@ function createInsertSelectItemRuntime(
         return undefined;
       }
 
-      const selectedStateSignal = angularLinkedSignal({
+      const selectedStateSignal = craftLinkedSignal({
         source: () => select(id),
         computation: (selected) => selected,
         injector,
@@ -624,7 +624,7 @@ function createInsertSelectPropertyRuntime(
         return selectedPropertyProxy;
       }
 
-      const selectedPropertySignal = angularLinkedSignal({
+      const selectedPropertySignal = craftLinkedSignal({
         source: selectProperty,
         computation: (selected) => selected,
         injector,

@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { setupCraftServiceTest } from '../setup-craft-service-test';
 import { EnvironmentInjector, inject } from './craft-compat';
-import { angularLinkedSignal } from './angular-linked-signal';
+import { craftLinkedSignal } from './craft-linked-signal';
 import { craftSignal } from './craft-signal';
 
-describe('angularLinkedSignal', () => {
+describe('craftLinkedSignal', () => {
   it('stops watching Craft sources when DestroyRef destroys', () => {
     const { injector } = setupCraftServiceTest();
     const source = craftSignal(0);
     const linked = injector.run(() =>
-      angularLinkedSignal({
+      craftLinkedSignal({
         source: () => source(),
         computation: (current) => current,
       }),
@@ -30,7 +30,7 @@ describe('angularLinkedSignal', () => {
     const source = craftSignal(0);
     const sourceFn = vi.fn(() => source());
     const linked = injector.run(() =>
-      angularLinkedSignal({
+      craftLinkedSignal({
         source: sourceFn,
         computation: (current) => current,
       }),

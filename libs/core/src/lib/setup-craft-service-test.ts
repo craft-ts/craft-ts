@@ -15,12 +15,13 @@ import {
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
-import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
   createCraftInjector,
   type CraftInjector,
   type CraftProvider,
 } from './host/craft-injector';
+import { APP_SNAPSHOT_REGISTRY, AppSnapshotRegistry } from './take-app-snapshot';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
@@ -423,6 +424,7 @@ function createAngularHostCraftInjector(
       ...getCraftRootDefaultProviders(),
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
       { provide: ErrorHandler, useClass: ErrorHandler },
+      { provide: APP_SNAPSHOT_REGISTRY, useValue: new AppSnapshotRegistry() },
       ...extraProviders,
     ],
     Injector.NULL as EnvironmentInjector,

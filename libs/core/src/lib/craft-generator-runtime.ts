@@ -12,7 +12,7 @@ import {
   ɵwithActiveReactiveReader,
   type ReactiveReadIdentity,
 } from './reactive-read';
-import { ɵcraftInjectorFromHost } from './host/angular-craft-injector-host';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',

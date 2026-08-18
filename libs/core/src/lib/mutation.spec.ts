@@ -1595,7 +1595,9 @@ describe('mutation — providers', () => {
       () => ({ getValue: () => 42 }),
     );
 
-    runInInjectionContext(() => {
+    setupCraftServiceTest(MethodService, {}, {
+      providers: [provideMethodService()],
+    }).injector.run(() => {
       const withoutProviders = craftUse(
         mutation('withoutProviders', {
           params: function* () {

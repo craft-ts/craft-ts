@@ -4,7 +4,7 @@ import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
 } from '@craft-ng/component';
-import { craftSleep, craftUse, provideCraftRouter as provideRouter, type ExtractDeps, type GetServiceDependencies } from '@craft-ng/core';
+import { craftSleep, craftUse, deepYieldable, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, type ExtractDeps, type GetServiceDependencies } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GranularMutation from './granular-mutation';
@@ -110,31 +110,40 @@ function createTemplateContext(
   loadingUserIds = new Set<string>(),
 ) {
   const paginationState = { page: 1, pageSize: 4 };
-  const pagination = Object.assign(
-    vi.fn(() => ({ ...paginationState })),
+  const pagination = deepYieldable(Object.assign(
+    vi.fn(function* () {
+      return { ...paginationState };
+    }),
     {
-      previousPage: vi.fn(),
-      nextPage: vi.fn(),
-      updatePageSize: vi.fn((pageSize: number) => {
+      previousPage: markYieldableMethod(vi.fn()),
+      nextPage: markYieldableMethod(vi.fn()),
+      updatePageSize: markYieldableMethod(vi.fn((pageSize: number) => {
         paginationState.pageSize = pageSize;
-      }),
+      })),
     },
-  );
-  const mutate = vi.fn(function* (user: User) {
+  ));
+  const mutate = markYieldableMethod(vi.fn(function* (user: User) {
     return user;
-  });
+  }));
   const select = vi.fn((userId: string) => ({
-    isLoading: vi.fn(() => loadingUserIds.has(userId)),
+    isLoading: function* () {
+      return loadingUserIds.has(userId);
+    },
   }));
   const selectOrCreate = vi.fn((userId: string) => ({
-    status: vi.fn(() =>
-      loadingUserIds.has(userId) ? ('loading' as const) : ('idle' as const),
-    ),
+    status: function* () {
+      return loadingUserIds.has(userId)
+        ? ('loading' as const)
+        : ('idle' as const);
+    },
   }));
   const updateUserName = { mutate, select, selectOrCreate };
   const usersQuery = {
-    currentPageData: vi.fn(() => users),
-    currentPageStatus: vi.fn(() => 'resolved' as const),
+    currentPageData: markYieldableValue(vi.fn(() => users), 'currentPageData'),
+    currentPageStatus: markYieldableValue(
+      vi.fn(() => 'resolved' as const),
+      'currentPageStatus',
+    ),
   };
 
   return {
