@@ -60,6 +60,7 @@ const NAV_GROUPS = [
       ['Exceptions', { to: 'exceptions' }],
       ['Login Form', { to: 'login-form' }],
       ['Exception QueryParams', { to: 'exception-query-params' }],
+      ['yield* Effect (proto)', { to: 'effect-yield' }],
     ],
   },
   {

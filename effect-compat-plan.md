@@ -64,7 +64,7 @@ Points contrôlés dans le code, corrections appliquées ci-dessous.
 | `libs/core` sans `@angular` en source | 3 occurrences restantes, toutes dans les gardes eux-mêmes (`host/no-angular-imports.spec.ts`, `host/public-surface.spec.ts`, `craft-routes.spec.ts`) |
 | `craft-injector.ts`, 414 lignes | exact |
 | chemin `'promise'` de la pompe, point d'accroche de 0.1 | `craft-program-runtime.ts:126` (commentaire) et `:147` (`request.kind === 'promise'`) |
-| discriminant passé en paramètre du match | `craftMatch.exhaustive(value, key, handlers)` — surcharge objet, `craft-match.ts:65-81` |
+| discriminant passé en paramètre du match | vrai des **deux** : `matchBlock.exhaustive(source, key, handlers)` côté template (`libs/component/src/lib/match-block.ts:73`) et `craftMatch.exhaustive(value, key, handlers)` côté valeur (`craft-match.ts:65-81`) |
 | 15 appels en source core | exact (`grep craftException( `, hors specs) |
 | brand symbole déjà en place (tâche 1.3) | `CRAFT_EXCEPTION_SYMBOL`, `craft-exception.ts:1` ; `isCraftException` teste le symbole, pas la forme |
 | binaires dev-tools comme modèle du codemod | 10 binaires dans `libs/dev-tools/src/bin/` (le plan en annonçait 7) |
@@ -76,7 +76,6 @@ Points contrôlés dans le code, corrections appliquées ci-dessous.
 
 | Le plan dit | Le code dit |
 |---|---|
-| `matchBlock.exhaustive(...)` | `craftMatch.exhaustive(...)` (`craft-match.ts`) |
 | `craftError('Tag', payload)` | `craftException({ code, scope?, identifier? }, payload)` — **méta en objet, pas positionnel** (`craft-exception.ts:33`) |
 | « sur le modèle de `inject-service.ts` » (3.1) | ce fichier n'existe plus ; les raccourcis `injectX.property()` et leur `Proxy` vivent dans `craft-service.ts` |
 
@@ -213,7 +212,7 @@ abandonné ensuite.
 | 1.4 | Renommage `scope` → `providedIn` sur `ConcreteServiceScope` (libère `scope` pour le sens Effect). Trancher d'abord la collision avec `CraftExceptionMeta.scope`, cf. vérification |
 | 1.5 | Docs + démo (37 fichiers de doc, 26 de démo concernés) |
 
-`craftMatch.exhaustive(source, key, handlers)` prend déjà le discriminant en
+`matchBlock.exhaustive(source, key, handlers)` prend déjà le discriminant en
 paramètre : passer `'_tag'` suffit, zéro changement côté template.
 
 ## Vague 2 — Le pont (`@craft-ts/effect`)

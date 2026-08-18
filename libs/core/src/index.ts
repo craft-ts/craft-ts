@@ -229,7 +229,12 @@ export {
 export {
   driveCraftProgramAsync,
   executeGeneratorCompatibleFactoryAsync,
+  // ɵ wave-0 Effect prototype — throwaway, exported so an app can install its
+  // own bridge without `libs/core` ever depending on `effect`.
+  ɵsetForeignYieldBridge,
   type CraftProgramSettledStep,
+  type ForeignYieldBridge,
+  type ForeignYieldOutcome,
 } from './lib/craft-program-runtime';
 export * from './lib/host-tag';
 export * from './lib/source$';
