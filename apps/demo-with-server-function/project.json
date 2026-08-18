@@ -1,0 +1,20 @@
+{
+  "name": "demo-with-server-function",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/demo-with-server-function/src",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/demo-with-server-function/vitest.config.ts"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/vitest.config.ts",
+        "{workspaceRoot}/libs/core/src/**/*.ts",
+        "{workspaceRoot}/libs/effect/src/**/*.ts"
+      ]
+    }
+  }
+}

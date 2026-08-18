@@ -22,6 +22,7 @@ export type ArchitectureCatalog = {
   components: readonly string[];
   primitives: readonly string[];
   sources: readonly string[];
+  serverFunctionFamilies: readonly string[];
   httpEndpoints: readonly { method: string; url: string }[];
   uniques: readonly string[];
   providers: readonly string[];
@@ -79,6 +80,8 @@ export type ArchitectureGraphView<
   craftMethods(): ArchitectureNodeView<C>[];
   primitives(primitive?: string): ArchitectureNodeView<C>[];
   sources(): ArchitectureNodeView<C>[];
+  serverFunctionFamilies(): ArchitectureNodeView<C>[];
+  serverFunctionFamily(id: string): ArchitectureNodeView<C>;
   httpEndpoints(): ArchitectureNodeView<C>[];
   unique(value: CatalogUniques<C>): ArchitectureNodeView<C>;
   uniques(): ArchitectureNodeView<C>[];
@@ -163,6 +166,11 @@ export function buildArchitectureCatalog(
   const sources = uniqueSorted(
     graph.nodes.filter((node) => node.kind === 'source').map((node) => node.label),
   );
+  const serverFunctionFamilies = uniqueSorted(
+    graph.nodes
+      .filter((node) => node.kind === 'server-function-family')
+      .map((node) => node.label),
+  );
   const httpEndpoints = graph.nodes
     .filter((node) => node.kind === 'http-endpoint')
     .map((node) => ({
@@ -223,6 +231,7 @@ export function buildArchitectureCatalog(
     components,
     primitives,
     sources,
+    serverFunctionFamilies,
     httpEndpoints,
     uniques,
     providers: providedNames,
@@ -433,6 +442,20 @@ export function createArchitectureGraph<
     },
     sources() {
       return graph.nodes.filter((node) => node.kind === 'source').map(wrap);
+    },
+    serverFunctionFamilies() {
+      return graph.nodes
+        .filter((node) => node.kind === 'server-function-family')
+        .map(wrap);
+    },
+    serverFunctionFamily(id) {
+      return lookup(
+        'server-function-family',
+        id,
+        undefined,
+        (node) =>
+          node.label === id || node.details?.['serverFunctionId'] === id,
+      );
     },
     httpEndpoints() {
       return graph.nodes
@@ -1495,6 +1518,216 @@ export function assertInteractiveElementNamed(graph: DependencyGraph): void {
   );
 }
 
+export type ServerFunctionArchitectureDiagnosticCode =
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE'
+  | 'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH'
+  | 'CRAFT_SERVER_FUNCTION_DUPLICATE_ID'
+  | 'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE';
+
+export type ServerFunctionArchitectureViolation = {
+  readonly code: ServerFunctionArchitectureDiagnosticCode;
+  readonly message: string;
+  readonly family: string;
+  readonly filePath?: string;
+  readonly line?: number;
+};
+
+/**
+ * Verifies the source-level server-function family contract. The rule is
+ * intentionally independent of a bundler: a production build must fail while
+ * the offending server import is still visible in the TypeScript graph.
+ */
+export function serverFunctionArchitectureViolations(
+  graph: DependencyGraph,
+): ServerFunctionArchitectureViolation[] {
+  const parts = graph.nodes.filter((node) =>
+    node.kind === 'server-function-contract' ||
+    node.kind === 'server-function-client' ||
+    node.kind === 'server-function-server',
+  );
+  const families = new Map<string, DependencyGraphNode[]>();
+  for (const node of parts) {
+    const family = String(node.details?.['family'] ?? node.label);
+    const entries = families.get(family) ?? [];
+    entries.push(node);
+    families.set(family, entries);
+  }
+
+  const violations: ServerFunctionArchitectureViolation[] = [];
+  const add = (
+    code: ServerFunctionArchitectureDiagnosticCode,
+    message: string,
+    node: DependencyGraphNode,
+  ): void => {
+    violations.push({
+      code,
+      message: `${code}: ${message}`,
+      family: String(node.details?.['family'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  };
+
+  const idFamilies = new Map<string, Set<string>>();
+  for (const node of parts) {
+    const id = node.details?.['serverFunctionId'];
+    if (typeof id !== 'string') continue;
+    const family = String(node.details?.['family'] ?? node.label);
+    const entries = idFamilies.get(id) ?? new Set<string>();
+    entries.add(family);
+    idFamilies.set(id, entries);
+  }
+  for (const [id, familyNames] of idFamilies) {
+    if (familyNames.size < 2) continue;
+    const node = parts.find((candidate) => candidate.details?.['serverFunctionId'] === id);
+    if (node) {
+      add(
+        'CRAFT_SERVER_FUNCTION_DUPLICATE_ID',
+        `server function id "${id}" is declared by multiple families (${[...familyNames].sort().join(', ')}).`,
+        node,
+      );
+    }
+  }
+
+  for (const [, familyParts] of families) {
+    const contract = familyParts.find((node) => node.kind === 'server-function-contract');
+    const client = familyParts.find((node) => node.kind === 'server-function-client');
+    const server = familyParts.find((node) => node.kind === 'server-function-server');
+    const familyNode = graph.nodes.find(
+      (node) =>
+        node.kind === 'server-function-family' &&
+        node.details?.['family'] === familyParts[0]?.details?.['family'],
+    );
+    const anchor = contract ?? client ?? server ?? familyNode;
+    if (!anchor) continue;
+    const exposure = contract?.details?.['exposure'];
+    const id = contract?.details?.['serverFunctionId'];
+    const hasClientExposure = exposure === 'client';
+
+    if (hasClientExposure && (!contract || !client || !server)) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING',
+        `client-exposed family must contain exactly one contract, one client facade and one server implementation (found contract=${Boolean(contract)}, client=${Boolean(client)}, server=${Boolean(server)}).`,
+        anchor,
+      );
+    }
+    if (client && !server) {
+      add(
+        'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE',
+        'client facade has no corresponding server implementation.',
+        client,
+      );
+    }
+    if (client && !contract) {
+      add(
+        'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE',
+        'client facade has no corresponding contract.',
+        client,
+      );
+    }
+    if (server?.details?.['usesClientDI'] === true && exposure !== 'client') {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE',
+        'requireClientDI(...) requires a contract with exposure="client".',
+        server,
+      );
+    }
+    if (contract && exposure === 'server' && client) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'server-only contract cannot have a client facade.',
+        contract,
+      );
+    }
+    if (contract && server && id !== undefined && server.details?.['serverFunctionId'] !== id) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        `server implementation id does not match contract id "${id}".`,
+        server,
+      );
+    }
+    if (client && contract && client.details?.['contractFamily'] !== client.details?.['family']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'client facade does not use the contract from its own family.',
+        client,
+      );
+    }
+    if (
+      server &&
+      contract &&
+      (server.details?.['contractFamily'] !== server.details?.['family'] ||
+        (exposure === 'client' && server.details?.['contractFamily'] === undefined))
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'server implementation does not use the contract from its own family.',
+        server,
+      );
+    }
+    if (contract && !contract.details?.['serverFunctionId']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'contract must declare a stable non-empty id.',
+        contract,
+      );
+    }
+    if (client && contract && client.details?.['contractFamily'] === undefined) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'client facade must use the contract from its own family.',
+        client,
+      );
+    }
+    if (client?.details?.['runtimeServerImports']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER',
+        'client facade has a runtime import of *.fn-serveur.ts.',
+        client,
+      );
+    }
+    if (server?.details?.['runtimeClientImports']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'server implementation has a runtime import of *.fn-client.ts.',
+        server,
+      );
+    }
+    if (contract?.details?.['importsServerOnly']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'shared contract imports a server-only module.',
+        contract,
+      );
+    }
+  }
+  return violations;
+}
+
+export function assertServerFunctionArchitecture(graph: DependencyGraph): void {
+  const violations = serverFunctionArchitectureViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(violations.map((violation) => violation.message).join('\n'));
+}
+
+export type ArchitectureCheckTarget = 'development' | 'production';
+
+export function assertArchitecture(
+  graph: DependencyGraph,
+  options: { readonly target?: ArchitectureCheckTarget } = {},
+): void {
+  const target = options.target ?? 'development';
+  // Keep the target explicit even while development and production share the
+  // source-level rules. Production callers use this function as the mandatory
+  // gate immediately before the production build.
+  if (target !== 'development' && target !== 'production') {
+    throw new Error(`Unknown architecture check target "${target}".`);
+  }
+  assertDeclarativeArchitecture(graph);
+}
+
 export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
   options: MutationReactOnOptions = {},
@@ -1505,6 +1738,7 @@ export function assertDeclarativeArchitecture(
     assertHttpEndpointUnique,
     assertCraftComputedPure,
     assertNoDependencyCycles,
+    assertServerFunctionArchitecture,
   ]) {
     try {
       assert(graph);

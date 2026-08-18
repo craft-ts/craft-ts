@@ -17,6 +17,7 @@ import {
   assertPathBoundaries,
   assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
+  assertServerFunctionArchitecture,
   craftComputedPureViolations,
   craftEffectImperativeSyncViolations,
   craftEffectNetworkViolations,
@@ -30,6 +31,7 @@ import {
   pathBoundaryViolations,
   persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
+  serverFunctionArchitectureViolations,
 } from './architecture-graph';
 
 const temporaryDirectories: string[] = [];
@@ -451,6 +453,79 @@ describe('createArchitectureGraph', () => {
         }),
       ),
     ).toThrow(/non-static|not static/i);
+  });
+});
+
+describe('server function architecture', () => {
+  it('models a client-exposed family and accepts its three boundaries', async () => {
+    const graph = await graphOf({
+      'users/list.fn-contract.ts': `
+        declare function serverFunctionContract(value: unknown): unknown;
+        export const usersListContract = serverFunctionContract({ id: 'users.list', input: {}, exposure: 'client' });
+      `,
+      'users/list.fn-serveur.ts': `
+        import { usersListContract } from './list.fn-contract';
+        declare function serverFunction(value: unknown): { handler(value: unknown): unknown };
+        export const getUsers = serverFunction(usersListContract).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        import type { getUsers as ServerGetUsers } from './list.fn-serveur';
+        import { usersListContract } from './list.fn-contract';
+        declare function createServerFunctionClient(value: unknown): unknown;
+        export const getUsers = createServerFunctionClient<ServerGetUsers>(usersListContract);
+      `,
+    });
+
+    expect(graph.catalog.serverFunctionFamilies).toEqual(['users.list']);
+    expect(graph.serverFunctionFamily('users.list').kind).toBe(
+      'server-function-family',
+    );
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+    expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
+  });
+
+  it('reports missing families, server imports in clients, client DI misuse and duplicate ids', async () => {
+    const graph = await graphOf({
+      'broken.fn-contract.ts': `
+        declare function serverFunctionContract(value: unknown): unknown;
+        export const brokenContract = serverFunctionContract({ id: 'broken', input: {}, exposure: 'client' });
+      `,
+      'orphan.fn-client.ts': `
+        import { brokenServer } from './broken.fn-serveur';
+        declare function createServerFunctionClient(value: unknown): unknown;
+        export const orphan = createServerFunctionClient(brokenServer);
+      `,
+      'broken.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const brokenServer = serverFunction('broken', {}).handler(() => 1);
+      `,
+      'duplicate-one.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const one = serverFunction('duplicate', {}).handler(() => 1);
+      `,
+      'duplicate-two.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const two = serverFunction('duplicate', {}).handler(() => 2);
+      `,
+      'di-only.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { pipe(value: unknown): { handler(value: unknown): unknown } };
+        declare function requireClientDI(value: unknown): unknown;
+        export const diOnly = serverFunction('di-only', {}).pipe(requireClientDI({})).handler(() => 1);
+      `,
+    });
+
+    const violations = serverFunctionArchitectureViolations(graph.graph);
+    expect(violations.map((violation) => violation.code)).toEqual(
+      expect.arrayContaining([
+        'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING',
+        'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER',
+        'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE',
+        'CRAFT_SERVER_FUNCTION_DUPLICATE_ID',
+      ]),
+    );
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER/,
+    );
   });
 });
 
@@ -1964,4 +2039,3 @@ describe('assertInteractiveElementNamed', () => {
     );
   });
 });
-
