@@ -435,7 +435,7 @@ engagée. 31 tests verts sur `@craft-ts/effect`.
 |---|---|---|
 | 3.1 | **fait** | `effectService(Tag)` et `effectService(Tag, select)` |
 | 3.2 | **fait** | `mockEffectService(Tag, stubs)` — mock par membre |
-| 3.3 | **non fait** | voir plus bas |
+| 3.3 | **fait** | arêtes fines `Consumer → Service.membre` dans le graphe |
 | 3.4 | **fait** | projection `AsEffect<Program>` |
 
 **3.1 — le piège évité, et il n'est pas là où le plan le disait.** Le plan
@@ -456,16 +456,33 @@ Corollaire pratique : en v4 un `Context.Service` **est** un Effect, donc
 `undefined` : il renvoie un appelable qui meurt en nommant le membre oublié.
 Stubber quinze membres pour en exercer un enterrait l'intention du test.
 
-**3.3 n'est pas fait.** Les arêtes fines dans le graphe de dépendances
-supposent d'entrer dans `libs/dev-tools/src/scripts/dependency-graph.ts`, dont
-la surface dépasse ce que je pouvais traiter proprement ici. Le point d'accroche
-existe : `SelectedMembers<Selector>` donne les noms de membres qu'une sélection
-a retenus, ce dont le graphe a besoin pour écrire `UserStore → UserApi.byId`
-plutôt que `UserStore → UserApi`.
+**3.3 — arêtes fines dans le graphe.** Un `effectService(UserApi, ({ byId }) =>
+({ byId }))` produit désormais `UserStore → UserApi.byId` au lieu de
+`UserStore → UserApi`. Le collecteur vit dans
+`libs/dev-tools/src/scripts/effect-dependency-graph.ts`, branché en fin de
+pipeline d'`analyzeDependencyGraph` ; il réutilise les types de nœud `property`
+et d'arête `uses-property` qui existaient déjà pour les raccourcis craft, donc
+le rendu HTML et Mermaid les affiche sans changement.
+
+Trois décisions à retenir :
+
+- les services Effect sont reconnus **sur la forme** de la clause d'héritage
+  (`class X extends Context.Service<…>()('Name')`), pas sur un import : le tag
+  est régulièrement réexporté via un barrel ;
+- le propriétaire d'une arête est le composant ou service craft dont l'appel
+  **englobe** le `effectService(...)`, le plus imbriqué gagnant. Un appel qui
+  n'appartient à aucun consommateur connu est **ignoré** — une arête accrochée à
+  un nœud arbitraire serait fausse, et pas de dessin vaut mieux qu'un faux ;
+- sans sélecteur, l'arête reste grossière (`depends-on` vers le service entier),
+  ce qui est le dessin honnête quand le consommateur a effectivement tout pris.
+
+7 tests, dont les deux cas négatifs (rien n'est inventé pour un membre non
+sélectionné ; aucune arête quand le propriétaire est inconnu).
 
 **Rappel que la mesure confirme.** La sélection fine ne réduit toujours pas ce
 qu'Effect construit — un `Layer` bâtit le service entier. Elle achète le graphe,
-la surface de type et le mock, rien d'autre.
+la surface de type et le mock, rien d'autre. Avec 3.3 fait, les trois sont
+livrés, et **la vague 3 est complète**.
 
 ## Vague 4 — Écosystème
 

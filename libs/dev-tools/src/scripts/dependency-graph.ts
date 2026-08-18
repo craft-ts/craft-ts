@@ -19,6 +19,11 @@ import {
   buildArchitectureCatalog,
 } from './architecture-graph.js';
 
+import {
+  collectEffectServices,
+  collectEffectServiceUsage,
+} from './effect-dependency-graph';
+
 export type DependencyGraphNodeKind =
   | 'route'
   | 'route-hook'
@@ -314,6 +319,7 @@ export function analyzeDependencyGraph(
   analyzeInsertions(builder);
   collectCraftUniques(builder, sourceFiles);
   collectRouteChecks(builder);
+  collectEffectGraph(builder, sourceFiles);
 
   builder.graph.nodes = [...builder.nodes.values()].sort((left, right) =>
     left.id.localeCompare(right.id),
@@ -3448,6 +3454,58 @@ function addNode(builder: GraphBuilder, node: DependencyGraphNode): DependencyGr
   if (existing) return existing;
   builder.nodes.set(node.id, node);
   return node;
+}
+
+// ---------------------------------------------------------------------------
+// Task 3.3 — fold the Effect-service contribution into the graph.
+//
+// The owner of an edge is the component or craft service whose factory call
+// encloses the `effectService(...)` call. A call that sits outside any known
+// consumer is skipped: attaching it to an arbitrary node would draw an edge
+// that is not true.
+// ---------------------------------------------------------------------------
+function collectEffectGraph(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const services = collectEffectServices(sourceFiles);
+  if (services.size === 0) return;
+
+  const owners: readonly { start: number; end: number; id: string; file: string }[] =
+    [...builder.components, ...builder.services].map((owner) => ({
+      start: owner.call.getStart(),
+      end: owner.call.getEnd(),
+      id: owner.node.id,
+      file: owner.call.getSourceFile().getFilePath(),
+    }));
+
+  const ownerIdOf = (node: Node): string | undefined => {
+    const file = node.getSourceFile().getFilePath();
+    const start = node.getStart();
+    let best: (typeof owners)[number] | undefined;
+    for (const owner of owners) {
+      if (owner.file !== file) continue;
+      if (owner.start > start || owner.end < start) continue;
+      // Innermost wins, so a service nested in a component is credited.
+      if (!best || owner.end - owner.start < best.end - best.start) {
+        best = owner;
+      }
+    }
+    return best?.id;
+  };
+
+  const contribution = collectEffectServiceUsage(
+    sourceFiles,
+    services,
+    ownerIdOf,
+  );
+
+  for (const node of contribution.nodes) {
+    addNode(builder, node);
+  }
+  for (const edge of contribution.edges) {
+    addEdge(builder, edge.from, edge.to, edge.kind, edge.evidence, edge.details);
+  }
 }
 
 function addEdge(
