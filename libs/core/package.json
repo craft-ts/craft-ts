@@ -1,7 +1,7 @@
 {
   "name": "@craft-ts/core",
   "version": "0.7.0-beta.11",
-  "description": "Type-safe Angular. Declare. Yield. Derive. Compile \u2014 no surprises",
+  "description": "Type-safe reactive TypeScript \u2014 signals, generators, typed errors. Declare. Yield. Derive. Compile \u2014 no surprises",
   "author": "Romain Geffrault",
   "license": "MIT",
   "homepage": "https://craft-ts.github.io/craft/",
@@ -13,14 +13,14 @@
     "url": "https://github.com/craft-ts/craft-ts.git"
   },
   "keywords": [
-    "angular",
     "state management",
     "signals",
     "reactive",
     "typescript",
     "state",
     "store",
-    "angular signals",
+    "generators",
+    "typed errors",
     "craft-ts",
     "mcp",
     "llms.txt"
