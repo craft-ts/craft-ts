@@ -51,6 +51,14 @@ import {
   type ResidualFieldValidationCases,
   type UnhandledFieldValidationCases,
 } from '../field-exception-block';
+import type {
+  EachSchedulePolicy,
+  ScheduleEachDirective,
+} from '../each-scheduling';
+import {
+  SCHEDULE_EACH_DIRECTIVE,
+  isScheduleEachDirective,
+} from '../each-scheduling';
 
 export type CraftHostInjector = unknown;
 type HostInjector = CraftHostInjector & any;
@@ -491,7 +499,7 @@ export type CraftNodePipe<
   SettledExceptions extends string = never,
 > = {
   <Directive extends CraftDirective>(
-    directive: Directive &
+    directive: (Directive extends ScheduleEachDirective ? never : Directive) &
       (Directive extends PendingBlockDirective<
         infer PendingHandlers extends PendingBlockHandlers | undefined,
         CraftNodeChildren
@@ -543,6 +551,40 @@ export type CraftNodePipe<
     SettledExceptions
   >;
   (directive: CraftHostType<unknown>): CraftNode;
+};
+
+export type EachNodePipe<
+  Dependencies extends object = {},
+  Exceptions extends string = string,
+  FieldExceptions = never,
+  PendingSources extends string = never,
+  SettledExceptions extends string = never,
+  Item = unknown,
+  Key = unknown,
+  SourceName extends string | undefined = string | undefined,
+  ItemChildren extends CraftNodeChildren = CraftNodeChildren,
+  EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
+  Schedule extends EachSchedulePolicy | undefined =
+    | EachSchedulePolicy
+    | undefined,
+> = CraftNodePipe<
+  Dependencies,
+  Exceptions,
+  FieldExceptions,
+  PendingSources,
+  SettledExceptions
+> & {
+  <Policy extends EachSchedulePolicy>(
+    directive: ScheduleEachDirective<Policy>,
+  ): EachNode<
+    Item,
+    Key,
+    Dependencies,
+    SourceName,
+    ItemChildren,
+    EmptyChildren,
+    Policy
+  >;
 };
 
 export interface AppliedCraftNodeDirective {
@@ -726,6 +768,9 @@ export interface EachNode<
   SourceName extends string | undefined = string | undefined,
   ItemChildren extends CraftNodeChildren = CraftNodeChildren,
   EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
+  Schedule extends EachSchedulePolicy | undefined =
+    | EachSchedulePolicy
+    | undefined,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<
       CraftNodeChildrenCssVars<ItemChildren | EmptyChildren>
@@ -756,10 +801,25 @@ export interface EachNode<
   readonly sourceName?: SourceName;
   readonly track: (item: Item, index: number) => Key;
   readonly empty?: () => EmptyChildren;
+  readonly schedule?: Schedule;
   readonly itemTemplate: (
     item: InputValue<Item>,
     index: number,
   ) => ItemChildren;
+  readonly pipe: EachNodePipe<
+    Dependencies,
+    CraftNodeChildrenExceptions<ItemChildren | EmptyChildren>,
+    CraftNodeChildrenRawFieldExceptions<ItemChildren | EmptyChildren>,
+    | CraftNodeChildrenPendingSources<ItemChildren>
+    | CraftNodeChildrenPendingSources<EmptyChildren>,
+    CraftNodeChildrenSettledExceptions<ItemChildren | EmptyChildren>,
+    Item,
+    Key,
+    SourceName,
+    ItemChildren,
+    EmptyChildren,
+    Schedule
+  >;
 }
 
 export interface IfBlockNode<
@@ -1209,6 +1269,7 @@ function withPipe(node: any): any {
       directive:
         | CraftDirective
         | CraftNodeDirective<any>
+        | ScheduleEachDirective
         | CraftHostType<unknown>,
     ) => pipeCraftNode(node as CraftNode, directive)) as CraftNodePipe,
   };
@@ -1219,8 +1280,21 @@ export function pipeCraftNode(
   directive:
     | CraftDirective
     | CraftNodeDirective<any>
+    | ScheduleEachDirective
     | CraftHostType<unknown>,
 ): CraftNode {
+  if (isScheduleEachDirective(directive)) {
+    if (node.kind !== 'each') {
+      throw new TypeError(
+        'scheduleEach(...) can only be piped onto an each(...) block.',
+      );
+    }
+    return withPipe({
+      ...node,
+      schedule: directive[SCHEDULE_EACH_DIRECTIVE],
+    });
+  }
+
   if (isCraftNodeDirective(directive)) {
     node = applyCraftNodeDirective(node, directive);
     if (!isCraftDirective(directive)) {

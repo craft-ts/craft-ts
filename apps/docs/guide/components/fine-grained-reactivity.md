@@ -127,6 +127,34 @@ structural work. A branch or list can change without making the parent
 component rebuild unrelated siblings. Use these helpers for structure and
 binding callbacks for values on existing nodes.
 
+### Progressive `each` rendering
+
+See the dedicated [Progressive `each` rendering](/guide/components/schedule-each)
+guide for the complete usage and trade-offs.
+
+`each` is synchronous by default. For a large collection, opt into frame-based
+batching on the `each` node itself:
+
+```ts
+each(items, { track: (item) => item.id }, (item) => p(item.name)).pipe(
+  scheduleEach({
+    enabled: true,
+    strategy: 'frame',
+    frameBudgetMs: 4,
+  }),
+);
+```
+
+Use `frame` when the list should begin appearing quickly while leaving room for
+input and painting between batches. `enabled: false` restores synchronous
+rendering, regardless of the selected strategy. The first delivery supports
+`sync` and `frame`; `idle` is reserved for a later scheduler implementation.
+
+Scheduling improves perceived responsiveness, but it does not reduce the total
+work needed to create or update the list. For very large or continuously
+scrolling collections, virtualisation is still preferable because it reduces
+the number of DOM nodes and bindings that exist at once.
+
 ## Keep bindings pure and free of logic
 
 A binding reads a value already derived by the primitive layer. It does not

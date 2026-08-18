@@ -107,6 +107,9 @@ See [Fine-grained reactivity](/guide/components/fine-grained-reactivity) for
 the complete rendering model, structural scopes, observability expectations,
 and migration checklist.
 
+See [Progressive `each` rendering](/guide/components/schedule-each) when a
+large collection needs frame-based scheduling.
+
 Keep render callbacks pure. They may read signals and calculate values, but
 must not call `set`, `update`, or `mutate`. Perform writes from DOM events,
 outputs, mutations, or explicit business effects. Enable
