@@ -199,6 +199,51 @@ shelle `rg` avec un `|| true` : sur une machine sans ripgrep — dont celle-ci �
 garde-fou anti-Angular **passe au vert sans rien vérifier**. À réparer
 indépendamment de ce dossier.
 
+### Résultat de 0.2 — fait le 2026-08-18
+
+Harnais reproductible : `node tools/effect-typecost/run.mjs`. Méthode : la
+surface craft est tenue **fixe**, seul le contenu Effect varie — la comparaison
+« un programme avec Effect vs un sans » ne mesure rien, les deux n'ont pas la
+même surface. 12 cas, tous compilent sans erreur.
+
+| Cas | craft | effect | delta | verdict vs budget +3 % |
+|---|---|---|---|---|
+| B · service à 15 membres | 798 995 | 799 886 | **+891 (+0,11 %)** | sous budget, marge ×27 |
+| C · exhaustivité de route | 799 003 | 799 171 | **+168 (+0,02 %)** | sous budget, marge ×143 |
+
+**Cas A — le coût d'un yield.** La pente moyenne serait trompeuse : le coût
+n'est pas linéaire.
+
+- Importer `effect` sans rien yielder coûte **exactement 0** (799 660 dans les
+  deux bras). Le coût d'entrée de la dépendance est nul.
+- Le **premier** yield d'Effect dans un fichier coûte **+174** instanciations
+  (le premier yield craft natif, `craftSleep` : +105).
+- Chaque yield Effect **suivant** coûte **+12** (craft : +0 — TS mémoïse
+  entièrement, Effect non).
+
+**Porte de décision : la vague 3 n'est pas bloquée.** Le pire cas mesuré est
++0,11 %, contre un budget de +3 %. Il n'y a pas de falaise type-level.
+
+**Limites à ne pas oublier.** Ce sont des coûts marginaux mesurés sur des cas
+petits, sur une base dominée par l'import de `@craft-ts/core` (~800 k
+instanciations). Les nombres transférables sont les coûts unitaires : ~59
+instanciations par membre de service Effect (891/15), +12 par yield
+supplémentaire. Le cas C mesure la machinerie d'exhaustivité de `craftRoute`
+(`RouteExceptionUnion`, `TypedExceptionHandlers`, `MissingExceptionHandlers`),
+pas `craftRoutes()` + `assertExhaustiveRouteExceptions` par-dessus.
+
+**Et une découverte de méthode, plus importante que les chiffres.** Le bras
+Effect du cas C **ne peut pas être écrit** tel que la tâche 0.2 l'imaginait :
+dériver la map de handlers depuis le `E` d'un Effect ne compile pas, puisque
+`E` n'atteint pas `RouteExceptionUnion` (constat 0.1-b). Le cas mesure donc le
+coût d'ajouter Effect **par-dessus** l'exhaustivité écrite à la main, pas une
+exhaustivité pilotée par Effect. Tant que 2.4/2.5 ne sont pas faits, cette
+seconde chose n'existe pas — et c'est elle qu'il faudra re-mesurer.
+
+Corollaire : les guards déclarent leurs exceptions en les **retournant**, pas
+en les `throw`ant — seul le retour alimente `RouteExceptionUnion`. Le harnais
+s'est fait piéger dessus.
+
 ## Vague 1 — Le socle, sans aucune dépendance
 
 Aucune connaissance d'Effect requise. Valeur acquise même si Effect est
