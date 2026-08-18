@@ -396,7 +396,7 @@ describe('CraftRouter', () => {
 
     type ExpectedDeps = {
       ConsoleService: {
-        scope: 'global';
+        providedIn: 'global';
         dependencies: {};
         browserBoundary: true;
         appStart: false;

@@ -128,7 +128,7 @@ type DependencyChildren<Node> = Node extends {
   ? Dependencies
   : {};
 
-type DependencyScope<Node> = Node extends { scope: infer Scope }
+type DependencyScope<Node> = Node extends { providedIn: infer Scope }
   ? Scope
   : never;
 
@@ -148,7 +148,7 @@ type IsComponentGenDepsDependency<Dependency> = Dependency extends {
   : false;
 
 type IsTrackedDependencyNode<Dependency> = Dependency extends {
-  scope: infer _Scope;
+  providedIn: infer _Scope;
   dependencies: infer _Dependencies extends object;
 }
   ? true

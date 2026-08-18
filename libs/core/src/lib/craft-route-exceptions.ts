@@ -442,7 +442,7 @@ export type CraftRouteExceptionType<
   ? Routes extends readonly unknown[]
     ? Extract<
         RouteExceptionUnion<Extract<Routes[number], { path: Path }>>,
-        { code: Code }
+        { _tag: Code }
       >
     : never
   : never;

@@ -113,7 +113,7 @@ describe('match.exhaustive over discriminated exceptions', () => {
 
   it('returns undefined when the readable exception is absent', () => {
     const exception = undefined as
-      | { code: 'DENIED'; payload: string }
+      | { _tag: 'DENIED'; payload: string }
       | undefined;
     expect(
       match.exhaustive(exception, '_tag', { DENIED: (value) => value.payload }),

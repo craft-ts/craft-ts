@@ -371,7 +371,7 @@ type RouteResolvedDataOutput<RouteDefinition> = RouteDefinition extends {
 type RouteExceptionOutput<RouteDefinition, Code extends string> = Signal<
   Extract<
     Extract<RouteExceptionUnion<RouteDefinition>, AnyCraftException>,
-    { code: Code }
+    { _tag: Code }
   >
 >;
 
@@ -1185,7 +1185,7 @@ type CraftRouteLoaderHelperConstraint = {
 };
 
 type ExceptionCode<Exception> = Exception extends {
-  code: infer Code extends string;
+  _tag: infer Code extends string;
 }
   ? Code
   : never;
@@ -1203,7 +1203,7 @@ type TypedExceptionHandlers<
   Results extends ExceptionHandlerResults<Codes>,
 > = {
   [Code in Codes]: CraftExceptionHandler<
-    Extract<Exception, { code: Code }>,
+    Extract<Exception, { _tag: Code }>,
     Results[Code]
   >;
 };
