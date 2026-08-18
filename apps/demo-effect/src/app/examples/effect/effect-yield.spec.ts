@@ -56,6 +56,7 @@ describe('demo: yield* Effect in a craft loader', () => {
     const { element, mounted } = mount();
 
     await clickScenario('Effect.succeed', element);
+    expect(element.textContent).toContain('Loading… the Effect is still running');
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Ada Lovelace');

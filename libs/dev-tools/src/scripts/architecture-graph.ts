@@ -1606,10 +1606,10 @@ export function serverFunctionArchitectureViolations(
     const id = contract?.details?.['serverFunctionId'];
     const hasClientExposure = exposure === 'client';
 
-    if (hasClientExposure && (!contract || !client || !server)) {
+    if (hasClientExposure && (!client || !server)) {
       add(
         'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING',
-        `client-exposed family must contain exactly one contract, one client facade and one server implementation (found contract=${Boolean(contract)}, client=${Boolean(client)}, server=${Boolean(server)}).`,
+        `client-exposed family must contain a client facade and a server implementation (found client=${Boolean(client)}, server=${Boolean(server)}).`,
         anchor,
       );
     }
@@ -1620,10 +1620,10 @@ export function serverFunctionArchitectureViolations(
         client,
       );
     }
-    if (client && !contract) {
+    if (client && !contract && !server) {
       add(
         'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE',
-        'client facade has no corresponding contract.',
+        'client facade has no corresponding server implementation.',
         client,
       );
     }
@@ -1680,6 +1680,25 @@ export function serverFunctionArchitectureViolations(
         'client facade must use the contract from its own family.',
         client,
       );
+    }
+    if (client && !contract && server) {
+      if (client.details?.['contractFamily'] === undefined) {
+        add(
+          'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+          'client facade must import the server function type from its own family.',
+          client,
+        );
+      }
+      if (
+        id !== undefined &&
+        server.details?.['serverFunctionId'] !== id
+      ) {
+        add(
+          'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+          `client facade id does not match server implementation id "${server.details?.['serverFunctionId'] ?? ''}".`,
+          client,
+        );
+      }
     }
     if (client?.details?.['runtimeServerImports']) {
       add(

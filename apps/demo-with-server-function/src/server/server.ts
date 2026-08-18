@@ -1,19 +1,44 @@
-import { createServer } from '@craft-ts/core';
-import { Effect } from 'effect';
-import { createServer as createHttpServer, type IncomingMessage } from 'node:http';
-import { getUsers } from '../users/list.fn-serveur';
+import {
+  createServer,
+} from '@craft-ts/core';
+import * as NodeHttpServer from '@effect/platform-node/NodeHttpServer';
+import {
+  Effect,
+  Exit,
+  Layer,
+  Scope,
+} from 'effect';
+import * as HttpServerRequest from 'effect/unstable/http/HttpServerRequest';
+import * as HttpServerResponse from 'effect/unstable/http/HttpServerResponse';
+import {
+    createServer as createHttpServer,
+} from 'node:http';
+import {
+  demoAuthenticatedUser,
+  CurrentUser,
+} from './authentication';
+import { getAuthenticatedUsers } from '../users/authenticated-list.fn-serveur';
+import { listUsers } from '../users/list.fn-serveur';
 import { createDemoDatabase, UserRepository } from './database';
 
 export function createDemoApplication() {
   const database = createDemoDatabase();
+  const runtimeLayer = Layer.mergeAll(
+    database.layer,
+    Layer.succeed(CurrentUser)(demoAuthenticatedUser),
+  );
   const application = createServer({
-    functions: [getUsers],
+    functions: [listUsers, getAuthenticatedUsers],
     execute(value) {
       if (!Effect.isEffect(value)) return value;
       return Effect.runPromise(
         Effect.provide(
-          value as Effect.Effect<unknown, unknown, UserRepository>,
-          database.layer,
+          value as Effect.Effect<
+            unknown,
+            unknown,
+            UserRepository | CurrentUser
+          >,
+          runtimeLayer,
         ),
       );
     },
@@ -21,14 +46,40 @@ export function createDemoApplication() {
   return { application, close: database.close };
 }
 
+/**
+ * Adapt the Web Response returned by the Craft server-function registry to
+ * Node's request/response pair with Effect's official Node HTTP adapter.
+ */
+export function createDemoNodeHandler() {
+  const demo = createDemoApplication();
+  const scope = Effect.runSync(Scope.make('parallel'));
+  const httpApp = Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const webRequest = yield* HttpServerRequest.toWeb(request);
+    const webResponse = yield* Effect.tryPromise(() =>
+      demo.application.handle(webRequest),
+    );
+    return HttpServerResponse.fromWeb(webResponse);
+  });
+  const handler = Effect.runSync(
+    NodeHttpServer.makeHandler(httpApp, { scope }),
+  );
+
+  return {
+    handler,
+    close: () => {
+      demo.close();
+      Effect.runSync(Scope.close(scope, Exit.void));
+    },
+  };
+}
+
 export async function listenDemoServer(): Promise<{
   readonly url: string;
   readonly close: () => Promise<void>;
 }> {
-  const demo = createDemoApplication();
-  const http = createHttpServer((request, response) => {
-    void forwardRequest(request, response, demo.application.handle);
-  });
+  const demo = createDemoNodeHandler();
+  const http = createHttpServer(demo.handler);
   await new Promise<void>((resolve) => {
     http.listen(0, '127.0.0.1', resolve);
   });
@@ -47,27 +98,4 @@ export async function listenDemoServer(): Promise<{
       });
     },
   };
-}
-
-async function forwardRequest(
-  request: IncomingMessage,
-  response: import('node:http').ServerResponse,
-  handle: (request: Request) => Promise<Response>,
-): Promise<void> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  const body = Buffer.concat(chunks);
-  const headers = new Headers();
-  for (const [name, value] of Object.entries(request.headers)) {
-    if (typeof value === 'string') headers.set(name, value);
-  }
-  const webRequest = new Request(`http://${request.headers.host ?? 'localhost'}${request.url ?? '/'}`, {
-    method: request.method,
-    headers,
-    body: body.length === 0 ? undefined : body,
-  });
-  const webResponse = await handle(webRequest);
-  response.statusCode = webResponse.status;
-  webResponse.headers.forEach((value, name) => response.setHeader(name, value));
-  response.end(Buffer.from(await webResponse.arrayBuffer()));
 }

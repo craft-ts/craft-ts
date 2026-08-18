@@ -2,12 +2,12 @@ import {
   createServerFunctionClient,
   type ServerFunctionTransport,
 } from '@craft-ts/core';
-import type { getUsers as ServerGetUsers } from './list.fn-serveur';
-import { usersListContract } from './list.fn-contract';
+import type { listUsers as ServerListUsers } from './list.fn-serveur';
 
+/** Simple frontend facade: no client DI is required. */
 export function createUsersClient(transport?: ServerFunctionTransport) {
-  return createServerFunctionClient<typeof ServerGetUsers>(
-    usersListContract,
+  return createServerFunctionClient<typeof ServerListUsers>(
+    'demo.users.list',
     transport,
   );
 }

@@ -29,6 +29,26 @@ export class ServerFunctionInputError extends Error {
   }
 }
 
+export class ServerFunctionOutputError extends Error {
+  readonly code = 'CRAFT_SERVER_FUNCTION_OUTPUT_INVALID';
+  readonly id: string;
+  readonly issues: readonly { readonly message: string }[];
+
+  constructor(
+    id: string,
+    issues: readonly { readonly message: string }[],
+  ) {
+    super(
+      `CRAFT_SERVER_FUNCTION_OUTPUT_INVALID: Invalid output for server function "${id}": ${issues
+        .map((issue) => issue.message)
+        .join(', ')}`,
+    );
+    this.id = id;
+    this.issues = issues;
+    this.name = 'ServerFunctionOutputError';
+  }
+}
+
 export type Server = {
   readonly functions: readonly ServerFunctionDefinition<any, any, any>[];
   readonly invoke: (
@@ -62,7 +82,8 @@ export function createServer(
       await parseServerFunctionInput(definition.contract, input),
       options.runtime,
     );
-    return options.execute ? options.execute(result) : result;
+    const executed = options.execute ? await options.execute(result) : result;
+    return parseServerFunctionOutput(definition.contract, executed);
   };
 
   return {
@@ -105,6 +126,18 @@ async function parseServerFunctionInput(
   const result = await contract.input['~standard'].validate(input);
   if (result.issues) {
     throw new ServerFunctionInputError(contract.id, result.issues);
+  }
+  return result.value;
+}
+
+async function parseServerFunctionOutput(
+  contract: ServerFunctionContract,
+  output: unknown,
+): Promise<unknown> {
+  if (!contract.output) return output;
+  const result = await contract.output['~standard'].validate(output);
+  if (result.issues) {
+    throw new ServerFunctionOutputError(contract.id, result.issues);
   }
   return result.value;
 }

@@ -1,56 +1,50 @@
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { Context, Data, Effect, Layer } from 'effect';
+import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
+import * as NodeFileSystem from '@effect/platform-node/NodeFileSystem';
 
-export type User = {
-  readonly id: number;
-  readonly name: string;
-  readonly email: string;
-};
+export const UserSchema = Schema.Struct({
+  id: Schema.Number,
+  name: Schema.String,
+  email: Schema.String,
+});
 
-export class DatabaseError extends Data.TaggedError('DatabaseError')<{
-  readonly reason: string;
-}> {}
+export type User = Schema.Schema.Type<typeof UserSchema>;
 
 export class UserRepository extends Context.Service<
   UserRepository,
   {
-    readonly list: (
-      filter: string,
-    ) => Effect.Effect<readonly User[], DatabaseError>;
+    readonly list: (filter: string) => Effect.Effect<readonly User[]>;
   }
 >()('demo/UserRepository') {}
 
-export type DemoDatabase = {
-  readonly layer: Layer.Layer<UserRepository>;
-  readonly close: () => void;
-};
-
-export function createDemoDatabase(): DemoDatabase {
+export function createDemoDatabase() {
   const databasePath = fileURLToPath(
     new URL('../../data/users.json', import.meta.url),
   );
-  const rows = JSON.parse(readFileSync(databasePath, 'utf8')) as readonly User[];
 
-  const repository: UserRepository['Service'] = {
-    list(filter: string): Effect.Effect<readonly User[], DatabaseError> {
-      return Effect.try({
-        try: () =>
+  const repository = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const rows = yield* fs.readFileString(databasePath).pipe(
+      Effect.flatMap((content) => Effect.try(() => JSON.parse(content))),
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(UserSchema))),
+    );
+
+    return {
+      list: (filter: string) =>
+        Effect.sync(() =>
           rows.filter((user) =>
             `${user.name} ${user.email}`
               .toLocaleLowerCase()
               .includes(filter.toLocaleLowerCase()),
           ),
-        catch: (cause) =>
-          new DatabaseError({
-            reason: cause instanceof Error ? cause.message : String(cause),
-          }),
-      });
-    },
-  };
+        ),
+    } satisfies UserRepository['Service'];
+  });
 
   return {
-    layer: Layer.succeed(UserRepository)(repository),
+    layer: Layer.effect(UserRepository)(repository).pipe(
+      Layer.provide(NodeFileSystem.layer),
+    ),
     close: () => undefined,
   };
 }

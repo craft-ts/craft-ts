@@ -1,11 +1,13 @@
 import type {
   ServerFunctionContract,
   ServerFunctionContractInput,
+  ServerFunctionContractOutput,
 } from './server-function-contract';
 import type {
   ServerFunctionDefinition,
   ServerFunctionInput,
-  ServerFunctionOutput,
+  ServerFunctionError,
+  ServerFunctionSuccess,
 } from './server-function';
 
 export type ServerFunctionRequest = {
@@ -17,28 +19,56 @@ export type ServerFunctionTransport = (
   request: ServerFunctionRequest,
 ) => unknown | Promise<unknown>;
 
+export type ServerFunctionContractClient<
+  Contract extends ServerFunctionContract<any, any, any>,
+> = (
+  input: ServerFunctionContractInput<Contract>,
+) => Promise<ServerFunctionContractOutput<Contract>>;
+
 export type ServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any>,
+  ClientOutput = ServerFunctionSuccess<Definition>,
 > = (
   input: ServerFunctionInput<Definition>,
-) => Promise<Awaited<ServerFunctionOutput<Definition>>>;
+) => Promise<ClientOutput>;
+
+export type ServerFunctionClientError<
+  Definition extends ServerFunctionDefinition<any, any, any>,
+> = ServerFunctionError<Definition>;
 
 export function createServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any>,
 >(
+  id: string,
+  transport?: ServerFunctionTransport,
+): ServerFunctionClient<Definition>;
+
+export function createServerFunctionClient<
+  Contract extends ServerFunctionContract<any, any, any>,
+>(
+  contract: Contract,
+  transport?: ServerFunctionTransport,
+): ServerFunctionContractClient<Contract>;
+export function createServerFunctionClient<
+  Definition extends ServerFunctionDefinition<any, any, any>,
+  ClientOutput = ServerFunctionSuccess<Definition>,
+>(
   contract: ServerFunctionDefinitionContract<Definition>,
   transport: ServerFunctionTransport = defaultServerFunctionTransport,
-): ServerFunctionClient<Definition> {
+): ServerFunctionClient<Definition, ClientOutput> {
   return (async (input: ServerFunctionContractInput<typeof contract>) =>
-    transport({ id: contract.id, input })) as ServerFunctionClient<Definition>;
+    transport({
+      id: typeof contract === 'string' ? contract : contract.id,
+      input,
+    })) as ServerFunctionClient<
+    Definition,
+    ClientOutput
+  >;
 }
 
 type ServerFunctionDefinitionContract<
-  Definition extends ServerFunctionDefinition<any, any, any>,
-> = ServerFunctionContract<
-  Definition['contract']['input'],
-  Definition['contract']['exposure']
->;
+  Definition extends ServerFunctionDefinition,
+> = Definition['contract'];
 
 async function defaultServerFunctionTransport(
   request: ServerFunctionRequest,

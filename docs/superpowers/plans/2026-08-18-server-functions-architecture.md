@@ -7,7 +7,7 @@
 Définir une convention stricte pour les server functions qui permette :
 
 - de garder une server function purement backend dans un seul fichier ;
-- d’exiger trois fichiers dès qu’une server function franchit la frontière client ;
+- d’exiger une façade client et une implémentation serveur dès qu’une server function franchit la frontière client ;
 - de conserver l’inférence des résultats, erreurs et dépendances depuis le handler Effect ;
 - d’éviter un transform de bundle en production ;
 - de rendre les imports client/serveur vérifiables par le graphe d’architecture ;
@@ -46,30 +46,28 @@ par un module client.
 ### Server function exposée au client
 
 Dès qu’une fonction peut être appelée depuis le navigateur, elle utilise une
-famille de trois fichiers :
+famille de deux fichiers :
 
 ```txt
-users/list.fn-contract.ts
 users/list.fn-client.ts
 users/list.fn-serveur.ts
 ```
 
+Un fichier `*.fn-contract.ts` séparé reste possible pour un contrat partagé,
+mais il n’est plus obligatoire. Le contrat runtime peut rester privé dans
+`*.fn-serveur.ts` ; la façade client importe uniquement le type de la définition
+serveur et fournit l’identifiant RPC.
+
 Cela s’applique également lorsqu’elle utilise `requireClientDI(...)`.
-
-```ts
-// users/list.fn-contract.ts
-
-export const usersListContract = serverFunctionContract({
-  id: 'users.list',
-  input: ListUsersInputSchema,
-  exposure: 'client',
-});
-```
 
 ```ts
 // users/list.fn-serveur.ts
 
-export const getUsers = serverFunction(usersListContract)
+export const getUsers = serverFunction(
+  'users.list',
+  ListUsersInputSchema,
+  { exposure: 'client' },
+)
   .pipe(requireClientDI(CurrentUser, { mode: 'snapshot' }))
   .pipe(requireServerPermission('users:read'))
   .handler(({ input, required }) =>
@@ -90,13 +88,14 @@ export const getUsers = serverFunction(usersListContract)
 
 import type { getUsers as ServerGetUsers } from './users/list.fn-serveur';
 
-export const getUsers = createServerFunctionClient<ServerGetUsers>(
-  usersListContract,
+export const getUsers = createServerFunctionClient<typeof ServerGetUsers>(
+  'users.list',
 );
 ```
 
-Le fichier contrat ne déclare pas le succès ni les erreurs. Ces types restent
-inférés depuis le handler Effect serveur, puis projetés vers la façade client.
+Le succès et le canal d’erreur restent inférés depuis le handler Effect serveur,
+puis projetés vers la façade client. Le client ne fait jamais d’import runtime
+du fichier `*.fn-serveur.ts`.
 
 ## Contrat public
 
@@ -131,9 +130,9 @@ Le graphe doit représenter une famille de server function :
 
 ```txt
 ServerFunctionFamily(users.list)
-├── contract
 ├── client
 └── serveur
+(contract optionnel)
 ```
 
 Pour une server function serveur uniquement :
@@ -146,17 +145,17 @@ ServerFunctionFamily(reports.rebuild)
 Les règles seront :
 
 1. Un fichier `*.fn-serveur.ts` définit une server function.
-2. Le contrat doit déclarer un identifiant stable et unique.
+2. L’implémentation serveur ou son contrat doit déclarer un identifiant stable et unique.
 3. `exposure: 'server'` autorise uniquement l’implémentation serveur.
-4. `exposure: 'client'` exige les trois fichiers de la famille.
+4. `exposure: 'client'` exige une façade client et une implémentation serveur.
 5. `requireClientDI(...)` exige `exposure: 'client'`.
-6. Une famille client doit contenir exactement un contrat, une façade client et une implémentation serveur.
-7. Les trois fichiers doivent partager le même préfixe de famille.
+6. Une famille client peut contenir un contrat séparé, mais celui-ci est optionnel.
+7. Les fichiers client et serveur doivent partager le même préfixe de famille.
 8. Le client ne peut pas faire d’import runtime vers `*.fn-serveur.ts`.
 9. Le serveur ne peut pas importer `*.fn-client.ts`.
-10. Le contrat ne peut dépendre que de modules partageables et browser-safe.
-11. Le fichier client doit utiliser le contrat correspondant.
-12. Le fichier serveur doit utiliser le même contrat lorsqu’il est exposé au client.
+10. Un contrat séparé, s’il existe, ne peut dépendre que de modules partageables et browser-safe.
+11. Le fichier client doit utiliser le contrat correspondant ou le type de l’implémentation serveur de sa famille.
+12. Le fichier serveur doit utiliser le même contrat lorsqu’un contrat séparé est présent.
 13. Un contrat `exposure: 'client'` sans façade client est une violation.
 14. Une façade client sans implémentation serveur correspondante est une violation.
 15. Les types publics client et serveur doivent être compatibles.
@@ -249,7 +248,7 @@ l’implémentation Effect et sur les exports publics existants.
 
 - [ ] Définir `ServerFunctionExposure`.
 - [ ] Définir la forme minimale de `serverFunctionContract`.
-- [ ] Définir la convention de nommage `.fn-contract.ts`, `.fn-client.ts`, `.fn-serveur.ts`.
+- [ ] Définir la convention de nommage `.fn-client.ts` et `.fn-serveur.ts`, avec `.fn-contract.ts` optionnel.
 - [ ] Définir le comportement d’une server function serveur uniquement.
 - [ ] Définir la projection du type serveur vers le type client.
 
@@ -314,7 +313,8 @@ l’implémentation Effect et sur les exports publics existants.
 ## Critères d’acceptation
 
 - Une server function purement backend peut être définie dans un seul fichier.
-- Une server function exposée au client exige trois fichiers cohérents.
+- Une server function exposée au client exige une façade client et une
+  implémentation serveur cohérentes ; un contrat séparé reste optionnel.
 - Toute utilisation de `requireClientDI` exige automatiquement une famille client.
 - Le schéma d’entrée est toujours obligatoire.
 - Le succès et les erreurs sont inférés depuis le handler Effect.

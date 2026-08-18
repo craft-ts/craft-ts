@@ -42,10 +42,10 @@ export function requireServerPermission(
     throw new Error('A server permission must not be empty.');
   }
   return Object.freeze({
-    kind: 'server-permission' as const,
+    kind: 'server-permission',
     permission,
-    __serverFunctionPipe: true as const,
-  });
+    __serverFunctionPipe: true,
+  } satisfies ServerPermissionRequirement);
 }
 
 export type ServerFunctionPipe =

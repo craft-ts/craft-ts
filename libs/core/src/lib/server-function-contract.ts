@@ -7,19 +7,23 @@ import type {
 export type ServerFunctionExposure = 'server' | 'client';
 
 export interface ServerFunctionContractOptions<
-  Schema extends CraftSchema = CraftSchema,
+  InputSchema extends CraftSchema = CraftSchema,
+  OutputSchema extends CraftSchema | undefined = undefined,
 > {
   readonly id: string;
-  readonly input: Schema;
+  readonly input: InputSchema;
+  readonly output?: OutputSchema;
   readonly exposure: ServerFunctionExposure;
 }
 
 export interface ServerFunctionContract<
-  Schema extends CraftSchema = CraftSchema,
+  InputSchema extends CraftSchema = CraftSchema,
   Exposure extends ServerFunctionExposure = ServerFunctionExposure,
+  OutputSchema extends CraftSchema | undefined = CraftSchema | undefined,
 > {
   readonly id: string;
-  readonly input: Schema;
+  readonly input: InputSchema;
+  readonly output?: OutputSchema;
   readonly exposure: Exposure;
   readonly __serverFunctionContract: true;
 }
@@ -30,24 +34,36 @@ export type ServerFunctionContractInput<
 
 export type ServerFunctionContractOutput<
   Contract extends ServerFunctionContract,
-> = SchemaOutput<Contract['input']>;
+> = Contract extends ServerFunctionContract<
+  infer _InputSchema,
+  infer _Exposure,
+  infer OutputSchema
+>
+  ? OutputSchema extends CraftSchema
+    ? SchemaOutput<OutputSchema>
+    : unknown
+  : never;
 
 export function serverFunctionContract<
-  Schema extends CraftSchema,
+  InputSchema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
+  OutputSchema extends CraftSchema | undefined = undefined,
 >({
   id,
   input,
+  output,
   exposure,
-}: ServerFunctionContractOptions<Schema> & { readonly exposure: Exposure }):
-  ServerFunctionContract<Schema, Exposure> {
+}: ServerFunctionContractOptions<InputSchema, OutputSchema> & {
+  readonly exposure: Exposure;
+}): ServerFunctionContract<InputSchema, Exposure, OutputSchema> {
   assertServerFunctionId(id);
   return Object.freeze({
     id,
     input,
+    ...(output === undefined ? {} : { output }),
     exposure,
     __serverFunctionContract: true as const,
-  });
+  }) as ServerFunctionContract<InputSchema, Exposure, OutputSchema>;
 }
 
 export function isServerFunctionContract(

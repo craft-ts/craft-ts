@@ -1,31 +1,39 @@
 # EffectTS + CraftTS demo
 
-Application dédiée aux exemples d’intégration entre EffectTS et CraftTS.
+Application dedicated to EffectTS and CraftTS integration examples.
 
 ## Serve
 
-Depuis la racine du dépôt :
+From the repository root:
 
 ```bash
 npx nx serve demo-effect
 ```
 
-L’application démarre sur `http://localhost:4201` et présente l’exemple
-`queryEffect`. Le bridge Effect est installé globalement dans
-`src/app/app.config.ts`; les loaders retournent directement leur
+The application starts at `http://localhost:4201` and presents the
+`queryEffect` example. The Effect bridge is installed globally in
+`src/app/app.config.ts`; loaders return their
 `Effect<A, E, R>`.
 
-Utiliser `queryEffect`, `mutationEffect` et `asyncProcessEffect` aux frontières
-entre un domaine Effect et une primitive Craft. Les paramètres restent des
-valeurs ou sources synchrones Craft : il n’existe volontairement pas de
-`stateEffect`. Un `runEffect(effect)` direct reste disponible pour les cas
-bas niveau et permet d’ajouter explicitement `assertNoRequirements`; pour les
-adaptateurs, les besoins `R` sont résolus par le `provideLayer(...)` le plus
-proche.
+The `/shared-service` example shows an Effect service and domain operation
+defined in `src/app/shared/greeting-service.ts`. The component only knows
+about `loadGreeting`; `provideLayer(GreetingServiceLive)` in `app.config.ts`
+satisfies the `R = GreetingService` requirement.
 
-Les erreurs typées `E` deviennent des exceptions Craft basées sur leur `_tag`.
-Les défauts (`Effect.die`) restent des erreurs techniques et l’interruption
-reste une annulation.
+The `/layer-scope` example combines a global `GlobalLayer` from
+`app.config.ts` with a route-scoped `RouteLayer` from the route's `providers`.
+The route injector inherits the global service and adds the route service before
+the Effect runs.
+
+Use `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
+between an Effect domain and a Craft primitive. Parameters remain synchronous
+Craft values or sources: there is intentionally no `stateEffect`. Direct
+`runEffect(effect)` remains available for low-level cases and allows an
+explicit `assertNoRequirements`; adapters resolve `R` through the nearest
+`provideLayer(...)`.
+
+Typed `E` errors become Craft exceptions based on their `_tag`. Defects
+(`Effect.die`) remain technical errors, and interruption remains cancellation.
 
 ```ts
 const userQuery = yield* queryEffect('userQuery', {
@@ -44,10 +52,10 @@ const refresh = yield* asyncProcessEffect('refresh', {
 });
 ```
 
-Les dérivations synchrones utilisent toujours `craftComputed`. Les paramètres
-réactifs restent synchrones et natifs Craft : `stateEffect` n’existe pas.
+Synchronous derivations continue to use `craftComputed`. Reactive parameters
+remain synchronous and native to Craft: `stateEffect` does not exist.
 
-## Vérifications
+## Verification
 
 ```bash
 npx nx typecheck demo-effect

@@ -57,9 +57,18 @@ function buildLevel(
  */
 export function provideLayer<ROut, RIn>(
   layer: Layer.Layer<ROut, never, RIn>,
-): CraftProvider {
+): CraftProvider & {
+  readonly provide: object;
+  readonly deps: readonly [typeof Injector];
+} {
   return {
     token: CRAFT_EFFECT_LEVEL,
+    // Keep the provider consumable by Angular-style route injectors as well
+    // as by Craft's native root injector.
+    provide: CRAFT_EFFECT_LEVEL,
+    // Angular-style provider normalization passes declared dependencies to
+    // `useFactory`; the native Craft injector still passes itself directly.
+    deps: [Injector],
     useFactory: (injector: Injector): CraftEffectLevel => {
       const parent = getParentLevel(injector);
       const scope = Effect.runSync(Scope.make());

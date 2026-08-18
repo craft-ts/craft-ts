@@ -484,6 +484,24 @@ describe('server function architecture', () => {
     expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
   });
 
+  it('accepts a client-exposed family without a separate contract file', async () => {
+    const graph = await graphOf({
+      'users/simple.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.simple', {}, { exposure: 'client' }).handler(() => ({ ok: true }));
+      `,
+      'users/simple.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './simple.fn-serveur';
+        declare function createServerFunctionClient<T>(id: string): unknown;
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>('users.simple');
+      `,
+    });
+
+    expect(graph.catalog.serverFunctionFamilies).toEqual(['users.simple']);
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+    expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
+  });
+
   it('reports missing families, server imports in clients, client DI misuse and duplicate ids', async () => {
     const graph = await graphOf({
       'broken.fn-contract.ts': `

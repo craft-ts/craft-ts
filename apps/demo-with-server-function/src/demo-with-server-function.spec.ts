@@ -6,6 +6,7 @@ import {
 import { analyzeDependencyGraph } from '@craft-ts/dev-tools/dependency-graph';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { createAuthenticatedUsersClient } from './users/authenticated-list.fn-client';
 import { createUsersClient } from './users/list.fn-client';
 import { listenDemoServer } from './server/server';
 
@@ -40,7 +41,29 @@ describe('demo with server function', () => {
     }
   });
 
-  it('is visible as a valid three-file server-function family', () => {
+  it('rejects a browser identity that does not match the authenticated server user', async () => {
+    const server = await listenDemoServer();
+    try {
+      const getUsers = createAuthenticatedUsersClient(async ({ id, input }) => {
+        const response = await fetch(`${server.url}/__server-functions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id, input }),
+        });
+        const payload = (await response.json()) as unknown;
+        if (!response.ok) throw new Error(JSON.stringify(payload));
+        return payload;
+      });
+
+      await expect(
+        getUsers({ filter: 'ada', userId: 'other-user' }),
+      ).rejects.toThrow('AuthenticatedUserMismatch');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('is visible as a valid two-file server-function family', () => {
     const graph = createArchitectureGraph(
       analyzeDependencyGraph({
         rootDir: demoRoot,
@@ -48,8 +71,14 @@ describe('demo with server function', () => {
       }),
     );
 
-    expect(graph.catalog.serverFunctionFamilies).toEqual(['demo.users.list']);
+    expect(graph.catalog.serverFunctionFamilies).toEqual([
+      'demo.users.authenticated-list',
+      'demo.users.list',
+    ]);
     expect(graph.serverFunctionFamily('demo.users.list').kind).toBe(
+      'server-function-family',
+    );
+    expect(graph.serverFunctionFamily('demo.users.authenticated-list').kind).toBe(
       'server-function-family',
     );
     expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();

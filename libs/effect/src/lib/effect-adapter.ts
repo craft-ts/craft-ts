@@ -141,7 +141,7 @@ export function queryEffect<
   Value extends object | undefined,
   Error,
   Requirements,
-  Insertion extends (...args: never[]) => unknown,
+  Insertion extends (...args: any[]) => any,
 >(
   name: Name,
   config: EffectQueryConfig<Params, Value, Error, Requirements>,

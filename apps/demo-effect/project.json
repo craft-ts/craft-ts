@@ -23,6 +23,23 @@
       ],
       "cache": true
     },
+    "effect-check": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "command": "node tools/run-effect-tsgo.mjs diagnostics --project apps/demo-effect/tsconfig.effect.json --format text --severity error,warning,message"
+      },
+      "inputs": [
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/package-lock.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.app.json",
+        "{projectRoot}/tsconfig.effect.json",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
+    },
     "build-local-types": {
       "executor": "nx:run-commands",
       "options": {

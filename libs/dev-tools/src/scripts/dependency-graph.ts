@@ -3724,10 +3724,16 @@ function findServerFunction(
       id = contract?.id;
     }
   }
+  const options = serverCall
+    .getArguments()[2]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression);
   const usesClientDI = calls.some((candidate) => candidate.getExpression().getText() === 'requireClientDI');
   return {
     id,
-    exposure: contractIdentifier ? 'client' : 'server',
+    exposure:
+      contractIdentifier === undefined
+        ? getStringProperty(options, 'exposure') ?? 'server'
+        : 'client',
     usesClientDI,
     ...(contractFamily === undefined ? {} : { contractFamily }),
   };
@@ -3741,18 +3747,50 @@ function findClientContractFamily(
     .getDescendantsOfKind(SyntaxKind.CallExpression)
     .find((candidate) => candidate.getExpression().getText() === 'createServerFunctionClient');
   const identifier = call?.getArguments()[0]?.asKind(SyntaxKind.Identifier);
-  if (!identifier) return undefined;
-  const declaration = sourceFile.getImportDeclarations().find((candidate) =>
-    candidate.getNamedImports().some((named) => named.getName() === identifier.getText() || named.getAliasNode()?.getText() === identifier.getText()),
-  );
+  const directId = call
+    ?.getArguments()[0]
+    ?.asKind(SyntaxKind.StringLiteral)
+    ?.getLiteralValue();
+  const declaration = identifier
+    ? sourceFile.getImportDeclarations().find((candidate) =>
+        candidate.getNamedImports().some(
+          (named) =>
+            named.getName() === identifier.getText() ||
+            named.getAliasNode()?.getText() === identifier.getText(),
+        ),
+      )
+    : undefined;
   const imported = declaration
     ? resolveImportedSource(sourceFile, declaration.getModuleSpecifierValue(), sourceFile.getProject())
     : undefined;
-  if (!imported || !byPath.has(imported.getFilePath())) return undefined;
-  const contract = findServerFunctionContract(imported);
+  if (imported && byPath.has(imported.getFilePath())) {
+    const contract = findServerFunctionContract(imported);
+    return {
+      id: contract?.id,
+      family: imported.getFilePath().replace(/\.fn-contract\.ts$/, ''),
+    };
+  }
+
+  const serverImport = sourceFile.getImportDeclarations().find((candidate) => {
+    const resolved = resolveImportedSource(
+      sourceFile,
+      candidate.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    return resolved?.getBaseName().endsWith('.fn-serveur.ts') === true;
+  });
+  const server = serverImport
+    ? resolveImportedSource(
+        sourceFile,
+        serverImport.getModuleSpecifierValue(),
+        sourceFile.getProject(),
+      )
+    : undefined;
+  if (!server || !byPath.has(server.getFilePath())) return undefined;
+  const serverFunction = findServerFunction(server, byPath);
   return {
-    id: contract?.id,
-    family: imported.getFilePath().replace(/\.fn-contract\.ts$/, ''),
+    id: directId ?? serverFunction?.id,
+    family: server.getFilePath().replace(/\.fn-serveur\.ts$/, ''),
   };
 }
 

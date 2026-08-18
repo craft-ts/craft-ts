@@ -13,13 +13,14 @@ import {
   type ServerFunctionToken,
 } from './client-di-requirement';
 import type { CraftSchema } from './schema-validation';
+import type * as Effect from 'effect/Effect';
 
 export type ServerFunctionRequired<
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
 > = <Value>(token: ServerFunctionToken<Value> & ClientDITokensOf<Pipes>) => Value;
 
 export type ServerFunctionHandlerContext<
-  Contract extends ServerFunctionContract,
+  Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
 > = {
   readonly input: ServerFunctionContractInput<Contract>;
@@ -28,13 +29,13 @@ export type ServerFunctionHandlerContext<
 };
 
 export type ServerFunctionHandler<
-  Contract extends ServerFunctionContract,
+  Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
   Output = unknown,
 > = (context: ServerFunctionHandlerContext<Contract, Pipes>) => Output;
 
 export type ServerFunctionDefinition<
-  Contract extends ServerFunctionContract = ServerFunctionContract,
+  Contract extends ServerFunctionContract<any, any, any> = ServerFunctionContract,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
   Output = unknown,
 > = {
@@ -53,7 +54,7 @@ export type ServerFunctionRuntime = {
 };
 
 type Builder<
-  Contract extends ServerFunctionContract,
+  Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
 > = {
   readonly pipe: <Pipe extends ServerFunctionPipe>(
@@ -75,23 +76,51 @@ export function serverFunction<Schema extends CraftSchema>(
 export function serverFunction<
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
+  OutputSchema extends CraftSchema | undefined = undefined,
 >(
-  contract: ServerFunctionContract<Schema, Exposure>,
-): Builder<ServerFunctionContract<Schema, Exposure>, readonly []>;
+  id: string,
+  input: Schema,
+  options: {
+    readonly exposure: Exposure;
+    readonly output?: OutputSchema;
+  },
+): Builder<
+  ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  readonly []
+>;
 export function serverFunction<
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
+  OutputSchema extends CraftSchema | undefined,
 >(
-  contractOrId: string | ServerFunctionContract<Schema, Exposure>,
+  contract: ServerFunctionContract<Schema, Exposure, OutputSchema>,
+): Builder<
+  ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  readonly []
+>;
+export function serverFunction<
+  Schema extends CraftSchema,
+  Exposure extends ServerFunctionExposure,
+  OutputSchema extends CraftSchema | undefined = undefined,
+>(
+  contractOrId: string | ServerFunctionContract<Schema, Exposure, OutputSchema>,
   input?: Schema,
-): Builder<ServerFunctionContract<Schema, Exposure>, readonly []> {
+  options?: {
+    readonly exposure?: Exposure;
+    readonly output?: OutputSchema;
+  },
+): Builder<
+  ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  readonly []
+> {
   const contract =
     typeof contractOrId === 'string'
       ? (serverFunctionContract({
           id: contractOrId,
           input: input as Schema,
-          exposure: 'server',
-        }) as ServerFunctionContract<Schema, Exposure>)
+          exposure: options?.exposure ?? 'server',
+          output: options?.output,
+        }) as ServerFunctionContract<Schema, Exposure, OutputSchema>)
       : contractOrId;
   assertServerFunctionId(contract.id);
 
@@ -99,7 +128,7 @@ export function serverFunction<
 }
 
 function createBuilder<
-  Contract extends ServerFunctionContract,
+  Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
 >(
   contract: Contract,
@@ -119,7 +148,7 @@ function createBuilder<
 }
 
 function createDefinition<
-  Contract extends ServerFunctionContract,
+  Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
   Output,
 >(
@@ -162,6 +191,30 @@ export type ServerFunctionOutput<
   infer Output
 >
   ? Output
+  : never;
+
+type AwaitedServerFunctionOutput<
+  Definition extends ServerFunctionDefinition<any, any, any>,
+> = Awaited<ServerFunctionOutput<Definition>>;
+
+export type ServerFunctionSuccess<
+  Definition extends ServerFunctionDefinition<any, any, any>,
+> = AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
+  infer Success,
+  infer _Error,
+  infer _Requirements
+>
+  ? Success
+  : AwaitedServerFunctionOutput<Definition>;
+
+export type ServerFunctionError<
+  Definition extends ServerFunctionDefinition<any, any, any>,
+> = AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
+  infer _Success,
+  infer Error,
+  infer _Requirements
+>
+  ? Error
   : never;
 
 export type ServerFunctionClientDIValues<

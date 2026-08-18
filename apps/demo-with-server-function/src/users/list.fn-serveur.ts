@@ -1,12 +1,26 @@
 import { serverFunction } from '@craft-ts/core';
-import { Effect } from 'effect';
-import { usersListContract } from './list.fn-contract';
-import { UserRepository } from '../server/database';
+import { Effect, Schema } from 'effect';
+import { UserRepository, UserSchema } from '../server/database';
 
-export const getUsers = serverFunction(usersListContract).handler(
-  ({ input }) =>
-    Effect.gen(function* () {
-      const users = yield* UserRepository;
-      return yield* users.list(input.filter);
-    }),
+const listUsersInputSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    filter: Schema.String,
+  }),
+);
+const listUsersOutputSchema = Schema.toStandardSchemaV1(
+  Schema.Array(UserSchema),
+);
+
+/** Simple client-exposed server function: no client DI is required. */
+export const listUsers = serverFunction(
+  'demo.users.list',
+  listUsersInputSchema,
+  { exposure: 'client', output: listUsersOutputSchema },
+).handler(({ input }) =>
+  Effect.gen(function* () {
+    // Latence volontaire pour rendre visible le cycle loading du frontend.
+    yield* Effect.sleep('600 millis');
+    const users = yield* UserRepository;
+    return yield* users.list(input.filter);
+  }),
 );

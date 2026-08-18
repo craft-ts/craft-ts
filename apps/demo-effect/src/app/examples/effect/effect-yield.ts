@@ -5,6 +5,7 @@
 // The Effect bridge is installed once at application startup, so the loader
 // stays focused on the domain operation.
 //
+// Each request has a small deliberate delay so the loading state is visible.
 // The three scenarios are three different channels, and they are NOT
 // interchangeable:
 //   Effect.succeed → the pump resumes the generator      → status "resolved"
@@ -50,20 +51,25 @@ type User = { id: string; name: string; email: string };
 function loadUser(
   scenario: Scenario,
 ): Effect.Effect<User, UserNotFound | Unauthorized> {
-  switch (scenario) {
-    case 'not-found':
-      return Effect.fail(new UserNotFound({ userId: 'u-42' }));
-    case 'unauthorized':
-      return Effect.fail(new Unauthorized({ reason: 'token expired' }));
-    case 'defect':
-      return Effect.die(new Error('the database connection exploded'));
-    case 'success':
-      return Effect.succeed({
-        id: 'u-42',
-        name: 'Ada Lovelace',
-        email: 'ada@craft.dev',
-      });
-  }
+  return Effect.gen(function* () {
+    // Keep this in the domain Effect: the Craft loader remains a thin adapter.
+    yield* Effect.sleep('400 millis');
+
+    switch (scenario) {
+      case 'not-found':
+        return yield* Effect.fail(new UserNotFound({ userId: 'u-42' }));
+      case 'unauthorized':
+        return yield* Effect.fail(new Unauthorized({ reason: 'token expired' }));
+      case 'defect':
+        return yield* Effect.die(new Error('the database connection exploded'));
+      case 'success':
+        return {
+          id: 'u-42',
+          name: 'Ada Lovelace',
+          email: 'ada@craft.dev',
+        };
+    }
+  });
 }
 
 const EffectYieldComponent = craftComponent(
@@ -246,7 +252,10 @@ const EffectYieldComponent = craftComponent(
       div({ class: 'effect-panel' }, [
         p({ class: 'effect-panel-title' }, 'What craft ended up with'),
         ifBlock(userQuery.userIsLoading, () =>
-          p({ class: 'effect-outcome' }, 'Loading…'),
+          p(
+            { class: 'effect-outcome' },
+            'Loading… the Effect is still running',
+          ),
         ),
         ifBlock(
           userQuery.hasUser,
@@ -294,8 +303,8 @@ const EffectYieldComponent = craftComponent(
         strong('The application-level bridge. '),
         'The Effect bridge is installed once in ',
         span({ class: 'mono' }, 'app.config.ts'),
-        '. Each loader only wraps its boundary yield with ',
-        span({ class: 'mono' }, 'runEffect(...)'),
+        '. Each loader returns its domain Effect through ',
+        span({ class: 'mono' }, 'queryEffect(...)'),
         ': ',
         span({ class: 'mono' }, 'userQuery.exception()'),
         " receives Effect's typed failures without a local trace hook, provider, or adapter object. The domain function remains pure Effect code.",
