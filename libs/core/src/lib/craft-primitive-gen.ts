@@ -38,7 +38,7 @@ export type ServiceTrackedDepsRequest<DepMap extends object = object> =
     [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true;
     /** Phantom carrier — never read at runtime. */
     readonly depMap?: DepMap;
-    scope: ConcreteServiceScope;
+    providedIn: ConcreteServiceScope;
     resolve: (injector: Injector, hostScope: ConcreteServiceScope) => unknown;
   }>;
 
@@ -200,7 +200,7 @@ export function createPrimitiveGen<Ref>(ref: Ref): CraftPrimitiveGen<Ref> {
   const gen = (function* () {
     yield {
       [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true,
-      scope: 'global',
+      providedIn: 'global',
       resolve: () => undefined,
     } as ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>;
     return ref;

@@ -189,7 +189,7 @@ type DashboardMockInput = MockHttpRequestForRouteInput<
 >;
 type PasswordRequiredException = Extract<
   ExtractCraftHttpRequestCustomException<LoginRequest>,
-  { code: 'PASSWORD_REQUIRED' }
+  { _tag: 'PASSWORD_REQUIRED' }
 >;
 
 declare module './mock-http-request-for-route' {

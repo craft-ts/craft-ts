@@ -501,7 +501,7 @@ type HttpRequestsFromDerivedProperties<Properties> = Properties extends object
   : never;
 
 type HttpRequestsFromDependencyValue<Value> = Value extends {
-  scope: unknown;
+  providedIn: unknown;
   dependencies: infer Dependencies extends object;
 }
   ?
