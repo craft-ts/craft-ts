@@ -3,7 +3,10 @@
   "compilerOptions": {
     "module": "preserve",
     "target": "es2022",
-    "types": ["node", "vitest/globals"],
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
     "strict": true,
     "noEmit": true,
     "plugins": [
@@ -13,8 +16,13 @@
         "diagnosticsName": true,
         "overrides": [
           {
-            "include": ["src/**/*.ts"],
-            "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+            "include": [
+              "src/**/*.ts"
+            ],
+            "exclude": [
+              "src/**/*.spec.ts",
+              "src/**/*.test.ts"
+            ],
             "options": {
               "diagnosticSeverity": {
                 "floatingEffect": "error",
@@ -33,7 +41,9 @@
             }
           },
           {
-            "include": ["src/server/server.ts"],
+            "include": [
+              "src/server/server.ts"
+            ],
             "options": {
               "diagnosticSeverity": {
                 "asyncFunction": "off",
@@ -63,5 +73,12 @@
       ]
     }
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.architecture.json"
+    }
+  ]
 }

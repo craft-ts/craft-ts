@@ -272,7 +272,7 @@ function inferFunctionScopes(
   for (const descriptor of descriptors) {
     if (
       descriptor.scope !== 'toProvide' ||
-      descriptor.override?.scope ||
+      descriptor.override?.providedIn ||
       descriptor.strategy !== 'craftService' ||
       getUnsafeReason(descriptor)
     )

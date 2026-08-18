@@ -38,6 +38,8 @@ import {
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPathBoundaries,
+  assertPrimitiveLoaderRequirements,
+  assertQueryMutationHasServerState,
   assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
   buildArchitectureCatalog,
@@ -45,6 +47,43 @@ import {
   noExclusiveLink,
 } from '@craft-ts/dev-tools';
 ```
+
+## Loader requirements
+
+When `query` and `mutation` are reserved for server state, enforce that their
+`loader` reaches a transport boundary:
+
+```typescript
+assertQueryMutationHasServerState(graph.graph);
+```
+
+This accepts a `CraftHttpClient` endpoint or a client-exposed server-function
+family. The generic helper lets an Effect application choose its own boundary:
+
+```typescript
+assertPrimitiveLoaderRequirements(graph.graph, {
+  primitives: ['queryEffect', 'mutationEffect'],
+  requirements: [
+    {
+      label: 'an Effect service',
+      matches: ({ target }) =>
+        target.kind === 'service' && target.details?.runtime === 'effect',
+    },
+  ],
+});
+```
+
+Requirements are OR-ed. The matcher receives the primitive, target node, edge,
+and complete graph, so a project can recognise an Effect service, a domain
+gateway, or another server-state boundary without making `CraftHttpClient` a
+universal requirement. For `queryEffect` and `mutationEffect`, the graph also
+projects the Effect `R` channel onto the matching Effect service nodes, so a
+loader returning `Effect.Effect<A, E, UserApi>` satisfies the service matcher
+even when the loader only calls a domain function.
+
+Intentional local-state examples can be named explicitly with `allow` on the
+rule. Keep this list narrow: it is an exception to the server-state contract,
+not a replacement for choosing the right primitive.
 
 ## Mental model
 
@@ -82,14 +121,17 @@ npx craft-migrate-architecture \
 
 That writes `tsconfig.graph.json`, `tsconfig.architecture.json`,
 `vitest.architecture.config.ts`, the `architecture/` suite (loader, catalog,
-baseline rules, and an `architecture.spec.ts` for app-specific lookups), an
+baseline rules, and an `architecture.spec.ts`), an
 Nx `architecture` target or a `package.json` script, and ignores the generated
 catalog in the nearest flat ESLint config. `--write` overwrites the scaffold.
 `--check` fails when the suite is missing or the generated tooling files
 drifted. `craft-migrate --write` runs this as its last step.
 
-Common rules each get a file under `architecture/rules/`; app-specific lookups
-stay in `architecture.spec.ts`.
+Keep the rules and app-specific lookups in one `architecture.spec.ts` file when
+the graph is expensive to analyze. `loadArchitectureGraph()` caches only within
+one Vitest worker; separate spec files rebuild the TypeScript graph separately.
+The three demo apps use this single-file layout, which performs one graph
+analysis per app run.
 
 ### 1. Analysis tsconfig
 
@@ -267,8 +309,8 @@ string.
 
 The declarative baseline is five graph-wide checks. Import them all, then
 either call each one or `assertDeclarativeArchitecture` for the five together.
-The demo suite keeps one file per rule in `apps/demo/architecture/rules/` —
-run it with `npx nx architecture demo`.
+The demo suite keeps all checks in `apps/demo/architecture/architecture.spec.ts`
+so the graph is loaded once. Run it with `npx nx architecture demo`.
 
 | Helper | Fails when |
 | --- | --- |

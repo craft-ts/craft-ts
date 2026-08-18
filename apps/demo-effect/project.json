@@ -8,7 +8,9 @@
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build-local-types"],
+      "dependsOn": [
+        "build-local-types"
+      ],
       "options": {
         "cwd": "apps/demo-effect",
         "command": "tsgo -p tsconfig.app.json --noEmit --pretty false"
@@ -25,7 +27,9 @@
     },
     "effect-check": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build-local-types"],
+      "dependsOn": [
+        "build-local-types"
+      ],
       "options": {
         "command": "node tools/run-effect-tsgo.mjs diagnostics --project apps/demo-effect/tsconfig.effect.json --format text --severity error,warning,message"
       },
@@ -64,7 +68,9 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/apps/demo-effect"],
+      "outputs": [
+        "{workspaceRoot}/dist/apps/demo-effect"
+      ],
       "options": {
         "command": "npx vite build --config apps/demo-effect/vite.config.ts"
       },
@@ -81,7 +87,9 @@
     "serve": {
       "continuous": true,
       "executor": "nx:run-commands",
-      "dependsOn": ["build-local-types"],
+      "dependsOn": [
+        "build-local-types"
+      ],
       "options": {
         "command": "npx vite --config apps/demo-effect/vite.config.ts",
         "forwardAllArgs": true
@@ -96,6 +104,33 @@
         "command": "node tools/run-lib-vitest.mjs apps/demo-effect/vitest.config.ts",
         "forwardAllArgs": true
       }
+    },
+    "architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.architecture.config.ts",
+        "cwd": "apps/demo-effect"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/architecture/**/*.ts",
+        "{projectRoot}/tsconfig.graph.json",
+        "{projectRoot}/tsconfig.architecture.json"
+      ],
+      "cache": true
+    },
+    "typecheck-architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo-effect",
+        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/architecture/**/*.ts"
+      ],
+      "cache": true
     }
   }
 }

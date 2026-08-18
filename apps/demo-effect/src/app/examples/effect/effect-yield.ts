@@ -1,17 +1,5 @@
-// ---------------------------------------------------------------------------
-// ɵ EffectTS + CraftTS demo — an Effect-aware Craft query.
-//
-// What this page shows: a `queryEffect` whose loader returns a domain Effect.
-// The Effect bridge is installed once at application startup, so the loader
-// stays focused on the domain operation.
-//
-// Each request has a small deliberate delay so the loading state is visible.
-// The three scenarios are three different channels, and they are NOT
-// interchangeable:
-//   Effect.succeed → the pump resumes the generator      → status "resolved"
-//   Effect.fail    → the error `_tag` becomes a craft exception → status "exception"
-//   Effect.die     → a defect, never a business exception → status "error"
-// ---------------------------------------------------------------------------
+// This page uses a concrete profile consultation to show how Effect outcomes
+// cross the Craft query boundary.
 
 import {
   button,
@@ -24,305 +12,154 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Dedicated demo UI styles. */
 import { craftComputed, state } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
-import { Data, Effect } from 'effect';
+import {
+  loadUserProfile,
+  type ProfileScenario,
+  type Unauthorized,
+  type UserNotFound,
+} from '../../shared/access-domain';
 
-// Effect's own tagged errors. Nothing craft-specific about them — that is the
-// point: they come from a domain layer that has never heard of craft.
-class UserNotFound extends Data.TaggedError('UserNotFound')<{
-  readonly userId: string;
-}> {}
-
-class Unauthorized extends Data.TaggedError('Unauthorized')<{
-  readonly reason: string;
-}> {}
-
-type Scenario = 'success' | 'not-found' | 'unauthorized' | 'defect';
-
-type EffectException = {
-  readonly _tag: 'UserNotFound' | 'Unauthorized';
-};
-
-type User = { id: string; name: string; email: string };
-
-// The "domain layer": pure Effect, zero craft.
-function loadUser(
-  scenario: Scenario,
-): Effect.Effect<User, UserNotFound | Unauthorized> {
-  return Effect.gen(function* () {
-    // Keep this in the domain Effect: the Craft loader remains a thin adapter.
-    yield* Effect.sleep('400 millis');
-
-    switch (scenario) {
-      case 'not-found':
-        return yield* new UserNotFound({ userId: 'u-42' });
-      case 'unauthorized':
-        return yield* new Unauthorized({ reason: 'token expired' });
-      case 'defect':
-        return yield* Effect.die(new Error('the database connection exploded'));
-      case 'success':
-        return {
-          id: 'u-42',
-          name: 'Ada Lovelace',
-          email: 'ada@craft.dev',
-        };
-    }
-  });
-}
+type EffectException = UserNotFound | Unauthorized;
 
 const EffectYieldComponent = craftComponent(
   'EffectYieldComponent',
   {
     styles: `
-      :scope {
-        display: block;
-        max-width: 880px;
-        margin: 2rem auto;
-        padding: 1.5rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        color: #1e293b;
-        background: #f8fafc;
-      }
-      :scope h1, :scope h2, :scope h3 { margin: 0 0 0.5rem; color: #0f172a; }
-      :scope .effect-intro {
-        margin: 0 0 1.25rem;
-        color: #475569;
-        font-size: 0.9rem;
-        line-height: 1.55;
-      }
-      :scope .effect-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        margin-bottom: 1.25rem;
-      }
-      :scope .effect-actions button {
-        padding: 0.5rem 0.9rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        color: #334155;
-        background: #fff;
-        font-family: ui-monospace, monospace;
-        font-size: 0.8rem;
-        cursor: pointer;
-      }
-      :scope .effect-actions button:hover { background: #f1f5f9; }
-      :scope .effect-panel {
-        margin-bottom: 1rem;
-        padding: 1rem 1.1rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        background: #fff;
-      }
-      :scope .effect-panel-title {
-        margin: 0 0 0.75rem;
-        color: #64748b;
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      :scope .effect-outcome { margin: 0.4rem 0; line-height: 1.5; }
-      :scope .effect-defect {
-        margin: 0 0 1.25rem;
-        padding: 0.95rem 1.1rem;
-        border-left: 3px solid #ef4444;
-        border-radius: 0 8px 8px 0;
-        background: #fef2f2;
-        color: #991b1b;
-        font-size: 0.85rem;
-        line-height: 1.6;
-      }
-      :scope .effect-defect .mono { background: #fee2e2; }
-      :scope .effect-gap {
-        margin-top: 1.25rem;
-        padding: 0.95rem 1.1rem;
-        border-left: 3px solid #f59e0b;
-        border-radius: 0 8px 8px 0;
-        background: #fffbeb;
-        color: #78350f;
-        font-size: 0.85rem;
-        line-height: 1.6;
-      }
-      :scope .mono {
-        padding: 0.05rem 0.3rem;
-        border-radius: 3px;
-        background: #eef2f7;
-        font-family: ui-monospace, monospace;
-        font-size: 0.8rem;
-      }
-      :scope .effect-gap .mono { background: #fef3c7; }
-
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px; color: #1e293b; background: #f8fafc; }
+      :scope h1 { margin: 0 0 0.5rem; color: #0f172a; }
+      .intro { margin: 0 0 1.25rem; color: #475569; line-height: 1.55; }
+      .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+      .actions button { padding: 0.5rem 0.9rem; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; background: #fff; cursor: pointer; }
+      .actions button:hover { background: #f1f5f9; }
+      .panel { margin-bottom: 1rem; padding: 1rem 1.1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+      .panel-title { margin: 0 0 0.75rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+      .outcome { margin: 0.4rem 0; line-height: 1.5; }
+      .note { padding: 0.95rem 1.1rem; border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0; background: #fffbeb; color: #78350f; font-size: 0.85rem; line-height: 1.6; }
+      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #eef2f7; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+      .note .mono { background: #fef3c7; }
+      button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     `,
   },
   function* () {
-    // `attempt` is a re-run nonce: clicking the scenario you are already on
-    // still changes the params, so the loader always runs.
     const request = yield* state(
       'request',
-      { scenario: 'success' as Scenario, attempt: 0 },
+      { scenario: 'success' as ProfileScenario, attempt: 0 },
       ({ update }) => ({
-        run: (scenario: Scenario) =>
-          update((previous) => ({ scenario, attempt: previous.attempt + 1 })),
+        run: (scenario: ProfileScenario) =>
+          update((previous) => ({
+            scenario,
+            attempt: previous.attempt + 1,
+          })),
       }),
     );
 
-    const userQuery = yield* queryEffect(
-      'userQuery',
+    const profileQuery = yield* queryEffect(
+      'profileQuery',
       {
         params: request,
-        loader: ({ params }) => loadUser(params.scenario),
+        loader: ({ params }) => loadUserProfile(params.scenario),
       },
       ({ resource, exceptions }) => ({
-        hasUser: craftComputed('hasUser', () => resource.hasValue()),
-        userExceptionLoader: craftComputed(
-          'userExceptionLoader',
-          function* () {
-            return (yield* exceptions()).loader;
-          },
-        ),
-        userIsLoading: craftComputed('userIsLoading', function* () {
-          const status = yield* resource.status();
-          return status === 'loading' || status === 'reloading';
+        hasProfile: craftComputed('hasProfile', () => resource.hasValue()),
+        profileName: craftComputed('profileName', function* () {
+          return (yield* resource.value())?.name ?? '…';
         }),
-        userName: craftComputed('userName', function* () {
-          const user = (yield* resource.value()) as User | undefined;
-          return user?.name ?? '…';
+        exception: craftComputed('exception', function* () {
+          return (yield* exceptions()).loader;
         }),
       }),
     );
 
-    return {
-      request,
-      userQuery,
-    };
+    return { request, profileQuery };
   },
-  ({
-    request,
-    userQuery,
-  }) => {
-    return div([
+  ({ request, profileQuery }) =>
+    div([
       heading(function* () {
-        // `heading` is itself the reactive binding boundary for this title.
-        // The rule cannot infer that through the helper's generator overload.
+        // `heading` is the reactive binding boundary for this title.
         // eslint-disable-next-line craft-ts/require-reactive-template-bindings
-        return `yield* Effect in a craft loader (${yield* userQuery.status()})`;
+        return `Consulter un profil (${yield* profileQuery.status()})`;
       }),
       p(
-        { class: 'effect-intro' },
-        'The loader below is an ordinary craft generator. It yields an Effect built by a domain layer that knows nothing about craft. Pick a scenario and inspect how success, typed failures, and defects reach CraftTS.',
+        { class: 'intro' },
+        'Une équipe support consulte le profil d’un utilisateur. Les quatre boutons représentent les résultats possibles d’une opération métier : profil trouvé, profil absent, session expirée ou panne technique.',
       ),
-
-      div({ class: 'effect-actions' }, [
+      div({ class: 'actions' }, [
         button(
-          'successButton',
-          {
-            type: 'button',
-            *click() {
-              yield* request.run('success');
-            },
-          },
-          'Effect.succeed',
+          'profileButton',
+          { type: 'button', *click() { yield* request.run('success'); } },
+          'Profil disponible',
         ),
         button(
           'notFoundButton',
-          {
-            type: 'button',
-            *click() {
-              yield* request.run('not-found');
-            },
-          },
-          'Effect.fail — UserNotFound',
+          { type: 'button', *click() { yield* request.run('not-found'); } },
+          'Profil introuvable',
         ),
         button(
-          'unauthorizedButton',
+          'expiredButton',
           {
             type: 'button',
             *click() {
-              yield* request.run('unauthorized');
+              yield* request.run('session-expired');
             },
           },
-          'Effect.fail — Unauthorized',
+          'Session expirée',
         ),
         button(
-          'defectButton',
+          'databaseButton',
           {
             type: 'button',
             *click() {
-              yield* request.run('defect');
+              yield* request.run('database-down');
             },
           },
-          'Effect.die — defect',
+          'Panne de base de données',
         ),
       ]),
-
-      div({ class: 'effect-panel' }, [
-        p({ class: 'effect-panel-title' }, 'What craft ended up with'),
-        ifBlock(userQuery.userIsLoading, () =>
-          p(
-            { class: 'effect-outcome' },
-            'Loading… the Effect is still running',
-          ),
-        ),
+      div({ class: 'panel' }, [
+        p({ class: 'panel-title' }, 'Résultat de la consultation'),
+        ifBlock(profileQuery.isLoading, () => p('Consultation en cours…')),
         ifBlock(
-          userQuery.hasUser,
+          profileQuery.hasProfile,
           () =>
-            p({ class: 'effect-outcome' }, [
-              strong('Resolved: '),
-              userQuery.userName,
+            p({ class: 'outcome' }, [
+              strong('Profil chargé : '),
+              profileQuery.profileName,
             ]),
-          () => [
+          () =>
             matchBlock.exhaustive(
-              userQuery.userExceptionLoader as unknown as () => EffectException,
+              profileQuery.exception as unknown as () => EffectException,
               '_tag',
               {
                 UserNotFound: () =>
-                  p({ class: 'effect-outcome' }, [
-                    strong('Exception — '),
-                    'the Effect error tag ',
+                  p({ class: 'outcome' }, [
+                    strong('Profil introuvable : '),
+                    'aucun profil ne correspond à la demande. ',
                     span({ class: 'mono' }, 'UserNotFound'),
-                    ' arrived intact on ',
-                    span({ class: 'mono' }, 'userQuery.exception()'),
-                    ', and is matched here by discriminant.',
+                    ' est l’erreur métier propagée par Effect.',
                   ]),
                 Unauthorized: () =>
-                  p({ class: 'effect-outcome' }, [
-                    strong('Exception — '),
-                    'the Effect error tag ',
+                  p({ class: 'outcome' }, [
+                    strong('Accès refusé : '),
+                    'la session a expiré. ',
                     span({ class: 'mono' }, 'Unauthorized'),
-                    ' arrived intact on ',
-                    span({ class: 'mono' }, 'userQuery.exception()'),
-                    ', and is matched here by discriminant.',
+                    ' est l’erreur métier propagée par Effect.',
                   ]),
               },
             ),
-          ],
         ),
       ]),
-
-      div({ class: 'effect-defect' }, [
-        strong('Defect — '),
-        'nothing is matched in the result above, on purpose: a defect is not a business exception. It goes to the error channel and stays out of ',
-        span({ class: 'mono' }, 'handleExceptions'),
-        '.',
+      div({ class: 'note' }, [
+        strong('Ce que montre la passerelle Effect : '),
+        'un ',
+        span({ class: 'mono' }, 'Effect.fail'),
+        ' devient une exception métier Craft, tandis qu’un ',
+        span({ class: 'mono' }, 'Effect.die'),
+        ' reste une erreur technique et ne passe pas par les handlers métier.',
       ]),
-
-      div({ class: 'effect-gap' }, [
-        strong('The application-level bridge. '),
-        'The Effect bridge is installed once in ',
-        span({ class: 'mono' }, 'app.config.ts'),
-        '. Each loader returns its domain Effect through ',
-        span({ class: 'mono' }, 'queryEffect(...)'),
-        ': ',
-        span({ class: 'mono' }, 'userQuery.exception()'),
-        " receives Effect's typed failures without a local trace hook, provider, or adapter object. The domain function remains pure Effect code.",
-      ]),
-    ]);
-  },
+    ]),
 );
 
 export default EffectYieldComponent;

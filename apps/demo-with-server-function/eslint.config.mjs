@@ -1,8 +1,8 @@
 import baseConfig from '../../eslint.config.mjs';
 import craftRules from '../../libs/dev-tools/src/eslint-rules/index.cjs';
-import { craftDemoRules } from '../demo/craft-eslint-rules.mjs';
 
 export default [
+  { ignores: ['**/architecture/catalog.ts'] },
   ...baseConfig,
   {
     files: ['**/src/client/**/*.ts'],
@@ -16,7 +16,7 @@ export default [
       'craft-ts': craftRules,
     },
     rules: {
-      ...craftDemoRules,
+      ...craftRules.configs.effect.rules,
       '@typescript-eslint/no-empty-object-type': 'off',
     },
   },

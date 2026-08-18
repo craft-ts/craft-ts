@@ -8,12 +8,9 @@ import {
 } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectLayerScopeComponent from './effect-layer-scope';
-import {
-  GlobalLayer,
-  RouteLayer,
-} from '../../shared/layer-scope-services';
+import { SessionLive, SupportTeamLive } from '../../shared/access-domain';
 
-describe('demo: global and route-scoped Effect Layers', () => {
+describe('demo: vue d’équipe avec Layers global et route', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
@@ -27,15 +24,15 @@ describe('demo: global and route-scoped Effect Layers', () => {
     TestBed.resetTestingModule();
   });
 
-  it('inherits the global Layer and adds the route Layer', async () => {
+  it('hérite de la session globale et ajoute le contexte de route', async () => {
     const element = document.createElement('div');
     document.body.append(element);
     const globalInjector = TestBed.rootInjector.createChild([
-      provideLayer(GlobalLayer),
+      provideLayer(SessionLive),
     ]);
     // This is the same Angular-style route injector shape used by the router.
     const routeInjector = Injector.create({
-      providers: [provideLayer(RouteLayer)],
+      providers: [provideLayer(SupportTeamLive)],
       parent: globalInjector,
     });
 
@@ -50,8 +47,12 @@ describe('demo: global and route-scoped Effect Layers', () => {
     TestBed.tick();
 
     await vi.waitFor(() => {
-      expect(element.textContent).toContain('Global layer from app.config.ts');
-      expect(element.textContent).toContain('Route layer from route providers');
+      expect(element.textContent).toContain('Équipe Support');
+      expect(element.textContent).toContain('Ada Lovelace');
+      expect(element.textContent).toContain('Grace Hopper');
+      expect(element.textContent).toContain('Linus Torvalds');
+      expect(element.textContent).not.toContain('SessionLive');
+      expect(element.textContent).not.toContain('SupportTeamLive');
     });
 
     mounted.destroy();

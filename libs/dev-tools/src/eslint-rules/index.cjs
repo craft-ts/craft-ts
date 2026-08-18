@@ -67,6 +67,8 @@ const requireEffectAdapters = require('./require-effect-adapters.cjs');
 const serverFunctionClientMatch = require('./server-function-client-match.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
+const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
+const recommendedRules = require('./recommended-config.cjs');
 
 const plugin = {
   rules: {
@@ -142,6 +144,7 @@ const plugin = {
     'server-function-client-match': serverFunctionClientMatch,
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
+    'prefer-query-method-over-state-trigger': preferQueryMethodOverStateTrigger,
   },
 };
 
@@ -169,6 +172,17 @@ const a11yRuleSeverity = {
 };
 
 plugin.configs = {
+  recommended: {
+    plugins: { 'craft-ts': plugin },
+    rules: recommendedRules,
+  },
+  effect: {
+    plugins: { 'craft-ts': plugin },
+    rules: {
+      ...recommendedRules,
+      'craft-ts/require-effect-adapters': 'error',
+    },
+  },
   a11y: {
     plugins: { 'craft-ts': plugin },
     rules: a11yRuleSeverity,

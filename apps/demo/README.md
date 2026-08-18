@@ -19,22 +19,14 @@ overlay reports the failure while the development server remains available.
 ## Architecture tests
 
 The suite in `architecture/` analyzes the demo TypeScript with
-`@craft-ts/dev-tools`. App-specific lookups live in `architecture.spec.ts`.
-Each common rule has its own file under `architecture/rules/`:
+`@craft-ts/dev-tools`. All lookups and rules live in the single
+`architecture/architecture.spec.ts` file so the graph is analyzed only once
+per Vitest run. The file contains:
 
-- `rules/craft-unique.spec.ts` — `assertCraftUnique`
-- `rules/http-endpoint-unique.spec.ts` — `assertHttpEndpointUnique`
-- `rules/craft-computed-pure.spec.ts` — `assertCraftComputedPure`
-- `rules/no-dependency-cycles.spec.ts` — `assertNoDependencyCycles`
-- `rules/declarative-architecture.spec.ts` — `assertDeclarativeArchitecture`
-- `rules/exclusive-link.spec.ts` — `noExclusiveLink`
-- `rules/route-di-proofs.spec.ts` — `assertRouteDiProofs` (routes + `app.config.ts`)
-- `rules/mutation-react-on.spec.ts` — `assertMutationHasReactOn`
-- `rules/persisted-primitive-unique.spec.ts` — `assertPersistedPrimitiveHasUnique`
-- `rules/insert-select-unique.spec.ts` — `assertInsertSelectUnique`
-- `rules/craft-effect-no-network.spec.ts` — `assertCraftEffectNoNetwork`
-- `rules/craft-effect-no-imperative-sync.spec.ts` — `assertCraftEffectNoImperativeSync`
-- `rules/interactive-element-named.spec.ts` — `assertInteractiveElementNamed`
+- unique `craftUnique` and HTTP endpoint ownership;
+- pure computeds, dependency cycles, route DI proofs and mutation reactions;
+- persistence, `insertSelect`, Effect and interactive-element constraints;
+- declarative architecture and exclusive feature-link checks.
 
 Run them with Nx, from the repository root:
 

@@ -92,5 +92,21 @@ Or directly:
 npx vitest run --config apps/demo-with-server-function/vitest.config.ts
 ```
 
+## Architecture and graph
+
+The static graph is analysed from `tsconfig.graph.json`. From the repository
+root, `npm run graph:update` refreshes
+`craft-dependency-graph.demo-with-server-function.{json,mmd,html}`. The
+architecture suite also checks the server-function client/server family
+contract:
+
+```bash
+npx nx architecture demo-with-server-function
+npx nx typecheck-architecture demo-with-server-function
+```
+
+Les règles sont regroupées dans `architecture/architecture.spec.ts` afin que
+le graphe TypeScript ne soit analysé qu’une seule fois par exécution Vitest.
+
 The test output also displays the client request and the lines read from the
 local database.

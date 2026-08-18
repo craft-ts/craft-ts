@@ -7,6 +7,20 @@ const craftBin = resolve(
   workspaceRoot,
   'dist/libs/dev-tools/src/bin/craft.js',
 );
+const graphProjects = [
+  {
+    project: 'apps/demo/tsconfig.app.json',
+    output: 'craft-dependency-graph',
+  },
+  {
+    project: 'apps/demo-effect/tsconfig.graph.json',
+    output: 'craft-dependency-graph.demo-effect',
+  },
+  {
+    project: 'apps/demo-with-server-function/tsconfig.graph.json',
+    output: 'craft-dependency-graph.demo-with-server-function',
+  },
+];
 
 function runNode(args) {
   const result = spawnSync(process.execPath, args, {
@@ -24,18 +38,21 @@ try {
   exitCode = runNode([nxBin, 'build', 'dev-tools']);
   if (exitCode !== 0) throw new Error('La construction de dev-tools a échoué.');
 
-  exitCode = runNode([
-    craftBin,
-    'graph',
-    '--project',
-    'apps/demo/tsconfig.app.json',
-    '--root',
-    '.',
-    '--out',
-    'craft-dependency-graph',
-    '--format',
-    'all',
-  ]);
+  for (const { project, output } of graphProjects) {
+    exitCode = runNode([
+      craftBin,
+      'graph',
+      '--project',
+      project,
+      '--root',
+      '.',
+      '--out',
+      output,
+      '--format',
+      'all',
+    ]);
+    if (exitCode !== 0) throw new Error(`Le graphe ${project} a échoué.`);
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   exitCode ||= 1;

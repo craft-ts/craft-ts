@@ -1,6 +1,6 @@
 # EffectTS + CraftTS demo
 
-Application dedicated to EffectTS and CraftTS integration examples.
+Application dedicated to concrete EffectTS and CraftTS integration examples.
 
 ## Serve
 
@@ -10,21 +10,23 @@ From the repository root:
 npx nx serve demo-effect
 ```
 
-The application starts at `http://localhost:4201` and presents the
-`queryEffect` example. The Effect bridge is installed globally in
-`src/app/app.config.ts`; loaders return their
-`Effect<A, E, R>`.
+The application starts at `http://localhost:4201` and presents a small
+mocked users-and-access journey. The Effect bridge is installed globally in
+`src/app/app.config.ts`; loaders return their `Effect<A, E, R>`.
 
-The `/shared-service` example shows an Effect service and domain operation
-defined in `src/app/shared/greeting-service.ts`. The component only knows
-about `loadGreeting`; `provideLayer(GreetingServiceLive)` in `app.config.ts`
-satisfies the `R = GreetingService` requirement.
+The home page (`/`) demonstrates a support agent consulting a user profile.
+The business outcomes are a found profile, a missing profile, an expired
+session and a technical database failure. Typed Effect errors and defects are
+kept distinct.
 
-The `/layer-scope` example combines a global `GlobalLayer` from
-`app.config.ts` with a route-scoped `RouteLayer` from the route's `providers`.
-Its `queryEffect` represents an asynchronous server-state read; the Layers are
-dependencies of that read, not the queried data. The route injector inherits
-the global service and adds the route service before the Effect runs.
+The `/access` example checks a user's access level through a shared mocked
+`AccessPolicyService`. The component only calls `checkUserAccess`; the
+application Layer satisfies the service requirement.
+
+The `/team` example loads a mocked team overview. Its business operation uses
+the global session Layer from `app.config.ts` and the route-scoped team Layer
+from the route's `providers`. The query returns a `TeamOverview`, not the
+services used to build it.
 
 Use `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
 between an Effect domain and a Craft primitive. Parameters remain synchronous
@@ -63,4 +65,13 @@ npx nx typecheck demo-effect
 npx nx typecheck-spec demo-effect
 npx nx test demo-effect
 npx nx build demo-effect
+npx nx architecture demo-effect
+npx nx typecheck-architecture demo-effect
 ```
+
+Le graphe statique de l’application est analysé depuis
+`tsconfig.graph.json`. Depuis la racine du dépôt, `npm run graph:update` met à
+jour les artefacts `craft-dependency-graph.demo-effect.{json,mmd,html}`.
+Pour l’architecture seule, `npx nx architecture demo-effect` exécute les règles
+Vitest regroupées dans `architecture/architecture.spec.ts`, sans démarrer
+Angular. Le graphe TypeScript n’est donc construit qu’une seule fois.

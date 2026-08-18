@@ -7,19 +7,16 @@ import {
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { App } from './app';
 import { demoEffectRoutes } from './app.routes';
-import { GreetingServiceLive } from './shared/greeting-service';
-import { GlobalLayer } from './shared/layer-scope-services';
+import { AccessPolicyLive, SessionLive } from './shared/access-domain';
 
 export const appConfig = craftAppConfig({
   routingDeps: demoEffectRoutes.META_PATHS,
   providers: [
     provideCraftRootComponent(App),
     provideCraftRouter(demoEffectRoutes.toRoutes()),
-    // The service contract and the domain Effect live in shared files. The
-    // application Layer is the boundary that satisfies their R requirement.
-    provideLayer(GreetingServiceLive),
-    // This Layer is global; the /layer-scope route adds a second Layer locally.
-    provideLayer(GlobalLayer),
+    // These are mocked application capabilities used by the business Effects.
+    provideLayer(AccessPolicyLive),
+    provideLayer(SessionLive),
     // Effect support is an application capability, not a concern of each
     // loader. Install it once for the dedicated Effect demo.
     provideAppInitializer(() => {

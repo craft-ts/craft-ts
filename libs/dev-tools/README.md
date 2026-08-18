@@ -391,13 +391,28 @@ command, `--json <path>` for a machine-readable report, and `--check` in CI to
 reject remaining legacy collections. Lazy collections can declare their mount
 context with `--parent-mount <path>` and `--parent-names <name,...>`.
 
-```bash
+```ts
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
+
+export default [
+  {
+    files: ['**/*.ts'],
+    ...craftRules.configs.effect,
+  },
+];
+```
+
+The published `effect` preset includes the recommended Craft rules and
+requires the Effect-aware primitive adapters. Use
+`craftRules.configs.recommended` for projects that do not use Effect.
+
+```ts
 import craftRules from '@craft-ts/dev-tools/eslint-rules';
 
 export default [
   {
     plugins: {
-      'craft-ts': craftRules
+      'craft-ts': craftRules,
     },
     rules: {
       'craft-ts/prefer-craft-template-blocks': 'error',
@@ -415,8 +430,8 @@ export default [
       'craft-ts/prefer-browser-boundaries': 'error',
       'craft-ts/require-lazy-load-with-retry': 'error',
       'craft-ts/require-cascade-route-di-check': 'error',
-    }
-  }
+    },
+  },
 ];
 ```
 

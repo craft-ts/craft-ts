@@ -7,6 +7,8 @@ import {
   assertCraftComputedPure,
   assertCraftEffectNoImperativeSync,
   assertCraftEffectNoNetwork,
+  assertPrimitiveLoaderRequirements,
+  assertQueryMutationHasServerState,
   assertCraftUnique,
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
@@ -26,9 +28,12 @@ import {
   httpEndpointUniqueViolations,
   insertSelectUniqueViolations,
   interactiveElementNamedViolations,
+  type LoaderRequirementContext,
   mutationReactOnViolations,
   noExclusiveLink,
   pathBoundaryViolations,
+  primitiveLoaderRequirementViolations,
+  queryMutationServerStateViolations,
   persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
   serverFunctionArchitectureViolations,
@@ -631,6 +636,110 @@ describe('server function architecture', () => {
     );
     expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
       /CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER/,
+    );
+  });
+});
+
+describe('resource loader requirements', () => {
+  it('requires query and mutation loaders to reach HTTP or a server function', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(value: string): unknown;
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'));
+      `,
+      'app.ts': `
+        ${STUBS}
+        declare function createServerFunctionClient<T>(value: string): unknown;
+        import { getUsers } from './users/list.fn-client';
+        const { Data } = craftService(
+          { name: 'Data', providedIn: 'global' },
+          function* () {
+            yield* query('httpUsers', {
+              loader: function* () {
+                return yield* CraftHttpClient.get(({ response }) => ({ url: 'users', success: response() }));
+              },
+            });
+            yield* mutation('saveUsers', {
+              method: (value: string) => value,
+              loader: function* () {
+                return yield* getUsers('all');
+              },
+            });
+            yield* query('localUsers', {
+              loader: () => Promise.resolve([]),
+            });
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(
+      graph.graph.edges.filter((edge) => edge.details?.['resourceRole'] === 'loader'),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'calls', details: expect.objectContaining({ http: true }) }),
+        expect.objectContaining({ kind: 'calls', details: expect.objectContaining({ serverFunction: true }) }),
+      ]),
+    );
+    expect(queryMutationServerStateViolations(graph.graph).map((v) => v.label)).toEqual([
+      'localUsers',
+    ]);
+    expect(() => assertQueryMutationHasServerState(graph.graph)).toThrow(
+      /query localUsers loader must depend on CraftHttpClient or server function/,
+    );
+  });
+
+  it('lets an application define different requirements for Effect resources', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        declare function queryEffect(...args: unknown[]): unknown;
+        declare function mutationEffect(...args: unknown[]): unknown;
+        declare namespace Effect { interface Effect<A, E, R> {} }
+        declare namespace Context { function Service<T, Shape>(): (name: string) => new (...args: never[]) => Shape; }
+        class UserApi extends Context.Service<UserApi, {}>()('UserApi') {}
+        declare function loadAccess(): Effect.Effect<string, never, UserApi>;
+        const { Access } = craftService(
+          { name: 'Access', providedIn: 'global' },
+          function* () {
+            yield* queryEffect('accessQuery', {
+              loader: () => loadAccess(),
+            });
+            yield* mutationEffect('saveAccess', {
+              method: (value: string) => value,
+              loader: () => loadAccess(),
+            });
+            yield* queryEffect('localEffect', {
+              loader: () => Promise.resolve('local'),
+            });
+            return {};
+          },
+        );
+      `,
+    });
+    const requirements = {
+      primitives: ['queryEffect', 'mutationEffect'],
+      requirements: [
+        {
+          label: 'an Effect service',
+          matches: ({ target }: LoaderRequirementContext) =>
+            target.kind === 'service' && target.details?.['runtime'] === 'effect',
+        },
+      ],
+    } as const;
+
+    expect(primitiveLoaderRequirementViolations(graph.graph, requirements).map((v) => v.label)).toEqual([
+      'localEffect',
+    ]);
+    expect(() => assertPrimitiveLoaderRequirements(graph.graph, requirements)).toThrow(
+      /queryEffect localEffect loader must depend on an Effect service/,
     );
   });
 });

@@ -191,7 +191,11 @@ export function collectEffectServiceUsage(
           to: serviceId(service.name),
           kind: 'depends-on',
           evidence: 'ast',
-          details: { runtime: 'effect', selection: 'whole-service' },
+          details: {
+            runtime: 'effect',
+            selection: 'whole-service',
+            ...(isInsideLoader(call) ? { resourceRole: 'loader' } : {}),
+          },
         });
         continue;
       }
@@ -217,11 +221,26 @@ export function collectEffectServiceUsage(
           to: memberId(service.name, member),
           kind: 'uses-property',
           evidence: 'ast',
-          details: { runtime: 'effect', property: member },
+          details: {
+            runtime: 'effect',
+            property: member,
+            ...(isInsideLoader(call) ? { resourceRole: 'loader' } : {}),
+          },
         });
       }
     }
   }
 
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+
+function isInsideLoader(node: Node): boolean {
+  let current: Node | undefined = node.getParent();
+  while (current) {
+    if (Node.isPropertyAssignment(current) && current.getName() === 'loader') {
+      return true;
+    }
+    current = current.getParent();
+  }
+  return false;
 }

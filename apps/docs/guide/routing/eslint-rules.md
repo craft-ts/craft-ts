@@ -16,6 +16,22 @@ can miss a real DI error. Run `eslint --fix` in CI.
 
 The plugin is exposed from `@craft-ts/dev-tools/eslint-rules`.
 
+For a project using `@craft-ts/effect`, the published preset enables the Craft
+rules and the Effect adapter rule in one entry:
+
+```ts
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
+
+export default [
+  {
+    files: ['**/*.ts'],
+    ...craftRules.configs.effect,
+  },
+];
+```
+
+Use `craftRules.configs.recommended` for projects that do not use Effect.
+
 Add it to your ESLint flat config:
 
 ```ts

@@ -1208,6 +1208,165 @@ export type CraftEffectNetworkViolation = {
   line?: number;
 };
 
+export type LoaderRequirementContext = {
+  graph: DependencyGraph;
+  primitive: DependencyGraphNode;
+  target: DependencyGraphNode;
+  edge: DependencyGraphEdge;
+};
+
+export type LoaderRequirement = {
+  /** Human-readable name used in the diagnostic. */
+  label: string;
+  /** Returns true when this target satisfies the requirement. */
+  matches: (context: LoaderRequirementContext) => boolean;
+};
+
+export type PrimitiveLoaderRequirements = {
+  /** Primitive names to check. Requirements are OR-ed for each primitive. */
+  primitives: readonly string[];
+  requirements: readonly LoaderRequirement[];
+  /** Explicitly exempted primitive labels for intentional local-state examples. */
+  allow?: readonly string[];
+};
+
+export type PrimitiveLoaderRequirementViolation = {
+  primitive: string;
+  id: string;
+  label: string;
+  missing: readonly string[];
+  filePath?: string;
+  line?: number;
+};
+
+/**
+ * Checks that every selected resource has at least one qualifying dependency
+ * from its `loader`. This is intentionally predicate-based: query/mutation
+ * can use HTTP or server functions, while an Effect application can provide a
+ * rule that recognises Effect services or another domain boundary.
+ */
+export function primitiveLoaderRequirementViolations(
+  graph: DependencyGraph,
+  rule: PrimitiveLoaderRequirements,
+): PrimitiveLoaderRequirementViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const primitiveNames = new Set(rule.primitives);
+  const allowed = new Set(rule.allow ?? []);
+  return graph.nodes.flatMap((primitive) => {
+    if (
+      primitive.kind !== 'primitive' ||
+      typeof primitive.details?.['primitive'] !== 'string' ||
+      !primitiveNames.has(primitive.details['primitive'])
+    ) {
+      return [];
+    }
+
+    const label = primitiveDisplayName(primitive);
+    if (allowed.has(label) || allowed.has(primitive.label)) return [];
+
+    const loaderEdges = graph.edges.filter(
+      (edge) =>
+        edge.from === primitive.id &&
+        edge.details?.['resourceRole'] === 'loader',
+    );
+    const satisfied = loaderEdges.some((edge) => {
+      const target = nodesById.get(edge.to);
+      if (!target) return false;
+      const context = { graph, primitive, target, edge };
+      return rule.requirements.some((requirement) => requirement.matches(context));
+    });
+    if (satisfied) return [];
+
+    return [
+      {
+        primitive: primitive.details['primitive'],
+        id: primitive.id,
+        label,
+        missing: rule.requirements.map((requirement) => requirement.label),
+        filePath: relativeGraphPath(graph, primitive.filePath),
+        line: primitive.line,
+      },
+    ];
+  });
+}
+
+export function assertPrimitiveLoaderRequirements(
+  graph: DependencyGraph,
+  rule: PrimitiveLoaderRequirements,
+): void {
+  const violations = primitiveLoaderRequirementViolations(graph, rule);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        const requirements = violation.missing.join(' or ') || 'a qualifying dependency';
+        return `${violation.primitive} ${violation.label} loader must depend on ${requirements}${at ? ` (${at})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+const SERVER_STATE_LOADER_REQUIREMENTS: readonly LoaderRequirement[] = [
+  {
+    label: 'CraftHttpClient',
+    matches: ({ graph, target }) =>
+      target.kind === 'http-endpoint' ||
+      reachesServerStateBoundary(graph, target.id),
+  },
+  {
+    label: 'server function',
+    matches: ({ graph, target }) =>
+      target.kind === 'server-function-family' ||
+      reachesServerStateBoundary(graph, target.id),
+  },
+];
+
+function reachesServerStateBoundary(
+  graph: DependencyGraph,
+  nodeId: string,
+  visited = new Set<string>(),
+): boolean {
+  if (visited.has(nodeId)) return false;
+  visited.add(nodeId);
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  if (
+    node?.kind === 'http-endpoint' ||
+    node?.kind === 'server-function-family'
+  ) {
+    return true;
+  }
+  return graph.edges
+    .filter(
+      (edge) =>
+        edge.from === nodeId &&
+        (edge.kind === 'depends-on' || edge.kind === 'calls'),
+    )
+    .some((edge) => reachesServerStateBoundary(graph, edge.to, visited));
+}
+
+export function queryMutationServerStateViolations(
+  graph: DependencyGraph,
+): PrimitiveLoaderRequirementViolation[] {
+  return primitiveLoaderRequirementViolations(graph, {
+    primitives: ['query', 'mutation'],
+    requirements: SERVER_STATE_LOADER_REQUIREMENTS,
+  });
+}
+
+export function assertQueryMutationHasServerState(
+  graph: DependencyGraph,
+  options: Pick<PrimitiveLoaderRequirements, 'allow'> = {},
+): void {
+  assertPrimitiveLoaderRequirements(graph, {
+    primitives: ['query', 'mutation'],
+    requirements: SERVER_STATE_LOADER_REQUIREMENTS,
+    ...options,
+  });
+}
+
 export function craftEffectNetworkViolations(
   graph: DependencyGraph,
 ): CraftEffectNetworkViolation[] {

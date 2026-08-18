@@ -1,8 +1,8 @@
 import baseConfig from '../../eslint.config.mjs';
 import craftRules from '../../libs/dev-tools/src/eslint-rules/index.cjs';
-import { craftDemoRules } from '../demo/craft-eslint-rules.mjs';
 
 export default [
+  { ignores: ['**/architecture/catalog.ts'] },
   ...baseConfig,
   {
     files: ['**/src/**/*.ts'],
@@ -16,8 +16,7 @@ export default [
       'craft-ts': craftRules,
     },
     rules: {
-      ...craftDemoRules,
-      'craft-ts/require-effect-adapters': 'error',
+      ...craftRules.configs.effect.rules,
       '@typescript-eslint/no-empty-object-type': 'off',
       '@nx/enforce-module-boundaries': 'off',
     },

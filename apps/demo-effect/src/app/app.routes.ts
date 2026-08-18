@@ -5,10 +5,11 @@ import {
   craftRoutes,
   type CanRun,
   type ComponentDepsOf,
+  type CraftRouteExceptionType,
   type RouteCheckedDI,
 } from '@craft-ts/core';
 import { provideLayer } from '@craft-ts/effect';
-import { RouteLayer } from './shared/layer-scope-services';
+import { SupportTeamLive } from './shared/access-domain';
 
 export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
@@ -28,26 +29,43 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
     },
   },
   {
-    path: 'shared-service',
+    path: 'access',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/effect/effect-shared-service')).then(
         ({ default: component }) => component,
       ),
     ),
+    handleExceptions: {
+      UserNotFound: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
   },
   {
-    path: 'layer-scope',
+    path: 'team',
     ...loadCraftComponent(
       ({ withRetry }) =>
         withRetry(import('./examples/effect/effect-layer-scope')).then(
           ({ default: component }) => component,
         ),
-      [provideLayer(RouteLayer)],
+      [provideLayer(SupportTeamLive)],
     ),
   },
 ]);
 
 assertExhaustiveRouteExceptions(demoEffectRoutes);
+
+declare module '@craft-ts/core' {
+  interface CraftGlobalExceptionRegistry {
+    access: {
+      UserNotFound: CraftRouteExceptionType<
+        typeof demoEffectRoutes,
+        'access',
+        'UserNotFound'
+      >;
+    };
+  }
+}
 
 // The cascade check reaches TS2589 in this Effect-heavy collection. Keep one
 // O(1) RouteCheckedDI proof per routed component instead.

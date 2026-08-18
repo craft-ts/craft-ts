@@ -20,7 +20,7 @@ import {
 import {
   collectEffectServices,
   collectEffectServiceUsage,
-} from './effect-dependency-graph';
+} from './effect-dependency-graph.js';
 
 export type DependencyGraphNodeKind =
   | 'route'
@@ -113,6 +113,8 @@ const PRIMITIVES = new Set([
   'state',
   'query',
   'mutation',
+  'queryEffect',
+  'mutationEffect',
   'asyncProcess',
   'queryParams',
   'insertSelect',
@@ -124,6 +126,8 @@ const HOST_PRIMITIVES = new Set([
   'state',
   'query',
   'mutation',
+  'queryEffect',
+  'mutationEffect',
   'asyncProcess',
   'queryParams',
   'insertSelect',
@@ -314,6 +318,9 @@ export function analyzeDependencyGraph(
   collectComponents(builder, sourceFiles);
   collectRoutes(builder, sourceFiles);
   collectAppConfigs(builder, sourceFiles);
+  // Server-function nodes must exist before service/component analysis so
+  // loader calls can be linked directly to their family node.
+  collectServerFunctions(builder, sourceFiles);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
   collectInteractiveTemplateElements(builder);
@@ -322,7 +329,7 @@ export function analyzeDependencyGraph(
   collectCraftUniques(builder, sourceFiles);
   collectRouteChecks(builder);
   collectEffectGraph(builder, sourceFiles);
-  collectServerFunctions(builder, sourceFiles);
+  linkEffectLoaderRequirements(builder);
 
   builder.graph.nodes = [...builder.nodes.values()].sort((left, right) =>
     left.id.localeCompare(right.id),
@@ -1634,8 +1641,11 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
       const httpClientUsage = findCraftHttpClientUsage(call);
       if (httpClientUsage) {
         const ownerNode = ownerNodeForCall(builder, call, service.node.id);
-        addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+        addHttpClientUsage(builder, ownerNode.id, httpClientUsage, {
+          ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+        });
       }
+      addServerFunctionUsage(builder, call, service.node.id);
       const temporalUsage = findCraftTemporalUsage(call);
       if (temporalUsage) {
         const ownerNode = ownerNodeForCall(builder, call, service.node.id);
@@ -1668,8 +1678,11 @@ function analyzeComponents(builder: GraphBuilder): void {
         const httpClientUsage = findCraftHttpClientUsage(nested);
         if (httpClientUsage) {
           const ownerNode = ownerNodeForCall(builder, nested, component.node.id);
-          addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+          addHttpClientUsage(builder, ownerNode.id, httpClientUsage, {
+            ...(resourceLoaderFactory(nested) ? { resourceRole: 'loader' } : {}),
+          });
         }
+        addServerFunctionUsage(builder, nested, component.node.id);
         const temporalUsage = findCraftTemporalUsage(nested);
         if (temporalUsage) {
           const ownerNode = ownerNodeForCall(builder, nested, component.node.id);
@@ -2247,6 +2260,7 @@ function addOwnedPrimitive(
   const primitive = primitiveFactoryName(call);
   if (!primitive) return undefined;
   const primitiveNode = addPrimitiveNode(builder, call, primitive, aggregateOwnerId);
+  recordEffectLoaderRequirements(primitiveNode, call, primitive);
   const enclosing = nearestPrimitiveFactory(call);
   const enclosingName = enclosing && primitiveFactoryName(enclosing);
   const parentId =
@@ -2255,6 +2269,71 @@ function addOwnedPrimitive(
       : aggregateOwnerId;
   addEdge(builder, parentId, primitiveNode.id, 'contains', 'ast', details);
   return primitiveNode;
+}
+
+function recordEffectLoaderRequirements(
+  primitiveNode: DependencyGraphNode,
+  call: CallExpression,
+  primitive: string,
+): void {
+  if (primitive !== 'queryEffect' && primitive !== 'mutationEffect') return;
+  const config = call
+    .getArguments()[1]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression);
+  const loader = config
+    ?.getProperty('loader')
+    ?.asKind(SyntaxKind.PropertyAssignment)
+    ?.getInitializer();
+  const returnType = loader?.getType().getCallSignatures()[0]?.getReturnType();
+  const requirementType = returnType?.getTypeArguments()[2];
+  if (!requirementType) return;
+  const requirements = requirementType.isUnion()
+    ? requirementType.getUnionTypes()
+    : [requirementType];
+  const names = requirements
+    .filter((type) => !['never', 'unknown', 'undefined'].includes(type.getText()))
+    .map((type) =>
+      type.getSymbol()?.getName() ??
+      type.getAliasSymbol()?.getName() ??
+      type.getText().split('.').at(-1),
+    )
+    .filter((name): name is string => Boolean(name));
+  if (names.length > 0) {
+    primitiveNode.details = {
+      ...(primitiveNode.details ?? {}),
+      loaderRequirements: [...new Set(names)],
+    };
+  }
+}
+
+function linkEffectLoaderRequirements(builder: GraphBuilder): void {
+  const effectServices = new Map(
+    [...builder.nodes.values()]
+      .filter(
+        (node) =>
+          node.kind === 'service' && node.details?.['runtime'] === 'effect',
+      )
+      .map((node) => [node.label, node]),
+  );
+  for (const primitive of builder.nodes.values()) {
+    const requirements = primitive.details?.['loaderRequirements'];
+    if (
+      primitive.kind !== 'primitive' ||
+      !Array.isArray(requirements) ||
+      !requirements.every((value) => typeof value === 'string')
+    ) {
+      continue;
+    }
+    for (const requirement of requirements) {
+      const service = effectServices.get(requirement);
+      if (!service) continue;
+      addEdge(builder, primitive.id, service.id, 'depends-on', 'type', {
+        runtime: 'effect',
+        effectRequirement: true,
+        resourceRole: 'loader',
+      });
+    }
+  }
 }
 
 function collectReactiveBindings(
@@ -2830,6 +2909,7 @@ function addHttpClientUsage(
   builder: GraphBuilder,
   nodeId: string,
   usage: CraftHttpClientUsage,
+  edgeDetails: Record<string, unknown> = {},
 ): void {
   const node = builder.nodes.get(nodeId);
   if (!node) return;
@@ -2879,7 +2959,69 @@ function addHttpClientUsage(
     method: usage.method,
     url: usage.url,
     line: usage.line,
+    ...edgeDetails,
   });
+}
+
+/**
+ * Returns the resource factory whose `loader` property contains a call.
+ * Keeping this fact on the edge lets architecture rules distinguish a real
+ * loader dependency from an HTTP call made by params or an insertion.
+ */
+function resourceLoaderFactory(call: Node): CallExpression | undefined {
+  let current: Node | undefined = call;
+  while (current) {
+    if (Node.isPropertyAssignment(current) && current.getName() === 'loader') {
+      let parent: Node | undefined = current.getParent();
+      while (parent) {
+        if (Node.isCallExpression(parent)) {
+          const primitive = primitiveFactoryName(parent);
+          if (
+            primitive === 'query' ||
+            primitive === 'mutation' ||
+            primitive === 'queryEffect' ||
+            primitive === 'mutationEffect'
+          ) {
+            return parent;
+          }
+        }
+        parent = parent.getParent();
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+function addServerFunctionUsage(
+  builder: GraphBuilder,
+  call: CallExpression,
+  aggregateOwnerId: string,
+): void {
+  const family = serverFunctionFamilyForCall(builder, call);
+  if (!family) return;
+  const owner = ownerNodeForCall(builder, call, aggregateOwnerId);
+  addEdge(builder, owner.id, family.id, 'calls', 'type', {
+    serverFunction: true,
+    ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+    line: call.getStartLineNumber(),
+  });
+}
+
+function serverFunctionFamilyForCall(
+  builder: GraphBuilder,
+  call: CallExpression,
+): DependencyGraphNode | undefined {
+  const identifier = rootIdentifier(call.getExpression());
+  const symbol = identifier?.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  for (const declaration of resolved?.getDeclarations() ?? []) {
+    const filePath = declaration.getSourceFile().getFilePath();
+    if (!filePath.endsWith('.fn-client.ts')) continue;
+    const familyPath = filePath.slice(0, -'.fn-client.ts'.length);
+    return builder.nodes.get(`server-function-family:${familyPath}`);
+  }
+  return undefined;
 }
 
 type DependencyGraphUniqueCallSite = {
@@ -3298,13 +3440,21 @@ function addServiceDependency(
     addEdge(builder, service.node.id, memberNode.id, 'contains', 'type', {
       member: memberPath,
     });
+    addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type', {
+      member: memberPath,
+      access: 'call',
+      ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+    });
     addEdge(builder, dependencyOwnerId, memberNode.id, 'depends-on', 'type', {
       member: memberPath,
       access: 'call',
+      ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
     });
     return;
   }
-  addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type');
+  addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type', {
+    ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+  });
 }
 
 function nearestPrimitiveFactory(node: Node): CallExpression | undefined {
@@ -3494,6 +3644,11 @@ function collectEffectGraph(
       if (!best || owner.end - owner.start < best.end - best.start) {
         best = owner;
       }
+    }
+    const enclosingPrimitive = nearestPrimitiveFactory(node);
+    const primitive = enclosingPrimitive && primitiveFactoryName(enclosingPrimitive);
+    if (enclosingPrimitive && primitive && best) {
+      return addPrimitiveNode(builder, enclosingPrimitive, primitive, best.id).id;
     }
     return best?.id;
   };

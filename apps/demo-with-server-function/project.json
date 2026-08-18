@@ -14,7 +14,9 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/apps/demo-with-server-function"],
+      "outputs": [
+        "{workspaceRoot}/dist/apps/demo-with-server-function"
+      ],
       "options": {
         "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts"
       }
@@ -42,7 +44,9 @@
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": ["apps/demo-with-server-function/**/*.ts"]
+        "lintFilePatterns": [
+          "apps/demo-with-server-function/**/*.ts"
+        ]
       }
     },
     "test": {
@@ -56,6 +60,33 @@
         "{workspaceRoot}/libs/core/src/**/*.ts",
         "{workspaceRoot}/libs/effect/src/**/*.ts"
       ]
+    },
+    "architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.architecture.config.ts",
+        "cwd": "apps/demo-with-server-function"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/architecture/**/*.ts",
+        "{projectRoot}/tsconfig.graph.json",
+        "{projectRoot}/tsconfig.architecture.json"
+      ],
+      "cache": true
+    },
+    "typecheck-architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo-with-server-function",
+        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/architecture/**/*.ts"
+      ],
+      "cache": true
     }
   }
 }
