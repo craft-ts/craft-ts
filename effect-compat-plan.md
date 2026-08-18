@@ -367,11 +367,52 @@ l'injecteur — un niveau vit exactement aussi longtemps que son injecteur. Quat
 tests de fuite le vérifient, et j'ai confirmé qu'ils **échouent tous les quatre**
 si on retire le teardown : ils portent bien la régression.
 
-**Ce qui n'a toujours pas bougé : 0.1-b.** Le pont mappe `E` vers le canal
-d'exception à l'exécution, mais `E` n'atteint toujours pas
-`RouteExceptionUnion` au niveau des types. L'exhaustivité sur les erreurs
-Effect reste donc non vérifiée, exactement comme en 0.4. C'est la seule chose
-qui sépare encore le dossier de son argument de vente.
+**0.1-b est fermé** — voir la section dédiée ci-dessous.
+
+### 0.1-b fermé — l'erreur d'un Effect vérifiée à la compilation
+
+C'était le constat le plus grave du dossier : le pont mappait `E` vers le canal
+d'exception **à l'exécution**, et les types n'en savaient rien. Un loader qui
+yieldait un Effect en échec laissait `queryRef.exception()` typé `undefined`, et
+la map `handleExceptions` d'une route était acceptée quel qu'en soit le contenu.
+La phrase « tes erreurs Effect vérifiées à la compilation » était fausse.
+
+**Pourquoi ça ne pouvait pas être réparé dans le pont.**
+`RouteExceptionUnion` lit le type *Yielded* d'un générateur craft et y cherche
+des `CraftGenExceptionMarker`. Un `yield* someEffect` nu place un `Effect` à
+cette position, qui ne porte aucun marqueur — donc rien ne remonte, quoi que le
+pont fasse ensuite.
+
+**La réparation est au site de yield**, le seul endroit qui connaît encore `E`.
+`runEffect(effect)` retourne un générateur dont le type *Yielded* porte un
+marqueur construit à partir de `E`. Le `yield*` fusionne ce Yielded dans le
+générateur englobant, donc `E` atteint `RouteExceptionUnion` exactement comme
+une exception `craftGen`. À l'exécution il yield l'Effect inchangé : le marqueur
+est purement type-level et n'est jamais émis.
+
+**Ce qui est vérifié** (`effect-exceptions.spec.ts`) :
+
+- un guard qui `yield* runEffect(loadUser)` annonce bien les deux tags de `E`
+  comme exceptions craft ;
+- un Effect infaillible n'annonce **rien** ;
+- une route qui couvre exactement les tags compile ;
+- une route qui en **oublie un ne compile plus**, et l'erreur tombe **deux
+  fois** : au site de la route (`[MISSING_EXCEPTION_HANDLERS]: "Unauthorized"`)
+  *et* sur l'assert post-inférence
+  (`{ route: "probe"; missingHandlers: "Unauthorized" }`). C'est mieux que ce
+  que 0.4 mesurait pour les exceptions craft natives, où le handler en trop
+  n'était attrapé que par l'assert ;
+- le runtime continue d'être d'accord avec les types.
+
+**Conséquence sur 0.4.** La réserve « le cas Effect passe en silence » tombe pour
+les yields écrits avec `runEffect`. Elle reste vraie pour un `yield*` nu, qui
+marche à l'exécution mais ne déclare rien — c'est la différence que la page de
+démo montre désormais explicitement.
+
+**Conséquence sur la vague 1.** `EffectExceptionOf` doit aujourd'hui *transposer*
+le `_tag` d'Effect vers le `code` de craft. Une fois la vague 1 faite, la
+transposition devient l'identité et le type disparaît. C'est l'argument le plus
+concret en faveur de 1.1, et il est maintenant écrit dans le code.
 
 ## Vague 3 — Finesse (conditionnée à la mesure 0.2)
 

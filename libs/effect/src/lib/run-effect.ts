@@ -6,6 +6,7 @@ import {
 } from '@craft-ts/core';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { resolveEffectLevel } from './effect-level';
+import type { CraftEffectGen } from './effect-exceptions';
 
 // ---------------------------------------------------------------------------
 // Tasks 2.3 to 2.6 — running a yielded Effect on the craft pump.
@@ -108,16 +109,30 @@ export function installCraftEffectBridge(): () => void {
 }
 
 /**
- * The stable spelling of `yield* effect`, for code that would rather not depend
- * on Effect's iteration protocol staying put across releases — task 2.3.
+ * The stable spelling of `yield* effect` — task 2.3 — and the thing that makes
+ * an Effect's error channel visible to craft's type system at all.
+ *
+ * A bare `yield* someEffect` works at runtime but declares NOTHING: craft reads
+ * a generator's YIELDED type looking for exception markers, and an `Effect`
+ * carries none. `runEffect` yields the Effect unchanged while advertising, in
+ * its Yielded type only, the craft exceptions `E` maps to — so route
+ * exhaustiveness and `queryRef.exception()` finally see them. That was finding
+ * 0.1-b, and this is where it is closed.
  *
  * @example
- * const user = yield* runEffect(loadUser(id));
+ * // handleExceptions is now checked against UserNotFound | Unauthorized
+ * canActivate: craftGen(function* () {
+ *   yield* runEffect(loadUser(id));
+ *   return true;
+ * })
  */
 export function runEffect<A, E>(
   effect: Effect.Effect<A, E, never>,
-): Effect.Effect<A, E, never> {
-  return effect;
+): CraftEffectGen<A, E> {
+  return (function* () {
+    // The bridge recognises the Effect and feeds back its success value.
+    return (yield effect) as A;
+  })() as CraftEffectGen<A, E>;
 }
 
 function effectErrorTag(error: unknown): string {
