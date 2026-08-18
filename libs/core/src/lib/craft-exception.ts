@@ -5,7 +5,7 @@ export type CraftExceptionMeta<
   Scope extends string | undefined = string | undefined,
   Identifier extends string | undefined = string | undefined,
 > = {
-  code: Code;
+  _tag: Code;
   scope?: Scope;
   identifier?: Identifier;
 };
@@ -17,7 +17,7 @@ export type CraftExceptionResult<
   readonly [CRAFT_EXCEPTION_SYMBOL]: true;
   readonly payload: Payload;
 } & Meta & {
-    [key in Meta['code']]: Payload;
+    [key in Meta['_tag']]: Payload;
   };
 
 export type CraftException<
@@ -37,14 +37,14 @@ export function craftException<
   Payload = undefined,
 >(
   meta: {
-    code: Code;
+    _tag: Code;
     scope?: Scope;
     identifier?: Identifier;
   },
   payload?: Payload,
 ): CraftExceptionResult<
   {
-    code: Code;
+    _tag: Code;
     scope: Scope;
     identifier?: Identifier;
   },
@@ -52,16 +52,16 @@ export function craftException<
 > {
   const result = {
     [CRAFT_EXCEPTION_SYMBOL]: true as const,
-    code: meta.code,
+    _tag: meta._tag,
     scope: meta.scope as Scope,
     ...(meta.identifier !== undefined ? { identifier: meta.identifier } : {}),
     payload: payload as Payload,
-    [meta.code]: payload as Payload,
+    [meta._tag]: payload as Payload,
   };
 
   return result as CraftExceptionResult<
     {
-      code: Code;
+      _tag: Code;
       scope: Scope;
       identifier?: Identifier;
     },
@@ -90,7 +90,7 @@ export type InsertMetaInCraftExceptionIfExists<
     ? [unknown] extends [Identifier]
       ? CraftExceptionResult<
           {
-            code: CraftExceptionMeta['code'];
+            _tag: CraftExceptionMeta['_tag'];
             scope: Scope;
           },
           Payload
@@ -98,7 +98,7 @@ export type InsertMetaInCraftExceptionIfExists<
       : [Identifier] extends [string]
         ? CraftExceptionResult<
             {
-              code: CraftExceptionMeta['code'];
+              _tag: CraftExceptionMeta['_tag'];
               scope: Scope;
               identifier: Identifier;
             },
@@ -106,7 +106,7 @@ export type InsertMetaInCraftExceptionIfExists<
           >
         : CraftExceptionResult<
             {
-              code: CraftExceptionMeta['code'];
+              _tag: CraftExceptionMeta['_tag'];
               scope: Scope;
             },
             Payload
@@ -114,11 +114,11 @@ export type InsertMetaInCraftExceptionIfExists<
     : Exception;
 
 export type ExtractCodeFromCraftResultUnion<T> =
-  T extends CraftExceptionResult<infer E, any> ? E['code'] : never;
+  T extends CraftExceptionResult<infer E, any> ? E['_tag'] : never;
 
 export type ExcludeByCode<T, C> =
   T extends CraftExceptionResult<infer E, any>
-    ? E['code'] extends C
+    ? E['_tag'] extends C
       ? never
       : T
     : never;

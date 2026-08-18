@@ -150,7 +150,7 @@ function* resolveRouteException(
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Generator<unknown, RouteChainOutcome, unknown> {
-  const handler = handleExceptions[exception.code];
+  const handler = handleExceptions[exception._tag];
 
   if (!handler) {
     // No handler for this code — surface as a thrown error (the outlet defaults
@@ -394,7 +394,7 @@ async function runCraftRouteChainAsyncInternal(
     // A rethrown `craftException` (e.g. the generic `HttpError`) routes through
     // `handleExceptions` when a matching handler exists; anything else (a real
     // error, or an unhandled code) becomes a thrown error → global by default.
-    if (isCraftException(error) && handleExceptions[error.code]) {
+    if (isCraftException(error) && handleExceptions[error._tag]) {
       try {
         return await resolveExceptionOutcome(
           error,

@@ -68,7 +68,7 @@ describe('craftLazy (generator protocol)', () => {
 
     const resolved = await awaitedPromise(program.next().value);
     expect(isCraftException(resolved)).toBe(true);
-    expect((resolved as CraftLazyLoadError).code).toBe(
+    expect((resolved as CraftLazyLoadError)._tag).toBe(
       CRAFT_LAZY_LOAD_ERROR_CODE,
     );
     expect((resolved as CraftLazyLoadError).payload.cause).toBe(cause);
@@ -146,7 +146,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
       expect(load).toHaveBeenCalledTimes(2);
       expect(craftUse(ref.status())).toBe('exception');
       expect(craftUse(ref.hasException())).toBe(true);
-      expect(craftUse(ref.exception())?.code).toBe(CRAFT_LAZY_LOAD_ERROR_CODE);
+      expect(craftUse(ref.exception())?._tag).toBe(CRAFT_LAZY_LOAD_ERROR_CODE);
       expect(
         craftUse(ref.exceptions()).loader?.[CRAFT_LAZY_LOAD_ERROR_CODE],
       ).toMatchObject({
@@ -229,8 +229,8 @@ describe('craftLazy (type propagation)', () => {
     // Typechecked but never executed (no injection context at runtime).
     function _typeOnly() {
       const search = craftGen(function* (q: string) {
-        if (q === 'a') return craftException({ code: 'E1' }, { q });
-        if (q === 'b') return craftException({ code: 'E2' }, { q });
+        if (q === 'a') return craftException({ _tag: 'E1' }, { q });
+        if (q === 'b') return craftException({ _tag: 'E2' }, { q });
         return [q];
       });
 
@@ -268,7 +268,7 @@ describe('craftLazy (type propagation)', () => {
       // Both the lazy-load failure and `search`'s business exceptions surface.
       type ResultCodes = NonNullable<
         ReturnType<typeof searchResult.exception>
-      >['code'];
+      >['_tag'];
       expectTypeOf<ResultCodes>().toEqualTypeOf<
         'E1' | 'E2' | typeof CRAFT_LAZY_LOAD_ERROR_CODE
       >();

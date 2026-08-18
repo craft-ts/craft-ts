@@ -263,7 +263,7 @@ describe('CraftHttpClient', () => {
       if (!isCraftException(result)) {
         throw new Error('Expected a decode exception');
       }
-      expect(result.code).toBe('HttpResponseDecodeError');
+      expect(result._tag).toBe('HttpResponseDecodeError');
       expect(result.payload).toEqual({
         method: 'GET',
         url: '/api/user',
@@ -430,7 +430,7 @@ describe('CraftHttpClient', () => {
     const usersNotFound = () =>
       craftException(
         {
-          code: 'USERS_NOT_FOUND',
+          _tag: 'USERS_NOT_FOUND',
           scope: 'UsersApi',
         },
         {
@@ -556,7 +556,7 @@ describe('CraftHttpClient', () => {
 
       const httpError = result as CraftHttpClientError;
 
-      expect(httpError.code).toBe('HttpError');
+      expect(httpError._tag).toBe('HttpError');
       expect(httpError.scope).toBe('HttpClient');
       expect(httpError.identifier).toBe('GET /api/users');
       expect(httpError.payload.method).toBe('GET');
@@ -579,7 +579,7 @@ describe('CraftHttpClient', () => {
     const passwordRequired = () =>
       craftException(
         {
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           scope: 'AuthApi',
         },
         {
@@ -642,7 +642,7 @@ describe('CraftHttpClient', () => {
           expected: 400;
         }
       | {
-          source: 'code';
+          source: '_tag';
           mode: 'match';
           expected: 'PASSWORD_REQUIRED';
         }
@@ -683,7 +683,7 @@ describe('CraftHttpClient', () => {
     const invalidPasswordPayload = () =>
       craftException(
         {
-          code: 'INVALID_PASSWORD_PAYLOAD',
+          _tag: 'INVALID_PASSWORD_PAYLOAD',
           scope: 'AuthApi',
         },
         {
@@ -755,7 +755,7 @@ describe('CraftHttpClient', () => {
     type LoginResult = { token: string };
     const rateLimited = () =>
       craftException({
-        code: 'RATE_LIMITED',
+        _tag: 'RATE_LIMITED',
         scope: 'AuthApi',
       });
 
@@ -819,12 +819,12 @@ describe('CraftHttpClient', () => {
     type LoginResult = { token: string };
     const genericBadRequest = () =>
       craftException({
-        code: 'GENERIC_BAD_REQUEST',
+        _tag: 'GENERIC_BAD_REQUEST',
         scope: 'AuthApi',
       });
     const passwordRequired = () =>
       craftException({
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         scope: 'AuthApi',
       });
 
@@ -941,7 +941,7 @@ describe('CraftHttpClient', () => {
       const usersNotFound = () =>
         craftException(
           {
-            code: 'USERS_NOT_FOUND',
+            _tag: 'USERS_NOT_FOUND',
             scope: 'UsersApi',
           },
           {
@@ -1081,7 +1081,7 @@ describe('CraftHttpClient', () => {
               }
 
               return craftException({
-                code: 'PASSWORD_REQUIRED',
+                _tag: 'PASSWORD_REQUIRED',
                 scope: 'UsersFeatureForDependencies',
               });
             },
@@ -1101,7 +1101,7 @@ describe('CraftHttpClient', () => {
               }
 
               return craftException({
-                code: 'VALIDATION_HEADER_ERROR',
+                _tag: 'VALIDATION_HEADER_ERROR',
                 scope: 'UsersFeatureForDependencies',
               });
             },

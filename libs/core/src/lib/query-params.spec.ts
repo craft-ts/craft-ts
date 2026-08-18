@@ -698,7 +698,7 @@ describe('queryParams codecs', () => {
       await router.navigateByUrl('/?page=invalid');
 
       expect(craftUse(filters.page())).toBe(1);
-      expect(craftUse(filters.exceptions()).parse.page?.code).toBe(
+      expect(craftUse(filters.exceptions()).parse.page?._tag).toBe(
         'QueryParamDecodeError',
       );
       expect(craftUse(filters.exceptions()).parse.page?.payload).toEqual({

@@ -152,7 +152,7 @@ describe('query', () => {
           params: () => 'invalid',
           loader: ({ params }) =>
             craftException(
-              { code: 'INVALID_QUERY', scope: 'loader' },
+              { _tag: 'INVALID_QUERY', scope: 'loader' },
               { params },
             ),
         }),
@@ -162,7 +162,7 @@ describe('query', () => {
 
       expect(craftUse(queryRef.status())).toBe('exception');
       expect(craftUse(queryRef.hasException())).toBe(true);
-      expect(craftUse(queryRef.exception())?.code).toBe('INVALID_QUERY');
+      expect(craftUse(queryRef.exception())?._tag).toBe('INVALID_QUERY');
       expect(craftUse(queryRef.value())).toBeUndefined();
     });
   });
@@ -793,14 +793,14 @@ describe('query exceptions', () => {
             params: () =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID' },
+                    { _tag: 'INVALID_USER_ID' },
                     { reason: 'missing' as const },
                   )
                 : 'user-1',
             loader: async ({ params }) => {
               return shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID' },
+                    { _tag: 'INVALID_USER_ID' },
                     { reason: 'missing' as const },
                   )
                 : {
@@ -828,7 +828,7 @@ describe('query exceptions', () => {
               list: (
                 | CraftExceptionResult<
                     {
-                      code: 'INVALID_USER_ID';
+                      _tag: 'INVALID_USER_ID';
                       scope: 'params';
                     },
                     {
@@ -837,7 +837,7 @@ describe('query exceptions', () => {
                   >
                 | CraftExceptionResult<
                     {
-                      code: 'INVALID_USER_ID';
+                      _tag: 'INVALID_USER_ID';
                       scope: 'loader';
                     },
                     {
@@ -848,7 +848,7 @@ describe('query exceptions', () => {
               params?:
                 | CraftExceptionResult<
                     {
-                      code: 'INVALID_USER_ID';
+                      _tag: 'INVALID_USER_ID';
                       scope: 'params';
                     },
                     {
@@ -859,7 +859,7 @@ describe('query exceptions', () => {
               loader?:
                 | CraftExceptionResult<
                     {
-                      code: 'INVALID_USER_ID';
+                      _tag: 'INVALID_USER_ID';
                       scope: 'loader';
                     },
                     {
@@ -890,14 +890,14 @@ describe('query exceptions', () => {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : 'user-1',
           loader: async ({ params }) => {
             return shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : {
@@ -914,7 +914,7 @@ describe('query exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -923,7 +923,7 @@ describe('query exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'loader';
               },
               {
@@ -942,7 +942,7 @@ describe('query exceptions', () => {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : 'user-1',
@@ -951,7 +951,7 @@ describe('query exceptions', () => {
             return shouldFail()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing user' as const },
                 )
@@ -969,7 +969,7 @@ describe('query exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -978,7 +978,7 @@ describe('query exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: 'user-1';
               },
@@ -991,7 +991,7 @@ describe('query exceptions', () => {
       expectTypeOf(craftUse(queryRef.exceptions()).params).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'INVALID_USER_ID';
+              _tag: 'INVALID_USER_ID';
               scope: 'params';
             },
             {
@@ -1006,7 +1006,7 @@ describe('query exceptions', () => {
             'user-1',
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: 'user-1';
               },
@@ -1027,7 +1027,7 @@ describe('query exceptions', () => {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : ('user-1' as string),
@@ -1037,14 +1037,14 @@ describe('query exceptions', () => {
               ? shouldFail()
                 ? craftException(
                     {
-                      code: 'API_ERROR',
+                      _tag: 'API_ERROR',
                       scope: 'loader',
                     },
                     { reason: 'missing1' as const },
                   )
                 : craftException(
                     {
-                      code: 'API_ERROR',
+                      _tag: 'API_ERROR',
                       scope: 'loader',
                     },
                     { reason: 'missing2' as const },
@@ -1066,7 +1066,7 @@ describe('query exceptions', () => {
             string,
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1076,7 +1076,7 @@ describe('query exceptions', () => {
               >
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1095,7 +1095,7 @@ describe('query exceptions', () => {
       ).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1105,7 +1105,7 @@ describe('query exceptions', () => {
           >
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1130,7 +1130,7 @@ describe('query exceptions', () => {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : 'user-1',
@@ -1168,7 +1168,7 @@ describe('query exceptions', () => {
           params: () => 'user-1',
           loader: async () =>
             craftException(
-              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { _tag: 'INVALID_USER_ID', scope: 'loader' },
               { from: 'loader' as const },
             ),
         }),
@@ -1187,7 +1187,7 @@ describe('query exceptions', () => {
       expect(craftUse(queryRef.exception())).toBe(
         craftUse(queryRef.exceptions()).list[0],
       );
-      expect(craftUse(queryRef.exception())?.code).toBe('INVALID_USER_ID');
+      expect(craftUse(queryRef.exception())?._tag).toBe('INVALID_USER_ID');
     });
   });
 
@@ -1201,7 +1201,7 @@ describe('query exceptions', () => {
           method: (value: string) =>
             value.length < 3
               ? craftException(
-                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { _tag: 'SEARCH_TERM_TOO_SHORT' },
                   { min: 3, received: value.length },
                 )
               : value,
@@ -1235,7 +1235,7 @@ describe('query exceptions', () => {
             computedFailure: computed(() =>
               shouldFail()
                 ? craftException(
-                    { code: 'COMPUTED_FAILURE' },
+                    { _tag: 'COMPUTED_FAILURE' },
                     { from: 'computed' as const },
                   )
                 : undefined,
@@ -1270,7 +1270,7 @@ describe('query exceptions', () => {
             validateName: () =>
               shouldFail()
                 ? craftException(
-                    { code: 'PARAM_VALUE_MISMATCH' },
+                    { _tag: 'PARAM_VALUE_MISMATCH' },
                     { expected: 'x', actual: 'y' },
                   )
                 : undefined,
@@ -1300,7 +1300,7 @@ describe('query exceptions', () => {
           params: () => current(),
           identifier: (id) => id,
           loader: async ({ params }) =>
-            craftException({ code: 'PARSE_FAILED' }, { params }),
+            craftException({ _tag: 'PARSE_FAILED' }, { params }),
         }),
       );
 
@@ -1335,7 +1335,7 @@ describe('query exceptions', () => {
         query('queryRef', {
           params: () =>
             current()
-              ? craftException({ code: 'INVALID_ID' }, { params: current() })
+              ? craftException({ _tag: 'INVALID_ID' }, { params: current() })
               : current(),
           identifier: (id) => id,
           loader: async ({ params }) => ({ id: params }),
@@ -1362,7 +1362,7 @@ describe('query exceptions', () => {
             params: () =>
               current()
                 ? craftException(
-                    { code: 'PARAM_VALUE_MISMATCH' },
+                    { _tag: 'PARAM_VALUE_MISMATCH' },
                     { from: 'params' as const },
                   )
                 : current(),
@@ -1371,13 +1371,13 @@ describe('query exceptions', () => {
           () => ({
             computedFailure: computed(() =>
               craftException(
-                { code: 'COMPUTED_VALUE_MISMATCH' },
+                { _tag: 'COMPUTED_VALUE_MISMATCH' },
                 { from: 'insertion-1' as const },
               ),
             ),
             validate: () =>
               craftException(
-                { code: 'METHOD_VALUE_MISMATCH' },
+                { _tag: 'METHOD_VALUE_MISMATCH' },
                 { value: 'x' as string },
               ),
           }),
@@ -1644,7 +1644,7 @@ describe('query — loader programs (async pump)', () => {
   });
 
   const userNotFound = craftGen(function* (userId: string) {
-    return craftException({ code: 'USER_NOT_FOUND' }, { userId });
+    return craftException({ _tag: 'USER_NOT_FOUND' }, { userId });
   });
 
   it('resolves a generator loader suspended on an craftUntilSettled promise await', async () => {
@@ -1691,7 +1691,7 @@ describe('query — loader programs (async pump)', () => {
       // No technical rethrow: the short-circuit feeds the exception channel.
       expect(craftUse(queryRef.status())).toBe('exception');
       expect(craftUse(queryRef.hasException())).toBe(true);
-      expect(craftUse(queryRef.exception())?.code).toBe('USER_NOT_FOUND');
+      expect(craftUse(queryRef.exception())?._tag).toBe('USER_NOT_FOUND');
       expect(craftUse(queryRef.exception())?.payload).toEqual({
         userId: 'user-1',
       });
@@ -1726,7 +1726,7 @@ describe('query — loader programs (async pump)', () => {
     let calls = 0;
     const flakyUser = craftGen(function* (userId: string) {
       calls += 1;
-      if (calls < 3) return craftException({ code: 'FLAKY' });
+      if (calls < 3) return craftException({ _tag: 'FLAKY' });
       return { id: userId, name: 'Jane Doe', email: 'jane@doe.com' };
     });
 

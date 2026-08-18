@@ -405,7 +405,7 @@ describe('craftPipe with query', () => {
             params: () =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_PAGE' },
+                    { _tag: 'INVALID_PAGE' },
                     { reason: 'missing' as const },
                   )
                 : { page: 1 },
@@ -444,10 +444,10 @@ describe('craftPipe with query', () => {
       type ParamsException = NonNullable<
         ReturnType<typeof q.exceptions>['params']
       >;
-      expectTypeOf<ParamsException['code']>().toEqualTypeOf<'INVALID_PAGE'>();
+      expectTypeOf<ParamsException['_tag']>().toEqualTypeOf<'INVALID_PAGE'>();
       expectTypeOf<ParamsException>().toEqualTypeOf<
         CraftExceptionResult<
-          { code: 'INVALID_PAGE'; scope: 'params' },
+          { _tag: 'INVALID_PAGE'; scope: 'params' },
           { reason: 'missing' }
         >
       >();

@@ -416,7 +416,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
 
       const omit = (codes: readonly string[]) =>
         resourceExceptions.filter(
-          (e: AnyCraftException) => !codes.includes(e.code as string),
+          (e: AnyCraftException) => !codes.includes(e._tag as string),
         );
 
       const ctx = {

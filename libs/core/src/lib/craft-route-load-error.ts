@@ -255,7 +255,7 @@ export function withRouteLoadError(
 
 export function createRouteLoadError(payload: CraftRouteLoadErrorPayload) {
   return craftException(
-    { code: CRAFT_ROUTE_LOAD_ERROR_CODE, scope: 'router' },
+    { _tag: CRAFT_ROUTE_LOAD_ERROR_CODE, scope: 'router' },
     payload,
   );
 }
@@ -263,7 +263,7 @@ export function createRouteLoadError(payload: CraftRouteLoadErrorPayload) {
 export function isCraftRouteLoadError(
   value: unknown,
 ): value is CraftRouteLoadError {
-  return isCraftException(value) && value.code === CRAFT_ROUTE_LOAD_ERROR_CODE;
+  return isCraftException(value) && value._tag === CRAFT_ROUTE_LOAD_ERROR_CODE;
 }
 
 export function loadRouteWithRetry<T>(

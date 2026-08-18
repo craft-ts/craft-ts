@@ -33,7 +33,7 @@ const flakyGuard = (outcomes: Array<'A' | 'B' | 'ok'>) => {
     call += 1;
     const outcome = outcomes[Math.min(call, outcomes.length - 1)];
     if (outcome === 'ok') return 'success' as const;
-    return craftException({ code: outcome });
+    return craftException({ _tag: outcome });
   });
 };
 
@@ -78,7 +78,7 @@ describe('catchTag', () => {
 
   it('receives the caught exception (code + payload)', () => {
     const failing = craftGen(function* () {
-      return craftException({ code: 'A' }, { reason: 'expired' });
+      return craftException({ _tag: 'A' }, { reason: 'expired' });
     });
 
     const seen: AnyCraftException[] = [];
@@ -113,7 +113,7 @@ describe('catchTag', () => {
   it('re-enters the exception channel when the handler returns a craftException', () => {
     const program = flakyGuard(['A'])().pipe(
       catchTag('A', function* () {
-        return craftException({ code: 'ESCALATED' });
+        return craftException({ _tag: 'ESCALATED' });
       }),
     );
 
@@ -146,7 +146,7 @@ describe('catchTag', () => {
 
     it('rethrows a code outside the map (runtime safety net)', () => {
       const failing = craftGen(function* () {
-        return craftException({ code: 'UNKNOWN' });
+        return craftException({ _tag: 'UNKNOWN' });
       });
 
       // Force an untyped program so the map cannot know about 'UNKNOWN'.
@@ -244,7 +244,7 @@ describe('retry', () => {
   it('fails fast on a bare generator without re-invocation capability', () => {
     // A craftGen invocation is re-invocable: retry replays then rethrows.
     const failing = craftGen(function* () {
-      return craftException({ code: 'A' });
+      return craftException({ _tag: 'A' });
     });
     expect(() => drive(retry({ times: 1 })(failing()))).toThrow(
       'short-circuited',
@@ -253,7 +253,7 @@ describe('retry', () => {
     // A hand-built generator that short-circuits cannot be replayed: the first
     // needed retry raises the explicit error.
     const shortCircuitingGuard = craftGen(function* () {
-      return craftException({ code: 'A' });
+      return craftException({ _tag: 'A' });
     });
     const bareProgram = (function* () {
       return yield* shortCircuitingGuard();
@@ -267,8 +267,8 @@ describe('retry', () => {
 
 describe('types', () => {
   const failing = craftGen(function* () {
-    if (Math.random() > 0.66) return craftException({ code: 'A' }, { a: 1 });
-    if (Math.random() > 0.33) return craftException({ code: 'B' }, { b: 2 });
+    if (Math.random() > 0.66) return craftException({ _tag: 'A' }, { a: 1 });
+    if (Math.random() > 0.33) return craftException({ _tag: 'B' }, { b: 2 });
     return 'value' as const;
   });
 
@@ -283,7 +283,7 @@ describe('types', () => {
       GeneratorYielded<typeof _program>
     >;
 
-    expectTypeOf<Exceptions['code']>().toEqualTypeOf<'B'>();
+    expectTypeOf<Exceptions['_tag']>().toEqualTypeOf<'B'>();
     expectTypeOf<GeneratorReturn<typeof _program>>().toEqualTypeOf<
       'value' | 'recovered'
     >();
@@ -292,7 +292,7 @@ describe('types', () => {
   it('catchTag adds the handler own exceptions to E', () => {
     const _program = failing().pipe(
       catchTag('A', function* () {
-        return craftException({ code: 'ESCALATED' });
+        return craftException({ _tag: 'ESCALATED' });
       }),
     );
 
@@ -300,7 +300,7 @@ describe('types', () => {
       GeneratorYielded<typeof _program>
     >;
 
-    expectTypeOf<Exceptions['code']>().toEqualTypeOf<'B' | 'ESCALATED'>();
+    expectTypeOf<Exceptions['_tag']>().toEqualTypeOf<'B' | 'ESCALATED'>();
   });
 
   it('catchTag relays the handler dependency yields into Yielded', () => {
@@ -381,7 +381,7 @@ describe('types', () => {
       GeneratorYielded<typeof _program>
     >;
 
-    expectTypeOf<Exceptions['code']>().toEqualTypeOf<'A' | 'B'>();
+    expectTypeOf<Exceptions['_tag']>().toEqualTypeOf<'A' | 'B'>();
     expectTypeOf<GeneratorReturn<typeof _program>>().toEqualTypeOf<'value'>();
   });
 });

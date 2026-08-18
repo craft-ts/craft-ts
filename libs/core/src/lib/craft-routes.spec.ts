@@ -3028,7 +3028,7 @@ describe('AppRoutes.META_DATA', () => {
       () => ({ loginUrl: '/login' }),
     );
     const authGuard = craftGen(function* () {
-      return craftException({ code: 'NOT_AUTHENTICATED' });
+      return craftException({ _tag: 'NOT_AUTHENTICATED' });
     });
 
     type GuardRouteDeps = GetDeps<{
@@ -3077,7 +3077,7 @@ describe('AppRoutes.META_DATA', () => {
       () => ({ loginUrl: '/login' }),
     );
     const authGuard = craftGen(function* () {
-      return craftException({ code: 'NOT_AUTHENTICATED' });
+      return craftException({ _tag: 'NOT_AUTHENTICATED' });
     });
 
     type GuardRouteDeps = GetDeps<{

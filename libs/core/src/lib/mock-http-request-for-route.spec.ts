@@ -24,7 +24,7 @@ type LoginResult = { token: string };
 const passwordRequired = () =>
   craftException(
     {
-      code: 'PASSWORD_REQUIRED',
+      _tag: 'PASSWORD_REQUIRED',
       scope: 'RouteHttpMockAuthApi',
     },
     {
@@ -35,7 +35,7 @@ const passwordRequired = () =>
 const invalidPasswordPayload = () =>
   craftException(
     {
-      code: 'INVALID_PASSWORD_PAYLOAD',
+      _tag: 'INVALID_PASSWORD_PAYLOAD',
       scope: 'RouteHttpMockAuthApi',
     },
     {
@@ -45,13 +45,13 @@ const invalidPasswordPayload = () =>
 
 const rateLimited = () =>
   craftException({
-    code: 'RATE_LIMITED',
+    _tag: 'RATE_LIMITED',
     scope: 'RouteHttpMockAuthApi',
   });
 
 const teapot = () =>
   craftException({
-    code: 'TEAPOT',
+    _tag: 'TEAPOT',
     scope: 'RouteHttpMockAuthApi',
   });
 
@@ -352,7 +352,7 @@ describe('mockHttpRequestForRoute', () => {
     >().toMatchTypeOf<{
       status: 400;
       body: {
-        code: 'PASSWORD_REQUIRED';
+        _tag: 'PASSWORD_REQUIRED';
         message: 'Password is required';
       };
     }>();

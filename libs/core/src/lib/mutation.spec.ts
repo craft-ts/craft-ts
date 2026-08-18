@@ -1005,14 +1005,14 @@ describe('mutation exceptions', () => {
             method: (value: string) =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID_Param' },
+                    { _tag: 'INVALID_USER_ID_Param' },
                     { reason: 'missing' as const },
                   )
                 : value,
             loader: async ({ params }) => {
               return shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID_Loader' },
+                    { _tag: 'INVALID_USER_ID_Loader' },
                     { reason: 'missing' as const },
                   )
                 : {
@@ -1034,7 +1034,7 @@ describe('mutation exceptions', () => {
                         list: (
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Param';
+                                _tag: 'INVALID_USER_ID_Param';
                                 scope: 'params';
                               },
                               {
@@ -1043,7 +1043,7 @@ describe('mutation exceptions', () => {
                             >
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Loader';
+                                _tag: 'INVALID_USER_ID_Loader';
                                 scope: 'loader';
                               },
                               {
@@ -1054,7 +1054,7 @@ describe('mutation exceptions', () => {
                         params?:
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Param';
+                                _tag: 'INVALID_USER_ID_Param';
                                 scope: 'params';
                               },
                               {
@@ -1065,7 +1065,7 @@ describe('mutation exceptions', () => {
                         loader?:
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Loader';
+                                _tag: 'INVALID_USER_ID_Loader';
                                 scope: 'loader';
                               },
                               {
@@ -1100,14 +1100,14 @@ describe('mutation exceptions', () => {
           method: (value: string) =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : value,
           loader: async ({ params }) => {
             return shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : {
@@ -1124,7 +1124,7 @@ describe('mutation exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -1133,7 +1133,7 @@ describe('mutation exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'loader';
               },
               {
@@ -1155,7 +1155,7 @@ describe('mutation exceptions', () => {
           method: (value: string) =>
             shouldFailMethod()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : value,
@@ -1164,7 +1164,7 @@ describe('mutation exceptions', () => {
             return shouldFailLoader()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing user' as const },
                 )
@@ -1182,7 +1182,7 @@ describe('mutation exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -1191,7 +1191,7 @@ describe('mutation exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1205,7 +1205,7 @@ describe('mutation exceptions', () => {
       expectTypeOf(craftUse(mutationRef.exceptions()).params).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'INVALID_USER_ID';
+              _tag: 'INVALID_USER_ID';
               scope: 'params';
             },
             {
@@ -1221,7 +1221,7 @@ describe('mutation exceptions', () => {
             string,
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1244,7 +1244,7 @@ describe('mutation exceptions', () => {
           loader: async () =>
             craftException(
               {
-                code: 'API_ERROR',
+                _tag: 'API_ERROR',
               },
               { reason: 'missing' as const },
             ),
@@ -1260,7 +1260,7 @@ describe('mutation exceptions', () => {
             string,
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1279,7 +1279,7 @@ describe('mutation exceptions', () => {
       ).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1303,13 +1303,13 @@ describe('mutation exceptions', () => {
             failed()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing' as const },
                 )
               : craftException(
                   {
-                    code: 'HTTP_ERROR',
+                    _tag: 'HTTP_ERROR',
                   },
                   { reason: 'disconnected' as const },
                 ),
@@ -1325,7 +1325,7 @@ describe('mutation exceptions', () => {
             string,
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1335,7 +1335,7 @@ describe('mutation exceptions', () => {
               >
             | CraftExceptionResult<
                 {
-                  code: 'HTTP_ERROR';
+                  _tag: 'HTTP_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1349,7 +1349,7 @@ describe('mutation exceptions', () => {
 
       expectTypeOf(
         mutationRef.select('')
-          ? craftUse(mutationRef.select('')!.exceptions()).loader?.code
+          ? craftUse(mutationRef.select('')!.exceptions()).loader?._tag
           : undefined,
       ).toEqualTypeOf<'API_ERROR' | 'HTTP_ERROR' | undefined>();
     });
@@ -1366,7 +1366,7 @@ describe('mutation exceptions', () => {
           method: (value: string) =>
             value.length < 3
               ? craftException(
-                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { _tag: 'SEARCH_TERM_TOO_SHORT' },
                   { min: 3, received: value.length },
                 )
               : value,
@@ -1396,7 +1396,7 @@ describe('mutation exceptions', () => {
           method: (value: string) => value,
           loader: async () =>
             craftException(
-              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { _tag: 'INVALID_USER_ID', scope: 'loader' },
               { from: 'loader' as const },
             ),
         }),
@@ -1420,7 +1420,7 @@ describe('mutation exceptions', () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (id: 'A' | 'B') =>
-            craftException({ code: 'INVALID_ID' }, { params: id }),
+            craftException({ _tag: 'INVALID_ID' }, { params: id }),
           identifier: (id) => id,
           loader: async ({ params }) => ({ id: params }),
         }),

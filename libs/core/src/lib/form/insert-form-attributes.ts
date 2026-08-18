@@ -109,7 +109,7 @@ type ExceptionsByValidatorFromTuple<
         ? MergeObject<
             Acc,
             {
-              [Key in M['code']]: Head;
+              [Key in M['_tag']]: Head;
             }
           >
         : Head

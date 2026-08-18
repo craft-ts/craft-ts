@@ -235,7 +235,7 @@ type RouteFieldExceptions<Field> = ExtractCraftGenExceptions<
 >;
 
 type ComponentRouteException<Code extends string> = CraftException<{
-  code: Code;
+  _tag: Code;
   scope: undefined;
 }>;
 

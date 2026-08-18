@@ -62,7 +62,7 @@ export type CraftHttpClientErrorPayload = {
 
 export type CraftHttpClientError = CraftExceptionResult<
   {
-    code: 'HttpError';
+    _tag: 'HttpError';
     scope: 'HttpClient';
     identifier?: string;
   },
@@ -79,7 +79,7 @@ export type CraftHttpResponseDecodeErrorPayload = {
 
 export type HttpResponseDecodeError = CraftExceptionResult<
   {
-    code: 'HttpResponseDecodeError';
+    _tag: 'HttpResponseDecodeError';
     scope: 'HttpClient';
     identifier?: string;
   },
@@ -1184,7 +1184,7 @@ function toCraftHttpClientError(
 ): CraftHttpClientError {
   return craftException(
     {
-      code: 'HttpError',
+      _tag: 'HttpError',
       scope: 'HttpClient',
       identifier: `${method} ${url}`,
     },
@@ -1206,7 +1206,7 @@ function toHttpResponseDecodeError(
 
   return craftException(
     {
-      code: 'HttpResponseDecodeError',
+      _tag: 'HttpResponseDecodeError',
       scope: 'HttpClient',
       identifier: `${method} ${url}`,
     },

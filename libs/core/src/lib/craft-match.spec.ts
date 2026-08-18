@@ -88,9 +88,9 @@ describe('craftMatch.exhaustive', () => {
 
 describe('match.exhaustive over discriminated exceptions', () => {
   it('narrows the discriminant and preserves the payload', () => {
-    const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+    const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
     const unavailable = craftException(
-      { code: 'UNAVAILABLE' },
+      { _tag: 'UNAVAILABLE' },
       { retryAfter: 5 },
     );
     const exception = denied as typeof denied | typeof unavailable;

@@ -53,7 +53,7 @@ function* throwsRaw(error: unknown): Generator<unknown, never, unknown> {
   throw error;
 }
 
-const ex = (code: string) => craftException({ code });
+const ex = (code: string) => craftException({ _tag: code });
 
 // This file exercises real async backoff timers. Keep it isolated from other
 // specs that use fake timers without making the retry contract synchronous.
@@ -198,7 +198,7 @@ describe('runCraftRouteChainAsync', () => {
 
   it('routes a rethrown craftException (e.g. HttpError) through a matching handler', async () => {
     const httpError = craftException({
-      code: 'HttpError',
+      _tag: 'HttpError',
       scope: 'HttpClient',
     });
     const outcome = await runCraftRouteChainAsync(
@@ -216,7 +216,7 @@ describe('runCraftRouteChainAsync', () => {
 
   it('surfaces a rethrown craftException with no handler as a thrown error', async () => {
     const httpError = craftException({
-      code: 'HttpError',
+      _tag: 'HttpError',
       scope: 'HttpClient',
     });
     const outcome = await runCraftRouteChainAsync(
@@ -354,7 +354,7 @@ describe('runCraftRouteChainAsync', () => {
 describe('runCraftRouteChainAsync — piped guard programs', () => {
   it('recovers a short-circuit through .pipe(catchTag(...))', async () => {
     const failing = craftGen(function* () {
-      return craftException({ code: 'USER_NOT_FOUND' });
+      return craftException({ _tag: 'USER_NOT_FOUND' });
     });
 
     const guard = failing().pipe(
@@ -381,7 +381,7 @@ describe('runCraftRouteChainAsync — piped guard programs', () => {
     let calls = 0;
     const flaky = craftGen(function* () {
       calls += 1;
-      if (calls < 3) return craftException({ code: 'FLAKY' });
+      if (calls < 3) return craftException({ _tag: 'FLAKY' });
       return { user: 'ada' };
     });
 

@@ -131,7 +131,7 @@ describe('insertFormAttributes', () => {
                     fieldState() === '' || fieldState().includes('@'),
                   exception: () =>
                     craftException(
-                      { code: 'MISSING_AT' },
+                      { _tag: 'MISSING_AT' },
                       { message: 'Missing @' as const },
                     ),
                 }),
@@ -281,12 +281,12 @@ describe('insertFormAttributes', () => {
                     name: 'hasAtSign',
                     validWhen: () =>
                       fieldState() === '' || fieldState().includes('@'),
-                    exception: () => craftException({ code: 'MISSING_AT' }),
+                    exception: () => craftException({ _tag: 'MISSING_AT' }),
                   }),
                   cValidator({
                     name: 'minLen5',
                     validWhen: () => fieldState().length >= 5,
-                    exception: () => craftException({ code: 'TOO_SHORT' }),
+                    exception: () => craftException({ _tag: 'TOO_SHORT' }),
                   }),
                 ],
               })),
@@ -639,7 +639,7 @@ describe('formAttributes', () => {
                     fieldState() === '' || fieldState().includes('@'),
                   exception: () =>
                     craftException(
-                      { code: 'MISSING_AT' },
+                      { _tag: 'MISSING_AT' },
                       { message: 'Missing @' as const },
                     ),
                 }),
@@ -792,12 +792,12 @@ describe('formAttributes', () => {
                 cValidator({
                   name: 'hasAtSign',
                   validWhen: () => fieldState().includes('@'),
-                  exception: () => craftException({ code: 'MISSING_AT' }),
+                  exception: () => craftException({ _tag: 'MISSING_AT' }),
                 }),
                 cValidator({
                   name: 'hasDot',
                   validWhen: () => fieldState().includes('.'),
-                  exception: () => craftException({ code: 'MISSING_DOT' }),
+                  exception: () => craftException({ _tag: 'MISSING_DOT' }),
                 }),
               ],
             }),

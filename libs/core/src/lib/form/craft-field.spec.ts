@@ -95,7 +95,7 @@ describe('craftField', () => {
       const form = craftField({ email: '' });
       const requiredValidator: CraftValidator<string> = ({ value }) => ({
         result: computed(() =>
-          value() === '' ? craftException({ code: 'required' }) : undefined,
+          value() === '' ? craftException({ _tag: 'required' }) : undefined,
         ),
       });
       form.email.ɵregisterValidator(requiredValidator);
