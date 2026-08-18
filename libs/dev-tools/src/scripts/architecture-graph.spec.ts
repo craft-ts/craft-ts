@@ -470,9 +470,9 @@ describe('server function architecture', () => {
       `,
       'users/list.fn-client.ts': `
         import type { getUsers as ServerGetUsers } from './list.fn-serveur';
-        import { usersListContract } from './list.fn-contract';
+        declare function craftUnique<T>(value: T): T;
         declare function createServerFunctionClient(value: unknown): unknown;
-        export const getUsers = createServerFunctionClient<ServerGetUsers>(usersListContract);
+        export const getUsers = createServerFunctionClient<ServerGetUsers>(craftUnique('users.list'));
       `,
     });
 
@@ -492,14 +492,102 @@ describe('server function architecture', () => {
       `,
       'users/simple.fn-client.ts': `
         import type { listUsers as ServerListUsers } from './simple.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
         declare function createServerFunctionClient<T>(id: string): unknown;
-        export const getUsers = createServerFunctionClient<typeof ServerListUsers>('users.simple');
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.simple'));
       `,
     });
 
     expect(graph.catalog.serverFunctionFamilies).toEqual(['users.simple']);
     expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
     expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
+  });
+
+  it('reports a client id or definition that does not match its server family', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.wrong'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH');
+  });
+
+  it('rejects a facade that imports the server definition from another family', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+      'users/authenticated.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const authenticatedUsers = serverFunction('users.authenticated', {}).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        import type { authenticatedUsers as ServerAuthenticatedUsers } from './authenticated.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const getUsers = createServerFunctionClient<typeof ServerAuthenticatedUsers>(craftUnique('users.authenticated'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH');
+  });
+
+  it('requires craftUnique for client identities and rejects duplicate client keys', async () => {
+    const graph = await graphOf({
+      'users/one.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const one = serverFunction('users.one', {}).handler(() => ({ ok: true }));
+      `,
+      'users/one.fn-client.ts': `
+        import type { one as ServerOne } from './one.fn-serveur';
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const oneClient = createServerFunctionClient<typeof ServerOne>('users.one');
+      `,
+      'users/two.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const two = serverFunction('users.two', {}).handler(() => ({ ok: true }));
+      `,
+      'users/two.fn-client.ts': `
+        import type { two as ServerTwo } from './two.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const twoClient = createServerFunctionClient<typeof ServerTwo>(craftUnique('users.one'));
+      `,
+      'users/three.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const three = serverFunction('users.three', {}).handler(() => ({ ok: true }));
+      `,
+      'users/three.fn-client.ts': `
+        import type { three as ServerThree } from './three.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const threeClient = createServerFunctionClient<typeof ServerThree>(craftUnique('users.one'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE');
+    expect(() => assertCraftUnique(graph.graph)).toThrow(/Duplicate craftUnique/);
   });
 
   it('reports missing families, server imports in clients, client DI misuse and duplicate ids', async () => {

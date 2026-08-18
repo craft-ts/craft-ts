@@ -113,7 +113,7 @@ describe('yieldable reactive reads', () => {
         state(
           'user',
           source,
-          insertStatePipe(insertDeepYieldable(), () => ({})),
+          insertDeepYieldable(),
         ),
       ),
     );

@@ -54,6 +54,30 @@ describe('require-primitive-derived-property', () => {
     expect(messages).toHaveLength(1);
   });
 
+  it('reports a computed that only depends on a queryEffect in the same component', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComponent, craftComputed } from '@craft-ts/core';
+        import { queryEffect } from '@craft-ts/effect';
+
+        const Demo = craftComponent('Demo', {}, function* () {
+          const layerScopeQuery = yield* queryEffect('layerScopeQuery', {
+            params: () => 'route',
+            loader: () => loadLayerScope,
+          });
+          const result = craftComputed('result', function* () {
+            return yield* layerScopeQuery.value();
+          });
+          return { layerScopeQuery, result };
+        }, () => null);
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'result' only depends on the 'layerScopeQuery' primitive in the same Craft entity. Define it in that primitive's insertion instead of creating a separate computed.",
+    ]);
+  });
+
   it('reports generator craftComputed values derived from one primitive', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

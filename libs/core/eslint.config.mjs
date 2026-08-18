@@ -1,5 +1,6 @@
 import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
+import craftRules from '../dev-tools/src/eslint-rules/index.cjs';
 
 export default [
   ...baseConfig,
@@ -20,7 +21,12 @@ export default [
   },
   {
     files: ['**/*.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
     rules: {
+      'craft-ts/no-invalid-insertion-pipe': 'error',
+      'craft-ts/no-redundant-primitive-insertion': 'error',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {

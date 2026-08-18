@@ -3523,6 +3523,9 @@ type ServerFunctionPart = {
   readonly exposure?: string;
   readonly usesClientDI?: boolean;
   readonly contractFamily?: string;
+  readonly clientDefinitionFile?: string;
+  readonly usesCraftUnique?: boolean;
+  readonly clientIdentityStatic?: boolean;
   readonly runtimeServerImports?: readonly string[];
   readonly runtimeClientImports?: readonly string[];
   readonly importsServerOnly?: readonly string[];
@@ -3565,6 +3568,9 @@ function collectServerFunctions(
         family,
         id: clientContract?.id,
         contractFamily: clientContract?.family,
+        clientDefinitionFile: clientContract?.definitionFile,
+        usesCraftUnique: clientContract?.usesCraftUnique,
+        clientIdentityStatic: clientContract?.identityStatic,
         runtimeServerImports: imports.server,
         runtimeClientImports: imports.client,
       });
@@ -3621,6 +3627,20 @@ function collectServerFunctions(
           ...(part.contractFamily === undefined
             ? {}
             : { contractFamily: relative(builder.rootDir, part.contractFamily) }),
+          ...(part.clientDefinitionFile === undefined
+            ? {}
+            : {
+                clientDefinitionFile: relative(
+                  builder.rootDir,
+                  part.clientDefinitionFile,
+                ),
+              }),
+          ...(part.usesCraftUnique === undefined
+            ? {}
+            : { usesCraftUnique: part.usesCraftUnique }),
+          ...(part.clientIdentityStatic === undefined
+            ? {}
+            : { clientIdentityStatic: part.clientIdentityStatic }),
           ...(part.runtimeServerImports?.length
             ? { runtimeServerImports: part.runtimeServerImports.map((file) => relative(builder.rootDir, file)) }
             : {}),
@@ -3742,10 +3762,35 @@ function findServerFunction(
 function findClientContractFamily(
   sourceFile: SourceFile,
   byPath: ReadonlyMap<string, SourceFile>,
-): { id?: string; family?: string } | undefined {
+): {
+  id?: string;
+  family?: string;
+  definitionFile?: string;
+  usesCraftUnique?: boolean;
+  identityStatic?: boolean;
+} | undefined {
   const call = sourceFile
     .getDescendantsOfKind(SyntaxKind.CallExpression)
     .find((candidate) => candidate.getExpression().getText() === 'createServerFunctionClient');
+  if (!call) return undefined;
+
+  const identity = findClientIdentity(call);
+  const serverDefinition = findClientServerDefinition(sourceFile, call, byPath);
+
+  if (serverDefinition) {
+    return {
+      id: identity.id ?? serverDefinition.id,
+      family: sourceFile.getFilePath().replace(/\.fn-client\.ts$/, ''),
+      definitionFile: serverDefinition.filePath,
+      ...(identity.usesCraftUnique === undefined
+        ? {}
+        : { usesCraftUnique: identity.usesCraftUnique }),
+      ...(identity.identityStatic === undefined
+        ? {}
+        : { identityStatic: identity.identityStatic }),
+    };
+  }
+
   const identifier = call?.getArguments()[0]?.asKind(SyntaxKind.Identifier);
   const directId = call
     ?.getArguments()[0]
@@ -3766,8 +3811,14 @@ function findClientContractFamily(
   if (imported && byPath.has(imported.getFilePath())) {
     const contract = findServerFunctionContract(imported);
     return {
-      id: contract?.id,
-      family: imported.getFilePath().replace(/\.fn-contract\.ts$/, ''),
+      id: identity.id ?? contract?.id,
+      family: sourceFile.getFilePath().replace(/\.fn-client\.ts$/, ''),
+      ...(identity.usesCraftUnique === undefined
+        ? {}
+        : { usesCraftUnique: identity.usesCraftUnique }),
+      ...(identity.identityStatic === undefined
+        ? {}
+        : { identityStatic: identity.identityStatic }),
     };
   }
 
@@ -3789,8 +3840,73 @@ function findClientContractFamily(
   if (!server || !byPath.has(server.getFilePath())) return undefined;
   const serverFunction = findServerFunction(server, byPath);
   return {
-    id: directId ?? serverFunction?.id,
-    family: server.getFilePath().replace(/\.fn-serveur\.ts$/, ''),
+    id: identity.id ?? directId ?? serverFunction?.id,
+    family: sourceFile.getFilePath().replace(/\.fn-client\.ts$/, ''),
+    definitionFile: server.getFilePath(),
+    ...(identity.usesCraftUnique === undefined
+      ? {}
+      : { usesCraftUnique: identity.usesCraftUnique }),
+    ...(identity.identityStatic === undefined
+      ? {}
+      : { identityStatic: identity.identityStatic }),
+  };
+}
+
+function findClientIdentity(call: CallExpression): {
+  id?: string;
+  usesCraftUnique?: boolean;
+  identityStatic?: boolean;
+} {
+  const argument = call.getArguments()[0];
+  if (!argument?.isKind(SyntaxKind.CallExpression)) {
+    return {};
+  }
+  if (argument.getExpression().getText() !== 'craftUnique') {
+    return { usesCraftUnique: false };
+  }
+  const value = argument.getArguments()[0];
+  if (
+    !value ||
+    (!value.isKind(SyntaxKind.StringLiteral) &&
+      !value.isKind(SyntaxKind.NoSubstitutionTemplateLiteral))
+  ) {
+    return { usesCraftUnique: true, identityStatic: false };
+  }
+  return {
+    id: value.getLiteralValue(),
+    usesCraftUnique: true,
+    identityStatic: true,
+  };
+}
+
+function findClientServerDefinition(
+  sourceFile: SourceFile,
+  call: CallExpression,
+  byPath: ReadonlyMap<string, SourceFile>,
+): { filePath: string; id?: string } | undefined {
+  const typeArgument = call.getTypeArguments()[0];
+  const match = /^typeof\s+([A-Za-z_$][\w$]*)$/.exec(
+    typeArgument?.getText() ?? '',
+  );
+  if (!match) return undefined;
+  const importedName = match[1];
+  const importDeclaration = sourceFile.getImportDeclarations().find((declaration) =>
+    declaration.getNamedImports().some((specifier) =>
+      (specifier.getAliasNode()?.getText() ?? specifier.getName()) === importedName,
+    ),
+  );
+  if (!importDeclaration) return undefined;
+  const imported = resolveImportedSource(
+    sourceFile,
+    importDeclaration.getModuleSpecifierValue(),
+    sourceFile.getProject(),
+  );
+  if (!imported || !byPath.has(imported.getFilePath())) return undefined;
+  if (!imported.getBaseName().endsWith('.fn-serveur.ts')) return undefined;
+  const server = findServerFunction(imported, byPath);
+  return {
+    filePath: imported.getFilePath(),
+    id: server?.id,
   };
 }
 

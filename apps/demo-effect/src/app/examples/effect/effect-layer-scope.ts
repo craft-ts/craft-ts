@@ -14,7 +14,8 @@ import { loadLayerScope } from '../../shared/layer-scope-services';
 
 /**
  * Demonstrates Effect services split between the application and route
- * injector. The loader itself only describes the domain Effect requirements.
+ * injector. The query represents an asynchronous server-state read; the
+ * Layers are dependencies of that read, not the data being queried.
  */
 const EffectLayerScopeComponent = craftComponent(
   'EffectLayerScopeComponent',
@@ -71,26 +72,26 @@ const EffectLayerScopeComponent = craftComponent(
     const layerScopeQuery = yield* queryEffect('layerScopeQuery', {
       params: () => 'route',
       loader: () => loadLayerScope(),
-    });
+    }, ({ resource }) => ({
+      globalLabel: craftComputed(
+        'globalLabel',
+        function* () {
+          return (yield* resource.value())?.global ?? '…';
+        },
+      ),
+      routeLabel: craftComputed(
+        'routeLabel',
+        function* () {
+          return (yield* resource.value())?.route ?? '…';
+        },
+      ),
+    }));
 
-    const result = craftComputed('result', function* () {
-      return yield* layerScopeQuery.value();
-    });
-
-    const globalLabel = craftComputed('globalLabel', function* () {
-      return (yield* result())?.global ?? '…';
-    });
-
-    const routeLabel = craftComputed('routeLabel', function* () {
-      return (yield* result())?.route ?? '…';
-    });
-
-    const isLoading = craftComputed('isLoading', function* () {
-      const status = yield* layerScopeQuery.status();
-      return status === 'loading' || status === 'reloading';
-    });
-
-    return { globalLabel, routeLabel, isLoading };
+    return {
+      globalLabel: layerScopeQuery.globalLabel,
+      routeLabel: layerScopeQuery.routeLabel,
+      isLoading: layerScopeQuery.isLoading,
+    };
   },
   ({ globalLabel, routeLabel, isLoading }) =>
     div([
@@ -101,7 +102,7 @@ const EffectLayerScopeComponent = craftComponent(
       ),
       div({ class: 'panel' }, [
         p({ class: 'panel-title' }, 'Resolved dependencies'),
-        ifBlock(isLoading, () => p('Resolving both Layers…')),
+        ifBlock(isLoading, () => p('Loading server state…')),
         p({ class: 'row' }, [strong('Global: '), globalLabel]),
         p({ class: 'row' }, [strong('Route: '), routeLabel]),
         p({ class: 'note' }, [

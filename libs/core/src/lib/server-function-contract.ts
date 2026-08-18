@@ -9,8 +9,9 @@ export type ServerFunctionExposure = 'server' | 'client';
 export interface ServerFunctionContractOptions<
   InputSchema extends CraftSchema = CraftSchema,
   OutputSchema extends CraftSchema | undefined = undefined,
+  Id extends string = string,
 > {
-  readonly id: string;
+  readonly id: Id;
   readonly input: InputSchema;
   readonly output?: OutputSchema;
   readonly exposure: ServerFunctionExposure;
@@ -20,8 +21,9 @@ export interface ServerFunctionContract<
   InputSchema extends CraftSchema = CraftSchema,
   Exposure extends ServerFunctionExposure = ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined = CraftSchema | undefined,
+  Id extends string = string,
 > {
-  readonly id: string;
+  readonly id: Id;
   readonly input: InputSchema;
   readonly output?: OutputSchema;
   readonly exposure: Exposure;
@@ -45,6 +47,7 @@ export type ServerFunctionContractOutput<
   : never;
 
 export function serverFunctionContract<
+  const Id extends string,
   InputSchema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined = undefined,
@@ -53,9 +56,9 @@ export function serverFunctionContract<
   input,
   output,
   exposure,
-}: ServerFunctionContractOptions<InputSchema, OutputSchema> & {
+}: ServerFunctionContractOptions<InputSchema, OutputSchema, Id> & {
   readonly exposure: Exposure;
-}): ServerFunctionContract<InputSchema, Exposure, OutputSchema> {
+}): ServerFunctionContract<InputSchema, Exposure, OutputSchema, Id> {
   assertServerFunctionId(id);
   return Object.freeze({
     id,
@@ -63,7 +66,7 @@ export function serverFunctionContract<
     ...(output === undefined ? {} : { output }),
     exposure,
     __serverFunctionContract: true as const,
-  }) as ServerFunctionContract<InputSchema, Exposure, OutputSchema>;
+  }) as ServerFunctionContract<InputSchema, Exposure, OutputSchema, Id>;
 }
 
 export function isServerFunctionContract(

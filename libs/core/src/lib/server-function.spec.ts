@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  craftUnique,
   createServer,
   createServerFunctionClient,
+  provideServerFunctionTransport,
   requireClientDI,
   requireServerPermission,
   serverFunction,
   serverFunctionContract,
+  TestBed,
   type StandardSchemaV1,
 } from '@craft-ts/core';
 import { InjectionToken } from './host/craft-compat';
@@ -27,6 +30,8 @@ const numberSchema = (transform: (value: number) => number): TestSchema<number, 
   }) as TestSchema<number, number>;
 
 describe('server functions', () => {
+  beforeEach(() => TestBed.resetTestingModule());
+
   it('keeps a server-only function local to its implementation', async () => {
     const Secret = new InjectionToken<string>('Secret');
     const serverOnlyBuilder = serverFunction(
@@ -59,15 +64,21 @@ describe('server functions', () => {
       .pipe(requireServerPermission('users:read'))
       .handler(({ input, required }) => `${required(CurrentUser).id}:${input}`);
     const requests: unknown[] = [];
+    TestBed.configureTestingModule({
+      providers: [
+        provideServerFunctionTransport(async (request) => {
+          requests.push(request);
+          return 'u-1:4';
+        }),
+      ],
+    });
     const client = createServerFunctionClient<typeof implementation>(
-      contract,
-      async (request) => {
-        requests.push(request);
-        return 'u-1:4';
-      },
+      craftUnique('users.current'),
     );
 
-    await expect(client(4)).resolves.toBe('u-1:4');
+    await expect(
+      TestBed.runInInjectionContext(() => client(4)),
+    ).resolves.toBe('u-1:4');
     expect(requests).toEqual([{ id: 'users.current', input: 4 }]);
 
     const server = createServer({
@@ -88,5 +99,17 @@ describe('server functions', () => {
     expect(() => createServer({ functions: [one, two] })).toThrow(
       'Duplicate server function id "same.id"',
     );
+  });
+
+  it('constrains a client key to the server definition id', () => {
+    const implementation = serverFunction(
+      'typed.id',
+      numberSchema((value) => value),
+      { exposure: 'client' },
+    ).handler(({ input }) => input);
+
+    createServerFunctionClient<typeof implementation>(craftUnique('typed.id'));
+    // @ts-expect-error client keys must match the server definition id
+    createServerFunctionClient<typeof implementation>(craftUnique('other.id'));
   });
 });

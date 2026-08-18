@@ -1,10 +1,8 @@
-import {
-  requireServerPermission,
-  serverFunction,
-} from '@craft-ts/core';
+import { serverFunction } from '@craft-ts/core';
 import { Data, Effect, Schema } from 'effect';
-import { CurrentUser } from '../server/authentication';
-import { UserRepository, UserSchema } from '../server/database';
+import { requireAdmin } from '../shared/authenticated-user';
+import { UserRepository } from '../server/database';
+import { UserSchema } from './user-schema';
 
 const authenticatedListUsersInputSchema = Schema.toStandardSchemaV1(
   Schema.Struct({
@@ -28,24 +26,21 @@ export const getAuthenticatedUsers = serverFunction(
   'demo.users.authenticated-list',
   authenticatedListUsersInputSchema,
   { exposure: 'client', output: authenticatedListUsersOutputSchema },
-)
-  .pipe(requireServerPermission('users:read'))
-  .handler(({ input }) =>
-    Effect.gen(function* () {
-      const authenticatedUser = yield* CurrentUser;
-      if (input.userId !== authenticatedUser.id) {
-        return yield* Effect.fail(
-          new AuthenticatedUserMismatch({
-            message: `AuthenticatedUserMismatch: authenticated user "${authenticatedUser.id}" cannot access user "${input.userId}".`,
-            requestedUserId: input.userId,
-            authenticatedUserId: authenticatedUser.id,
-          }),
-        );
-      }
+).handler(({ input }) =>
+  Effect.gen(function* () {
+    const authenticatedUser = yield* requireAdmin;
 
-      // Latence volontaire pour rendre visible le cycle loading du frontend.
-      yield* Effect.sleep('600 millis');
-      const users = yield* UserRepository;
-      return yield* users.list(input.filter);
-    }),
-  );
+    if (input.userId !== authenticatedUser.id) {
+      return yield* new AuthenticatedUserMismatch({
+        message: `AuthenticatedUserMismatch: authenticated user "${authenticatedUser.id}" cannot access user "${input.userId}".`,
+        requestedUserId: input.userId,
+        authenticatedUserId: authenticatedUser.id,
+      });
+    }
+
+    // Intentional latency to make the frontend loading cycle visible.
+    yield* Effect.sleep('600 millis');
+    const users = yield* UserRepository;
+    return yield* users.list(input.filter);
+  }),
+);

@@ -23,13 +23,17 @@ export type LayerScopeResult = {
   readonly route: string;
 };
 
-/** Domain code requiring both the global and route-scoped services. */
+/** Async server-state read requiring both the global and route-scoped services. */
 export function loadLayerScope(): Effect.Effect<
   LayerScopeResult,
   never,
   GlobalLayerService | RouteLayerService
 > {
   return Effect.gen(function* () {
+    // The real application would perform its HTTP request here. Keep a small
+    // delay so the query's pending state remains visible in this self-contained
+    // demo while the Layers are resolved from the correct injectors.
+    yield* Effect.sleep('150 millis');
     const global = yield* GlobalLayerService;
     const route = yield* RouteLayerService;
     return { global: global.label, route: route.label };

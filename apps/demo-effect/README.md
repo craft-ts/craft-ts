@@ -22,8 +22,9 @@ satisfies the `R = GreetingService` requirement.
 
 The `/layer-scope` example combines a global `GlobalLayer` from
 `app.config.ts` with a route-scoped `RouteLayer` from the route's `providers`.
-The route injector inherits the global service and adds the route service before
-the Effect runs.
+Its `queryEffect` represents an asynchronous server-state read; the Layers are
+dependencies of that read, not the queried data. The route injector inherits
+the global service and adds the route service before the Effect runs.
 
 Use `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
 between an Effect domain and a Craft primitive. Parameters remain synchronous

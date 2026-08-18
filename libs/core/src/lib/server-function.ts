@@ -69,23 +69,24 @@ type Builder<
   ) => ServerFunctionDefinition<Contract, Pipes, Output>;
 };
 
-export function serverFunction<Schema extends CraftSchema>(
-  id: string,
+export function serverFunction<const Id extends string, Schema extends CraftSchema>(
+  id: Id,
   input: Schema,
-): Builder<ServerFunctionContract<Schema, 'server'>, readonly []>;
+): Builder<ServerFunctionContract<Schema, 'server', undefined, Id>, readonly []>;
 export function serverFunction<
+  const Id extends string,
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined = undefined,
 >(
-  id: string,
+  id: Id,
   input: Schema,
   options: {
     readonly exposure: Exposure;
     readonly output?: OutputSchema;
   },
 ): Builder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  ServerFunctionContract<Schema, Exposure, OutputSchema, Id>,
   readonly []
 >;
 export function serverFunction<
@@ -99,29 +100,33 @@ export function serverFunction<
   readonly []
 >;
 export function serverFunction<
+  const Id extends string,
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined = undefined,
 >(
-  contractOrId: string | ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  contractOrId:
+    | Id
+    | ServerFunctionContract<Schema, Exposure, OutputSchema>,
   input?: Schema,
   options?: {
     readonly exposure?: Exposure;
     readonly output?: OutputSchema;
   },
 ): Builder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  ServerFunctionContract<Schema, Exposure, OutputSchema, Id>,
   readonly []
 > {
-  const contract =
+  const contract = (
     typeof contractOrId === 'string'
-      ? (serverFunctionContract({
+      ? serverFunctionContract({
           id: contractOrId,
           input: input as Schema,
           exposure: options?.exposure ?? 'server',
           output: options?.output,
-        }) as ServerFunctionContract<Schema, Exposure, OutputSchema>)
-      : contractOrId;
+        })
+      : contractOrId
+  ) as ServerFunctionContract<Schema, Exposure, OutputSchema, Id>;
   assertServerFunctionId(contract.id);
 
   return createBuilder(contract, [] as readonly []);

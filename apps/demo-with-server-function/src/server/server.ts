@@ -1,31 +1,25 @@
-import {
-  createServer,
-} from '@craft-ts/core';
+import { createServer } from '@craft-ts/core';
 import * as NodeHttpServer from '@effect/platform-node/NodeHttpServer';
-import {
-  Effect,
-  Exit,
-  Layer,
-  Scope,
-} from 'effect';
+import { Effect, Exit, Layer, Scope } from 'effect';
 import * as HttpServerRequest from 'effect/unstable/http/HttpServerRequest';
 import * as HttpServerResponse from 'effect/unstable/http/HttpServerResponse';
-import {
-    createServer as createHttpServer,
-} from 'node:http';
+import { createServer as createHttpServer } from 'node:http';
 import {
   demoAuthenticatedUser,
   CurrentUser,
+  type AuthenticatedUser,
 } from './authentication';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-serveur';
 import { listUsers } from '../users/list.fn-serveur';
 import { createDemoDatabase, UserRepository } from './database';
 
-export function createDemoApplication() {
+export function createDemoApplication(
+  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+) {
   const database = createDemoDatabase();
   const runtimeLayer = Layer.mergeAll(
     database.layer,
-    Layer.succeed(CurrentUser)(demoAuthenticatedUser),
+    Layer.succeed(CurrentUser)(authenticatedUser),
   );
   const application = createServer({
     functions: [listUsers, getAuthenticatedUsers],
@@ -50,8 +44,10 @@ export function createDemoApplication() {
  * Adapt the Web Response returned by the Craft server-function registry to
  * Node's request/response pair with Effect's official Node HTTP adapter.
  */
-export function createDemoNodeHandler() {
-  const demo = createDemoApplication();
+export function createDemoNodeHandler(
+  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+) {
+  const demo = createDemoApplication(authenticatedUser);
   const scope = Effect.runSync(Scope.make('parallel'));
   const httpApp = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
@@ -74,11 +70,13 @@ export function createDemoNodeHandler() {
   };
 }
 
-export async function listenDemoServer(): Promise<{
+export async function listenDemoServer(
+  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+): Promise<{
   readonly url: string;
   readonly close: () => Promise<void>;
 }> {
-  const demo = createDemoNodeHandler();
+  const demo = createDemoNodeHandler(authenticatedUser);
   const http = createHttpServer(demo.handler);
   await new Promise<void>((resolve) => {
     http.listen(0, '127.0.0.1', resolve);

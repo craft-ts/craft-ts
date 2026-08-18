@@ -1,96 +1,96 @@
 # Demo with server function
 
-Cette démo montre deux formes de server function :
+This demo shows two forms of server function:
 
 ```txt
-cas simple appelé depuis CraftTS
+simple case called from CraftTS
   -> users/list.fn-client.ts
   -> users/list.fn-serveur.ts
-  -> aucun accès à la DI client
+  -> no access to client DI
 
-cas appelé depuis CraftTS avec une identité authentifiée
+case called from CraftTS with an authenticated identity
   -> users/authenticated-list.fn-client.ts
   -> users/authenticated-list.fn-serveur.ts
-  -> service CurrentUser Effect côté serveur + UserRepository
+  -> server-side CurrentUser Effect service + UserRepository
 ```
 
-La page CraftTS utilise le premier cas et montre le chemin complet :
+The CraftTS page now uses the authenticated case and shows the complete path:
 
 ```txt
-client facade
+client-side Effect CurrentUser service
+  -> role UX check
+  -> client facade
   -> HTTP POST /__server-functions
-  -> registre createServer
-  -> handler server function
+  -> createServer registry
+  -> server function handler
+  -> server-side role check
   -> Effect.gen
-  -> UserRepository fourni par une Layer Effect
-  -> fichier local data/users.json
+  -> UserRepository provided by an Effect Layer
+  -> local data/users.json file
 ```
 
-Elle contient une vraie page front-end CraftTS. Le fichier serveur possède son
-schéma d'entrée Effect et le fichier client importe uniquement le type de la
-server function avec `import type`. Le composant utilise les
-helpers `craftComponent`, `state`, `query`, `craftComputed`, `each` et `ifBlock`.
-Son formulaire appelle la façade client dans le navigateur ; le plugin du
-serveur Vite branche ensuite `/__server-functions` sur le registre de fonctions
-serveur.
+It contains a real CraftTS front-end page. The server file owns its Effect input
+schema, and the client file imports only the server function type with
+`import type`. The component uses the `craftComponent`, `state`, `queryEffect`,
+`craftComputed`, `each`, and `ifBlock` helpers.
+Its form calls the client facade in the browser; the Vite server plugin then
+wires `/__server-functions` to the server function registry.
 
-Le pont HTTP Node n'est pas une implémentation maison : la démo utilise
-`@effect/platform-node/NodeHttpServer.makeHandler` pour adapter l'application
-Web du registre Craft aux requêtes/réponses Node. Le registre Craft reste chargé
-de résoudre la server function et son protocole JSON, tandis qu'Effect prend en
-charge l'exécution HTTP et le cycle de vie des requêtes.
+The Node HTTP bridge is not a custom implementation: the demo uses
+`@effect/platform-node/NodeHttpServer.makeHandler` to adapt the registry's Web
+application to Node requests and responses. The Craft registry remains
+responsible for resolving the server function and its JSON protocol, while
+Effect handles HTTP execution and request lifecycles.
 
-Le cas `users/list.fn-serveur.ts` est le chemin simple utilisé par la page
-CraftTS. Il est exposé au client, mais ne déclare aucun `requireClientDI` : le
-serveur conserve le schéma et l'identifiant RPC, tandis que la façade client
-fait `createServerFunctionClient<typeof ServerListUsers>('demo.users.list')`.
+The `users/list.fn-serveur.ts` case remains the simple path, without identity or
+authorization, and serves as a comparison.
 
-Le cas `authenticated-list` est volontairement plus complet. Le front peut
-envoyer un `userId`, mais cette valeur est considérée comme non fiable. Le
-serveur résout le service Effect `CurrentUser` depuis sa `Layer` (ici une
-session fictive), vérifie que les deux identifiants correspondent et applique
-aussi la permission `users:read`. En production, la `Layer` remplacerait cette
-session de démo par la vraie identité issue de la requête ou du provider
-d'authentification.
+The `authenticated-list` case is intentionally more complete. The `CurrentUser`
+contract and the `requireAdmin` business effect live in
+`src/shared/authenticated-user.ts`. The frontend and server each provide a
+different instance through a `Layer`, but execute exactly the same Effect
+logic. The frontend immediately blocks users who are not administrators. The
+frontend may send a `userId`, but that value and the client-side role are
+considered untrusted. The server resolves its own `CurrentUser`, checks the
+`admin` role again, and then verifies that the ID matches the session.
 
-La base locale est le fichier `data/users.json`, lu par un repository Effect ;
-aucun serveur de base de données ni package natif n’est nécessaire. Le handler
-serveur retourne un `Effect` avec une erreur métier typée et une dépendance
-`UserRepository`.
+The local database is the `data/users.json` file, read by an Effect repository;
+no database server or native package is required. The server handler returns an
+`Effect` with a typed business error and a `UserRepository` dependency.
 
-Depuis la racine du dépôt, lancer l'application :
+From the repository root, start the application:
 
 ```bash
 npm start
 ```
 
-Cette commande est un alias de :
+This command is an alias for:
 
 ```bash
 npx nx serve demo-with-server-function
 ```
 
-Puis ouvrir [http://localhost:4202](http://localhost:4202).
+Then open [http://localhost:4202](http://localhost:4202).
 
-Vite sert le front-end et expose également le backend sur
-`POST /__server-functions` grâce au plugin de démo. Il n'y a donc pas deux
-processus ni de configuration CORS à lancer pour cette démo : le front appelle
-la server function sur la même origine, et celle-ci exécute Effect côté serveur.
+Vite serves the front-end and also exposes the backend at
+`POST /__server-functions` through the demo plugin. There are therefore no two
+processes or CORS configuration to start for this demo: the frontend calls the
+server function on the same origin, and it runs Effect on the server.
 
-Le filtre est envoyé au serveur et les résultats viennent de `data/users.json`.
-La server function attend volontairement 600 ms avant de lire la base afin de
-rendre visible l'état de chargement dans l'interface.
-Pour lancer uniquement le test d'intégration :
+The filter is sent to the server, and the results come from `data/users.json`.
+The server function intentionally waits 600 ms before reading the database so
+that the loading state is visible in the interface.
+To run only the integration test:
 
 ```bash
 npx nx test demo-with-server-function
 ```
 
-Ou directement :
+Or directly:
 
 ```bash
 npx vitest run --config apps/demo-with-server-function/vitest.config.ts
 ```
 
-La sortie du test affiche également la requête client et les lignes lues depuis
-la base locale.
+The test output also displays the client request and the lines read from the
+local database.

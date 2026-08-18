@@ -1,14 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
 import * as NodeFileSystem from '@effect/platform-node/NodeFileSystem';
+import { UserSchema, type User } from '../users/user-schema';
 
-export const UserSchema = Schema.Struct({
-  id: Schema.Number,
-  name: Schema.String,
-  email: Schema.String,
-});
-
-export type User = Schema.Schema.Type<typeof UserSchema>;
+export { UserSchema } from '../users/user-schema';
+export type { User } from '../users/user-schema';
 
 export class UserRepository extends Context.Service<
   UserRepository,
@@ -24,10 +20,15 @@ export function createDemoDatabase() {
 
   const repository = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const rows = yield* fs.readFileString(databasePath).pipe(
-      Effect.flatMap((content) => Effect.try(() => JSON.parse(content))),
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(UserSchema))),
-    );
+    const rows = yield* fs
+      .readFileString(databasePath)
+      .pipe(
+        Effect.flatMap(
+          Schema.decodeUnknownEffect(
+            Schema.fromJsonString(Schema.Array(UserSchema)),
+          ),
+        ),
+      );
 
     return {
       list: (filter: string) =>

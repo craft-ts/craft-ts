@@ -1524,7 +1524,11 @@ export type ServerFunctionArchitectureDiagnosticCode =
   | 'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE'
   | 'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH'
   | 'CRAFT_SERVER_FUNCTION_DUPLICATE_ID'
-  | 'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE';
+  | 'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_STATIC'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH';
 
 export type ServerFunctionArchitectureViolation = {
   readonly code: ServerFunctionArchitectureDiagnosticCode;
@@ -1603,7 +1607,10 @@ export function serverFunctionArchitectureViolations(
     const anchor = contract ?? client ?? server ?? familyNode;
     if (!anchor) continue;
     const exposure = contract?.details?.['exposure'];
-    const id = contract?.details?.['serverFunctionId'];
+    const id =
+      contract?.details?.['serverFunctionId'] ??
+      server?.details?.['serverFunctionId'] ??
+      client?.details?.['serverFunctionId'];
     const hasClientExposure = exposure === 'client';
 
     if (hasClientExposure && (!client || !server)) {
@@ -1699,6 +1706,46 @@ export function serverFunctionArchitectureViolations(
           client,
         );
       }
+    }
+    if (client && client.details?.['usesCraftUnique'] !== true) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE',
+        'client facade id must be wrapped in craftUnique(...).',
+        client,
+      );
+    }
+    if (client && client.details?.['clientIdentityStatic'] === false) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_STATIC',
+        'client facade craftUnique(...) id must be a static string literal.',
+        client,
+      );
+    }
+    if (
+      client &&
+      client.details?.['clientDefinitionFile'] !== undefined &&
+      client.details?.['clientDefinitionFile'] !==
+        `${String(client.details?.['family'])}.fn-serveur.ts`
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH',
+        'client facade type definition does not belong to its server-function family.',
+        client,
+      );
+    }
+    if (
+      client &&
+      server &&
+      client.details?.['serverFunctionId'] !== undefined &&
+      server.details?.['serverFunctionId'] !== undefined &&
+      client.details?.['serverFunctionId'] !==
+        server.details?.['serverFunctionId']
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH',
+        `client facade id does not match server implementation id "${String(server.details?.['serverFunctionId'])}".`,
+        client,
+      );
     }
     if (client?.details?.['runtimeServerImports']) {
       add(

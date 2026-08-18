@@ -64,6 +64,9 @@ const targetBlankNoopener = require('./target-blank-noopener.cjs');
 const requireFocusVisible = require('./require-focus-visible.cjs');
 const requireReducedMotion = require('./require-reduced-motion.cjs');
 const requireEffectAdapters = require('./require-effect-adapters.cjs');
+const serverFunctionClientMatch = require('./server-function-client-match.cjs');
+const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
+const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
 
 const plugin = {
   rules: {
@@ -118,7 +121,8 @@ const plugin = {
     'img-has-alt': imgHasAlt,
     'control-has-accessible-name': controlHasAccessibleName,
     'label-has-associated-control': labelHasAssociatedControl,
-    'no-noninteractive-element-interactions': noNoninteractiveElementInteractions,
+    'no-noninteractive-element-interactions':
+      noNoninteractiveElementInteractions,
     'anchor-has-href': anchorHasHref,
     'button-has-type': buttonHasType,
     'require-interactive-local-name': requireInteractiveLocalName,
@@ -135,6 +139,9 @@ const plugin = {
     'require-focus-visible': requireFocusVisible,
     'require-reduced-motion': requireReducedMotion,
     'require-effect-adapters': requireEffectAdapters,
+    'server-function-client-match': serverFunctionClientMatch,
+    'no-invalid-insertion-pipe': noInvalidInsertionPipe,
+    'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
   },
 };
 

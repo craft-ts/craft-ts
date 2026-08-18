@@ -57,9 +57,9 @@ function loadUser(
 
     switch (scenario) {
       case 'not-found':
-        return yield* Effect.fail(new UserNotFound({ userId: 'u-42' }));
+        return yield* new UserNotFound({ userId: 'u-42' });
       case 'unauthorized':
-        return yield* Effect.fail(new Unauthorized({ reason: 'token expired' }));
+        return yield* new Unauthorized({ reason: 'token expired' });
       case 'defect':
         return yield* Effect.die(new Error('the database connection exploded'));
       case 'success':
@@ -126,6 +126,17 @@ const EffectYieldComponent = craftComponent(
         text-transform: uppercase;
       }
       :scope .effect-outcome { margin: 0.4rem 0; line-height: 1.5; }
+      :scope .effect-defect {
+        margin: 0 0 1.25rem;
+        padding: 0.95rem 1.1rem;
+        border-left: 3px solid #ef4444;
+        border-radius: 0 8px 8px 0;
+        background: #fef2f2;
+        color: #991b1b;
+        font-size: 0.85rem;
+        line-height: 1.6;
+      }
+      :scope .effect-defect .mono { background: #fee2e2; }
       :scope .effect-gap {
         margin-top: 1.25rem;
         padding: 0.95rem 1.1rem;
@@ -291,12 +302,13 @@ const EffectYieldComponent = craftComponent(
             ),
           ],
         ),
-        p({ class: 'effect-outcome' }, [
-          strong('On the defect scenario '),
-          'nothing is matched above, on purpose: a defect is not a business exception. It goes to the error channel and stays out of ',
-          span({ class: 'mono' }, 'handleExceptions'),
-          '.',
-        ]),
+      ]),
+
+      div({ class: 'effect-defect' }, [
+        strong('Defect — '),
+        'nothing is matched in the result above, on purpose: a defect is not a business exception. It goes to the error channel and stays out of ',
+        span({ class: 'mono' }, 'handleExceptions'),
+        '.',
       ]),
 
       div({ class: 'effect-gap' }, [

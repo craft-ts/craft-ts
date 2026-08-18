@@ -35,6 +35,8 @@ export const craftDemoRules = {
   'craft-ts/template-element-name-unique': 'error',
   'craft-ts/require-primitive-context': 'error',
   'craft-ts/require-primitive-derived-property': 'error',
+  'craft-ts/no-invalid-insertion-pipe': 'error',
+  'craft-ts/no-redundant-primitive-insertion': 'error',
   'craft-ts/no-async-await': 'error',
   'craft-ts/no-throw': 'error',
   'craft-ts/require-assert-exhaustive-route-exceptions': 'warn',

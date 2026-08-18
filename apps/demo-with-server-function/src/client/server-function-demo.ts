@@ -20,14 +20,12 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import {
-  craftComputed,
-  craftMethod,
-  insertQueryPipe,
-  query,
-  state,
-} from '@craft-ts/core';
-import { getUsers } from '../users/list.fn-client';
+import { Effect } from 'effect';
+import { craftComputed, craftMethod, state } from '@craft-ts/core';
+import { queryEffect } from '@craft-ts/effect';
+import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
+import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
+import type { User } from '../users/user-schema';
 
 const ServerFunctionDemo = craftComponent(
   'ServerFunctionDemo',
@@ -93,49 +91,72 @@ const ServerFunctionDemo = craftComponent(
     const searchTerm = yield* state('searchTerm', '', ({ set }) => ({
       submit: (value: string) => set(value.trim()),
     }));
-    const usersQuery = yield* query(
+    const currentUserQuery = yield* queryEffect('currentUserQuery', {
+      params: () => true,
+      loader: () => CurrentUser,
+    });
+    const currentUser = craftComputed('currentUser', function* () {
+      return yield* currentUserQuery.value();
+    });
+    const isAdmin = craftComputed('isAdmin', function* () {
+      return (yield* currentUser())?.role === 'admin';
+    });
+    const usersQuery = yield* queryEffect(
       'usersQuery',
       {
         params: searchTerm,
         loader: ({ params }) =>
-          getUsers({ filter: params }),
+          Effect.gen(function* () {
+            const authenticatedUser = yield* requireAdmin;
+            return yield* Effect.tryPromise<readonly User[]>(() =>
+              getAuthenticatedUsers({
+                filter: params,
+                userId: authenticatedUser.id,
+              }),
+            );
+          }),
       },
-      insertQueryPipe(({ resource }) => ({
-        hasUsers: craftComputed('hasUsers', () => resource.hasValue()),
-        isLoading: craftComputed('isLoading', function* () {
-          const currentStatus = yield* resource.status();
-          return currentStatus === 'loading' || currentStatus === 'reloading';
+      ({ resource }) => ({
+        accessDenied: craftComputed('accessDenied', function* () {
+          return (yield* currentUser())?.role === 'member';
         }),
+        hasUsers: craftComputed('hasUsers', () => resource.hasValue()),
         isEmpty: craftComputed('isEmpty', function* () {
           const currentStatus = yield* resource.status();
           return (
+            (yield* currentUser())?.role !== 'member' &&
             currentStatus !== 'loading' &&
             currentStatus !== 'reloading' &&
             !resource.hasValue()
           );
         }),
-        status: craftComputed('status', function* () {
-          return yield* resource.status();
-        }),
         requestTitle: craftComputed('requestTitle', function* () {
           const currentStatus = yield* resource.status();
+          if ((yield* currentUser())?.role === 'member') {
+            return 'Client-side access denied';
+          }
           return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'Appel de demo.users.list…'
-            : 'Server function prête';
+            ? 'Calling demo.users.authenticated-list…'
+            : 'Server function ready';
         }),
         requestDetail: craftComputed('requestDetail', function* () {
           const currentStatus = yield* resource.status();
+          if ((yield* currentUser())?.role === 'member') {
+            return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
+          }
           return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'POST /__server-functions · Effect en cours'
-            : `Statut : ${currentStatus}`;
+            ? 'POST /__server-functions · Effect is running'
+            : `Status: ${currentStatus}`;
         }),
         resultCount: craftComputed('resultCount', function* () {
-          return (yield* resource.value())?.length.toString() ?? '—';
+          const value = yield* resource.value();
+          return Array.isArray(value) ? value.length.toString() : '—';
         }),
-      }), () => ({})),
+      }),
     );
     const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
+      if (!(yield* isAdmin())) return; // todo remove
       yield* searchTerm.submit(yield* searchInput());
     });
 
@@ -143,73 +164,153 @@ const ServerFunctionDemo = craftComponent(
       searchInput,
       setSearchInput: searchInput.setSearchInput,
       usersQuery,
+      currentUser,
       submitSearch,
     };
   },
-  ({ searchInput, setSearchInput, usersQuery, submitSearch }) =>
+  ({ searchInput, setSearchInput, usersQuery, currentUser, submitSearch }) =>
     main({ class: 'shell' }, [
       header({ class: 'hero' }, [
-        div({ class: 'eyebrow' }, [span({ class: 'pulse' }), ' runnable playground']),
-        heading('Frontend → Server Function → Effect → DB'),
-        p({ class: 'hero-copy' }, 'Cette page est un composant CraftTS. Le formulaire appelle une server function typée, dont le backend exécute un programme Effect avec sa dépendance de repository.'),
+        div({ class: 'eyebrow' }, [
+          span({ class: 'pulse' }),
+          ' runnable playground',
+        ]),
+        heading('Frontend → DI → Server Function → Effect → DB'),
+        p(
+          { class: 'hero-copy' },
+          'The frontend reads the current user through DI for immediate UX feedback. The backend reads its own session and checks the role before accessing data.',
+        ),
       ]),
-      section({ class: 'flow', attrs: { 'aria-label': 'Flux de la démonstration' } }, [
-        flowStep('01', 'CraftTS', 'functional component'), span({ class: 'flow-arrow' }, '→'),
-        flowStep('02', 'HTTP', 'POST /__server-functions'), span({ class: 'flow-arrow' }, '→'),
-        flowStep('03', 'Effect', 'server runtime + Layer'), span({ class: 'flow-arrow' }, '→'),
-        flowStep('04', 'DB locale', 'data/users.json'),
+      section({ class: 'flow', attrs: { 'aria-label': 'Demo flow' } }, [
+        flowStep('01', 'CraftTS DI', 'current user + role'),
+        span({ class: 'flow-arrow' }, '→'),
+        flowStep('02', 'HTTP', 'POST /__server-functions'),
+        span({ class: 'flow-arrow' }, '→'),
+        flowStep('03', 'Effect', 'server runtime + Layer'),
+        span({ class: 'flow-arrow' }, '→'),
+        flowStep('04', 'Local DB', 'data/users.json'),
       ]),
       section({ class: 'workspace' }, [
         div({ class: 'panel query-panel' }, [
           div({ class: 'panel-heading' }, [
-            div([span({ class: 'panel-kicker' }, 'Server function'), heading('Rechercher des utilisateurs')]),
-            span({ class: 'mono' }, 'demo.users.list'),
+            div([
+              span({ class: 'panel-kicker' }, 'Protected server function'),
+              heading('Search users'),
+            ]),
+            span({ class: 'mono' }, 'demo.users.authenticated-list'),
           ]),
-          p({ class: 'panel-copy' }, 'Le formulaire appelle directement une server function typée. Elle ne dépend d’aucune DI côté client ; la latence volontaire de 600 ms rend le chargement visible.'),
+          p(
+            { class: 'panel-copy' },
+            'The role comes from a client-side Craft service: if the user is not an admin, no network request is sent. This check improves UX, but the server does not trust it.',
+          ),
+          div({ class: 'request-card' }, [
+            span({ class: 'request-dot' }),
+            div([
+              strong(function* () {
+                return `User: ${(yield* currentUser())?.id ?? '…'}`;
+              }),
+              small(function* () {
+                return `Role: ${(yield* currentUser())?.role ?? '…'}`;
+              }),
+            ]),
+          ]),
           form('searchForm', { class: 'search-form', submit: submitSearch }, [
-            label({ htmlFor: 'filterInput' }, 'Filtre'),
+            label({ htmlFor: 'filterInput' }, 'Filter'),
             div({ class: 'search-row' }, [
               input('filterInput', {
-                type: 'search', value: searchInput, placeholder: 'ada, craft.dev…', autocomplete: 'off',
-                'aria-label': 'Filtre utilisateurs',
-                *input(event) { yield* setSearchInput(event.target.value); },
+                type: 'search',
+                value: searchInput,
+                placeholder: 'ada, craft.dev…',
+                autocomplete: 'off',
+                'aria-label': 'User filter',
+                *input(event) {
+                  yield* setSearchInput(event.target.value);
+                },
               }),
-              button('searchButton', { type: 'submit', disabled: usersQuery.isLoading }, 'Exécuter ↗'),
+              button(
+                'searchButton',
+                { type: 'submit', disabled: usersQuery.isLoading },
+                'Run ↗',
+              ),
             ]),
           ]),
           div({ class: 'request-card' }, [
             span({ class: 'request-dot' }),
             div([
-              strong(function* () { return yield* usersQuery.requestTitle(); }),
-              small(function* () { return yield* usersQuery.requestDetail(); }),
+              strong(function* () {
+                return yield* usersQuery.requestTitle();
+              }),
+              small(function* () {
+                return yield* usersQuery.requestDetail();
+              }),
             ]),
           ]),
         ]),
         div({ class: 'panel result-panel' }, [
           div({ class: 'panel-heading' }, [
-            div([span({ class: 'panel-kicker' }, 'Réponse'), heading('Utilisateurs')]),
-            span({ class: 'count-badge' }, function* () { return yield* usersQuery.resultCount(); }),
-          ]),
-          ifBlock(usersQuery.isLoading, () => p({ class: 'loading' }, '⏳ Le backend Effect travaille…')),
-          ifBlock(usersQuery.hasUsers, () => ul({ class: 'results' }, each(usersQuery.value, { track: (user) => user.id }, (user) =>
-            article({ class: 'user-row' }, [
-              div({ class: 'avatar' }, function* () { return (yield* user()).name.slice(0, 1); }),
-              div({ class: 'user-info' }, [
-                strong(function* () { return (yield* user()).name; }),
-                span(function* () { return (yield* user()).email; }),
-              ]),
-              span({ class: 'user-id' }, function* () { return `#${(yield* user()).id}`; }),
+            div([
+              span({ class: 'panel-kicker' }, 'Response'),
+              heading('Users'),
             ]),
-          ))),
-          ifBlock(usersQuery.isEmpty, () => div({ class: 'empty' }, [strong('Aucun résultat chargé'), span('Exécutez une recherche pour afficher les utilisateurs.')])),
+            span({ class: 'count-badge' }, function* () {
+              return yield* usersQuery.resultCount();
+            }),
+          ]),
+          ifBlock(usersQuery.isLoading, () =>
+            p({ class: 'loading' }, '⏳ The Effect backend is working…'),
+          ),
+          ifBlock(usersQuery.accessDenied, () =>
+            div({ class: 'empty' }, [
+              strong('Access denied'),
+              span(
+                'The client-side check blocked the request before it reached the network: admin role required.',
+              ),
+            ]),
+          ),
+          ifBlock(usersQuery.hasUsers, () =>
+            ul(
+              { class: 'results' },
+              each(usersQuery.value, { track: (user) => user.id }, (user) =>
+                article({ class: 'user-row' }, [
+                  div({ class: 'avatar' }, function* () {
+                    return (yield* user()).name.slice(0, 1);
+                  }),
+                  div({ class: 'user-info' }, [
+                    strong(function* () {
+                      return (yield* user()).name;
+                    }),
+                    span(function* () {
+                      return (yield* user()).email;
+                    }),
+                  ]),
+                  span({ class: 'user-id' }, function* () {
+                    return `#${(yield* user()).id}`;
+                  }),
+                ]),
+              ),
+            ),
+          ),
+          ifBlock(usersQuery.isEmpty, () =>
+            div({ class: 'empty' }, [
+              strong('No results loaded'),
+              span('Run a search to display users.'),
+            ]),
+          ),
         ]),
       ]),
-      footer({ class: 'demo-footer' }, [span('Effect est utilisé uniquement côté serveur.'), span({ class: 'footer-file' }, 'apps/demo-with-server-function')]),
+      footer({ class: 'demo-footer' }, [
+        span('Same Effect service, two instances: client and server.'),
+        span({ class: 'footer-file' }, 'apps/demo-with-server-function'),
+      ]),
     ]),
 );
 
 function flowStep(number: string, title: string, description: string) {
-  return div({ class: 'flow-step' }, [span({ class: 'step-number' }, number), strong(title), small(description)]);
+  return div({ class: 'flow-step' }, [
+    span({ class: 'step-number' }, number),
+    strong(title),
+    small(description),
+  ]);
 }
 
 export { ServerFunctionDemo };

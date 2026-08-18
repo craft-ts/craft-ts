@@ -21,6 +21,21 @@ export default [
     },
   },
   {
+    files: ['**/*.fn-client.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      'craft-ts/server-function-client-match': 'error',
+    },
+  },
+  {
     // This Vite config is a Node-side entry point and imports source-only
     // workspace aliases while Nx is evaluating the configuration.
     files: ['**/vite.config.ts', '**/vitest.config.ts'],

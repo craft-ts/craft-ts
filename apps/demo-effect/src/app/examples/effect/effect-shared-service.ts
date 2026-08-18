@@ -67,35 +67,32 @@ const EffectSharedServiceComponent = craftComponent(
     `,
   },
   function* () {
-    const request = yield* state(
-      'request',
-      { name: 'Ada' },
-      ({ update }) => ({
-        greet: (name: string) => update(() => ({ name })),
+    const request = yield* state('request', { name: 'Ada' }, ({ update }) => ({
+      greet: (name: string) => update(() => ({ name })),
+    }));
+
+    const greetingQuery = yield* queryEffect(
+      'greetingQuery',
+      {
+        params: request,
+        // This operation is imported from a shared domain file. Its Effect
+        // requires GreetingService, which app.config.ts supplies with a Layer.
+        loader: ({ params }) => loadGreeting(params.name),
+      },
+      ({ resource }) => ({
+        greeting: craftComputed('greeting', function* () {
+          return (yield* resource.value())?.text ?? '…';
+        }),
       }),
     );
 
-    const greetingQuery = yield* queryEffect('greetingQuery', {
-      params: request,
-      // This operation is imported from a shared domain file. Its Effect
-      // requires GreetingService, which app.config.ts supplies with a Layer.
-      loader: ({ params }) => loadGreeting(params.name),
-    });
-
-    const greeting = craftComputed('greeting', function* () {
-      return (yield* greetingQuery.value())?.text ?? '…';
-    });
-
-    const isLoading = craftComputed('isLoading', function* () {
-      const status = yield* greetingQuery.status();
-      return status === 'loading' || status === 'reloading';
-    });
-
-    const status = craftComputed('status', function* () {
-      return yield* greetingQuery.status();
-    });
-
-    return { request, greetingQuery, greeting, isLoading, status };
+    return {
+      request,
+      greetingQuery,
+      greeting: greetingQuery.greeting,
+      isLoading: greetingQuery.isLoading,
+      status: greetingQuery.status,
+    };
   },
   ({ request, greeting, isLoading, status }) =>
     div([
@@ -107,27 +104,39 @@ const EffectSharedServiceComponent = craftComponent(
       div({ class: 'actions' }, [
         button(
           'adaButton',
-          { type: 'button', *click() { yield* request.greet('Ada'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* request.greet('Ada');
+            },
+          },
           'Ada',
         ),
         button(
           'graceButton',
-          { type: 'button', *click() { yield* request.greet('Grace'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* request.greet('Grace');
+            },
+          },
           'Grace',
         ),
         button(
           'linusButton',
-          { type: 'button', *click() { yield* request.greet('Linus'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* request.greet('Linus');
+            },
+          },
           'Linus',
         ),
       ]),
       div({ class: 'panel' }, [
         p({ class: 'panel-title' }, 'Dependency resolution'),
         ifBlock(isLoading, () => p('Resolving service…')),
-        p({}, [
-          strong('Result: '),
-          greeting,
-        ]),
+        p({}, [strong('Result: '), greeting]),
         p({}, ['Status : ', status]),
         p({}, [
           'The Effect callback keeps the requirement ',

@@ -31,6 +31,16 @@
                 "preferSchemaOverJson": "warning"
               }
             }
+          },
+          {
+            "include": ["src/server/server.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "asyncFunction": "off",
+                "newPromise": "off",
+                "nodeBuiltinImport": "off"
+              }
+            }
           }
         ]
       }

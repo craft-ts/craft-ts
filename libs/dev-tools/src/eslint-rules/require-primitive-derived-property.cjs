@@ -1,9 +1,22 @@
-const PRIMITIVES = new Set([
-  'asyncProcess',
-  'mutation',
-  'query',
-  'queryParams',
-  'state',
+const PRIMITIVE_IMPORTS = new Map([
+  [
+    '@craft-ts/core',
+    new Map([
+      ['asyncProcess', 'asyncProcess'],
+      ['mutation', 'mutation'],
+      ['query', 'query'],
+      ['queryParams', 'queryParams'],
+      ['state', 'state'],
+    ]),
+  ],
+  [
+    '@craft-ts/effect',
+    new Map([
+      ['asyncProcessEffect', 'asyncProcess'],
+      ['mutationEffect', 'mutation'],
+      ['queryEffect', 'query'],
+    ]),
+  ],
 ]);
 
 const HOSTS = new Set(['craftComponent', 'craftService', 'toCraftService']);
@@ -193,16 +206,15 @@ function getPrimitiveCall(node, sourceCode) {
     return undefined;
   }
 
-  const primitive = getImportedName(
-    current.callee,
-    '@craft-ts/core',
-    sourceCode,
-  );
-  if (!primitive || !PRIMITIVES.has(primitive)) {
-    return undefined;
+  for (const [source, imports] of PRIMITIVE_IMPORTS) {
+    const importedName = getImportedName(current.callee, source, sourceCode);
+    const primitive = imports.get(importedName);
+    if (primitive) {
+      return { node: current, primitive };
+    }
   }
 
-  return { node: current, primitive };
+  return undefined;
 }
 
 function createFix({
@@ -403,9 +415,7 @@ function isInsidePrimitive(node, sourceCode) {
     if (
       current.type === 'CallExpression' &&
       current.callee.type === 'Identifier' &&
-      PRIMITIVES.has(
-        getImportedName(current.callee, '@craft-ts/core', sourceCode),
-      )
+      getPrimitiveCall(current, sourceCode)
     ) {
       return true;
     }

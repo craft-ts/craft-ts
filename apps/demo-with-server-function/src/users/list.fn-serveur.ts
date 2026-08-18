@@ -18,7 +18,7 @@ export const listUsers = serverFunction(
   { exposure: 'client', output: listUsersOutputSchema },
 ).handler(({ input }) =>
   Effect.gen(function* () {
-    // Latence volontaire pour rendre visible le cycle loading du frontend.
+    // Intentional latency to make the frontend loading cycle visible.
     yield* Effect.sleep('600 millis');
     const users = yield* UserRepository;
     return yield* users.list(input.filter);
