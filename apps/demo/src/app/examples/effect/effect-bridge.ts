@@ -8,7 +8,6 @@
 // ---------------------------------------------------------------------------
 
 import { Cause, Effect, Exit, Option } from 'effect';
-import { YieldWrap, yieldWrapGet } from 'effect/Utils';
 import {
   craftException,
   ɵsetForeignYieldBridge,
@@ -51,14 +50,9 @@ export function onEffectTrace(
  */
 export function installEffectBridge(): () => void {
   return ɵsetForeignYieldBridge((yielded) => {
-    // `yield* effect` produces a `YieldWrap` holding the Effect in a #private
-    // field: `yieldWrapGet` is the only way in, no structural sniffing.
-    if (!(yielded instanceof YieldWrap)) {
-      return undefined;
-    }
-
-    const inner = yieldWrapGet(yielded);
-    if (!Effect.isEffect(inner)) {
+    // Effect v4 yields the Effect ITSELF (v3 wrapped it in a `YieldWrap` whose
+    // payload sat in a #private field). Structural detection is enough now.
+    if (!Effect.isEffect(yielded)) {
       return undefined;
     }
 
@@ -71,7 +65,7 @@ export function installEffectBridge(): () => void {
     // `runPromiseExit` demands `R = never`. Finding 0.1-a: by the time we hold
     // the Effect it is too late to check requirements — that check belongs at
     // the yield site (plan task 2.5).
-    const runnable = inner as Effect.Effect<unknown, unknown, never>;
+    const runnable = yielded as Effect.Effect<unknown, unknown, never>;
 
     return Effect.runPromiseExit(runnable).then(
       (exit): ForeignYieldOutcome => {
@@ -83,7 +77,7 @@ export function installEffectBridge(): () => void {
           return { kind: 'value', value: exit.value };
         }
 
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         if (Option.isNone(failure)) {
           push(
             '2 · DEFECT',

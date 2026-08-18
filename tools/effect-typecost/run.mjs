@@ -122,12 +122,12 @@ export class ProbeError extends Data.TaggedError('ProbeError')<{
   readonly why: string;
 }> {}
 
-export class ProbeService extends Context.Tag('ProbeService')<
+export class ProbeService extends Context.Service<
   ProbeService,
   {
 ${shape}
   }
->() {}
+>()('ProbeService') {}
 
 export const probeLayer = {
 ${impl}

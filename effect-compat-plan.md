@@ -155,10 +155,12 @@ Rien d'autre n'a bougé. Le pont lui-même est un `.fixture.ts` (motif exclu de
 `tsconfig.lib.json`), donc `@craft-ts/core` ne gagne aucune dépendance à
 `effect` — la porte de sortie reste gratuite.
 
-Protocole confirmé : `yield* effect` produit un `YieldWrap` dont le contenu est
-un champ `#private` — il faut `yieldWrapGet` de `effect/Utils`, **aucun reniflage
-structurel n'est possible**. Le pont est donc obligatoirement du code qui importe
-`effect`, jamais une heuristique.
+Protocole — **et c'est là que v4 change tout**. En v3, `yield* effect` produit un
+`YieldWrap` dont le contenu est un champ `#private` : il fallait `yieldWrapGet`
+de `effect/Utils` et aucun reniflage structurel n'était possible. En **v4
+(`4.0.0-rc.110`), `yield*` yield l'Effect lui-même** : `Effect.isEffect(yielded)`
+suffit, et l'étape de déballage disparaît. Le pont y perd une dépendance à un
+module interne d'Effect.
 
 **Les deux trous trouvés, tous les deux type-level :**
 
@@ -208,16 +210,17 @@ même surface. 12 cas, tous compilent sans erreur.
 
 | Cas | craft | effect | delta | verdict vs budget +3 % |
 |---|---|---|---|---|
-| B · service à 15 membres | 798 995 | 799 886 | **+891 (+0,11 %)** | sous budget, marge ×27 |
-| C · exhaustivité de route | 801 325 | 801 506 | **+181 (+0,02 %)** | sous budget, marge ×133 |
+| B · service à 15 membres | 798 995 | 799 814 | **+819 (+0,10 %)** | sous budget, marge ×29 |
+| C · exhaustivité de route | 801 325 | 801 461 | **+136 (+0,02 %)** | sous budget, marge ×177 |
 
 **Cas A — le coût d'un yield.** La pente moyenne serait trompeuse : le coût
 n'est pas linéaire.
 
 - Importer `effect` sans rien yielder coûte **exactement 0** (799 660 dans les
   deux bras). Le coût d'entrée de la dépendance est nul.
-- Le **premier** yield d'Effect dans un fichier coûte **+174** instanciations
-  (le premier yield craft natif, `craftSleep` : +105).
+- Le **premier** yield d'Effect dans un fichier coûte **+94** instanciations —
+  soit **moins cher que le premier yield craft natif** (`craftSleep` : +105).
+  (En v3 c'était +174 : v4 a divisé ce coût par deux.)
 - Chaque yield Effect **suivant** coûte **+12** (craft : +0 — TS mémoïse
   entièrement, Effect non).
 
@@ -300,7 +303,24 @@ paramètre : passer `'_tag'` suffit, zéro changement côté template.
 
 ## Vague 2 — Le pont (`@craft-ts/effect`)
 
-Attend la stabilisation d'Effect v4.
+**Correction : Effect v4 est disponible** — `4.0.0-rc.110` sous le tag `rc`
+(et `4.0.0-beta.107` en `beta`). Seul `latest` pointe encore sur 3.22.1. La
+vague 2 n'est donc plus bloquée par un calendrier externe. Tout le dossier est
+désormais mesuré et prototypé **sur v4**.
+
+Ce que v4 apporte directement au plan :
+
+- **2.3 se simplifie** : `yield*` yield l'Effect lui-même, donc la détection est
+  structurelle (`Effect.isEffect`) et le pont ne dépend plus de `effect/Utils`.
+  `runEffect()` reste utile comme forme stable, mais n'est plus un contournement.
+- **2.2 a un mécanisme natif** : `Layer.MemoMap`, absent de v3. Chaque niveau
+  d'injecteur *forke* la memo map de son parent (`Layer.forkMemoMapUnsafe`), ce
+  qui donne exactement la sémantique voulue — la racine construite une fois, le
+  layer de route reconstruit à chaque navigation. Vérifié en 0.3.
+- **2.4 change d'API** : un `Cause` v4 porte un tableau `reasons` ;
+  `Cause.findErrorOption` donne l'erreur typée et `Cause.squash` le défaut.
+- `Context.Tag` devient `Context.Service<Self, Shape>()('Name')`, et
+  `Layer.sync`/`Layer.effect` sont curriés.
 
 | # | Tâche |
 |---|---|
@@ -350,5 +370,5 @@ au lieu d'en ajouter une. À reprendre seulement une fois les vagues 1-2 livrée
 1. Vague 0 maintenant — c'est du prototype jetable, aucune dette.
 2. Vague 1 en parallèle, indépendante d'Effect et de sa v4. Trancher 1.4 avant
    d'écrire le codemod 1.2.
-3. Vague 2 quand v4 est stable.
+3. Vague 2 : plus de blocage externe, v4 est en RC.
 4. Vagues 3-4 selon la porte de décision de 0.2.
