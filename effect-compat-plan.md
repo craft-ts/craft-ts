@@ -209,7 +209,7 @@ même surface. 12 cas, tous compilent sans erreur.
 | Cas | craft | effect | delta | verdict vs budget +3 % |
 |---|---|---|---|---|
 | B · service à 15 membres | 798 995 | 799 886 | **+891 (+0,11 %)** | sous budget, marge ×27 |
-| C · exhaustivité de route | 799 003 | 799 171 | **+168 (+0,02 %)** | sous budget, marge ×143 |
+| C · exhaustivité de route | 801 325 | 801 506 | **+181 (+0,02 %)** | sous budget, marge ×133 |
 
 **Cas A — le coût d'un yield.** La pente moyenne serait trompeuse : le coût
 n'est pas linéaire.
@@ -228,9 +228,8 @@ n'est pas linéaire.
 petits, sur une base dominée par l'import de `@craft-ts/core` (~800 k
 instanciations). Les nombres transférables sont les coûts unitaires : ~59
 instanciations par membre de service Effect (891/15), +12 par yield
-supplémentaire. Le cas C mesure la machinerie d'exhaustivité de `craftRoute`
-(`RouteExceptionUnion`, `TypedExceptionHandlers`, `MissingExceptionHandlers`),
-pas `craftRoutes()` + `assertExhaustiveRouteExceptions` par-dessus.
+supplémentaire. Le cas C mesure la chaîne complète : `craftGen` → `RouteExceptionUnion` →
+`craftRoutes()` → `assertExhaustiveRouteExceptions`.
 
 **Et une découverte de méthode, plus importante que les chiffres.** Le bras
 Effect du cas C **ne peut pas être écrit** tel que la tâche 0.2 l'imaginait :
@@ -240,9 +239,48 @@ coût d'ajouter Effect **par-dessus** l'exhaustivité écrite à la main, pas un
 exhaustivité pilotée par Effect. Tant que 2.4/2.5 ne sont pas faits, cette
 seconde chose n'existe pas — et c'est elle qu'il faudra re-mesurer.
 
-Corollaire : les guards déclarent leurs exceptions en les **retournant**, pas
-en les `throw`ant — seul le retour alimente `RouteExceptionUnion`. Le harnais
-s'est fait piéger dessus.
+Corollaire, trouvé en écrivant 0.4 et rétro-corrigé ici : un guard déclare ses
+exceptions **via `craftGen`**. `RouteExceptionUnion` lit le type *Yielded* du
+générateur, et `craftGen` est ce qui y fait remonter une `craftException`
+retournée. Un `function*` nu ne déclare **rien** — et dans ce cas la vérification
+d'exhaustivité accepte silencieusement n'importe quelle map de handlers. Le
+harnais s'est fait piéger dessus : ma première version du cas C ne mesurait
+aucune exhaustivité.
+
+### Résultat de 0.4 — fait le 2026-08-18
+
+Harnais : `node tools/effect-diagnostics/run.mjs`. Trois cas censés ne pas
+compiler ; on regarde où l'erreur tombe et ce qu'elle dit.
+
+La question telle qu'écrite — « quand l'extraction de `E` échoue » — présuppose
+un mécanisme absent : `E` n'atteint jamais `RouteExceptionUnion`, donc
+l'extraction n'échoue pas, elle n'existe pas. Ce qui est mesuré est la qualité
+du diagnostic d'exhaustivité **actuel**, puisque c'est de lui que la vague 2
+héritera.
+
+| Cas | Résultat |
+|---|---|
+| handler manquant | **2 erreurs**, dont une **au site de la route** : `[MISSING_EXCEPTION_HANDLERS]: "NotFound"`. L'assert ajoute `{ route: "probe"; missingHandlers: "NotFound" }` |
+| handler en trop | **1 erreur, uniquement sur l'assert**. Rien n'ancre le handler fautif |
+| erreurs Effect | **compile proprement — aucune erreur** |
+
+**Porte de décision : 0.4 ne bloque pas.** Le message du cas « handler
+manquant » désigne bien la route et nomme le code, pas seulement
+`assertExhaustiveRouteExceptions` — c'est précisément ce que la tâche
+demandait. La machinerie diagnostique correctement dès que l'union est peuplée ;
+ce qui manque n'est pas le diagnostic mais son alimentation, c'est-à-dire
+2.4/2.5.
+
+**Deux réserves à porter en vague 2.**
+
+- Le **handler en trop** n'est attrapé que par l'assert, loin du code fautif.
+  Si la vague 2 fait remonter `E`, ce cas deviendra le plus fréquent (un `_tag`
+  disparaît du service Effect, le handler reste) — il mérite un ancrage.
+- Le cas Effect **passe en silence**, ce qui est pire qu'une erreur : on écrit
+  trois handlers pour trois `_tag` Effect, ça compile, et à l'exécution les
+  exceptions arrivent bel et bien (vérifié en 0.1) sans que rien n'ait été
+  vérifié. C'est un faux sentiment de sécurité, pas une simple absence de
+  vérification.
 
 ## Vague 1 — Le socle, sans aucune dépendance
 

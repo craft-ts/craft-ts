@@ -149,14 +149,19 @@ ${uses}
 
 function caseCCraft() {
   return `import {
+  assertExhaustiveRouteExceptions,
   craftException,
   craftExceptionHandler,
+  craftGen,
   craftRoute,
+  craftRoutes,
 } from '@craft-ts/core';
 
-// Exceptions are declared by RETURNING them: that is what puts them in
-// RouteExceptionUnion and makes the handler map exhaustively checked.
-export function* probeGuard() {
+// A guard declares its exceptions through craftGen: RouteExceptionUnion reads
+// the generator's YIELDED type, and craftGen is what lifts a returned
+// craftException into that channel. A bare function* declares NOTHING, and the
+// exhaustiveness check then passes silently on any handler map at all.
+export const probeGuard = craftGen(function* () {
   const roll = Math.random();
   if (roll < 0.3) {
     return craftException({ code: 'NotFound' }, { id: 'x' });
@@ -168,65 +173,69 @@ export function* probeGuard() {
     return craftException({ code: 'RateLimited' }, { retryAfter: 1 });
   }
   return true;
-}
+});
 
-// NOTE: this measures craftRoute's exhaustiveness machinery — RouteExceptionUnion,
-// TypedExceptionHandlers and MissingExceptionHandlers, which is where the type
-// work lives — but not craftRoutes()/assertExhaustiveRouteExceptions on top.
-// Both arms are identical in that respect, so the delta stays attributable.
-export const probeRoute = craftRoute(
-  'probe',
-  {
-    canActivate: [probeGuard],
-  },
-  {
-    NotFound: craftExceptionHandler(function* ({ globalError }) {
-      return globalError();
-    }),
-    Unauthorized: craftExceptionHandler(function* ({ globalError }) {
-      return globalError();
-    }),
-    RateLimited: craftExceptionHandler(function* ({ globalError }) {
-      return globalError();
-    }),
-  },
-);
+export const { probeRoutes } = craftRoutes('probe', [
+  craftRoute(
+    'probe',
+    {
+      canActivate: probeGuard,
+      loadChildren: () => Promise.resolve([]),
+    },
+    {
+      NotFound: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      Unauthorized: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      RateLimited: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
+]);
+
+assertExhaustiveRouteExceptions(probeRoutes);
 `;
 }
 
 function caseCEffect() {
   return `import {
+  assertExhaustiveRouteExceptions,
   craftException,
   craftExceptionHandler,
+  craftGen,
   craftRoute,
+  craftRoutes,
 } from '@craft-ts/core';
 import { Data, Effect } from 'effect';
 
-export class NotFound extends Data.TaggedError('NotFound')<{
+export class NotFoundError extends Data.TaggedError('NotFoundError')<{
   readonly id: string;
 }> {}
-export class Unauthorized extends Data.TaggedError('Unauthorized')<{
+export class UnauthorizedError extends Data.TaggedError('UnauthorizedError')<{
   readonly reason: string;
 }> {}
-export class RateLimited extends Data.TaggedError('RateLimited')<{
+export class RateLimitedError extends Data.TaggedError('RateLimitedError')<{
   readonly retryAfter: number;
 }> {}
 
 const probeEffect: Effect.Effect<
   boolean,
-  NotFound | Unauthorized | RateLimited
+  NotFoundError | UnauthorizedError | RateLimitedError
 > = Effect.succeed(true);
 
-// Same exhaustiveness machinery as the craft arm, PLUS a yielded Effect whose
-// E is a 3-member union. Note what this file cannot do: derive the handler map
-// from that E. Effect's error channel does not reach RouteExceptionUnion, so
-// the craftException returns below still have to be written by hand — see
-// finding 0.1-b. What is measured here is therefore the cost of adding Effect
-// ON TOP of exhaustiveness, not the cost of exhaustiveness driven by Effect.
-export function* probeGuard() {
-  const allowed = yield* probeEffect;
+// Same exhaustiveness machinery as the craft arm, PLUS a yielded Effect whose E
+// is a 3-member union. Note what this file CANNOT do: derive the handler map
+// from that E. Effect's error channel never reaches RouteExceptionUnion, so the
+// craftException returns below still have to be written by hand -- finding
+// 0.1-b. What is measured is therefore the cost of layering Effect ON TOP of
+// hand-written exhaustiveness, not exhaustiveness driven by Effect.
+export const probeGuard = craftGen(function* () {
+  yield* probeEffect;
   const roll = Math.random();
-  if (!allowed || roll < 0.3) {
+  if (roll < 0.3) {
     return craftException({ code: 'NotFound' }, { id: 'x' });
   }
   if (roll < 0.6) {
@@ -236,29 +245,30 @@ export function* probeGuard() {
     return craftException({ code: 'RateLimited' }, { retryAfter: 1 });
   }
   return true;
-}
+});
 
-// NOTE: this measures craftRoute's exhaustiveness machinery — RouteExceptionUnion,
-// TypedExceptionHandlers and MissingExceptionHandlers, which is where the type
-// work lives — but not craftRoutes()/assertExhaustiveRouteExceptions on top.
-// Both arms are identical in that respect, so the delta stays attributable.
-export const probeRoute = craftRoute(
-  'probe',
-  {
-    canActivate: [probeGuard],
-  },
-  {
-    NotFound: craftExceptionHandler(function* ({ globalError }) {
-      return globalError();
-    }),
-    Unauthorized: craftExceptionHandler(function* ({ globalError }) {
-      return globalError();
-    }),
-    RateLimited: craftExceptionHandler(function* ({ globalError }) {
-      return globalError();
-    }),
-  },
-);
+export const { probeRoutes } = craftRoutes('probe', [
+  craftRoute(
+    'probe',
+    {
+      canActivate: probeGuard,
+      loadChildren: () => Promise.resolve([]),
+    },
+    {
+      NotFound: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      Unauthorized: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      RateLimited: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
+]);
+
+assertExhaustiveRouteExceptions(probeRoutes);
 `;
 }
 
