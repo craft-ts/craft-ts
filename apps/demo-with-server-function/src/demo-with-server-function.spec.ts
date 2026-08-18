@@ -12,7 +12,7 @@ import { listenDemoServer } from './server/server';
 const demoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('demo with server function', () => {
-  it('calls the Effect backend through the client facade and SQLite', async () => {
+  it('calls the Effect backend through the client facade and local DB', async () => {
     const server = await listenDemoServer();
     try {
       const getUsers = createUsersClient(async ({ id, input }) => {
@@ -32,7 +32,7 @@ describe('demo with server function', () => {
         { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
       ]);
       console.log(
-        `server function demo: client -> ${server.url} -> Effect -> SQLite`,
+        `server function demo: client -> ${server.url} -> Effect -> local DB`,
         users,
       );
     } finally {

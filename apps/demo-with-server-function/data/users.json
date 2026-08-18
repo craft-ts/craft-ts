@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "Ada Lovelace", "email": "ada@craft.dev" },
+  { "id": 2, "name": "Grace Hopper", "email": "grace@craft.dev" },
+  { "id": 3, "name": "Alan Turing", "email": "alan@craft.dev" }
+]

@@ -1,4 +1,5 @@
-import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Context, Data, Effect, Layer } from 'effect';
 
 export type User = {
@@ -20,41 +21,26 @@ export class UserRepository extends Context.Service<
   }
 >()('demo/UserRepository') {}
 
-type SqlUserRow = {
-  id: number;
-  name: string;
-  email: string;
-};
-
 export type DemoDatabase = {
   readonly layer: Layer.Layer<UserRepository>;
   readonly close: () => void;
 };
 
 export function createDemoDatabase(): DemoDatabase {
-  const database = new DatabaseSync(':memory:');
-  database.exec(`
-    CREATE TABLE users (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL
-    );
-    INSERT INTO users (name, email) VALUES
-      ('Ada Lovelace', 'ada@craft.dev'),
-      ('Grace Hopper', 'grace@craft.dev'),
-      ('Alan Turing', 'alan@craft.dev');
-  `);
+  const databasePath = fileURLToPath(
+    new URL('../../data/users.json', import.meta.url),
+  );
+  const rows = JSON.parse(readFileSync(databasePath, 'utf8')) as readonly User[];
 
   const repository: UserRepository['Service'] = {
     list(filter: string): Effect.Effect<readonly User[], DatabaseError> {
       return Effect.try({
-        try: () => {
-          const statement = database.prepare(
-            'SELECT id, name, email FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY id',
-          );
-          const needle = `%${filter}%`;
-          return statement.all(needle, needle) as unknown as readonly SqlUserRow[];
-        },
+        try: () =>
+          rows.filter((user) =>
+            `${user.name} ${user.email}`
+              .toLocaleLowerCase()
+              .includes(filter.toLocaleLowerCase()),
+          ),
         catch: (cause) =>
           new DatabaseError({
             reason: cause instanceof Error ? cause.message : String(cause),
@@ -65,6 +51,6 @@ export function createDemoDatabase(): DemoDatabase {
 
   return {
     layer: Layer.succeed(UserRepository)(repository),
-    close: () => database.close(),
+    close: () => undefined,
   };
 }
