@@ -1387,7 +1387,9 @@ describe('CraftRouterOutlet (view transitions)', () => {
   };
   let vtCalls: Array<() => void>;
 
-  function setup(opts: { skipBlank?: boolean } = {}): {
+  function setup(
+    opts: { delayTransitions?: boolean; skipBlank?: boolean } = {},
+  ): {
     outlet: CraftRouterOutletController;
   } {
     let resolve!: (outcome: RouteChainOutcome) => void;
@@ -1409,7 +1411,9 @@ describe('CraftRouterOutlet (view transitions)', () => {
           provide: CRAFT_START_VIEW_TRANSITION,
           useValue: (cb: () => void) => {
             vtCalls.push(cb);
-            cb();
+            if (!opts.delayTransitions) {
+              cb();
+            }
           },
         },
       ],
@@ -1449,6 +1453,28 @@ describe('CraftRouterOutlet (view transitions)', () => {
     expect(outlet.targetComponent()).toBe(TargetCmp);
     // The target mount went through the seam.
     expect(vtCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('ignores a delayed swap from an activation that navigation already replaced', async () => {
+    const { outlet } = setup({ delayTransitions: true });
+    const first = {
+      ...makeMatch(undefined, TargetCmp, { path: ':photoId' }),
+      params: { photoId: 'aurora' },
+    };
+    const second = makeMatch(undefined, ParentCmp, { path: '' });
+
+    outlet.activateMatch(first, TestBed.inject(EnvironmentInjector));
+    await flush();
+    outlet.activateMatch(second, TestBed.inject(EnvironmentInjector));
+    await flush();
+
+    expect(vtCalls).toHaveLength(2);
+    vtCalls[1]!();
+    vtCalls[0]!();
+
+    expect(outlet.targetComponent()).toBe(ParentCmp);
+    expect(outlet.displayedComponent()).toBe(ParentCmp);
+    expect(outlet.displayedProps()).toEqual({});
   });
 
   it('skips the blank phase for a withLoaderViewTransitionImage route (stay → pending)', () => {

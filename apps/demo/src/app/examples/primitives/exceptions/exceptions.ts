@@ -7,6 +7,7 @@ import {
   ifBlock,
   matchBlock,
   p,
+  span,
   strong,
   heading,
 } from '@craft-ng/component';
@@ -57,6 +58,24 @@ const ExceptionsComponent = craftComponent(
         cursor: pointer;
       }
       :scope .exception-actions button:hover { background: #f1f5f9; }
+      :scope .exception-loading {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 1.25rem;
+        margin: 0 0 1rem;
+        color: #475569;
+        font-size: 0.875rem;
+      }
+      :scope .exception-spinner {
+        width: 0.8rem;
+        height: 0.8rem;
+        border: 2px solid #cbd5e1;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: ExceptionsComponent-exception-spin 0.7s linear infinite;
+      }
+      @keyframes ExceptionsComponent-exception-spin { to { transform: rotate(360deg); } }
       :scope p { margin: 0.5rem 0; }
     
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
@@ -97,9 +116,6 @@ const ExceptionsComponent = craftComponent(
       },
       ({ resource }) => ({
         hasUser: craftComputed('hasUser', () => resource.hasValue()),
-        isLoading: craftComputed('isLoading', function* () {
-          return yield* resource.isLoading();
-        }),
       }),
     );
     const userExceptionLoader = craftComputed(
@@ -108,9 +124,13 @@ const ExceptionsComponent = craftComponent(
         return (yield* userQuery.exceptions()).loader;
       },
     );
-    return { scenario, userQuery, userExceptionLoader };
+    const userIsLoading = craftComputed('userIsLoading', function* () {
+      const status = yield* userQuery.status();
+      return status === 'loading' || status === 'reloading';
+    });
+    return { scenario, userQuery, userExceptionLoader, userIsLoading };
   },
-  ({ scenario, userQuery, userExceptionLoader }) => {
+  ({ scenario, userQuery, userExceptionLoader, userIsLoading }) => {
     return div([
       heading(
         function* () {
@@ -152,6 +172,21 @@ const ExceptionsComponent = craftComponent(
         ),
       ]),
       ifBlock(
+        userIsLoading,
+        () =>
+          div(
+            {
+              class: 'exception-loading',
+              role: 'status',
+              'aria-live': 'polite',
+            },
+            [
+              span({ class: 'exception-spinner', 'aria-hidden': 'true' }),
+              span('Loading user…'),
+            ],
+          ),
+      ),
+      ifBlock(
         userQuery.hasUser,
         () =>
           div([
@@ -189,7 +224,6 @@ const ExceptionsComponent = craftComponent(
                 p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
             },
           ),
-          ifBlock(userQuery.isLoading, () => p('Loading user…')),
         ],
       ),
     ]);

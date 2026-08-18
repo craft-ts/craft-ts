@@ -8,19 +8,20 @@
 
 .demo-typecheck-indicator {
   position: fixed;
-  top: 1rem;
-  right: 1rem;
+  top: 0.75rem;
+  right: 0.75rem;
   z-index: 9999;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: 0.4rem;
+  max-width: min(24rem, calc(100vw - 1.5rem));
+  padding: 0.35rem 0.4rem 0.35rem 0.55rem;
   border: 1px solid #bfdbfe;
-  border-radius: 999px;
+  border-radius: 0.45rem;
   color: #1e3a8a;
   background: #eff6ff;
   box-shadow: 0 4px 12px #1e3a8a1f;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -35,26 +36,40 @@
 }
 
 .demo-typecheck-indicator[data-status='failed'] {
-  inset: 0;
-  display: grid;
-  place-content: center;
-  gap: 1rem;
-  border: 0;
-  border-radius: 0;
+  border-color: #fecaca;
   color: #991b1b;
-  background: #fef2f2eF;
-  box-shadow: none;
-  font-size: clamp(1.25rem, 3vw, 2.5rem);
-  text-align: center;
-  pointer-events: none;
+  background: #fef2f2;
+  box-shadow: 0 4px 12px #991b1b1f;
 }
 
 .demo-typecheck-indicator[data-status='failed']::before {
   border: 0;
   content: '⚠';
   animation: none;
-  font-size: clamp(2rem, 6vw, 5rem);
-  justify-self: center;
+  font-size: 0.8rem;
+}
+
+.demo-typecheck-indicator__dismiss {
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  color: currentColor;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  place-items: center;
+}
+
+.demo-typecheck-indicator__dismiss:hover,
+.demo-typecheck-indicator__dismiss:focus-visible {
+  background: #991b1b1a;
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
 }
 
 @keyframes demo-typecheck-spin {

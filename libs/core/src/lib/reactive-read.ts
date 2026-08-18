@@ -643,6 +643,16 @@ function createFacade(
 ): unknown {
   if (typeof value !== 'object' && typeof value !== 'function') return value;
   if (value === null) return value;
+  // Generator/iterator instances carry native methods whose receiver must be
+  // the original instance. Proxying one (for example, the invocation returned
+  // by an insertion method named `select`) makes `yield*` call `.next` with the
+  // proxy as receiver and throws "incompatible receiver".
+  if (
+    'next' in value &&
+    typeof (value as { next?: unknown }).next === 'function'
+  ) {
+    return value;
+  }
   if (isYieldableReactiveValue(value)) return value;
 
   const cacheKey = `${identity.primitive ?? ''}|${identity.computed ?? ''}|${path}`;

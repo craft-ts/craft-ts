@@ -234,6 +234,7 @@ export class CraftRouterOutletController {
   private _reactiveWatch: { destroy(): void } | null = null;
   private _matchWatch: { destroy(): void } | null = null;
   private _frozen = false;
+  private _displayVersion = 0;
 
   get isActivated(): boolean {
     return this._match !== null;
@@ -563,11 +564,24 @@ export class CraftRouterOutletController {
       ? craftRouteTarget(component)
       : null,
   ): void {
+    const activationId = this._navId;
+    const displayVersion = ++this._displayVersion;
+    const props = this.routeProps();
     const commit = () => {
-      this.displayedInjector.set(injector ?? undefined);
-      this.displayedProps.set(this.routeProps());
-      this.displayedComponent.set(component);
+      // The browser may invoke a View Transition callback after a newer
+      // activation or swap has already been requested. Such a callback must
+      // not resurrect its old component, and its props must belong to the
+      // component captured at request time rather than the current route.
+      if (
+        this._navId !== activationId ||
+        this._displayVersion !== displayVersion
+      ) {
+        return;
+      }
       this.displayedTarget.set(target);
+      this.displayedInjector.set(injector ?? undefined);
+      this.displayedProps.set(props);
+      this.displayedComponent.set(component);
       this.syncTemplateFlush();
     };
 

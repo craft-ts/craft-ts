@@ -1235,6 +1235,46 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
+  it('allows a state insertion named select in a generator DOM callback', async () => {
+    const component = craftComponent(
+      'yieldableStateSelectMethod',
+      {},
+      function* () {
+        const scenario = yield* state('scenario', 'initial', ({ set }) => ({
+          select: (value: string) => set(value),
+        }));
+        return { scenario };
+      },
+      ({ scenario }) =>
+        section([
+          p(function* () {
+            return yield* scenario();
+          }),
+          button(
+            {
+              *click() {
+                yield* scenario.select('selected');
+              },
+            },
+            'select',
+          ),
+        ]),
+    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
+
+    expect(element.querySelector('p')?.textContent).toBe('initial');
+
+    element.querySelector('button')?.click();
+    await flush();
+
+    expect(element.querySelector('p')?.textContent).toBe('selected');
+    destroy();
+  });
+
   it('renders named conditional elements and updates their visibility', async () => {
     const component = craftComponent(
       'namedConditional',

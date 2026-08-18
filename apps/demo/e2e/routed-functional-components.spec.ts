@@ -101,3 +101,27 @@ test('shows the view-transition skeleton while the detail chain is pending', asy
     timeout: 4500,
   });
 });
+
+test('restores the gallery cleanly after browser back from a view-transition detail', async ({
+  page,
+}) => {
+  await page.goto('/view-transitions');
+  await page.locator('a[href="/view-transitions/aurora"]').click();
+
+  await expect(page).toHaveURL(/\/view-transitions\/aurora$/);
+  await expect(page.getByRole('heading', { name: 'Aurora' })).toBeVisible({
+    timeout: 4500,
+  });
+
+  await page.goBack();
+
+  await expect(page).toHaveURL(/\/view-transitions$/);
+  await expect(
+    page.getByRole('heading', { name: 'View Transitions' }),
+  ).toBeVisible();
+  await expect(page.locator('.vt-back')).toHaveCount(0);
+  await expect(page.getByText(/No artwork matches/)).toHaveCount(0);
+  await expect(
+    page.getByText('← Back to gallery', { exact: true }),
+  ).toHaveCount(0);
+});
