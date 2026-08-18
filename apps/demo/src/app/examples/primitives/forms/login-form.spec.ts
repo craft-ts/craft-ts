@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ng/core';
-import { mountCraftComponent } from '@craft-ng/component';
+import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { mountCraftComponent } from '@craft-ts/component';
 import { beforeEach, describe, expect, it } from 'vitest';
 import LoginFormComponent from './login-form';
 

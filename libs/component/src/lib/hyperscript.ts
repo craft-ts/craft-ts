@@ -6,7 +6,7 @@ import type {
   ElementNode,
   RequireCaughtComponentExceptions,
 } from './render/vnode';
-import type { Yieldable } from '@craft-ng/core';
+import type { Yieldable } from '@craft-ts/core';
 import { pipeCraftNode } from './render/vnode';
 
 type ClassValueResult =

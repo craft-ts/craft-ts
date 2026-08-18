@@ -18,13 +18,13 @@ export default [
       },
     },
     plugins: {
-      'craft-ng': craftRules,
+      'craft-ts': craftRules,
     },
     rules: {
       ...craftDemoRules,
       // Vitest callbacks are async; documented regions stay synchronous.
-      'craft-ng/no-async-await': 'off',
-      'craft-ng/prefer-browser-boundaries': 'off',
+      'craft-ts/no-async-await': 'off',
+      'craft-ts/prefer-browser-boundaries': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       // Documented examples declare APIs that the smoke test does not call.
       '@typescript-eslint/no-unused-vars': 'off',

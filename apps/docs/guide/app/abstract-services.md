@@ -22,7 +22,7 @@ token. This lets you implement the contract **inline at the providing site** (a 
 a feature config) instead of declaring a separate concrete `craftService`.
 
 ```typescript
-import { abstract, craftService } from '@craft-ng/core';
+import { abstract, craftService } from '@craft-ts/core';
 
 type User = { name: string };
 

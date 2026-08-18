@@ -38,7 +38,7 @@ describe('primitives migration', () => {
           craftService,
           state,
           craftUse as __craftRead,
-        } from '@craft-ng/core';
+        } from '@craft-ts/core';
 
         export const { ApiService } = craftService(
           { name: 'ApiService', scope: 'global' },
@@ -78,7 +78,7 @@ describe('primitives migration', () => {
   it('keeps craftUse at non-generator boundaries and is idempotent', async () => {
     const root = await fixture({
       'readers.ts': `
-        import { craftUse as __craftRead, state } from '@craft-ng/core';
+        import { craftUse as __craftRead, state } from '@craft-ts/core';
 
         export const readOutsideGenerator = () => __craftRead(state());
         export function* readNested(queryRef: { value: () => unknown }) {
@@ -134,7 +134,7 @@ describe('primitives migration', () => {
     const output = await readFile(join(root, 'wizard.ts'), 'utf8');
     expect(result.diagnostics).toEqual([]);
     expect(output).toContain("import { computed } from '@angular/core'");
-    expect(output).toContain("import { craftUse, state } from '@craft-ng/core'");
+    expect(output).toContain("import { craftUse, state } from '@craft-ts/core'");
     expect(output).toContain(
       "activeStep = craftUse(state('activeStep', 'delivery', ({ set, update }) => ({ set, update })))",
     );
@@ -183,7 +183,7 @@ describe('primitives migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'wizard.ts': `
-        import { craftService, state } from '@craft-ng/core';
+        import { craftService, state } from '@craft-ts/core';
         export const { injectWizard } = craftService(
           { name: 'Wizard', scope: 'function' },
           () => {
@@ -359,7 +359,7 @@ describe('primitives migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'checkout.ts': `
-        import { formTreeNeed, insertForm, insertSelectFormTree, makeFormTreeInsert, state } from '@craft-ng/core';
+        import { formTreeNeed, insertForm, insertSelectFormTree, makeFormTreeInsert, state } from '@craft-ts/core';
         type CheckoutForm = { coupon: { code: string } };
         const { insertCouponTree } = makeFormTreeInsert(
           'Coupon',
@@ -403,7 +403,7 @@ describe('named primitives migration', () => {
   it('names a primitive after the variable it is bound to', async () => {
     const root = await fixture({
       'users.ts': `
-        import { craftService, query } from '@craft-ng/core';
+        import { craftService, query } from '@craft-ts/core';
         export const { injectUsers } = craftService({ name: 'Users' }, function* () {
           const users = yield* query({ loader: () => Promise.resolve([]) });
           return { users };
@@ -426,7 +426,7 @@ describe('named primitives migration', () => {
   it("names a route's queryParams field after the field itself", async () => {
     const root = await fixture({
       'app.routes.ts': `
-        import { queryParams } from '@craft-ng/core';
+        import { queryParams } from '@craft-ts/core';
         export const routes = [
           {
             path: 'list',
@@ -451,7 +451,7 @@ describe('named primitives migration', () => {
   it('names an undriven craftService arrow factory directly', async () => {
     const root = await fixture({
       'counter.ts': `
-        import { craftService, state } from '@craft-ng/core';
+        import { craftService, state } from '@craft-ts/core';
         export const { injectCounter } = craftService({ name: 'Counter' }, () => state(0));
       `,
     });
@@ -471,7 +471,7 @@ describe('named primitives migration', () => {
   it('reports an inline call with no binding to derive a name from', async () => {
     const root = await fixture({
       'inline.ts': `
-        import { craftUse, state } from '@craft-ng/core';
+        import { craftUse, state } from '@craft-ts/core';
         export class Counter {
           constructor() {
             craftUse(state(0));
@@ -496,7 +496,7 @@ describe('named primitives migration', () => {
   it('leaves an already named primitive untouched', async () => {
     const root = await fixture({
       'users.ts': `
-        import { craftService, query } from '@craft-ng/core';
+        import { craftService, query } from '@craft-ts/core';
         export const { injectUsers } = craftService({ name: 'Users' }, function* () {
           const users = yield* query('users', { loader: () => Promise.resolve([]) });
           return { users };
@@ -518,7 +518,7 @@ describe('named primitives migration', () => {
   it('removes the legacy property wrapper from an already named primitive', async () => {
     const root = await fixture({
       'users.ts': `
-        import { craftUse, query } from '@craft-ng/core';
+        import { craftUse, query } from '@craft-ts/core';
         const user = craftUse(query('user', { loader: () => Promise.resolve({}) })).user;
       `,
     });

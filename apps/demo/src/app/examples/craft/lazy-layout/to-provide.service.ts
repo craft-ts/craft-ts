@@ -1,4 +1,4 @@
-import { craftService } from '@craft-ng/core';
+import { craftService } from '@craft-ts/core';
 
 export const { OtherService, provideOtherService } = craftService(
   {

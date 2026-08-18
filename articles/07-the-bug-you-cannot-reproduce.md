@@ -3,7 +3,7 @@ title: 'The bug you cannot reproduce: what if the app told you everything it was
 published: false
 description: 'A stack trace says where it broke, never why. When every dependency flows through one channel, that channel becomes the place to capture app state, correlate a failure back to the click that caused it, and trace every render and request.'
 tags: angular, typescript, webdev, debugging
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---
@@ -29,7 +29,7 @@ Four articles ago I argued that every dependency should flow through `yield*` so
 
 The side effect is that **everything now goes through one channel.** Every service resolution, every method, every query loader, every effect — one system resolves them all. And a single choke point is the one thing you need to cross-cut an entire application without touching a line of business code.
 
-That is what observability in craft-ng is: not a logging library, but a use of the channel that was already there.
+That is what observability in craft-ts is: not a logging library, but a use of the channel that was already there.
 
 ## Two kinds of failure, and only one of them is this article
 
@@ -42,7 +42,7 @@ Everything below is for the second kind.
 
 ## One wrapper around every crafted function
 
-`provideFnWrapper` wraps **every** generator-based function craft-ng executes — services, methods, queries, mutations, effects:
+`provideFnWrapper` wraps **every** generator-based function craft-ts executes — services, methods, queries, mutations, effects:
 
 ```ts
 provideFnWrapper(
@@ -121,7 +121,7 @@ The DOM hook composes in registration order and can decline to call `next()`, wh
 
 ## What this costs
 
-**Inside the wrapper, DI is not type-safe — and the library says so out loud.** This is the one place the whole series' promise is deliberately suspended, so it deserves plain language. The wrapper body runs in the injection context **where the error was raised**, not where the wrapper was declared. That is exactly what makes it powerful: you can yield browser boundaries and read the offending service's own metadata. It is also why craft-ng cannot prove the dependency you ask for is provided there. The mandatory warning string is the API refusing to let you adopt this accidentally. Keep wrappers to side effects — logging, metrics, snapshots — and out of business logic.
+**Inside the wrapper, DI is not type-safe — and the library says so out loud.** This is the one place the whole series' promise is deliberately suspended, so it deserves plain language. The wrapper body runs in the injection context **where the error was raised**, not where the wrapper was declared. That is exactly what makes it powerful: you can yield browser boundaries and read the offending service's own metadata. It is also why craft-ts cannot prove the dependency you ask for is provided there. The mandatory warning string is the API refusing to let you adopt this accidentally. Keep wrappers to side effects — logging, metrics, snapshots — and out of business logic.
 
 **A snapshot is your entire application state leaving the browser.** Nobody's documentation says this loudly enough, including mine: that payload can contain personal data, tokens, draft content. If you ship it to a third party, that is a decision with legal weight, and it needs redaction and a retention policy before it needs a dashboard. The capability is genuinely useful and genuinely dangerous, in proportion.
 

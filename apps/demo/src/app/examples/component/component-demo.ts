@@ -10,8 +10,8 @@ import {
   type Input,
   type Output,
   heading,
-} from '@craft-ng/component';
-import { craftComputed, deepYieldable, state } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { craftComputed, deepYieldable, state } from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;

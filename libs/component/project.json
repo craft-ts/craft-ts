@@ -1,5 +1,5 @@
 {
-  "name": "ng-craft-component",
+  "name": "craft-ts-component",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/component/src",
   "prefix": "craft",

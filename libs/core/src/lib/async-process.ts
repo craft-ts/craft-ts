@@ -773,7 +773,7 @@ export function asyncProcess<
  * @example
  * Business exceptions with `craftException`
  * ```ts
- * import { asyncProcess, craftException } from '@craft-ng/core';
+ * import { asyncProcess, craftException } from '@craft-ts/core';
  *
  * const loadUser = craftUse(asyncProcess('loadUser', {
  *   method: (value: string) =>

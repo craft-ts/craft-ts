@@ -12,7 +12,7 @@ const globalExceptionRegistryMatchRule = require('./global-exception-registry-ma
 const tempDirectories: string[] = [];
 
 const ROUTE_FILE = (registryBlock = '') => `
-  import { craftRoutes, craftRoute, craftException } from '@craft-ng/core';
+  import { craftRoutes, craftRoute, craftException } from '@craft-ts/core';
 
   export const { demoRoutes } = craftRoutes('demo', [
     craftRoute('query/:userId', {
@@ -46,7 +46,7 @@ describe('global-exception-registry-match', () => {
     ]);
 
     const { output } = await lintFixture(fixture, { fix: true });
-    expect(output).toContain("declare module '@craft-ng/core' {");
+    expect(output).toContain("declare module '@craft-ts/core' {");
     expect(output).toContain('interface CraftGlobalExceptionRegistry {');
     expect(output).toContain(
       "'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };",
@@ -58,7 +58,7 @@ describe('global-exception-registry-match', () => {
 
   it('does not report when the registry entry is already up to date', async () => {
     const upToDate = `
-        declare module '@craft-ng/core' {
+        declare module '@craft-ts/core' {
           interface CraftGlobalExceptionRegistry {
             'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };
           }
@@ -75,7 +75,7 @@ describe('global-exception-registry-match', () => {
     // across lines. That form must still read as up to date — otherwise --fix and
     // format-on-save fight each other forever.
     const prettierWrapped = `
-        declare module '@craft-ng/core' {
+        declare module '@craft-ts/core' {
           interface CraftGlobalExceptionRegistry {
             'query/:userId': {
               USER_DISABLED: CraftRouteExceptionType<
@@ -95,7 +95,7 @@ describe('global-exception-registry-match', () => {
 
   it('updates a stale registry entry', async () => {
     const stale = `
-        declare module '@craft-ng/core' {
+        declare module '@craft-ts/core' {
           interface CraftGlobalExceptionRegistry {
             'query/:userId': { LEGACY_CODE: never };
           }
@@ -120,7 +120,7 @@ describe('global-exception-registry-match', () => {
     // remains), but the registry still carries the obsolete entry — which would
     // resolve to `never` and collapse CraftGlobalHandledException downstream.
     const orphanRegistry = `
-        declare module '@craft-ng/core' {
+        declare module '@craft-ts/core' {
           interface CraftGlobalExceptionRegistry {
             'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };
           }
@@ -128,7 +128,7 @@ describe('global-exception-registry-match', () => {
       `;
     const fixture = {
       'src/app/demo.ts': `
-        import { craftRoutes, craftRoute, craftException } from '@craft-ng/core';
+        import { craftRoutes, craftRoute, craftException } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', [
           craftRoute('query/:userId', {
@@ -158,7 +158,7 @@ describe('global-exception-registry-match', () => {
 
   it('purges an orphaned entry while keeping a still-valid one', async () => {
     const mixedRegistry = `
-        declare module '@craft-ng/core' {
+        declare module '@craft-ts/core' {
           interface CraftGlobalExceptionRegistry {
             'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };
             'old-route': { GONE: CraftRouteExceptionType<typeof demoRoutes, 'old-route', 'GONE'> };
@@ -183,7 +183,7 @@ describe('global-exception-registry-match', () => {
   it('ignores a route whose handlers never call globalError()', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftRoutes, craftRoute, craftException } from '@craft-ng/core';
+        import { craftRoutes, craftRoute, craftException } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', [
           craftRoute('query/:userId', {
@@ -273,8 +273,8 @@ async function lintFixture(
 
 function baseFixtureFiles(): Record<string, string> {
   return {
-    'src/craft-ng-core.d.ts': `
-      declare module '@craft-ng/core' {
+    'src/craft-ts-core.d.ts': `
+      declare module '@craft-ts/core' {
         export declare function craftRoutes(...args: any[]): any;
         export declare function craftRoute(...args: any[]): any;
         export declare function craftException(...args: any[]): any;

@@ -128,7 +128,7 @@ describe('prefer-craft-template-blocks', () => {
       );
     `);
 
-    expect(fixed).toContain("import { ifBlock } from '@craft-ng/component';");
+    expect(fixed).toContain("import { ifBlock } from '@craft-ts/component';");
     expect(fixed).toContain(
       "button({}, ifBlock(ready, () => 'Ready', () => 'Waiting'))",
     );
@@ -153,7 +153,7 @@ describe('prefer-craft-template-blocks', () => {
     `);
 
     expect(fixed).toContain(
-      "import { matchBlock } from '@craft-ng/component';",
+      "import { matchBlock } from '@craft-ts/component';",
     );
     expect(fixed).toContain(
       "return matchBlock.exhaustive(() => result(), \"code\", { OK: () => p('ok'), ERROR: () => p('error') });",

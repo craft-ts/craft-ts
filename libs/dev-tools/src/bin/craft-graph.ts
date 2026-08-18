@@ -56,7 +56,7 @@ function parseArgs(argv: string[]): WriteDependencyGraphOptions {
 function printHelp(): void {
   console.log(`Usage: craft-graph [options]
 
-Builds a static Craft NG dependency graph from TypeScript and type metadata.
+Builds a static CraftTS dependency graph from TypeScript and type metadata.
 No runtime instrumentation is used.
 
 Options:

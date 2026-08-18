@@ -31,7 +31,7 @@ import {
   query,
   state,
   type CraftDomEvent,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';

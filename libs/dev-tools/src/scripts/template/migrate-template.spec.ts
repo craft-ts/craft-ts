@@ -13,7 +13,7 @@ describe('template migration', () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.imports).toEqual(['customElement', 'h2', 'section']);
     expect(result.code).toContain(
-      "import { customElement, h2, section } from '@craft-ng/component';",
+      "import { customElement, h2, section } from '@craft-ts/component';",
     );
     expect(result.code).toContain(
       "section({ class: 'card', 'data-testid': 'card' }, [",
@@ -31,7 +31,7 @@ describe('template migration', () => {
 
     expect(result.imports).toEqual(['button', 'craftComponent']);
     expect(result.code).toContain(
-      "import { button, craftComponent } from '@craft-ng/component';",
+      "import { button, craftComponent } from '@craft-ts/component';",
     );
     expect(result.code).toContain('export const saveCard = craftComponent(');
   });

@@ -2,7 +2,7 @@
 
 Paste an HTML snippet or a web component from a UI library's documentation. The
 converter generates the equivalent Craft functional template and the imports it
-needs from `@craft-ng/component`.
+needs from `@craft-ts/component`.
 
 **Use it to** bring markup from outside — a design system's docs, a CodePen, an
 existing Angular template — into Craft's template syntax without transcribing it

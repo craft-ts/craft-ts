@@ -448,8 +448,8 @@ async function generateComponent(
   // schematic and then read the class name back off the @Component decorator.
   tree.write(
     filePath,
-    `import { craftComponent } from '@craft-ng/component';
-import { p } from '@craft-ng/component';
+    `import { craftComponent } from '@craft-ts/component';
+import { p } from '@craft-ts/component';
 
 export const ${exportName} = craftComponent(
   '${target.name}',

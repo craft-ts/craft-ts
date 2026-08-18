@@ -67,7 +67,7 @@ export const CRAFT_LOADING_TEXT = new InjectionToken<Signal<string>>(
 let defaultCraftPendingComponent: CraftRouteTargetInput | undefined;
 
 /**
- * Installs the real loader. `@craft-ng/component` calls this on import, since
+ * Installs the real loader. `@craft-ts/component` calls this on import, since
  * rendering anything at all needs the renderer that only it owns.
  */
 export function ɵregisterDefaultCraftPendingComponent(
@@ -78,7 +78,7 @@ export function ɵregisterDefaultCraftPendingComponent(
 
 /**
  * Core alone can render nothing, so the fallback is an empty target rather
- * than a throw: a router used without `@craft-ng/component` still navigates,
+ * than a throw: a router used without `@craft-ts/component` still navigates,
  * it just shows nothing during the pending phase.
  */
 function getDefaultCraftPendingComponent(): CraftRouteTargetInput {

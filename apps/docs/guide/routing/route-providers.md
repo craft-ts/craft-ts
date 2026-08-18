@@ -36,7 +36,7 @@ import {
   craftService,
   query,
   craftRoute,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 type User = { name: string };
 

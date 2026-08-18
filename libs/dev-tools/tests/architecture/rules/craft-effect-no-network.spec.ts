@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertCraftEffectNoNetwork } from '@craft-ng/dev-tools';
+import { assertCraftEffectNoNetwork } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('assertCraftEffectNoNetwork', () => {

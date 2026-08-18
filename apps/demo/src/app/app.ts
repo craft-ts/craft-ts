@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   button,
@@ -12,7 +12,7 @@ import {
   skipLink,
   span,
   strong,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   BrowserLocation,
   BrowserWindow,
@@ -21,11 +21,11 @@ import {
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { demoEnabledRoutePaths } from './app.routes';
 
-const DOCS_URL = 'https://ng-angular-stack.github.io/craft/';
-const FEEDBACK_URL = 'https://github.com/ng-angular-stack/ng-craft/discussions';
+const DOCS_URL = 'https://craft-ts.github.io/craft/';
+const FEEDBACK_URL = 'https://github.com/craft-ts/craft-ts/discussions';
 
 const NAV_GROUPS = [
   {

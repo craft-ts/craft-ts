@@ -7,8 +7,8 @@ import {
   type TemplateDependencies,
   type TemplateDecorator,
 } from './types';
-import { CRAFT_REGISTRATION_TARGET } from '@craft-ng/core';
-import { CRAFT_NODE_DIRECTIVE } from '@craft-ng/core';
+import { CRAFT_REGISTRATION_TARGET } from '@craft-ts/core';
+import { CRAFT_NODE_DIRECTIVE } from '@craft-ts/core';
 
 type DirectiveTemplateDependencies<Template> = Template extends (
   ...args: any[]

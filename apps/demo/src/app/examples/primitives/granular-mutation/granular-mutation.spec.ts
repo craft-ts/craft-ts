@@ -3,9 +3,9 @@ import {
   ComponentLogicOutputOf,
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
-} from '@craft-ng/component';
-import { craftSleep, craftUse, deepYieldable, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, type ExtractDeps, type GetServiceDependencies } from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import { craftSleep, craftUse, deepYieldable, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, type ExtractDeps, type GetServiceDependencies } from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GranularMutation from './granular-mutation';
 import { ApiService, type User } from './api.service';

@@ -15,7 +15,7 @@ import {
   setupCraftComponentTemplateTest,
   setupCraftDirectiveLogicTest,
   setupCraftDirectiveTemplateTest,
-} from '@craft-ng/component/testing';
+} from '@craft-ts/component/testing';
 ```
 
 They deliberately separate the factory from rendering. Each utility also
@@ -101,7 +101,7 @@ const saveButton = button(
 The same pattern works with every built-in helper:
 
 ```ts
-import { input } from '@craft-ng/component';
+import { input } from '@craft-ts/component';
 
 const searchInput = input('search', { 'aria-label': 'Search' }, []);
 ```
@@ -116,9 +116,9 @@ the `content` criterion. The locator does not inspect the rendered value, so
 this also works for non-text values and remains independent of formatting:
 
 ```typescript
-import { craftSignal as signal } from '@craft-ng/core';
-import { span, craftComponent } from '@craft-ng/component';
-import { markYieldableValue, state } from '@craft-ng/core';
+import { craftSignal as signal } from '@craft-ts/core';
+import { span, craftComponent } from '@craft-ts/component';
+import { markYieldableValue, state } from '@craft-ts/core';
 
 const Status = craftComponent(
   'Status',

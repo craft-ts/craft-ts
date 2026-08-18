@@ -1,4 +1,4 @@
-# @craft-ng/component
+# @craft-ts/component
 
 Functional, selectorless Angular components rendered from typed hyperscript
 descriptors.
@@ -6,7 +6,7 @@ descriptors.
 ## Installation
 
 ```bash
-npm install @craft-ng/core@beta @craft-ng/component@beta
+npm install @craft-ts/core@beta @craft-ts/component@beta
 ```
 
 ```ts
@@ -18,7 +18,7 @@ import {
   p,
   type Input,
   type Output,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const userCard = craftComponent(
   'userCard',
@@ -77,7 +77,7 @@ p(`Count: ${count()}`);
 Render callbacks must be pure: read signals and calculate a value, but do not
 call `set`, `update`, or `mutate`. Writes belong in DOM events, outputs,
 mutations, or explicit business effects. The optional
-`craft-ng/no-render-writes` ESLint rule detects the common invalid patterns.
+`craft-ts/no-render-writes` ESLint rule detects the common invalid patterns.
 
 `Input<T>` values are yieldable reactive readers. `Output<T>` values are
 yieldable callbacks.
@@ -89,6 +89,6 @@ keep that order aligned with the factory parameters.
 Mount a root component imperatively with `mountCraftComponent`, or use the
 standalone `[craftComponentHost]` bridge directive from an Angular template.
 
-Coding agents: [`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt)
-and the [coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents)
-guide. MCP: `npx -y @craft-ng/mcp@beta`.
+Coding agents: [`llms.txt`](https://craft-ts.github.io/craft/llms.txt)
+and the [coding agents](https://craft-ts.github.io/craft/resources/ai-agents)
+guide. MCP: `npx -y @craft-ts/mcp@beta`.

@@ -231,7 +231,7 @@ const resourcesSidebar = [
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: '@craft-ng/core',
+  title: '@craft-ts/core',
   base: '/craft/',
   description: 'Type-safe Angular, by construction',
   themeConfig: {
@@ -265,20 +265,20 @@ export default defineConfig({
         text: 'Packages',
         items: [
           {
-            text: '@craft-ng/core',
-            link: 'https://www.npmjs.com/package/@craft-ng/core',
+            text: '@craft-ts/core',
+            link: 'https://www.npmjs.com/package/@craft-ts/core',
           },
           {
-            text: '@craft-ng/component',
-            link: 'https://www.npmjs.com/package/@craft-ng/component',
+            text: '@craft-ts/component',
+            link: 'https://www.npmjs.com/package/@craft-ts/component',
           },
           {
-            text: '@craft-ng/dev-tools',
-            link: 'https://www.npmjs.com/package/@craft-ng/dev-tools',
+            text: '@craft-ts/dev-tools',
+            link: 'https://www.npmjs.com/package/@craft-ts/dev-tools',
           },
           {
-            text: '@craft-ng/mcp',
-            link: 'https://www.npmjs.com/package/@craft-ng/mcp',
+            text: '@craft-ts/mcp',
+            link: 'https://www.npmjs.com/package/@craft-ts/mcp',
           },
         ],
       },
@@ -311,7 +311,7 @@ export default defineConfig({
     outline: [2, 3],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/ng-angular-stack/ng-craft' },
+      { icon: 'github', link: 'https://github.com/craft-ts/craft-ts' },
     ],
   },
   head: [
@@ -320,19 +320,19 @@ export default defineConfig({
       'link',
       {
         rel: 'describedby',
-        href: 'https://ng-angular-stack.github.io/craft/llms.txt',
+        href: 'https://craft-ts.github.io/craft/llms.txt',
       },
     ],
   ],
   vite: {
     plugins: [
       llmstxt({
-        title: '@craft-ng/core',
+        title: '@craft-ts/core',
         description:
-          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ng/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
+          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ts/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
         details:
-          'After importing @craft-ng/core, run `npx -y @craft-ng/mcp@beta` and read /resources/ai-agents. In local development, the open ng serve tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
-        domain: 'https://ng-angular-stack.github.io',
+          'After importing @craft-ts/core, run `npx -y @craft-ts/mcp@beta` and read /resources/ai-agents. In local development, the open ng serve tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
+        domain: 'https://craft-ts.github.io',
         ignoreFiles: ['public/**', 'README.md'],
       }),
     ],

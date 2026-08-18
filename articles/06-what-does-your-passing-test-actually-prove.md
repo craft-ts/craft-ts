@@ -3,7 +3,7 @@ title: 'What does your passing Angular test actually prove?'
 published: false
 description: 'Mock-heavy unit tests keep passing after the thing they mock has changed. Here is what testing looks like when the compiler makes you account for the whole dependency graph, and lets you keep it real.'
 tags: angular, typescript, testing, webdev
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---
@@ -36,7 +36,7 @@ Both problems have the same root: **the test setup and the real graph are two se
 
 ## The register: account for every node
 
-craft-ng's answer starts by inverting the discovery loop. You supply a **register** covering the service's whole dependency graph, and the compiler refuses to run the test until every node has an entry:
+craft-ts's answer starts by inverting the discovery loop. You supply a **register** covering the service's whole dependency graph, and the compiler refuses to run the test until every node has an entry:
 
 ```typescript
 const { sut, mocks } = await setupCraftServiceTestingByRegister(

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="apps/docs/public/assets/ng-craft-logo.png" alt="ng-craft logo" width="160" />
+  <img src="apps/docs/public/assets/craft-ts-logo.png" alt="craft-ts logo" width="160" />
 </p>
 
-<h1 align="center">@craft-ng/core</h1>
+<h1 align="center">@craft-ts/core</h1>
 
 <p align="center">
   Type-safe, declarative building blocks for applications.<br />
@@ -10,18 +10,18 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@craft-ng/core">npm</a> ·
-  <a href="https://ng-angular-stack.github.io/craft/">Documentation</a> ·
-  <a href="https://github.com/ng-angular-stack/ng-craft/issues">Issues</a> ·
-  <a href="https://github.com/ng-angular-stack/ng-craft/discussions">Discussions</a>
+  <a href="https://www.npmjs.com/package/@craft-ts/core">npm</a> ·
+  <a href="https://craft-ts.github.io/craft/">Documentation</a> ·
+  <a href="https://github.com/craft-ts/craft-ts/issues">Issues</a> ·
+  <a href="https://github.com/craft-ts/craft-ts/discussions">Discussions</a>
 </p>
 
 > [!WARNING]
-> `@craft-ng/core` is currently in beta. APIs and documentation may evolve before a stable release.
+> `@craft-ts/core` is currently in beta. APIs and documentation may evolve before a stable release.
 
-## What is ng-craft?
+## What is craft-ts?
 
-ng-craft is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional. Angular is an optional island via `@craft-ng/angular`.
+craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional. Angular is an optional island via `@craft-ts/angular`.
 
 It is designed to keep application behavior close to where it is used while making dependency graphs visible to the compiler and to tests.
 
@@ -29,7 +29,7 @@ It is designed to keep application behavior close to where it is used while maki
 
 - **One reactive model for every kind of state** — `state`, `query`, `mutation`, `asyncProcess`, and `queryParams` cover local, server, asynchronous, and URL state.
 - **Composable behavior** — insertions add reusable capabilities such as persistence, entity management, selection, pagination placeholders, and optimistic updates.
-- **Function-based services** — `craftService` composes state and dependencies; `toCraftService` (from `@craft-ng/angular`) adapts existing Angular services and tokens.
+- **Function-based services** — `craftService` composes state and dependencies; `toCraftService` (from `@craft-ts/angular`) adapts existing Angular services and tokens.
 - **Type-safe routing and DI** — typed dependency injection, navigation, route inputs, route providers, guards, pending UI, and lazy-load error handling.
 - **Derived forms** — form state, validation, submission, and interdependent logic remain reactive and declarative.
 - **Deterministic testing** — tests describe the real dependency graph and can isolate browser or platform boundaries explicitly.
@@ -37,20 +37,20 @@ It is designed to keep application behavior close to where it is used while maki
 
 ## Installation
 
-`@craft-ng/core` and `@craft-ng/component` have no Angular peer dependencies.
-Angular remains optional through `@craft-ng/angular` when you need Angular
+`@craft-ts/core` and `@craft-ts/component` have no Angular peer dependencies.
+Angular remains optional through `@craft-ts/angular` when you need Angular
 islands. Node.js 20.19+ (or 22.12+) and TypeScript 5.9+ are required.
 
 ```bash
-npm install @craft-ng/core@beta @craft-ng/component@beta
-npm install @craft-ng/angular@beta   # optional Angular islands
-npm install -D @craft-ng/dev-tools@beta
+npm install @craft-ts/core@beta @craft-ts/component@beta
+npm install @craft-ts/angular@beta   # optional Angular islands
+npm install -D @craft-ts/dev-tools@beta
 ```
 
-The packages are currently published on the `beta` channel. `@craft-ng/core`
-provides the reactive primitives, `@craft-ng/component` provides selectorless
-functional components, `@craft-ng/angular` adapts Angular components and
-services, and `@craft-ng/dev-tools` provides the codemods and
+The packages are currently published on the `beta` channel. `@craft-ts/core`
+provides the reactive primitives, `@craft-ts/component` provides selectorless
+functional components, `@craft-ts/angular` adapts Angular components and
+services, and `@craft-ts/dev-tools` provides the codemods and
 ESLint rules used by the type-safe DI and routing workflow.
 
 ## Quick start
@@ -58,8 +58,8 @@ ESLint rules used by the type-safe DI and routing workflow.
 Create granular state and derive its public API directly from it:
 
 ```ts
-import { button, craftComponent, p } from '@craft-ng/component';
-import { craftComputed, state } from '@craft-ng/core';
+import { button, craftComponent, p } from '@craft-ts/component';
+import { craftComputed, state } from '@craft-ts/core';
 
 export const Counter = craftComponent(
   'Counter',
@@ -86,7 +86,7 @@ export const Counter = craftComponent(
 When logic must be shared, package the same primitives in a named service:
 
 ```ts
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ts/core';
 
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
@@ -107,14 +107,14 @@ const { CounterConsumer } = craftService(
 );
 ```
 
-Continue with the [getting-started guide](https://ng-angular-stack.github.io/craft/learn), then explore:
+Continue with the [getting-started guide](https://craft-ts.github.io/craft/learn), then explore:
 
-- [Reactive primitives](https://ng-angular-stack.github.io/craft/guide/state/local-state)
-- [Services and dependency composition](https://ng-angular-stack.github.io/craft/guide/app/craft-service)
-- [Forms](https://ng-angular-stack.github.io/craft/guide/forms)
-- [Type-safe DI and routing](https://ng-angular-stack.github.io/craft/guide/routing/setup)
-- [Runnable examples](https://ng-angular-stack.github.io/craft/resources/examples)
-- [Migration tooling](https://ng-angular-stack.github.io/craft/resources/migration)
+- [Reactive primitives](https://craft-ts.github.io/craft/guide/state/local-state)
+- [Services and dependency composition](https://craft-ts.github.io/craft/guide/app/craft-service)
+- [Forms](https://craft-ts.github.io/craft/guide/forms)
+- [Type-safe DI and routing](https://craft-ts.github.io/craft/guide/routing/setup)
+- [Runnable examples](https://craft-ts.github.io/craft/resources/examples)
+- [Migration tooling](https://craft-ts.github.io/craft/resources/migration)
 
 ## Repository structure
 
@@ -126,8 +126,8 @@ apps/
 │                  (`architecture/` — static graph Vitest suite)
 └── docs/          VitePress documentation and documentation tests
 libs/
-├── core/          Published @craft-ng/core package
-├── component/     Published @craft-ng/component package
+├── core/          Published @craft-ts/core package
+├── component/     Published @craft-ts/component package
 ├── dev-tools/     Published codemods and ESLint tooling
 └── test-type/     Compile-time type test utilities
 tools/
@@ -179,9 +179,9 @@ npx nx dev docs
 Useful focused commands:
 
 ```bash
-npx nx test ng-craft-core
-npx nx lint ng-craft-core
-npx nx build ng-craft-core
+npx nx test craft-ts-core
+npx nx lint craft-ts-core
+npx nx build craft-ts-core
 npx nx test docs
 npx nx build docs
 npx nx architecture demo
@@ -194,7 +194,7 @@ it imports.
 Inspect all targets available for a project with:
 
 ```bash
-npx nx show project ng-craft-core
+npx nx show project craft-ts-core
 ```
 
 ### Validate before submitting
@@ -226,7 +226,7 @@ When documenting a public API:
 
 ## Releases
 
-`@craft-ng/core`, `@craft-ng/component`, and `@craft-ng/dev-tools` are released
+`@craft-ts/core`, `@craft-ts/component`, and `@craft-ts/dev-tools` are released
 together with one local command. It versions and builds the packages, publishes
 npm, deploys the built documentation, and synchronizes the complete demo used by
 StackBlitz:
@@ -252,7 +252,7 @@ preview, authentication, supported versions, and recovery guidance.
 
 ## Contributing
 
-Bug reports, design discussions, documentation improvements, and pull requests are welcome. For substantial API changes, open a [discussion](https://github.com/ng-angular-stack/ng-craft/discussions) or an [issue](https://github.com/ng-angular-stack/ng-craft/issues) first so the intended behavior can be agreed before implementation.
+Bug reports, design discussions, documentation improvements, and pull requests are welcome. For substantial API changes, open a [discussion](https://github.com/craft-ts/craft-ts/discussions) or an [issue](https://github.com/craft-ts/craft-ts/issues) first so the intended behavior can be agreed before implementation.
 
 ## License
 

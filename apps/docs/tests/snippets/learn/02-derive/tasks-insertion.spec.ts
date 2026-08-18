@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
-import { craftUse } from '@craft-ng/core';
+import { setupCraftServiceTestingByRegister } from '@craft-ts/core';
+import { craftUse } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
 useSnippetHarness();
 
 // #region tasks-insertion
-import { craftComputed, craftService, state } from '@craft-ng/core';
+import { craftComputed, craftService, state } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
 

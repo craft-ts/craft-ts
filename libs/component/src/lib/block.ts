@@ -1,4 +1,4 @@
-import type { AnyCraftException } from '@craft-ng/core';
+import type { AnyCraftException } from '@craft-ts/core';
 import {
   CRAFT_DIRECTIVE,
   COMPONENT_CATCH_BLOCK,

@@ -1,6 +1,6 @@
-# @craft-ng Documentation
+# @craft-ts Documentation
 
-This is the VitePress documentation site for the `@craft-ng` packages.
+This is the VitePress documentation site for the `@craft-ts` packages.
 
 The current beta supports Angular 21 with Node.js 20.19+ (or 22.12+).
 
@@ -51,5 +51,5 @@ apps/docs/
 
 Add images, logos, and other assets to `public/assets/`
 
-- `ng-craft-logo.png` - Main logo
+- `craft-ts-logo.png` - Main logo
 - `favicon.png` - Site favicon

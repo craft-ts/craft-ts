@@ -102,7 +102,7 @@ function getComputedCall(node, sourceCode) {
 
   if (
     node.callee.name === 'craftComputed' &&
-    resolvesToImport(node.callee, '@craft-ng/core', 'craftComputed', sourceCode)
+    resolvesToImport(node.callee, '@craft-ts/core', 'craftComputed', sourceCode)
   ) {
     return 'craftComputed';
   }
@@ -190,7 +190,7 @@ function getPrimitiveCall(node, sourceCode) {
 
   const primitive = getImportedName(
     current.callee,
-    '@craft-ng/core',
+    '@craft-ts/core',
     sourceCode,
   );
   if (!primitive || !PRIMITIVES.has(primitive)) {
@@ -279,7 +279,7 @@ function createPrimitiveInsertionFix(
   const pipeName = PIPE_BY_PRIMITIVE[primitiveName];
   const existingPipe = getImportedName(
     existing.callee,
-    '@craft-ng/core',
+    '@craft-ts/core',
     sourceCode,
   );
   if (
@@ -294,7 +294,7 @@ function createPrimitiveInsertionFix(
   const pipeImportFix = createNamedImportFix(
     fixer,
     sourceCode,
-    '@craft-ng/core',
+    '@craft-ts/core',
     pipeName,
   );
   const existingText = sourceCode.getText(existing);
@@ -399,7 +399,7 @@ function isInsidePrimitive(node, sourceCode) {
       current.type === 'CallExpression' &&
       current.callee.type === 'Identifier' &&
       PRIMITIVES.has(
-        getImportedName(current.callee, '@craft-ng/core', sourceCode),
+        getImportedName(current.callee, '@craft-ts/core', sourceCode),
       )
     ) {
       return true;

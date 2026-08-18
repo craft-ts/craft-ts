@@ -1,4 +1,4 @@
-import { craftException, craftGen, craftService, query } from '@craft-ng/core';
+import { craftException, craftGen, craftService, query } from '@craft-ts/core';
 
 type User = {
   name: string;

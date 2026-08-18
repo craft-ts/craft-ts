@@ -35,8 +35,8 @@ describe('linkedSource', () => {
 
       expect(myListener()).toBe('Hello World');
 
-      myLinkedSource.set('Hello Ng-Craft');
-      expect(myListener()).toBe('Hello Ng-Craft');
+      myLinkedSource.set('Hello CraftTS');
+      expect(myListener()).toBe('Hello CraftTS');
       console.log('mySource set');
       mySource.set({ text: 'Hello Angular' });
       console.log('myListener()', myListener());

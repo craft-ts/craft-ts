@@ -1,4 +1,4 @@
-import type { RouteHttpDepsByPath } from '@craft-ng/core';
+import type { RouteHttpDepsByPath } from '@craft-ts/core';
 
 declare global {
   type DemoAppMetaData =
@@ -7,7 +7,7 @@ declare global {
   type DemoRouteHttpDeps = RouteHttpDepsByPath<DemoAppMetaData>;
 }
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouteHttpDepsRegistry {
     DemoApp: DemoRouteHttpDeps;
   }

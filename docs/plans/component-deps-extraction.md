@@ -77,7 +77,7 @@ Mesure de référence et résultat observé sur `apps/demo` :
 - avant : `Check time` 81,39 s, `Total time` 87,55 s ;
 - variante ciblée : `Check time` 54,20 s, `Total time` 64,77 s ;
 - réduction du temps de vérification : environ 33 % ;
-- build ng-packagr de `@craft-ng/core` validé avec la variante ciblée.
+- build ng-packagr de `@craft-ts/core` validé avec la variante ciblée.
 
 L’extraction entièrement directe, bien que plus rapide en test isolé, est rejetée : elle provoque une incompatibilité lors de la génération des déclarations publiques.
 

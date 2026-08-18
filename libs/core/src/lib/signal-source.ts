@@ -51,7 +51,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
 /**
  * Creates a source for event-driven communication with lazy emission semantics.
  *
- * Sources are the foundation of event-driven patterns in ng-craft, enabling:
+ * Sources are the foundation of event-driven patterns in craft-ts, enabling:
  * - Discrete event emissions (unlike continuous signals)
  * - Lazy behavior (undefined until explicitly set)
  * - Decoupled communication between components and stores

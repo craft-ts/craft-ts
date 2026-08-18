@@ -20,7 +20,7 @@ describe('brand-angular-deps/prefer-browser-boundaries', () => {
     );
   });
 
-  it('reports direct browser globals covered by @craft-ng boundaries', async () => {
+  it('reports direct browser globals covered by @craft-ts boundaries', async () => {
     const messages = await lintFixture({
       'src/app/demo.ts': `
         window.location.href;
@@ -31,10 +31,10 @@ describe('brand-angular-deps/prefer-browser-boundaries', () => {
     });
 
     expect(messages).toEqual([
-      'Use the @craft-ng browser boundary BrowserWindow instead of direct window access.',
-      'Use the @craft-ng browser boundary BrowserDocument instead of direct document access.',
-      'Use the @craft-ng browser boundary LocalStorage instead of direct localStorage access.',
-      'Use the @craft-ng browser boundary Console instead of direct console access.',
+      'Use the @craft-ts browser boundary BrowserWindow instead of direct window access.',
+      'Use the @craft-ts browser boundary BrowserDocument instead of direct document access.',
+      'Use the @craft-ts browser boundary LocalStorage instead of direct localStorage access.',
+      'Use the @craft-ts browser boundary Console instead of direct console access.',
     ]);
   });
 
@@ -49,17 +49,17 @@ describe('brand-angular-deps/prefer-browser-boundaries', () => {
     });
 
     expect(messages).toEqual([
-      'Use the @craft-ng browser boundary BrowserCrypto instead of direct crypto access.',
-      'Use the @craft-ng browser boundary BrowserWindow.alert instead of direct alert access.',
-      'Use the @craft-ng browser boundary BrowserWindow.confirm instead of direct confirm access.',
-      'Use the @craft-ng browser boundary BrowserWindow.scrollTo instead of direct scrollTo access.',
+      'Use the @craft-ts browser boundary BrowserCrypto instead of direct crypto access.',
+      'Use the @craft-ts browser boundary BrowserWindow.alert instead of direct alert access.',
+      'Use the @craft-ts browser boundary BrowserWindow.confirm instead of direct confirm access.',
+      'Use the @craft-ts browser boundary BrowserWindow.scrollTo instead of direct scrollTo access.',
     ]);
   });
 
-  it('allows @craft-ng boundaries', async () => {
+  it('allows @craft-ts boundaries', async () => {
     const messages = await lintFixture({
       'src/app/demo.ts': `
-        import { BrowserWindow, Console, LocalStorage } from '@craft-ng/core';
+        import { BrowserWindow, Console, LocalStorage } from '@craft-ts/core';
 
         function* demo() {
           yield* Console.log('hello');

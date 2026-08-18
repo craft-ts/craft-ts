@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ng/core';
-import { mountCraftComponent } from '@craft-ng/component';
-import { provideCraftRouter } from '@craft-ng/core';
+import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { mountCraftComponent } from '@craft-ts/component';
+import { provideCraftRouter } from '@craft-ts/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './app';
 import { demoRoutes } from './app.routes';

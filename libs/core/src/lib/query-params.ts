@@ -365,7 +365,7 @@ export type QueryParamsConfig<
  * @example
  * Parse exceptions with `craftException`
  * ```ts
- * import { craftException, queryParams } from '@craft-ng/core';
+ * import { craftException, queryParams } from '@craft-ts/core';
  *
  * const mode = yield* queryParams('mode', {
  *   state: {

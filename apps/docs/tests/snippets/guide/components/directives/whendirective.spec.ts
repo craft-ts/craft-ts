@@ -13,7 +13,7 @@ import {
   craftDirective,
   div,
   p,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const whenDirective = craftDirective(
   'whenDirective',

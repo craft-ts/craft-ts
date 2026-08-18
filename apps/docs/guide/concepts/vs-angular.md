@@ -1,7 +1,7 @@
 # What Craft adds — and where Angular remains
 
 Craft is the runtime: signals, DI, routing, and rendering run on Craft hosts.
-Angular is an optional island, imported from `@craft-ng/angular` when you still
+Angular is an optional island, imported from `@craft-ts/angular` when you still
 need an Angular component, directive, or service.
 
 If you want the reasoning rather than the inventory, read

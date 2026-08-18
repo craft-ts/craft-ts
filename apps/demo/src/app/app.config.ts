@@ -2,7 +2,7 @@ import {
   provideCraftGlobalErrorComponent,
   provideCraftRootComponent,
   provideCraftRouteLoadErrorComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   Console,
   craftAppConfig,
@@ -29,7 +29,7 @@ import {
   type RouteExceptionComponentCheckedDI,
   craftException,
   craftRouteTarget,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { App } from './app';
 import { demoRoutes } from './app.routes.runtime';
 import { provideMcpExperimentation } from './function-registry-entry';
@@ -106,7 +106,7 @@ export const appConfig = craftAppConfig({
     provideCorrelationIdTracking(),
     //provideSendContextToAi(),
     // App snapshot
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
     provideMcpExperimentation(),
   ],

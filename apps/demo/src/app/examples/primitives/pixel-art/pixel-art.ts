@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './pixel-art.css' with { loader: 'text' };
 import {
   button,
@@ -10,7 +10,7 @@ import {
   section,
   span,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   insertStoragePersister,
   craftUnique,
@@ -19,7 +19,7 @@ import {
   craftComputed,
   craftMethod,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const GRID_SIZE = 16;
 const EMPTY_COLOR = '#f8fafc';

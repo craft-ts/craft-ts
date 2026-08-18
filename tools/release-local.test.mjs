@@ -107,7 +107,7 @@ test('explains how to synchronize a repository with its remote', () => {
   );
 });
 
-test('mirrors the complete demo source and pins Craft NG dependencies', () => {
+test('mirrors the complete demo source and pins CraftTS dependencies', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-demo-sync-'));
   const source = join(temporaryRoot, 'source');
   const target = join(temporaryRoot, 'target');
@@ -122,7 +122,7 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
       [
         'import {',
         '  provideCorrelationIdTracking,',
-        "} from '@craft-ng/core';",
+        "} from '@craft-ts/core';",
         "import { provideLogForwarding } from './log-forwarder';",
         'export const appConfig = {',
         '  providers: [',
@@ -152,11 +152,11 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     write(
       join(target, 'package.json'),
       JSON.stringify({
-        name: 'ng-craft-demo',
+        name: 'craft-ts-demo',
         dependencies: {
-          '@craft-ng/core': '^0.5.0-beta.1',
-          '@craft-ng/component': '^0.5.0-beta.1',
-          '@craft-ng/dev-tools': '^0.5.0-beta.1',
+          '@craft-ts/core': '^0.5.0-beta.1',
+          '@craft-ts/component': '^0.5.0-beta.1',
+          '@craft-ts/dev-tools': '^0.5.0-beta.1',
         },
       }),
     );
@@ -204,9 +204,9 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     const manifest = JSON.parse(
       readFileSync(join(target, 'package.json'), 'utf8'),
     );
-    assert.equal(manifest.dependencies['@craft-ng/core'], '0.6.0');
-    assert.equal(manifest.dependencies['@craft-ng/component'], '0.6.0');
-    assert.equal(manifest.dependencies['@craft-ng/dev-tools'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/core'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/component'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/dev-tools'], '0.6.0');
     for (const dependency of [
       '@eslint/js',
       'angular-eslint',

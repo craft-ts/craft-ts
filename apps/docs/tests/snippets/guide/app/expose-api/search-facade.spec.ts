@@ -2,14 +2,14 @@
 import {
   craftUse,
   setupCraftServiceTestingByRegister,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
 useSnippetHarness();
 
 // #region search-facade
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ts/core';
 
 const { SearchApi } = craftService(
   { name: 'SearchApi', scope: 'global' },

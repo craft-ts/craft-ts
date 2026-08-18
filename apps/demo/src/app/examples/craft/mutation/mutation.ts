@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
@@ -10,7 +10,7 @@ import {
   p,
   pre,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   CraftRouter,
   craftComputed,
@@ -24,7 +24,7 @@ import {
   query,
   state,
   craftUse,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 

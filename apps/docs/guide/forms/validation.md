@@ -6,7 +6,7 @@ errors a field can raise are known to the compiler, not discovered at runtime.
 **Start with the built-ins** below; reach for `cValidate` / `cAsyncValidate`
 when a rule is specific to your domain.
 
-@craft-ng provides a complete set of validators with structured exception handling:
+@craft-ts provides a complete set of validators with structured exception handling:
 
 ## Schema validation
 
@@ -17,7 +17,7 @@ Effect Schema.
 
 ```ts
 import { z } from 'zod';
-import { craftUse, insertForm, insertFormSchema, state } from '@craft-ng/core';
+import { craftUse, insertForm, insertFormSchema, state } from '@craft-ts/core';
 
 const userSchema = z.object({
   name: z.string().min(1),

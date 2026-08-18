@@ -414,7 +414,7 @@ export function assertExhaustiveRouteExceptions<RoutesApp>(
  * that call `globalError()`), keyed by route path:
  *
  * ```ts
- * declare module '@craft-ng/core' {
+ * declare module '@craft-ts/core' {
  *   interface CraftGlobalExceptionRegistry {
  *     'user/:userId': {
  *       USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'user/:userId', 'USER_DISABLED'>;

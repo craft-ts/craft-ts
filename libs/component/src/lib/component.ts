@@ -1,7 +1,7 @@
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftComponentDependencies,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   CRAFT_COMPONENT,
   CRAFT_DIRECTIVE,

@@ -1,16 +1,16 @@
 {
-  "name": "@craft-ng/core",
+  "name": "@craft-ts/core",
   "version": "0.7.0-beta.11",
   "description": "Type-safe Angular. Declare. Yield. Derive. Compile \u2014 no surprises",
   "author": "Romain Geffrault",
   "license": "MIT",
-  "homepage": "https://ng-angular-stack.github.io/craft/",
+  "homepage": "https://craft-ts.github.io/craft/",
   "bugs": {
-    "url": "https://github.com/ng-angular-stack/ng-craft/issues"
+    "url": "https://github.com/craft-ts/craft-ts/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ng-angular-stack/ng-craft.git"
+    "url": "https://github.com/craft-ts/craft-ts.git"
   },
   "keywords": [
     "angular",
@@ -21,7 +21,7 @@
     "state",
     "store",
     "angular signals",
-    "ng-craft",
+    "craft-ts",
     "mcp",
     "llms.txt"
   ],

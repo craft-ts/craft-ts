@@ -130,7 +130,7 @@ type _CanRun = CanRun<RouteCheckedDI<import('./page').GenDeps_Page, never, Route
         filePath: routeFile,
         messages: [
           {
-            ruleId: 'craft-ng/require-assert-exhaustive-route-exceptions',
+            ruleId: 'craft-ts/require-assert-exhaustive-route-exceptions',
             severity: 2,
             line: 1,
             message:
@@ -208,7 +208,7 @@ exit 1
           module: 'preserve',
           moduleResolution: 'bundler',
           paths: {
-            '@craft-ng/core': [coreIndexPath],
+            '@craft-ts/core': [coreIndexPath],
           },
           skipLibCheck: true,
           strict: true,

@@ -1,10 +1,10 @@
-# Tutoriel TypeScript avance (inspire de ng-craft)
+# Tutoriel TypeScript avance (inspire de craft-ts)
 
-Objectif: partir de zero et aller jusqu aux patterns de typage avances utilises dans ng-craft. Les sections suivent un ordre logique: fondamentaux -> generiques -> typage conditionnel -> metaprogrammation de types -> conseils de debug.
+Objectif: partir de zero et aller jusqu aux patterns de typage avances utilises dans craft-ts. Les sections suivent un ordre logique: fondamentaux -> generiques -> typage conditionnel -> metaprogrammation de types -> conseils de debug.
 
 ## 1. Fondamentaux a revoir rapidement
 - Primitifs et alias: `type UserId = number;` pour nommer une intention.
-- Interfaces vs types: `interface` se merge automatiquement, `type` supporte unions et intersections. Dans le code ng-craft, les formes complexes utilisent surtout `type` pour pouvoir remapper des clefs (`ReplaceStoreConfigToken`).
+- Interfaces vs types: `interface` se merge automatiquement, `type` supporte unions et intersections. Dans le code craft-ts, les formes complexes utilisent surtout `type` pour pouvoir remapper des clefs (`ReplaceStoreConfigToken`).
 - Typage structurel: deux types sont compatibles si leurs structures matchent, pas leurs noms. Garder cela en tete pour la composition (`MergeTwoContexts`).
 - Unions et intersections: `A | B` (un ou l autre), `A & B` (les deux). Les contexts sont merges par intersection.
 - Literal types et `as const`: figer la valeur pour que TypeScript infere un literal (`'root'` vs `string`). Utile pour des options comme `providedIn: 'root' as const`.
@@ -52,7 +52,7 @@ Objectif: partir de zero et aller jusqu aux patterns de typage avances utilises 
 - Contrats: `EnableInputsToBeExternallyProvided` ajoute une option `EXTERNALLY_PROVIDED` seulement si `providedIn` n est pas `feature`. C est un conditional type avec un flag booleen derive.
 - Egalite structurelle: `IsEqual<A, B>` dans `craft` compare deux types via une double fonction.
 
-## 5. Utilitaires de composition (inspiration ng-craft)
+## 5. Utilitaires de composition (inspiration craft-ts)
 - Intersection iteratives: `MergeObjects<[A, B, C]>` replie un tuple de types en une intersection, utile pour accumuler des outputs de factories.
 - Nettoyage d index signature: `RemoveIndexSignature<T>` supprime les clefs `[key: string]` afin de garder seulement les clefs reelles exposees.
 - `Prettify<T>`: force TypeScript a re-materialiser l intersection pour l afficher proprement.
@@ -72,7 +72,7 @@ Objectif: partir de zero et aller jusqu aux patterns de typage avances utilises 
 - Overloads + tuples: les surcharges de `craft` utilisent des tuples positionnels de generiques (`outputs1`, `outputs2`, ...) pour faire evoluer le contexte a chaque factory.
 
 ## 7. Typage des APIs fluent et des factories
-- Pattern builder: chaque appel retourne un type affine avec plus d info. Exemple simplifie d une factory ng-craft:
+- Pattern builder: chaque appel retourne un type affine avec plus d info. Exemple simplifie d une factory craft-ts:
   ```ts
   type Context = { props: { count: number }; methods: { inc(): void } };
 
@@ -126,7 +126,7 @@ Objectif: partir de zero et aller jusqu aux patterns de typage avances utilises 
         : { errorInputsMsg: `Inputs inconnus: ${Unknown & string}` }
       : never;
   ```
-- ng-craft utilise `errorInputsMsg` et `errorMethodMsg` pour guider le developpeur avant meme l execution.
+- craft-ts utilise `errorInputsMsg` et `errorMethodMsg` pour guider le developpeur avant meme l execution.
 
 ## 11. Performance et limites du checker
 - Eviter les recursions profondes inutilement (limite par `--maxNodeModuleJsDepth` et profondeur de recursion de type).

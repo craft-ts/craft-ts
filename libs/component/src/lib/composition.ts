@@ -1,4 +1,4 @@
-import type { AnyCraftException, CraftServiceProvider } from '@craft-ng/core';
+import type { AnyCraftException, CraftServiceProvider } from '@craft-ts/core';
 import { craftDirective } from './directive';
 import {
   COMPONENT_OPERATOR,

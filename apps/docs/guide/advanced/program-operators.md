@@ -11,8 +11,8 @@ call, recover from one specific exception code and carry on.
 ## Import
 
 ```typescript
-import { catchTag, retry } from '@craft-ng/core';
-import type { CraftProgramOperator, CraftRetryPolicy } from '@craft-ng/core';
+import { catchTag, retry } from '@craft-ts/core';
+import type { CraftProgramOperator, CraftRetryPolicy } from '@craft-ts/core';
 ```
 
 ## What it does
@@ -223,7 +223,7 @@ An operator is just a function from one program generator to another. Type yours
 `CraftProgramOperator`:
 
 ```typescript
-import type { CraftProgramOperator } from '@craft-ng/core';
+import type { CraftProgramOperator } from '@craft-ts/core';
 
 // Measures the program duration; passes everything else through unchanged.
 const timed =

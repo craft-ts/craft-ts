@@ -7,8 +7,8 @@ import {
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type TemporalTaskHandle,
   type SendContextPayload,
-} from '@craft-ng/core';
-import { ɵtoCraftService as toCraftService } from '@craft-ng/core';
+} from '@craft-ts/core';
+import { ɵtoCraftService as toCraftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {

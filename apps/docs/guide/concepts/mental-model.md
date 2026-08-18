@@ -1,6 +1,6 @@
 # The mental model
 
-Three words describe everything `@craft-ng` does: **declare, yield, derive.**
+Three words describe everything `@craft-ts` does: **declare, yield, derive.**
 
 You declare state with a name. Every named entity — a factory, a computed, a
 method — pulls in with `yield*` what it does not own, so the compiler can see

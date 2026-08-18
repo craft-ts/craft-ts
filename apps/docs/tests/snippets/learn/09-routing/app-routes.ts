@@ -1,6 +1,6 @@
 // #region app-routes
-import { loadCraftComponent } from '@craft-ng/component';
-import { craftRoutes } from '@craft-ng/core';
+import { loadCraftComponent } from '@craft-ts/component';
+import { craftRoutes } from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
   {

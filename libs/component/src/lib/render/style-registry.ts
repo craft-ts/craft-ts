@@ -1,4 +1,4 @@
-import { craftToken, type GetDeps } from '@craft-ng/core';
+import { craftToken, type GetDeps } from '@craft-ts/core';
 
 type StyleRoot = Document | ShadowRoot;
 

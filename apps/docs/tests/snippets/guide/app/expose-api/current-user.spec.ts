@@ -2,14 +2,14 @@
 import {
   craftUse,
   setupCraftServiceTestingByRegister,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
 useSnippetHarness();
 
 // #region current-user
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ts/core';
 
 const { UsersApi } = craftService(
   { name: 'UsersApi', scope: 'global' },

@@ -3,24 +3,24 @@
     "route": {
       "factory": "./src/generators/route/generator#routeGenerator",
       "schema": "./src/generators/route/schema.json",
-      "description": "Add a type-safe Craft NG route."
+      "description": "Add a type-safe CraftTS route."
     },
     "route-split": {
       "factory": "./src/generators/route/generator#routeSplitGenerator",
       "schema": "./src/generators/route/split-schema.json",
-      "description": "Split Craft NG routes into a lazy collection."
+      "description": "Split CraftTS routes into a lazy collection."
     }
   },
   "schematics": {
     "route": {
       "factory": "./src/generators/route/compat#routeSchematic",
       "schema": "./src/generators/route/schema.json",
-      "description": "Add a type-safe Craft NG route."
+      "description": "Add a type-safe CraftTS route."
     },
     "route-split": {
       "factory": "./src/generators/route/compat#routeSplitSchematic",
       "schema": "./src/generators/route/split-schema.json",
-      "description": "Split Craft NG routes into a lazy collection."
+      "description": "Split CraftTS routes into a lazy collection."
     }
   }
 }

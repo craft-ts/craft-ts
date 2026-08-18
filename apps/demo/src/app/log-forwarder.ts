@@ -3,12 +3,12 @@ import {
   InjectionToken,
   type Provider,
   ɵinject as inject,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   SERVICE_RUNTIME_OVERRIDES,
   type ConsoleServiceApi,
   type ServiceRuntimeOverride,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { FUNCTION_REGISTRY_CLIENT_ID } from './function-registry-bridge';
 
 export const LOG_SERVER_URL = new InjectionToken<string>('LOG_SERVER_URL', {
@@ -86,7 +86,7 @@ export function createLogForwarder(
 ): LogForwarder {
   // This IS the Console boundary implementation: reaching for the craft
   // Console here would recurse into the sink we are building.
-  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   const target = options.target ?? globalThis.console;
   const flushIntervalMs = options.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS;
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
@@ -161,11 +161,11 @@ export function provideLogForwarding(): Provider {
     provide: SERVICE_RUNTIME_OVERRIDES,
     useFactory: (): ReadonlyMap<string, ServiceRuntimeOverride> => {
       // Bootstrap boundary: the forwarder lifetime follows the app injector.
-      // eslint-disable-next-line craft-ng/no-angular-inject
+      // eslint-disable-next-line craft-ts/no-angular-inject
       const endpoint = inject(LOG_SERVER_URL);
-      // eslint-disable-next-line craft-ng/no-angular-inject
+      // eslint-disable-next-line craft-ts/no-angular-inject
       const clientId = inject(FUNCTION_REGISTRY_CLIENT_ID);
-      // eslint-disable-next-line craft-ng/no-angular-inject
+      // eslint-disable-next-line craft-ts/no-angular-inject
       const destroyRef = inject(DestroyRef);
 
       const forwarder = createLogForwarder({
@@ -197,9 +197,9 @@ function sendToLogServer(
 
   // Transport boundary: the unload path must be synchronous, so it cannot go
   // through the generator-based BrowserNavigator service.
-  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   if (beacon && typeof globalThis.navigator?.sendBeacon === 'function') {
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     globalThis.navigator.sendBeacon(
       endpoint,
       new Blob([body], { type: 'application/json' }),

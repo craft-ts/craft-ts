@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
-import { setupCraftComponentLogicTest } from '@craft-ng/component';
+import { setupCraftComponentLogicTest } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
 useSnippetHarness();
 
 // #region router-link
-import { a, craftComponent } from '@craft-ng/component';
-import { CraftRouterLink } from '@craft-ng/core';
+import { a, craftComponent } from '@craft-ts/component';
+import { CraftRouterLink } from '@craft-ts/core';
 
 export const TasksLink = craftComponent(
   'TasksLink',

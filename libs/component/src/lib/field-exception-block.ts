@@ -9,7 +9,7 @@ import type {
   CraftField,
   FieldExceptionVisibility,
   FieldValidationCase,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   CRAFT_DIRECTIVE,
   COMPONENT_FIELD_EXCEPTION_BLOCK,

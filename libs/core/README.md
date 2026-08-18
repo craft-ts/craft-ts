@@ -1,14 +1,14 @@
-# @craft-ng/core
+# @craft-ts/core
 
 Type-safe, signal-first building blocks for Angular applications.
 
-`@craft-ng/core` provides reactive primitives for local state, server state,
+`@craft-ts/core` provides reactive primitives for local state, server state,
 async processes, mutations, URL state, forms, services, routing and testing.
 
 ## Installation
 
 ```bash
-npm install @craft-ng/core@beta
+npm install @craft-ts/core@beta
 ```
 
 The current beta targets Angular 21 and requires Node.js 20.19+ (or 22.12+).
@@ -16,7 +16,7 @@ The current beta targets Angular 21 and requires Node.js 20.19+ (or 22.12+).
 ## Quick start
 
 ```ts
-import { craftComputed, state } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ts/core';
 
 function* createCounter() {
   const counter = yield* state('counter', 0, ({ state, update }) => ({
@@ -42,21 +42,21 @@ drives the same runtime explicitly.
 
 ## Documentation
 
-Read the [getting started tutorial](https://ng-angular-stack.github.io/craft/learn)
-or browse the [API reference](https://ng-angular-stack.github.io/craft/reference/).
+Read the [getting started tutorial](https://craft-ts.github.io/craft/learn)
+or browse the [API reference](https://craft-ts.github.io/craft/reference/).
 
 Coding agents should start from
-[`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt) and the
-[coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents)
-guide (`npx -y @craft-ng/mcp@beta`).
+[`llms.txt`](https://craft-ts.github.io/craft/llms.txt) and the
+[coding agents](https://craft-ts.github.io/craft/resources/ai-agents)
+guide (`npx -y @craft-ts/mcp@beta`).
 
 ## Related packages
 
-- [`@craft-ng/component`](https://www.npmjs.com/package/@craft-ng/component)
+- [`@craft-ts/component`](https://www.npmjs.com/package/@craft-ts/component)
   for selectorless functional components.
-- [`@craft-ng/dev-tools`](https://www.npmjs.com/package/@craft-ng/dev-tools)
+- [`@craft-ts/dev-tools`](https://www.npmjs.com/package/@craft-ts/dev-tools)
   for codemods, generators and ESLint rules.
-- [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp)
+- [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp)
   for the documentation MCP server and Agent Skills.
 
 ## Status

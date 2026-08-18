@@ -3,13 +3,13 @@
 layout: home
 
 hero:
-  name: '@craft-ng/core'
-  text: 'Type-safe Angular, by construction.'
+  name: '@craft-ts/core'
+  text: 'Safe AI-first APP, by construction.'
   tagline: Fine-grained reactivity. Declare. Yield. Derive. Compile — no surprises.
 
   image:
-    src: /assets/ng-craft-logo.png
-    alt: ng-craft logo
+    src: /assets/craft-ts-logo.png
+    alt: craft-ts logo
 
   actions:
     - theme: brand
@@ -60,14 +60,14 @@ features:
 
 The toolkit is split into focused packages. They are currently published on the
 `beta` channel. Coding agents should start from
-[`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt) and the
+[`llms.txt`](https://craft-ts.github.io/craft/llms.txt) and the
 [coding agents](/resources/ai-agents) guide.
 
 | Package                                                                    | Purpose                                                             |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [`@craft-ng/core`](https://www.npmjs.com/package/@craft-ng/core)           | Reactive primitives, services, forms, routing and testing utilities |
-| [`@craft-ng/component`](https://www.npmjs.com/package/@craft-ng/component) | Selectorless functional components and typed hyperscript templates  |
-| [`@craft-ng/dev-tools`](https://www.npmjs.com/package/@craft-ng/dev-tools) | Codemods, generators, CLI commands and ESLint rules                 |
-| [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp)             | MCP server, Agent Skills and `llms.txt` helpers for coding agents   |
+| [`@craft-ts/core`](https://www.npmjs.com/package/@craft-ts/core)           | Reactive primitives, services, forms, routing and testing utilities |
+| [`@craft-ts/component`](https://www.npmjs.com/package/@craft-ts/component) | Selectorless functional components and typed hyperscript templates  |
+| [`@craft-ts/dev-tools`](https://www.npmjs.com/package/@craft-ts/dev-tools) | Codemods, generators, CLI commands and ESLint rules                 |
+| [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp)             | MCP server, Agent Skills and `llms.txt` helpers for coding agents   |
 
 <AuthorNote />

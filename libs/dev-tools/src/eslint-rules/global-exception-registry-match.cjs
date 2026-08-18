@@ -441,7 +441,7 @@ function removeOrphanedRegistryEntries(sourceFile, requiredRegistrations) {
   // documentation, and an empty registry is valid + stable (no re-report).
 }
 
-// A file may have several `declare module '@craft-ng/core'` blocks (e.g. one for
+// A file may have several `declare module '@craft-ts/core'` blocks (e.g. one for
 // CraftRouterRoutesRegistry and one for CraftGlobalExceptionRegistry), so search
 // all of them rather than the first.
 function getCraftCoreModuleDeclarations(sourceFile) {
@@ -449,7 +449,7 @@ function getCraftCoreModuleDeclarations(sourceFile) {
     const nameNode = moduleDeclaration.getNameNode();
     return (
       Node.isStringLiteral(nameNode) &&
-      nameNode.getLiteralText() === '@craft-ng/core'
+      nameNode.getLiteralText() === '@craft-ts/core'
     );
   });
 }
@@ -480,7 +480,7 @@ function ensureRegistryEntries(sourceFile, requiredRegistrations) {
     const moduleDeclaration =
       getCraftCoreModuleDeclarations(sourceFile)[0] ??
       sourceFile.addModule({
-        name: "'@craft-ng/core'",
+        name: "'@craft-ts/core'",
         hasDeclareKeyword: true,
       });
     registryInterface = moduleDeclaration.addInterface({

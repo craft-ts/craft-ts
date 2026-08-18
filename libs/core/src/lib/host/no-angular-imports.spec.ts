@@ -21,9 +21,9 @@ describe('core production sources', () => {
     expect(source).not.toMatch(/@angular\//);
   });
 
-  it('do not import @craft-ng/angular from component production sources', () => {
+  it('do not import @craft-ts/angular from component production sources', () => {
     const out = execSync(
-      "rg -l \"from '@craft-ng/angular'\" libs/component/src --glob '!*.spec.ts' || true",
+      "rg -l \"from '@craft-ts/angular'\" libs/component/src --glob '!*.spec.ts' || true",
       { encoding: 'utf8' },
     );
     expect(out.trim()).toBe('');

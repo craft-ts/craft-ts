@@ -46,7 +46,7 @@ You rarely want to send a request you know will fail. Return a `craftException`
 from `method` and the loader never runs:
 
 ```typescript
-import { craftException } from '@craft-ng/core';
+import { craftException } from '@craft-ts/core';
 
 const createTask = yield* mutation('createTask', {
   method: (payload: { title: string }) =>
@@ -91,7 +91,7 @@ reflected in the type.
 
 Any library implementing `StandardSchemaV1` works — Zod, Valibot, Effect, or a
 hand-written `{ '~standard': … }` object. None of them becomes a dependency of
-`@craft-ng`. Queries have the same hooks for their reactive params
+`@craft-ts`. Queries have the same hooks for their reactive params
 (`paramsSchema`) and their result (`loaderSchema`).
 
 **Use a schema** when the shape itself is the rule, **a `craftException` from

@@ -79,7 +79,7 @@ describe('angular-brand-codemod', () => {
 
     expect(result.changed).toBe(true);
     expect(output).toMatch(
-      /import \{[^}]*type GetDeps[^}]*type GetPublicComponentProperties[^}]*\} from ['"]@craft-ng\/core['"];/,
+      /import \{[^}]*type GetDeps[^}]*type GetPublicComponentProperties[^}]*\} from ['"]@craft-ts\/core['"];/,
     );
     expect(output).toMatch(
       /import \{[^}]*ChildComponent[^}]*GenDeps_ChildComponent[^}]*\} from ['"]\.\/child['"];/,
@@ -112,7 +112,7 @@ describe('angular-brand-codemod', () => {
       `,
       'src/app/demo.ts': `
         import { Component } from '@angular/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
+        import { brandAngularSymbol, deps } from '@craft-ts/core';
 
         @Component({
           standalone: true,
@@ -133,7 +133,7 @@ describe('angular-brand-codemod', () => {
     const output = sourceFile.getFullText();
 
     expect(output).toMatch(
-      /import \{[^}]*type GetDeps[^}]*type GetPublicComponentProperties[^}]*\} from ['"]@craft-ng\/core['"];/,
+      /import \{[^}]*type GetDeps[^}]*type GetPublicComponentProperties[^}]*\} from ['"]@craft-ts\/core['"];/,
     );
     expect(output).not.toContain('brandAngularSymbol');
     expect(output).not.toContain('deps({');
@@ -199,8 +199,8 @@ describe('angular-brand-codemod', () => {
           }
         }
       `,
-      'src/craft-ng-core.d.ts': `
-        declare module '@craft-ng/core' {
+      'src/craft-ts-core.d.ts': `
+        declare module '@craft-ts/core' {
           export declare function craftService(...args: any[]): any;
           export declare function toCraftService(...args: any[]): any;
           export type DerivedService<T, U> = T & U;
@@ -212,7 +212,7 @@ describe('angular-brand-codemod', () => {
         }
       `,
       'src/app/api.service.ts': `
-        import { craftService } from '@craft-ng/core';
+        import { craftService } from '@craft-ts/core';
 
         export const { ApiService } = craftService(
           { name: 'ApiService', scope: 'global' },
@@ -225,7 +225,7 @@ describe('angular-brand-codemod', () => {
         import { Component, input } from '@angular/core';
         import { Router } from '@angular/router';
         import { ApiService } from './api.service';
-        import { toCraftService } from '@craft-ng/angular';
+        import { toCraftService } from '@craft-ts/angular';
 
         const { Router: RouterService } = toCraftService({
           name: 'Router',
@@ -456,7 +456,7 @@ describe('angular-brand-codemod', () => {
     const project = await createCraftFieldDirectiveMetadataProjectFixture({
       'src/app/demo.ts': `
         import { Component } from '@angular/core';
-        import { LegacyCraftFieldDirective } from '@craft-ng/core';
+        import { LegacyCraftFieldDirective } from '@craft-ts/core';
 
         @Component({
           standalone: true,
@@ -528,7 +528,7 @@ describe('angular-brand-codemod', () => {
   it('auto-discovers craft-brand.config.ts from the source file directory', async () => {
     const project = await createTranslateProjectFixture({
       'craft-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -581,7 +581,7 @@ describe('angular-brand-codemod', () => {
   it('does not trigger project config rules for plain TS imports outside metadata', async () => {
     const project = await createTranslateProjectFixture({
       'craft-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -640,7 +640,7 @@ describe('angular-brand-codemod', () => {
         }
       `,
       'craft-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -686,7 +686,7 @@ describe('angular-brand-codemod', () => {
   it('deduplicates project config entries when several metadata symbols match the same rule', async () => {
     const project = await createTranslateProjectFixture({
       'craft-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -733,7 +733,7 @@ describe('angular-brand-codemod', () => {
   it('removes configured missing providers when the key is already provided locally', async () => {
     const project = await createTranslateProjectFixture({
       'craft-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -853,7 +853,7 @@ describe('angular-brand-codemod', () => {
   it('prefers an explicit configFilePath over auto-discovery', async () => {
     const project = await createTranslateProjectFixture({
       'craft-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -869,7 +869,7 @@ describe('angular-brand-codemod', () => {
         });
       `,
       'custom-brand.config.ts': `
-        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+        import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
         export default defineAngularBrandConfig({
           importAugmentations: [
@@ -1032,7 +1032,7 @@ async function createCraftFieldDirectiveMetadataProjectFixture(
           target: 'ES2022',
           baseUrl: '.',
           paths: {
-            '@craft-ng/core': ['src/craft-ng-core/index.ts'],
+            '@craft-ts/core': ['src/craft-ts-core/index.ts'],
           },
         },
         include: ['src/**/*.ts', 'src/**/*.d.ts'],
@@ -1046,7 +1046,7 @@ async function createCraftFieldDirectiveMetadataProjectFixture(
         export declare function Directive(metadata?: unknown): ClassDecorator;
       }
     `,
-    'src/craft-ng-core/index.ts': `
+    'src/craft-ts-core/index.ts': `
       import { Directive } from '@angular/core';
 
       @Directive({

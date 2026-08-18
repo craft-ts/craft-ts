@@ -15,11 +15,11 @@ import {
   type ComponentDepsOf,
   type ParentRoutes,
   type RouteCheckedDI,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   loadCraftComponent,
   provideCraftPendingComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import PhotoSkeleton from './photo-skeleton';
 
 // --- View Transitions demo (gallery → detail, shared-element morph) ----------

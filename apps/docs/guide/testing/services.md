@@ -21,7 +21,7 @@ are what keep these tests short — see
 ```typescript
 import {
   setupCraftServiceTestingByRegister,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ```
 
 ## Introduction
@@ -57,7 +57,7 @@ import {
   craftUse,
   setupCraftServiceTestingByRegister,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { vi } from 'vitest';
 
 const { Counter } = craftService(

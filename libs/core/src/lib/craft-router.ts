@@ -495,7 +495,7 @@ export function provideCraftRouter(
  * `META_DATA`:
  *
  * ```ts
- * declare module '@craft-ng/core' {
+ * declare module '@craft-ts/core' {
  *   interface CraftRouterRoutesRegistry {
  *     Demo: typeof demoRoutes.META_PATHS;
  *   }
@@ -1096,7 +1096,7 @@ function withViewTransitionState(
   };
 }
 
-/** @deprecated Moved to `@craft-ng/angular`. */
+/** @deprecated Moved to `@craft-ts/angular`. */
 export type GenDeps_LegacyCraftRouterLink = GetDeps<{
   deps: Record<string, never>;
   provided: Record<never, never>;

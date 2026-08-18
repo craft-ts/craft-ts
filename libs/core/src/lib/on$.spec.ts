@@ -34,8 +34,8 @@ describe('on$', () => {
       mySource.emit('Hello World');
       expect(callbackResults).toEqual(['Hello World']);
 
-      mySource.emit('Hello Ng-Craft');
-      expect(callbackResults).toEqual(['Hello World', 'Hello Ng-Craft']);
+      mySource.emit('Hello CraftTS');
+      expect(callbackResults).toEqual(['Hello World', 'Hello CraftTS']);
     });
   });
 

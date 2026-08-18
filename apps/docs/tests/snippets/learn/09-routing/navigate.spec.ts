@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
-import { setupCraftComponentLogicTest } from '@craft-ng/component';
+import { setupCraftComponentLogicTest } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
 useSnippetHarness();
 
 // #region navigate
-import { craftComponent } from '@craft-ng/component';
-import { CraftRouter, craftMethod } from '@craft-ng/core';
+import { craftComponent } from '@craft-ts/component';
+import { CraftRouter, craftMethod } from '@craft-ts/core';
 
 export const TaskOpener = craftComponent(
   'TaskOpener',

@@ -25,7 +25,7 @@ const ROUTES = (extra: string) => `
     type CanRun,
     type RouteCheckedDI,
     type ValidateCascadeRoutesFile,
-  } from '@craft-ng/core';
+  } from '@craft-ts/core';
   import type { Router } from '@angular/router';
 
   export const { galleryRoutes } = craftRoutes('gallery', [
@@ -88,7 +88,7 @@ describe('require-pending-component-di-check', () => {
 
   it('ignores routes without a lazy pendingComponent', async () => {
     const { messages } = await lintFixture(`
-      import { craftRoutes, craftRoute } from '@craft-ng/core';
+      import { craftRoutes, craftRoute } from '@craft-ts/core';
       export const { galleryRoutes } = craftRoutes('gallery', [
         craftRoute('', {
           componentDeps: {} as import('./detail').GenDeps_DetailComponent,

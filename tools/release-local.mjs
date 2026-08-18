@@ -148,9 +148,9 @@ export function parseReleaseArgument(argument) {
 export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   const targetManifestPath = join(targetDemoRoot, 'package.json');
   const targetManifest = readJson(targetManifestPath);
-  if (targetManifest.name !== 'ng-craft-demo') {
+  if (targetManifest.name !== 'craft-ts-demo') {
     throw new Error(
-      `${targetDemoRoot} is not the ng-craft-demo workspace (received ${targetManifest.name ?? 'no package name'}).`,
+      `${targetDemoRoot} is not the craft-ts-demo workspace (received ${targetManifest.name ?? 'no package name'}).`,
     );
   }
 
@@ -168,9 +168,9 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   disableTargetLogForwarding(targetDemoRoot);
 
   targetManifest.dependencies ??= {};
-  targetManifest.dependencies['@craft-ng/core'] = version;
-  targetManifest.dependencies['@craft-ng/component'] = version;
-  targetManifest.dependencies['@craft-ng/dev-tools'] = version;
+  targetManifest.dependencies['@craft-ts/core'] = version;
+  targetManifest.dependencies['@craft-ts/component'] = version;
+  targetManifest.dependencies['@craft-ts/dev-tools'] = version;
   writeJson(targetManifestPath, targetManifest);
 
   rmSync(join(targetDemoRoot, 'package-lock.json'), { force: true });
@@ -399,13 +399,13 @@ async function main(args) {
   const dryRun = flags.includes('--dry-run');
   const assumeYes = flags.includes('--yes');
   const docsRepo = resolve(
-    process.env.CRAFT_DOCS_REPO ?? join(workspaceRoot, '../ng-craft.github.io'),
+    process.env.CRAFT_DOCS_REPO ?? join(workspaceRoot, '../craft-ts.github.io'),
   );
   const demoRepo = resolve(
-    process.env.CRAFT_DEMO_REPO ?? join(workspaceRoot, '../ng-craft-demo'),
+    process.env.CRAFT_DEMO_REPO ?? join(workspaceRoot, '../craft-ts-demo'),
   );
 
-  assertGitWorkspace(workspaceRoot, 'main', 'ng-craft');
+  assertGitWorkspace(workspaceRoot, 'main', 'craft-ts');
   assertGitWorkspace(docsRepo, 'main', 'documentation');
   assertGitWorkspace(demoRepo, 'main', 'StackBlitz demo');
 
@@ -462,7 +462,7 @@ async function main(args) {
     docsRepo,
   );
 
-  const artifactsDirectory = mkdtempSync(join(tmpdir(), 'craft-ng-release-'));
+  const artifactsDirectory = mkdtempSync(join(tmpdir(), 'craft-ts-release-'));
   run('node', [
     'tools/release.mjs',
     'pack',
@@ -473,11 +473,11 @@ async function main(args) {
   commitAll(workspaceRoot, `chore(release): publish ${release.version}`);
   const docsChanged = commitAll(
     docsRepo,
-    `docs: deploy craft-ng ${release.version}`,
+    `docs: deploy craft-ts ${release.version}`,
   );
   const demoChanged = commitAll(
     demoRepo,
-    `chore: sync examples for craft-ng ${release.version}`,
+    `chore: sync examples for craft-ts ${release.version}`,
   );
 
   const plan = parseMetadata(
@@ -524,7 +524,7 @@ async function main(args) {
     'create',
     release.tag,
     '--repo',
-    'ng-angular-stack/ng-craft',
+    'craft-ts/craft-ts',
     '--verify-tag',
     '--title',
     release.tag,

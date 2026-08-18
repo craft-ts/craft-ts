@@ -12,7 +12,7 @@ blocking on it costs your users a blank screen.
 ## Import
 
 ```typescript
-import { onAppStart } from '@craft-ng/core';
+import { onAppStart } from '@craft-ts/core';
 ```
 
 ## Overview
@@ -56,7 +56,7 @@ Use a plain callback when startup logic does not need to `yield*` crafted depend
 Use a generator callback when startup logic needs to `yield*` crafted dependencies.
 
 ```typescript
-import { Console, craftService, onAppStart } from '@craft-ng/core';
+import { Console, craftService, onAppStart } from '@craft-ts/core';
 
 export const { AppStartLog } = craftService(
   {
@@ -93,7 +93,7 @@ Declaring `onAppStart` is only half of it — nothing runs until the service is
 Augment the app-start registry so the service is known by name:
 
 ```typescript
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftAppStartRegistry {
     AppStartLog: typeof AppStartLog;
   }
@@ -122,7 +122,7 @@ Here it is end to end:
 
 
 ::: tip The registry augmentation is generated
-The `declare module` block is written for you by the craft-ng ESLint plugin —
+The `declare module` block is written for you by the craft-ts ESLint plugin —
 you rarely type it by hand.
 :::
 

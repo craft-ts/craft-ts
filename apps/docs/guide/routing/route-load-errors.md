@@ -25,7 +25,7 @@ import {
   provideCraftRouter,
   withRouteLoadError,
   withErrorComponent,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 provideCraftRouter(
   appRoutes.toRoutes(),
@@ -107,12 +107,12 @@ being statically discovered.
 The component can inject both the active technical exception and the recovery API:
 
 ```ts
-import { button, craftComponent, div, h2, p } from '@craft-ng/component';
+import { button, craftComponent, div, h2, p } from '@craft-ts/component';
 import {
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
   provideHostName,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',
@@ -233,7 +233,7 @@ specific route when the failure should have local behaviour:
 import {
   provideRouteLoadErrorComponent,
   provideRouteLoadRetry,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 craftRoute('admin', {
   providers: [
@@ -258,7 +258,7 @@ The local component receives the same `injectCraftRouteLoadError()` and
 ## DI checks
 
 Route-load error components participate in the same generated DI checks as other error surfaces.
-The ESLint rule `craft-ng/require-exception-component-di-check` generates
+The ESLint rule `craft-ts/require-exception-component-di-check` generates
 `RouteExceptionComponentCheckedDI` checks for:
 
 - global `withRouteLoadError(...)` components;

@@ -9,7 +9,7 @@ import type { ConcreteServiceScope } from './craft-service.shared';
 import { ɵrunCraftTargetWrappers } from './craft-target-runtime';
 
 export const CRAFT_REGISTRATION_TARGET = Symbol.for(
-  '@craft-ng/core/craft-registration-target',
+  '@craft-ts/core/craft-registration-target',
 );
 
 export type CraftRegistrationTargetMetadata = Readonly<{

@@ -14,7 +14,7 @@ half craft services, with one dependency graph across both.
 ## Import
 
 ```typescript
-import { toCraftService } from '@craft-ng/angular';
+import { toCraftService } from '@craft-ts/angular';
 ```
 
 ## Introduction
@@ -61,7 +61,7 @@ Scopes `function` and `abstract` are `craftService` scopes and are not available
 
 ```typescript
 import { Injectable, signal } from '@angular/core';
-import { toCraftService } from '@craft-ng/angular';
+import { toCraftService } from '@craft-ts/angular';
 
 @Injectable({ providedIn: 'root' })
 class RouterLike {
@@ -97,7 +97,7 @@ const { Navigation } = craftService(
 
 ```typescript
 import { inject, InjectionToken } from '@angular/core';
-import { toCraftService } from '@craft-ng/angular';
+import { toCraftService } from '@craft-ts/angular';
 
 const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
 
@@ -112,7 +112,7 @@ const { CurrentRoute } = toCraftService({
 
 ```typescript
 import { Injectable, signal } from '@angular/core';
-import { toCraftService } from '@craft-ng/angular';
+import { toCraftService } from '@craft-ts/angular';
 
 @Injectable()
 class CounterDriver {
@@ -138,8 +138,8 @@ When an adaptation factory reads provider state, signal properties are exposed
 as yieldable readers and become dependency edges:
 
 ```typescript
-import { craftService } from '@craft-ng/core';
-import { toCraftService } from '@craft-ng/angular';
+import { craftService } from '@craft-ts/core';
+import { toCraftService } from '@craft-ts/angular';
 
 const { CounterValue } = toCraftService(
   {
@@ -185,8 +185,8 @@ const { Catalog, provideCatalog } = toCraftService(
 
 ```typescript
 import { HttpClient } from '@angular/common/http';
-import { craftService } from '@craft-ng/core';
-import { toCraftService } from '@craft-ng/angular';
+import { craftService } from '@craft-ts/core';
+import { toCraftService } from '@craft-ts/angular';
 
 type User = { id: string; email: string };
 

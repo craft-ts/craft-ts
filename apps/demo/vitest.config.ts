@@ -14,8 +14,8 @@ export default defineConfig({
   plugins: [craftTextLoaderPlugin(), nxViteTsPaths()],
   resolve: {
     alias: {
-      '@craft-ng/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
-      '@craft-ng/component': path.join(
+      '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
+      '@craft-ts/component': path.join(
         workspaceRoot,
         'libs/component/src/index.ts',
       ),

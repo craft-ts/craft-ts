@@ -43,7 +43,7 @@ import {
   buildArchitectureCatalog,
   createArchitectureGraph,
   noExclusiveLink,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 ```
 
 ## Mental model
@@ -167,7 +167,7 @@ import {
   architectureCatalogToTypeScript,
   buildArchitectureCatalog,
   createArchitectureGraph,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 import { architectureCatalog } from './catalog';
 
 const workspaceRoot = resolve(import.meta.dirname, '../../..');
@@ -387,7 +387,7 @@ A `craftComputed` may only **read**. Outgoing `calls` (a `craftMethod`,
 `increment`, `mutate`, …) and `writes` (`source$.emit` / `.set`) fail.
 
 Local slips are also caught by ESLint
-`craft-ng/no-craft-computed-side-effects`. The graph catches a computed that
+`craft-ts/no-craft-computed-side-effects`. The graph catches a computed that
 calls a method declared in another binding.
 
 ```typescript
@@ -513,7 +513,7 @@ A `craftEffect` that writes another `state` or `source$`, or that calls
 `query.call` / `mutation.mutate` / `asyncProcess.method`, is glue that should
 be a sourced `state` or reactive `params` instead. Logging, focus, and other
 I/O that does not push into a Craft primitive stay valid. ESLint
-`craft-ng/no-imperative-craft-resource-trigger` catches the resource-trigger
+`craft-ts/no-imperative-craft-resource-trigger` catches the resource-trigger
 half in the editor; this helper is the graph-wide counterpart, including
 state writes.
 
@@ -529,7 +529,7 @@ it('keeps craftEffect from pushing into other primitives', () => {
 proofs and DOM tests already key off that name. This helper makes the first
 string **mandatory** on clickable and fillable elements, and **unique in the
 app**: two `button('save')` in two components fail, and so does
-`button({ click() {} }, 'Save')`. ESLint `craft-ng/require-interactive-local-name`
+`button({ click() {} }, 'Save')`. ESLint `craft-ts/require-interactive-local-name`
 is the editor counterpart for the missing / non-static cases.
 
 ```typescript

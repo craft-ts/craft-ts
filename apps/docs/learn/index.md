@@ -1,4 +1,4 @@
-# Learn @craft-ng
+# Learn @craft-ts
 
 This is the guided path. You build **one app**, from an empty component to a
 routed, tested feature — adding exactly one idea per step.
@@ -43,7 +43,7 @@ is where the mental model clicks — don't skip that one.
 :::
 
 ::: warning Experimental
-`@craft-ng` and this documentation are both experimental. APIs can still move
+`@craft-ts` and this documentation are both experimental. APIs can still move
 between minor versions.
 :::
 

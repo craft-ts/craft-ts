@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import {
   analyzeDependencyGraph,
   createArchitectureGraph,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 
 const fixturesRoot = fileURLToPath(new URL('./fixtures', import.meta.url));
 

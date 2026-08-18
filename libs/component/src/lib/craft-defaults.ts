@@ -3,7 +3,7 @@ import {
   craftRouteTarget,
   ɵregisterDefaultCraftPendingComponent,
   ɵsetCraftTestMounter,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { mountCraftComponent } from './bridge';
 import { inject } from './host-runtime';
 import { craftComponent } from './component';
@@ -14,9 +14,9 @@ import { div } from './hyperscript';
  * `CRAFT_STAY_MS` and `CRAFT_BLANK_MS`. Override it globally with
  * `withPendingComponent`, or per route via the route's `pendingComponent`.
  *
- * This used to be an Angular component shipped by `@craft-ng/angular`, which
+ * This used to be an Angular component shipped by `@craft-ts/angular`, which
  * made a plain loading indicator drag the whole framework in. It is a Craft
- * component now, and `@craft-ng/component` — the package that owns the
+ * component now, and `@craft-ts/component` — the package that owns the
  * renderer — is where it belongs.
  */
 const DefaultCraftPendingComponent = craftComponent(

@@ -12,7 +12,7 @@ you'd rather show instantly than fetch again.
 Works with `state()`, `query()`, `mutation()` and `asyncProcess()`.
 
 ```typescript
-import { craftUnique, insertStoragePersister } from '@craft-ng/core';
+import { craftUnique, insertStoragePersister } from '@craft-ts/core';
 ```
 
 Configure the storage backend once in `appConfig`. The default application
@@ -26,7 +26,7 @@ import {
   provideLocalStoragePersister,
   provideSessionStoragePersister,
   provideStoragePersister,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 providers: [
   provideLocalStoragePersister(),

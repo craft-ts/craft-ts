@@ -16,13 +16,13 @@ describe('rewriteTextLoaderImports', () => {
   it('keeps double-quoted specifiers and leaves other imports alone', () => {
     const source = [
       `import styles from "./query.css" with { loader: "text" };`,
-      `import { query } from '@craft-ng/core';`,
+      `import { query } from '@craft-ts/core';`,
     ].join('\n');
 
     expect(rewriteTextLoaderImports(source)).toBe(
       [
         `import styles from "./query.css?raw";`,
-        `import { query } from '@craft-ng/core';`,
+        `import { query } from '@craft-ts/core';`,
       ].join('\n'),
     );
   });

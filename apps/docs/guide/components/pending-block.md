@@ -10,8 +10,8 @@ being told at **compile time** when the loading state has nowhere to go.
 ## Import
 
 ```typescript
-import { settled } from '@craft-ng/core';
-import { pendingBlock } from '@craft-ng/component';
+import { settled } from '@craft-ts/core';
+import { pendingBlock } from '@craft-ts/component';
 ```
 
 ## Overview
@@ -164,7 +164,7 @@ Both bubble up the node tree until a boundary clears them, and both fail the
 exception boundary — settled exceptions pass straight through it, and vice
 versa.
 
-These two throws are intentional CraftNG control flow. The shared
+These two throws are intentional CraftTS control flow. The shared
 `isCraftControlFlow(error)` predicate identifies them so observability and
 error-conversion wrappers can rethrow them without logging or taking an app
 snapshot. If a pending read escapes its boundary, it becomes

@@ -18,28 +18,28 @@
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false,
     "customConditions": [
-      "@ng-craft/source"
+      "@craft-ts/source"
     ],
     "paths": {
-      "@craft-ng/core": [
+      "@craft-ts/core": [
         "./libs/core/src/index.ts"
       ],
-      "@craft-ng/component": [
+      "@craft-ts/component": [
         "./libs/component/src/index.ts"
       ],
-      "@craft-ng/component/testing": [
+      "@craft-ts/component/testing": [
         "./libs/component/testing/public-api.ts"
       ],
       "test-type": [
         "./libs/test-type/src/index.ts"
       ],
-      "@craft-ng/dev-tools": [
+      "@craft-ts/dev-tools": [
         "./libs/dev-tools/src/index.ts"
       ],
-      "@craft-ng/dev-tools/testing": [
+      "@craft-ts/dev-tools/testing": [
         "./libs/dev-tools/src/testing.ts"
       ],
-      "@craft-ng/dev-tools/template-migration": [
+      "@craft-ts/dev-tools/template-migration": [
         "./libs/dev-tools/src/template-migration.ts"
       ]
     }

@@ -1159,7 +1159,7 @@ export function mutation<
  * @example
  * Business exceptions with `craftException`
  * ```ts
- * import { craftException, mutation } from '@craft-ng/core';
+ * import { craftException, mutation } from '@craft-ts/core';
  *
  * const updateUser = craftUse(mutation('updateUser', {
  *   method: (value: string) =>

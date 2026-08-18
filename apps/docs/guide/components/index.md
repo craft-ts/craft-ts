@@ -13,10 +13,10 @@ The component renderer is published as a separate package and is currently on
 the `beta` channel:
 
 ```shell
-npm i @craft-ng/core@beta @craft-ng/component@beta
+npm i @craft-ts/core@beta @craft-ts/component@beta
 ```
 
-See [`@craft-ng/component` on npm](https://www.npmjs.com/package/@craft-ng/component).
+See [`@craft-ts/component` on npm](https://www.npmjs.com/package/@craft-ts/component).
 
 ## The shape
 
@@ -110,7 +110,7 @@ and migration checklist.
 Keep render callbacks pure. They may read signals and calculate values, but
 must not call `set`, `update`, or `mutate`. Perform writes from DOM events,
 outputs, mutations, or explicit business effects. Enable
-`craft-ng/no-render-writes` to diagnose common violations.
+`craft-ts/no-render-writes` to diagnose common violations.
 
 Control flow is made of functions rather than syntax — `each`, `ifBlock`,
 `matchBlock`, `defer`. The correspondence with Angular's blocks, and why a raw
@@ -163,7 +163,7 @@ export const appConfig = craftAppConfig({
 
 ```typescript
 // main.ts
-import { bootstrapCraft } from '@craft-ng/component';
+import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app.config';
 
 bootstrapCraft({ config: appConfig });

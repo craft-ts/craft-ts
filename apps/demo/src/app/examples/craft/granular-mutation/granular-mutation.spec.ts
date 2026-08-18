@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
-import { provideCraftRouter as provideRouter } from '@craft-ng/core';
+import { provideCraftRouter as provideRouter } from '@craft-ts/core';
 import {
   deepYieldable,
   markYieldableMethod,
   markYieldableValue,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   ComponentLogicOutputOf,
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import type {
   ExtractDeps,
   GetServiceDependencies,
   ResolvedServiceOutput,
-} from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GranularMutationCraft, {
   GranularMutation,

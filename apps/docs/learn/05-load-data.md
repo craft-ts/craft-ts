@@ -38,7 +38,7 @@ ternary chain reads fine — just remember it makes the branch invisible to the
 [type-level assertions](/guide/testing/type-level):
 
 ```typescript
-import { craftComponent, each, li, p, ul } from '@craft-ng/component';
+import { craftComponent, each, li, p, ul } from '@craft-ts/component';
 
 export const Tasks = craftComponent(
   'Tasks',

@@ -20,7 +20,7 @@ import {
   insertSelectFormTree,
   setupCraftServiceTest,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   craftComponent,
   div,

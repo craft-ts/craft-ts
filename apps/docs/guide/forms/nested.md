@@ -64,14 +64,14 @@ the group path on an enclosing `fieldExceptionBlock`. See
 Exposes a derived sub-form from a parent value through a lens. This is useful when the form field is not stored as a nested object in the state, but can still be read and written from the parent value.
 
 ```ts
-import { state } from '@craft-ng/core';
+import { state } from '@craft-ts/core';
 import {
   insertForm,
   insertFormAttributes,
   insertSubFormField,
   splitLens,
   cRequired,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { appointmentFormState } = state(
   'appointmentFormState',

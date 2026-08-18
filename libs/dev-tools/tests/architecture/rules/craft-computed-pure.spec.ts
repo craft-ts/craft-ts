@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertCraftComputedPure } from '@craft-ng/dev-tools';
+import { assertCraftComputedPure } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('assertCraftComputedPure', () => {

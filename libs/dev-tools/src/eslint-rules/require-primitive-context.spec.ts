@@ -12,7 +12,7 @@ const rule = require('./require-primitive-context.cjs');
 describe('require-primitive-context', () => {
   it('reports a consumed primitive created at module scope', async () => {
     const result = await lint(`
-      import { craftUse, state } from '@craft-ng/core';
+      import { craftUse, state } from '@craft-ts/core';
 
       const records = craftUse(state('records', []));
     `);
@@ -25,7 +25,7 @@ describe('require-primitive-context', () => {
 
   it('allows primitives inside Craft hosts', async () => {
     const result = await lint(`
-      import { craftComponent } from '@craft-ng/component';
+      import { craftComponent } from '@craft-ts/component';
       import {
         craftGen,
         craftRoute,
@@ -34,7 +34,7 @@ describe('require-primitive-context', () => {
         mutation,
         query,
         state,
-      } from '@craft-ng/core';
+      } from '@craft-ts/core';
 
       const component = craftComponent('Component', {}, () => state('value', 0), () => []);
       const service = craftService({ name: 'Service', scope: 'global' }, function* () {
@@ -57,7 +57,7 @@ describe('require-primitive-context', () => {
 
   it('does not report readers, local functions, or nested primitive configuration', async () => {
     const result = await lint(`
-      import { query, state } from '@craft-ng/core';
+      import { query, state } from '@craft-ts/core';
 
       const local = (value) => value;
       const read = ({ state }) => state().value;

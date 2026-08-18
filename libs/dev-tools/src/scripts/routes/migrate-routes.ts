@@ -520,7 +520,7 @@ function hasAngularGuard(
     }
     found = true;
     if (Node.isArrayLiteralExpression(guard) && guard.getElements().length > 1) {
-      diagnose(context, 'MULTIPLE_GUARDS_REQUIRE_COMPOSITION', routePath, `${guardName} contient plusieurs guards ; leur composition craft-ng est une décision métier.`);
+      diagnose(context, 'MULTIPLE_GUARDS_REQUIRE_COMPOSITION', routePath, `${guardName} contient plusieurs guards ; leur composition craft-ts est une décision métier.`);
     } else {
       diagnose(context, 'ANGULAR_GUARD_REQUIRES_REWRITE', routePath, `${guardName} doit être réécrit en générateur craft (function* () {}).`);
     }
@@ -739,7 +739,7 @@ function addDiCheck(
 function ensureValueImport(
   sourceFile: SourceFile,
   name: string,
-  moduleSpecifier = '@craft-ng/core',
+  moduleSpecifier = '@craft-ts/core',
 ): void {
   let declaration = sourceFile
     .getImportDeclarations()
@@ -754,7 +754,7 @@ function ensureValueImport(
 function ensureTypeImport(
   sourceFile: SourceFile,
   name: string,
-  moduleSpecifier = '@craft-ng/core',
+  moduleSpecifier = '@craft-ts/core',
 ): void {
   const alreadyImported = sourceFile.getImportDeclarations().some(
     (item) =>

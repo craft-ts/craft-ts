@@ -12,7 +12,7 @@ export { type SendContextPayload };
 /**
  * Collects app snapshot reports so the AI overlay has something to send.
  *
- * The overlay UI itself lives in `@craft-ng/component` (it is built with
+ * The overlay UI itself lives in `@craft-ts/component` (it is built with
  * `craftComponent`, which depends on this package).
  */
 export type SendContextToAiBuffer = {

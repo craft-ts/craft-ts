@@ -1,6 +1,6 @@
 # Migrating an Angular application
 
-`craft-migrate` runs the Craft NG codemods in their required order:
+`craft-migrate` runs the CraftTS codemods in their required order:
 
 1. Angular signals and primitive migration points
 2. Angular services and their consumers
@@ -15,8 +15,8 @@ reported as a manual diagnostic.
 ## Install the migration tool
 
 ```shell
-npm install @craft-ng/core
-npm install --save-dev @craft-ng/dev-tools@beta
+npm install @craft-ts/core
+npm install --save-dev @craft-ts/dev-tools@beta
 ```
 
 The migration binaries are available starting with `0.5.1-beta.0` and are
@@ -25,15 +25,15 @@ versions do not include `craft-migrate`. If the package was installed before
 that release, update it and verify the resolved version:
 
 ```shell
-npm install --save-dev @craft-ng/dev-tools@beta
-npm ls @craft-ng/dev-tools
+npm install --save-dev @craft-ts/dev-tools@beta
+npm ls @craft-ts/dev-tools
 ```
 
 Point the coding agent at [coding agents](/resources/ai-agents) so it uses
-`craft-migrate` through the `migrate-to-ng-craft` skill instead of rewriting
+`craft-migrate` through the `migrate-to-craft-ts` skill instead of rewriting
 the app by hand. Step 5 scaffolds the
 [architecture suite](/guide/testing/architecture) as the graph contract — load
-`ng-craft-architecture-tests` if that folder is missing. Do not add an
+`craft-ts-architecture-tests` if that folder is missing. Do not add an
 architecture rule for each migrated feature.
 
 Commit or stash the current application changes before writing a migration.
@@ -112,7 +112,7 @@ particular, complete the following work before considering the migration done:
 - Consume every primitive invocation (`state`, `query`, `mutation`,
   `asyncProcess`, `queryParams`): `yield*` inside a generator factory,
   `craftUse(...)` in a component field. The
-  `craft-ng/require-primitive-generator-unwrap` ESLint rule reports and
+  `craft-ts/require-primitive-generator-unwrap` ESLint rule reports and
   autofixes the remaining bare calls, and
   `migrate-primitive-generators --paths <glob>` migrates whole directories.
 - Map synchronous validators to `cRequired`, `cMaxLength`, and the other Craft

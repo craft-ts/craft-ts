@@ -35,13 +35,13 @@ import {
   Cookies,
   LocalStorage,
   SessionStorage,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ```
 
 When you need to derive methods for later reuse, each boundary also exposes the usual generated helpers:
 
 ```typescript
-import { ConsoleService, CONSOLE_SERVICE_META_DATA } from '@craft-ng/core';
+import { ConsoleService, CONSOLE_SERVICE_META_DATA } from '@craft-ts/core';
 ```
 
 The same pattern exists for the other boundaries:

@@ -5,9 +5,9 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region appconfig
-import { craftAppConfig } from '@craft-ng/core';
+import { craftAppConfig } from '@craft-ts/core';
 
-import { Console, craftService, onAppStart } from '@craft-ng/core';
+import { Console, craftService, onAppStart } from '@craft-ts/core';
 
 const { AppStartLog } = craftService(
   {
@@ -26,8 +26,8 @@ const { AppStartLog } = craftService(
 );
 
 // register the current service to the AppStartRegistry
-// it is auto-generated when used with the craft-ng ESLint plugin
-declare module '@craft-ng/core' {
+// it is auto-generated when used with the craft-ts ESLint plugin
+declare module '@craft-ts/core' {
   interface CraftAppStartRegistry {
     AppStartLog: typeof AppStartLog;
   }

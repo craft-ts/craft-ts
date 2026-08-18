@@ -21,9 +21,9 @@ import {
   type RequiredContent,
   heading,
   headingSection,
-} from '@craft-ng/component';
-import type { Input } from '@craft-ng/component';
-import { craftComputed, state } from '@craft-ng/core';
+} from '@craft-ts/component';
+import type { Input } from '@craft-ts/component';
+import { craftComputed, state } from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;

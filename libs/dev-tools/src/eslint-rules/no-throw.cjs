@@ -1,4 +1,4 @@
-const CORE_MODULE = '@craft-ng/core';
+const CORE_MODULE = '@craft-ts/core';
 const CRAFT_EXCEPTION_NAME = 'craftException';
 const DEFAULT_EXCEPTION_CODE = 'UNEXPECTED_ERROR';
 

@@ -1,5 +1,5 @@
 import { beforeAll, describe, it } from 'vitest';
-import { assertCraftEffectNoImperativeSync } from '@craft-ng/dev-tools';
+import { assertCraftEffectNoImperativeSync } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from '../load-graph';
 
 describe('assertCraftEffectNoImperativeSync', () => {

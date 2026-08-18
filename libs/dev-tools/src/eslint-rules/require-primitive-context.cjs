@@ -33,8 +33,8 @@ const CORE_IMPORTS = new Set([
 ]);
 
 const COMPONENT_IMPORTS = new Set(['craftComponent']);
-const CORE_MODULES = new Set(['@craft-ng/core']);
-const COMPONENT_MODULES = new Set(['@craft-ng/component']);
+const CORE_MODULES = new Set(['@craft-ts/core']);
+const COMPONENT_MODULES = new Set(['@craft-ts/component']);
 
 module.exports = {
   meta: {

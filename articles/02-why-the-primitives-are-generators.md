@@ -3,12 +3,12 @@ title: 'Your Angular dependency graph is invisible. Generators are how I made th
 published: false
 description: 'inject() tells the type system nothing about what a service needs. This is what changes when every dependency goes through yield* instead — and what it costs.'
 tags: angular, typescript, webdev, testing
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---
 
-In [the first article](#) I showed a craft-ng service and asked you to look past the one thing that probably bothered you:
+In [the first article](#) I showed a craft-ts service and asked you to look past the one thing that probably bothered you:
 
 ```typescript
 const tasks = yield* query('tasksQuery', {
@@ -62,7 +62,7 @@ A generator is a function that can hand control back to whoever called it, mid-e
 
 Which means a generator body has something a normal function body does not: **a channel to its caller**.
 
-craft-ng uses that channel for exactly one thing. Every `yield*` is a service or a primitive saying *"I need this"*, and a driver on the other side resolves it:
+craft-ts uses that channel for exactly one thing. Every `yield*` is a service or a primitive saying *"I need this"*, and a driver on the other side resolves it:
 
 ```typescript
 const { TaskList } = craftService(
@@ -89,7 +89,7 @@ Because a route knows the full dependency set of what it renders, providing that
 
 This is the payoff I did not anticipate when I started, and it is now my favourite part.
 
-Most test setups let you forget a dependency and find out at runtime. craft-ng inverts it: you hand over a **register** covering the whole graph, and the compiler refuses to run the test until every node is accounted for.
+Most test setups let you forget a dependency and find out at runtime. craft-ts inverts it: you hand over a **register** covering the whole graph, and the compiler refuses to run the test until every node is accounted for.
 
 ```typescript
 const { sut, mocks } = await setupCraftServiceTestingByRegister(
@@ -156,7 +156,7 @@ I would rather you hear these from me than discover them on day two.
 
 **A primitive invocation is single-use.** Each call produces one generator, to be consumed exactly once. Store one and `yield*` it twice and you get a bug that reads like a reactivity problem but is not.
 
-**You cannot mix in `inject()`.** It works at runtime, and that is precisely the trap: the dependency is invisible to every check that makes this worth doing. The graph is silently wrong, the test register is silently incomplete, and nothing complains. There is a `craft-ng/no-angular-inject` ESLint rule for exactly this reason, and if you adopt the library you should turn it on immediately.
+**You cannot mix in `inject()`.** It works at runtime, and that is precisely the trap: the dependency is invisible to every check that makes this worth doing. The graph is silently wrong, the test register is silently incomplete, and nothing complains. There is a `craft-ts/no-angular-inject` ESLint rule for exactly this reason, and if you adopt the library you should turn it on immediately.
 
 **Angular classes are still Angular classes.** In a `@Component` class there is no generator to yield from, so `craftUse(...)` drives a primitive from a class field instead. It works — it is the interop path — but a class field is the end of the graph, so there is nothing left to track past that point. Interop, not a second way of doing things.
 
@@ -164,7 +164,7 @@ I would rather you hear these from me than discover them on day two.
 
 I said it in the first article and it bears repeating: this comes from [Effect](https://effect.website). Generators as a way to get `async/await` ergonomics over something that is not a promise, and a type that carries what a computation *requires* rather than hiding it — both are theirs.
 
-What craft-ng takes is narrow on purpose. There is no runtime to adopt, no fibers, no `Layer`. The values are not wrapped: `tasks.value()` is a `Task[] | undefined` you read from an Angular template like any other signal. The generator is used for one job — making dependencies visible — and then it gets out of the way.
+What craft-ts takes is narrow on purpose. There is no runtime to adopt, no fibers, no `Layer`. The values are not wrapped: `tasks.value()` is a `Task[] | undefined` you read from an Angular template like any other signal. The generator is used for one job — making dependencies visible — and then it gets out of the way.
 
 ## So, is it worth it?
 

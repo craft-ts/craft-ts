@@ -1,5 +1,5 @@
 import { beforeAll, describe, it } from 'vitest';
-import { assertRouteDiProofs } from '@craft-ng/dev-tools';
+import { assertRouteDiProofs } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from '../load-graph';
 
 describe('assertRouteDiProofs', () => {

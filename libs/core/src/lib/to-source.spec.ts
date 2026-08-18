@@ -30,8 +30,8 @@ describe('toSource', () => {
 
     expect(myListener()).toBe('Hello World');
 
-    mySignal.set('Hello Ng-Craft');
-    expect(myListener()).toBe('Hello Ng-Craft');
+    mySignal.set('Hello CraftTS');
+    expect(myListener()).toBe('Hello CraftTS');
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
@@ -43,8 +43,8 @@ describe('toSource', () => {
     const myListener = computed(() => mySource());
     expect(myListener()).toBe(undefined);
 
-    mySignal.set('Hello Ng-Craft v2');
-    expect(myListener()).toBe('Hello Ng-Craft v2');
+    mySignal.set('Hello CraftTS v2');
+    expect(myListener()).toBe('Hello CraftTS v2');
   });
 
   it('A listener at n+1 should get the last value when using "preserveLastValue" config and listened and get data for the first time ', () => {
@@ -56,8 +56,8 @@ describe('toSource', () => {
     const myListener = computed(() => mySource.preserveLastValue());
     expect(myListener()).toBe('Hello World');
 
-    mySignal.set('Hello Ng-Craft v2');
-    expect(myListener()).toBe('Hello Ng-Craft v2');
+    mySignal.set('Hello CraftTS v2');
+    expect(myListener()).toBe('Hello CraftTS v2');
   });
 
   it('should generate a source and accepts a computed parameters', () => {
@@ -78,7 +78,7 @@ describe('toSource', () => {
 
     expect(myListener()).toBe('Hello World');
 
-    mySignal.set({ text: 'Hello Ng-Craft' });
-    expect(myListener()).toBe('Hello Ng-Craft');
+    mySignal.set({ text: 'Hello CraftTS' });
+    expect(myListener()).toBe('Hello CraftTS');
   });
 });

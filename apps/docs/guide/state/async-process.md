@@ -12,7 +12,7 @@ reactivity and mutation wiring on top.
 ## The common case
 
 ```typescript
-import { asyncProcess, craftComputed } from '@craft-ng/core';
+import { asyncProcess, craftComputed } from '@craft-ts/core';
 
 const { delay } =
   yield *
@@ -74,7 +74,7 @@ Use a [`source$`](/guide/reactivity/source) when the process should run on an
 event rather than on a call — which is also where debouncing belongs:
 
 ```typescript
-import { on$, source$ } from '@craft-ng/core';
+import { on$, source$ } from '@craft-ts/core';
 
 const searchSource = source$<string>('searchSource');
 

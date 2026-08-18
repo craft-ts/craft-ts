@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-3
-import { GlobalPersisterHandlerService, craftService } from '@craft-ng/core';
+import { GlobalPersisterHandlerService, craftService } from '@craft-ts/core';
 
 const { AccountSwitcher } = craftService(
   { name: 'AccountSwitcher', scope: 'toProvide' },

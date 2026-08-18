@@ -415,7 +415,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Craft NG — Dependency Explorer</title>
+  <title>CraftTS — Dependency Explorer</title>
   <style>
     :root {
       color-scheme: light;
@@ -579,7 +579,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand"><h1>Craft NG · Dependency Explorer</h1><p>Analyse statique AST + typage TypeScript</p></div>
+      <div class="brand"><h1>CraftTS · Dependency Explorer</h1><p>Analyse statique AST + typage TypeScript</p></div>
       <label class="search"><span>⌕</span><input id="search" type="search" placeholder="Rechercher une route, un composant, un service…" aria-label="Rechercher"></label>
       <div class="stats" id="stats"></div>
     </header>

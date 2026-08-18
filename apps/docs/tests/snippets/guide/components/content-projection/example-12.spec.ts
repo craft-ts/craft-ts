@@ -11,7 +11,7 @@ import {
   footer,
   input,
   renderContent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 craftComponent(
   'InvalidStyles',

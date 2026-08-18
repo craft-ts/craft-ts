@@ -84,7 +84,7 @@ export const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol(
 );
 export const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
 const SERVICE_RUNTIME_META_GLOBAL = Symbol.for(
-  '@craft-ng/core/service-runtime-meta',
+  '@craft-ts/core/service-runtime-meta',
 );
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 const REGISTERED_SERVICES = new Map<string, ServiceReference>();
@@ -2239,7 +2239,7 @@ type ConcreteRuntimeDefinition = {
   startedAppStartServices: Set<unknown>;
 };
 
-const OMIT_INPUTS_BINDINGS = Symbol('ng-craft.omit-inputs-bindings');
+const OMIT_INPUTS_BINDINGS = Symbol('craft-ts.omit-inputs-bindings');
 type ConcreteServiceBindings =
   | Record<string, unknown>
   | typeof OMIT_INPUTS_BINDINGS;
@@ -2465,7 +2465,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapt `Router` as a global dependency
  * ```ts
  * import { Router } from './host/craft-router-types';
- * import { toCraftService } from '@craft-ng/angular';
+ * import { toCraftService } from '@craft-ts/angular';
  *
  * const { Router } = toCraftService({
  *   name: 'Router',
@@ -2478,7 +2478,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapt an injected token through the callback form
  * ```ts
  * import { inject, InjectionToken } from './host/craft-compat';
- * import { toCraftService } from '@craft-ng/angular';
+ * import { toCraftService } from '@craft-ts/angular';
  *
  * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
  *
@@ -2493,7 +2493,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapt a provider-capable dependency for explicit test coverage
  * ```ts
  * import { Router, provideRouter } from './host/craft-router-types';
- * import { toCraftService } from '@craft-ng/angular';
+ * import { toCraftService } from '@craft-ts/angular';
  *
  * const { provideAppRouter, AppRouterToProvide } = toCraftService({
  *   name: 'AppRouter',
@@ -2964,7 +2964,7 @@ export function ɵtoCraftService(
  * @example
  * Create a global callable counter service
  * ```ts
- * import { craftService, state } from '@craft-ng/core';
+ * import { craftService, state } from '@craft-ts/core';
  *
  * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'global' },
@@ -3025,7 +3025,7 @@ export function ɵtoCraftService(
  * @example
  * Build a global utility around a browser boundary dependency
  * ```ts
- * import { LocalStorageService, craftService } from '@craft-ng/core';
+ * import { LocalStorageService, craftService } from '@craft-ts/core';
  *
  * const { GlobalPersisterHandlerService } = craftService(
  *   { name: 'GlobalPersisterHandlerService', scope: 'global' },
@@ -3045,7 +3045,7 @@ export function ɵtoCraftService(
  *
  *         for (let index = 0; index < storage.length(); index++) {
  *           const keyName = storage.key(index);
- *           if (keyName?.startsWith('ng-craft-')) {
+ *           if (keyName?.startsWith('craft-ts-')) {
  *             keysToRemove.push(keyName);
  *           }
  *         }

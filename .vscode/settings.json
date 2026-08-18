@@ -5,7 +5,7 @@
     "mkdir": true
   },
   // Flat config resolves from the cwd only, so the ESLint extension must run
-  // per nx project — otherwise the root eslint.config.mjs (no craft-ng rules)
-  // is used everywhere and craft-ng/* diagnostics + quick fixes never appear.
+  // per nx project — otherwise the root eslint.config.mjs (no craft-ts rules)
+  // is used everywhere and craft-ts/* diagnostics + quick fixes never appear.
   "eslint.workingDirectories": [{ "pattern": "apps/*/" }, { "pattern": "libs/*/" }]
 }

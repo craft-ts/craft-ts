@@ -15,10 +15,10 @@ import {
   type CanRun,
   type ComponentDepsOf,
   type RouteCheckedDI,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   loadCraftComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 // --- Slow guard + slow resolve demo (non-blocking outlet) -------------------
 // Two deliberately slow async steps (~1.5s each) used to showcase

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { CraftRouter } from '@craft-ng/core';
+import type { CraftRouter } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
@@ -10,7 +10,7 @@ import {
   craftRoutes,
   type CanRun,
   type ValidateCascadeRoutesFile,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
   /* routes */

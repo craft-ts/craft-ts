@@ -11,7 +11,7 @@ import type { CraftDomAdapter } from './host/craft-dom';
 
 /** Runtime marker shared by core-authored DOM directives and the Craft renderer. */
 export const CRAFT_NODE_DIRECTIVE = Symbol.for(
-  '@craft-ng/core/craft-node-directive',
+  '@craft-ts/core/craft-node-directive',
 );
 
 /** Creates a reactive effect owned by the current node-directive mount. */

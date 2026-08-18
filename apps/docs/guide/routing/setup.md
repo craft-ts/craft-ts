@@ -8,7 +8,7 @@ proofs from quietly disappearing.
 **Do this once per app**, then let [the CLI](/guide/routing/automation) write
 new routes for you.
 
-This guide assumes an app that consumes `@craft-ng/core`.
+This guide assumes an app that consumes `@craft-ts/core`.
 
 ::: tip Prefer the guided version
 [Learn step 9](/learn/09-routing) walks through the same setup on a single
@@ -20,8 +20,8 @@ route, with the reasoning attached.
 Install the runtime package and the dev tooling in your app:
 
 ```bash
-npm install @craft-ng/core
-npm install -D @craft-ng/dev-tools
+npm install @craft-ts/core
+npm install -D @craft-ts/dev-tools
 ```
 
 ## 1. Add a cascade DI check to every routes file
@@ -58,7 +58,7 @@ update both the import and every call site.
 :::
 
 ```ts
-import { craftRoute, craftRoutes } from '@craft-ng/core';
+import { craftRoute, craftRoutes } from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
   craftRoute('', {
@@ -112,7 +112,7 @@ paths without mutating files, so business logic is never guessed.
 Then wire the crafted routes into your application config:
 
 ```ts
-import { craftAppConfig, provideCraftRouter } from '@craft-ng/core';
+import { craftAppConfig, provideCraftRouter } from '@craft-ts/core';
 import { appRoutes } from './app.routes';
 
 export const appConfig = craftAppConfig({
@@ -130,7 +130,7 @@ Notes:
   (`withErrorComponent`, `withRouteLoadError`, `withTransitionTimings`, …) in
   the same call, e.g.
   `provideCraftRouter(appRoutes.toRoutes(), withErrorComponent({ component: MyGlobalErrorScreen }))`.
-- Render `CraftRouterOutlet()` from `@craft-ng/component` inside your Craft
+- Render `CraftRouterOutlet()` from `@craft-ts/component` inside your Craft
   component tree: the URL commits immediately and the outlet drives the
   pending UI and centralised exception handling.
   (The features also work standalone via `provideCraftLoading(...)`.)
@@ -218,8 +218,8 @@ Typical triggers:
 Recommended workflow:
 
 - first generation or bulk refactor: `npm run craft:brand`
-- one file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`
-- one file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`
+- one file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-gen-deps-required`
+- one file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-deps-match`
 - CLI alternative for one file: `eslint --fix src/app/feature/my-component.ts`
 
 Important limits:

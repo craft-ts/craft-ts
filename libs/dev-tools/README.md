@@ -1,18 +1,18 @@
-# @craft-ng/dev-tools
+# @craft-ts/dev-tools
 
-Development tools for ng-craft: ESLint configs, ESLint rules, and codemods.
+Development tools for craft-ts: ESLint configs, ESLint rules, and codemods.
 
 ## Installation
 
 ### Depuis npm (après publication)
 
 ```bash
-npm install -D @craft-ng/dev-tools@beta
+npm install -D @craft-ts/dev-tools@beta
 ```
 
 For coding agents (docs search, best practices, Agent Skills), also install
-[`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp) — see
-[coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents).
+[`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp) — see
+[coding agents](https://craft-ts.github.io/craft/resources/ai-agents).
 
 ## Dev-tools configuration
 
@@ -21,7 +21,7 @@ For coding agents (docs search, best practices, Agent Skills), also install
 supported.
 
 ```ts
-import { defineCraftDevToolsConfig } from '@craft-ng/dev-tools';
+import { defineCraftDevToolsConfig } from '@craft-ts/dev-tools';
 
 export default defineCraftDevToolsConfig({
   brand: {
@@ -191,7 +191,7 @@ import {
   assertDeclarativeArchitecture,
   assertRouteDiProofs,
   assertInteractiveElementNamed,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 import { architectureCatalog } from './craft-dependency-graph.architecture';
 
 const graph = createArchitectureGraph(
@@ -310,18 +310,18 @@ writes:
 
 ```bash
 # Nx workspace
-npx nx g @craft-ng/dev-tools:route /users/:userId \
+npx nx g @craft-ts/dev-tools:route /users/:userId \
   --project=my-app \
   --create-component=users/UserDetail
 
-npx nx g @craft-ng/dev-tools:route-split \
+npx nx g @craft-ts/dev-tools:route-split \
   --project=my-app \
   --parent=apps/my-app/src/app/app.routes.ts#appRoutes \
   --prefix=users \
   --target=apps/my-app/src/app/users/users.routes.ts
 
 # Angular CLI workspace
-npx ng g @craft-ng/dev-tools:route /users/:userId \
+npx ng g @craft-ts/dev-tools:route /users/:userId \
   --project=my-app \
   --create-component=users/UserDetail
 ```
@@ -392,36 +392,36 @@ reject remaining legacy collections. Lazy collections can declare their mount
 context with `--parent-mount <path>` and `--parent-names <name,...>`.
 
 ```bash
-import craftRules from '@craft-ng/dev-tools/eslint-rules';
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
 
 export default [
   {
     plugins: {
-      'craft-ng': craftRules
+      'craft-ts': craftRules
     },
     rules: {
-      'craft-ng/prefer-craft-template-blocks': 'error',
-      'craft-ng/no-imperative-craft-resource-trigger': 'error',
-      'craft-ng/require-craft-resource-trigger-yield': 'error',
-      'craft-ng/no-craft-computed-side-effects': 'error',
-      'craft-ng/require-craft-method-for-yieldable-callback': 'error',
-      'craft-ng/prefer-direct-yieldable-callback': 'error',
-      'craft-ng/require-yieldable-reactive-read': 'error',
-      'craft-ng/require-yieldable-template-method': 'error',
-      'craft-ng/require-yieldable-insertion-write': 'error',
-      'craft-ng/prefer-craft-http-transport': 'error',
-      'craft-ng/require-primitive-derived-property': 'error',
-      'craft-ng/no-async-await': 'error',
-      'craft-ng/prefer-browser-boundaries': 'error',
-      'craft-ng/require-lazy-load-with-retry': 'error',
-      'craft-ng/require-cascade-route-di-check': 'error',
+      'craft-ts/prefer-craft-template-blocks': 'error',
+      'craft-ts/no-imperative-craft-resource-trigger': 'error',
+      'craft-ts/require-craft-resource-trigger-yield': 'error',
+      'craft-ts/no-craft-computed-side-effects': 'error',
+      'craft-ts/require-craft-method-for-yieldable-callback': 'error',
+      'craft-ts/prefer-direct-yieldable-callback': 'error',
+      'craft-ts/require-yieldable-reactive-read': 'error',
+      'craft-ts/require-yieldable-template-method': 'error',
+      'craft-ts/require-yieldable-insertion-write': 'error',
+      'craft-ts/prefer-craft-http-transport': 'error',
+      'craft-ts/require-primitive-derived-property': 'error',
+      'craft-ts/no-async-await': 'error',
+      'craft-ts/prefer-browser-boundaries': 'error',
+      'craft-ts/require-lazy-load-with-retry': 'error',
+      'craft-ts/require-cascade-route-di-check': 'error',
     }
   }
 ];
 ```
 
 ```bash
-const craftRules = require('@craft-ng/dev-tools/eslint-rules');
+const craftRules = require('@craft-ts/dev-tools/eslint-rules');
 
 module.exports = defineConfig([
   {
@@ -434,7 +434,7 @@ module.exports = defineConfig([
     ],
     processor: angular.processInlineTemplates,
     plugins: {
-      'craft-ng': craftRules,
+      'craft-ts': craftRules,
     },
     rules: {
       '@angular-eslint/directive-selector': [
@@ -454,8 +454,8 @@ module.exports = defineConfig([
         },
       ],
       '@typescript-eslint/consistent-type-definitions': 'off',
-      'craft-ng/prefer-craft-http-transport': 'error',
-      'craft-ng/prefer-browser-boundaries': 'error',
+      'craft-ts/prefer-craft-http-transport': 'error',
+      'craft-ts/prefer-browser-boundaries': 'error',
     },
   },
   {
@@ -472,25 +472,25 @@ module.exports = defineConfig([
 
 Use two refresh flows:
 
-- Current file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`, or run `eslint --fix path/to/file.ts`
-- Current file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`, or run `eslint --fix path/to/file.ts`
+- Current file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-gen-deps-required`, or run `eslint --fix path/to/file.ts`
+- Current file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-deps-match`, or run `eslint --fix path/to/file.ts`
 - Bulk refresh: run `craft-brand --root <source-root>`
 
 Recommended workflow:
 
 - after changing `inject(...)`, constructor injection, component `imports`, `providers`, or `viewProviders`, run the Quick Fix for the current file
 - when doing a larger refactor or upgrading a whole app/lib, run `craft-brand --root <source-root>`
-- when a browser API already exists in `@craft-ng/core/browser-boundaries`, enable `craft-ng/prefer-browser-boundaries` to prevent direct access to `window`, `document`, `localStorage`, `console`, and similar globals
+- when a browser API already exists in `@craft-ts/core/browser-boundaries`, enable `craft-ts/prefer-browser-boundaries` to prevent direct access to `window`, `document`, `localStorage`, `console`, and similar globals
 
 Notes:
 
 - the ESLint Quick Fix can generate a missing alias or refresh an existing one, but only for the current file
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`
-- `craft-ng/no-angular-inject` now targets raw Angular `inject()` only
-- `craft-ng/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
-- `craft-ng/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
-- `craft-ng/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
-- `craft-ng/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`
-- `craft-ng/require-primitive-derived-property` keeps a value derived from one local primitive on that primitive's insertion, and autofixes simple cases
-- `craft-ng/no-async-await` forbids `async`, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient`
-- `craft-ng/prefer-craft-service` and `craft-ng/prefer-craft-http-client` also expose a VS Code Quick Fix suggestion that inserts a temporary local disable comment annotated with the intended migration target
+- `craft-ts/no-angular-inject` now targets raw Angular `inject()` only
+- `craft-ts/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
+- `craft-ts/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
+- `craft-ts/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
+- `craft-ts/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ts/component` in `craftComponent(...)`
+- `craft-ts/require-primitive-derived-property` keeps a value derived from one local primitive on that primitive's insertion, and autofixes simple cases
+- `craft-ts/no-async-await` forbids `async`, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient`
+- `craft-ts/prefer-craft-service` and `craft-ts/prefer-craft-http-client` also expose a VS Code Quick Fix suggestion that inserts a temporary local disable comment annotated with the intended migration target

@@ -1,4 +1,4 @@
-import { TestBed } from '@craft-ng/core';
+import { TestBed } from '@craft-ts/core';
 import { beforeAll, beforeEach } from 'vitest';
 
 export const useSnippetHarness = () => {

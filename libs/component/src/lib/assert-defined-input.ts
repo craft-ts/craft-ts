@@ -4,7 +4,7 @@ import {
   isCraftGenShortCircuit,
   type CatchTagExhaustiveCodesCheck,
   type CraftExceptionResult,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { CraftInputExceptionsCarrier, Input } from './types';
 
 export const CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE =

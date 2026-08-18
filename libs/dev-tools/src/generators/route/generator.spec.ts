@@ -267,7 +267,7 @@ import {
   craftRoutes,
   type CanRun,
   type ValidateCascadeRoutesFile,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { Router } from '@angular/router';
 
 export const { appRoutes } = craftRoutes('app', [${routes}]);
@@ -280,7 +280,7 @@ type _CanRunApp = CanRun<_CheckAppDI>;
 function component(className: string): string {
   return `
 import { Component } from '@angular/core';
-import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { type GetDeps, type GetPublicComponentProperties } from '@craft-ts/core';
 
 @Component({ selector: 'app-user-detail', template: '' })
 export class ${className} {}

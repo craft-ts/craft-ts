@@ -1,12 +1,12 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
   div,
   p,
   heading,
-} from '@craft-ng/component';
-import { craftService, state } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { craftService, state } from '@craft-ts/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },

@@ -6,7 +6,7 @@ import {
   ɵinject as inject,
   ɵrunInInjectionContext as runInInjectionContext,
   type CraftInjector,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { mountCraftComponent } from './bridge';
 import { CRAFT_ROOT_COMPONENT } from './craft-host-tokens';
 import type { CraftComponent } from './types';

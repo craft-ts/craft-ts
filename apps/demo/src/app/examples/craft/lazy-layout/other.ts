@@ -2,13 +2,13 @@ import {
   craftComponent,
   div,
   p,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftException,
   CraftHttpClient,
   craftService,
   query,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { User } from '../query/api.service';
 import { OtherService, provideOtherService } from './to-provide.service';
 

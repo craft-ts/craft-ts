@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -11,7 +11,7 @@ import {
   label,
   p,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   cEmail,
   cMinLength,
@@ -26,7 +26,7 @@ import {
   mutation,
   state,
   type ValidatedFormValue,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 type LoginData = {
   email: string;

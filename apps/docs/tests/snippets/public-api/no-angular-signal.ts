@@ -1,1 +1,1 @@
-import { Signal } from '@craft-ng/core';
+import { Signal } from '@craft-ts/core';

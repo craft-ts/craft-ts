@@ -72,9 +72,9 @@ Yield only what you use: `yield* TaskApi.fetchAll()` records one property
 instead of the whole service, which is what keeps test registers small. See
 [Shaping the public API](/guide/app/expose-api).
 
-The `craft-ng/require-yieldable-reactive-read`,
-`craft-ng/require-yieldable-insertion-write` and
-`craft-ng/require-yieldable-template-method` ESLint rules enforce this. See
+The `craft-ts/require-yieldable-reactive-read`,
+`craft-ts/require-yieldable-insertion-write` and
+`craft-ts/require-yieldable-template-method` ESLint rules enforce this. See
 [ESLint rules](/guide/routing/eslint-rules).
 
 ## `craftGen` — a tracked generator outside a service
@@ -96,7 +96,7 @@ flags, onboarding gates.
 ### The common case
 
 ```typescript
-import { craftException, craftGen } from '@craft-ng/core';
+import { craftException, craftGen } from '@craft-ts/core';
 
 export const roleGuard = craftGen(function* (...roles: Role[]) {
   const { user } = yield* Auth(undefined, ({ user }) => ({ user }));
@@ -158,7 +158,7 @@ consumed exactly once — don't store one and `yield*` it twice.
 
 **Mixing `inject` into a craft factory.** It works at runtime and is invisible to
 every check that makes this library worth using. The
-`craft-ng/no-angular-inject` ESLint rule exists for this.
+`craft-ts/no-angular-inject` ESLint rule exists for this.
 
 ## See Also
 

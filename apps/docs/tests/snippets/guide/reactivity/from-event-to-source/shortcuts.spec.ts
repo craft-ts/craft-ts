@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region shortcuts
-import { craftComponent, p } from '@craft-ng/component';
+import { craftComponent, p } from '@craft-ts/component';
 
 interface ShortcutEvent {
   key: string;

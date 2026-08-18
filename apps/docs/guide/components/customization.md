@@ -111,13 +111,13 @@ not return template children. Use `catchBlock.exhaustive` or
 `matchBlock.exhaustive` when the exception should produce DOM.
 
 ```ts
-import { abstract, craftException, craftService } from '@craft-ng/core';
+import { abstract, craftException, craftService } from '@craft-ts/core';
 import {
   catchTag,
   craftComponent,
   p,
   withProviders,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const noAccess = craftException({ code: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(

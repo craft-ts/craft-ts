@@ -288,7 +288,7 @@ import {
   architectureCatalogToTypeScript,
   buildArchitectureCatalog,
   createArchitectureGraph,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 import { architectureCatalog } from './catalog';
 
 const workspaceRoot = resolve(import.meta.dirname, '${context.workspaceFromArchitecture}');
@@ -335,7 +335,7 @@ describe('architecture', () => {
 
 function ruleSpecSource(rule: (typeof RULES)[number]): string {
   return `import { beforeAll, describe, it } from 'vitest';
-import { ${rule.helper} } from '@craft-ng/dev-tools';
+import { ${rule.helper} } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from '../load-graph';
 
 describe('${rule.describe}', () => {

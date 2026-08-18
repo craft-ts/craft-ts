@@ -1,6 +1,6 @@
 import {
   loadCraftComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftRoutes,
@@ -8,7 +8,7 @@ import {
   type ComponentDepsOf,
   type ParentRoutes,
   type RouteCheckedDI,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
   {

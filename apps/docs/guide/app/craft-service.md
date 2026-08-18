@@ -14,7 +14,7 @@ dependencies here are explicit and **type-visible**, which is what the route DI
 check and the test registers read.
 
 ```typescript
-import { craftService } from '@craft-ng/core';
+import { craftService } from '@craft-ts/core';
 ```
 
 Service inputs that can change should be consumed as yieldable readers
@@ -22,7 +22,7 @@ Service inputs that can change should be consumed as yieldable readers
 Yield them so the input-to-service edge stays in the dependency graph:
 
 ```typescript
-import { craftService, query, type CraftServiceInput } from '@craft-ng/core';
+import { craftService, query, type CraftServiceInput } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
@@ -85,7 +85,7 @@ import {
   craftService,
   query,
   type CraftServiceInput,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
@@ -109,7 +109,7 @@ import {
   query,
   state,
   type CraftServiceInput,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQueryWithState', scope: 'global' },
@@ -201,7 +201,7 @@ compiles.
 narrow thing; consumers that need more can yield more.
 
 **Calling `inject()` inside a craft factory.** It works and it is invisible to
-every check that makes this worthwhile. The `craft-ng/no-angular-inject` rule
+every check that makes this worthwhile. The `craft-ts/no-angular-inject` rule
 exists for exactly this.
 
 ## See Also

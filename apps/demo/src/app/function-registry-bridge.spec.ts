@@ -14,12 +14,12 @@ import { createFunctionRegistry } from './function-registry';
 import type {
   PrimitiveResourceRuntimeContext,
   StateMethodRuntimeContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   TestBed,
   ɵInjector as Injector,
   ɵrunInInjectionContext as runInInjectionContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 describe('function registry WebSocket bridge', () => {
   it('keeps a stable client id in tab storage', () => {

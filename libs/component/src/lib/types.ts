@@ -17,13 +17,13 @@ import type {
   DEEP_YIELDABLE,
   YIELDABLE_DEPENDENCY,
   YieldableReactiveValue,
-} from '@craft-ng/core';
-import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
+} from '@craft-ts/core';
+import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ts/core';
 import type {
   ɵRAW_REACTIVE_VALUE as RAW_REACTIVE_VALUE,
   REACTIVE_VALUE_TYPE,
   YIELDABLE_VALUE,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { HostProps } from './hyperscript';
 import type { StaticLocatorCriteria } from './locator';
 import type {

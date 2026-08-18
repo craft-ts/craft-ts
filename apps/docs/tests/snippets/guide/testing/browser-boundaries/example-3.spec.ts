@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-3
-import { Console, craftService } from '@craft-ng/core';
+import { Console, craftService } from '@craft-ts/core';
 
 const { BootLogger } = craftService(
   { name: 'BootLogger', scope: 'global' },

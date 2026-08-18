@@ -187,7 +187,7 @@ describe('services migration', () => {
       }),
       'wizard.ts': `
         import { Service } from '@angular/core';
-        import { state } from '@craft-ng/core';
+        import { state } from '@craft-ts/core';
         @Service({ autoProvided: false })
         export class CheckoutWizard {
           // CRAFT_IMPERATIVE_CODE_DETECTED: imperative code detected, prefer a declarative approach.
@@ -417,7 +417,7 @@ describe('services migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'craft-dev-tools.config.ts': `
-        import { defineCraftDevToolsConfig } from '@craft-ng/dev-tools';
+        import { defineCraftDevToolsConfig } from '@craft-ts/dev-tools';
         export default defineCraftDevToolsConfig({
           brand: { importAugmentations: [{ match: { module: 'pkg' }, deps: [{ key: 'Box', symbol: 'Box', typeText: 'Box<string>' }] }] },
           serviceMigration: { overrides: [{ symbol: 'ApiService', name: 'Backend', scope: 'manuallyProvidedAtRoot' }] },
@@ -577,7 +577,7 @@ describe('services migration', () => {
     expect(output).toContain('const _products = yield* query({');
     expect(output).toContain('yield* CraftHttpClient.request');
     expect(output).not.toMatch(
-      /import\s*\{[^}]*\btrack\b[^}]*\}\s*from '@craft-ng\/core'/,
+      /import\s*\{[^}]*\btrack\b[^}]*\}\s*from '@craft-ts\/core'/,
     );
   });
 
@@ -663,7 +663,7 @@ describe('services migration', () => {
     expect(page).toContain('const orderApi = yield* OrderApi();');
     expect(page).toContain('return yield* orderApi.createOrder(params);');
     expect(page).toContain('this.createOrderMutation.mutate(data)');
-    expect(page).toContain("from '@craft-ng/core'");
+    expect(page).toContain("from '@craft-ts/core'");
     expect(page).toContain("from './orders'");
   });
 

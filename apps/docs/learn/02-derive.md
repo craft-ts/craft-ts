@@ -35,7 +35,7 @@ import {
   input,
   li,
   ul,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 export const Tasks = craftComponent(
   'Tasks',

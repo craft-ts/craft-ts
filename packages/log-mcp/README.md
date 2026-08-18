@@ -1,6 +1,6 @@
 # Logs MCP server
 
-Exposes the JSONL files written by [`@ng-craft/log-server`](../../apps/log-server/README.md)
+Exposes the JSONL files written by [`@craft-ts/log-server`](../../apps/log-server/README.md)
 to an AI model over MCP stdio. It only reads the files — it never talks to the
 browser or to the ingestion server.
 
@@ -11,10 +11,10 @@ npm run logs:mcp
 Register it with Claude Code:
 
 ```bash
-claude mcp add ng-craft-logs -- node /absolute/path/to/ng-craft/packages/log-mcp/dist/main.js
+claude mcp add craft-ts-logs -- node /absolute/path/to/craft-ts/packages/log-mcp/dist/main.js
 ```
 
-Run `npm run build --workspace @ng-craft/log-mcp` once beforehand, and set
+Run `npm run build --workspace @craft-ts/log-mcp` once beforehand, and set
 `LOG_SERVER_DIR` in the MCP entry if the log server does not write to
 `<cwd>/.logs`.
 

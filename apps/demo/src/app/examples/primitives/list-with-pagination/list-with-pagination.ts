@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
@@ -15,7 +15,7 @@ import {
   tr,
   table,
   tbody,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   insertStoragePersister,
   craftUnique,
@@ -25,7 +25,7 @@ import {
   query,
   queryParams,
   craftComputed,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';

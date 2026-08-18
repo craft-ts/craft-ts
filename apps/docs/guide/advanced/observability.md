@@ -13,14 +13,14 @@ The same DI system that powers `craftService` also lets you cross-cut every craf
 
 ## Mental Model
 
-`craft-ng` distinguishes two kinds of failures:
+`craft-ts` distinguishes two kinds of failures:
 
 - **Expected errors**: handled explicitly with [`craftException`](/guide/app/craft-service) in your business code.
 - **Unexpected errors**: bugs. They should never happen — and if they do, they should never happen _again_.
 
 Unexpected errors are exactly where observability shines. Since they are supposed to be impossible, you want to capture the maximum amount of context the moment one is thrown: stack, app state, correlation chain, etc. That context can then be shipped to a log server, an alerting pipeline, or directly to an AI webhook for triage.
 
-The three pillars `craft-ng` exposes for that are:
+The three pillars `craft-ts` exposes for that are:
 
 - [`provideFnWrapper`](#providefnwrapper) — wrap every crafted function with cross-cutting behavior
 - [`provideTemplateTrace`](#providetemplatetrace) — observe effective component and template renders
@@ -32,12 +32,12 @@ The three pillars `craft-ng` exposes for that are:
 
 ## `provideFnWrapper`
 
-`provideFnWrapper` lets you wrap **every** generator-based function executed by `craft-ng` (services, methods, async processes, queries, mutations, effects…). It is the single best entry point to add cross-cutting side effects.
+`provideFnWrapper` lets you wrap **every** generator-based function executed by `craft-ts` (services, methods, async processes, queries, mutations, effects…). It is the single best entry point to add cross-cutting side effects.
 
 Basic use case — log any unexpected error to the console:
 
 ```ts
-import { craftAppConfig, provideFnWrapper, Console } from '@craft-ng/core';
+import { craftAppConfig, provideFnWrapper, Console } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   // ...
@@ -67,7 +67,7 @@ effective render, including component templates, reactive updates, blocks,
 projections, deferred branches, and nested callbacks.
 
 ```ts
-import { provideTemplateTrace } from '@craft-ng/core';
+import { provideTemplateTrace } from '@craft-ts/core';
 
 provideTemplateTrace((context, next) => {
   const start = performance.now();
@@ -100,7 +100,7 @@ Craft outlet's non-blocking route chain. The latter exposes `match`, `guard`,
 and `resolve` stages, including reactive guard re-evaluation.
 
 ```ts
-import { provideCraftRouterTrace } from '@craft-ng/core';
+import { provideCraftRouterTrace } from '@craft-ts/core';
 
 provideCraftRouterTrace((context, next) => {
   console.log('[router:start]', context);
@@ -121,7 +121,7 @@ It is therefore useful for timing, request logging, redaction, and error
 reporting without changing feature code.
 
 ```ts
-import { provideCraftHttpTrace } from '@craft-ng/core';
+import { provideCraftHttpTrace } from '@craft-ts/core';
 
 provideCraftHttpTrace(async (context, next) => {
   const start = performance.now();
@@ -139,7 +139,7 @@ The wrapper body runs in **the injection context where the error was raised**, n
 
 But it has two consequences:
 
-- injections inside the wrapper are **not type-safe** — `craft-ng` cannot prove statically that the dependency you ask for is actually provided where the wrapper runs
+- injections inside the wrapper are **not type-safe** — `craft-ts` cannot prove statically that the dependency you ask for is actually provided where the wrapper runs
 - the wrapper is therefore a **risky** place to do business work
 
 ::: tip
@@ -158,7 +158,7 @@ other advanced patterns seed or replace a query result, a mutation value, a
 ### Example: timing every craft function
 
 ```ts
-import { craftAppConfig, provideFnWrapper, HostTag } from '@craft-ng/core';
+import { craftAppConfig, provideFnWrapper, HostTag } from '@craft-ts/core';
 
 provideFnWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -181,7 +181,7 @@ provideFnWrapper(
 This is one of the most valuable pieces of context you can ship to a log server or AI webhook: you get not just the stack, but the full picture of what the app was holding when it broke.
 
 ```ts
-import { craftAppConfig, provideTakeAppSnapshot } from '@craft-ng/core';
+import { craftAppConfig, provideTakeAppSnapshot } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   // ...
@@ -204,7 +204,7 @@ Each `SnapshotReport` contains:
 - `from` — the ancestry chain that produced it
 - `state` — the actual current value
 
-Under the hood, `provideTakeAppSnapshot` registers its own `provideFnWrapper` that triggers the snapshot collection whenever an unexpected error bubbles up. CraftNG control-flow throws such as `CraftGenShortCircuit` and `CraftNotSettled` are deliberately excluded: they are consumed by `catchBlock` and `pendingBlock` boundaries during normal rendering. An unhandled boundary error remains observable and still triggers a snapshot. You do not need to call it manually.
+Under the hood, `provideTakeAppSnapshot` registers its own `provideFnWrapper` that triggers the snapshot collection whenever an unexpected error bubbles up. CraftTS control-flow throws such as `CraftGenShortCircuit` and `CraftNotSettled` are deliberately excluded: they are consumed by `catchBlock` and `pendingBlock` boundaries during normal rendering. An unhandled boundary error remains observable and still triggers a snapshot. You do not need to call it manually.
 
 ## Craft DOM event hooks
 
@@ -233,7 +233,7 @@ invoked downstream — directly or transitively, sync or async — captures that
 id at invocation time.
 
 ```ts
-import { craftAppConfig, provideCorrelationIdTracking } from '@craft-ng/core';
+import { craftAppConfig, provideCorrelationIdTracking } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   // ...
@@ -266,7 +266,7 @@ import {
   provideFnWrapper,
   provideTakeAppSnapshot,
   provideCorrelationIdTracking,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   // ...

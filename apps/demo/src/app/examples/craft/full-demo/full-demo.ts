@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
@@ -12,7 +12,7 @@ import {
   span,
   ul,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftException,
   craftGen,
@@ -22,7 +22,7 @@ import {
   mutation,
   query,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 export type Todo = { readonly id: number; readonly title: string };

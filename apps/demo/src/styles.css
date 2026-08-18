@@ -77,7 +77,7 @@
     transform: rotate(360deg);
   }
 }
-/* Functional component demo: these nodes are produced by @craft-ng/component,
+/* Functional component demo: these nodes are produced by @craft-ts/component,
    so their styles live at the application boundary rather than in an Angular
    component stylesheet. */
 .component-demo-host {

@@ -181,20 +181,20 @@ function collectAssertedNames(sourceFile) {
 }
 
 function ensureAssertImport(sourceFile) {
-  const craftNgCoreImport = sourceFile
+  const craftTsCoreImport = sourceFile
     .getImportDeclarations()
-    .find((imp) => imp.getModuleSpecifierValue() === '@craft-ng/core');
+    .find((imp) => imp.getModuleSpecifierValue() === '@craft-ts/core');
 
-  if (craftNgCoreImport) {
-    const alreadyImported = craftNgCoreImport
+  if (craftTsCoreImport) {
+    const alreadyImported = craftTsCoreImport
       .getNamedImports()
       .some((ni) => ni.getName() === ASSERT_FN);
     if (!alreadyImported) {
-      craftNgCoreImport.addNamedImport(ASSERT_FN);
+      craftTsCoreImport.addNamedImport(ASSERT_FN);
     }
   } else {
     sourceFile.addImportDeclaration({
-      moduleSpecifier: '@craft-ng/core',
+      moduleSpecifier: '@craft-ts/core',
       namedImports: [ASSERT_FN],
     });
   }

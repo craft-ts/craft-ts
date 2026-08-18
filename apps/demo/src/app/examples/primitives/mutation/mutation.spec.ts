@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {
   craftSignal as signal,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
@@ -9,14 +9,14 @@ import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   markYieldableMethod,
   markYieldableValue,
   type ExtractDeps,
   type GetServiceDependencies,
-} from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import MutationDemoComponent from './mutation';
 import { ApiService, type User } from './api.service';

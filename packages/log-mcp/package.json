@@ -1,10 +1,10 @@
 {
-  "name": "@ng-craft/log-mcp",
+  "name": "@craft-ts/log-mcp",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "ng-craft-log-mcp": "dist/main.js"
+    "craft-ts-log-mcp": "dist/main.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

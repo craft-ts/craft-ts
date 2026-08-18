@@ -12,7 +12,7 @@ Cible : **WCAG 2.2 niveau AA**.
 1. **Types** — `img` et `area` exigent `alt` (y compris `''` décoratif). Les
    helpers sémantiques (`dialog`, `fieldset`, `table`, `iframe`, `h4`–`h6`,
    `svg`…) existent pour que le lint s’applique sans passer par `h()`.
-2. **ESLint `craft-ng/a11y`** — nom accessible, labels, ARIA, pas de click sur
+2. **ESLint `craft-ts/a11y`** — nom accessible, labels, ARIA, pas de click sur
    un `div`, `button` avec `type`, `h()` interdit quand un helper nommé existe.
 3. **Runtime des blocs** — `pendingBlock` annonce le fallback (`aria-live`,
    `aria-busy`), `catchBlock` pose `role="alert"`, `defer` rend le placeholder
@@ -24,12 +24,12 @@ Cible : **WCAG 2.2 niveau AA**.
 5. **Tests** — `toBeAccessible()` sur le helper de template.
 
 ```ts
-import craftRules from '@craft-ng/dev-tools/eslint-rules';
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
 
 export default [
   {
     files: ['**/*.ts'],
-    plugins: { 'craft-ng': craftRules },
+    plugins: { 'craft-ts': craftRules },
     rules: {
       ...craftRules.configs.a11y.rules,
     },

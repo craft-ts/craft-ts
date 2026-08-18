@@ -7,14 +7,14 @@ four, and the output stays ordinary editable TypeScript.
 **Use it for** day-to-day route authoring and for migrating an existing app.
 **Then edit the result** — nothing here is generated code you must not touch.
 
-`@craft-ng/dev-tools` provides codemods to migrate an Angular application to
+`@craft-ts/dev-tools` provides codemods to migrate an Angular application to
 Craft primitives, services, type-safe routes, and selectorless Craft Components.
 
 ## Install the migration tool
 
 ```shell
-npm install @craft-ng/core
-npm install --save-dev @craft-ng/dev-tools@beta
+npm install @craft-ts/core
+npm install --save-dev @craft-ts/dev-tools@beta
 ```
 
 The migration binaries are available starting with `0.5.1-beta.0` and are
@@ -23,8 +23,8 @@ versions do not include `craft-migrate`. If the package was installed before
 that release, update it and verify the resolved version:
 
 ```shell
-npm install --save-dev @craft-ng/dev-tools@beta
-npm ls @craft-ng/dev-tools
+npm install --save-dev @craft-ts/dev-tools@beta
+npm ls @craft-ts/dev-tools
 ```
 
 Commit or stash the current application changes before running a migration in

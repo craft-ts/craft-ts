@@ -407,10 +407,10 @@ function resolveGenDepsName(fromFilePath, importSpecifier) {
 function ensureImports(sourceFile, names) {
   const craftImport = sourceFile
     .getImportDeclarations()
-    .find((imp) => imp.getModuleSpecifierValue() === '@craft-ng/core');
+    .find((imp) => imp.getModuleSpecifierValue() === '@craft-ts/core');
   if (!craftImport) {
     sourceFile.addImportDeclaration({
-      moduleSpecifier: '@craft-ng/core',
+      moduleSpecifier: '@craft-ts/core',
       namedImports: names.map((name) => ({ name, isTypeOnly: true })),
     });
     return;

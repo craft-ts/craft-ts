@@ -50,7 +50,7 @@ import {
   type TemporalTaskHandle,
   type TemplateTraceContext,
   RealCraftTemporalRuntime,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import {
   computed,

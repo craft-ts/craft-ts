@@ -260,7 +260,7 @@ type _CanRunPending = CanRun<_CheckPendingDI>;
 
 A service the skeleton injects but nothing provides becomes a TypeScript error on `_CanRunPending`
 (`The X service is not provided in pending component: photos/:photoId`). The
-`craft-ng/require-pending-component-di-check` ESLint rule **generates and refreshes this whole block**
+`craft-ts/require-pending-component-di-check` ESLint rule **generates and refreshes this whole block**
 from `pendingComponent` on `--fix` — resolving the skeleton's `GenDeps_*`, deriving the auto-provided
 service names from the route's path params + payload, and borrowing the parent context from the
 collection's own `ValidateCascadeRoutesFile` — so you never hand-write or stale it.

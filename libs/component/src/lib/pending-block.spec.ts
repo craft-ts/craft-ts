@@ -19,7 +19,7 @@ import {
   state,
   type CraftExceptionResult,
   type CraftSettledSignal
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   button,
   catchBlock,

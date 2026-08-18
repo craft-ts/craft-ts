@@ -37,7 +37,7 @@ function serviceMeta(name: string): ServiceMeta {
 
 /** scope: 'toProvide' service — must be explicitly provided */
 function genToProvideService(meta: ServiceMeta): string {
-  return `import { craftService, type ExtractDeps } from '@craft-ng/core';
+  return `import { craftService, type ExtractDeps } from '@craft-ts/core';
 
 export const {
   ${meta.injectable},
@@ -63,7 +63,7 @@ function genLeafHttpService(meta: ServiceMeta, exceptions: number): string {
         },`,
   ).join('');
 
-  return `import { craftException, CraftHttpClient, craftService, type ExtractDeps } from '@craft-ng/core';
+  return `import { craftException, CraftHttpClient, craftService, type ExtractDeps } from '@craft-ts/core';
 
 interface ${meta.name}Item { id: number; label: string; }
 
@@ -88,7 +88,7 @@ function genDependentService(meta: ServiceMeta, upstreams: ServiceMeta[], depth:
     .map((u) => `    yield* ${u.yieldable}(undefined, ({ getValue }) => ({ getValue }));`)
     .join('\n');
 
-  return `import { craftService, type ExtractDeps } from '@craft-ng/core';
+  return `import { craftService, type ExtractDeps } from '@craft-ts/core';
 ${imports}
 
 export const { ${meta.injectable}, ${meta.yieldable} } = craftService(
@@ -104,7 +104,7 @@ export type ${meta.name}Deps = ExtractDeps<typeof ${meta.injectable}>['${meta.de
 }
 
 function genSimpleService(meta: ServiceMeta): string {
-  return `import { craftService, type ExtractDeps } from '@craft-ng/core';
+  return `import { craftService, type ExtractDeps } from '@craft-ts/core';
 
 export const { ${meta.injectable}, ${meta.yieldable} } = craftService(
   { name: '${meta.name}', scope: 'global' },
@@ -172,7 +172,7 @@ import {
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ${imports}
 
 @Component({
@@ -227,8 +227,8 @@ function genFeatureRoutes(
   // resolution that a runtime-call helper would trigger
   // (app.config ↔ app.routes via loadChildren).
   if (diMode === 'cascade' || diMode === 'both') {
-    return `import { craftRoutes } from '@craft-ng/core';
-import type { CanRun, ValidateCascadeRoutesFile } from '@craft-ng/core';
+    return `import { craftRoutes } from '@craft-ts/core';
+import type { CanRun, ValidateCascadeRoutesFile } from '@craft-ts/core';
 ${compImports}${serviceImport}
 import type { AppProvidedNames, AppProvidedValues } from '../../../app.config';
 
@@ -247,7 +247,7 @@ type _CanRunFeature${featureIdx} = CanRun<_CheckFeature${featureIdx}DI>;
 `;
   }
 
-  return `import { craftRoutes } from '@craft-ng/core';
+  return `import { craftRoutes } from '@craft-ts/core';
 ${compImports}${serviceImport}
 
 export const { feature${featureIdx}Routes } = craftRoutes('feature${featureIdx}', [
@@ -266,13 +266,13 @@ function genAppRoutes(features: number): string {
   },`,
   ).join('\n');
 
-  return `import { craftRoutes } from '@craft-ng/core';
+  return `import { craftRoutes } from '@craft-ts/core';
 
 export const { stressRoutes } = craftRoutes('stress', [
 ${routes}
 ]);
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
     Stress: typeof stressRoutes.META_PATHS;
   }
@@ -292,14 +292,14 @@ export default [
   {
     files: ['**/*.ts'],
     plugins: {
-      'craft-ng': craftRules,
+      'craft-ts': craftRules,
     },
     rules: {
-      'craft-ng/craft-method-name-match': 'error',
-      'craft-ng/provide-host-name-match-component': 'error',
-      'craft-ng/prefer-browser-boundaries': 'error',
-      'craft-ng/app-start-registry-match': 'error',
-      'craft-ng/require-component-monitoring': 'error',
+      'craft-ts/craft-method-name-match': 'error',
+      'craft-ts/provide-host-name-match-component': 'error',
+      'craft-ts/prefer-browser-boundaries': 'error',
+      'craft-ts/app-start-registry-match': 'error',
+      'craft-ts/require-component-monitoring': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         { type: 'attribute', prefix: 'app', style: 'camelCase' },
@@ -323,7 +323,7 @@ export default [
     // main.ts bootstraps outside Angular DI — console.error is intentional
     files: ['**/main.ts'],
     rules: {
-      'craft-ng/prefer-browser-boundaries': 'off',
+      'craft-ts/prefer-browser-boundaries': 'off',
     },
   },
 ];
@@ -359,7 +359,7 @@ import {
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { injectStressAppService, provideStressAppService } from './generated/services/StressAppService';
 
 @Component({
@@ -400,7 +400,7 @@ function genAppConfig(): string {
   provideCraftRouter,
   type AppProvidedServiceNamesOf,
   type AppProvidedDependencyValuesOf,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { withComponentInputBinding } from '@angular/router';
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { stressRoutes } from './generated/app.routes';
@@ -429,8 +429,8 @@ function genMainTs(diMode: DiMode = 'central'): string {
   const emitCentral = diMode === 'central' || diMode === 'both';
 
   const imports = emitCentral
-    ? `import { toApplicationConfig, AppCheckedDI, CanRun } from '@craft-ng/core';`
-    : `import { toApplicationConfig } from '@craft-ng/core';`;
+    ? `import { toApplicationConfig, AppCheckedDI, CanRun } from '@craft-ts/core';`
+    : `import { toApplicationConfig } from '@craft-ts/core';`;
 
   const centralBlock = emitCentral
     ? `

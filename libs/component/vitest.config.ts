@@ -15,12 +15,12 @@ export default defineConfig({
   plugins: [nxViteTsPaths()],
   resolve: {
     alias: {
-      '@craft-ng/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
-      '@craft-ng/component': path.join(
+      '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
+      '@craft-ts/component': path.join(
         workspaceRoot,
         'libs/component/src/index.ts',
       ),
-      '@craft-ng/angular': path.join(
+      '@craft-ts/angular': path.join(
         workspaceRoot,
         'libs/angular/src/index.ts',
       ),
@@ -36,7 +36,7 @@ export default defineConfig({
     },
   },
   test: {
-    name: 'ng-craft-component',
+    name: 'craft-ts-component',
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],

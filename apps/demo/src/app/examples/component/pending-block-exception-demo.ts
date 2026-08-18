@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   catchBlock,
@@ -11,7 +11,7 @@ import {
   strong,
   ul,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftComputed,
   craftException,
@@ -19,7 +19,7 @@ import {
   craftSleep,
   mutation,
   settled,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 /**
  * The failing side of `settledValue`: a source can settle on an **exception**

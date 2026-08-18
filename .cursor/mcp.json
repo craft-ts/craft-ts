@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "ng-craft-page": {
+    "craft-ts-page": {
       "command": "npm",
       "args": ["run", "registry:mcp"]
     }

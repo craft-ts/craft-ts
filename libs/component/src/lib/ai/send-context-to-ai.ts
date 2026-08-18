@@ -23,7 +23,7 @@ import {
   type GetDeps,
   type SendContextPayload,
   type TemporalTaskHandle,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import { AiContextMenu } from './ai-context-menu';
 import { AiSendDialog } from './ai-send-dialog';

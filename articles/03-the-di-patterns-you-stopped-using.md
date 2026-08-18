@@ -3,7 +3,7 @@ title: 'The Angular DI patterns you stopped using — and what they look like wh
 published: false
 description: 'Scoped instances, abstract contracts, providers built from the route itself. Angular has had all of it for years, and most codebases use none of it. Here is what changes when a missing provider is a compile error.'
 tags: angular, typescript, webdev, architecture
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---
@@ -22,7 +22,7 @@ This article is the "and therefore what". Three patterns that become obvious onc
 
 You know the symptoms. You leave the edit screen with a validation error showing, come back, and the error is still there. A list keeps its filter from a previous, unrelated visit. Someone adds a `reset()` method, and now every consumer must remember to call it in `ngOnDestroy`. The bug is never in the feature — it is in the fact that the service is older than the feature.
 
-In craft-ng, scope is the one decision you make when declaring a service, and the recommended default is inverted:
+In craft-ts, scope is the one decision you make when declaring a service, and the recommended default is inverted:
 
 | Scope | Instances | Reach for it when |
 |---|---|---|
@@ -40,7 +40,7 @@ Here is the pattern I think Angular developers under-use the most, and the one w
 An `abstract` service declares a contract and no implementation:
 
 ```typescript
-import { abstract, craftService } from '@craft-ng/core';
+import { abstract, craftService } from '@craft-ts/core';
 
 type User = { name: string };
 

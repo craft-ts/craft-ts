@@ -1,4 +1,4 @@
-import { RouteHttpDepsByPath } from '@craft-ng/core';
+import { RouteHttpDepsByPath } from '@craft-ts/core';
 
 type DemoAppMetaData =
   typeof import('../src/app/app.config').appConfig.APP_CONFIG_META_DATA;

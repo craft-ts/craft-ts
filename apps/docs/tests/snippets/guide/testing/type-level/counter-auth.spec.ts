@@ -5,14 +5,14 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region counter-auth
-import { state } from '@craft-ng/core';
+import { state } from '@craft-ts/core';
 import {
   button,
   craftComponent,
   div,
   ifBlock,
   span,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const Counter = craftComponent(
   'Counter',

@@ -1,5 +1,5 @@
 import { beforeAll, describe, it } from 'vitest';
-import { assertInteractiveElementNamed } from '@craft-ng/dev-tools';
+import { assertInteractiveElementNamed } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from '../load-graph';
 
 describe('assertInteractiveElementNamed', () => {

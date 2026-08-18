@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { TestBed } from '@craft-ng/core';
-import { setupCraftComponentLogicTest } from '@craft-ng/component';
-import { craftUse } from '@craft-ng/core';
+import { TestBed } from '@craft-ts/core';
+import { setupCraftComponentLogicTest } from '@craft-ts/component';
+import { craftUse } from '@craft-ts/core';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // #region tasks
-import { craftComponent, each, h1, li, ul } from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+import { craftComponent, each, h1, li, ul } from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
 

@@ -99,8 +99,8 @@ myState.reset(); // ❌ Not available (TypeScript error)
 ### Basic state reset on source emission
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const resetSource = source$<void>('resetSource');
 
@@ -125,8 +125,8 @@ console.log(yield* counter()); // 0
 ### Syncing state with a source
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 interface User {
   id: string;
@@ -158,8 +158,8 @@ console.log(currentUser()); // { id: '2', name: 'Bob' }
 ### Coordinating multiple states with a single source
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const resetAllSource = source$<void>('resetAllSource');
 
@@ -205,8 +205,8 @@ console.log(filters()); // []
 ### Using on$ in a craft service
 
 ```typescript
-import { craftService, state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { craftService, state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const { Filters } = craftService({ name: 'Filters', scope: 'global' }, () => {
   const reset = source$<void>('reset');
@@ -248,8 +248,8 @@ console.log(filters.category()); // 'all'
 ### Conditional state updates
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 interface DataUpdate {
   value: number;
@@ -285,8 +285,8 @@ console.log(data()); // 3 (updated due to force flag)
 ### Working with complex transformations
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 interface ApiResponse {
   data: {
@@ -338,9 +338,9 @@ console.log(totalCount()); // 2
 ### Using with EventEmitter
 
 ```typescript
-import { EventEmitter } from '@craft-ng/core';
-import { state } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { EventEmitter } from '@craft-ts/core';
+import { state } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const clickEmitter = new EventEmitter<{ x: number; y: number }>();
 

@@ -268,7 +268,7 @@ const SUPPORTED_DECORATORS: Record<string, AngularKind> = {
 };
 
 const DEFAULT_OPTIONS: NormalizedOptions = {
-  helperImportPath: '@craft-ng/core',
+  helperImportPath: '@craft-ts/core',
   transformOnlyStandaloneDeclarables: false,
   includeProviders: true,
   includeViewProviders: true,
@@ -335,7 +335,7 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
     },
     {
       match: {
-        module: '@craft-ng/core',
+        module: '@craft-ts/core',
         symbols: ['LegacyCraftFieldDirective'],
         metadata: ['imports'],
       },
@@ -344,13 +344,13 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
           key: 'LegacyCraftFieldDirective',
           symbol: 'LegacyCraftFieldDirective',
           typeText: 'LegacyCraftFieldDirective<unknown>',
-          module: '@craft-ng/core',
+          module: '@craft-ts/core',
         },
       ],
     },
     {
       match: {
-        module: '@craft-ng/core',
+        module: '@craft-ts/core',
         symbols: ['LegacyCraftRouterLink'],
         metadata: ['imports'],
       },
@@ -358,7 +358,7 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
         {
           key: 'LegacyCraftRouterLink',
           symbol: 'LegacyCraftRouterLink',
-          module: '@craft-ng/core',
+          module: '@craft-ts/core',
         },
       ],
       missingProvider: [
@@ -517,7 +517,7 @@ export function loadAngularBrandConfigFromFile(
     compiledModule(
       module.exports,
       (specifier: string) => {
-        if (specifier === '@craft-ng/dev-tools') {
+        if (specifier === '@craft-ts/dev-tools') {
           return { defineAngularBrandConfig, defineCraftDevToolsConfig };
         }
 

@@ -16,8 +16,8 @@ async function lint(code: string, rule: string) {
       {
         files: ['**/*.ts'],
         languageOptions: { parser: tsParser },
-        plugins: { 'craft-ng': plugin },
-        rules: { [`craft-ng/${rule}`]: 'error' },
+        plugins: { 'craft-ts': plugin },
+        rules: { [`craft-ts/${rule}`]: 'error' },
       },
     ],
   });
@@ -53,8 +53,8 @@ async function lintTree(files: Record<string, string>, rule: string) {
       {
         files: ['**/*.ts'],
         languageOptions: { parser: tsParser },
-        plugins: { 'craft-ng': plugin },
-        rules: { [`craft-ng/${rule}`]: 'error' },
+        plugins: { 'craft-ts': plugin },
+        rules: { [`craft-ts/${rule}`]: 'error' },
       },
     ],
   });
@@ -62,7 +62,7 @@ async function lintTree(files: Record<string, string>, rule: string) {
   return results.flatMap((result) => result.messages.map((message) => message.message));
 }
 
-describe('craft-ng a11y', () => {
+describe('craft-ts a11y', () => {
   describe('prefer-named-html-helpers', () => {
     it('rejects h() when a named helper exists', async () => {
       const [result] = await lint(`h('img', { alt: '' });`, 'prefer-named-html-helpers');
@@ -187,8 +187,8 @@ describe('craft-ng a11y', () => {
           {
             files: ['**/*.ts'],
             languageOptions: { parser: tsParser },
-            plugins: { 'craft-ng': plugin },
-            rules: { 'craft-ng/button-has-type': 'error' },
+            plugins: { 'craft-ts': plugin },
+            rules: { 'craft-ts/button-has-type': 'error' },
           },
         ],
       });
@@ -396,9 +396,9 @@ describe('craft-ng a11y', () => {
   });
 
   it('exports the a11y preset as error', () => {
-    expect(plugin.configs.a11y.rules['craft-ng/img-has-alt']).toBe('error');
-    expect(plugin.configs.a11y.rules['craft-ng/button-has-type']).toBe('error');
-    expect(plugin.configs.a11y.rules['craft-ng/require-outlet-heading-section']).toBe(
+    expect(plugin.configs.a11y.rules['craft-ts/img-has-alt']).toBe('error');
+    expect(plugin.configs.a11y.rules['craft-ts/button-has-type']).toBe('error');
+    expect(plugin.configs.a11y.rules['craft-ts/require-outlet-heading-section']).toBe(
       'error',
     );
   });

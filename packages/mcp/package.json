@@ -1,21 +1,21 @@
 {
-  "name": "@craft-ng/mcp",
+  "name": "@craft-ts/mcp",
   "version": "0.7.0-beta.11",
-  "description": "MCP server, Agent Skills, and LLM files for coding agents using @craft-ng/core",
+  "description": "MCP server, Agent Skills, and LLM files for coding agents using @craft-ts/core",
   "author": "Romain Geffrault",
   "license": "MIT",
-  "homepage": "https://ng-angular-stack.github.io/craft/resources/ai-agents",
+  "homepage": "https://craft-ts.github.io/craft/resources/ai-agents",
   "bugs": {
-    "url": "https://github.com/ng-angular-stack/ng-craft/issues"
+    "url": "https://github.com/craft-ts/craft-ts/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ng-angular-stack/ng-craft.git",
+    "url": "https://github.com/craft-ts/craft-ts.git",
     "directory": "packages/mcp"
   },
   "type": "module",
   "bin": {
-    "craft-ng-mcp": "dist/main.js"
+    "craft-ts-mcp": "dist/main.js"
   },
   "files": [
     "dist",
@@ -50,8 +50,8 @@
     "access": "public"
   },
   "keywords": [
-    "ng-craft",
-    "craft-ng",
+    "craft-ts",
+    "craft-ts",
     "angular",
     "mcp",
     "mcp-server",

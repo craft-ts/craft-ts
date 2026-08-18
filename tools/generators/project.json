@@ -1,5 +1,5 @@
 {
-  "name": "@ng-craft/generators",
+  "name": "@craft-ts/generators",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
   "root": "tools/generators",

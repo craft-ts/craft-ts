@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { provideCraftRouter as provideRouter } from '@craft-ng/core';
+import { provideCraftRouter as provideRouter } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 import { appRoutes } from './app-routes';
@@ -7,7 +7,7 @@ import { appRoutes } from './app-routes';
 useSnippetHarness();
 
 // #region app-config
-import { craftAppConfig } from '@craft-ng/core';
+import { craftAppConfig } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_DATA,

@@ -6,33 +6,33 @@ describe('loadCraftMcpResources', () => {
     const resources = loadCraftMcpResources();
     expect(resources.pages.length).toBeGreaterThan(20);
     expect(resources.skills.map((skill) => skill.name)).toEqual([
-      'craft-ng',
-      'migrate-to-ng-craft',
-      'ng-craft-architecture-tests',
-      'ng-craft-routes',
-      'ng-craft-service-migration',
-      'translate-spec-to-ng-craft',
+      'craft-ts',
+      'migrate-to-craft-ts',
+      'craft-ts-architecture-tests',
+      'craft-ts-routes',
+      'craft-ts-service-migration',
+      'translate-spec-to-craft-ts',
     ]);
     expect(resources.bestPractices).toContain('yield*');
-    expect(resources.agentsMd).toContain('@craft-ng/core');
+    expect(resources.agentsMd).toContain('@craft-ts/core');
   });
 
   it('treats architecture tests as a baseline and anti-regression contract', () => {
     const resources = loadCraftMcpResources();
     const architecture = resources.skills.find(
-      (skill) => skill.name === 'ng-craft-architecture-tests',
+      (skill) => skill.name === 'craft-ts-architecture-tests',
     );
     expect(architecture?.markdown).toContain('craft-migrate-architecture');
     expect(architecture?.markdown).toContain(
       'Do not add an architecture rule for the feature',
     );
-    expect(resources.bestPractices).toContain('ng-craft-architecture-tests');
+    expect(resources.bestPractices).toContain('craft-ts-architecture-tests');
     expect(resources.bestPractices).toContain(
       'Do not add an architecture rule for the feature',
     );
     expect(resources.agentsMd).toContain('architecture/');
     expect(
-      resources.skills.find((skill) => skill.name === 'translate-spec-to-ng-craft')
+      resources.skills.find((skill) => skill.name === 'translate-spec-to-craft-ts')
         ?.markdown,
     ).toContain('Baseline helper already covering this');
   });

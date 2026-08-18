@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
@@ -15,7 +15,7 @@ import {
   span,
   ul,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   asyncProcess,
   CraftHttpClient,
@@ -27,7 +27,7 @@ import {
   retry,
   state,
   insertStatePipe,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
 

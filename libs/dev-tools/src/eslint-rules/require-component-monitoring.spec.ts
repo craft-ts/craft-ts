@@ -24,7 +24,7 @@ describe('require-component-monitoring', () => {
     const { messages } = await lintFixture({
       'src/app/demo.component.ts': `
         import { Component } from '@angular/core';
-        import { componentMonitoring } from '@craft-ng/core';
+        import { componentMonitoring } from '@craft-ts/core';
 
         @Component({ selector: 'app-demo', template: '' })
         export class DemoComponent {
@@ -110,16 +110,16 @@ describe('require-component-monitoring', () => {
       { fix: true },
     );
 
-    expect(output).toContain("from '@craft-ng/core'");
+    expect(output).toContain("from '@craft-ts/core'");
     expect(output).toContain('componentMonitoring');
   });
 
-  it('auto-fix adds componentMonitoring to existing @craft-ng/core import', async () => {
+  it('auto-fix adds componentMonitoring to existing @craft-ts/core import', async () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.component.ts': `
           import { Component } from '@angular/core';
-          import { craftMethod } from '@craft-ng/core';
+          import { craftMethod } from '@craft-ts/core';
 
           @Component({ selector: 'app-demo', template: '' })
           export class DemoComponent {}
@@ -130,7 +130,7 @@ describe('require-component-monitoring', () => {
 
     expect(output).toContain('craftMethod');
     expect(output).toContain('componentMonitoring');
-    const importCount = (output?.match(/@craft-ng\/core/g) ?? []).length;
+    const importCount = (output?.match(/@craft-ts\/core/g) ?? []).length;
     expect(importCount).toBe(1);
   });
 });
@@ -161,7 +161,7 @@ async function lintFixture(
       2,
     ),
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function componentMonitoring(): void;
         export declare function craftMethod(...args: unknown[]): unknown;
       }

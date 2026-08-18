@@ -197,7 +197,7 @@ describe('Type-safe DI/Routes setup doc page', () => {
   it('documents the app-level DI check and crafted routes setup', () => {
     expect(content).toContain('# Routing setup');
     expect(content).toContain(
-      'This guide assumes an app that consumes `@craft-ng/core`.',
+      'This guide assumes an app that consumes `@craft-ts/core`.',
     );
     expect(content).toContain(
       'type _CheckAppDI = ValidateCascadeRoutesFile<',
@@ -216,10 +216,10 @@ describe('Type-safe DI/Routes setup doc page', () => {
     );
     expect(content).toContain('craft-brand --root src/app');
     expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
+      'trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-gen-deps-required`',
     );
     expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`',
+      'trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-deps-match`',
     );
   });
 
@@ -232,9 +232,9 @@ describe('ESLint rules doc page', () => {
   const content = readDoc('../guide/routing/eslint-rules.md');
 
   it('documents the plugin entry point and the enforced rules', () => {
-    expect(content).toContain('@craft-ng/dev-tools/eslint-rules');
+    expect(content).toContain('@craft-ts/dev-tools/eslint-rules');
     expect(content).toContain(
-      "'craft-ng/require-cascade-route-di-check': 'error'",
+      "'craft-ts/require-cascade-route-di-check': 'error'",
     );
     expect(content).toContain(
       'generate missing aliases and refresh existing ones',
@@ -360,7 +360,7 @@ describe('craftComputed doc page', () => {
   it('documents plain and generator-based computed forms', () => {
     expect(content).toContain('# craftComputed');
     expect(content).toContain(
-      "import { craftComputed } from '@craft-ng/core';",
+      "import { craftComputed } from '@craft-ts/core';",
     );
     expect(content).toContain(
       'plain computation: `craftComputed(name, () => value)`',

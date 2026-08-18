@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region card
-import { article, craftComponent } from '@craft-ng/component';
+import { article, craftComponent } from '@craft-ts/component';
 
 const Card = craftComponent(
   'Card',

@@ -32,7 +32,7 @@ import {
   section,
   type ContentSlot,
   type RequiredContent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 type CardInput = {
   readonly header?: ContentSlot;
@@ -128,7 +128,7 @@ import {
   each,
   renderContent,
   type ProjectionOf,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const Toolbar = craftComponent(
   'Toolbar',

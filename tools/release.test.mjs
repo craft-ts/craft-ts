@@ -168,7 +168,7 @@ test('npm packs must not include the internal DevTools tests', () => {
   );
   assert.throws(
     () =>
-      assertNpmPackExcludesTests('@craft-ng/dev-tools', [
+      assertNpmPackExcludesTests('@craft-ts/dev-tools', [
         'tests/architecture/architecture.spec.ts',
       ]),
     /must not include tests/,

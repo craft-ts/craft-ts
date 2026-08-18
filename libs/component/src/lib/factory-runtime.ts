@@ -5,7 +5,7 @@ import {
   type CraftProgramSettledStep,
   type ResolveGeneratorResult,
   ɵcraftInjectorFromHost,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { ComponentFactory } from './types';
 
 const INVALID_YIELD =

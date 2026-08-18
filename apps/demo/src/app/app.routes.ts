@@ -1,7 +1,7 @@
 import {
   assertCssVarsSatisfied,
   loadCraftComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
@@ -13,7 +13,7 @@ import {
   type CraftRouteExceptionType,
   type RouteCheckedDI,
   type ViewTransitionPayloadDef,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
@@ -496,7 +496,7 @@ type DemoRoutePaths = readonly {
     : { path: Path };
 }[DemoRoutePath][];
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
     Demo: DemoRoutePaths;
   }
@@ -506,7 +506,7 @@ assertExhaustiveRouteExceptions(demoRoutes);
 assertCssVarsSatisfied(demoRoutes);
 
 /* demo-check: guard-registry */
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftGlobalExceptionRegistry {
     'guard-demo': {
       USER_DISABLED: CraftRouteExceptionType<

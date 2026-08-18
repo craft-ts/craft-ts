@@ -3,7 +3,7 @@ title: 'Reusing behaviour between stores, without inheritance and without a plug
 published: false
 description: 'Persistence, collections, optimistic updates, sub-state logic — all attached to a primitive the same way. The library’s own building blocks use the exact mechanism you do, and that constraint is the design.'
 tags: angular, typescript, webdev, architecture
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---
@@ -18,7 +18,7 @@ That moment, repeated across a codebase, is where state management architectures
 - **A base class.** Works until two behaviours want the same slot, or until a store needs one and a half of them. Inheritance forces a total order on things that have no natural order.
 - **A plugin API.** The library author decided in advance what an extension point is. If your need falls between two of them, you are writing a fork or a wrapper — and the library's own features are usually implemented with privileged access you do not get.
 
-craft-ng's answer is a single idea, and its whole value is in a constraint the library imposes on itself.
+craft-ts's answer is a single idea, and its whole value is in a constraint the library imposes on itself.
 
 ## An insertion is a function that returns what to expose
 
@@ -50,7 +50,7 @@ And here is the constraint that makes it interesting:
 Which means the answer to "how do I share this behaviour" is not a new concept to learn. It is: **extract the function.**
 
 ```typescript
-import { InsertionStateFactoryContext, state } from '@craft-ng/core';
+import { InsertionStateFactoryContext, state } from '@craft-ts/core';
 
 export const withUndo = <State>({
   state: read,

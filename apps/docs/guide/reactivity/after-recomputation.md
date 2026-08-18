@@ -69,7 +69,7 @@ This pattern makes queries/mutations execute automatically when the source emits
 ### Binding a query to a source for automatic execution
 
 ```typescript
-import { afterRecomputation, query, source$ } from '@craft-ng/core';
+import { afterRecomputation, query, source$ } from '@craft-ts/core';
 
 const userIdChange = source$<string>('userIdChange');
 const { user } = query('user', {
@@ -91,7 +91,7 @@ userIdChange.emit('user-456');
 ### Binding a mutation to a source
 
 ```typescript
-import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
+import { afterRecomputation, mutation, source$ } from '@craft-ts/core';
 
 const submitForm = source$<{ name: string; email: string }>();
 const { submit } = mutation('submit', {
@@ -114,7 +114,7 @@ submitForm.emit({ name: 'John', email: 'john@example.com' });
 ### Binding async method to a source
 
 ```typescript
-import { afterRecomputation, asyncProcess, source$ } from '@craft-ng/core';
+import { afterRecomputation, asyncProcess, source$ } from '@craft-ts/core';
 
 const searchInput = source$<string>('searchInput');
 const { search } = asyncProcess('search', {
@@ -139,7 +139,7 @@ type FormData = {
   address: { city: string };
 };
 
-import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
+import { afterRecomputation, mutation, source$ } from '@craft-ts/core';
 
 const formSubmit = source$<FormData>('formSubmit');
 const { updateUser } = mutation('updateUser', {
@@ -165,7 +165,7 @@ formSubmit.emit({
 ### Transforming data before execution
 
 ```typescript
-import { afterRecomputation, query, source$ } from '@craft-ng/core';
+import { afterRecomputation, query, source$ } from '@craft-ts/core';
 
 const searchParams = source$<{ query: string; filters: string[] }>();
 const { results } = query('results', {
@@ -191,7 +191,7 @@ searchParams.emit({
 ### Validation and type narrowing
 
 ```typescript
-import { afterRecomputation, asyncProcess, source$ } from '@craft-ng/core';
+import { afterRecomputation, asyncProcess, source$ } from '@craft-ts/core';
 
 const inputChange = source$<string>('inputChange');
 const { validate } = asyncProcess('validate', {
@@ -222,7 +222,7 @@ inputChange.emit('valid input'); // Validation executes
 ### Multiple sources with different transformations
 
 ```typescript
-import { afterRecomputation, query, source$ } from '@craft-ng/core';
+import { afterRecomputation, query, source$ } from '@craft-ts/core';
 
 const quickSearch = source$<string>('quickSearch');
 const advancedSearch = source$<{ query: string; options: unknown }>();
@@ -270,7 +270,7 @@ advancedSearch.emit({
 ### Identity transformation (pass-through)
 
 ```typescript
-import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
+import { afterRecomputation, mutation, source$ } from '@craft-ts/core';
 
 const dataUpdate = source$<{ id: string; payload: unknown }>();
 const { update } = mutation('update', {

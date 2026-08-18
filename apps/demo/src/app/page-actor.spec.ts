@@ -5,8 +5,8 @@ import {
   each,
   input,
   mountCraftComponent,
-} from '@craft-ng/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import LoginFormComponent from './examples/primitives/forms/login-form';
 import {

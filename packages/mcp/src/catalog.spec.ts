@@ -30,7 +30,7 @@ describe('searchPages', () => {
     const hits = searchPages(pages, 'state');
     expect(hits[0]?.path).toBe('/guide/state/local-state');
     expect(hits[0]?.url).toBe(
-      'https://ng-angular-stack.github.io/craft/guide/state/local-state',
+      'https://craft-ts.github.io/craft/guide/state/local-state',
     );
   });
 
@@ -49,6 +49,6 @@ describe('findPage', () => {
     expect(findPage(pages, 'guide/state/local-state')?.title).toBe(
       'Local state',
     );
-    expect(pageUrl('/')).toBe('https://ng-angular-stack.github.io/craft/');
+    expect(pageUrl('/')).toBe('https://craft-ts.github.io/craft/');
   });
 });

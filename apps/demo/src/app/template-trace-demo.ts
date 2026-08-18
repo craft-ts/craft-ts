@@ -4,7 +4,7 @@ import {
   type Provider,
   ɵinject as inject,
   ɵInjector as Injector,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   Console,
   craftException,
@@ -20,7 +20,7 @@ import {
   type CraftRouterTraceWrapper,
   type FnWrapper,
   type TemplateTraceContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 let logging = false;
 

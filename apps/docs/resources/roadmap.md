@@ -1,6 +1,6 @@
 # Roadmap
 
-@craft-ng/core is evolving through real-world usage, careful experimentation,
+@craft-ts/core is evolving through real-world usage, careful experimentation,
 and feedback from the community. This roadmap describes the areas I am
 currently planning to explore; it is intentionally not a promise of fixed
 release dates.
@@ -15,7 +15,7 @@ product SSR renderer.
 
 ### Real-world integration and stability
 
-I will continue integrating `@craft-ng/core` into projects so that I can
+I will continue integrating `@craft-ts/core` into projects so that I can
 experiment with the different situations and constraints that applications
 encounter in practice. This ongoing use should help uncover edge cases,
 validate the API, and move the library towards the most stable version
@@ -59,7 +59,7 @@ codebase. This could provide a foundation for adding architecture tests and
 architecture constraints directly to the same tooling, so that intended
 dependencies and boundaries can be checked automatically.
 
-I am also considering building DevTools for `@craft-ng/core`, although I am
+I am also considering building DevTools for `@craft-ts/core`, although I am
 not yet certain how valuable a traditional DevTools experience would be for
 the library. If there are features or workflows you would find useful in this
 area, please feel free to tell me about them.
@@ -73,10 +73,10 @@ should become part of a DevTools experience or evolve as separate tools.
 ## Exploring a typed RxJS-like library
 
 I am also studying the possibility of creating a typed RxJS-like library built
-around the principles of `@craft-ng/core`. The goal would be to preserve the
+around the principles of `@craft-ts/core`. The goal would be to preserve the
 advantages of the existing RxJS ecosystem while providing stronger typing,
 treating errors as exceptions, and integrating observability natively with
-Craft NG. It would also include dependency tracking, making reactive
+CraftTS. It would also include dependency tracking, making reactive
 relationships explicit and inspectable.
 
 ## Longer-term exploration: type-safe server functions
@@ -97,6 +97,6 @@ idea develops.
 ## Share your ideas
 
 The roadmap will evolve as these experiments produce results. If you have
-feedback, use cases, or ideas for making `@craft-ng/core` more robust and
-type-safe, please share them through [GitHub Discussions](https://github.com/ng-angular-stack/ng-craft/discussions)
-or [GitHub Issues](https://github.com/ng-angular-stack/ng-craft/issues).
+feedback, use cases, or ideas for making `@craft-ts/core` more robust and
+type-safe, please share them through [GitHub Discussions](https://github.com/craft-ts/craft-ts/discussions)
+or [GitHub Issues](https://github.com/craft-ts/craft-ts/issues).

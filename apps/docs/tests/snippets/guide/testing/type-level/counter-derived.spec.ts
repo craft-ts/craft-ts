@@ -5,8 +5,8 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region counter-derived
-import { button, craftComponent } from '@craft-ng/component';
-import { craftComputed, state } from '@craft-ng/core';
+import { button, craftComponent } from '@craft-ts/component';
+import { craftComputed, state } from '@craft-ts/core';
 
 const Counter = craftComponent(
   'Counter',

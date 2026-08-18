@@ -9,7 +9,7 @@ pipe that needs a service, a library that provides implicitly — a project-leve
 **Not as a first step** — the default rules cover most of Angular, including
 `@angular/router`.
 
-`@craft-ng/dev-tools` can augment generated `GenDeps` from Angular metadata with a project-level `craft-brand.config.ts`.
+`@craft-ts/dev-tools` can augment generated `GenDeps` from Angular metadata with a project-level `craft-brand.config.ts`.
 
 This is useful when a standalone import implies an extra DI dependency that does not belong to your component code directly.
 
@@ -29,7 +29,7 @@ Instead of repeating that rule in every component, you can register it once in y
 Create a `craft-brand.config.ts` file at the root of your app or library:
 
 ```ts
-import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+import { defineAngularBrandConfig } from '@craft-ts/dev-tools';
 
 export default defineAngularBrandConfig({
   importAugmentations: [

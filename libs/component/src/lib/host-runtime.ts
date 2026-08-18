@@ -16,7 +16,7 @@ import {
   type ɵEffectRef,
   type ɵProvider,
   type ɵProviderToken,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export type EffectRef = ɵEffectRef;
 export type Provider = ɵProvider;

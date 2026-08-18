@@ -4,7 +4,7 @@ const PRIMITIVE_METHODS = {
   asyncProcess: new Set(['method']),
 };
 
-const CORE_PACKAGE = '@craft-ng/core';
+const CORE_PACKAGE = '@craft-ts/core';
 
 module.exports = {
   meta: {

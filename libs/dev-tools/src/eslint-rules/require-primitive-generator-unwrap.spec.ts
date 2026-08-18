@@ -23,7 +23,7 @@ describe('require-primitive-generator-unwrap', () => {
   it('reports a bare primitive call inside a craftService generator factory', async () => {
     const { messages } = await lintFixture({
       'src/app/auth.ts': `
-        import { craftService, mutation } from '@craft-ng/core';
+        import { craftService, mutation } from '@craft-ts/core';
 
         export const auth = craftService({ name: 'Auth', scope: 'global' }, function* () {
           const register = mutation({
@@ -43,7 +43,7 @@ describe('require-primitive-generator-unwrap', () => {
   it('reports a bare primitive call in a component field', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
-        import { state } from '@craft-ng/core';
+        import { state } from '@craft-ts/core';
 
         export class CounterComponent {
           readonly counter = state(0);
@@ -58,7 +58,7 @@ describe('require-primitive-generator-unwrap', () => {
   it('does not report a consumed primitive (yield* or craftUse)', async () => {
     const { messages } = await lintFixture({
       'src/app/ok.ts': `
-        import { craftService, craftUse, query, state } from '@craft-ng/core';
+        import { craftService, craftUse, query, state } from '@craft-ts/core';
 
         export const users = craftService({ name: 'Users', scope: 'global' }, function* () {
           const list = yield* query({ params: () => true, loader: () => Promise.resolve([]) });
@@ -77,7 +77,7 @@ describe('require-primitive-generator-unwrap', () => {
   it('does not report a direct factory return or a queryParams concise body', async () => {
     const { messages } = await lintFixture({
       'src/app/routes.ts': `
-        import { craftService, query, queryParams } from '@craft-ng/core';
+        import { craftService, query, queryParams } from '@craft-ts/core';
 
         export const slow = craftService({ name: 'Slow', scope: 'global' }, () =>
           query({ params: () => true, loader: () => Promise.resolve(1) }),
@@ -98,8 +98,8 @@ describe('require-primitive-generator-unwrap', () => {
   it('does not report a direct primitive return from a craftComponent factory', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
-        import { craftComponent } from '@craft-ng/component';
-        import { state } from '@craft-ng/core';
+        import { craftComponent } from '@craft-ts/component';
+        import { state } from '@craft-ts/core';
 
         export const Counter = craftComponent(
           'Counter',
@@ -116,8 +116,8 @@ describe('require-primitive-generator-unwrap', () => {
   it('still reports a bare primitive inside a craftComponent generator factory', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
-        import { craftComponent } from '@craft-ng/component';
-        import { state } from '@craft-ng/core';
+        import { craftComponent } from '@craft-ts/component';
+        import { state } from '@craft-ts/core';
 
         export const Counter = craftComponent(
           'Counter',
@@ -139,8 +139,8 @@ describe('require-primitive-generator-unwrap', () => {
   it('does not treat the craftComponent template as a primitive factory', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
-        import { craftComponent } from '@craft-ng/component';
-        import { state } from '@craft-ng/core';
+        import { craftComponent } from '@craft-ts/component';
+        import { state } from '@craft-ts/core';
 
         export const Counter = craftComponent(
           'Counter',
@@ -159,7 +159,7 @@ describe('require-primitive-generator-unwrap', () => {
   it('does not report destructured readers or non-imported identifiers', async () => {
     const { messages } = await lintFixture({
       'src/app/reader.ts': `
-        import { state as craftState } from '@craft-ng/core';
+        import { state as craftState } from '@craft-ts/core';
 
         export const selectors = ({ patch, state }) => state().page;
 
@@ -175,7 +175,7 @@ describe('require-primitive-generator-unwrap', () => {
     const { output } = await lintFixture(
       {
         'src/app/auth.ts': `
-        import { craftService, mutation } from '@craft-ng/core';
+        import { craftService, mutation } from '@craft-ts/core';
 
         export const auth = craftService({ name: 'Auth', scope: 'global' }, function* () {
           const register = mutation({
@@ -197,7 +197,7 @@ describe('require-primitive-generator-unwrap', () => {
     const { output } = await lintFixture(
       {
         'src/app/counter.ts': `
-        import { state } from '@craft-ng/core';
+        import { state } from '@craft-ts/core';
 
         export class CounterComponent {
           readonly counter = state(0);
@@ -208,7 +208,7 @@ describe('require-primitive-generator-unwrap', () => {
     );
 
     expect(output).toContain('readonly counter = craftUse(state(0));');
-    expect(output).toContain("import { state, craftUse } from '@craft-ng/core';");
+    expect(output).toContain("import { state, craftUse } from '@craft-ts/core';");
   });
 });
 

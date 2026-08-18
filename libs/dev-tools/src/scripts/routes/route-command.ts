@@ -795,7 +795,7 @@ function ensureFeatureCollection(
     : '';
   const sourceFile = project.createSourceFile(
     decision.targetFilePath,
-    `import { assertExhaustiveRouteExceptions, craftRoutes, type CanRun, type ParentRoutes, type ValidateCascadeRoutesFile } from '@craft-ng/core';\n` +
+    `import { assertExhaustiveRouteExceptions, craftRoutes, type CanRun, type ParentRoutes, type ValidateCascadeRoutesFile } from '@craft-ts/core';\n` +
       `import type { Router } from '@angular/router';\n\n` +
       `export const { ${routesName} } = craftRoutes(${quote(
         decision.collectionName,
@@ -1405,7 +1405,7 @@ function rewriteRelativeSpecifiers(
 function ensureImport(
   sourceFile: SourceFile,
   name: string,
-  moduleSpecifier = '@craft-ng/core',
+  moduleSpecifier = '@craft-ts/core',
 ): void {
   const declaration = sourceFile
     .getImportDeclarations()
@@ -1426,7 +1426,7 @@ function ensureImport(
 function ensureTypeImport(
   sourceFile: SourceFile,
   name: string,
-  moduleSpecifier = '@craft-ng/core',
+  moduleSpecifier = '@craft-ts/core',
 ): void {
   if (
     sourceFile

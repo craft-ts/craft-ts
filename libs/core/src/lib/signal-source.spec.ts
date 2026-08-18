@@ -29,8 +29,8 @@ describe('source', () => {
 
       expect(myListener()).toBe('Hello World');
 
-      mySource.set('Hello Ng-Craft');
-      expect(myListener()).toBe('Hello Ng-Craft');
+      mySource.set('Hello CraftTS');
+      expect(myListener()).toBe('Hello CraftTS');
     });
   });
 
@@ -43,8 +43,8 @@ describe('source', () => {
       const myListener = computed(() => mySource());
       expect(myListener()).toBe(undefined);
 
-      mySource.set('Hello Ng-Craft v2');
-      expect(myListener()).toBe('Hello Ng-Craft v2');
+      mySource.set('Hello CraftTS v2');
+      expect(myListener()).toBe('Hello CraftTS v2');
     });
   });
 
@@ -57,8 +57,8 @@ describe('source', () => {
       const myListener = computed(() => mySource.preserveLastValue());
       expect(myListener()).toBe('Hello World');
 
-      mySource.set('Hello Ng-Craft v2');
-      expect(myListener()).toBe('Hello Ng-Craft v2');
+      mySource.set('Hello CraftTS v2');
+      expect(myListener()).toBe('Hello CraftTS v2');
     });
   });
 });

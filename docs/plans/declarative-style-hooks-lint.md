@@ -1,8 +1,8 @@
-# Plan : hooks de style explicites et vérifiés (craft-ng)
+# Plan : hooks de style explicites et vérifiés (craft-ts)
 
 ## Objectif
 
-Transposer à craft-ng la philosophie du document source :
+Transposer à craft-ts la philosophie du document source :
 
 > **Un hook CSS doit être explicite, et tout hook déclaré doit être réellement
 > consommé par le template du composant.**
@@ -44,7 +44,7 @@ changent la donne :
    `meta.styles` + `meta.stylesUrl` + les styles des directives composées.
 
 Conséquence directe : **les deux règles sont des règles ESLint du plugin
-`craft-ng`**, pas de Stylelint.
+`craft-ts`**, pas de Stylelint.
 
 ### Alternative écartée : un plugin Stylelint
 
@@ -248,7 +248,7 @@ Fichiers touchés hors règles :
 ## Dépendances
 
 `postcss` et `postcss-selector-parser` sont aujourd'hui présents en transitif
-(via `cssnano`). Le plugin étant publié sous `@craft-ng/dev-tools`, ils doivent
+(via `cssnano`). Le plugin étant publié sous `@craft-ts/dev-tools`, ils doivent
 devenir des `dependencies` explicites de `libs/dev-tools/package.json` (les
 règles sont chargées en CJS chez le consommateur), et des `devDependencies` du
 dépôt racine. Aucune autre dépendance nouvelle.

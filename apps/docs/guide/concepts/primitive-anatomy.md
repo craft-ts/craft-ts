@@ -73,7 +73,7 @@ import {
   query,
   state,
   type CraftServiceInput,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQueryWithState', scope: 'global' },
@@ -181,7 +181,7 @@ the root.
 import {
   injectQueryMethodRuntimeContext,
   provideFnWrapper,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 provideFnWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -206,7 +206,7 @@ import {
   providePrimitiveResourceRuntimeObserver,
   query,
   type PrimitiveResourceRuntimeContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 let usersRuntime: PrimitiveResourceRuntimeContext | undefined;
 

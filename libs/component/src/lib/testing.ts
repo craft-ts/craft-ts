@@ -17,7 +17,7 @@ import {
   type CraftServiceProvider,
   type CompleteServiceDependencyMapFromYielded,
   type FlattenDependencyTree,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   mountInterpretedComponent,
   mountInterpretedComponentTemplate,

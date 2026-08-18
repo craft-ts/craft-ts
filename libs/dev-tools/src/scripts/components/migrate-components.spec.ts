@@ -19,7 +19,7 @@ describe('components migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'card.ts': `
-        import { component } from '@craft-ng/component';
+        import { component } from '@craft-ts/component';
         export const Card = component({}, () => ({}), () => []);
       `,
     });
@@ -34,7 +34,7 @@ describe('components migration', () => {
     expect(first.diagnostics).toEqual([]);
     expect(first.changedFiles).toContain(join(root, 'card.ts'));
     expect(output).toContain(
-      "import { craftComponent } from '@craft-ng/component'",
+      "import { craftComponent } from '@craft-ts/component'",
     );
     expect(output).toContain(
       "craftComponent('Card', {}, () => ({}), () => [])",
@@ -53,7 +53,7 @@ describe('components migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'inline.ts': `
-        import { component } from '@craft-ng/component';
+        import { component } from '@craft-ts/component';
         export function createValue() {
           return component({}, () => ({}), () => []);
         }
@@ -74,7 +74,7 @@ describe('components migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'legacy.ts': `
-        import { component } from '@craft-ng/component';
+        import { component } from '@craft-ts/component';
         export const Legacy = component({}, () => ({}), () => []);
       `,
     });

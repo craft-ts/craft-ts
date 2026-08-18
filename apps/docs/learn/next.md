@@ -59,7 +59,7 @@ one-line description and a link.
 most of the above end to end.
 
 Importing Craft into an app that an agent will edit? Point it at
-[coding agents](/resources/ai-agents) — `llms.txt`, the `@craft-ng/mcp` server,
+[coding agents](/resources/ai-agents) — `llms.txt`, the `@craft-ts/mcp` server,
 and the Agent Skills.
 
 <div style="margin-top: 2rem">

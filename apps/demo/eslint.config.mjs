@@ -26,7 +26,7 @@ export default [
       },
     },
     plugins: {
-      'craft-ng': craftRules,
+      'craft-ts': craftRules,
     },
     rules: {
       ...craftDemoRules,
@@ -38,7 +38,7 @@ export default [
     rules: {
       // The registry is a JavaScript-facing diagnostic boundary, not a Craft
       // primitive. Its public API reports malformed calls by throwing.
-      'craft-ng/no-throw': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
@@ -46,7 +46,7 @@ export default [
     // standalone computed primitive and does not mount authored Craft code.
     files: ['**/src/app/function-registry.spec.ts'],
     rules: {
-      'craft-ng/no-craft-computed-side-effects': 'off',
+      'craft-ts/no-craft-computed-side-effects': 'off',
     },
   },
   {
@@ -58,8 +58,8 @@ export default [
     rules: {
       // These adapters validate external protocol/URL values and preserve
       // their existing synchronous JavaScript error contracts.
-      'craft-ng/no-throw': 'off',
-      'craft-ng/no-async-await': 'off',
+      'craft-ts/no-throw': 'off',
+      'craft-ts/no-async-await': 'off',
     },
   },
   {
@@ -69,7 +69,7 @@ export default [
     rules: {
       // These wrappers rethrow Craft's control-flow sentinels so the runtime
       // can handle them at the correct boundary.
-      'craft-ng/no-throw': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
@@ -77,7 +77,7 @@ export default [
     // sentinels instead of converting them into user-facing exceptions.
     files: ['**/src/app/app.config.ts'],
     rules: {
-      'craft-ng/no-throw': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
@@ -88,7 +88,7 @@ export default [
       '**/src/app/log-forwarder.ts',
     ],
     rules: {
-      'craft-ng/no-direct-temporal-globals': 'off',
+      'craft-ts/no-direct-temporal-globals': 'off',
     },
   },
   {
@@ -96,9 +96,9 @@ export default [
     // Playwright rules enabled for e2e specs outside src/.
     files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
     rules: {
-      'craft-ng/prefer-craft-template-blocks': 'off',
-      'craft-ng/no-async-await': 'off',
-      'craft-ng/no-throw': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/no-async-await': 'off',
+      'craft-ts/no-throw': 'off',
       'playwright/no-standalone-expect': 'off',
     },
   },
@@ -111,28 +111,28 @@ export default [
       '**/vitest.architecture.config.ts',
     ],
     rules: {
-      'craft-ng/craft-method-name-match': 'off',
-      'craft-ng/craft-computed-name-match': 'off',
-      'craft-ng/craft-source-name-match': 'off',
-      'craft-ng/craft-signal-source-name-match': 'off',
-      'craft-ng/craft-component-name-match': 'off',
-      'craft-ng/craft-directive-name-match': 'off',
-      'craft-ng/no-direct-temporal-globals': 'off',
-      'craft-ng/prefer-craft-template-blocks': 'off',
-      'craft-ng/no-render-writes': 'off',
-      'craft-ng/require-reactive-template-bindings': 'off',
-      'craft-ng/prefer-craft-http-transport': 'off',
-      'craft-ng/no-imperative-craft-resource-trigger': 'off',
-      'craft-ng/require-craft-resource-trigger-yield': 'off',
-      'craft-ng/require-yieldable-template-method': 'off',
-      'craft-ng/require-craft-method-for-yieldable-callback': 'off',
-      'craft-ng/require-yieldable-reactive-read': 'off',
-      'craft-ng/no-ephemeral-template-form-state': 'off',
-      'craft-ng/template-element-name-unique': 'off',
-      'craft-ng/require-primitive-context': 'off',
-      'craft-ng/require-primitive-derived-property': 'off',
-      'craft-ng/no-async-await': 'off',
-      'craft-ng/no-throw': 'off',
+      'craft-ts/craft-method-name-match': 'off',
+      'craft-ts/craft-computed-name-match': 'off',
+      'craft-ts/craft-source-name-match': 'off',
+      'craft-ts/craft-signal-source-name-match': 'off',
+      'craft-ts/craft-component-name-match': 'off',
+      'craft-ts/craft-directive-name-match': 'off',
+      'craft-ts/no-direct-temporal-globals': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/no-render-writes': 'off',
+      'craft-ts/require-reactive-template-bindings': 'off',
+      'craft-ts/prefer-craft-http-transport': 'off',
+      'craft-ts/no-imperative-craft-resource-trigger': 'off',
+      'craft-ts/require-craft-resource-trigger-yield': 'off',
+      'craft-ts/require-yieldable-template-method': 'off',
+      'craft-ts/require-craft-method-for-yieldable-callback': 'off',
+      'craft-ts/require-yieldable-reactive-read': 'off',
+      'craft-ts/no-ephemeral-template-form-state': 'off',
+      'craft-ts/template-element-name-unique': 'off',
+      'craft-ts/require-primitive-context': 'off',
+      'craft-ts/require-primitive-derived-property': 'off',
+      'craft-ts/no-async-await': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
@@ -140,7 +140,7 @@ export default [
     // assertions directly; these rules remain enabled for production Craft.
     files: ['**/*.spec.ts', '**/*.test.ts', '**/e2e/**/*.ts'],
     rules: {
-      'craft-ng/prefer-browser-boundaries': 'off',
+      'craft-ts/prefer-browser-boundaries': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },

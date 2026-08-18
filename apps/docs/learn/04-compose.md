@@ -114,7 +114,7 @@ promise instead of a declared failure. [Step 5](/learn/05-load-data) uses
 `CraftHttpClient` for real, and [step 6](/learn/06-mutate-data) shows the
 exceptions it produces.
 
-The `craft-ng/prefer-craft-http-client` ESLint rule flags direct `HttpClient`
+The `craft-ts/prefer-craft-http-client` ESLint rule flags direct `HttpClient`
 usage for the same reason.
 :::
 

@@ -1,5 +1,5 @@
 import { beforeAll, describe, it } from 'vitest';
-import { assertDeclarativeArchitecture } from '@craft-ng/dev-tools';
+import { assertDeclarativeArchitecture } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from '../load-graph';
 
 describe('assertDeclarativeArchitecture', () => {

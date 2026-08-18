@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertNoDependencyCycles } from '@craft-ng/dev-tools';
+import { assertNoDependencyCycles } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('assertNoDependencyCycles', () => {

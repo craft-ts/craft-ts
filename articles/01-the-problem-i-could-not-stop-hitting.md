@@ -1,9 +1,9 @@
 ---
 title: 'I built a Signals-first toolkit for Angular. Here is the problem I could not stop hitting.'
 published: false
-description: 'Every Angular app I worked on had the same three kinds of state, handled three different ways, glued together by hand. This is the problem that made me build craft-ng — and an honest look at what it is today.'
+description: 'Every Angular app I worked on had the same three kinds of state, handled three different ways, glued together by hand. This is the problem that made me build craft-ts — and an honest look at what it is today.'
 tags: angular, typescript, webdev, signals
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---
@@ -18,7 +18,7 @@ And every application handled them three completely different ways. `ActivatedRo
 
 None of that is wrong. It is just that the glue between them is written by hand, in every app, every time. And the glue is where the bugs live.
 
-This article is about the specific piece of that problem I could not let go of, and about the toolkit I ended up building around it. It is called [craft-ng](https://github.com/ng-angular-stack/ng-craft), it is in beta, and I would genuinely rather have your objections than your stars.
+This article is about the specific piece of that problem I could not let go of, and about the toolkit I ended up building around it. It is called [craft-ts](https://github.com/craft-ts/craft-ts), it is in beta, and I would genuinely rather have your objections than your stars.
 
 ## The code I kept running into
 
@@ -75,10 +75,10 @@ So the question I ended up with was not "how do I fetch data" — Angular answer
 
 I wanted to keep the declarative bargain `resource()` makes — you declare, the framework maintains — but extend it past the single HTTP call, to the whole feature: the failures the server can return, the state that lives in the URL, the services that depend on each other, and the tests that have to reason about all of it.
 
-Here is the same service in craft-ng. The shape will look familiar, and that is on purpose:
+Here is the same service in craft-ts. The shape will look familiar, and that is on purpose:
 
 ```typescript
-import { craftService, query, queryParams } from '@craft-ng/core';
+import { craftService, query, queryParams } from '@craft-ts/core';
 import { TaskApi } from './task-api';
 
 const booleanCodec = {
@@ -135,7 +135,7 @@ The `'Something went wrong'` string is, to me, the most expensive line in the or
 So let us open the `TaskApi` I quietly imported above. This is where the HTTP call lives, and where the failures get their names:
 
 ```typescript
-import { craftException, CraftHttpClient, craftService } from '@craft-ng/core';
+import { craftException, CraftHttpClient, craftService } from '@craft-ts/core';
 
 export const { TaskApi } = craftService(
   { name: 'TaskApi', scope: 'global' },
@@ -173,7 +173,7 @@ craftException(
 );
 ```
 
-So the transport failure is a value too, with the original `HttpErrorResponse` in its payload. The `scope` is what separates the two families: `HttpClient` means the request itself did not make it, while my two codes mean the server answered and said no. Different scopes, different places to deal with them — `HttpError` is usually routed to a global error screen rather than handled in this template, which is exactly what [route exception handling](https://ng-angular-stack.github.io/craft/guide/routing/exception-handling) is for.
+So the transport failure is a value too, with the original `HttpErrorResponse` in its payload. The `scope` is what separates the two families: `HttpClient` means the request itself did not make it, while my two codes mean the server answered and said no. Different scopes, different places to deal with them — `HttpError` is usually routed to a global error screen rather than handled in this template, which is exactly what [route exception handling](https://craft-ts.github.io/craft/guide/routing/exception-handling) is for.
 
 Now, the part that matters. `TaskList` never mentions any of these codes — it just calls `TaskApi.list(params)`. But they travel with the return type, so the compiler knows the complete set of things that can go wrong in that query. Which means the template can be made exhaustive:
 
@@ -195,7 +195,7 @@ You have noticed the `function*` and the `yield*`. That is the one genuinely unu
 
 **This pattern comes from [Effect](https://effect.website).** If you have written `Effect.gen(function* () { … yield* … })`, everything above will have looked familiar, and for good reason: the two ideas I care most about are theirs. Failures belong in the type rather than in a `catch` block, and what a piece of code *requires* should be visible in its signature instead of resolved invisibly at runtime. Generators are what make both practical — they give you `async/await` ergonomics over something that is not a promise, without monad transformers and without a `.pipe()` chain for every branch.
 
-What craft-ng does not do is bring the rest of Effect with it. There is no runtime to learn, no fibers, no `Layer`, no separate scheduler. The success value is not wrapped: `tasks.value()` is a `Task[] | undefined`, and it is read from an Angular template like any other signal. Craft borrows the ergonomics and the type discipline, and leaves the execution model to Angular.
+What craft-ts does not do is bring the rest of Effect with it. There is no runtime to learn, no fibers, no `Layer`, no separate scheduler. The success value is not wrapped: `tasks.value()` is a `Task[] | undefined`, and it is read from an Angular template like any other signal. Craft borrows the ergonomics and the type discipline, and leaves the execution model to Angular.
 
 So if this article makes you want the full version rather than the Angular-shaped subset of it, go read Effect — it is a genuinely excellent library and you will lose nothing by starting there.
 
@@ -213,13 +213,13 @@ It costs you two characters and one unfamiliar keyword. Whether that trade is wo
 
 ## Try it
 
-craft-ng is in beta: `@craft-ng/core@beta`, targeting Angular 21, Node 20.19+ and TypeScript 5.9+. The surface will still move, and breaking changes come with a changelog and a migration note.
+craft-ts is in beta: `@craft-ts/core@beta`, targeting Angular 21, Node 20.19+ and TypeScript 5.9+. The surface will still move, and breaking changes come with a changelog and a migration note.
 
 ```bash
-npm install @craft-ng/core@beta @craft-ng/component@beta
+npm install @craft-ts/core@beta @craft-ts/component@beta
 ```
 
-The [documentation](https://ng-angular-stack.github.io/craft/) has a ten-step guide that builds a real feature, and the [repository](https://github.com/ng-angular-stack/ng-craft) is MIT.
+The [documentation](https://craft-ts.github.io/craft/) has a ten-step guide that builds a real feature, and the [repository](https://github.com/craft-ts/craft-ts) is MIT.
 
 ## The question I actually want answered
 
@@ -227,7 +227,7 @@ I have been staring at this problem long enough that I have lost the ability to 
 
 **In your current Angular app, what is the glue you are tired of writing?** Is it the loading/error triad? The URL-as-state synchronisation? Passing typed data down a route hierarchy? Something else entirely that I have not even modelled?
 
-I am building this in the open, in beta, precisely so that the answer can still change the API. Tell me where I am wrong — in the comments, or in a [discussion](https://github.com/ng-angular-stack/ng-craft/discussions).
+I am building this in the open, in beta, precisely so that the answer can still change the API. Tell me where I am wrong — in the comments, or in a [discussion](https://github.com/craft-ts/craft-ts/discussions).
 
 Next in this series: **why the primitives are generators**, and what `yield*` actually buys you that a plain function call cannot.
 

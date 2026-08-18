@@ -25,7 +25,7 @@ import {
   insertQueryPipe,
   insertStatePipe,
   query,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const users = yield* query(
   'users',

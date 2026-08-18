@@ -2,7 +2,7 @@
 
 Primitives accept any schema implementing `StandardSchemaV1`, so Zod, Valibot,
 Effect or a hand-written schema all work — and none of them becomes a dependency
-of `@craft-ng`.
+of `@craft-ts`.
 
 **Use it when** data crosses a boundary you don't control: a method argument, a
 server response, a restored value.

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/schema",
   "$id": "CraftRoute",
-  "title": "Add a Craft NG route",
+  "title": "Add a CraftTS route",
   "type": "object",
   "properties": {
     "path": {

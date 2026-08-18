@@ -11,7 +11,7 @@ action that isn't a server write
 ## The common case
 
 ```typescript
-import { CraftHttpClient, mutation } from '@craft-ng/core';
+import { CraftHttpClient, mutation } from '@craft-ts/core';
 
 const { createUser } =
   yield *

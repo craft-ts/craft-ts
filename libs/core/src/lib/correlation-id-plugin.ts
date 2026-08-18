@@ -27,7 +27,7 @@ const correlationIdDomEventHook: CraftDomEventHook = (interaction, next) => {
   return next();
 };
 
-const POPSTATE_COUNTER_KEY = '__craftNgNavCounter';
+const POPSTATE_COUNTER_KEY = '__craftTsNavCounter';
 
 function initPopstateTracking(injector: Injector): void {
   if (typeof window === 'undefined') return;

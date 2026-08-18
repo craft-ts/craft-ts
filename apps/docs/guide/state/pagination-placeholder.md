@@ -9,7 +9,7 @@ already keeps its previous value while loading, with no configuration
 ([query](/guide/state/server-state)).
 
 ```typescript
-import { insertPaginationPlaceholderData } from '@craft-ng/core';
+import { insertPaginationPlaceholderData } from '@craft-ts/core';
 ```
 
 ## The common case
@@ -116,8 +116,8 @@ The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderDa
 ::: details A full paginated component
 
 ```typescript
-import { button, craftComponent, div, each, ifBlock, span } from '@craft-ng/component';
-import { craftComputed, query, state } from '@craft-ng/core';
+import { button, craftComponent, div, each, ifBlock, span } from '@craft-ts/component';
+import { craftComputed, query, state } from '@craft-ts/core';
 
 export const UsersList = craftComponent(
   'UsersList',

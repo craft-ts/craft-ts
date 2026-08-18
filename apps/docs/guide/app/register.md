@@ -14,7 +14,7 @@ instead. A registry trades explicitness for reach.
 The registry is typed from the Craft targets it accepts:
 
 ```ts
-import { craftComputed, craftRegisterFor } from '@craft-ng/core';
+import { craftComputed, craftRegisterFor } from '@craft-ts/core';
 
 const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
@@ -354,7 +354,7 @@ close to `provideFnWrapper`, but limited to service yields:
 import {
   provideServiceYieldWrapper,
   type ServiceYieldContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 function* reportServiceYield(
   context: ServiceYieldContext,

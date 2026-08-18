@@ -1,4 +1,4 @@
-import type { SignalSource, YieldableReactiveValue } from '@craft-ng/core';
+import type { SignalSource, YieldableReactiveValue } from '@craft-ts/core';
 import { expect, it } from 'vitest';
 
 type _Assert = YieldableReactiveValue<number, 'n'>;
@@ -16,21 +16,21 @@ import type {
   EffectRef,
   Provider,
   Signal,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 type _CraftOwnedSurface = [Signal<number>, DestroyRef, Provider, EffectRef];
 
 // @ts-expect-error Angular Injector must not leak from the public index
-import type { Injector } from '@craft-ng/core';
+import type { Injector } from '@craft-ts/core';
 // @ts-expect-error Angular Type must not leak from the public index
-import type { Type } from '@craft-ng/core';
+import type { Type } from '@craft-ts/core';
 // @ts-expect-error Angular HttpClient must not leak from the public index
-import type { HttpClient } from '@craft-ng/core';
+import type { HttpClient } from '@craft-ts/core';
 // @ts-expect-error Angular HttpParams must not leak from the public index
-import type { HttpParams } from '@craft-ng/core';
+import type { HttpParams } from '@craft-ts/core';
 // @ts-expect-error Angular ApplicationConfig must not leak from the public index
-import type { ApplicationConfig } from '@craft-ng/core';
+import type { ApplicationConfig } from '@craft-ts/core';
 // @ts-expect-error The raw host signal marker is internal
-import type { RAW_REACTIVE_VALUE } from '@craft-ng/core';
+import type { RAW_REACTIVE_VALUE } from '@craft-ts/core';
 
 it('keeps Craft readers public without exporting Angular Signal', () => {
   expect(true).toBe(true);

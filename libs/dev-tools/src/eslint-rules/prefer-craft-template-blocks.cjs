@@ -329,14 +329,14 @@ module.exports = {
         (statement) =>
           statement.type === 'ImportDeclaration' &&
           statement.importKind !== 'type' &&
-          statement.source.value === '@craft-ng/component',
+          statement.source.value === '@craft-ts/component',
       );
 
       if (declaration === undefined) {
         const firstStatement = sourceCode.ast.body[0];
         return fixer.insertTextBefore(
           firstStatement ?? sourceCode.ast,
-          `import { ${name} } from '@craft-ng/component';\n`,
+          `import { ${name} } from '@craft-ts/component';\n`,
         );
       }
 
@@ -363,7 +363,7 @@ module.exports = {
 
       return fixer.insertTextAfter(
         declaration,
-        `\nimport { ${name} } from '@craft-ng/component';`,
+        `\nimport { ${name} } from '@craft-ts/component';`,
       );
     }
   },

@@ -48,7 +48,7 @@ describe('no-craft-use-in-template', () => {
 
   it('reports an aliased craftUse imported from core', async () => {
     const result = await lintFixture(`
-      import { craftUse as read } from '@craft-ng/core';
+      import { craftUse as read } from '@craft-ts/core';
       declare function craftComponent(...args: unknown[]): unknown;
       declare const value: () => string;
 

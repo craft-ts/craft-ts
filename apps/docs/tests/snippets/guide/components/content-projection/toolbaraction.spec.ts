@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region toolbaraction
-import { content, input } from '@craft-ng/component';
+import { content, input } from '@craft-ts/component';
 
 import {
   button,
@@ -14,7 +14,7 @@ import {
   type ContentSlot,
   type ProjectionContractOf,
   type ProjectionOf,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 type ToolbarActionContract = {
   readonly kind: 'toolbar-action';

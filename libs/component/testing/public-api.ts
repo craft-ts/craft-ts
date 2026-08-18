@@ -1,5 +1,5 @@
-export * from '@craft-ng/component';
+export * from '@craft-ts/component';
 export {
   setupCraftServiceTestingByRegister,
   setupTestingService,
-} from '@craft-ng/core';
+} from '@craft-ts/core';

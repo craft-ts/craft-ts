@@ -1,7 +1,7 @@
 import type {
   AnyCraftException,
   YieldableReactiveValue,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,

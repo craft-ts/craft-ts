@@ -32,7 +32,7 @@ Form insertions enable modular composition of functionality:
 The primary insertion that creates an Angular Signal-Form from a primitive.
 
 ```ts
-import { craftUse, state } from '@craft-ng/core';
+import { craftUse, state } from '@craft-ts/core';
 import {
   insertForm,
   insertFormAttributes,
@@ -40,7 +40,7 @@ import {
   insertSelectFormTree,
   cRequired,
   cEmail,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const userFormState = craftUse(
   state(
@@ -113,7 +113,7 @@ native attributes and `craft-*` CSS classes.
 In a Craft template, apply the functional directive to the concrete node:
 
 ```ts
-import { CraftFieldDirective } from '@craft-ng/core';
+import { CraftFieldDirective } from '@craft-ts/core';
 
 input({
   type: 'email',
@@ -134,7 +134,7 @@ Angular templates can keep using the deprecated compatibility wrapper during
 the migration:
 
 ```ts
-import { LegacyCraftFieldDirective } from '@craft-ng/angular';
+import { LegacyCraftFieldDirective } from '@craft-ts/angular';
 
 @Component({
   imports: [LegacyCraftFieldDirective],
@@ -157,7 +157,7 @@ obligations. Every reachable code must have one handler, and an unreachable
 handler is also rejected.
 
 ```ts
-import { fieldExceptionBlock, input, p } from '@craft-ng/component';
+import { fieldExceptionBlock, input, p } from '@craft-ts/component';
 
 input({ id: 'email', type: 'email' })
   .pipe(CraftFieldDirective(loginForm.form.selectEmail()))

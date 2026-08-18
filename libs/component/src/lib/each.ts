@@ -4,7 +4,7 @@ import type {
   EachNode,
 } from './render/vnode';
 import type { InputValue } from './types';
-import { YIELDABLE_VALUE } from '@craft-ng/core';
+import { YIELDABLE_VALUE } from '@craft-ts/core';
 
 export interface EachOptions<Item, Key> {
   readonly track: (item: Item, index: number) => Key;

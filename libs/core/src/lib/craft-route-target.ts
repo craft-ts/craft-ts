@@ -7,7 +7,7 @@ import { InjectionToken } from './host/craft-compat';
  */
 export type CraftRouteTarget = {
   readonly kind: 'craft';
-  /** Opaque in core; `@craft-ng/component` owns the concrete renderer. */
+  /** Opaque in core; `@craft-ts/component` owns the concrete renderer. */
   readonly component: unknown;
 };
 

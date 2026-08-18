@@ -16,12 +16,12 @@ describe('live page MCP docs', () => {
     'utf8',
   );
 
-  it('splits page vs registry.* vs @craft-ng/mcp', () => {
+  it('splits page vs registry.* vs @craft-ts/mcp', () => {
     expect(page).toContain('# Live page MCP');
     expect(page).toContain('**Use it when**');
     expect(page).toContain('**Not when**');
     expect(page).toContain('registry.*');
-    expect(page).toContain('@craft-ng/mcp');
+    expect(page).toContain('@craft-ts/mcp');
     expect(page).toContain('function-registry');
     expect(page).toContain('data-craft-name="save"');
     expect(page).toContain('assertInteractiveElementNamed');
@@ -31,7 +31,7 @@ describe('live page MCP docs', () => {
 
   it('ships the page skill on the Cursor skills path', () => {
     const cursorSkill = readFileSync(
-      join(repoRoot, '.cursor/skills/ng-craft-dev-page-mcp/SKILL.md'),
+      join(repoRoot, '.cursor/skills/craft-ts-dev-page-mcp/SKILL.md'),
       'utf8',
     );
     expect(cursorSkill).toContain('Do **not** open Playwright');
@@ -44,7 +44,7 @@ describe('live page MCP docs', () => {
     expect(page).toContain('Multiple ready page clients');
     expect(page).toContain('registry.clients');
     const cursorSkill = readFileSync(
-      join(repoRoot, '.cursor/skills/ng-craft-dev-page-mcp/SKILL.md'),
+      join(repoRoot, '.cursor/skills/craft-ts-dev-page-mcp/SKILL.md'),
       'utf8',
     );
     expect(cursorSkill).toContain('page client "');
@@ -63,10 +63,10 @@ describe('live page MCP docs', () => {
     expect(reference).toContain('/guide/ai/dev-page');
   });
 
-  it('does not expose a page tool on the published @craft-ng/mcp server', () => {
+  it('does not expose a page tool on the published @craft-ts/mcp server', () => {
     expect(publishedMcp).not.toContain("registerTool(\n    'page'");
     expect(publishedMcp).not.toMatch(/registerTool\(\s*'page'/);
-    expect(publishedMcp).toContain("name: 'craft-ng'");
+    expect(publishedMcp).toContain("name: 'craft-ts'");
     expect(publishedMcp).toContain('get_best_practices');
   });
 });

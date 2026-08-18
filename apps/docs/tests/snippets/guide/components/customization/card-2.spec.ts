@@ -10,7 +10,7 @@ import {
   div,
   h2,
   strong,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const Card = craftComponent(
   'Card',

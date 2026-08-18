@@ -1,20 +1,20 @@
 ---
-description: Point Cursor, Claude, Copilot, and other coding agents at Craft NG docs, MCP tools, and Agent Skills after you import @craft-ng/core.
+description: Point Cursor, Claude, Copilot, and other coding agents at CraftTS docs, MCP tools, and Agent Skills after you import @craft-ts/core.
 ---
 
 # Coding agents
 
-Craft NG is unusual enough that a model trained on Angular classes will invent
-the wrong API. After you import `@craft-ng/core`, give the agent three layered
+CraftTS is unusual enough that a model trained on Angular classes will invent
+the wrong API. After you import `@craft-ts/core`, give the agent three layered
 entry points — the same split Angular uses with `llms.txt`, the CLI MCP server,
 and Agent Skills.
 
 | Layer | What it is | When the agent uses it |
 | --- | --- | --- |
-| **LLM files** | [`/llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt), [`/llms-full.txt`](https://ng-angular-stack.github.io/craft/llms-full.txt), and a `.md` sibling for every docs page | Discovery on the internet, no install |
-| **MCP server** | [`@craft-ng/mcp`](https://www.npmjs.com/package/@craft-ng/mcp) — `get_best_practices`, `search_documentation`, `find_examples`, skills | Live lookup in Cursor, Claude Code, VS Code, Copilot |
-| **Agent Skills** | `skills/` inside `@craft-ng/mcp`, plus an [Agent Plugin](https://agent-plugins.org/) manifest | Multi-step workflows (architecture tests, routes, spec → primitives, migration) |
-| **Live page MCP** | Local `@ng-craft/function-registry-mcp` tool `page` — fill, click, and inspect the `ng serve` tab already open | Dev only, on the running app. Not shipped in `@craft-ng/mcp`. See [Live page MCP](/guide/ai/dev-page) |
+| **LLM files** | [`/llms.txt`](https://craft-ts.github.io/craft/llms.txt), [`/llms-full.txt`](https://craft-ts.github.io/craft/llms-full.txt), and a `.md` sibling for every docs page | Discovery on the internet, no install |
+| **MCP server** | [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp) — `get_best_practices`, `search_documentation`, `find_examples`, skills | Live lookup in Cursor, Claude Code, VS Code, Copilot |
+| **Agent Skills** | `skills/` inside `@craft-ts/mcp`, plus an [Agent Plugin](https://agent-plugins.org/) manifest | Multi-step workflows (architecture tests, routes, spec → primitives, migration) |
+| **Live page MCP** | Local `@craft-ts/function-registry-mcp` tool `page` — fill, click, and inspect the `ng serve` tab already open | Dev only, on the running app. Not shipped in `@craft-ts/mcp`. See [Live page MCP](/guide/ai/dev-page) |
 
 Do not scrape the HTML docs. Start from `llms.txt` or the MCP tools.
 
@@ -23,22 +23,22 @@ Do not scrape the HTML docs. Start from `llms.txt` or the MCP tools.
 These follow the [llms.txt](https://llmstxt.org/) spec and are generated from
 this VitePress site at build time.
 
-- Index (curated links): https://ng-angular-stack.github.io/craft/llms.txt
-- Concatenated docs: https://ng-angular-stack.github.io/craft/llms-full.txt
+- Index (curated links): https://craft-ts.github.io/craft/llms.txt
+- Concatenated docs: https://craft-ts.github.io/craft/llms-full.txt
 - One page, as markdown: append `.md` to any docs URL, for example
-  [local state](https://ng-angular-stack.github.io/craft/guide/state/local-state.md)
+  [local state](https://craft-ts.github.io/craft/guide/state/local-state.md)
 
 Paste this into an `AGENTS.md` (or `CLAUDE.md`) at the root of the app that
 imports Craft:
 
 ```md
-# Craft NG
+# CraftTS
 
-This application uses `@craft-ng/core`.
+This application uses `@craft-ts/core`.
 
-- Docs index: https://ng-angular-stack.github.io/craft/llms.txt
-- MCP: `npx -y @craft-ng/mcp@beta` (`get_best_practices`, `search_documentation`)
-- Skills: `node_modules/@craft-ng/mcp/skills`
+- Docs index: https://craft-ts.github.io/craft/llms.txt
+- MCP: `npx -y @craft-ts/mcp@beta` (`get_best_practices`, `search_documentation`)
+- Skills: `node_modules/@craft-ts/mcp/skills`
 
 yield* every Craft reader. Do not generate Angular signal(), inject(), or
 @Injectable in authored Craft code. craftRoutes files need componentDeps and
@@ -53,7 +53,7 @@ The same snippet is returned by the MCP tool `get_best_practices` (field
 ## 2. MCP server
 
 ```bash
-npm install -D @craft-ng/mcp@beta
+npm install -D @craft-ts/mcp@beta
 ```
 
 Add a project `.mcp.json` (Cursor, Claude Code, and VS Code all understand it):
@@ -61,9 +61,9 @@ Add a project `.mcp.json` (Cursor, Claude Code, and VS Code all understand it):
 ```json
 {
   "mcpServers": {
-    "craft-ng": {
+    "craft-ts": {
       "command": "npx",
-      "args": ["-y", "@craft-ng/mcp@beta"]
+      "args": ["-y", "@craft-ts/mcp@beta"]
     }
   }
 }
@@ -72,7 +72,7 @@ Add a project `.mcp.json` (Cursor, Claude Code, and VS Code all understand it):
 Claude Code, from the app directory:
 
 ```shell
-claude mcp add craft-ng -- npx -y @craft-ng/mcp@beta
+claude mcp add craft-ts -- npx -y @craft-ts/mcp@beta
 ```
 
 ### Tools
@@ -99,12 +99,12 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) layout
 
 | Skill | Trigger |
 | --- | --- |
-| `craft-ng` | Any authored Craft code |
-| `ng-craft-architecture-tests` | Scaffold or run `architecture/`, or freeze a graph smell |
-| `translate-spec-to-ng-craft` | Spec / CRUD / filters / forms → primitives |
-| `ng-craft-routes` | `craftRoutes`, `componentDeps`, `TS2589` |
-| `ng-craft-service-migration` | `@Injectable` / `inject()` → `craftService` |
-| `migrate-to-ng-craft` | `craft-migrate` then manual diagnostics |
+| `craft-ts` | Any authored Craft code |
+| `craft-ts-architecture-tests` | Scaffold or run `architecture/`, or freeze a graph smell |
+| `translate-spec-to-craft-ts` | Spec / CRUD / filters / forms → primitives |
+| `craft-ts-routes` | `craftRoutes`, `componentDeps`, `TS2589` |
+| `craft-ts-service-migration` | `@Injectable` / `inject()` → `craftService` |
+| `migrate-to-craft-ts` | `craft-migrate` then manual diagnostics |
 
 The [architecture suite](/guide/testing/architecture) is the app's graph
 contract (unique HTTP, unique identities, armed route DI proofs, folder
@@ -113,7 +113,7 @@ feature, run the suite that already exists. Do not add an architecture rule for 
 Add a new `it()` only when a bad pattern is spotted, so it cannot recur. If
 `architecture/` is missing mid-feature, offer the scaffold; do not impose it.
 
-Point the agent at `node_modules/@craft-ng/mcp/skills`, or let it call
+Point the agent at `node_modules/@craft-ts/mcp/skills`, or let it call
 `get_skill`. Cursor can also install a skill from that folder.
 
 ## Verify the agent can see Craft

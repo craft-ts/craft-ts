@@ -17,7 +17,7 @@ the loader re-runs when they change.
 ## The common case
 
 ```typescript
-import { CraftHttpClient, craftComputed, craftUse, query, settled } from '@craft-ng/core';
+import { CraftHttpClient, craftComputed, craftUse, query, settled } from '@craft-ts/core';
 
 const { userQuery } =
   yield *
@@ -128,8 +128,8 @@ selected item. The selector keeps the item type, so derived values can use its
 properties without casting:
 
 ```typescript
-import { craftComputed as computed } from '@craft-ng/core';
-import { CraftHttpClient, insertQuerySelect, query } from '@craft-ng/core';
+import { craftComputed as computed } from '@craft-ts/core';
+import { CraftHttpClient, insertQuerySelect, query } from '@craft-ts/core';
 
 type User = {
   id: string;
@@ -202,7 +202,7 @@ import {
   insertQueryPipe,
   insertReactOnMutation,
   insertStoragePersister,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const userQuery = yield* query(
   'userQuery',
@@ -237,7 +237,7 @@ Full options on [Reacting to mutations](/guide/state/react-on-mutation).
 the request produced:
 
 ```typescript
-import { craftException, query } from '@craft-ng/core';
+import { craftException, query } from '@craft-ts/core';
 
 const { userQuery } =
   yield *
@@ -342,7 +342,7 @@ loader: function* ({ params }) {
 ```
 
 Working source:
-[exceptions demo](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts).
+[exceptions demo](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts).
 :::
 
 ::: details Advanced — yielding dependencies from `params`

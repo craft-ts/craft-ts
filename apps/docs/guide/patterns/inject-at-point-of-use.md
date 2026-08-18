@@ -44,8 +44,8 @@ service (or an existing Angular service adapted with
 [`toCraftService`](/guide/app/integrate-existing)):
 
 ```typescript
-import { craftComponent, each, ifBlock, li, p, ul } from '@craft-ng/component';
-import { query } from '@craft-ng/core';
+import { craftComponent, each, ifBlock, li, p, ul } from '@craft-ts/component';
+import { query } from '@craft-ts/core';
 
 export const Tasks = craftComponent(
   'Tasks',

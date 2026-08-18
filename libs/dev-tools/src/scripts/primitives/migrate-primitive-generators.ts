@@ -356,14 +356,14 @@ function ensureCraftUseImport(sourceFile: SourceFile): void {
 
   const coreImport = sourceFile
     .getImportDeclarations()
-    .find((declaration) => declaration.getModuleSpecifierValue() === '@craft-ng/core');
+    .find((declaration) => declaration.getModuleSpecifierValue() === '@craft-ts/core');
   if (coreImport) {
     coreImport.addNamedImport('craftUse');
     return;
   }
 
   sourceFile.addImportDeclaration({
-    moduleSpecifier: '@craft-ng/core',
+    moduleSpecifier: '@craft-ts/core',
     namedImports: ['craftUse'],
   });
 }

@@ -2,14 +2,14 @@
 import {
   setupCraftServiceTestingByRegister,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
 useSnippetHarness();
 
 // #region omit-inputs
-import { craftService, type CraftServiceInput } from '@craft-ng/core';
+import { craftService, type CraftServiceInput } from '@craft-ts/core';
 
 const { Counter } = craftService(
   { name: 'Counter', scope: 'function' },

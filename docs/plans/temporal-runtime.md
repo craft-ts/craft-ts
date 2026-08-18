@@ -18,7 +18,7 @@ les programmes qui dépendent du temps.
 
 ## État de la première tranche
 
-La première tranche est implémentée dans `@craft-ng/core` :
+La première tranche est implémentée dans `@craft-ts/core` :
 
 - `CRAFT_TEMPORAL_RUNTIME` fournit l’adapter réel et peut être remplacé par
   `VirtualCraftTemporalRuntime` avec `provideCraftTemporalRuntime(...)` ;

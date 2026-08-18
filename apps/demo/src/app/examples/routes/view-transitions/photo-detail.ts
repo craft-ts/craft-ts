@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
@@ -9,8 +9,8 @@ import {
   span,
   type Input,
   heading,
-} from '@craft-ng/component';
-import { craftComputed, craftMethod, CraftRouter } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { craftComputed, craftMethod, CraftRouter } from '@craft-ts/core';
 import { findPhoto, type Photo } from './photos';
 
 const MISSING_PHOTO: Photo = {

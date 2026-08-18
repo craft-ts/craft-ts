@@ -8,16 +8,16 @@ const workspaceRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: workspaceRoot,
-  cacheDir: path.join(workspaceRoot, 'node_modules/.vite/ng-craft'),
+  cacheDir: path.join(workspaceRoot, 'node_modules/.vite/craft-ts'),
   plugins: [nxViteTsPaths()],
   resolve: {
     alias: {
-      '@craft-ng/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
-      '@craft-ng/component': path.join(
+      '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
+      '@craft-ts/component': path.join(
         workspaceRoot,
         'libs/component/src/index.ts',
       ),
-      '@craft-ng/angular': path.join(
+      '@craft-ts/angular': path.join(
         workspaceRoot,
         'libs/angular/src/index.ts',
       ),

@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   craftComponent,
@@ -7,8 +7,8 @@ import {
   headingSection,
   p,
   section,
-} from '@craft-ng/component';
-import { CraftRouterLink } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { CraftRouterLink } from '@craft-ts/core';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 const CASES = [

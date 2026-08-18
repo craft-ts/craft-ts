@@ -37,7 +37,7 @@ judge an **app**, not a workspace.
 
 | Nx sees | Nx misses | Craft counterpart |
 | --- | --- | --- |
-| `demo` imports `@craft-ng/core` | `yield* CheckoutApi` in the same app | `depends-on` |
+| `demo` imports `@craft-ts/core` | `yield* CheckoutApi` in the same app | `depends-on` |
 | Tags on a lib (`scope:admin`) | Two features that share one app | `assertPathBoundaries`, `noExclusiveLink` |
 | A circular import between libs | A service cycle `A → B → A` inside one tsconfig | `assertNoDependencyCycles` |
 | That `HttpClient` was imported | That `GET users` is called from two APIs | `assertHttpEndpointUnique` |
@@ -61,7 +61,7 @@ including lazy `loadChildren` collections a parent proof never covers.
 
 Nx Enterprise Conformance can add workspace rules on the project graph and the
 file tree. Recreating Craft's AST analysis (DI, yield, HTTP) there would be
-rewriting `@craft-ng/dev-tools`.
+rewriting `@craft-ts/dev-tools`.
 
 ## What Craft cannot see
 

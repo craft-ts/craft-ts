@@ -8,7 +8,7 @@ import { withBase } from 'vitepress';
       <img
         class="author-note__photo"
         :src="withBase('/assets/romain-geffrault.png')"
-        alt="Romain Geffrault, creator of @craft-ng"
+        alt="Romain Geffrault, creator of @craft-ts"
         width="132"
         height="132"
       />
@@ -16,7 +16,7 @@ import { withBase } from 'vitepress';
     <figure class="author-note__body">
       <blockquote>
         <p>
-          I built @craft-ng around one priority: robustness. Applications that
+          I built @craft-ts around one priority: robustness. Applications that
           stay solid over time, composed from the smallest possible pieces —
           so the people who use them inherit a reliability they never have to
           think about.
@@ -28,7 +28,7 @@ import { withBase } from 'vitepress';
       </blockquote>
       <figcaption>
         <strong>Romain Geffrault</strong>
-        <span>creator of @craft-ng</span>
+        <span>creator of @craft-ts</span>
       </figcaption>
     </figure>
   </section>

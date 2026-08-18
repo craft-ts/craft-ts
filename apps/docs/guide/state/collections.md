@@ -12,7 +12,7 @@ branch rather than the collection — that is
 ## Import
 
 ```typescript
-import { insertEntities } from '@craft-ng/core';
+import { insertEntities } from '@craft-ts/core';
 import {
   addOne,
   addMany,
@@ -26,7 +26,7 @@ import {
   upsertOne,
   upsertMany,
   removeAll,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ```
 
 ## Overview
@@ -105,7 +105,7 @@ import {
   addOne,
   addMany,
   removeOne,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { tags } = state(
   'tags',
@@ -139,7 +139,7 @@ import {
   addOne,
   setOne,
   removeOne,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 interface Product {
   id: string;
@@ -175,7 +175,7 @@ console.log(products()); // []
 #### Using custom identifier
 
 ```typescript
-import { state, insertEntities, setOne, removeOne } from '@craft-ng/core';
+import { state, insertEntities, setOne, removeOne } from '@craft-ts/core';
 
 interface User {
   uuid: string;
@@ -210,7 +210,7 @@ console.log(users()); // []
 #### Working with nested arrays using path
 
 ```typescript
-import { state, insertEntities, addMany, removeOne } from '@craft-ng/core';
+import { state, insertEntities, addMany, removeOne } from '@craft-ts/core';
 
 interface Catalog {
   total: number;
@@ -248,7 +248,7 @@ console.log(catalog());
 #### Deep nested path with dot notation
 
 ```typescript
-import { state, insertEntities, addMany } from '@craft-ng/core';
+import { state, insertEntities, addMany } from '@craft-ts/core';
 
 interface State {
   catalog: {
@@ -285,7 +285,7 @@ console.log(store().catalog.featured.products);
 #### Using with query primitive
 
 ```typescript
-import { query, insertEntities, addMany, removeOne } from '@craft-ng/core';
+import { query, insertEntities, addMany, removeOne } from '@craft-ts/core';
 
 interface Product {
   id: string;
@@ -321,7 +321,7 @@ productsQuery.removeOne({ id: 'temp-1' });
 #### Working with parallel queries
 
 ```typescript
-import { query, insertEntities, addOne } from '@craft-ng/core';
+import { query, insertEntities, addOne } from '@craft-ts/core';
 
 const { userQuery } = query(
   'userQuery',
@@ -348,7 +348,7 @@ userQuery.addOne({
 #### Update operations
 
 ```typescript
-import { state, insertEntities, updateOne, updateMany } from '@craft-ng/core';
+import { state, insertEntities, updateOne, updateMany } from '@craft-ts/core';
 
 interface Todo {
   id: string;
@@ -389,7 +389,7 @@ todos.updateMany({
 #### Upsert operations
 
 ```typescript
-import { state, insertEntities, upsertOne, upsertMany } from '@craft-ng/core';
+import { state, insertEntities, upsertOne, upsertMany } from '@craft-ts/core';
 
 interface Settings {
   key: string;
@@ -438,7 +438,7 @@ import {
   updateOne,
   removeOne,
   setAll,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 interface Task {
   id: string;
@@ -499,7 +499,7 @@ tasks.setAll({
 #### Using with queryParams
 
 ```typescript
-import { queryParams, insertEntities, addOne, removeOne } from '@craft-ng/core';
+import { queryParams, insertEntities, addOne, removeOne } from '@craft-ts/core';
 
 const { filters } = queryParams(
   'filters',

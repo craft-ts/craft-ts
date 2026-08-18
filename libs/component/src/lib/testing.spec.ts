@@ -3,13 +3,13 @@ import {
   signal,
 } from '../../../core/src/lib/host/craft-compat';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
-import { craftService, craftUse } from '@craft-ng/core';
+import { craftService, craftUse } from '@craft-ts/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { div, button, input, label, p, span } from './hyperscript';
 import { ifBlock } from './if-block';
 import { each } from './each';
-import { markYieldableValue } from '@craft-ng/core';
+import { markYieldableValue } from '@craft-ts/core';
 import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
@@ -17,7 +17,7 @@ import {
   setupCraftDirectiveTemplateTest,
 } from './testing';
 import type { HostRequiredLogic, HostTemplate, Input } from './types';
-import type { NamedYieldableValue } from '@craft-ng/core';
+import type { NamedYieldableValue } from '@craft-ts/core';
 import type { LocatorContentNamesFor } from './locator';
 
 describe('Craft component and directive testing utilities', () => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import {
-  setupCraftServiceTestingByRegister, craftUse } from '@craft-ng/core';
+  setupCraftServiceTestingByRegister, craftUse } from '@craft-ts/core';
 import { TodoStore, provideTodoStore } from './full-demo';
 
 describe('TodoStore logic', () => {

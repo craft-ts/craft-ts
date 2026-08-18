@@ -10,7 +10,7 @@ dependencies with `yield*`.
 ## Import
 
 ```typescript
-import { craftMethod } from '@craft-ng/core';
+import { craftMethod } from '@craft-ts/core';
 ```
 
 ## Overview
@@ -50,7 +50,7 @@ function craftMethod<Name extends string, This, Args extends unknown[], Result>(
 The first argument is the **host name**: it is required and must match the
 property (or variable) the method is assigned to. It is the value used to tag
 the injector context — same role as `provideHostName(...)`. The
-[`craft-ng/craft-method-name-match`](/guide/routing/eslint-rules) ESLint rule
+[`craft-ts/craft-method-name-match`](/guide/routing/eslint-rules) ESLint rule
 enforces the match and offers a quick fix.
 
 ## The common case — inside a Craft component
@@ -59,8 +59,8 @@ In a Craft component's logic factory there is no `this`: declare the method with
 `craftMethod(name, fn)` and return it in the context.
 
 ```typescript
-import { button, craftComponent, div, p } from '@craft-ng/component';
-import { Console, craftMethod, state } from '@craft-ng/core';
+import { button, craftComponent, div, p } from '@craft-ts/component';
+import { Console, craftMethod, state } from '@craft-ts/core';
 
 export const Counter = craftComponent(
   'Counter',
@@ -108,7 +108,7 @@ is what the two `this`-aware overloads are for.
 Use `craftMethod(name, this, fn)` when the generator needs component state.
 
 ```typescript
-import { Console, craftMethod, craftSignal } from '@craft-ng/core';
+import { Console, craftMethod, craftSignal } from '@craft-ts/core';
 
 export class Counter {
   readonly counter = craftSignal(0);
@@ -134,7 +134,7 @@ Use `craftMethod(name, fn)` when you want the method to resolve `this` from its 
 In strict TypeScript, annotate `this` explicitly inside the generator:
 
 ```typescript
-import { Console, craftMethod, craftSignal } from '@craft-ng/core';
+import { Console, craftMethod, craftSignal } from '@craft-ts/core';
 
 export class Counter {
   readonly counter = craftSignal(0);
@@ -169,7 +169,7 @@ export class Counter {
 ## Caveats
 
 - `craftMethod(...)` must be created inside an injection context, typically during component instantiation.
-- The first argument is a required host name; it must match the property or variable name. The `craft-ng/craft-method-name-match` ESLint rule enforces this and provides a quick fix.
+- The first argument is a required host name; it must match the property or variable name. The `craft-ts/craft-method-name-match` ESLint rule enforces this and provides a quick fix.
 - `craftMethod(name, fn)` depends on the receiver used at call time. If you extract the callback, `this` is no longer guaranteed unless you bind it yourself.
 - `craftMethod(name, this, fn)` is the recommended form whenever the generator reads or writes `this`.
 - `onAppStart(...)` is not supported inside `craftMethod`.

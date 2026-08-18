@@ -4,7 +4,7 @@ import {
   craftSleep,
   state,
   craftException
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export type User = {
   id: string;

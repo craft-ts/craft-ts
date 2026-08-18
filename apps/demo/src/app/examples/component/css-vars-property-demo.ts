@@ -1,11 +1,11 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
   p,
   span,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 const RegisteredMeter = craftComponent(

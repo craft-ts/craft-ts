@@ -21,7 +21,7 @@ describe('require-craft-resource-trigger-yield', () => {
 
   it('requires yield* for triggers in generator functions', async () => {
     const { messages } = await lintFixture(`
-      import { asyncProcess, craftGen, craftUse, mutation, query } from '@craft-ng/core';
+      import { asyncProcess, craftGen, craftUse, mutation, query } from '@craft-ts/core';
 
       const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const save = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
@@ -43,7 +43,7 @@ describe('require-craft-resource-trigger-yield', () => {
 
   it('accepts yield* and ordinary UI callbacks', async () => {
     const { messages } = await lintFixture(`
-      import { craftUse, mutation, query } from '@craft-ng/core';
+      import { craftUse, mutation, query } from '@craft-ts/core';
 
       const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const save = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));

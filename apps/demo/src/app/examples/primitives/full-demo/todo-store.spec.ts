@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { setupCraftComponentLogicTest } from '@craft-ng/component';
+import { setupCraftComponentLogicTest } from '@craft-ts/component';
 import { describe, expect, it, vi } from 'vitest';
 import FullDemo from './full-demo';
-import { TestBed, craftUse } from '@craft-ng/core';
+import { TestBed, craftUse } from '@craft-ts/core';
 
 describe('Full primitives demo logic', () => {
   async function createLogic() {

@@ -4,7 +4,7 @@ import {
   craftService,
   craftComputed,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   button,
   catchTag,
@@ -13,7 +13,7 @@ import {
   section,
   withProviders,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const noAccess = craftException({ code: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(

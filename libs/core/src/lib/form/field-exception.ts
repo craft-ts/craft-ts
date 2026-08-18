@@ -8,7 +8,7 @@ export declare const CRAFT_FIELD_VALIDATION_CASES: unique symbol;
 
 /** Runtime validation source exposed by `insertFormAttributes`. */
 export const CRAFT_FIELD_EXCEPTION_SOURCE = Symbol.for(
-  '@craft-ng/core/field-exception-source',
+  '@craft-ts/core/field-exception-source',
 );
 
 /** Type-only validator metadata emitted by `insertFormAttributes`. */

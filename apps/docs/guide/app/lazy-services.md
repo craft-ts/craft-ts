@@ -72,7 +72,7 @@ The module to split — an exported `craftGen`:
 
 ```ts
 // search.ts (its own chunk)
-import { craftGen } from '@craft-ng/core';
+import { craftGen } from '@craft-ts/core';
 import { SearchApi } from './search-api';
 
 export const search = craftGen(function* (q: string) {
@@ -85,7 +85,7 @@ Load it from an `asyncProcess` loader. The simplest form triggers on demand with
 `method`:
 
 ```ts
-import { asyncProcess, craftLazy } from '@craft-ng/core';
+import { asyncProcess, craftLazy } from '@craft-ts/core';
 
 const searchModule = yield* asyncProcess('searchModule', {
   method: () => undefined, // call searchModule.method() to start loading
@@ -107,7 +107,7 @@ To **prefetch** as soon as some event fires (the reactive equivalent of an eager
 `injectAsync`), bind the process to a source instead of a `method`:
 
 ```ts
-import { asyncProcess, craftLazy, on$ } from '@craft-ng/core';
+import { asyncProcess, craftLazy, on$ } from '@craft-ts/core';
 
 const searchModule = yield* asyncProcess('searchModule', {
   // load at the first emission of the source (e.g. on focus of the search box)
@@ -131,7 +131,7 @@ import {
   craftService,
   craftUntilSettled,
   on$,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
   // prefetch the module at the first emission of the source
@@ -242,7 +242,7 @@ URL is re-fetched with a cache-busting query param. The attempt/back-off policy 
 defaults to the shared craft loader retry (one retry, 250 ms):
 
 ```ts
-import { provideCraftLazyLoadRetry } from '@craft-ng/core';
+import { provideCraftLazyLoadRetry } from '@craft-ts/core';
 
 providers: [
   provideCraftLazyLoadRetry({

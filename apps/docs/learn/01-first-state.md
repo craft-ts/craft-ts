@@ -6,8 +6,8 @@ will use in every step — `craftComponent` and a primitive.
 ## Install
 
 ```shell
-npm i @craft-ng/core@beta @craft-ng/component@beta
-npm i -D @craft-ng/dev-tools@beta
+npm i @craft-ts/core@beta @craft-ts/component@beta
+npm i -D @craft-ts/dev-tools@beta
 ```
 
 The packages are currently published on the `beta` channel. The component
@@ -99,7 +99,7 @@ export const appConfig = craftAppConfig({
 
 ```typescript
 // main.ts
-import { bootstrapCraft } from '@craft-ng/component';
+import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app/app.config';
 
 bootstrapCraft({ config: appConfig });

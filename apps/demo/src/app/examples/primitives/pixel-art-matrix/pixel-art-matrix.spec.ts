@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ng/core';
-import { mountCraftComponent } from '@craft-ng/component';
+import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { mountCraftComponent } from '@craft-ts/component';
 import {
   provideCraftTemporalRuntime,
   VirtualCraftTemporalRuntime,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LONG_PRESS_DURATION_MS } from './long-press.directive';
 import PixelArtMatrix from './pixel-art-matrix';

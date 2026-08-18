@@ -3,7 +3,7 @@ title: 'Your button should not know which lists to refresh'
 published: false
 description: 'After a write succeeds, something has to update the reads. Most Angular apps answer that at the call site or with an event bus. Here is what it looks like when the read declares what makes it stale.'
 tags: angular, typescript, webdev, signals
-series: 'Building craft-ng'
+series: 'Building craft-ts'
 canonical_url: ''
 cover_image: ''
 ---

@@ -1,4 +1,4 @@
-import type { QueryParamsConfig } from '@craft-ng/core';
+import type { QueryParamsConfig } from '@craft-ts/core';
 
 const isPositiveSafeInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value > 0;

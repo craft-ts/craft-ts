@@ -1,5 +1,5 @@
 {
-  "name": "@ng-craft/generators",
+  "name": "@craft-ts/generators",
   "version": "0.0.1",
   "generators": "./generators.json"
 }

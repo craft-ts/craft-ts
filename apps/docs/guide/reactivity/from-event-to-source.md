@@ -8,7 +8,7 @@ a scroll, a key, a window resize.
 
 ## Overview
 
-`fromEventToSource$` bridges DOM events with craft-ng's reactive system by combining:
+`fromEventToSource$` bridges DOM events with craft-ts's reactive system by combining:
 
 - Event conversion to `ReadonlySource$` emissions
 - Automatic event listener cleanup via `DestroyRef`
@@ -19,13 +19,13 @@ a scroll, a key, a window resize.
 ## Import
 
 ```typescript
-import { fromEventToSource$ } from '@craft-ng/core';
+import { fromEventToSource$ } from '@craft-ts/core';
 ```
 
 The component examples below also use the hyperscript helpers:
 
 ```typescript
-import { button, craftComponent, div, each, form, input, p } from '@craft-ng/component';
+import { button, craftComponent, div, each, form, input, p } from '@craft-ts/component';
 ```
 
 ## Signature
@@ -167,7 +167,7 @@ const resize$ = fromEventToSource$(window, 'resize', {
 Use with `on$()` to trigger state updates on DOM events:
 
 ```typescript
-import { state, on$, fromEventToSource$ } from '@craft-ng/core';
+import { state, on$, fromEventToSource$ } from '@craft-ts/core';
 
 const button = document.querySelector('button')!;
 const click$ = fromEventToSource$<MouseEvent>(button, 'click');
@@ -182,8 +182,8 @@ const { counter } = state('counter', 0, ({ update }) => ({
 ### Basic Click Counter
 
 ```typescript
-import { craftComponent, p } from '@craft-ng/component';
-import { fromEventToSource$, on$, state } from '@craft-ng/core';
+import { craftComponent, p } from '@craft-ts/component';
+import { fromEventToSource$, on$, state } from '@craft-ts/core';
 
 export const Clicker = craftComponent(
   'Clicker',

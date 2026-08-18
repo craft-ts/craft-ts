@@ -2,8 +2,8 @@
 import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
-} from '@craft-ng/component/testing';
-import { craftService, state } from '@craft-ng/core';
+} from '@craft-ts/component/testing';
+import { craftService, state } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -25,7 +25,7 @@ const { TaskList } = craftService(
 );
 
 // #region tasks-component
-import { craftComponent, each, h1, li, ul } from '@craft-ng/component';
+import { craftComponent, each, h1, li, ul } from '@craft-ts/component';
 
 export const Tasks = craftComponent(
   'Tasks',

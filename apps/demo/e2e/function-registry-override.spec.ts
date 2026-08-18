@@ -17,7 +17,7 @@ test('overrides a state method without reloading the page', async ({
   await page.addInitScript(
     ({ storageKey, value }) => sessionStorage.setItem(storageKey, value),
     {
-      storageKey: 'ng-craft.function-registry.client-id',
+      storageKey: 'craft-ts.function-registry.client-id',
       value: clientId,
     },
   );
@@ -148,7 +148,7 @@ test('removes the previous page entries after internal navigation', async ({
   await page.addInitScript(
     ({ storageKey, value }) => sessionStorage.setItem(storageKey, value),
     {
-      storageKey: 'ng-craft.function-registry.client-id',
+      storageKey: 'craft-ts.function-registry.client-id',
       value: clientId,
     },
   );

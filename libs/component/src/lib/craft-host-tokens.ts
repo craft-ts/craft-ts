@@ -1,4 +1,4 @@
-import { craftToken } from '@craft-ng/core';
+import { craftToken } from '@craft-ts/core';
 
 export const CRAFT_ROUTED_COMPONENT = craftToken<unknown>(
   'CRAFT_ROUTED_COMPONENT',

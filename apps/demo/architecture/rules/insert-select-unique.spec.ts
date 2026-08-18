@@ -1,5 +1,5 @@
 import { beforeAll, describe, it } from 'vitest';
-import { assertInsertSelectUnique } from '@craft-ng/dev-tools';
+import { assertInsertSelectUnique } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from '../load-graph';
 
 describe('assertInsertSelectUnique', () => {

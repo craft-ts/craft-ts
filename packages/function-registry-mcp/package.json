@@ -1,10 +1,10 @@
 {
-  "name": "@ng-craft/function-registry-mcp",
+  "name": "@craft-ts/function-registry-mcp",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "ng-craft-registry-mcp": "dist/main.js"
+    "craft-ts-registry-mcp": "dist/main.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

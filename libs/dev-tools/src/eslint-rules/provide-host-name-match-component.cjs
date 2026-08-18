@@ -387,7 +387,7 @@ function ensureProvideHostNameImport(sourceFile) {
     .getImportDeclarations()
     .filter(
       (importDeclaration) =>
-        importDeclaration.getModuleSpecifierValue() === '@craft-ng/core',
+        importDeclaration.getModuleSpecifierValue() === '@craft-ts/core',
     );
 
   for (const importDeclaration of coreImports) {
@@ -435,7 +435,7 @@ function ensureProvideHostNameImport(sourceFile) {
   sourceFile.insertImportDeclaration(
     insertIndex < 0 ? sourceFile.getImportDeclarations().length : insertIndex,
     {
-      moduleSpecifier: '@craft-ng/core',
+      moduleSpecifier: '@craft-ts/core',
       namedImports: ['provideHostName'],
     },
   );

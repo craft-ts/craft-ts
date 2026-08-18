@@ -1,6 +1,6 @@
-# Releasing Craft NG
+# Releasing CraftTS
 
-`@craft-ng/core`, `@craft-ng/component`, and `@craft-ng/dev-tools` share one
+`@craft-ts/core`, `@craft-ts/component`, and `@craft-ts/dev-tools` share one
 version and one Git tag. For now, releases are run locally from the three
 sibling Git workspaces.
 
@@ -66,8 +66,8 @@ After showing the resolved version, it asks for confirmation and:
 
 1. updates the three package manifests and `CHANGELOG.md`;
 2. rebuilds the three npm packages and VitePress documentation;
-3. mirrors `apps/demo/src` and `apps/demo/public` into `ng-craft-demo`;
-4. pins all three Craft NG dependencies in the demo to the exact release version;
+3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`;
+4. pins all three CraftTS dependencies in the demo to the exact release version;
 5. removes and ignores the demo `package-lock.json`;
 6. replaces the published documentation with the VitePress build;
 7. commits the three workspaces;
@@ -83,9 +83,9 @@ steps when the project opens.
 By default, the workspaces must be siblings:
 
 ```text
-ng-craft/
-ng-craft.github.io/
-ng-craft-demo/
+craft-ts/
+craft-ts.github.io/
+craft-ts-demo/
 ```
 
 Custom paths can be supplied with `CRAFT_DOCS_REPO` and `CRAFT_DEMO_REPO`.
@@ -96,8 +96,8 @@ npm login
 gh auth login
 ```
 
-The npm account must be allowed to publish `@craft-ng/core`,
-`@craft-ng/component`, and `@craft-ng/dev-tools`, and the GitHub account must be
+The npm account must be allowed to publish `@craft-ts/core`,
+`@craft-ts/component`, and `@craft-ts/dev-tools`, and the GitHub account must be
 allowed to push all three repositories and create releases.
 
 ## Safe preview
@@ -114,10 +114,10 @@ For a non-interactive real release, add `--yes` to skip the confirmation prompt.
 ## Verification
 
 ```bash
-npm view @craft-ng/core dist-tags --json
-npm view @craft-ng/component dist-tags --json
-npm view @craft-ng/dev-tools dist-tags --json
-gh release view v0.6.0 --repo ng-angular-stack/ng-craft
+npm view @craft-ts/core dist-tags --json
+npm view @craft-ts/component dist-tags --json
+npm view @craft-ts/dev-tools dist-tags --json
+gh release view v0.6.0 --repo craft-ts/craft-ts
 ```
 
 Then open the published documentation and one StackBlitz example. If a failure

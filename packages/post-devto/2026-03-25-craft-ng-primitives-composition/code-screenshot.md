@@ -1,4 +1,4 @@
-# Snippets pour captures - article dev.to @craft-ng
+# Snippets pour captures - article dev.to @craft-ts
 
 ## 01 - Structure commune des primitives
 
@@ -29,7 +29,7 @@ import {
   insertSelect,
   state,
   updateOne,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 type User = { id: string; name: string; selected: boolean };
 
@@ -50,7 +50,7 @@ const usersState = state(
 usersState.usersAddMany({
   newEntities: [{ id: '1', name: 'Romain', selected: false }],
 });
-usersState.selectFilters().setSearch('@craft-ng');
+usersState.selectFilters().setSearch('@craft-ts');
 ```
 
 ## 03 - query + pagination + reactOnMutation
@@ -61,7 +61,7 @@ import {
   insertReactOnMutation,
   mutation,
   query,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const updateUser = mutation({
   method: (payload: { id: string; name: string }) => payload,
@@ -88,7 +88,7 @@ const usersQuery = query(
 ## 04 - mutation + source$
 
 ```ts
-import { mutation, on$, source$ } from '@craft-ng/core';
+import { mutation, on$, source$ } from '@craft-ts/core';
 
 const submitProfile$ = source$<{ id: string; email: string }>();
 
@@ -110,7 +110,7 @@ saveProfile.isLoading();
 ## 05 - asyncProcess
 
 ```ts
-import { asyncProcess } from '@craft-ng/core';
+import { asyncProcess } from '@craft-ts/core';
 
 const delaySearch = asyncProcess({
   method: (term: string) => term,
@@ -122,15 +122,15 @@ const delaySearch = asyncProcess({
 
 delaySearch.value(); // undefined
 delaySearch.status(); // 'idle'
-delaySearch.method('@craft-ng');
+delaySearch.method('@craft-ts');
 delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
-delaySearch.value(); // '@craft-ng'
+delaySearch.value(); // '@craft-ts'
 ```
 
 ## 06 - queryParam
 
 ```ts
-import { queryParam } from '@craft-ng/core';
+import { queryParam } from '@craft-ts/core';
 
 const tableParams = queryParam(
   {
@@ -157,7 +157,7 @@ tableParams.patch({ page: 2 });
 ## 07 - source$ pour orchestrer plusieurs states
 
 ```ts
-import { on$, source$, state } from '@craft-ng/core';
+import { on$, source$, state } from '@craft-ts/core';
 
 const resetFilters$ = source$<void>();
 
@@ -181,7 +181,7 @@ import {
   afterRecomputation,
   source$,
   toSource,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const userAction$ = source$<{ type: 'add' | 'remove'; id: string }>();
 const userActionSignal = signal<{ type: 'add' | 'remove'; id: string } | null>(
@@ -202,7 +202,7 @@ const saveSelection = mutation({
 
 ```ts
 import { computed } from '@angular/core';
-import { injectService } from '@craft-ng/core';
+import { injectService } from '@craft-ts/core';
 
 const checkout = injectService(
   CheckoutService,

@@ -1,6 +1,6 @@
 # Demo app
 
-Angular application that exercises `@craft-ng/core` examples and integration
+Angular application that exercises `@craft-ts/core` examples and integration
 checks. Architecture rules live next to `e2e/`, in `architecture/`.
 
 ## Serve
@@ -19,7 +19,7 @@ overlay reports the failure while the development server remains available.
 ## Architecture tests
 
 The suite in `architecture/` analyzes the demo TypeScript with
-`@craft-ng/dev-tools`. App-specific lookups live in `architecture.spec.ts`.
+`@craft-ts/dev-tools`. App-specific lookups live in `architecture.spec.ts`.
 Each common rule has its own file under `architecture/rules/`:
 
 - `rules/craft-unique.spec.ts` — `assertCraftUnique`
@@ -51,4 +51,4 @@ npx nx typecheck-architecture demo
 The target is defined in `project.json` and runs Vitest against
 `vitest.architecture.config.ts`. It does not boot Angular.
 
-Full reference: [Architecture rules](https://ng-angular-stack.github.io/craft/guide/testing/architecture).
+Full reference: [Architecture rules](https://craft-ts.github.io/craft/guide/testing/architecture).

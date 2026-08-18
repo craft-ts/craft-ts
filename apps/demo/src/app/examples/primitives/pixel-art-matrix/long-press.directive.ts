@@ -1,12 +1,12 @@
 import {
   DestroyRef,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   craftNodeDirective,
   executeYieldable,
   type TemporalTaskHandle,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const LONG_PRESS_DURATION_MS = 450;
 

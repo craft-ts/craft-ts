@@ -17,7 +17,7 @@ import { FN_WRAPPER } from './fn-wrapper';
 afterEach(() => TestBed.resetTestingModule());
 
 describe('isCraftControlFlow', () => {
-  it('recognizes expected CraftNG control-flow throws', () => {
+  it('recognizes expected CraftTS control-flow throws', () => {
     expect(isCraftControlFlow(new CraftNotSettled('issue'))).toBe(true);
     expect(
       isCraftControlFlow(

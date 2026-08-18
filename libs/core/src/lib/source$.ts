@@ -107,7 +107,7 @@ export type ReadonlySource$<
  * @example
  * Basic usage with state coordination
  * ```typescript
- * import { source$, state, on$ } from '@craft-ng/core';
+ * import { source$, state, on$ } from '@craft-ts/core';
  *
  * @Component({
  *   selector: 'app-counter',
@@ -155,7 +155,7 @@ export type ReadonlySource$<
  * }
  * ```
  *
- * @see {@link https://ng-craft.dev/utils/source$ | source$ documentation}
+ * @see {@link https://craft-ts.dev/utils/source$ | source$ documentation}
  */
 export function source$<T, Name extends string = string>(
   name: Name,

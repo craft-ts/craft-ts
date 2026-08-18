@@ -67,7 +67,7 @@ import type {
  *    routes must thread the types manually.
  *  - Note: The check reads from `GenDeps.provided`. Drift between
  *    `@Component.providers` (runtime) and `GenDeps.provided` (type-level) is
- *    detected (and auto-fixed) by the `craft-ng/brand-angular-deps-match`
+ *    detected (and auto-fixed) by the `craft-ts/brand-angular-deps-match`
  *    ESLint rule. Running `lint` (or `lint --fix`) before `typecheck` is what
  *    closes the loop end-to-end.
  */

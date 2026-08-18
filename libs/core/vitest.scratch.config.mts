@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import * as path from 'node:path';
 
-const root = '/Users/romaingeffrault/Documents/projects/prive/ng-craft';
+const root = '/Users/romaingeffrault/Documents/projects/prive/craft-ts';
 
 export default defineConfig({
   root,

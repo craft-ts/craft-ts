@@ -397,7 +397,7 @@ export function createStoragePersister(
 
       for (let index = 0; index < storageLength; index++) {
         const keyName = storage.key(index);
-        if (keyName?.startsWith('ng-craft-')) {
+        if (keyName?.startsWith('craft-ts-')) {
           keysToRemove.push(keyName);
         }
       }
@@ -428,7 +428,7 @@ type QueryByIdStored = {
 };
 
 function getStorageKey(prefix: string, key: string, type: string) {
-  return `ng-craft-${prefix}-${type}-${key}`;
+  return `craft-ts-${prefix}-${type}-${key}`;
 }
 
 function getPersisterMapKey(prefix: string, key: string): string {

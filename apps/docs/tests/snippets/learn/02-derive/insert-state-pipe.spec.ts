@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
-import { craftUse } from '@craft-ng/core';
+import { setupCraftServiceTestingByRegister } from '@craft-ts/core';
+import { craftUse } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -15,7 +15,7 @@ const newTask = (title: string): Task => ({
 });
 
 // #region insert-state-pipe
-import { insertStatePipe, craftComputed, craftService, state } from '@craft-ng/core';
+import { insertStatePipe, craftComputed, craftService, state } from '@craft-ts/core';
 
 export const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },

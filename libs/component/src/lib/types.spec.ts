@@ -12,7 +12,7 @@ import {
   provideHostName,
   state,
   type ComponentDepsOf,
-  type RouteCheckedDI, craftUse } from '@craft-ng/core';
+  type RouteCheckedDI, craftUse } from '@craft-ts/core';
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';

@@ -1,7 +1,7 @@
 const REACTIVE_READ_BRAND = 'RAW_REACTIVE_VALUE';
 const INPUT_BRAND = 'INPUT_BRAND';
 const YIELDABLE_METHOD_BRAND = 'YIELDABLE_METHOD';
-const CORE_PACKAGE = '@craft-ng/core';
+const CORE_PACKAGE = '@craft-ts/core';
 
 const WRITE_METHODS = new Set([
   'add',

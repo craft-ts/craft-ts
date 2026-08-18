@@ -1,4 +1,4 @@
-import { fromEventToSource$ } from '@craft-ng/core';
+import { fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
 import type { Input, Output } from '../types';

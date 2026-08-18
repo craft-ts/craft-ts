@@ -19,7 +19,7 @@ checking possible at all.
 ## Declaring one
 
 ```typescript
-import { craftException } from '@craft-ng/core';
+import { craftException } from '@craft-ts/core';
 
 craftException({ code: 'TITLE_REQUIRED' }, { received: payload.title });
 ```
@@ -67,7 +67,7 @@ place and travels. Wrap it in a [`craftGen`](/guide/concepts/generators) and it
 becomes a reusable unit that **short-circuits its callers**:
 
 ```typescript
-import { craftException, craftGen, craftUntilSettled } from '@craft-ng/core';
+import { craftException, craftGen, craftUntilSettled } from '@craft-ts/core';
 
 // one business rule, declared once
 export const loadReport = craftGen(function* () {
@@ -127,7 +127,7 @@ operators](/guide/advanced/program-operators) for `catchTag` and `retry`.
 
 Working example: the `slow-page` demo raises `REPORT_EMPTY` from a `craftGen`
 resolver and recovers it locally, so the route never declares a handler for it —
-[slow-page.routes.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts).
+[slow-page.routes.ts](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts).
 
 ## Reading them
 

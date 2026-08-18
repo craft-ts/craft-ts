@@ -1,13 +1,13 @@
 {
-  "name": "@ng-craft/source",
+  "name": "@craft-ts/source",
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
     "graph:update": "node tools/update-graph.mjs",
-    "registry:mcp": "npm run start --workspace @ng-craft/function-registry-mcp",
-    "logs:server": "npm run start --workspace @ng-craft/log-server",
-    "logs:mcp": "npm run start --workspace @ng-craft/log-mcp",
-    "craft:mcp": "npm run start --workspace @craft-ng/mcp",
+    "registry:mcp": "npm run start --workspace @craft-ts/function-registry-mcp",
+    "logs:server": "npm run start --workspace @craft-ts/log-server",
+    "logs:mcp": "npm run start --workspace @craft-ts/log-mcp",
+    "craft:mcp": "npm run start --workspace @craft-ts/mcp",
     "release:check": "node --test tools/release.test.mjs tools/release-local.test.mjs",
     "release:local": "node tools/release-local.mjs"
   },

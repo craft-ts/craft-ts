@@ -73,8 +73,8 @@
   },
   "release": {
     "projects": [
-      "ng-craft-core",
-      "ng-craft-component",
+      "craft-ts-core",
+      "craft-ts-component",
       "dev-tools",
       "mcp"
     ],

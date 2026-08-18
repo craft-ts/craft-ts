@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -9,7 +9,7 @@ import {
   p,
   span,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftComputed,
   craftGen,
@@ -22,7 +22,7 @@ import {
   query,
   state,
   craftException,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 // -- Types --
 
@@ -40,7 +40,7 @@ const TODO_ICONS: Readonly<Record<string, string>> = {
 // -- Fake data store --
 
 const TODOS: Todo[] = [
-  { id: 1, title: 'Learn @craft-ng', completed: false },
+  { id: 1, title: 'Learn @craft-ts', completed: false },
   { id: 2, title: 'Build a playground', completed: true },
   { id: 3, title: 'Share on StackBlitz', completed: false },
 ];
@@ -283,7 +283,7 @@ const PlaygroundComponent = craftComponent(
   ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
     return div({ class: 'playground' }, [
       heading('Playground'),
-      p('Sandbox for testing @craft-ng — ready to share on StackBlitz'),
+      p('Sandbox for testing @craft-ts — ready to share on StackBlitz'),
       div({ class: 'add-form' }, [
         input('title', {
           type: 'text',

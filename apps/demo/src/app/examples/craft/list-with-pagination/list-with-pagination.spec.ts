@@ -2,14 +2,14 @@
 import {
   ComponentLogicOutputOf,
   setupCraftComponentTemplateTest,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import type {
   ExtractDeps,
   GetServiceDependencies,
   ResolvedServiceOutput,
-} from '@craft-ng/core';
-import { craftUse, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, setupCraftServiceTestingByRegister } from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/core';
+import { craftUse, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, setupCraftServiceTestingByRegister } from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {
   UserList,

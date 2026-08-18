@@ -30,7 +30,7 @@
       "runtimeArgs": [
         "node_modules/vitepress/bin/vitepress.js",
         "dev",
-        "/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/docs-restructure/apps/docs"
+        "/Users/romaingeffrault/Documents/projects/prive/craft-ts/.claude/worktrees/docs-restructure/apps/docs"
       ],
       "port": 5174,
       "autoPort": true

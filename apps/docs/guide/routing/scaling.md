@@ -45,8 +45,8 @@ import {
   craftRoute,
   type CanRun,
   type ValidateCascadeRoutesFile,
-} from '@craft-ng/core';
-import type { CraftRouter } from '@craft-ng/core';
+} from '@craft-ts/core';
+import type { CraftRouter } from '@craft-ts/core';
 
 export const { featureRoutes } = craftRoutes('feature', [
   craftRoute('', {
@@ -120,7 +120,7 @@ app.routes.ts                 # "manifest": ~N cheap { path, loadChildren } entr
   files; two levels are plenty, and you can nest further without limit.
 - **Every `craftRoutes(...)` file re-declares its own check** (see the iron rule above). With many
   files this is easy to forget and fails silently, so enable
-  `craft-ng/require-cascade-route-di-check`.
+  `craft-ts/require-cascade-route-di-check`.
 
 ::: tip Threading the parent DI context
 The child check's parent context (`ParentNames`, `ParentValues`) is everything provided **at its mount
@@ -155,7 +155,7 @@ to thousands of routes in one file — at the cost of one check block per compon
 file:
 
 ```ts
-import { type CanRun, type RouteCheckedDI } from '@craft-ng/core';
+import { type CanRun, type RouteCheckedDI } from '@craft-ts/core';
 
 type _CheckItem0 = RouteCheckedDI<
   import('./item-0').GenDeps_Item0Component,
@@ -182,7 +182,7 @@ the parent with `assertChildRouteMounts(parentRoutes)`:
 
 ```ts
 // view-transitions.routes.ts — the child declares where it belongs
-import { craftRoutes, craftRoute, type ParentRoutes } from '@craft-ng/core';
+import { craftRoutes, craftRoute, type ParentRoutes } from '@craft-ts/core';
 
 export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
   craftRoute(':photoId', {
@@ -195,7 +195,7 @@ export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
 
 ```typescript
 // app.routes.ts — the parent enforces placement (scoped to this file)
-import { assertChildRouteMounts, craftRoutes } from '@craft-ng/core';
+import { assertChildRouteMounts, craftRoutes } from '@craft-ts/core';
 
 export const { demoRoutes } = craftRoutes('demo', [
   {
@@ -228,7 +228,7 @@ Notes:
   to the child's instantiation budget.
 - **Type-only.** `.withParent<…>()` returns the same object at runtime; `ParentRoutes<'path'>` carries no
   value, only the path string — so importing it creates no runtime coupling between the files.
-- **Enforced by ESLint.** `craft-ng/require-child-route-mount-check` adds the missing
+- **Enforced by ESLint.** `craft-ts/require-child-route-mount-check` adds the missing
   `assertChildRouteMounts(...)` call + import on `--fix`. (Whether a child opts in with `.withParent`
   stays your decision — it expresses the "this belongs here" intent the rule can't guess.)
 

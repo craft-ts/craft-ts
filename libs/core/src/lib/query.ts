@@ -1096,7 +1096,7 @@ export function query<
  * @example
  * Business exceptions with `craftException`
  * ```ts
- * import { craftException, query } from '@craft-ng/core';
+ * import { craftException, query } from '@craft-ts/core';
  *
  * const userQuery = craftUse(query('userQuery', {
  *   method: (value: string) =>

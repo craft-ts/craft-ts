@@ -66,7 +66,7 @@ import {
   query,
   craftRoute,
   craftUntilSettled,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 // Reusable guards — each returns a success value | craftException(...)
 const roleGuard = craftGen(

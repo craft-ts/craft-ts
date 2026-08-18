@@ -51,7 +51,7 @@ Converts an HTML/Web Component snippet into a Craft template callback.
 
 Options:
   --component-name <name>  Wrap the result in a complete craftComponent.
-  --no-import              Omit the generated @craft-ng/component import.
+  --no-import              Omit the generated @craft-ts/component import.
   --help                   Show this help.
 
 When no file is provided, the template is read from stdin.

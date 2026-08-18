@@ -592,7 +592,7 @@ function isMatchedRouteHttpRequestEndpoint(
 }
 
 function normalizeComparableRouteHttpUrl(url: string): URL {
-  return new URL(url, 'http://craft-ng.local');
+  return new URL(url, 'http://craft-ts.local');
 }
 
 function createUnusedRouteHttpEndpointMessage(

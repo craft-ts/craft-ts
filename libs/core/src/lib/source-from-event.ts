@@ -13,7 +13,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
 /**
  * Creates a source from DOM events with automatic cleanup on component destruction.
  *
- * This function bridges DOM events with ng-craft's reactive system by:
+ * This function bridges DOM events with craft-ts's reactive system by:
  * - Converting native DOM events to source emissions
  * - Automatically removing event listeners on component destruction
  * - Supporting optional event payload transformation

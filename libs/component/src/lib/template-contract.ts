@@ -11,7 +11,7 @@ import type {
   NamedYieldableValue,
   Yieldable,
   YieldableMethod,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type {
   ComponentNode,
   CraftDirectiveNode,

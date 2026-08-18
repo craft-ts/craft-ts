@@ -11,7 +11,7 @@ uses `craftComputed` so every reactive dependency can be traced consistently.
 ## Import
 
 ```typescript
-import { craftComputed } from '@craft-ng/core';
+import { craftComputed } from '@craft-ts/core';
 ```
 
 ## Overview
@@ -60,7 +60,7 @@ The first argument is the **host name** outside an insertion and must match the
 property (or variable) the computed is assigned to. Inside an insertion it may
 be omitted: Craft uses the insertion key automatically. The name tags the
 injector context, reactive graph and dev-tools snapshots. The
-[`craft-ng/craft-computed-name-match`](/guide/routing/setup) ESLint rule
+[`craft-ts/craft-computed-name-match`](/guide/routing/setup) ESLint rule
 enforces the match and offers a quick fix.
 
 ## Angular-class interop
@@ -69,8 +69,8 @@ Use the plain form only when no Craft reader needs `yield*` — typically an
 Angular `@Component` field that reads Angular signals:
 
 ```typescript
-import { craftSignal as signal } from '@craft-ng/core';
-import { craftComputed } from '@craft-ng/core';
+import { craftSignal as signal } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 
 class CounterComponent {
   readonly count = signal(0);
@@ -99,7 +99,7 @@ const doubled = yield* counter.doubled();
 own dependency graph records the read.
 
 ```typescript
-import { craftComputed, craftService } from '@craft-ng/core';
+import { craftComputed, craftService } from '@craft-ts/core';
 
 const { Multiplier } = craftService(
   { name: 'Multiplier', scope: 'function' },

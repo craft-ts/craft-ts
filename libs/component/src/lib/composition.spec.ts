@@ -13,7 +13,7 @@ import {
   abstract,
   craftException,
   craftService,
-  query, craftUse } from '@craft-ng/core';
+  query, craftUse } from '@craft-ts/core';
 import {
   catchBlock,
   catchTag,

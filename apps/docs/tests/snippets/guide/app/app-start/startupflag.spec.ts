@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region startupflag
-import { craftService, onAppStart } from '@craft-ng/core';
+import { craftService, onAppStart } from '@craft-ts/core';
 
 export const { StartupFlag } = craftService(
   {

@@ -1,14 +1,14 @@
 import { defineConfig } from 'vitest/config';
 import * as path from 'node:path';
 
-const root = '/Users/romaingeffrault/Documents/projects/prive/ng-craft';
+const root = '/Users/romaingeffrault/Documents/projects/prive/craft-ts';
 
 export default defineConfig({
   root,
   resolve: {
     alias: {
-      '@craft-ng/core': path.join(root, 'libs/core/src/index.ts'),
-      '@craft-ng/component': path.join(root, 'libs/component/src/index.ts'),
+      '@craft-ts/core': path.join(root, 'libs/core/src/index.ts'),
+      '@craft-ts/component': path.join(root, 'libs/component/src/index.ts'),
       'test-type': path.join(root, 'libs/test-type/src/index.ts'),
     },
   },

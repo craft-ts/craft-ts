@@ -8,8 +8,8 @@ import type {
   ExtractCraftGenExceptions,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
-} from '@craft-ng/core';
-import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ng/core';
+} from '@craft-ts/core';
+import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ts/core';
 import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,

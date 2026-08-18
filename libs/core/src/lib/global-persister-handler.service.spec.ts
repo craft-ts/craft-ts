@@ -31,19 +31,19 @@ describe('global persister handler service', () => {
     });
   });
 
-  it('clears only @craft-ng persisted entries', () => {
+  it('clears only @craft-ts persisted entries', () => {
     TestBed.runInInjectionContext(() => {
       const storage = craftUse(LocalStorageService());
       const persisterHandler = craftUse(GlobalPersisterHandlerService());
 
-      storage.setItem('ng-craft-query-resource-user', 'query');
-      storage.setItem('ng-craft-mutation-resource-user', 'mutation');
+      storage.setItem('craft-ts-query-resource-user', 'query');
+      storage.setItem('craft-ts-mutation-resource-user', 'mutation');
       storage.setItem('custom-app-key', 'keep-me');
 
       persisterHandler.clearAllCache();
 
-      expect(storage.getItem('ng-craft-query-resource-user')).toBeNull();
-      expect(storage.getItem('ng-craft-mutation-resource-user')).toBeNull();
+      expect(storage.getItem('craft-ts-query-resource-user')).toBeNull();
+      expect(storage.getItem('craft-ts-mutation-resource-user')).toBeNull();
       expect(storage.getItem('custom-app-key')).toBe('keep-me');
     });
   });
@@ -66,13 +66,13 @@ describe('global persister handler service', () => {
       const sessionStorage = craftUse(SessionStorageService());
       const persisterHandler = craftUse(GlobalPersisterHandlerService());
 
-      localStorage.setItem('ng-craft-local-entry', 'keep-me');
-      sessionStorage.setItem('ng-craft-session-entry', 'remove-me');
+      localStorage.setItem('craft-ts-local-entry', 'keep-me');
+      sessionStorage.setItem('craft-ts-session-entry', 'remove-me');
 
       persisterHandler.clearAllCache();
 
-      expect(localStorage.getItem('ng-craft-local-entry')).toBe('keep-me');
-      expect(sessionStorage.getItem('ng-craft-session-entry')).toBeNull();
+      expect(localStorage.getItem('craft-ts-local-entry')).toBe('keep-me');
+      expect(sessionStorage.getItem('craft-ts-session-entry')).toBeNull();
     });
   });
 });

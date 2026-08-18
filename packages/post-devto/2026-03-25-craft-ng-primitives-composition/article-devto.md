@@ -1,7 +1,7 @@
 ---
-title: '@craft-ng: Associer l’art de la composition & du state management dans Angular'
+title: '@craft-ts: Associer l’art de la composition & du state management dans Angular'
 published: true
-description: 'Un tour complet des primitives, insertions et sources de @craft-ng pour écrire un code composable, déclaratif et réactif en Angular.'
+description: 'Un tour complet des primitives, insertions et sources de @craft-ts pour écrire un code composable, déclaratif et réactif en Angular.'
 tags: angular, typescript, signals, state
 cover_image: https://dev-to-uploads.s3.amazonaws.com/uploads/articles/fu5ophzxv8l1o1ucmu4f.png
 ---
@@ -15,7 +15,7 @@ Quand je construis une feature Angular un peu sérieuse, je veux toujours la mê
 - et surtout une type-safety qui m'évite de jouer aux devinettes
 - des outils pour pensés pour simplifier l'UX/UI
 
-C'est exactement l'objectif de @craft-ng.
+C'est exactement l'objectif de @craft-ts.
 
 Une lib complète de state management pour tous les types d'état d'une application:
 
@@ -33,7 +33,7 @@ Qu'ils soient simples ou complexes, le principe reste toujours le même.
 2. Elles sont utilisables directement dans les composants et les services.
 3. Elles suivent toutes le même principe : primitive(config, insertion1, insertion2, ...).
 4. Les insertions servent à ajouter de la logique (modifiers, réactions, états dérivés, method-based/event-based...).
-5. Ce pattern, combiné aux utilitaires de craft-ng insert..., permet d'obtenir un niveau inégalé de composition, offrant une gestion fluide aussi bien pour les cas simples que complexes.
+5. Ce pattern, combiné aux utilitaires de craft-ts insert..., permet d'obtenir un niveau inégalé de composition, offrant une gestion fluide aussi bien pour les cas simples que complexes.
 6. Un store craft est disponible pour orchestrer ces primitives. Il peut être composé par d'autres stores, et être lui-même composable.
 
 Dans cet article, je vais:
@@ -45,9 +45,9 @@ Dans cet article, je vais:
 - expliquer pourquoi source$ (event-based) change vraiment la façon de structurer le state
 - terminer avec injectService et le store craft
 
-> ⚠️ **@craft-ng est une librairie experimentale.** Je ne recommande pas de l'utiliser en production pour le moment. Cet article est avant tout un partage des concepts.
+> ⚠️ **@craft-ts est une librairie experimentale.** Je ne recommande pas de l'utiliser en production pour le moment. Cet article est avant tout un partage des concepts.
 
-La doc: https://ng-angular-stack.github.io/craft/
+La doc: https://craft-ts.github.io/craft/
 
 ## 1) Une structure commune à toutes les primitives
 
@@ -102,7 +102,7 @@ const usersState = state(
   })),
 );
 
-usersState.selectFilters().set('@craft-ng');
+usersState.selectFilters().set('@craft-ts');
 ```
 
 Ce que j'aime ici:
@@ -164,7 +164,7 @@ import {
   insertReactOnMutation,
   mutation,
   query,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const updateUser = mutation({
   method: (payload: { id: string; name: string }) => payload,
@@ -199,7 +199,7 @@ Pourquoi avoir créé une `query` alors qu'il y a déjà les resources d'Angular
 asyncProcess est idéal pour des traitements async qui ne sont pas strictement des queries/métiers CRUD (debounce, wrappers API natives, orchestration).
 
 ```typescript
-import { asyncProcess } from '@craft-ng/core';
+import { asyncProcess } from '@craft-ts/core';
 
 const delaySearch = asyncProcess({
   method: (term: string) => term,
@@ -211,9 +211,9 @@ const delaySearch = asyncProcess({
 
 delaySearch.value(); // undefined
 delaySearch.status(); // 'idle'
-delaySearch.method('@craft-ng');
+delaySearch.method('@craft-ts');
 delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
-delaySearch.value(); // '@craft-ng'
+delaySearch.value(); // '@craft-ts'
 ```
 
 Pourquoi avoir créé un `asyncProcess` alors qu'il y a déjà les resources d'Angular ?
@@ -226,7 +226,7 @@ Pourquoi avoir créé un `asyncProcess` alors qu'il y a déjà les resources d'A
 queryParam synchronise l'état avec l'URL, tout en restant type-safe (codec/fallback).
 
 ```typescript
-import { queryParam } from '@craft-ng/core';
+import { queryParam } from '@craft-ts/core';
 
 const tableParams = queryParam(
   {
@@ -262,7 +262,7 @@ Pourquoi avoir créé un `queryParam` alors qu'on peut utiliser `withComponentIn
 
 Si tu veux voir des versions plus complètes des patterns présentes ici, je te conseille particulièrement:
 
-- les exemples primitives (query, mutation, full demo): https://ng-angular-stack.github.io/craft/examples
+- les exemples primitives (query, mutation, full demo): https://craft-ts.github.io/craft/examples
 - l'approche list-with-pagination pour visualiser insertPaginationPlaceholderData en contexte
 - les exemples Pixel Art / Pixel Art Matrix pour voir insertSelect sur des structures plus profondes
 - la section exceptions pour les cas métier avec erreurs type-safe, pour ne pas perdre d'information et offrir la meilleure UX/UI à tes utilisateurs
@@ -276,7 +276,7 @@ Tu peux partir simple, puis enrichir sans casser le contrat initial.
 ### Method-based insertions
 
 ```typescript
-import { state } from '@craft-ng/core';
+import { state } from '@craft-ts/core';
 const counter = state(0, ({ update, set }) => ({
   increment: () => update((current) => current + 1),
   decrement: () => update((current) => current - 1),
@@ -292,7 +292,7 @@ console.log(counter()); // 0
 ### Source-based insertions (Event-based)
 
 ```typescript
-import { source$, state, on$ } from '@craft-ng/core';
+import { source$, state, on$ } from '@craft-ts/core';
 
 const incrementTrigger$ = source$<void>();
 const resetTrigger$ = source$<void>();
@@ -379,7 +379,7 @@ Cela correspond grosso-modo à un subject dans RxJS.
 Au lieu d'un gros state qui gère tout, plusieurs states petits et lisibles peuvent réagir au même trigger.
 
 ```typescript
-import { on$, source$, state } from '@craft-ng/core';
+import { on$, source$, state } from '@craft-ts/core';
 
 const resetFilters$ = source$<void>();
 
@@ -427,7 +427,7 @@ Tu exposes uniquement ce qui est utile au cas d'usage, tu dérives proprement, e
 
 ```typescript
 import { computed } from '@angular/core';
-import { injectService } from '@craft-ng/core';
+import { injectService } from '@craft-ts/core';
 
 const checkout = injectService(
   CheckoutService,
@@ -453,7 +453,7 @@ Plus de détails dans un prochain article, sinon il y a la doc ;D
 
 ## Conclusion
 
-Si je devais résumer @craft-ng en une phrase:
+Si je devais résumer @craft-ts en une phrase:
 composer des briques simples pour gérer des logiques complexes, sans quitter un modèle déclaratif/reactif/type-safe.
 
 Et la lib ne s'arrête pas là.
@@ -474,7 +474,7 @@ N'hésite pas à aller voir la doc ou à mettre une étoile sur le repo si tu ve
 ---
 
 Je suis Romain Geffrault.
-Développeur Angular et créateur de @craft-ng
+Développeur Angular et créateur de @craft-ts
 Suis-moi pour plus de contenu sur Angular
 
-Docs: https://ng-angular-stack.github.io/craft/
+Docs: https://craft-ts.github.io/craft/

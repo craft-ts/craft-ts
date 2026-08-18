@@ -12,10 +12,10 @@
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "customConditions": ["@ng-craft/source"],
+    "customConditions": ["@craft-ts/source"],
     "paths": {
-      "@craft-ng/core": ["../../libs/core/src/index.ts"],
-      "@craft-ng/angular": ["../../libs/angular/src/index.ts"],
+      "@craft-ts/core": ["../../libs/core/src/index.ts"],
+      "@craft-ts/angular": ["../../libs/angular/src/index.ts"],
       "test-type": ["../../libs/test-type/src/index.ts"]
     }
   },

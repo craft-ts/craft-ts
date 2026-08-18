@@ -2,12 +2,12 @@
 
 Run `docs:publish`, then from the VSCode editor, add a commit with all the changes and push into the gh-pages branches.
 
-## Déployer une nouvelle version de @craft-ng/core
+## Déployer une nouvelle version de @craft-ts/core
 
 ### Prérequis
 
 1. Être connecté à npm : `npm whoami` (si erreur, faire `npm login`)
-2. Avoir build le projet : `nx build ng-craft-core`
+2. Avoir build le projet : `nx build craft-ts-core`
 
 ### Commandes pour publier la lib
 
@@ -38,17 +38,17 @@ npm run release:local -- 0.6.0-beta.3
 
 Pour vérifier sans modifier ni publier :
 npm run release:local -- minor --dry-run
-Le script nécessite aussi les dépôts voisins ../ng-craft.github.io et ../ng-craft-demo, chacun sur la branche main.
+Le script nécessite aussi les dépôts voisins ../craft-ts.github.io et ../craft-ts-demo, chacun sur la branche main.
 
 ### Notes
 
 ## Tests with UI
 
-`npx nx run ng-craft-core:test --watch --ui`
+`npx nx run craft-ts-core:test --watch --ui`
 
 ### Debug mode:
 
-`npx nx run ng-craft-core:test:debug --watch --ui`
+`npx nx run craft-ts-core:test:debug --watch --ui`
 
 And run the following launch configuration in VSCode:
 `launch.json`:
@@ -87,17 +87,17 @@ And run the following launch configuration in VSCode:
 
 # Interactif — Nx pose les questions définies dans schema.json
 
-nx generate @ng-craft/generators:type-stress
+nx generate @craft-ts/generators:type-stress
 
 # Avec options directes
 
-nx generate @ng-craft/generators:type-stress \
+nx generate @craft-ts/generators:type-stress \
  --features=20 --componentsPerFeature=15 \
  --globalServices=20 --httpExceptions=1
 
 # Dry-run pour voir les fichiers qui seraient créés sans écrire
 
-nx generate @ng-craft/generators:type-stress --features=10 --dry-run
+nx generate @craft-ts/generators:type-stress --features=10 --dry-run
 
 # Puis benchmarker
 

@@ -85,7 +85,7 @@ describe('createStoragePersister', () => {
       // Verify the stored value structure by checking the mock calls
       const setItemCalls = vi.mocked(localStorage.setItem).mock.calls;
       const userCall = setItemCalls.find(
-        (call) => call[0] === 'ng-craft-query-resource-user',
+        (call) => call[0] === 'craft-ts-query-resource-user',
       );
       expect(userCall).toBeDefined();
 
@@ -100,7 +100,7 @@ describe('createStoragePersister', () => {
   it('2 Should set the query resource value of a persisted value with the same query key', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -127,7 +127,7 @@ describe('createStoragePersister', () => {
       expect(persister).toBeDefined();
 
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
@@ -137,7 +137,7 @@ describe('createStoragePersister', () => {
   it('3 Should clear the persisted query from localStorage', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -166,11 +166,11 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       persister.clearQuery('user');
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -178,14 +178,14 @@ describe('createStoragePersister', () => {
   it('4 Should clear all the persisted queries from localStorage', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
         }),
       );
       localStorage.setItem(
-        'ng-craft-query-resource-users',
+        'craft-ts-query-resource-users',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: [{ id: 1, name: 'Romain' }],
@@ -230,10 +230,10 @@ describe('createStoragePersister', () => {
       expect(persister).toBeDefined();
       persister.clearAllQueries();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-users',
+        'craft-ts-query-resource-users',
       );
     });
   });
@@ -241,7 +241,7 @@ describe('createStoragePersister', () => {
   it('5 Should wait for the params source to be defined and equal to previous value before retrieve the value', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -274,14 +274,14 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
   it('6 Should wait for the params source to be defined and not equal to previous value, so the value is not retrieved and the cache deleted', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -314,10 +314,10 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('loading');
       expect(queryResource.value()).toEqual(undefined);
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       await vi.runAllTimersAsync();
       expect(queryResource.status()).toBe('resolved');
@@ -330,7 +330,7 @@ describe('createStoragePersister', () => {
       // Set a cached value with timestamp that is older than cacheTime
       const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -362,7 +362,7 @@ describe('createStoragePersister', () => {
       expect(queryResource.value()).toEqual(undefined);
       // Should have removed the expired value
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -372,7 +372,7 @@ describe('createStoragePersister', () => {
       // Set a cached value with timestamp that is still valid
       const validTimestamp = Date.now() - 2000; // 2 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -403,10 +403,10 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.removeItem).not.toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -416,7 +416,7 @@ describe('createStoragePersister', () => {
       // Set a cached value with timestamp that is expired
       const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -452,10 +452,10 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('loading');
       expect(queryResource.value()).toEqual(undefined);
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
 
       await vi.runAllTimersAsync();
@@ -469,7 +469,7 @@ describe('createStoragePersister', () => {
       // Set a cached value with very old timestamp
       const veryOldTimestamp = Date.now() - 60000; // 1 minute ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -500,10 +500,10 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.removeItem).not.toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -514,7 +514,7 @@ describe('createStoragePersister', () => {
     await runInInjectionContext(async () => {
       const freshTimestamp = Date.now() - 2000; // 2 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -552,7 +552,7 @@ describe('createStoragePersister', () => {
     await runInInjectionContext(async () => {
       const staleTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -589,7 +589,7 @@ describe('createStoragePersister', () => {
     await runInInjectionContext(async () => {
       const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -621,7 +621,7 @@ describe('createStoragePersister', () => {
       expect(queryResource.value()).toBeUndefined();
       expect(reloadSpy).not.toHaveBeenCalled();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -630,7 +630,7 @@ describe('createStoragePersister', () => {
     await runInInjectionContext(async () => {
       const freshTimestamp = Date.now() - 2000;
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -671,7 +671,7 @@ describe('createStoragePersister', () => {
     await runInInjectionContext(async () => {
       const staleTimestamp = Date.now() - 6000;
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -712,7 +712,7 @@ describe('createStoragePersister', () => {
   it('16 Should not restore cached value when validate returns false', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -742,7 +742,7 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('idle');
       expect(queryResource.value()).toBeUndefined();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -750,7 +750,7 @@ describe('createStoragePersister', () => {
   it('17 Should restore cached value when validate returns true', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -780,7 +780,7 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.removeItem).not.toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -788,7 +788,7 @@ describe('createStoragePersister', () => {
   it('18 Should not restore and remove cache when validate returns false (waitForParams=true)', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -820,7 +820,7 @@ describe('createStoragePersister', () => {
 
       expect(queryResource.value()).toBeUndefined();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -828,7 +828,7 @@ describe('createStoragePersister', () => {
   it('19 Should restore cached value when validate returns true (waitForParams=true)', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -866,7 +866,7 @@ describe('createStoragePersister', () => {
   it('20 Should not restore when validate fails even if staleTime would trigger reload', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -898,7 +898,7 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('idle');
       expect(reloadSpy).not.toHaveBeenCalled();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -906,7 +906,7 @@ describe('createStoragePersister', () => {
   it('21 Should restore AND reload when validate passes and staleTime is exceeded', async () => {
     await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },

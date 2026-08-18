@@ -27,7 +27,7 @@ type CraftTestMounter = (
 let mounter: CraftTestMounter | undefined;
 
 /**
- * `@craft-ng/component` installs the renderer here on import — core has no way
+ * `@craft-ts/component` installs the renderer here on import — core has no way
  * to mount anything on its own.
  */
 export function ɵsetCraftTestMounter(next: CraftTestMounter): void {
@@ -41,7 +41,7 @@ function ɵmountCraftTestComponent(
 ): { instance: unknown; destroy(): void } {
   if (!mounter) {
     throw new Error(
-      'TestBed.createComponent needs @craft-ng/component; import it in the spec.',
+      'TestBed.createComponent needs @craft-ts/component; import it in the spec.',
     );
   }
   return mounter(component, host, injector);

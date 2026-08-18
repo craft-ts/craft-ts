@@ -5,7 +5,7 @@ import {
   type ComponentDepsOf,
   type ComponentExceptionsCarrier,
   type CraftRouteLazyLoadHelpers,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   CRAFT_GLOBAL_ERROR_COMPONENT,
   CRAFT_PENDING_COMPONENT,

@@ -4,7 +4,7 @@ Copier le bloc ci-dessous dans une session agent dédiée. Ne pas élargir au gr
 
 ---
 
-Tu travailles dans le repo **ng-craft** (`@craft-ng/core`, `@craft-ng/dev-tools`, démo, docs, skills).
+Tu travailles dans le repo **craft-ts** (`@craft-ts/core`, `@craft-ts/dev-tools`, démo, docs, skills).
 
 ## Objectif
 
@@ -69,9 +69,9 @@ Priorité :
 - `apps/docs/guide/testing/components.md`, `services.md`
 - `apps/docs/learn/09-routing.md`
 - `libs/dev-tools/README.md`
-- `.cursor/skills/ng-craft-routes/` (`SKILL.md` + `references/di-checks.md`, `eslint-workflow.md`, `pending-and-exceptions.md`)
-- `.agents/skills/ng-craft-service-migration/SKILL.md`
-- `.agents/skills/migrate-to-ng-craft/SKILL.md`
+- `.cursor/skills/craft-ts-routes/` (`SKILL.md` + `references/di-checks.md`, `eslint-workflow.md`, `pending-and-exceptions.md`)
+- `.agents/skills/craft-ts-service-migration/SKILL.md`
+- `.agents/skills/migrate-to-craft-ts/SKILL.md`
 - `.github/copilot-instructions.md`
 - `articles/03-the-di-patterns-you-stopped-using.md` seulement si ça présente `GenDeps_*` comme API courante
 

@@ -9,7 +9,7 @@ import {
   expectTypeOf,
   it,
 } from 'vitest';
-import { abstract, craftException, craftService } from '@craft-ng/core';
+import { abstract, craftException, craftService } from '@craft-ts/core';
 import {
   catchBlock,
   CraftUnhandledExceptionError,

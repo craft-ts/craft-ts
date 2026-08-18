@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
   craftComponent,
@@ -8,7 +8,7 @@ import {
   span,
   type Input,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 export const TokenCard = craftComponent(

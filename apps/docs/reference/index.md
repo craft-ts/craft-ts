@@ -3,7 +3,7 @@
 Every documented export, with the page that covers it. Use <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>F</kbd>.
 
 For an explanation rather than a lookup, start from the [Guide](/guide/).
-Coding agents: [llms.txt](https://ng-angular-stack.github.io/craft/llms.txt) and
+Coding agents: [llms.txt](https://craft-ts.github.io/craft/llms.txt) and
 [coding agents](/resources/ai-agents).
 
 ## Primitives
@@ -162,7 +162,7 @@ already receive those methods as arguments — see
 | `npx craft route split`            | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)                                 |
 | `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional) |
 | `craft-brand --root src/app`       | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/angular-brand-config)                      |
-| `@craft-ng/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) · [Accessibilité](/guide/components/accessibility) |
+| `@craft-ts/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) · [Accessibilité](/guide/components/accessibility) |
 | `npx craft-graph`                  | Writes the static Craft graph               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | `npx nx architecture <app>`        | Runs the app's architecture Vitest suite    | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | Live page MCP `page`               | Drive the open `ng serve` tab (dev only)    | [Live page MCP](/guide/ai/dev-page)                                      |

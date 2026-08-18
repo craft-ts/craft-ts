@@ -6,7 +6,7 @@ import { appRoutes } from './app-routes';
 useSnippetHarness();
 
 // #region craft-router
-import { craftAppConfig, provideCraftRouter, withTransitionTimings } from '@craft-ng/core';
+import { craftAppConfig, provideCraftRouter, withTransitionTimings } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_DATA,

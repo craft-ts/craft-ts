@@ -21,7 +21,7 @@ import {
   provideCraftTemporalRuntime,
   VirtualCraftTemporalRuntime,
   withCraftTimeout,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ```
 
 ## The temporal model
@@ -57,7 +57,7 @@ generator is created. The asynchronous Craft driver receives the request and
 delegates it to the configured temporal runtime.
 
 ```typescript
-import { craftGen, craftSleep } from '@craft-ng/core';
+import { craftGen, craftSleep } from '@craft-ts/core';
 
 const refreshAfterDelay = craftGen(function* () {
   yield* craftSleep(500, { owner: 'refresh' });
@@ -97,12 +97,12 @@ zero by default, orders equal deadlines by creation order, and exposes the
 pending tasks for assertions.
 
 ```typescript
-import { ɵInjector as Injector } from '@craft-ng/core';
+import { ɵInjector as Injector } from '@craft-ts/core';
 import {
   executeGeneratorCompatibleFactoryAsync,
   provideCraftTemporalRuntime,
   VirtualCraftTemporalRuntime,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const clock = new VirtualCraftTemporalRuntime();
 const injector = Injector.create({

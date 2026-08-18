@@ -1,10 +1,10 @@
-# Rapport de tentative runtime Craft NG
+# Rapport de tentative runtime CraftTS
 
 Date: 2026-07-10
 
 Contexte:
 - Objectif: remplacer la liste affichée au runtime par les mêmes `id`, mais avec des `name` plus rigolos.
-- Approche demandée: utiliser le skill `craft-ng-runtime-change-web-mcp` et modifier l'état exposé par le runtime Craft NG, sans éditer le code TypeScript.
+- Approche demandée: utiliser le skill `craft-ts-runtime-change-web-mcp` et modifier l'état exposé par le runtime CraftTS, sans éditer le code TypeScript.
 
 ## Ce qui a été fait
 

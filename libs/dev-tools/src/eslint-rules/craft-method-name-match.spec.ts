@@ -23,7 +23,7 @@ describe('craft-method-name-match', () => {
   it('accepts a class property whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod('increment', this, function* () {
@@ -39,7 +39,7 @@ describe('craft-method-name-match', () => {
   it('accepts a const whose first arg matches its name (receiver-based form)', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         const increment = craftMethod('increment', function* () {
           return 1;
@@ -53,7 +53,7 @@ describe('craft-method-name-match', () => {
   it('reports and autofixes a mismatched string literal', async () => {
     const fixture = {
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod('wrong', this, function* () {
@@ -76,7 +76,7 @@ describe('craft-method-name-match', () => {
   it('reports and autofixes when the name is missing (legacy receiver form)', async () => {
     const fixture = {
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod(function* () {
@@ -98,7 +98,7 @@ describe('craft-method-name-match', () => {
   it('reports and autofixes when the name is missing (legacy this-binding form)', async () => {
     const fixture = {
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod(this, function* () {
@@ -115,7 +115,7 @@ describe('craft-method-name-match', () => {
   it('reports and autofixes a const declarator with a mismatch', async () => {
     const fixture = {
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         const increment = craftMethod('wrong', function* () {
           return 1;
@@ -135,7 +135,7 @@ describe('craft-method-name-match', () => {
   it('skips calls that are not assigned to a named declarator', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         function build() {
           return craftMethod(function* () {
@@ -151,7 +151,7 @@ describe('craft-method-name-match', () => {
   it('accepts an object-literal property whose first arg matches its key', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         const insertions = {
           increment: craftMethod('increment', function* () {
@@ -167,7 +167,7 @@ describe('craft-method-name-match', () => {
   it('accepts an object config whose name property matches the declared name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod({ name: 'increment', providers: [] }, function* () {
@@ -183,7 +183,7 @@ describe('craft-method-name-match', () => {
   it('reports and autofixes a mismatched name in object config form', async () => {
     const fixture = {
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod({ name: 'wrong', providers: [] }, function* () {
@@ -206,7 +206,7 @@ describe('craft-method-name-match', () => {
   it('reports when object config is missing the name property', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftMethod } from '@craft-ng/core';
+        import { craftMethod } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly increment = craftMethod({ providers: [] }, function* () {
@@ -247,7 +247,7 @@ async function lintFixture(
       2,
     ),
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function craftMethod(...args: unknown[]): unknown;
       }
     `,

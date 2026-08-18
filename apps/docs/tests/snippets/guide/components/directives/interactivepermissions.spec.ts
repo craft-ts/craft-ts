@@ -10,7 +10,7 @@ import {
   HostTemplate,
   Input,
   craftDirective,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 type User = { id?: string; name: string };
 

@@ -2,13 +2,13 @@ import {
   craftSignal as signal,
   craftUntracked as untracked,
   type Signal,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type {
   PrimitiveMethodRuntimeContext,
   PrimitiveMethodRuntimeKind,
   PrimitiveResourceRuntimeContext,
   PrimitiveResourceRuntimeKind,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const RUNTIME_OPERATIONS = ['get', 'set', 'update', 'patch'] as const;
 

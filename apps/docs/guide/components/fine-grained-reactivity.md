@@ -159,8 +159,8 @@ export default [
       parserOptions: { projectService: true },
     },
     rules: {
-      'craft-ng/require-reactive-template-bindings': 'error',
-      'craft-ng/no-render-writes': 'error',
+      'craft-ts/require-reactive-template-bindings': 'error',
+      'craft-ts/no-render-writes': 'error',
     },
   },
 ];
