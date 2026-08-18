@@ -216,7 +216,7 @@ describe('fromEventToSource$', () => {
 
   it('should be usable as a source service dependency', () => {
     const { ClickEventSource: Click } = craftService(
-      { name: 'ClickEventSource', scope: 'global' },
+      { name: 'ClickEventSource', providedIn: 'global' },
       function* () {
         const click = yield* fromEventToSource$<MouseEvent>(button, 'click');
         return click;
@@ -224,7 +224,7 @@ describe('fromEventToSource$', () => {
     );
 
     const { ClickEventConsumer: Counter } = craftService(
-      { name: 'ClickEventConsumer', scope: 'global' },
+      { name: 'ClickEventConsumer', providedIn: 'global' },
       function* () {
         const counter = yield* state('counter', 0, ({ set }) => ({
           increment: on$(Click, (event) => {
@@ -249,7 +249,7 @@ describe('fromEventToSource$', () => {
 
     expectTypeOf<ClickDependency['dependencies']>().toMatchTypeOf<{
       [key: string]: {
-        scope: 'function';
+        providedIn: 'function';
         dependencies: {};
       };
     }>();

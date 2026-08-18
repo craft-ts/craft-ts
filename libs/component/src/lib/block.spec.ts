@@ -65,7 +65,7 @@ describe('template exception blocks', () => {
     const state = signal<'ready' | 'denied'>('ready');
     const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
     const { BlockData, provideBlockData } = craftService(
-      { name: 'blockData', scope: 'abstract' },
+      { name: 'blockData', providedIn: 'abstract' },
       abstract<string | typeof denied>(),
     );
     const source = craftComponent(
@@ -185,7 +185,7 @@ describe('template exception blocks', () => {
   it('raises the dedicated runtime error when no boundary handles an exception', async () => {
     const denied = craftException({ _tag: 'DENIED' });
     const { UnhandledData, provideUnhandledData } = craftService(
-      { name: 'unhandledData', scope: 'abstract' },
+      { name: 'unhandledData', providedIn: 'abstract' },
       abstract<string | typeof denied>(),
     );
     const unhandledProvider = craftDirective(

@@ -1761,7 +1761,7 @@ describe('functional component interpreter', () => {
   it('resolves yield* craftService dependencies in the child injector', async () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
     const { Greeting } = craftService(
-      { name: 'Greeting', scope: 'function' },
+      { name: 'Greeting', providedIn: 'function' },
       () => ({ prefix: inject(PREFIX) }),
     );
 

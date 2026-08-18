@@ -8,7 +8,7 @@ useSnippetHarness();
 type Task = { id: string; title: string; done: boolean };
 
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     return yield* state('tasks', [] as Task[]);
   },
@@ -18,7 +18,7 @@ export const { TaskList } = craftService(
 import { craftComputed, craftService, state } from '@craft-ts/core';
 
 export const { TaskStats, provideTaskStats } = craftService(
-  { name: 'TaskStats', scope: 'toProvide' },
+  { name: 'TaskStats', providedIn: 'toProvide' },
   function* () {
     const tasks = yield* TaskList();
 

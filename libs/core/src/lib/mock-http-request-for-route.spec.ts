@@ -56,7 +56,7 @@ const teapot = () =>
   });
 
 const { RouteHttpMockUsersApi } = craftService(
-  { name: 'RouteHttpMockUsersApi', scope: 'global' },
+  { name: 'RouteHttpMockUsersApi', providedIn: 'global' },
   function* () {
     const getUsers = yield* CraftHttpClient.get(({ response }) => ({
       url: '/api/users',
@@ -70,7 +70,7 @@ const { RouteHttpMockUsersApi } = craftService(
 );
 
 const { RouteHttpMockAuthApi } = craftService(
-  { name: 'RouteHttpMockAuthApi', scope: 'global' },
+  { name: 'RouteHttpMockAuthApi', providedIn: 'global' },
   function* () {
     const login = yield* CraftHttpClient.post(({ response }) => ({
       url: '/api/login',

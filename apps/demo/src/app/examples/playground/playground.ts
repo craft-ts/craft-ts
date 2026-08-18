@@ -48,7 +48,7 @@ const TODOS: Todo[] = [
 // -- ApiService: global craftService with CRUD endpoints --
 
 const { ApiService } = craftService(
-  { name: 'ApiService', scope: 'global' },
+  { name: 'ApiService', providedIn: 'global' },
   function* () {
     const nextId = yield* state('nextId', 4, ({ state, update }) => ({
       take: function* () {
@@ -113,7 +113,7 @@ const { ApiService } = craftService(
 // -- Playground service: composes query + mutation --
 
 const { Playground } = craftService(
-  { name: 'Playground', scope: 'function' },
+  { name: 'Playground', providedIn: 'function' },
   function* () {
     const api = yield* ApiService();
     const addTodo = yield* mutation('addTodo', {

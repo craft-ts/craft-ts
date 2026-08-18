@@ -27,7 +27,7 @@ import type { Input, Output } from '../types';
 
 const { CraftTemporalRuntime } = toCraftService({
   name: 'CraftTemporalRuntime',
-  scope: 'global',
+  providedIn: 'global',
   token: CRAFT_TEMPORAL_RUNTIME,
 }) as unknown as {
   CraftTemporalRuntime: () => Generator<

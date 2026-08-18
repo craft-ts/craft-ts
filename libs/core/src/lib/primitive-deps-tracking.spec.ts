@@ -20,7 +20,7 @@ type HasDependency<
 describe('primitive dependency tracking', () => {
   it('detects a dependency used only inside loaders when the primitive is yielded', () => {
     const { Auth } = craftService(
-      { name: 'Auth', scope: 'global', appStart: true },
+      { name: 'Auth', providedIn: 'global', appStart: true },
       function* () {
         const register = yield* mutation('register', {
           method: ({
@@ -66,7 +66,7 @@ describe('primitive dependency tracking', () => {
 
   it('detects a loader dependency without any explicit track wrapper', () => {
     const { AuthUntracked } = craftService(
-      { name: 'AuthUntracked', scope: 'global' },
+      { name: 'AuthUntracked', providedIn: 'global' },
       function* () {
         const register = yield* mutation('register', {
           method: (p: { email: string }) => p,

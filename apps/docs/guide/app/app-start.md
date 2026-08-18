@@ -61,7 +61,7 @@ import { Console, craftService, onAppStart } from '@craft-ts/core';
 export const { AppStartLog } = craftService(
   {
     name: 'AppStartLog',
-    scope: 'toProvide',
+    providedIn: 'toProvide',
     appStart: true,
   },
   function* () {

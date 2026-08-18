@@ -33,7 +33,7 @@ const INITIAL_TODOS = [
 ] satisfies Todo[];
 
 export const { provideTodoStore, TodoStore } = craftService(
-  { name: 'TodoStore', scope: 'toProvide' },
+  { name: 'TodoStore', providedIn: 'toProvide' },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
       take: function* () {

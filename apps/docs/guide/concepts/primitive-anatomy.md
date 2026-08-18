@@ -56,7 +56,7 @@ and exposes the primitive reference itself:
 
 ```typescript
 const { MyService } = craftService(
-  { name: 'MyService', scope: 'global' },
+  { name: 'MyService', providedIn: 'global' },
   () => state('counter', 0),
 );
 ```
@@ -76,7 +76,7 @@ import {
 } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
-  { name: 'UserQueryWithState', scope: 'global' },
+  { name: 'UserQueryWithState', providedIn: 'global' },
   (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     craftYieldRecord({
       userQuery: query('userQuery', {

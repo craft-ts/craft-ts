@@ -22,7 +22,7 @@ import {
 } from '../setup-craft-service-test';
 
 const { FormAttributesSpecHost } = craftService(
-  { name: 'FormAttributesSpecHost', scope: 'global' },
+  { name: 'FormAttributesSpecHost', providedIn: 'global' },
   () => ({}),
 );
 

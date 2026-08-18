@@ -12,7 +12,7 @@ export type User = {
 };
 
 export const { ApiService } = craftService(
-  { name: 'ApiService', scope: 'global' },
+  { name: 'ApiService', providedIn: 'global' },
   function* () {
     const dataList = yield* state(
       'dataList',

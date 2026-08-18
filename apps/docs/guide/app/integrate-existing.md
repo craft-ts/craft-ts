@@ -75,12 +75,12 @@ class RouterLike {
 
 const { RouterLike } = toCraftService({
   name: 'RouterLike',
-  scope: 'global',
+  providedIn: 'global',
   token: RouterLike,
 });
 
 const { Navigation } = craftService(
-  { name: 'Navigation', scope: 'global' },
+  { name: 'Navigation', providedIn: 'global' },
   function* () {
     const router = yield* RouterLike(undefined, ({ navigateByUrl }) => ({
       navigateByUrl,
@@ -103,7 +103,7 @@ const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
 
 const { CurrentRoute } = toCraftService({
   name: 'CurrentRoute',
-  scope: 'global',
+  providedIn: 'global',
   inject: () => inject(CURRENT_ROUTE),
 });
 ```
@@ -125,7 +125,7 @@ class CounterDriver {
 
 const { CounterDriver, provideCounterDriver } = toCraftService({
   name: 'CounterDriver',
-  scope: 'toProvide',
+  providedIn: 'toProvide',
   token: CounterDriver,
   provide: () => [CounterDriver],
 });
@@ -144,7 +144,7 @@ import { toCraftService } from '@craft-ts/angular';
 const { CounterValue } = toCraftService(
   {
     name: 'CounterValue',
-    scope: 'toProvide',
+    providedIn: 'toProvide',
     token: CounterDriver,
     provide: () => [CounterDriver],
   },
@@ -165,7 +165,7 @@ For `toProvide` and `manuallyProvidedAtRoot`, the adaptation factory can consume
 const { Catalog, provideCatalog } = toCraftService(
   {
     name: 'Catalog',
-    scope: 'toProvide',
+    providedIn: 'toProvide',
     token: CatalogDriver,
     provide: (provided: { apiBaseUrl: string }) => [
       { provide: API_BASE_URL, useValue: provided.apiBaseUrl },
@@ -192,12 +192,12 @@ type User = { id: string; email: string };
 
 const { HttpClient } = toCraftService({
   name: 'HttpClient',
-  scope: 'global',
+  providedIn: 'global',
   token: HttpClient,
 });
 
 const { UsersApi } = craftService(
-  { name: 'UsersApi', scope: 'global' },
+  { name: 'UsersApi', providedIn: 'global' },
   function* () {
     const http = yield* HttpClient(undefined, ({ get, post }) => ({
       get,

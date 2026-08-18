@@ -354,7 +354,7 @@ describe('Standard Schema validation', () => {
     }));
 
     const { SchemaHost } = craftService(
-      { name: 'SchemaHost', scope: 'global' },
+      { name: 'SchemaHost', providedIn: 'global' },
       () => ({}),
     );
     const { injector } = setupCraftServiceTest(

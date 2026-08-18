@@ -13,7 +13,7 @@ describe('setupCraftServiceTest without TestBed', () => {
   it('boots a craftService and reads its state', () => {
     let serviceInjector: CraftInjector | undefined;
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'global' },
+      { name: 'Counter', providedIn: 'global' },
       function* () {
         serviceInjector = getCurrentCraftInjector();
         const counter = yield* state('hostCounter', 7);

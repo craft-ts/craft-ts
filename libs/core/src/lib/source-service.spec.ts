@@ -28,7 +28,7 @@ describe('yieldable source services', () => {
 
   it('resolves a source-returning craft service from on$', () => {
     const { Reset } = craftService(
-      { name: 'Reset', scope: 'global' },
+      { name: 'Reset', providedIn: 'global' },
       function* () {
         const reset$ = yield* source$<void>('reset$');
         return reset$;
@@ -36,7 +36,7 @@ describe('yieldable source services', () => {
     );
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'global' },
+      { name: 'Counter', providedIn: 'global' },
       function* () {
         const counter = yield* state('counter', 0, ({ set, state }) => ({
           increment: function* () {
@@ -65,10 +65,10 @@ describe('yieldable source services', () => {
     type CounterDependencies = GetServiceDependencies<typeof Counter>;
     type ResetDependency = CounterDependencies['dependencies']['Reset'];
 
-    expectTypeOf<ResetDependency['scope']>().toEqualTypeOf<'global'>();
+    expectTypeOf<ResetDependency['providedIn']>().toEqualTypeOf<'global'>();
     expectTypeOf<ResetDependency['dependencies']>().toMatchTypeOf<{
       [key: string]: {
-        scope: 'function';
+        providedIn: 'function';
         dependencies: {};
       };
     }>();

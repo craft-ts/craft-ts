@@ -641,7 +641,7 @@ function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     name: 'CraftHttpClient',
-    scope: 'global',
+    providedIn: 'global',
     resolve: (injector) => {
       const override = injector
         .get(SERVICE_RUNTIME_OVERRIDES)

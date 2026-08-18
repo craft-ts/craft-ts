@@ -176,13 +176,13 @@ export function injectCraftRouteLoadRecovery(): CraftRouteLoadRecovery {
 
 const craftRouteLoadErrorService = toCraftService({
   name: 'CraftRouteLoadError',
-  scope: 'global',
+  providedIn: 'global',
   inject: injectCraftRouteLoadError,
 });
 
 const craftRouteLoadRecoveryService = toCraftService({
   name: 'CraftRouteLoadRecovery',
-  scope: 'global',
+  providedIn: 'global',
   inject: injectCraftRouteLoadRecovery,
 });
 

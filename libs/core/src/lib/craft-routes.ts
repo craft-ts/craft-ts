@@ -2150,7 +2150,7 @@ function createRouteValueService<Name extends string, Output>(
   name: Name,
 ): CraftRouteValueServiceApi<Name, Output> {
   return craftService(
-    { name, scope: 'toProvide' },
+    { name, providedIn: 'toProvide' },
     (inputs: { $provided: { resolve: () => Output } }) =>
       inputs.$provided.resolve(),
   ) as CraftRouteValueServiceApi<Name, Output>;

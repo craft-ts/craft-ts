@@ -47,7 +47,7 @@ const { UserRequirement, provideUser } = craftService(
 );
 
 // 2. A guard that resolves the user.
-const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
+const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
   const auth = yield* query('auth', {
     params: () => true,
     loader: async () => ({}) as User,

@@ -4,7 +4,7 @@ type User = {
   name: string;
 };
 
-const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
+const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
   return yield* query('auth', {
     params: () => true,
     loader: function* () {

@@ -31,7 +31,7 @@ import {
 
 
 const { PipeSpecHost } = craftService(
-  { name: 'PipeSpecHost', scope: 'global' },
+  { name: 'PipeSpecHost', providedIn: 'global' },
   () => ({}),
 );
 
@@ -205,13 +205,13 @@ describe('craftPipe with state', () => {
 
   it('resolves generator members and tracks their dependencies (types + runtime)', async () => {
     const { PipeCounterReader } = craftService(
-      { name: 'PipeCounterReader', scope: 'global' },
+      { name: 'PipeCounterReader', providedIn: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
     const { PipeCounterStep } = craftService(
-      { name: 'PipeCounterStep', scope: 'global' },
+      { name: 'PipeCounterStep', providedIn: 'global' },
       () => ({
         step: (): number => 3,
       }),
@@ -251,7 +251,7 @@ describe('craftPipe with state', () => {
 
       expectTypeOf<ExtractDeps<typeof myState>>().toEqualTypeOf<{
         PipeCounterReader: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -263,7 +263,7 @@ describe('craftPipe with state', () => {
           };
         };
         PipeCounterStep: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -283,7 +283,7 @@ describe('craftPipe with query', () => {
 
   it('exposes all piped insertion outputs on the store', async () => {
     const { QueryPipeStore } = craftService(
-      { name: 'QueryPipeStore', scope: 'global' },
+      { name: 'QueryPipeStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -341,7 +341,7 @@ describe('craftPipe with query', () => {
 
   it('accepts seven members, all outputs appear in the store', async () => {
     const { QueryPipeSevenStore } = craftService(
-      { name: 'QueryPipeSevenStore', scope: 'global' },
+      { name: 'QueryPipeSevenStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -456,19 +456,19 @@ describe('craftPipe with query', () => {
 
   it('typing: tracks generator dependencies of piped members', async () => {
     const { PipeUserIdService } = craftService(
-      { name: 'PipeUserIdService', scope: 'global' },
+      { name: 'PipeUserIdService', providedIn: 'global' },
       () => ({
         read: (): string => 'user-1',
       }),
     );
     const { PipeQueryTools } = craftService(
-      { name: 'PipeQueryTools', scope: 'global' },
+      { name: 'PipeQueryTools', providedIn: 'global' },
       () => ({
         prefix: (): string => 'user',
       }),
     );
     const { PipeQueryTools2 } = craftService(
-      { name: 'PipeQueryTools2', scope: 'global' },
+      { name: 'PipeQueryTools2', providedIn: 'global' },
       () => ({
         suffix: (): string => 'details',
       }),
@@ -514,19 +514,19 @@ describe('craftPipe with query', () => {
       // yields of ALL piped members are tracked (union), alongside config deps
       expectTypeOf<ExtractDeps<typeof queryRef>>().toEqualTypeOf<{
         PipeUserIdService: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
         };
         PipeQueryTools: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
         };
         PipeQueryTools2: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;

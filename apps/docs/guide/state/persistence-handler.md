@@ -43,7 +43,7 @@ complete cleanup of all data cached by `@craft-ts`, including:
 
 ```typescript
 const { CacheActions } = craftService(
-  { name: 'CacheActions', scope: 'toProvide' },
+  { name: 'CacheActions', providedIn: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
     return { clearCache: () => persister.clearAllCache() };

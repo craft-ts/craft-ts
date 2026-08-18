@@ -159,7 +159,7 @@ testing workflow.
 
 ```typescript
 const { UserProfile } = craftService(
-  { name: 'UserProfile', scope: 'global' },
+  { name: 'UserProfile', providedIn: 'global' },
   function* () {
     const api = yield* UserApi();
     const userId = yield* state('userId', '5', ({ set }) => ({ set }));

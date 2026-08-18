@@ -18,7 +18,7 @@ const newTask = (title: string): Task => ({
 import { craftComputed, craftService, state } from '@craft-ts/core';
 
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const tasks = yield* state('tasks', [] as Task[], ({ state, update }) => ({
       add: (title: string) => update((current) => [...current, newTask(title)]),

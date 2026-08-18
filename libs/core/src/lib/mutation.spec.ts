@@ -209,20 +209,20 @@ describe('mutation', () => {
 
   it('typing: tracks generator dependencies from method, loader and insertions', async () => {
     const { MutationParams } = craftService(
-      { name: 'MutationParams', scope: 'global' },
+      { name: 'MutationParams', providedIn: 'global' },
       () => ({
         mapUserId: (userId: string): string => userId.trim(),
       }),
     );
     const { MutationApi } = craftService(
-      { name: 'MutationApi', scope: 'global' },
+      { name: 'MutationApi', providedIn: 'global' },
       () => ({
         save: (userId: string): Promise<{ userId: string }> =>
           Promise.resolve({ userId }),
       }),
     );
     const { MutationTools } = craftService(
-      { name: 'MutationTools', scope: 'global' },
+      { name: 'MutationTools', providedIn: 'global' },
       () => ({
         label: (): string => 'save-user',
       }),
@@ -262,7 +262,7 @@ describe('mutation', () => {
   it('should resolve generator method, loader and insertions', async () => {
     const logs: string[] = [];
     const { MutationLoggerRuntime } = craftService(
-      { name: 'MutationLoggerRuntime', scope: 'global' },
+      { name: 'MutationLoggerRuntime', providedIn: 'global' },
       () => ({
         log: (message: string) => {
           logs.push(message);
@@ -270,7 +270,7 @@ describe('mutation', () => {
       }),
     );
     const { MutationApiRuntime } = craftService(
-      { name: 'MutationApiRuntime', scope: 'global' },
+      { name: 'MutationApiRuntime', providedIn: 'global' },
       () => ({
         save: async (userId: string): Promise<{ userId: string }> => ({
           userId,
@@ -317,7 +317,7 @@ describe('mutation types without identifier', () => {
   it('should infer correctly the types of mutation', async () => {
     runInInjectionContext(() => {
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -457,7 +457,7 @@ describe('mutation types without identifier', () => {
         'searchSource',
       );
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -681,7 +681,7 @@ describe('mutation types with identifier', () => {
   it('should infer correctly the types of mutation', async () => {
     runInInjectionContext(() => {
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -822,7 +822,7 @@ describe('mutation types with identifier', () => {
         'searchSource',
       );
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -1591,7 +1591,7 @@ describe('mutation — providers', () => {
 
   it('typing: mutation accepts BrandedServiceProvider in providers without type errors', async () => {
     const { MethodService, provideMethodService } = craftService(
-      { name: 'MethodService', scope: 'toProvide' },
+      { name: 'MethodService', providedIn: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 

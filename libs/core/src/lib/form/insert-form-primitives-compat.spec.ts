@@ -136,7 +136,7 @@ describe('insertForm compatibility with query', () => {
   });
 
   it('infers the field tree type from the resource state (not unknown)', () => {
-    craftService({ name: 'UserStoreTyping', scope: 'global' }, function* () {
+    craftService({ name: 'UserStoreTyping', providedIn: 'global' }, function* () {
       return {
         user: yield* query(
           'user',
@@ -161,7 +161,7 @@ describe('insertForm compatibility with query', () => {
 
   it('exposes a working form at runtime over the resolved resource state', async () => {
     const { UserStore } = craftService(
-      { name: 'UserStore', scope: 'global' },
+      { name: 'UserStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(

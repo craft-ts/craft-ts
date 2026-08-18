@@ -68,7 +68,7 @@ describe('component composition', () => {
     const noAccess = craftException({ _tag: 'NO_ACCESS' });
     let handled = 0;
     const { Data, provideData } = craftService(
-      { name: 'data', scope: 'abstract' },
+      { name: 'data', providedIn: 'abstract' },
       abstract<string | typeof noAccess>(),
     );
 
@@ -239,7 +239,7 @@ describe('component composition', () => {
   it('requires a component exception to be caught before it is emitted into a template', async () => {
     const noAccess = craftException({ _tag: 'NO_ACCESS' });
     const { Data, provideData } = craftService(
-      { name: 'data', scope: 'abstract' },
+      { name: 'data', providedIn: 'abstract' },
       abstract<string | typeof noAccess>(),
     );
     const restricted = craftComponent(
@@ -270,7 +270,7 @@ describe('component composition', () => {
     const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     const { provideTodoStoreWithQueryException, TodoStoreWithQueryException } =
       craftService(
-        { name: 'todoStoreWithQueryException', scope: 'toProvide' },
+        { name: 'todoStoreWithQueryException', providedIn: 'toProvide' },
         function* () {
           const refresh = signal(0);
           const todos = yield* query('todos', {

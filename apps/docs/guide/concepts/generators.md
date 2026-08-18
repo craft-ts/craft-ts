@@ -15,7 +15,7 @@ the driver resolves it, and the dependency is recorded **in the type**:
 
 ```typescript
 const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi(); // tracked
     const tasks = yield* state('tasks', []); // tracked

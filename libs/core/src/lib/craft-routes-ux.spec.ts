@@ -376,7 +376,7 @@ describe('route handleExceptions (third argument)', () => {
 
   it('preserves handler yields for route DI extraction', () => {
     const { HandlerConfig } = craftService(
-      { name: 'HandlerConfig', scope: 'toProvide' },
+      { name: 'HandlerConfig', providedIn: 'toProvide' },
       () => ({ target: '/login' }),
     );
     const def = craftRoute(

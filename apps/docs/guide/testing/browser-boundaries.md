@@ -177,7 +177,7 @@ const uuid = yield * BrowserCrypto.randomUUID();
 
 Every service below is:
 
-- `scope: 'global'`
+- `providedIn: 'global'`
 - `browserBoundary: true`
 - exposed both as a DSL object and as generated service helpers
 

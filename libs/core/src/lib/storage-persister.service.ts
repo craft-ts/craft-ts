@@ -29,7 +29,7 @@ type StoragePersisterImplementationApi<Name extends string> = CraftServiceApi<
  * Applications must provide an implementation with `provideStoragePersister`.
  */
 const storagePersisterService = craftService(
-  { name: 'StoragePersister', scope: 'abstract' },
+  { name: 'StoragePersister', providedIn: 'abstract' },
   abstract<StoragePersisterApi>(),
 );
 export const StoragePersister: typeof storagePersisterService.StoragePersister =
@@ -43,7 +43,7 @@ export const provideStoragePersister: typeof storagePersisterService.provideStor
 const localStoragePersisterService: StoragePersisterImplementationApi<
   'LocalStoragePersister'
 > = craftService(
-  { name: 'LocalStoragePersister', scope: 'toProvide' },
+  { name: 'LocalStoragePersister', providedIn: 'toProvide' },
   function* (): Generator<unknown, StoragePersisterApi> {
     const storage = yield* LocalStorageService();
     return createStoragePersister('localStorage', storage);
@@ -58,7 +58,7 @@ export const provideLocalStoragePersister: typeof localStoragePersisterService.p
 const sessionStoragePersisterService: StoragePersisterImplementationApi<
   'SessionStoragePersister'
 > = craftService(
-  { name: 'SessionStoragePersister', scope: 'toProvide' },
+  { name: 'SessionStoragePersister', providedIn: 'toProvide' },
   function* (): Generator<unknown, StoragePersisterApi> {
     const storage = yield* SessionStorageService();
     return createStoragePersister('sessionStorage', storage);

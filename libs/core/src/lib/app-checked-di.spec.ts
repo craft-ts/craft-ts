@@ -48,7 +48,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -89,7 +89,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -155,7 +155,7 @@ describe('AppCheckedDI', () => {
 
   it('should return combined errors', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -202,7 +202,7 @@ describe('AppCheckedDI', () => {
 
   it('should report composed lazy child paths for missing inputs and providers', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -242,7 +242,7 @@ describe('AppCheckedDI', () => {
 
   it('should treat app root providers from APP_CONFIG_META_DATA as provided in AppComponent', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -277,7 +277,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 

@@ -12,7 +12,7 @@ useSnippetHarness();
 import { craftService, state } from '@craft-ts/core';
 
 const { UsersApi } = craftService(
-  { name: 'UsersApi', scope: 'global' },
+  { name: 'UsersApi', providedIn: 'global' },
   function* () {
     const currentUser = yield* state('currentUser', {
       id: '1',
@@ -27,7 +27,7 @@ const { UsersApi } = craftService(
 );
 
 const { CurrentUser } = craftService(
-  { name: 'CurrentUser', scope: 'global' },
+  { name: 'CurrentUser', providedIn: 'global' },
   function* () {
     return yield* UsersApi.currentUser();
   },

@@ -159,7 +159,7 @@ describe('craftComputed', () => {
 
   it('should work with a generator factory that resolves DI deps once', () => {
     const { Multiplier } = craftService(
-      { name: 'Multiplier', scope: 'function' },
+      { name: 'Multiplier', providedIn: 'function' },
       () => ({ factor: 3 }),
     );
 
@@ -201,7 +201,7 @@ describe('craftComputed', () => {
 
   it('should preserve Signal<T> type from plain computation', () => {
     const { Multiplier4 } = craftService(
-      { name: 'Multiplier4', scope: 'function' },
+      { name: 'Multiplier4', providedIn: 'function' },
       () => ({ factor: 2 }),
     );
 
@@ -239,7 +239,7 @@ describe('craftComputed', () => {
 
   it('should expose craftComputed dependencies through ExtractDeps', () => {
     const { Multiplier5 } = craftService(
-      { name: 'Multiplier5', scope: 'function' },
+      { name: 'Multiplier5', providedIn: 'function' },
       () => ({ factor: 5 }),
     );
 

@@ -30,7 +30,7 @@ import {
 } from './setup-craft-service-test';
 
 const { StateSpecHost } = craftService(
-  { name: 'StateSpecHost', scope: 'global' },
+  { name: 'StateSpecHost', providedIn: 'global' },
   () => ({}),
 );
 
@@ -224,13 +224,13 @@ describe('state', () => {
 
   it('typing: tracks generator dependencies from state config and insertions', async () => {
     const { CounterReader } = craftService(
-      { name: 'CounterReader', scope: 'global' },
+      { name: 'CounterReader', providedIn: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
     const { CounterStep } = craftService(
-      { name: 'CounterStep', scope: 'global' },
+      { name: 'CounterStep', providedIn: 'global' },
       () => ({
         step: (): number => 3,
       }),
@@ -261,7 +261,7 @@ describe('state', () => {
       expectTypeOf(craftUse(myState())).toEqualTypeOf<number>();
       expectTypeOf<ExtractDeps<typeof myState>>().toEqualTypeOf<{
         CounterReader: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -273,7 +273,7 @@ describe('state', () => {
           };
         };
         CounterStep: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -284,13 +284,13 @@ describe('state', () => {
 
   it('should resolve generator state config and generator insertions', async () => {
     const { CounterReaderRuntime } = craftService(
-      { name: 'CounterReaderRuntime', scope: 'global' },
+      { name: 'CounterReaderRuntime', providedIn: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
     const { CounterStepRuntime } = craftService(
-      { name: 'CounterStepRuntime', scope: 'global' },
+      { name: 'CounterStepRuntime', providedIn: 'global' },
       () => ({
         step: (): number => 3,
       }),
@@ -613,7 +613,7 @@ describe('state — $self config with providers', () => {
 
   it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', async () => {
     const { LocalCounter, provideLocalCounter } = craftService(
-      { name: 'LocalCounter', scope: 'toProvide' },
+      { name: 'LocalCounter', providedIn: 'toProvide' },
       () => ({ value: () => 1 }),
     );
 

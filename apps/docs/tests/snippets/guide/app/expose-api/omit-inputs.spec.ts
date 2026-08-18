@@ -12,7 +12,7 @@ useSnippetHarness();
 import { craftService, type CraftServiceInput } from '@craft-ts/core';
 
 const { Counter } = craftService(
-  { name: 'Counter', scope: 'function' },
+  { name: 'Counter', providedIn: 'function' },
   function* (inputs: { initialValue?: CraftServiceInput<number> }) {
     const initialValue = inputs.initialValue
       ? yield* inputs.initialValue()
@@ -23,7 +23,7 @@ const { Counter } = craftService(
 // #endregion omit-inputs
 
 const { CounterHost } = craftService(
-  { name: 'CounterHost', scope: 'function' },
+  { name: 'CounterHost', providedIn: 'function' },
   function* () {
     const startAt = yield* state('startAt', 5);
     const count = yield* Counter.count({ initialValue: startAt });

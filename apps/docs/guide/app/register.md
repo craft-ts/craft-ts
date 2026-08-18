@@ -93,7 +93,7 @@ observes them:
 
 ```ts
 const { Counter, provideCounter } = craftService(
-  { name: 'Counter', scope: 'toProvide' },
+  { name: 'Counter', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state(
       'counter',

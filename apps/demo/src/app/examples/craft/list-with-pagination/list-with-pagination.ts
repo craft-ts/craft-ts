@@ -35,7 +35,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
 export const { provideUserList, UserList } = craftService(
-  { name: 'UserList', scope: 'toProvide' },
+  { name: 'UserList', providedIn: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
       'pagination',

@@ -29,7 +29,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
 export const { provideUserMutation, UserMutation } = craftService(
-  { name: 'UserMutation', scope: 'toProvide' },
+  { name: 'UserMutation', providedIn: 'toProvide' },
   function* (inputs: { userId: () => string | undefined }) {
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({

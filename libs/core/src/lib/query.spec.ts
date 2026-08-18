@@ -245,13 +245,13 @@ describe('query', () => {
 
   it('typing: tracks generator dependencies from params, loader and insertions', async () => {
     const { UserIdService } = craftService(
-      { name: 'UserIdService', scope: 'global' },
+      { name: 'UserIdService', providedIn: 'global' },
       () => ({
         read: (): string => 'user-1',
       }),
     );
     const { UserApiService } = craftService(
-      { name: 'UserApiService', scope: 'global' },
+      { name: 'UserApiService', providedIn: 'global' },
       () => ({
         get: (userId: string): Promise<User> =>
           Promise.resolve({
@@ -262,7 +262,7 @@ describe('query', () => {
       }),
     );
     const { QueryTools } = craftService(
-      { name: 'QueryTools', scope: 'global' },
+      { name: 'QueryTools', providedIn: 'global' },
       () => ({
         prefix: (): string => 'user',
       }),
@@ -294,13 +294,13 @@ describe('query', () => {
       type t = ExtractDeps<typeof queryRef>;
       expectTypeOf<ExtractDeps<typeof queryRef>>().toEqualTypeOf<{
         UserIdService: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
         };
         UserApiService: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -312,7 +312,7 @@ describe('query', () => {
           };
         };
         QueryTools: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -324,13 +324,13 @@ describe('query', () => {
   it('should resolve generator params, method, loader and insertions', async () => {
     const logs: string[] = [];
     const { UserIdRuntime } = craftService(
-      { name: 'UserIdRuntime', scope: 'global' },
+      { name: 'UserIdRuntime', providedIn: 'global' },
       () => ({
         read: (): string => 'user-2',
       }),
     );
     const { QueryLoggerRuntime } = craftService(
-      { name: 'QueryLoggerRuntime', scope: 'global' },
+      { name: 'QueryLoggerRuntime', providedIn: 'global' },
       () => ({
         log: (message: string) => {
           logs.push(message);
@@ -338,7 +338,7 @@ describe('query', () => {
       }),
     );
     const { UserApiRuntime } = craftService(
-      { name: 'UserApiRuntime', scope: 'global' },
+      { name: 'UserApiRuntime', providedIn: 'global' },
       () => ({
         get: async (userId: string): Promise<User> => ({
           id: userId,
@@ -464,7 +464,7 @@ describe('query with identifier>', () => {
 describe('craftService using query', () => {
   it('1- Should expose a query resource', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query('user', {
@@ -492,7 +492,7 @@ describe('craftService using query', () => {
 describe('query Insertions output', () => {
   it('should accept an Insertions output, that appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -525,7 +525,7 @@ describe('query Insertions output', () => {
 
   it('should accept an Insertion, with the correct resource infer', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -573,7 +573,7 @@ describe('query Insertions output', () => {
 
   it('should accept an Insertion, with the correct resourceById infer', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -623,7 +623,7 @@ describe('query Insertions output', () => {
 
   it('should accept an insertion output, that appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -660,7 +660,7 @@ describe('query Insertions output', () => {
   });
   it('should accept multiple insertions, that appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -717,7 +717,7 @@ describe('query Insertions output', () => {
   });
   it('should accept seven insertions, all outputs appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -1603,7 +1603,7 @@ describe('query — providers', () => {
 
   it('typing: query accepts BrandedServiceProvider in providers without type errors', async () => {
     const { QueryService, provideQueryService } = craftService(
-      { name: 'QueryService', scope: 'toProvide' },
+      { name: 'QueryService', providedIn: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 

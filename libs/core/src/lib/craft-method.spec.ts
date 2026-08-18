@@ -118,7 +118,7 @@ describe('craftMethod', () => {
 
   it('should compose craftService dependencies through X()', () => {
     const { CounterWorker } = craftService(
-      { name: 'CounterWorker', scope: 'function' },
+      { name: 'CounterWorker', providedIn: 'function' },
       () => ({
         increment: (value: number, step: number) => value + step,
       }),
@@ -196,7 +196,7 @@ describe('craftMethod', () => {
 
   it('should expose craftMethod dependencies through ExtractDeps', () => {
     const { CounterWorker } = craftService(
-      { name: 'CounterWorker', scope: 'function' },
+      { name: 'CounterWorker', providedIn: 'function' },
       () => ({
         increment: (value: number, step: number) => value + step,
       }),
@@ -300,7 +300,7 @@ describe('craftMethod — object config with providers', () => {
 
   it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
     const { MethodWorker, provideMethodWorker } = craftService(
-      { name: 'MethodWorker', scope: 'toProvide' },
+      { name: 'MethodWorker', providedIn: 'toProvide' },
       () => ({ compute: (x: number) => x * 2 }),
     );
 

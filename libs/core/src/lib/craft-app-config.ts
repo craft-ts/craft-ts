@@ -262,8 +262,8 @@ export function craftAppConfig<
 
     if (
       Reflect.get(metaData, 'usesProvidedInput') === true &&
-      (metaData.scope === 'toProvide' ||
-        metaData.scope === 'manuallyProvidedAtRoot')
+      (metaData.providedIn === 'toProvide' ||
+        metaData.providedIn === 'manuallyProvidedAtRoot')
     ) {
       throw new Error(
         `craftAppConfig cannot auto-provide appStart service "${metaData.name}" because provide${metaData.name}(...) requires arguments.`,
@@ -271,8 +271,8 @@ export function craftAppConfig<
     }
 
     if (
-      (metaData.scope === 'toProvide' ||
-        metaData.scope === 'manuallyProvidedAtRoot') &&
+      (metaData.providedIn === 'toProvide' ||
+        metaData.providedIn === 'manuallyProvidedAtRoot') &&
       typeof metaData.provide === 'function' &&
       !providerNames.has(metaData.name)
     ) {

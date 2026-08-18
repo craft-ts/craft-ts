@@ -12,7 +12,7 @@ useSnippetHarness();
 type Task = { id: string; title: string; done: boolean };
 
 const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const tasks = yield* state('tasks', [] as Task[], ({ update: _update }) => ({
       remaining: () => 0,

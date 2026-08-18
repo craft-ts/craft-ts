@@ -12,7 +12,7 @@ useSnippetHarness();
 import { craftService, state } from '@craft-ts/core';
 
 const { SearchApi } = craftService(
-  { name: 'SearchApi', scope: 'global' },
+  { name: 'SearchApi', providedIn: 'global' },
   function* () {
     const isLoading = yield* state('isLoading', false);
     const data = yield* state('data', [] as string[]);
@@ -26,7 +26,7 @@ const { SearchApi } = craftService(
 );
 
 const { SearchFacade } = craftService(
-  { name: 'SearchFacade', scope: 'global' },
+  { name: 'SearchFacade', providedIn: 'global' },
   function* () {
     const isLoading = yield* SearchApi.usersQuery.isLoading();
     return { isLoading };

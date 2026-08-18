@@ -227,7 +227,7 @@ describe('CraftRouterOutlet', () => {
   it('follows a yielding redirectTo through the Craft injector', async () => {
     window.history.replaceState(null, '', '/');
     const { RedirectAuth, provideRedirectAuth } = craftService(
-      { name: 'RedirectAuth', scope: 'toProvide' },
+      { name: 'RedirectAuth', providedIn: 'toProvide' },
       () => ({ isAdmin: () => true }),
     );
     TestBed.configureTestingModule({
@@ -1354,7 +1354,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
   it('writes generator guard data after yielding a craft service', async () => {
     type User = { id: number; name: string };
     const { OutletAuth, provideOutletAuth } = craftService(
-      { name: 'OutletAuth', scope: 'toProvide' },
+      { name: 'OutletAuth', providedIn: 'toProvide' },
       () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
     );
     const { outlet } = setup();

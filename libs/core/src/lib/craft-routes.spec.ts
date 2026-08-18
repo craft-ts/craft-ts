@@ -890,7 +890,7 @@ describe('craftRoutes', () => {
 
   it('should support canActivate generator alongside plain Angular loadChildren — outlet-driven guards', async () => {
     const { Auth, provideAuth } = craftService(
-      { name: 'Auth', scope: 'toProvide' },
+      { name: 'Auth', providedIn: 'toProvide' },
       () => ({ currentUser: { id: 1 } }),
     );
     const plainRoutes: Route[] = [{ path: 'child', children: [] }];
@@ -916,7 +916,7 @@ describe('craftRoutes', () => {
 
   it('should support a redirectTo generator that yields tracked dependencies', () => {
     const { Auth, provideAuth } = craftService(
-      { name: 'Auth', scope: 'toProvide' },
+      { name: 'Auth', providedIn: 'toProvide' },
       () => ({ isAdmin: () => true }),
     );
     const { testRoutes: appRoutes } = craftRoutes('test', [
@@ -1355,7 +1355,7 @@ describe('craftRoutes', () => {
 
   it('should remove lazy child missing providers satisfied by the direct parent route providers', () => {
     const { provideCounter, Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -1396,7 +1396,7 @@ describe('craftRoutes', () => {
 
   it('should not treat sibling route providers as covering lazy child missing providers', () => {
     const { provideCounter, Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -1443,11 +1443,11 @@ describe('craftRoutes', () => {
 
   it('should merge parent loadComponent missing providers with lazy child missing providers', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
     const { Permissions } = craftService(
-      { name: 'Permissions', scope: 'toProvide' },
+      { name: 'Permissions', providedIn: 'toProvide' },
       () => ({
         allow: true,
       }),
@@ -1515,11 +1515,11 @@ describe('craftRoutes', () => {
 
   it('should place flattened lazy child metadata after the parent entry in mixed route tuples', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
     const { Permissions } = craftService(
-      { name: 'Permissions', scope: 'toProvide' },
+      { name: 'Permissions', providedIn: 'toProvide' },
       () => ({
         allow: true,
       }),
@@ -1650,7 +1650,7 @@ describe('craftRoutes', () => {
     type User = { id: string };
 
     const { UsersApi } = craftService(
-      { name: 'UsersApi', scope: 'global' },
+      { name: 'UsersApi', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -1709,7 +1709,7 @@ describe('craftRoutes', () => {
     type ChildPayload = { id: string };
 
     const { LayoutApi } = craftService(
-      { name: 'LayoutApi', scope: 'global' },
+      { name: 'LayoutApi', providedIn: 'global' },
       function* () {
         const getLayout = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/layout',
@@ -1723,7 +1723,7 @@ describe('craftRoutes', () => {
     );
 
     const { ChildApi } = craftService(
-      { name: 'ChildApi', scope: 'global' },
+      { name: 'ChildApi', providedIn: 'global' },
       function* () {
         const createUser = yield* CraftHttpClient.post(({ response }) => ({
           url: '/api/layout/users',
@@ -1944,7 +1944,7 @@ describe('craftRoutes', () => {
   it('should yield route data in providers and preserve explicit providers', () => {
     const marker = new InjectionToken<string>('marker');
     const { RouteData, provideRouteData } = craftService(
-      { name: 'RouteData', scope: 'abstract' },
+      { name: 'RouteData', providedIn: 'abstract' },
       abstract<Signal<{ readonly myCustomData: 'test' }>>(),
     );
     const { testRoutes: appRoutes } = craftRoutes('test', [
@@ -2149,7 +2149,7 @@ describe('craftRoutes', () => {
 
   it('should accept branded route providers as componentDeps coverage', () => {
     const { provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -2237,13 +2237,13 @@ describe('craftRoutes', () => {
     const authAccess$ = new BehaviorSubject(true);
     const entityOperational$ = new BehaviorSubject(true);
     const { Auth, provideAuth } = craftService(
-      { name: 'Auth', scope: 'toProvide' },
+      { name: 'Auth', providedIn: 'toProvide' },
       () => ({
         canAccess$: authAccess$.asObservable(),
       }),
     );
     const { Entity, provideEntity } = craftService(
-      { name: 'Entity', scope: 'toProvide' },
+      { name: 'Entity', providedIn: 'toProvide' },
       () => ({
         isOperational$: entityOperational$.asObservable(),
       }),
@@ -2273,7 +2273,7 @@ describe('craftRoutes', () => {
 
   it('should allow canMatch generators to yield services and return a synchronous result — outlet-driven guards', async () => {
     const { Permissions, providePermissions } = craftService(
-      { name: 'Permissions', scope: 'toProvide' },
+      { name: 'Permissions', providedIn: 'toProvide' },
       () => ({
         allow: true,
       }),
@@ -2387,7 +2387,7 @@ describe('craftRoutes', () => {
 
     it('should build a route-level provider from typed route-scoped  helpers — outlet-driven guards', async () => {
       const { User, provideUser } = craftService(
-        { name: 'User', scope: 'abstract' },
+        { name: 'User', providedIn: 'abstract' },
         abstract<User>(),
       );
 
@@ -2509,7 +2509,7 @@ describe('craftRoutes', () => {
 
     it('should set guard data signal when generator guard yields services and returns an object — outlet-driven guards', async () => {
       const { Auth, provideAuth } = craftService(
-        { name: 'Auth', scope: 'toProvide' },
+        { name: 'Auth', providedIn: 'toProvide' },
         () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
       );
 
@@ -2665,7 +2665,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should remove matching params / inputs from publicProperties deps', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
         class UserComponent {
@@ -2702,7 +2702,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should not throw an error if a provider is missing,', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
         class UserComponent {
@@ -2737,7 +2737,7 @@ describe('AppRoutes.META_DATA', () => {
           provided: {};
           deps: {
             Counter: {
-              scope: 'toProvide';
+              providedIn: 'toProvide';
               browserBoundary: false;
               appStart: false;
               dependencies: {};
@@ -2745,7 +2745,7 @@ describe('AppRoutes.META_DATA', () => {
           };
           missingProvider: {
             Counter: {
-              scope: 'toProvide';
+              providedIn: 'toProvide';
               browserBoundary: false;
               appStart: false;
               dependencies: {};
@@ -2759,7 +2759,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should include queryParams deps in META_DATA, including outer generator yields', () => {
     const { PaginationRules } = craftService(
-      { name: 'PaginationRules', scope: 'global' },
+      { name: 'PaginationRules', providedIn: 'global' },
       () => ({
         maxPage: () => 3,
       }),
@@ -2824,7 +2824,7 @@ describe('AppRoutes.META_DATA', () => {
           deps: {
             ConsoleService: GetServiceDependencies<typeof ConsoleService>;
             PaginationRules: {
-              scope: 'global';
+              providedIn: 'global';
               dependencies: {};
               browserBoundary: false;
               appStart: false;
@@ -2845,7 +2845,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should remove queryParams deps when satisfied by route providers', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -2938,7 +2938,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should include generator guard deps in META_DATA', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -2975,7 +2975,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should remove generator guard deps when satisfied by route providers', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -3024,7 +3024,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should include canActivate generator handler deps in META_DATA', () => {
     const { RedirectConfig } = craftService(
-      { name: 'RedirectConfig', scope: 'toProvide' },
+      { name: 'RedirectConfig', providedIn: 'toProvide' },
       () => ({ loginUrl: '/login' }),
     );
     const authGuard = craftGen(function* () {
@@ -3073,7 +3073,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should strip canActivate handler deps satisfied by route providers', () => {
     const { RedirectConfig, provideRedirectConfig } = craftService(
-      { name: 'RedirectConfig', scope: 'toProvide' },
+      { name: 'RedirectConfig', providedIn: 'toProvide' },
       () => ({ loginUrl: '/login' }),
     );
     const authGuard = craftGen(function* () {
@@ -3113,7 +3113,7 @@ describe('AppRoutes.META_DATA', () => {
 
   it('should flatten lazy route metadata and inherit providers, params and data', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 

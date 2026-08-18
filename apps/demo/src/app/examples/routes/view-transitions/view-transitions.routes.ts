@@ -39,7 +39,7 @@ import PhotoSkeleton from './photo-skeleton';
 // UI. Cached global query, so the FIRST detail visit is slow and a revisit is
 // instant; use the 🗑️ Clear Cache button to replay the pending state.
 const { ViewTransitionAccess } = craftService(
-  { name: 'ViewTransitionAccess', scope: 'global' },
+  { name: 'ViewTransitionAccess', providedIn: 'global' },
   function* () {
     const viewTransitionAccess = yield* query('viewTransitionAccess', {
       params: () => true,

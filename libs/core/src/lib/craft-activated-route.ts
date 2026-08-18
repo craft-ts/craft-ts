@@ -35,7 +35,7 @@ type CraftActivatedRouteHelper = CraftActivatedRouteTrackedHelper & {
 // from this package boundary.
 const craftActivatedRouteService = toCraftService({
   name: 'CraftActivatedRoute',
-  scope: 'global',
+  providedIn: 'global',
   token: ActivatedRoute,
 }) as unknown as {
   CraftActivatedRoute: CraftActivatedRouteHelper;

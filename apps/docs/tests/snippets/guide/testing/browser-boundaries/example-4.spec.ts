@@ -8,7 +8,7 @@ useSnippetHarness();
 import { ConsoleService, craftService } from '@craft-ts/core';
 
 const { AuditTrail } = craftService(
-  { name: 'AuditTrail', scope: 'global' },
+  { name: 'AuditTrail', providedIn: 'global' },
   function* () {
     const consoleService = yield* ConsoleService(
       undefined,

@@ -22,7 +22,7 @@ import {
 } from './setup-craft-service-test';
 
 const { InsertSelectSpecHost } = craftService(
-  { name: 'InsertSelectSpecHost', scope: 'global' },
+  { name: 'InsertSelectSpecHost', providedIn: 'global' },
   () => ({}),
 );
 
@@ -469,7 +469,7 @@ describe('insertSelect', () => {
 describe('insertSelect with generator insertions', () => {
   it('should resolve generator insertion on object states', async () => {
     const { ObjLogger } = craftService(
-      { name: 'ObjLogger', scope: 'global' },
+      { name: 'ObjLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return {
@@ -511,7 +511,7 @@ describe('insertSelect with generator insertions', () => {
 
   it('should resolve generator insertion on array states', async () => {
     const { ArrLogger } = craftService(
-      { name: 'ArrLogger', scope: 'global' },
+      { name: 'ArrLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return {

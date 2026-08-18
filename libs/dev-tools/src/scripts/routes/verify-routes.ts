@@ -996,7 +996,7 @@ export function createRouteVerificationFixtures(): RouteVerificationFixture[] {
 import { craftService, type GetDeps, type GetServiceDependencies } from '@craft-ts/core';
 
 export const { VerifyMissingService, provideVerifyMissingService } = craftService(
-  { name: '${serviceName}', scope: 'toProvide' },
+  { name: '${serviceName}', providedIn: 'toProvide' },
   () => ({ value: 1 }),
 );
 

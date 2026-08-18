@@ -25,7 +25,7 @@ Yield them so the input-to-service edge stays in the dependency graph:
 import { craftService, query, type CraftServiceInput } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
-  { name: 'UserQuery', scope: 'global' },
+  { name: 'UserQuery', providedIn: 'global' },
   (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     query('userQuery', {
       params: function* () {
@@ -88,7 +88,7 @@ import {
 } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
-  { name: 'UserQuery', scope: 'global' },
+  { name: 'UserQuery', providedIn: 'global' },
   (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     query('userQuery', {
       params: function* () {
@@ -112,7 +112,7 @@ import {
 } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
-  { name: 'UserQueryWithState', scope: 'global' },
+  { name: 'UserQueryWithState', providedIn: 'global' },
   (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     craftYieldRecord({
       userQuery: query('userQuery', {
@@ -139,7 +139,7 @@ Use `providers` in the service config when the service factory itself needs loca
 const { UserFacade } = craftService(
   {
     name: 'UserFacade',
-    scope: 'global',
+    providedIn: 'global',
     providers: [provideUserApi(), provideUserLogger()],
   },
   function* () {

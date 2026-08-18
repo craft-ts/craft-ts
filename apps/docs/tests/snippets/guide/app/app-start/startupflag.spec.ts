@@ -10,7 +10,7 @@ import { craftService, onAppStart } from '@craft-ts/core';
 export const { StartupFlag } = craftService(
   {
     name: 'StartupFlag',
-    scope: 'global',
+    providedIn: 'global',
     appStart: true,
   },
   function* () {

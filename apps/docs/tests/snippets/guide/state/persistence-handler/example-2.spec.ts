@@ -8,7 +8,7 @@ useSnippetHarness();
 import { craftService, GlobalPersisterHandlerService } from '@craft-ts/core';
 
 const { LogoutHandler } = craftService(
-  { name: 'LogoutHandler', scope: 'toProvide' },
+  { name: 'LogoutHandler', providedIn: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
 

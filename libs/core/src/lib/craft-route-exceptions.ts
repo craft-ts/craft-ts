@@ -492,7 +492,7 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
  */
 const craftGlobalErrorService = toCraftService({
   name: 'CraftGlobalError',
-  scope: 'global',
+  providedIn: 'global',
   inject: (): Signal<CraftGlobalHandledException> =>
     inject(
       CRAFT_GLOBAL_ERROR,

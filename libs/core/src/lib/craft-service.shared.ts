@@ -64,7 +64,7 @@ export type DependencyTreeChildren<Node> = Node extends {
   ? Dependencies
   : {};
 
-export type DependencyNodeScope<Node> = Node extends { scope: infer Scope }
+export type DependencyNodeScope<Node> = Node extends { providedIn: infer Scope }
   ? Scope
   : never;
 

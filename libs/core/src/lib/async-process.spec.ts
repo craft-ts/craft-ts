@@ -193,20 +193,20 @@ describe('AsyncProcess', () => {
 
   it('typing: tracks generator dependencies from method, loader and insertions', () => {
     const { AsyncParams } = craftService(
-      { name: 'AsyncParams', scope: 'global' },
+      { name: 'AsyncParams', providedIn: 'global' },
       () => ({
         normalize: (userId: string): string => userId.trim(),
       }),
     );
     const { AsyncApi } = craftService(
-      { name: 'AsyncApi', scope: 'global' },
+      { name: 'AsyncApi', providedIn: 'global' },
       () => ({
         load: (userId: string): Promise<{ userId: string }> =>
           Promise.resolve({ userId }),
       }),
     );
     const { AsyncTools } = craftService(
-      { name: 'AsyncTools', scope: 'global' },
+      { name: 'AsyncTools', providedIn: 'global' },
       () => ({
         key: (): string => 'async-user',
       }),
@@ -246,7 +246,7 @@ describe('AsyncProcess', () => {
   it('should resolve generator method, loader and insertions', async () => {
     const logs: string[] = [];
     const { AsyncLoggerRuntime } = craftService(
-      { name: 'AsyncLoggerRuntime', scope: 'global' },
+      { name: 'AsyncLoggerRuntime', providedIn: 'global' },
       () => ({
         log: (message: string) => {
           logs.push(message);
@@ -254,7 +254,7 @@ describe('AsyncProcess', () => {
       }),
     );
     const { AsyncApiRuntime } = craftService(
-      { name: 'AsyncApiRuntime', scope: 'global' },
+      { name: 'AsyncApiRuntime', providedIn: 'global' },
       () => ({
         load: async (userId: string): Promise<{ userId: string }> => ({
           userId,
@@ -301,7 +301,7 @@ describe('AsyncProcess types without identifier', () => {
   it('should infer correctly the types of AsyncProcess', async () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -433,7 +433,7 @@ describe('AsyncProcess types without identifier', () => {
         'searchSource',
       );
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -645,7 +645,7 @@ describe('AsyncProcess types with identifier', () => {
   it('should infer correctly the types of AsyncProcess', async () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -780,7 +780,7 @@ describe('AsyncProcess types with identifier', () => {
         'searchSource',
       );
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -1684,7 +1684,7 @@ describe('asyncProcess — providers', () => {
 
   it('typing: asyncProcess accepts BrandedServiceProvider in providers without type errors', () => {
     const { AsyncService, provideAsyncService } = craftService(
-      { name: 'AsyncService', scope: 'toProvide' },
+      { name: 'AsyncService', providedIn: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 

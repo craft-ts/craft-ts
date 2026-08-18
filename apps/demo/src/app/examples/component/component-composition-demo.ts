@@ -17,7 +17,7 @@ import {
 
 const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
-  { name: 'restrictedData', scope: 'abstract' },
+  { name: 'restrictedData', providedIn: 'abstract' },
   abstract<string | typeof noAccess>(),
 );
 

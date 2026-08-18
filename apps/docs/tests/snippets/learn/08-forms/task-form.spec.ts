@@ -16,7 +16,7 @@ import {
 } from '@craft-ts/core';
 
 export const { TaskForm } = craftService(
-  { name: 'TaskForm', scope: 'function' },
+  { name: 'TaskForm', providedIn: 'function' },
   function* () {
     const taskForm = yield* state(
       'taskForm',
