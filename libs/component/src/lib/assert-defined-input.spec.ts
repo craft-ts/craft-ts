@@ -97,7 +97,7 @@ describe('assertDefinedInput', () => {
             catchBlock.exhaustive({
               CraftUndefinedPropertyException: {
                 render: (exception) => {
-                  expect(exception.code).toBe(
+                  expect(exception._tag).toBe(
                     'CraftUndefinedPropertyException',
                   );
                   return span('fallback');

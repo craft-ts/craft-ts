@@ -393,7 +393,7 @@ describe('fieldExceptionBlock', () => {
                   validWhen: () =>
                     field.value().password === field.value().confirmation,
                   exception: () =>
-                    craftException({ code: 'passwordMismatch' }, undefined),
+                    craftException({ _tag: 'passwordMismatch' }, undefined),
                 }),
               ],
             })),

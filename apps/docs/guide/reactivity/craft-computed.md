@@ -102,7 +102,7 @@ own dependency graph records the read.
 import { craftComputed, craftService } from '@craft-ts/core';
 
 const { Multiplier } = craftService(
-  { name: 'Multiplier', scope: 'function' },
+  { name: 'Multiplier', providedIn: 'function' },
   () => ({ factor: 3 }),
 );
 

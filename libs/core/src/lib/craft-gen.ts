@@ -152,7 +152,7 @@ export class CraftGenShortCircuit extends Error {
   readonly exception: AnyCraftException;
 
   constructor(exception: AnyCraftException) {
-    super(`craftGen short-circuited with exception "${exception.code}".`);
+    super(`craftGen short-circuited with exception "${exception._tag}".`);
     this.name = 'CraftGenShortCircuit';
     this.exception = exception;
   }

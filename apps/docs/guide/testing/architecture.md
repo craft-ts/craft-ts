@@ -235,7 +235,7 @@ graph.component('ListWithPagination');
 graph.providedOn('UserList');
 graph.httpEndpoint('GET', 'users');
 graph.unique('{"key":"user-query","storeName":"demo-app"}');
-graph.services({ browserBoundary: true, scope: 'global' });
+graph.services({ browserBoundary: true, providedIn: 'global' });
 graph.usingHttp();
 graph.dependingOnBrowserBoundary();
 graph.craftMethods();
@@ -599,7 +599,7 @@ If the lookup throws, the identity left the graph — the key changed, or
 
 Anything you can express with `outgoing` / `incoming` is a rule: “this
 `craftMethod` is either called or writes a `source$`, never both”, “this
-component does not `depends-on` that service”, “only `scope: 'global'` services
+component does not `depends-on` that service”, “only `providedIn: 'global'` services
 appear under `usingTemporal()`”. Keep the assertion next to a comment that
 states the product invariant, not the graph traversal.
 

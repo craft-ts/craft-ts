@@ -5,7 +5,7 @@ describe('StripCraftException', () => {
     type TestType =
       | string
       | number
-      | CraftExceptionResult<{ code: 'TEST' }, { message: string }>;
+      | CraftExceptionResult<{ _tag: 'TEST' }, { message: string }>;
 
     type Result = StripCraftException<TestType>;
 
@@ -16,7 +16,7 @@ describe('StripCraftException', () => {
     type TestType =
       | CraftExceptionResult<
           {
-            code: 'INVALID_USER_ID';
+            _tag: 'INVALID_USER_ID';
             scope: undefined;
             identifier?: undefined;
           },

@@ -52,7 +52,7 @@ dependency of the containing primitive.
 
 ```typescript
 const { Reset } = craftService(
-  { name: 'Reset', scope: 'global' },
+  { name: 'Reset', providedIn: 'global' },
   function* () {
     const reset$ = yield* source$<void>('reset$');
     return reset$;
@@ -208,7 +208,7 @@ console.log(filters()); // []
 import { craftService, state, source$ } from '@craft-ts/core';
 import { on$ } from '@craft-ts/core';
 
-const { Filters } = craftService({ name: 'Filters', scope: 'global' }, () => {
+const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, () => {
   const reset = source$<void>('reset');
   const { search } = state('search', '', ({ set }) => ({
     set,

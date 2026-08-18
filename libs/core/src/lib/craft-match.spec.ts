@@ -88,14 +88,14 @@ describe('craftMatch.exhaustive', () => {
 
 describe('match.exhaustive over discriminated exceptions', () => {
   it('narrows the discriminant and preserves the payload', () => {
-    const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+    const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
     const unavailable = craftException(
-      { code: 'UNAVAILABLE' },
+      { _tag: 'UNAVAILABLE' },
       { retryAfter: 5 },
     );
     const exception = denied as typeof denied | typeof unavailable;
 
-    const message = match.exhaustive(exception, 'code', {
+    const message = match.exhaustive(exception, '_tag', {
       DENIED: (value) => {
         expectTypeOf(value).toEqualTypeOf<typeof denied>();
         expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
@@ -116,7 +116,7 @@ describe('match.exhaustive over discriminated exceptions', () => {
       | { code: 'DENIED'; payload: string }
       | undefined;
     expect(
-      match.exhaustive(exception, 'code', { DENIED: (value) => value.payload }),
+      match.exhaustive(exception, '_tag', { DENIED: (value) => value.payload }),
     ).toBeUndefined();
   });
 });

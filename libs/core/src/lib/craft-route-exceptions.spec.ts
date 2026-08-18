@@ -29,7 +29,7 @@ import type { ComponentExceptionsCarrier } from './branded-component/branded-com
 // --- Type-level fixtures: a route whose three steps advertise codes A, B, C ---
 
 type Ex<Code extends string> = CraftException<
-  { code: Code; scope: undefined },
+  { _tag: Code; scope: undefined },
   { detail: string }
 >;
 
@@ -88,7 +88,7 @@ function handle<Handlers>(
 describe('craft-route-exceptions (types)', () => {
   it('includes residual component exceptions in the route union', () => {
     expectTypeOf<
-      FakeComponentUnion['code']
+      FakeComponentUnion['_tag']
     >().toEqualTypeOf<'COMPONENT_FAILED'>();
   });
 
@@ -161,7 +161,7 @@ describe('craft-route-exceptions (types)', () => {
     const handler: CraftExceptionHandler<Ex<'A'>> = craftExceptionHandler(
       function* ({ exception, payload, phase, renderComponent }) {
         // exception.code is narrowed to 'A'; payload to { detail: string }
-        const code: 'A' = exception.code;
+        const code: 'A' = exception._tag;
         const detail: string = payload.detail;
         const seenEnter: boolean = phase === 'enter';
         void code;
@@ -204,7 +204,7 @@ describe('craft-route-exceptions (runtime)', () => {
 
     expect(sink()).toBeNull();
 
-    const exception = craftException({ code: 'USER_DISABLED' });
+    const exception = craftException({ _tag: 'USER_DISABLED' });
     sink.set(exception);
 
     // The typed reader observes whatever the outlet wrote into the sink.

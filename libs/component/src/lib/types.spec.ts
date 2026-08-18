@@ -156,7 +156,7 @@ it('extracts projection contracts and propagates projected dependencies', () => 
     readonly trigger: () => void;
   };
   const { BadgeService, provideBadgeService } = craftService(
-    { name: 'BadgeService', scope: 'toProvide' },
+    { name: 'BadgeService', providedIn: 'toProvide' },
     () => ({ label: 'badge' }),
   );
   const badge = craftComponent(
@@ -331,7 +331,7 @@ it('checks reusable template contexts at every render site', () => {
 
 it('carries inferred dependencies from the component through the lazy route fragment', () => {
   const { TypeSpecService } = craftService(
-    { name: 'TypeSpecService', scope: 'toProvide' },
+    { name: 'TypeSpecService', providedIn: 'toProvide' },
     () => ({ value: 'tracked' }),
   );
 
@@ -373,7 +373,7 @@ it('carries inferred dependencies from the component through the lazy route frag
   >;
   type _DependencyScopeWasPreserved = Expect<
     Equal<
-      ComponentDependencies['deps']['TypeSpecService']['scope'],
+      ComponentDependencies['deps']['TypeSpecService']['providedIn'],
       'toProvide'
     >
   >;
@@ -444,7 +444,7 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
 
 it('does not treat unbranded Angular providers as Craft service providers', () => {
   const { MissingProvider } = craftService(
-    { name: 'MissingProvider', scope: 'toProvide' },
+    { name: 'MissingProvider', providedIn: 'toProvide' },
     () => ({ value: 'missing' }),
   );
 
@@ -472,7 +472,7 @@ it('does not treat unbranded Angular providers as Craft service providers', () =
 
 it('includes dependencies of Craft components rendered in nested templates', () => {
   const { TemplateDependency } = craftService(
-    { name: 'TemplateDependency', scope: 'toProvide' },
+    { name: 'TemplateDependency', providedIn: 'toProvide' },
     () => ({ value: 'template' }),
   );
 
@@ -549,7 +549,7 @@ it('infers public inputs added by a piped directive', () => {
 
 it('preserves template dependencies when Craft directives are applied', () => {
   const { DirectiveTemplateDependency } = craftService(
-    { name: 'DirectiveTemplateDependency', scope: 'toProvide' },
+    { name: 'DirectiveTemplateDependency', providedIn: 'toProvide' },
     () => ({ value: 'directive-template' }),
   );
 

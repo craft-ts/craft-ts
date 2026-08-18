@@ -166,7 +166,7 @@ describe('craftEffect', () => {
 
   it('should run a generator factory that resolves DI deps once and returns the effect body', async () => {
     const { EffectMultiplier } = craftService(
-      { name: 'EffectMultiplier', scope: 'function' },
+      { name: 'EffectMultiplier', providedIn: 'function' },
       () => ({ factor: 3 }),
     );
 
@@ -286,7 +286,7 @@ describe('craftEffect', () => {
 
   it('should expose craftEffect dependencies through ExtractDeps', async () => {
     const { EffectMultiplierDeps } = craftService(
-      { name: 'EffectMultiplierDeps', scope: 'function' },
+      { name: 'EffectMultiplierDeps', providedIn: 'function' },
       () => ({ factor: 5 }),
     );
 
@@ -308,7 +308,7 @@ describe('craftEffect', () => {
 
   it('tracks dependencies yielded by a primitive trigger', async () => {
     const { TriggerDependency } = craftService(
-      { name: 'TriggerDependency', scope: 'function' },
+      { name: 'TriggerDependency', providedIn: 'function' },
       () => ({ value: 'tracked' }),
     );
 

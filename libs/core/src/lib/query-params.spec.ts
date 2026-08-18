@@ -238,7 +238,7 @@ describe('queryParams', () => {
 
   it('typing: tracks dependencies used by generator insertions', () => {
     const { PaginationRulesDeps } = craftService(
-      { name: 'PaginationRulesDeps', scope: 'global' },
+      { name: 'PaginationRulesDeps', providedIn: 'global' },
       () => ({
         maxPage: () => 3,
       }),
@@ -698,7 +698,7 @@ describe('queryParams codecs', () => {
       await router.navigateByUrl('/?page=invalid');
 
       expect(craftUse(filters.page())).toBe(1);
-      expect(craftUse(filters.exceptions()).parse.page?.code).toBe(
+      expect(craftUse(filters.exceptions()).parse.page?._tag).toBe(
         'QueryParamDecodeError',
       );
       expect(craftUse(filters.exceptions()).parse.page?.payload).toEqual({

@@ -104,7 +104,7 @@ const searchBooks = craftGen(function* (term: string) {
         if (RETRYABLE_HTTP_STATUS_CODES.includes(httpStatus)) {
           return craftException(
             {
-              code: 'TransientHttpError',
+              _tag: 'TransientHttpError',
               scope: 'OpenLibrarySearch',
             },
             { status: httpStatus },
@@ -113,7 +113,7 @@ const searchBooks = craftGen(function* (term: string) {
 
         return craftException(
           {
-            code: 'SearchHttpError',
+            _tag: 'SearchHttpError',
             scope: 'OpenLibrarySearch',
           },
           { status: httpStatus },

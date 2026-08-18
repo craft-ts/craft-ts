@@ -440,11 +440,11 @@ describe('insertForm', () => {
   it('aggregates insertion-level has*Exceptions/*Exceptions into form.exceptions/hasExceptions', () => {
     TestBed.runInInjectionContext(() => {
       const submitException = craftException(
-        { code: 'NAME_ALREADY_EXISTS' },
+        { _tag: 'NAME_ALREADY_EXISTS' },
         { message: 'Name already exists' as const },
       );
       const validationException = craftException(
-        { code: 'PASSWORD_TOO_SHORT' },
+        { _tag: 'PASSWORD_TOO_SHORT' },
         { minLength: 8 as const },
       );
       const submitExceptions = signal<(typeof submitException)[]>([]);

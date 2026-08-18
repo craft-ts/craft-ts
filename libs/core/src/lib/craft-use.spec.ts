@@ -38,7 +38,7 @@ describe('craftUse', () => {
 
   it('propagates CraftGenShortCircuit from a craftGen invocation', () => {
     const failGuard = craftGen(function* () {
-      return craftException({ code: 'FORBIDDEN' });
+      return craftException({ _tag: 'FORBIDDEN' });
     });
 
     expect(() => craftUse(failGuard())).toThrow(CraftGenShortCircuit);

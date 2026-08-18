@@ -43,7 +43,7 @@ the resulting provider participates in the cascade DI check just like a regular 
 
 ```typescript
 const { Greeting } = craftService(
-  { name: 'Greeting', scope: 'global' },
+  { name: 'Greeting', providedIn: 'global' },
   () => ({ prefix: 'Hello' }),
 );
 

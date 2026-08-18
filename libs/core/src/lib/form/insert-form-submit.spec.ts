@@ -83,7 +83,7 @@ describe('insertFormSubmit', () => {
           loader: async () => {
             await wait(10000);
             return craftException(
-              { code: 'NameAlreadyExistsException' },
+              { _tag: 'NameAlreadyExistsException' },
               { message: 'Name already exists' as const },
             );
           },
@@ -103,10 +103,10 @@ describe('insertFormSubmit', () => {
       expect(craftUse(loginForm.form.hasSubmitExceptions())).toBe(true);
       const exceptions = craftUse(loginForm.form.submitExceptions());
       expectTypeOf(
-        exceptions[0]?.code,
+        exceptions[0]?._tag,
       ).toEqualTypeOf<'NameAlreadyExistsException'>();
       expect(exceptions.length).toBeGreaterThan(0);
-      expect(exceptions[0]?.code).toBe('NameAlreadyExistsException');
+      expect(exceptions[0]?._tag).toBe('NameAlreadyExistsException');
     });
   });
 
@@ -240,7 +240,7 @@ describe('insertFormSubmit', () => {
                 success: function* ({ submitCraftResource }) {
                   return (yield* submitCraftResource.value())?.name === 'John'
                     ? craftException(
-                        { code: 'NameAlreadyExistsExceptionFromSuccess' },
+                        { _tag: 'NameAlreadyExistsExceptionFromSuccess' },
                         undefined,
                       )
                     : undefined;
@@ -255,10 +255,10 @@ describe('insertFormSubmit', () => {
 
         const exceptions = craftUse(loginForm.form.submitExceptions());
         expectTypeOf(
-          exceptions[0]?.code,
+          exceptions[0]?._tag,
         ).toEqualTypeOf<'NameAlreadyExistsExceptionFromSuccess'>();
         expect(exceptions.length).toBe(1);
-        expect(exceptions[0]?.code).toBe(
+        expect(exceptions[0]?._tag).toBe(
           'NameAlreadyExistsExceptionFromSuccess',
         );
       });
@@ -272,7 +272,7 @@ describe('insertFormSubmit', () => {
             loader: async () => {
               await wait(10);
               return craftException(
-                { code: 'NameAlreadyExistsException' },
+                { _tag: 'NameAlreadyExistsException' },
                 { message: 'Name already exists' as const },
               );
             },
@@ -290,13 +290,13 @@ describe('insertFormSubmit', () => {
                     const list =
                       craftUse(submitCraftResource.exceptions())?.list ?? [];
                     expectTypeOf(
-                      list[0]?.code,
+                      list[0]?._tag,
                     ).toEqualTypeOf<'NameAlreadyExistsException'>();
                     if (
-                      list.some((e) => e.code === 'NameAlreadyExistsException')
+                      list.some((e) => e._tag === 'NameAlreadyExistsException')
                     ) {
                       return craftException(
-                        { code: 'NameAlreadyExistsExceptionFromException' },
+                        { _tag: 'NameAlreadyExistsExceptionFromException' },
                         undefined,
                       );
                     }
@@ -313,10 +313,10 @@ describe('insertFormSubmit', () => {
 
         const exceptions = craftUse(loginForm.form.submitExceptions());
         expectTypeOf(
-          exceptions[0]?.code,
+          exceptions[0]?._tag,
         ).toEqualTypeOf<'NameAlreadyExistsExceptionFromException'>();
         expect(exceptions.length).toBe(1);
-        expect(exceptions[0]?.code).toBe(
+        expect(exceptions[0]?._tag).toBe(
           'NameAlreadyExistsExceptionFromException',
         );
       });
@@ -330,7 +330,7 @@ describe('insertFormSubmit', () => {
             loader: async () => {
               await wait(10);
               return craftException(
-                { code: 'NameAlreadyExistsException' },
+                { _tag: 'NameAlreadyExistsException' },
                 { message: 'Name already exists' as const },
               );
             },
@@ -368,7 +368,7 @@ describe('insertFormSubmit', () => {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
-              return craftException({ code: 'BizError' }, undefined);
+              return craftException({ _tag: 'BizError' }, undefined);
             },
           }),
         );
@@ -494,7 +494,7 @@ describe('insertFormSubmit — parallel forms', () => {
           loader: async () => {
             await wait(10);
             return craftException(
-              { code: 'NameAlreadyExistsException' },
+              { _tag: 'NameAlreadyExistsException' },
               { message: 'Name already exists' as const },
             );
           },
@@ -516,10 +516,10 @@ describe('insertFormSubmit — parallel forms', () => {
                 function* ({ submitCraftResource }) {
                   const list = (yield* submitCraftResource.exceptions()).list;
                   if (
-                    list.some((e) => e.code === 'NameAlreadyExistsException')
+                    list.some((e) => e._tag === 'NameAlreadyExistsException')
                   ) {
                     return craftException(
-                      { code: 'NameAlreadyExistsExceptionFromException' },
+                      { _tag: 'NameAlreadyExistsExceptionFromException' },
                       undefined,
                     );
                   }
@@ -541,10 +541,10 @@ describe('insertFormSubmit — parallel forms', () => {
       expect(craftUse(form1!.hasSubmitExceptions())).toBe(true);
       const f1Exceptions = craftUse(form1!.submitExceptions());
       expectTypeOf(
-        f1Exceptions[0]?.code,
+        f1Exceptions[0]?._tag,
       ).toEqualTypeOf<'NameAlreadyExistsExceptionFromException'>();
       expect(f1Exceptions.length).toBe(1);
-      expect(f1Exceptions[0]?.code).toBe(
+      expect(f1Exceptions[0]?._tag).toBe(
         'NameAlreadyExistsExceptionFromException',
       );
 

@@ -114,7 +114,7 @@ describe('craftSettledValue', () => {
   it('short-circuits with the business exception through the existing channel', () => {
     const { resource, status, hasException, exceptions } = makeResource();
     const settledValue = craftSettledValue<User[]>('users', resource);
-    const exception = craftException({ code: 'MISSING_USER_ID' });
+    const exception = craftException({ _tag: 'MISSING_USER_ID' });
 
     status.set('exception');
     hasException.set(true);
@@ -202,7 +202,7 @@ describe('settledValue on query', () => {
           params: () =>
             Math.random() > 0.5
               ? true
-              : craftException({ code: 'MISSING_USER_ID' }),
+              : craftException({ _tag: 'MISSING_USER_ID' }),
           loader: async (): Promise<User[]> => [],
         }),
       );
@@ -493,7 +493,7 @@ describe('settled() inside craftComputed', () => {
           params: () =>
             Math.random() > 0.5
               ? true
-              : craftException({ code: 'MISSING_USER_ID' }),
+              : craftException({ _tag: 'MISSING_USER_ID' }),
           loader: async (): Promise<User[]> => [],
         }),
       );

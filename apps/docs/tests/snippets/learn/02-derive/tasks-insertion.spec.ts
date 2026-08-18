@@ -12,7 +12,7 @@ import { craftComputed, craftService, state } from '@craft-ts/core';
 type Task = { id: string; title: string; done: boolean };
 
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const tasks = yield* state('tasks', [] as Task[], ({ state, set, update }) => ({
       add: (title: string) =>

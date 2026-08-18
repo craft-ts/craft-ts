@@ -36,7 +36,7 @@ describe('template exception blocks', () => {
   });
 
   it('allows a handler to explicitly choose source visibility', async () => {
-    const denied = craftException({ code: 'DENIED' });
+    const denied = craftException({ _tag: 'DENIED' });
     const fallback = p('fallback');
 
     expect(
@@ -63,9 +63,9 @@ describe('template exception blocks', () => {
 
   it('catches a component exception and removes the fallback when the source recovers', async () => {
     const state = signal<'ready' | 'denied'>('ready');
-    const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+    const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
     const { BlockData, provideBlockData } = craftService(
-      { name: 'blockData', scope: 'abstract' },
+      { name: 'blockData', providedIn: 'abstract' },
       abstract<string | typeof denied>(),
     );
     const source = craftComponent(
@@ -146,7 +146,7 @@ describe('template exception blocks', () => {
   it.each(['before', 'after'] as const)(
     'renders a matchBlock fallback (%s)',
     async (position) => {
-      const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+      const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
       const exception = signal<typeof denied | undefined>(undefined);
       const root = craftComponent(
         `matchRoot${position}`,
@@ -155,7 +155,7 @@ describe('template exception blocks', () => {
         ({ exception }) =>
           section([
             p('source'),
-            matchBlock.exhaustive(exception, 'code', {
+            matchBlock.exhaustive(exception, '_tag', {
               DENIED: (value) => {
                 expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
                 return p(
@@ -183,9 +183,9 @@ describe('template exception blocks', () => {
   );
 
   it('raises the dedicated runtime error when no boundary handles an exception', async () => {
-    const denied = craftException({ code: 'DENIED' });
+    const denied = craftException({ _tag: 'DENIED' });
     const { UnhandledData, provideUnhandledData } = craftService(
-      { name: 'unhandledData', scope: 'abstract' },
+      { name: 'unhandledData', providedIn: 'abstract' },
       abstract<string | typeof denied>(),
     );
     const unhandledProvider = craftDirective(

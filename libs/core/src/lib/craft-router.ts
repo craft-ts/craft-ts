@@ -295,7 +295,7 @@ type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
 const _routerService = toCraftService(
   {
     name: 'CraftRouter',
-    scope: 'manuallyProvidedAtRoot',
+    providedIn: 'manuallyProvidedAtRoot',
     token: CRAFT_ROUTER,
     provide: provideCraftRouterRuntime,
   },

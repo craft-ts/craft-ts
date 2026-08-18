@@ -19,7 +19,7 @@ import type {
 describe('GetDeps', () => {
   it('computes missing providers from requirement-scoped service deps', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -48,7 +48,7 @@ describe('GetDeps', () => {
 
   it('removes provided keys from derived service missing providers', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
         decrement: () => 0,
@@ -107,7 +107,7 @@ describe('GetDeps', () => {
 
   it('ignores child component GenDeps when their missingProvider map is empty', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -149,7 +149,7 @@ describe('GetDeps', () => {
 
   it('flattens child component missing providers into the parent map', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -189,14 +189,14 @@ describe('GetDeps', () => {
 
   it('keeps transitive service missing providers flat at the top level', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
     const { CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         yield* Counter();
 
@@ -227,7 +227,7 @@ describe('GetDeps', () => {
 
   it('extracts tracked helper dependencies through ExtractDeps', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -240,7 +240,7 @@ describe('GetDeps', () => {
 
   it('merges propertiesDeps into missingProvider computation', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -279,14 +279,14 @@ describe('GetDeps', () => {
 
   it('keeps transitive missing providers from function-scoped property deps', () => {
     const { B } = craftService(
-      { name: 'B', scope: 'toProvide' },
+      { name: 'B', providedIn: 'toProvide' },
       () => ({
         read: () => 'service-b',
       }),
     );
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'function' },
+      { name: 'Counter', providedIn: 'function' },
       function* () {
         const b = yield* B();
 

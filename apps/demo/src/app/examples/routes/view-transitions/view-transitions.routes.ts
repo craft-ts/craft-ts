@@ -39,7 +39,7 @@ import PhotoSkeleton from './photo-skeleton';
 // UI. Cached global query, so the FIRST detail visit is slow and a revisit is
 // instant; use the 🗑️ Clear Cache button to replay the pending state.
 const { ViewTransitionAccess } = craftService(
-  { name: 'ViewTransitionAccess', scope: 'global' },
+  { name: 'ViewTransitionAccess', providedIn: 'global' },
   function* () {
     const viewTransitionAccess = yield* query('viewTransitionAccess', {
       params: () => true,
@@ -58,7 +58,7 @@ const slowDetailGuard = craftGen(function* () {
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses
   // `craftRoute()`'s `Def` inference). `handleExceptions` routes it after commit.
-  return access.allowed ? access : craftException({ code: 'DENIED' });
+  return access.allowed ? access : craftException({ _tag: 'DENIED' });
 });
 
 export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [

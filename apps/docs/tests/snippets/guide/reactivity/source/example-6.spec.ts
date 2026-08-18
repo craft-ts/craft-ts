@@ -8,7 +8,7 @@ useSnippetHarness();
 import { craftService, source, state } from '@craft-ts/core';
 
 const { Reset } = craftService(
-  { name: 'Reset', scope: 'global' },
+  { name: 'Reset', providedIn: 'global' },
   function* () {
     const reset$ = yield* source$<void>('reset$');
     return reset$;
@@ -16,7 +16,7 @@ const { Reset } = craftService(
 );
 
 const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
+  { name: 'Counter', providedIn: 'global' },
   function* () {
     const counter = yield* state('counter', 0, ({ set }) => ({
       reset: on$(Reset, () => set(0)),

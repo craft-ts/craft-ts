@@ -118,7 +118,7 @@ type RootServiceName<Target extends ServiceReference> = Extract<
 >;
 
 type RootServiceScope<Target extends ServiceReference> = Extract<
-  GetServiceReferenceMeta<Target>['scope'],
+  GetServiceReferenceMeta<Target>['providedIn'],
   ConcreteServiceScope
 >;
 
@@ -1130,8 +1130,8 @@ function assertBoundaryOnlyRegisterEntries(
 
     if (
       entry === 'real' &&
-      (metaData.scope === 'toProvide' ||
-        metaData.scope === 'manuallyProvidedAtRoot') &&
+      (metaData.providedIn === 'toProvide' ||
+        metaData.providedIn === 'manuallyProvidedAtRoot') &&
       !toProvideRegister[name]
     ) {
       throw new Error(
@@ -1388,7 +1388,7 @@ async function setupCraftServiceTestingByRegisterImpl<
     options?.providers,
     {
       name: internalMetaData.name,
-      scope: internalMetaData.scope,
+      scope: internalMetaData.providedIn,
     },
   );
 
@@ -1450,7 +1450,7 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
     },
     {
       name: internalMetaData.name,
-      scope: internalMetaData.scope,
+      scope: internalMetaData.providedIn,
     },
   );
   const { providers, mocks } = createRegisterTestingContext(
@@ -1458,7 +1458,7 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
     config.providers,
     {
       name: internalMetaData.name,
-      scope: internalMetaData.scope,
+      scope: internalMetaData.providedIn,
     },
   );
 

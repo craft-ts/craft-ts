@@ -21,7 +21,7 @@ checking possible at all.
 ```typescript
 import { craftException } from '@craft-ts/core';
 
-craftException({ code: 'TITLE_REQUIRED' }, { received: payload.title });
+craftException({ _tag: 'TITLE_REQUIRED' }, { received: payload.title });
 ```
 
 The first argument carries the `code` (and an optional `scope`); the second is a
@@ -37,7 +37,7 @@ const createTask = yield* mutation('createTask', {
   // rejected before any request is sent — the loader never runs
   method: (payload: { title: string }) =>
     payload.title.trim().length === 0
-      ? craftException({ code: 'TITLE_REQUIRED' }, { received: payload.title })
+      ? craftException({ _tag: 'TITLE_REQUIRED' }, { received: payload.title })
       : payload,
 
   loader: function* ({ params }) {
@@ -49,7 +49,7 @@ const createTask = yield* mutation('createTask', {
       exceptions: [
         function* ({ status }) {
           if (!(yield* status(409))) return;
-          return craftException({ code: 'TITLE_ALREADY_EXISTS' });
+          return craftException({ _tag: 'TITLE_ALREADY_EXISTS' });
         },
       ],
     }));
@@ -75,7 +75,7 @@ export const loadReport = craftGen(function* () {
   const report = yield* craftUntilSettled(reportRef);
 
   return report.totalUsers === 0
-    ? craftException({ code: 'REPORT_EMPTY' })
+    ? craftException({ _tag: 'REPORT_EMPTY' })
     : report;
 });
 ```
@@ -85,7 +85,7 @@ skipped — no `if (result.isError)` at each level:
 
 ```typescript
 const { ReportFacade } = craftService(
-  { name: 'ReportFacade', scope: 'global' },
+  { name: 'ReportFacade', providedIn: 'global' },
   function* () {
     const report = yield* loadReport(); // narrowed: never the exception
     return { total: report.totalUsers };

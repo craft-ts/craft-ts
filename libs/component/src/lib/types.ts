@@ -751,13 +751,13 @@ export type ProviderExceptions<Providers> =
         }
         ?
             | ExtractCraftGenExceptions<Yielded>
-            | Extract<Output, { readonly code: string }>
+            | Extract<Output, { readonly _tag: string }>
         : never
       : never;
 
 type ComponentFactoryExceptions<Factory extends ComponentFactory> =
   | ExtractCraftGenExceptions<FactoryYielded<Factory>>
-  | Extract<FactoryContext<Factory>, { readonly code: string }>;
+  | Extract<FactoryContext<Factory>, { readonly _tag: string }>;
 
 export type ComponentInitializationExceptions<
   Factory extends ComponentFactory,
@@ -765,7 +765,7 @@ export type ComponentInitializationExceptions<
 > = ComponentFactoryExceptions<Factory> | ProviderExceptions<Providers>;
 
 type ComponentExceptionCodes<Exceptions> = Exceptions extends {
-  readonly code: infer Code extends string;
+  readonly _tag: infer Code extends string;
 }
   ? Code
   : never;

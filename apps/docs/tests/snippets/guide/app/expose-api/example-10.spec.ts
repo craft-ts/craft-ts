@@ -8,7 +8,7 @@ useSnippetHarness();
 import { craftService, state } from '@craft-ts/core';
 
 const { Counter } = craftService(
-  { name: 'Counter', scope: 'toProvide' },
+  { name: 'Counter', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
@@ -19,7 +19,7 @@ const { Counter } = craftService(
 );
 
 const { CounterExtended, provideCounterExtended } = craftService(
-  { name: 'CounterExtended', scope: 'toProvide' },
+  { name: 'CounterExtended', providedIn: 'toProvide' },
   function* () {
     return yield* Counter(undefined, ({ $self, increment }) => ({
       $self,

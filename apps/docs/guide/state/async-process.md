@@ -106,13 +106,13 @@ const { loadUser } =
     method: (value: string) =>
       value.length < 3
         ? craftException(
-            { code: 'SEARCH_TERM_TOO_SHORT' },
+            { _tag: 'SEARCH_TERM_TOO_SHORT' },
             { min: 3, received: value.length },
           )
         : value,
     loader: async ({ params }) =>
       params === 'blocked'
-        ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
+        ? craftException({ _tag: 'USER_ACCESS_FORBIDDEN' }, { id: params })
         : { id: params, name: 'John Doe' },
   });
 

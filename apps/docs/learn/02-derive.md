@@ -114,7 +114,7 @@ every member — a missing case is a compile error, which `@switch` cannot give
 you.
 
 ```typescript
-matchBlock.exhaustive(() => tasksQuery.exceptions().loader, 'code', {
+matchBlock.exhaustive(() => tasksQuery.exceptions().loader, '_tag', {
   TASK_NOT_FOUND: () => p('This task no longer exists.'),
   TASK_FORBIDDEN: () => p('You do not have access to it.'),
 });

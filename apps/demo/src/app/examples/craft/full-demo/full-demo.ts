@@ -33,7 +33,7 @@ const INITIAL_TODOS = [
 ] satisfies Todo[];
 
 export const { provideTodoStore, TodoStore } = craftService(
-  { name: 'TodoStore', scope: 'toProvide' },
+  { name: 'TodoStore', providedIn: 'toProvide' },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
       take: function* () {
@@ -79,7 +79,7 @@ export const { provideTodoStore, TodoStore } = craftService(
           // mutable records state.
           // eslint-disable-next-line no-constant-condition
           if (false) {
-            return craftException({ code: 'FAILED_TO_LOAD' });
+            return craftException({ _tag: 'FAILED_TO_LOAD' });
           }
           // The query is intentionally a one-shot source. Mutations update
           // its cached value through insertReactOnMutation; reading the

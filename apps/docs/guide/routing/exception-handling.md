@@ -68,7 +68,7 @@ const { profileQuery } = query('profileQuery', {
         function* ({ status, code }) {
           if (!(yield* status(403))) return;
           if (!(yield* code('USER_DISABLED'))) return;
-          return craftException({ code: 'USER_DISABLED' });
+          return craftException({ _tag: 'USER_DISABLED' });
         },
       ],
     }));
@@ -82,11 +82,11 @@ craftRoute(
     componentDeps: {} as import('./user-detail').GenDeps_UserDetail,
     canMatch: function* () {
       const ff = yield* FeatureFlags();
-      return ff.userPageEnabled ? true : craftException({ code: 'FEATURE_OFF' });
+      return ff.userPageEnabled ? true : craftException({ _tag: 'FEATURE_OFF' });
     },
     canActivate: function* () {
       const user = yield* Auth();
-      return user.value() ?? craftException({ code: 'NOT_AUTHENTICATED' });
+      return user.value() ?? craftException({ _tag: 'NOT_AUTHENTICATED' });
     },
     resolve: craftResolve(function* () {
       return yield* craftUntilSettled(profileQuery);
@@ -176,7 +176,7 @@ Use `redirectTo(...)` for registered application routes and `redirectUrl(...)` f
 }
 ```
 
-Here `payload` is inferred from `craftException({ code: 'RATE_LIMITED' }, { retryAfter: 30 })`.
+Here `payload` is inferred from `craftException({ _tag: 'RATE_LIMITED' }, { retryAfter: 30 })`.
 
 ### Initial entry versus live guard
 

@@ -1018,7 +1018,7 @@ describe('functional component interpreter', () => {
         const todos = yield* query('todos', {
           params: refresh,
           loader: async ({ params }) =>
-            params === 0 ? [] : craftException({ code: 'FAILED_TO_LOAD' }),
+            params === 0 ? [] : craftException({ _tag: 'FAILED_TO_LOAD' }),
         });
         const add = yield* mutation('add', {
           method: (title: string) => title,
@@ -1761,7 +1761,7 @@ describe('functional component interpreter', () => {
   it('resolves yield* craftService dependencies in the child injector', async () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
     const { Greeting } = craftService(
-      { name: 'Greeting', scope: 'function' },
+      { name: 'Greeting', providedIn: 'function' },
       () => ({ prefix: inject(PREFIX) }),
     );
 
@@ -1980,7 +1980,7 @@ describe('functional component interpreter', () => {
           error: (error) =>
             p(
               { class: 'error' },
-              (error as { code?: string }).code ?? 'unknown',
+              (error as { code?: string })._tag ?? 'unknown',
             ),
         }),
     );

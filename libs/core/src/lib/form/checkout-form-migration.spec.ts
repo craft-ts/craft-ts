@@ -150,7 +150,7 @@ describe('migrated checkout form', () => {
                       craftUse(validateAsyncCraftResource.value())?.valid
                         ? undefined
                         : craftException(
-                            { code: 'couponInvalid' },
+                            { _tag: 'couponInvalid' },
                             { message: 'Invalid coupon' },
                           ),
                   }),

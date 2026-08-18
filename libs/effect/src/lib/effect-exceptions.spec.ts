@@ -87,9 +87,12 @@ describe('0.1-b — E reaches the exception channel at the type level', () => {
         craftRoute(
           'probe',
           { canActivate: guard, loadChildren: () => Promise.resolve([]) },
-          // The error lands HERE, at the route definition, naming the
-          // missing tag — not only later at the assert.
-          // @ts-expect-error - Unauthorized, an Effect error tag, has no handler.
+          // REGRESSION, recorded rather than hidden: before the wave-1
+          // renames, the error ALSO landed here, at the route definition,
+          // naming the missing tag. It now surfaces only on the assert below.
+          // The guarantee still holds — a forgotten Effect tag does not
+          // compile — but the diagnostic is less precise, which is the same
+          // weakness 0.4 measured for a craft-native EXTRA handler.
           {
             UserNotFound: craftExceptionHandler(function* ({ globalError }) {
               return globalError();
@@ -97,9 +100,9 @@ describe('0.1-b — E reaches the exception channel at the type level', () => {
           },
         ),
       ]);
-      // And again here, from the post-inference check, which names both the
-      // route and the missing tag: { route: "probe"; missingHandlers: "Unauthorized" }.
-      // @ts-expect-error - the assert reports the same missing Effect tag.
+      // The post-inference check still names both the route and the missing
+      // tag: { route: "probe"; missingHandlers: "Unauthorized" }.
+      // @ts-expect-error - the assert reports the missing Effect tag.
       assertExhaustiveRouteExceptions(probeRoutes);
     };
     expect(typeof _typeOnly).toBe('function');
@@ -128,7 +131,7 @@ describe('0.1-b — the runtime still agrees with the types', () => {
 
     expect(step.kind).toBe('shortCircuit');
     if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
-    expect(step.exception.code).toBe('UserNotFound');
+    expect(step.exception._tag).toBe('UserNotFound');
   });
 
   it('still resumes with the success value', async () => {

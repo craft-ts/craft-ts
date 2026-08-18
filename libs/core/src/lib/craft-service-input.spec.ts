@@ -22,7 +22,7 @@ describe('craft service inputs', () => {
     });
 
     const { ReadInput } = craftService(
-      { name: 'ReadInput', scope: 'function' },
+      { name: 'ReadInput', providedIn: 'function' },
       function* (inputs: { value: CraftServiceInput<number> }) {
         return yield* inputs.value();
       },
@@ -49,7 +49,7 @@ describe('craft service inputs', () => {
     });
 
     const { ReadSignalInput } = craftService(
-      { name: 'ReadSignalInput', scope: 'function' },
+      { name: 'ReadSignalInput', providedIn: 'function' },
       function* (inputs: { value: CraftServiceInput<number> }) {
         return yield* inputs.value();
       },
@@ -77,7 +77,7 @@ describe('craft service inputs', () => {
     const { ReadProvider, provideReadProvider } = toCraftService(
       {
         name: 'ReadProvider',
-        scope: 'toProvide',
+        providedIn: 'toProvide',
         token,
         provide: () => [],
       },

@@ -548,7 +548,7 @@ const consoleService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'ConsoleService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): ConsoleServiceApi => ({
@@ -580,7 +580,7 @@ const localStorageService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'LocalStorageService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): StorageServiceApi => ({
@@ -608,7 +608,7 @@ const sessionStorageService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'SessionStorageService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): StorageServiceApi => ({
@@ -636,7 +636,7 @@ const cookiesService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'CookiesService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): CookiesServiceApi => ({
@@ -662,7 +662,7 @@ const browserLocationService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserLocationService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserLocationServiceApi => ({
@@ -696,7 +696,7 @@ const browserHistoryService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserHistoryService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserHistoryServiceApi => ({
@@ -727,7 +727,7 @@ const browserNavigatorService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserNavigatorService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserNavigatorServiceApi => ({
@@ -756,7 +756,7 @@ const browserPerformanceService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserPerformanceService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserPerformanceServiceApi => ({
@@ -802,7 +802,7 @@ const browserCryptoService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserCryptoService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserCryptoServiceApi => ({
@@ -835,7 +835,7 @@ const browserDocumentService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserDocumentService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserDocumentServiceApi => ({
@@ -881,7 +881,7 @@ const browserWindowService: BrowserBoundaryService<
 > = craftService(
   {
     name: 'BrowserWindowService',
-    scope: 'global',
+    providedIn: 'global',
     browserBoundary: true,
   },
   (): BrowserWindowServiceApi => ({

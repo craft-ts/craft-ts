@@ -119,7 +119,7 @@ import {
   withProviders,
 } from '@craft-ts/component';
 
-const noAccess = craftException({ code: 'NO_ACCESS' });
+const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
   { name: 'restrictedData', scope: 'abstract' },
   abstract<string | typeof noAccess>(),
@@ -189,7 +189,7 @@ const SafeComponent = MyRestrictedCraftComponent.pipe(
   ]),
   catchTag.exhaustive({
     NO_ACCESS: function* (exception) {
-      yield* ToastService.show(() => `Access denied: ${exception.code}`);
+      yield* ToastService.show(() => `Access denied: ${exception._tag}`);
     },
   }),
 );
@@ -247,7 +247,7 @@ children while the source is empty and switches reactively to the matching
 handler when an exception appears.
 
 ```ts
-matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
+matchBlock.exhaustive(() => userQuery.exceptions().loader, '_tag', {
   UserNotFoundException: () => p('User not found'),
   UserConsentMissingException: () => p('Consent is required'),
 });

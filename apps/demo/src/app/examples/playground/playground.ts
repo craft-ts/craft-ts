@@ -48,7 +48,7 @@ const TODOS: Todo[] = [
 // -- ApiService: global craftService with CRUD endpoints --
 
 const { ApiService } = craftService(
-  { name: 'ApiService', scope: 'global' },
+  { name: 'ApiService', providedIn: 'global' },
   function* () {
     const nextId = yield* state('nextId', 4, ({ state, update }) => ({
       take: function* () {
@@ -68,7 +68,7 @@ const { ApiService } = craftService(
         const todo = TODOS.find((t) => t.id === id);
         if (!todo)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         yield* craftSleep(500);
@@ -88,7 +88,7 @@ const { ApiService } = craftService(
         const todo = TODOS.find((t) => t.id === id);
         if (!todo)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         todo.completed = !todo.completed;
@@ -99,7 +99,7 @@ const { ApiService } = craftService(
         const index = TODOS.findIndex((t) => t.id === id);
         if (index === -1)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         const removed = TODOS.splice(index, 1)[0];
@@ -113,7 +113,7 @@ const { ApiService } = craftService(
 // -- Playground service: composes query + mutation --
 
 const { Playground } = craftService(
-  { name: 'Playground', scope: 'function' },
+  { name: 'Playground', providedIn: 'function' },
   function* () {
     const api = yield* ApiService();
     const addTodo = yield* mutation('addTodo', {

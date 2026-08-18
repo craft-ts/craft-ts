@@ -25,7 +25,7 @@ export function enrichResourceException(
   const nextException = {
     ...exception,
     scope: meta.scope,
-    [exception.code]: exception.payload,
+    [exception._tag]: exception.payload,
   } as AnyCraftException & {
     scope: ResourceExceptionScope;
     identifier?: string;

@@ -533,7 +533,7 @@ export class CraftRouterOutletController {
         }
         return;
       case 'render':
-        meta.exceptionSinks[outcome.exception.code]?.set(outcome.exception);
+        meta.exceptionSinks[outcome.exception._tag]?.set(outcome.exception);
         void this.showErrorComponent(outcome.component, outcome.exception);
         return;
       case 'global':

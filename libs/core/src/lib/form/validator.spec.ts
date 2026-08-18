@@ -37,12 +37,12 @@ function expectedException<
   Name extends string,
   Code extends string,
   Payload = undefined,
->(brand: Name, code: Code, payload: Payload) {
+>(brand: Name, tag: Code, payload: Payload) {
   return {
-    code,
+    _tag: tag,
     [CRAFT_EXCEPTION_SYMBOL]: true,
     payload,
-    [code]: payload,
+    [tag]: payload,
     __brand: brand,
     type: 'sync' as const,
   };
@@ -277,7 +277,7 @@ describe('validator', () => {
                   validWhen: () => fieldState() !== 'blocked',
                   exception: () =>
                     craftException(
-                      { code: 'blockedValue' },
+                      { _tag: 'blockedValue' },
                       { reason: 'reserved' },
                     ),
                 }),
@@ -296,7 +296,7 @@ describe('validator', () => {
 
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         myCustomValidator: {
-          ...craftException({ code: 'blockedValue' }, { reason: 'reserved' }),
+          ...craftException({ _tag: 'blockedValue' }, { reason: 'reserved' }),
           __brand: 'myCustomValidator',
           type: 'sync',
         },
@@ -334,7 +334,7 @@ describe('validator', () => {
                       craftUse(validateAsyncCraftResource.value())?.available
                         ? undefined
                         : craftException(
-                            { code: 'usernameTaken' },
+                            { _tag: 'usernameTaken' },
                             { message: 'Username already taken' },
                           ),
                   }),
@@ -360,7 +360,7 @@ describe('validator', () => {
           {
             usernameAvailable: {
               ...craftException(
-                { code: 'usernameTaken' },
+                { _tag: 'usernameTaken' },
                 { message: 'Username already taken' },
               ),
               __brand: 'usernameAvailable',

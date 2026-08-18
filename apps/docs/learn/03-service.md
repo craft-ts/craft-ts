@@ -81,7 +81,7 @@ the graph:
 
 ```typescript
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* (inputs: { projectId: CraftServiceInput<string> }) {
     const tasks = yield* state('tasks', [] as Task[] /* … */);
     const projectId = yield* inputs.projectId();
@@ -106,7 +106,7 @@ scoped to this service rather than to whoever mounts it:
 export const { TaskList } = craftService(
   {
     name: 'TaskList',
-    scope: 'function',
+    providedIn: 'function',
     providers: [provideTaskApi()],
   },
   function* () {

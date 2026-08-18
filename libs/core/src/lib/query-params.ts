@@ -109,7 +109,7 @@ export type QueryParamDecodeErrorPayload = {
 export type QueryParamDecodeError<Key extends string = string> =
   import('./craft-exception').CraftExceptionResult<
     {
-      code: 'QueryParamDecodeError';
+      _tag: 'QueryParamDecodeError';
       scope: 'parse';
       identifier: Key;
     },
@@ -125,7 +125,7 @@ export type QueryParamEncodeErrorPayload = {
 export type QueryParamEncodeError =
   import('./craft-exception').CraftExceptionResult<
     {
-      code: 'QueryParamEncodeError';
+      _tag: 'QueryParamEncodeError';
       scope: 'serialize';
     },
     QueryParamEncodeErrorPayload
@@ -181,7 +181,7 @@ function enrichQueryParamsParseException(
     ...exception,
     scope: 'parse',
     identifier: key,
-    [exception.code]: exception.payload,
+    [exception._tag]: exception.payload,
   };
 }
 
@@ -192,7 +192,7 @@ function createQueryParamDecodeError(
 ): AnyCraftException {
   return craftException(
     {
-      code: 'QueryParamDecodeError',
+      _tag: 'QueryParamDecodeError',
       scope: 'parse',
       identifier: key,
     },
@@ -207,7 +207,7 @@ function createQueryParamEncodeError(
 ): AnyCraftException {
   return craftException(
     {
-      code: 'QueryParamEncodeError',
+      _tag: 'QueryParamEncodeError',
       scope: 'serialize',
     },
     { key, value, error },

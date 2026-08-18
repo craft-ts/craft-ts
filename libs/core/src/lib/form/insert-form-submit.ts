@@ -207,8 +207,8 @@ function isCraftExceptionLike(value: unknown): value is AnyCraftException {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'code' in value &&
-    typeof (value as { code?: unknown }).code === 'string'
+    '_tag' in value &&
+    typeof (value as { _tag?: unknown })._tag === 'string'
   );
 }
 
@@ -416,7 +416,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
 
       const omit = (codes: readonly string[]) =>
         resourceExceptions.filter(
-          (e: AnyCraftException) => !codes.includes(e.code as string),
+          (e: AnyCraftException) => !codes.includes(e._tag as string),
         );
 
       const ctx = {

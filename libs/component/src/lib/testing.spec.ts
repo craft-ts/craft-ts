@@ -27,7 +27,7 @@ describe('Craft component and directive testing utilities', () => {
 
   it('tests component logic with an isolated service register', async () => {
     const { LogicDependency } = craftService(
-      { name: 'LogicDependency', scope: 'function' },
+      { name: 'LogicDependency', providedIn: 'function' },
       () => ({ value: 'real' }),
     );
     const component = craftComponent(
@@ -59,7 +59,7 @@ describe('Craft component and directive testing utilities', () => {
 
   it('tests a component template with direct context and child services', async () => {
     const { ChildDependency } = craftService(
-      { name: 'ChildDependency', scope: 'function' },
+      { name: 'ChildDependency', providedIn: 'function' },
       () => ({ label: 'child' }),
     );
     const child = craftComponent(

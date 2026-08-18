@@ -177,7 +177,7 @@ const uuid = yield * BrowserCrypto.randomUUID();
 
 Every service below is:
 
-- `scope: 'global'`
+- `providedIn: 'global'`
 - `browserBoundary: true`
 - exposed both as a DSL object and as generated service helpers
 
@@ -329,7 +329,7 @@ Its contract is intentionally different:
 - it is not treated as `browserBoundary: true`
 - it requires `success: response<T>()` inside a declarative builder
 - it can declare ordered `exceptions: [function* (...) { ... }]` rules
-- it returns a promise of `Success | craftException({ code: 'HttpError' })`
+- it returns a promise of `Success | craftException({ _tag: 'HttpError' })`
 
 Usage looks like this:
 
@@ -362,7 +362,7 @@ const login =
         if (!(yield* code('PASSWORD_REQUIRED'))) return;
         if (!(yield* content('Password is required'))) return;
 
-        return craftException({ code: 'PASSWORD_REQUIRED' });
+        return craftException({ _tag: 'PASSWORD_REQUIRED' });
       },
     ],
   }));

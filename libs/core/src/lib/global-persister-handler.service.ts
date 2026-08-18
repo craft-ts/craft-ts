@@ -49,7 +49,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
   craftService(
     {
       name: 'GlobalPersisterHandlerService',
-      scope: 'toProvide',
+      providedIn: 'toProvide',
     },
     function* () {
       const persister = yield* StoragePersister();

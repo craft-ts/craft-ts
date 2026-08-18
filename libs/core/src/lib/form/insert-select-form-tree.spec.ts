@@ -525,7 +525,7 @@ describe('selectFormTree', () => {
 describe('insertSelectFormTree with generator insertions', () => {
   it('should resolve generator insertion on object form tree', async () => {
     const { ObjFormLogger } = craftService(
-      { name: 'ObjFormLogger', scope: 'global' },
+      { name: 'ObjFormLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return { log: (msg: string) => calls.push(msg), calls };
@@ -564,7 +564,7 @@ describe('insertSelectFormTree with generator insertions', () => {
 
   it('should resolve generator insertion on array form tree items', async () => {
     const { ArrFormLogger } = craftService(
-      { name: 'ArrFormLogger', scope: 'global' },
+      { name: 'ArrFormLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return { log: (msg: string) => calls.push(msg), calls };

@@ -35,7 +35,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
 export const { provideGranularMutation, GranularMutation } = craftService(
-  { name: 'GranularMutation', scope: 'toProvide' },
+  { name: 'GranularMutation', providedIn: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
       'pagination',

@@ -25,7 +25,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
 const { UserQuery } = craftService(
-  { name: 'UserQuery', scope: 'global' },
+  { name: 'UserQuery', providedIn: 'global' },
   function* (inputs: { userId: () => string | undefined }) {
     return yield* query(
       'userQuery',

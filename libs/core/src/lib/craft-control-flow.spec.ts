@@ -21,7 +21,7 @@ describe('isCraftControlFlow', () => {
     expect(isCraftControlFlow(new CraftNotSettled('issue'))).toBe(true);
     expect(
       isCraftControlFlow(
-        new CraftGenShortCircuit(craftException({ code: 'EXPECTED' })),
+        new CraftGenShortCircuit(craftException({ _tag: 'EXPECTED' })),
       ),
     ).toBe(true);
   });

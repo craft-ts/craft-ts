@@ -22,7 +22,7 @@ import {
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 type UserExceptionLoader = {
-  readonly code:
+  readonly _tag:
     | 'UserNotFoundException'
     | 'UserConsentMissingException'
     | 'UserAccessForbiddenException';
@@ -95,19 +95,19 @@ const ExceptionsComponent = craftComponent(
           yield* craftSleep(600);
           if (params === 'not-found') {
             return craftException(
-              { code: 'UserNotFoundException' },
+              { _tag: 'UserNotFoundException' },
               { message: 'User does not exist' as const },
             );
           }
           if (params === 'consent-missing') {
             return craftException(
-              { code: 'UserConsentMissingException' },
+              { _tag: 'UserConsentMissingException' },
               { message: 'User consent is required' as const },
             );
           }
           if (params === 'forbidden') {
             return craftException(
-              { code: 'UserAccessForbiddenException' },
+              { _tag: 'UserAccessForbiddenException' },
               { message: 'Access forbidden' as const },
             );
           }
@@ -212,7 +212,7 @@ const ExceptionsComponent = craftComponent(
         () => [
           matchBlock.exhaustive(
             userExceptionLoader as unknown as () => UserExceptionLoader,
-            'code',
+            '_tag',
             {
               UserNotFoundException: () =>
                 p('⚠️ User not found (rendered by matchBlock.exhaustive)'),

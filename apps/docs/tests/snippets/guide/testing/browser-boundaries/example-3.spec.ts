@@ -8,7 +8,7 @@ useSnippetHarness();
 import { Console, craftService } from '@craft-ts/core';
 
 const { BootLogger } = craftService(
-  { name: 'BootLogger', scope: 'global' },
+  { name: 'BootLogger', providedIn: 'global' },
   function* () {
     yield* Console.log('boot');
     yield* Console.info('config loaded');

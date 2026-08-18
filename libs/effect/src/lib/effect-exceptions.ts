@@ -30,14 +30,13 @@ import type { Effect } from 'effect';
 /**
  * The craft exception an Effect error becomes, keyed on its `_tag`.
  *
- * NOTE the asymmetry: Effect discriminates on `_tag`, craft still on `code`, so
- * this type transposes one onto the other. Once wave 1 moves craft to `_tag`
- * the transposition becomes the identity and this line collapses — which is the
- * most concrete argument for that wave.
+ * Since wave 1 moved craft's discriminant to `_tag`, this is the IDENTITY on
+ * the tag: no transposition, no place for the two vocabularies to drift. That
+ * collapse was the most concrete argument for wave 1, and it is now cashed in.
  */
 export type EffectExceptionOf<Error> = Error extends { readonly _tag: infer Tag }
   ? Tag extends string
-    ? CraftExceptionResult<{ code: Tag; scope: 'loader' }, Error>
+    ? CraftExceptionResult<{ _tag: Tag; scope: 'loader' }, Error>
     : never
   : never;
 

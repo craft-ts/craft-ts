@@ -99,7 +99,7 @@ export const appConfig = craftAppConfig({
             throw error;
           }
           yield* Console.error(error);
-          return craftException({ code: 'UNEXPECTED_ERROR' }, { error: error });
+          return craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: error });
         }
       },
     ),

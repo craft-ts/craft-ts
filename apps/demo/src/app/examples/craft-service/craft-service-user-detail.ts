@@ -30,7 +30,7 @@ const USERS: User[] = [
 ];
 
 const { UsersApi } = craftService(
-  { name: 'UsersApi', scope: 'global' },
+  { name: 'UsersApi', providedIn: 'global' },
   function* () {
     return {
       getUser: craftGen(function* (id: string) {
@@ -38,7 +38,7 @@ const { UsersApi } = craftService(
         const user = USERS.find((candidate) => candidate.id === id);
         if (!user)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`User ${id} not found`) },
           );
         return user;
@@ -49,7 +49,7 @@ const { UsersApi } = craftService(
 );
 
 const { provideUser, User } = craftService(
-  { name: 'User', scope: 'toProvide' },
+  { name: 'User', providedIn: 'toProvide' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
     const user = yield* query('user', {

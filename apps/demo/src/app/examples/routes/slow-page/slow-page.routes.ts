@@ -33,7 +33,7 @@ import {
 // instantiation-depth ceiling, and `loadChildren` collections are not folded
 // into the parent's budget.
 const { SlowAccess } = craftService(
-  { name: 'SlowAccess', scope: 'global' },
+  { name: 'SlowAccess', providedIn: 'global' },
   function* () {
     const slowAccess = yield* query('slowAccess', {
       params: () => true,
@@ -47,7 +47,7 @@ const { SlowAccess } = craftService(
 );
 
 const { SlowReport } = craftService(
-  { name: 'SlowReport', scope: 'global' },
+  { name: 'SlowReport', providedIn: 'global' },
   function* () {
     const slowReport = yield* query('slowReport', {
       params: () => true,
@@ -71,7 +71,7 @@ const slowAccessGuard = craftGen(function* () {
   const access = yield* craftUntilSettled(accessRef);
   return access.allowed
     ? access
-    : craftException({ code: 'NOT_AUTHENTICATED' });
+    : craftException({ _tag: 'NOT_AUTHENTICATED' });
 });
 
 // Slow resolve: suspends ~1.5s until the report loads, then returns it (or a
@@ -81,7 +81,7 @@ const loadSlowReport = craftGen(function* () {
   const reportRef = yield* SlowReport();
   const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
-    ? craftException({ code: 'REPORT_EMPTY' })
+    ? craftException({ _tag: 'REPORT_EMPTY' })
     : report;
 });
 

@@ -21,7 +21,7 @@ Craft makes the same call **visible in the type**, by yielding it:
 
 ```typescript
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi(); // ← tracked
 
@@ -61,7 +61,7 @@ once. Don't store one and `yield*` it twice.
 
 ```typescript
 const { TaskApi } = craftService(
-  { name: 'TaskApi', scope: 'global' },
+  { name: 'TaskApi', providedIn: 'global' },
   () => ({
     // raw fetch, only to keep this example about composition —
     // see the note below
@@ -70,7 +70,7 @@ const { TaskApi } = craftService(
 );
 
 const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi();
     const tasks = yield* state('tasks', [] as Task[], ({ set }) => ({
@@ -84,7 +84,7 @@ const { TaskList } = craftService(
 );
 
 const { TaskStats } = craftService(
-  { name: 'TaskStats', scope: 'function' },
+  { name: 'TaskStats', providedIn: 'function' },
   function* () {
     const tasks = yield* TaskList();
     return {
@@ -124,7 +124,7 @@ usage for the same reason.
 
 ```typescript
 const { TaskStats } = craftService(
-  { name: 'TaskStats', scope: 'function' },
+  { name: 'TaskStats', providedIn: 'function' },
   function* () {
     const fetchAll = yield* TaskApi.fetchAll(); // one property
     // …

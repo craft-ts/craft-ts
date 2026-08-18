@@ -17,7 +17,7 @@ import {
 } from '@craft-ts/core';
 
 const { Counter, provideCounter } = craftService(
-  { name: 'Counter', scope: 'toProvide' },
+  { name: 'Counter', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((v) => v + 1),

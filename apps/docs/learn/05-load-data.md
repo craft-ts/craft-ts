@@ -67,7 +67,7 @@ for `matchBlock.exhaustive(...)` — the compiler then checks you covered every
 code:
 
 ```typescript
-matchBlock.exhaustive(() => tasks.exceptions().loader, 'code', {
+matchBlock.exhaustive(() => tasks.exceptions().loader, '_tag', {
   TASKS_FORBIDDEN: () => p('You do not have access to this list.'),
   TASKS_NOT_FOUND: () => p('This list no longer exists.'),
 });

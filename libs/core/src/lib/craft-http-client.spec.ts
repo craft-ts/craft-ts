@@ -112,7 +112,7 @@ describe('CraftHttpClient', () => {
     if (false) {
       type User = { id: string };
 
-      craftService({ name: 'InvalidHttpApi', scope: 'global' }, function* () {
+      craftService({ name: 'InvalidHttpApi', providedIn: 'global' }, function* () {
         // @ts-expect-error CraftHttpClient now requires a declarative builder callback
         const invalidGet = yield* CraftHttpClient.get<User[]>();
 
@@ -127,7 +127,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
 
     const { UsersApi } = craftService(
-      { name: 'UsersApi', scope: 'global' },
+      { name: 'UsersApi', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -199,7 +199,7 @@ describe('CraftHttpClient', () => {
     };
 
     const { UsersDecodedApi } = craftService(
-      { name: 'UsersDecodedApi', scope: 'global' },
+      { name: 'UsersDecodedApi', providedIn: 'global' },
       function* () {
         const getUser = yield* CraftHttpClient.get(() => ({
           url: '/api/user',
@@ -239,7 +239,7 @@ describe('CraftHttpClient', () => {
     };
 
     const { InvalidDecodedApi } = craftService(
-      { name: 'InvalidDecodedApi', scope: 'global' },
+      { name: 'InvalidDecodedApi', providedIn: 'global' },
       function* () {
         const getUser = yield* CraftHttpClient.get(() => ({
           url: '/api/user',
@@ -263,7 +263,7 @@ describe('CraftHttpClient', () => {
       if (!isCraftException(result)) {
         throw new Error('Expected a decode exception');
       }
-      expect(result.code).toBe('HttpResponseDecodeError');
+      expect(result._tag).toBe('HttpResponseDecodeError');
       expect(result.payload).toEqual({
         method: 'GET',
         url: '/api/user',
@@ -276,7 +276,7 @@ describe('CraftHttpClient', () => {
 
   it('should support asynchronous HTTP decoders', async () => {
     const { AsyncDecodedApi } = craftService(
-      { name: 'AsyncDecodedApi', scope: 'global' },
+      { name: 'AsyncDecodedApi', providedIn: 'global' },
       function* () {
         const getValue = yield* CraftHttpClient.get(() => ({
           url: '/api/value',
@@ -306,7 +306,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
 
     const { UsersFilterApi } = craftService(
-      { name: 'UsersFilterApi', scope: 'global' },
+      { name: 'UsersFilterApi', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -357,7 +357,7 @@ describe('CraftHttpClient', () => {
     params.append('tag', 'b');
 
     const { UsersUrlSearchParamsApi } = craftService(
-      { name: 'UsersUrlSearchParamsApi', scope: 'global' },
+      { name: 'UsersUrlSearchParamsApi', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -399,7 +399,7 @@ describe('CraftHttpClient', () => {
     } as const;
 
     const { UsersParamsIdentityApi } = craftService(
-      { name: 'UsersParamsIdentityApi', scope: 'global' },
+      { name: 'UsersParamsIdentityApi', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -430,7 +430,7 @@ describe('CraftHttpClient', () => {
     const usersNotFound = () =>
       craftException(
         {
-          code: 'USERS_NOT_FOUND',
+          _tag: 'USERS_NOT_FOUND',
           scope: 'UsersApi',
         },
         {
@@ -440,7 +440,7 @@ describe('CraftHttpClient', () => {
     type UsersNotFound = ReturnType<typeof usersNotFound>;
 
     const { UsersApiOnCustomError } = craftService(
-      { name: 'UsersApiOnCustomError', scope: 'global' },
+      { name: 'UsersApiOnCustomError', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -466,7 +466,7 @@ describe('CraftHttpClient', () => {
     type GetUsersResult = Awaited<ReturnType<UsersApi['getUsers']>>;
     type UsersNotFoundFromHttpResult = Extract<
       GetUsersResult,
-      { code: 'USERS_NOT_FOUND' }
+      { _tag: 'USERS_NOT_FOUND' }
     >;
 
     expectTypeOf<
@@ -509,7 +509,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
 
     const { UsersApiOnError } = craftService(
-      { name: 'UsersApiOnError', scope: 'global' },
+      { name: 'UsersApiOnError', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -556,7 +556,7 @@ describe('CraftHttpClient', () => {
 
       const httpError = result as CraftHttpClientError;
 
-      expect(httpError.code).toBe('HttpError');
+      expect(httpError._tag).toBe('HttpError');
       expect(httpError.scope).toBe('HttpClient');
       expect(httpError.identifier).toBe('GET /api/users');
       expect(httpError.payload.method).toBe('GET');
@@ -579,7 +579,7 @@ describe('CraftHttpClient', () => {
     const passwordRequired = () =>
       craftException(
         {
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           scope: 'AuthApi',
         },
         {
@@ -589,7 +589,7 @@ describe('CraftHttpClient', () => {
     type PasswordRequired = ReturnType<typeof passwordRequired>;
 
     const { AuthApi } = craftService(
-      { name: 'AuthApi', scope: 'global' },
+      { name: 'AuthApi', providedIn: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
           url: '/api/login',
@@ -626,7 +626,7 @@ describe('CraftHttpClient', () => {
     type LoginResultUnion = Awaited<ReturnType<AuthApi['login']>>;
     type PasswordRequiredFromHttpResult = Extract<
       LoginResultUnion,
-      { code: 'PASSWORD_REQUIRED' }
+      { _tag: 'PASSWORD_REQUIRED' }
     >;
 
     expectTypeOf<
@@ -683,7 +683,7 @@ describe('CraftHttpClient', () => {
     const invalidPasswordPayload = () =>
       craftException(
         {
-          code: 'INVALID_PASSWORD_PAYLOAD',
+          _tag: 'INVALID_PASSWORD_PAYLOAD',
           scope: 'AuthApi',
         },
         {
@@ -692,7 +692,7 @@ describe('CraftHttpClient', () => {
       );
 
     const { AuthApiOnBodyRule } = craftService(
-      { name: 'AuthApiOnBodyRule', scope: 'global' },
+      { name: 'AuthApiOnBodyRule', providedIn: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
           url: '/api/login',
@@ -755,12 +755,12 @@ describe('CraftHttpClient', () => {
     type LoginResult = { token: string };
     const rateLimited = () =>
       craftException({
-        code: 'RATE_LIMITED',
+        _tag: 'RATE_LIMITED',
         scope: 'AuthApi',
       });
 
     const { AuthApiOnHeaderRule } = craftService(
-      { name: 'AuthApiOnHeaderRule', scope: 'global' },
+      { name: 'AuthApiOnHeaderRule', providedIn: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
           url: '/api/login',
@@ -819,17 +819,17 @@ describe('CraftHttpClient', () => {
     type LoginResult = { token: string };
     const genericBadRequest = () =>
       craftException({
-        code: 'GENERIC_BAD_REQUEST',
+        _tag: 'GENERIC_BAD_REQUEST',
         scope: 'AuthApi',
       });
     const passwordRequired = () =>
       craftException({
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         scope: 'AuthApi',
       });
 
     const { AuthApiOnRulePriority } = craftService(
-      { name: 'AuthApiOnRulePriority', scope: 'global' },
+      { name: 'AuthApiOnRulePriority', providedIn: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
           url: '/api/login',
@@ -893,7 +893,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
 
     const { UsersApiPost } = craftService(
-      { name: 'UsersApiPost', scope: 'global' },
+      { name: 'UsersApiPost', providedIn: 'global' },
       function* () {
         const createUser = yield* CraftHttpClient.post(({ response }) => ({
           url: '/api/users',
@@ -941,7 +941,7 @@ describe('CraftHttpClient', () => {
       const usersNotFound = () =>
         craftException(
           {
-            code: 'USERS_NOT_FOUND',
+            _tag: 'USERS_NOT_FOUND',
             scope: 'UsersApi',
           },
           {
@@ -951,7 +951,7 @@ describe('CraftHttpClient', () => {
       type UsersNotFound = ReturnType<typeof usersNotFound>;
 
       const { UsersFeature } = craftService(
-        { name: 'UsersFeature', scope: 'global' },
+        { name: 'UsersFeature', providedIn: 'global' },
         function* () {
           const getUsers = yield* CraftHttpClient.get(({ response }) => ({
             url: '/api/users',
@@ -983,10 +983,10 @@ describe('CraftHttpClient', () => {
       type TrackedRequestResult = Awaited<ReturnType<TrackedRequest>>;
       type TrackedUsersNotFound = Extract<
         TrackedRequestResult,
-        { code: 'USERS_NOT_FOUND' }
+        { _tag: 'USERS_NOT_FOUND' }
       >;
 
-      expectTypeOf<HttpDependency['scope']>().toEqualTypeOf<'global'>();
+      expectTypeOf<HttpDependency['providedIn']>().toEqualTypeOf<'global'>();
       expectTypeOf<HttpDependency['browserBoundary']>().toEqualTypeOf<true>();
       expectTypeOf<HttpDependency['dependencies']>().toEqualTypeOf<{}>();
       expectTypeOf<TrackedRequest['method']>().toEqualTypeOf<'GET'>();
@@ -1016,7 +1016,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
 
     const { UsersFeatureForMocks: UsersFeature } = craftService(
-      { name: 'UsersFeatureForMocks', scope: 'global' },
+      { name: 'UsersFeatureForMocks', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -1061,7 +1061,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
 
     const { UsersFeatureForDependencies } = craftService(
-      { name: 'UsersFeatureForDependencies', scope: 'global' },
+      { name: 'UsersFeatureForDependencies', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -1081,7 +1081,7 @@ describe('CraftHttpClient', () => {
               }
 
               return craftException({
-                code: 'PASSWORD_REQUIRED',
+                _tag: 'PASSWORD_REQUIRED',
                 scope: 'UsersFeatureForDependencies',
               });
             },
@@ -1101,7 +1101,7 @@ describe('CraftHttpClient', () => {
               }
 
               return craftException({
-                code: 'VALIDATION_HEADER_ERROR',
+                _tag: 'VALIDATION_HEADER_ERROR',
                 scope: 'UsersFeatureForDependencies',
               });
             },
@@ -1122,7 +1122,7 @@ describe('CraftHttpClient', () => {
     >;
     type ValidationHeaderException = Extract<
       GetUsersDependenciesResult,
-      { code: 'VALIDATION_HEADER_ERROR' }
+      { _tag: 'VALIDATION_HEADER_ERROR' }
     >;
 
     expectTypeOf<

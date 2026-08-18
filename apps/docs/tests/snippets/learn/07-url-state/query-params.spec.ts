@@ -8,7 +8,7 @@ useSnippetHarness();
 import { craftService, queryParams } from '@craft-ts/core';
 
 export const { TaskFilters } = craftService(
-  { name: 'TaskFilters', scope: 'function' },
+  { name: 'TaskFilters', providedIn: 'function' },
   function* () {
     const numberCodec = {
       decode: (value: string) => parseInt(value, 10),

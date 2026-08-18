@@ -68,7 +68,7 @@ export function installEffectYieldBridge(): () => void {
         // `code` — this line is the whole argument for plan task 1.1. Once
         // craft moves to `_tag`, the mapping is the identity.
         exception: craftException(
-          { code: effectErrorTag(error), scope: 'loader' },
+          { _tag: effectErrorTag(error), scope: 'loader' },
           error,
         ),
       };

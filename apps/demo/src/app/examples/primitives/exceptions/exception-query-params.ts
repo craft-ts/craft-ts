@@ -18,10 +18,10 @@ import {
 } from '@craft-ts/core';
 
 function formatParseException(exception: {
-  code: string;
+  _tag: string;
   payload: { error: unknown };
 }) {
-  return `${exception.code}: ${exception.payload.error}`;
+  return `${exception._tag}: ${exception.payload.error}`;
 }
 
 const ExceptionQueryParamsComponent = craftComponent(
@@ -76,7 +76,7 @@ const ExceptionQueryParamsComponent = craftComponent(
               decode: ((value: string) => {
                 if (value !== 'success') {
                   return craftException(
-                    { code: 'UNEXPECTED_ERROR' },
+                    { _tag: 'UNEXPECTED_ERROR' },
                     { error: new Error(`Invalid mode: ${value}`) },
                   );
                 }
@@ -141,7 +141,7 @@ const ExceptionQueryParamsComponent = craftComponent(
             function* () {
               return formatParseException(
                 (yield* modeQueryParams.exceptions()).parse.mode as {
-                  code: string;
+                  _tag: string;
                   payload: { error: unknown };
                 },
               );

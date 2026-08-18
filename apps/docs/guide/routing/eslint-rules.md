@@ -77,7 +77,7 @@ What each rule does:
 - `craft-ts/prefer-craft-input-output`: forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ts/component` in `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
-- `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ code: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
+- `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ts/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).
 - `craft-ts/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ts/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
@@ -133,7 +133,7 @@ ifBlock(
   () => p('Loading…'),
 );
 
-matchBlock.exhaustive(query.exceptions, 'code', {
+matchBlock.exhaustive(query.exceptions, '_tag', {
   NOT_FOUND: () => p('Not found'),
   FORBIDDEN: () => p('Forbidden'),
 });

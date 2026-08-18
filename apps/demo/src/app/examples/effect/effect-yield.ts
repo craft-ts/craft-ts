@@ -49,7 +49,7 @@ class Unauthorized extends Data.TaggedError('Unauthorized')<{
 type Scenario = 'success' | 'not-found' | 'unauthorized' | 'defect';
 
 type EffectException = {
-  readonly code: 'UserNotFound' | 'Unauthorized';
+  readonly _tag: 'UserNotFound' | 'Unauthorized';
 };
 
 type User = { id: string; name: string; email: string };
@@ -331,7 +331,7 @@ const EffectYieldComponent = craftComponent(
           () => [
             matchBlock.exhaustive(
               userExceptionLoader as unknown as () => EffectException,
-              'code',
+              '_tag',
               {
                 UserNotFound: () =>
                   p({ class: 'effect-outcome' }, [

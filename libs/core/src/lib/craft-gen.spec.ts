@@ -28,7 +28,7 @@ describe('craftGen', () => {
 
   it('short-circuits the enclosing generator when a guard returns a craftException', () => {
     const failGuard = craftGen(function* () {
-      return craftException({ code: 'FORBIDDEN' });
+      return craftException({ _tag: 'FORBIDDEN' });
     });
 
     let reachedAfterGuard = false;
@@ -46,7 +46,7 @@ describe('craftGen', () => {
 
   it('exposes the produced exception on the short-circuit marker', () => {
     const failGuard = craftGen(function* () {
-      return craftException({ code: 'FORBIDDEN' }, { reason: 'role' });
+      return craftException({ _tag: 'FORBIDDEN' }, { reason: 'role' });
     });
 
     const composed = function* () {
@@ -60,7 +60,7 @@ describe('craftGen', () => {
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
       if (isCraftGenShortCircuit(error)) {
-        expect(error.exception.code).toBe('FORBIDDEN');
+        expect(error.exception._tag).toBe('FORBIDDEN');
         expect(error.exception.payload).toEqual({ reason: 'role' });
       }
     }
@@ -91,7 +91,7 @@ describe('craftGen', () => {
     const roleGuard = craftGen(function* (...roles: string[]) {
       return roles.includes('admin')
         ? true
-        : craftException({ code: 'FORBIDDEN_ROLE' });
+        : craftException({ _tag: 'FORBIDDEN_ROLE' });
     });
 
     const allowed = function* () {
@@ -110,7 +110,7 @@ describe('craftGen', () => {
     it('strips the exception from the invocation success value', () => {
       const roleGuard = craftGen(function* (role: string) {
         return role === 'x'
-          ? craftException({ code: 'FORBIDDEN' })
+          ? craftException({ _tag: 'FORBIDDEN' })
           : (true as const);
       });
 
@@ -136,8 +136,8 @@ describe('craftGen', () => {
 
     it('advertises the reachable exception codes on the invocation Yielded', () => {
       const roleGuard = craftGen(function* () {
-        if (Math.random() > 0.5) return craftException({ code: 'A' });
-        return craftException({ code: 'B' });
+        if (Math.random() > 0.5) return craftException({ _tag: 'A' });
+        return craftException({ _tag: 'B' });
       });
 
       const composed = function* () {
@@ -149,17 +149,17 @@ describe('craftGen', () => {
         GeneratorYielded<typeof composed>
       >;
 
-      expectTypeOf<Exceptions['code']>().toEqualTypeOf<'A' | 'B'>();
+      expectTypeOf<Exceptions['_tag']>().toEqualTypeOf<'A' | 'B'>();
     });
 
     it('keeps the exception marker distinct from arbitrary yields', () => {
       type Yielded =
         | { some: 'service-request' }
-        | CraftGenExceptionMarker<CraftException<{ code: 'X'; scope: undefined }>>;
+        | CraftGenExceptionMarker<CraftException<{ _tag: 'X'; scope: undefined }>>;
 
       type Exceptions = ExtractCraftGenExceptions<Yielded>;
 
-      expectTypeOf<Exceptions['code']>().toEqualTypeOf<'X'>();
+      expectTypeOf<Exceptions['_tag']>().toEqualTypeOf<'X'>();
     });
   });
 });

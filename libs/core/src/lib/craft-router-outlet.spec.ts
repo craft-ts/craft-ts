@@ -227,7 +227,7 @@ describe('CraftRouterOutlet', () => {
   it('follows a yielding redirectTo through the Craft injector', async () => {
     window.history.replaceState(null, '', '/');
     const { RedirectAuth, provideRedirectAuth } = craftService(
-      { name: 'RedirectAuth', scope: 'toProvide' },
+      { name: 'RedirectAuth', providedIn: 'toProvide' },
       () => ({ isAdmin: () => true }),
     );
     TestBed.configureTestingModule({
@@ -935,7 +935,7 @@ describe('CraftRouterOutlet', () => {
     deferred.resolve({
       kind: 'render',
       component: { component: craftRouteTarget(error) },
-      exception: craftException({ code: 'SPEC_ERROR' }),
+      exception: craftException({ _tag: 'SPEC_ERROR' }),
     });
     await flush();
     expect(outlet.errorTarget()).toEqual({ kind: 'craft', component: error });
@@ -1072,7 +1072,7 @@ describe('CraftRouterOutlet', () => {
     'keeps pending visible for pendingMinMs before a final error',
     async () => {
       const { outlet } = setup();
-      const exception = craftException({ code: 'LOAD_FAILED' });
+      const exception = craftException({ _tag: 'LOAD_FAILED' });
       activate(
         outlet,
         makeMeta({
@@ -1150,7 +1150,7 @@ describe('CraftRouterOutlet', () => {
 
   it('global outcome feeds CRAFT_GLOBAL_ERROR and renders the error component', async () => {
     const { outlet } = setup();
-    const exception = craftException({ code: 'USER_DISABLED' });
+    const exception = craftException({ _tag: 'USER_DISABLED' });
     activate(
       outlet,
       makeMeta({ errorComponent: { component: ErrCmp, componentDeps: {} } }),
@@ -1167,7 +1167,7 @@ describe('CraftRouterOutlet', () => {
     const { outlet } = setup();
     const sink = signal<unknown | null>(null);
     const exception = craftException(
-      { code: 'USER_DISABLED' },
+      { _tag: 'USER_DISABLED' },
       { reason: 'policy' },
     );
     activate(outlet, makeMeta({ exceptionSinks: { USER_DISABLED: sink } }));
@@ -1354,7 +1354,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
   it('writes generator guard data after yielding a craft service', async () => {
     type User = { id: number; name: string };
     const { OutletAuth, provideOutletAuth } = craftService(
-      { name: 'OutletAuth', scope: 'toProvide' },
+      { name: 'OutletAuth', providedIn: 'toProvide' },
       () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
     );
     const { outlet } = setup();

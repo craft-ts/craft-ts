@@ -517,8 +517,8 @@ export function setupCraftServiceTest(
   );
 
   if (
-    internalMetaData.scope === 'toProvide' ||
-    internalMetaData.scope === 'manuallyProvidedAtRoot'
+    internalMetaData.providedIn === 'toProvide' ||
+    internalMetaData.providedIn === 'manuallyProvidedAtRoot'
   ) {
     if (
       !('provide' in internalMetaData) ||

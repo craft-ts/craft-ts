@@ -2560,7 +2560,7 @@ class CatchBlockRenderedNode implements RenderedNode {
       );
     }
 
-    const handler = this.node.handlers[exception.code];
+    const handler = this.node.handlers[exception._tag];
     if (!handler) {
       return (
         this.context.exceptionBoundary?.(exception, token) ??
@@ -3280,7 +3280,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
     exception: AnyCraftException,
   ): boolean {
     return Boolean(
-      fieldExceptionHandler(this.node.handlers, source.path, exception.code),
+      fieldExceptionHandler(this.node.handlers, source.path, exception._tag),
     );
   }
 
@@ -3294,11 +3294,11 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
         const handler = fieldExceptionHandler(
           this.node.handlers,
           source.path,
-          exception.code,
+          exception._tag,
         );
         if (!handler) return;
         const validatorName = fieldExceptionValidatorName(source, exception);
-        const messageKey = `${validatorName}:${exception.code}:${index}`;
+        const messageKey = `${validatorName}:${exception._tag}:${index}`;
         let id = registered.messageIds.get(messageKey);
         if (!id) {
           id = `craft-field-exception-${this.boundaryId}-${registered.messageIds.size}`;
@@ -3857,7 +3857,7 @@ class ComponentRenderedNode implements RenderedNode {
     const handledResourceExceptionCodes = new Set<string>();
     const componentBoundary = composition.catchBlockPosition
       ? (exception: AnyCraftException): boolean => {
-          if (!composition.catchHandlers?.[exception.code]) {
+          if (!composition.catchHandlers?.[exception._tag]) {
             return context.exceptionBoundary?.(exception) ?? false;
           }
           this.renderComposedException(
@@ -4019,7 +4019,7 @@ class ComponentRenderedNode implements RenderedNode {
             const exception = findResourceException(factoryContext);
             if (exception) {
               if (
-                renderContext.handledResourceExceptionCodes?.has(exception.code)
+                renderContext.handledResourceExceptionCodes?.has(exception._tag)
               ) {
                 if (this.componentFallbackVisible) {
                   this.componentFallbackVisible = false;
@@ -4204,9 +4204,9 @@ class ComponentRenderedNode implements RenderedNode {
     preserveFactoryContext = false,
   ): void {
     const blockHandler =
-      definition.composition?.catchHandlers?.[exception.code];
+      definition.composition?.catchHandlers?.[exception._tag];
     const tagHandler =
-      definition.composition?.catchTagHandlers?.[exception.code];
+      definition.composition?.catchTagHandlers?.[exception._tag];
     if (!blockHandler && !tagHandler) {
       if (this.context.exceptionBoundary?.(exception)) {
         return;

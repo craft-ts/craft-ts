@@ -110,7 +110,7 @@ on the event handle:
 
 ```typescript
 const { Click } = craftService(
-  { name: 'Click', scope: 'global' },
+  { name: 'Click', providedIn: 'global' },
   function* () {
     const click = yield* fromEventToSource$(button, 'click');
     return click;

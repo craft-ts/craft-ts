@@ -26,16 +26,16 @@ declare module './craft-router' {
 // Reusable guards/resolvers that advertise a reachable exception code (the
 // `CraftGenExceptionMarker` flows through `yield*`).
 const authFail = craftGen(function* () {
-  return craftException({ code: 'NOT_AUTHENTICATED' });
+  return craftException({ _tag: 'NOT_AUTHENTICATED' });
 });
 const flagOff = craftGen(function* () {
-  return craftException({ code: 'FEATURE_OFF' });
+  return craftException({ _tag: 'FEATURE_OFF' });
 });
 const profileFail = craftGen(function* () {
-  return craftException({ code: 'USER_DISABLED' });
+  return craftException({ _tag: 'USER_DISABLED' });
 });
 const pizzeriaFail = craftGen(function* () {
-  return craftException({ code: 'HAS_PIZZERIA' });
+  return craftException({ _tag: 'HAS_PIZZERIA' });
 });
 
 class Stub {}
@@ -124,7 +124,7 @@ describe('route handleExceptions (third argument)', () => {
           noop,
         }) {
           // `exception.code` is narrowed to the literal, not `any`.
-          const code: string = exception.code;
+          const code: string = exception._tag;
           void code;
           return noop();
         }),
@@ -344,7 +344,7 @@ describe('route handleExceptions (third argument)', () => {
   it('generates a route-scoped helper with the exact exception payload', () => {
     const disabled = craftGen(function* () {
       return craftException(
-        { code: 'USER_DISABLED' },
+        { _tag: 'USER_DISABLED' },
         { reason: 'policy' as const },
       );
     });
@@ -376,7 +376,7 @@ describe('route handleExceptions (third argument)', () => {
 
   it('preserves handler yields for route DI extraction', () => {
     const { HandlerConfig } = craftService(
-      { name: 'HandlerConfig', scope: 'toProvide' },
+      { name: 'HandlerConfig', providedIn: 'toProvide' },
       () => ({ target: '/login' }),
     );
     const def = craftRoute(

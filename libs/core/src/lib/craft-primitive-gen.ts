@@ -64,7 +64,7 @@ export type ServiceTrackedDepsRequest<DepMap extends object = object> =
 type PrimitiveExceptionUnion<Ref> = Ref extends {
   readonly exception: Signal<infer Exception>;
 }
-  ? Extract<Exception, { readonly code: string }>
+  ? Extract<Exception, { readonly _tag: string }>
   : never;
 
 type PrimitiveExceptionMarker<Ref> = [PrimitiveExceptionUnion<Ref>] extends [

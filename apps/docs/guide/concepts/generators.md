@@ -15,7 +15,7 @@ the driver resolves it, and the dependency is recorded **in the type**:
 
 ```typescript
 const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi(); // tracked
     const tasks = yield* state('tasks', []); // tracked
@@ -103,19 +103,19 @@ export const roleGuard = craftGen(function* (...roles: Role[]) {
   const currentUser = yield* user();
 
   if (!currentUser) {
-    return craftException({ code: 'NOT_AUTHENTICATED' });
+    return craftException({ _tag: 'NOT_AUTHENTICATED' });
   }
 
   return roles.includes(currentUser.role)
     ? true
-    : craftException({ code: 'FORBIDDEN_ROLE' });
+    : craftException({ _tag: 'FORBIDDEN_ROLE' });
 });
 
 export const noPizzeriaGuard = craftGen(function* () {
   const { pizzeria } = yield* Auth(undefined, ({ pizzeria }) => ({ pizzeria }));
 
   return (yield* pizzeria())
-    ? craftException({ code: 'HAS_PIZZERIA' })
+    ? craftException({ _tag: 'HAS_PIZZERIA' })
     : true;
 });
 ```

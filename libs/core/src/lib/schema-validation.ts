@@ -85,7 +85,7 @@ export type SchemaValidationExceptionPayload = {
 };
 
 export type SchemaValidationException = AnyCraftException & {
-  code: 'SCHEMA_VALIDATION_ERROR';
+  _tag: 'SCHEMA_VALIDATION_ERROR';
   scope: 'parse';
   payload: SchemaValidationExceptionPayload;
 };
@@ -113,7 +113,7 @@ export function createSchemaValidationException({
   primitive: SchemaValidationContext['primitive'];
 }): SchemaValidationException {
   return craftException(
-    { code: 'SCHEMA_VALIDATION_ERROR', scope: 'parse' },
+    { _tag: 'SCHEMA_VALIDATION_ERROR', scope: 'parse' },
     {
       issues,
       value,

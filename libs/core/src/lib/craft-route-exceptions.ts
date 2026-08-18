@@ -212,14 +212,14 @@ export const craftExceptionOutcomeApi = {
 // ---------------------------------------------------------------------------
 
 type CraftExceptionCodes<Exception> = Exception extends {
-  code: infer Code extends string;
+  _tag: infer Code extends string;
 }
   ? Code
   : never;
 
 type CraftExceptionForCode<Exception, Code extends string> = Extract<
   Exception,
-  { code: Code }
+  { _tag: Code }
 >;
 
 /** `Yielded` of a generator-returning route field (canActivate/canMatch/resolve). */
@@ -235,7 +235,7 @@ type RouteFieldExceptions<Field> = ExtractCraftGenExceptions<
 >;
 
 type ComponentRouteException<Code extends string> = CraftException<{
-  code: Code;
+  _tag: Code;
   scope: undefined;
 }>;
 
@@ -492,7 +492,7 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
  */
 const craftGlobalErrorService = toCraftService({
   name: 'CraftGlobalError',
-  scope: 'global',
+  providedIn: 'global',
   inject: (): Signal<CraftGlobalHandledException> =>
     inject(
       CRAFT_GLOBAL_ERROR,

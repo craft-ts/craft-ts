@@ -48,7 +48,7 @@ describe('component composition', () => {
   it('narrows catchTag handler codes', async () => {
     catchTag.exhaustive({
       NO_ACCESS: function* (exception) {
-        expectTypeOf(exception.code).toEqualTypeOf<'NO_ACCESS'>();
+        expectTypeOf(exception._tag).toEqualTypeOf<'NO_ACCESS'>();
       },
     });
 
@@ -65,10 +65,10 @@ describe('component composition', () => {
   it('reactively recreates providers and transitions success → exception → success', async () => {
     const state = signal<'ready' | 'denied'>('ready');
     let factoryCalls = 0;
-    const noAccess = craftException({ code: 'NO_ACCESS' });
+    const noAccess = craftException({ _tag: 'NO_ACCESS' });
     let handled = 0;
     const { Data, provideData } = craftService(
-      { name: 'data', scope: 'abstract' },
+      { name: 'data', providedIn: 'abstract' },
       abstract<string | typeof noAccess>(),
     );
 
@@ -137,7 +137,7 @@ describe('component composition', () => {
   });
 
   it('does not bubble a query exception already handled by matchBlock', async () => {
-    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     let factoryRuns = 0;
     const source = craftComponent(
       'queryCatchBlockRuntime',
@@ -155,7 +155,7 @@ describe('component composition', () => {
           p('source'),
           matchBlock.exhaustive(
             () => craftUse(value.exceptions()).loader,
-            'code',
+            '_tag',
             {
               FAILED_TO_LOAD: () => p('match fallback'),
             },
@@ -193,7 +193,7 @@ describe('component composition', () => {
   });
 
   it('does not treat an empty query exception bucket as an exception', async () => {
-    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     const shouldFail = signal(false);
     const source = craftComponent(
       'queryMatchBlockEmptyBucket',
@@ -211,7 +211,7 @@ describe('component composition', () => {
           p(() => craftUse(value.value())?.id ?? ''),
           matchBlock.exhaustive(
             () => craftUse(value.exceptions()).loader,
-            'code',
+            '_tag',
             {
               FAILED_TO_LOAD: () => p('fallback'),
             },
@@ -237,9 +237,9 @@ describe('component composition', () => {
   });
 
   it('requires a component exception to be caught before it is emitted into a template', async () => {
-    const noAccess = craftException({ code: 'NO_ACCESS' });
+    const noAccess = craftException({ _tag: 'NO_ACCESS' });
     const { Data, provideData } = craftService(
-      { name: 'data', scope: 'abstract' },
+      { name: 'data', providedIn: 'abstract' },
       abstract<string | typeof noAccess>(),
     );
     const restricted = craftComponent(
@@ -267,10 +267,10 @@ describe('component composition', () => {
   });
 
   it('propagates query loader exceptions through a provided service', async () => {
-    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     const { provideTodoStoreWithQueryException, TodoStoreWithQueryException } =
       craftService(
-        { name: 'todoStoreWithQueryException', scope: 'toProvide' },
+        { name: 'todoStoreWithQueryException', providedIn: 'toProvide' },
         function* () {
           const refresh = signal(0);
           const todos = yield* query('todos', {
@@ -321,7 +321,7 @@ describe('component composition', () => {
   });
 
   it('advertises direct query loader exceptions on a component', async () => {
-    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     const refresh = signal(0);
     const component = craftComponent(
       'directQueryExceptionComponent',

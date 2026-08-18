@@ -18,7 +18,7 @@ export const MyGlobalErrorScreen = craftComponent(
     const error = yield* CraftGlobalError();
     const disabled = craftComputed(
       'disabled',
-      () => (error() as { code?: string } | null)?.code === 'USER_DISABLED',
+      () => (error() as { _tag?: string } | null)?._tag === 'USER_DISABLED',
     );
     return { error, disabled };
   },
