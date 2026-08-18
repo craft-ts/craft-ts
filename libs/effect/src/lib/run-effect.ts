@@ -80,8 +80,9 @@ export function runYieldedEffect(
     const error = failure.value;
     return {
       kind: 'exception',
+      // Identity since wave 1: Effect's `_tag` IS craft's discriminant.
       exception: craftException(
-        { code: effectErrorTag(error), scope: 'loader' },
+        { _tag: effectErrorTag(error), scope: 'loader' },
         error,
       ),
     };

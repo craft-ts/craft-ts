@@ -227,7 +227,9 @@ export type MockHttpRequestCustomExceptionResponse<
   Exception extends AnyCraftException,
 > = {
   kind: 'exception';
-  code: Exception['code'];
+  // Mirrors the craft discriminant. NOT to be confused with the `code` inside
+  // `body`, which is the server's own error code (see ExceptionCodeBody).
+  _tag: Exception['_tag'];
   status: ExceptionStatusValue<Exception>;
   body: ExceptionBaseBody<Exception> &
     ExceptionCodeBody<Exception> &

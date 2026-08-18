@@ -252,7 +252,7 @@ describe('mockHttpRequestForRoute', () => {
         kind: 'mock',
         response: {
           kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           status: 400,
           body: {
             code: 'PASSWORD_REQUIRED',
@@ -283,7 +283,7 @@ describe('mockHttpRequestForRoute', () => {
         mode: 'mock',
         response: {
           kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           status: 400,
           body: {
             code: 'PASSWORD_REQUIRED',
@@ -346,13 +346,13 @@ describe('mockHttpRequestForRoute', () => {
         MockHttpRequestResponse<LoginRequest>,
         {
           kind: 'exception';
-          code: 'PASSWORD_REQUIRED';
+          _tag: 'PASSWORD_REQUIRED';
         }
       >
     >().toMatchTypeOf<{
       status: 400;
       body: {
-        _tag: 'PASSWORD_REQUIRED';
+        code: 'PASSWORD_REQUIRED';
         message: 'Password is required';
       };
     }>();
@@ -367,7 +367,7 @@ describe('matchMockHttpRequestForRoute', () => {
         kind: 'mock',
         response: {
           kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           status: 400,
           body: {
             code: 'PASSWORD_REQUIRED',
@@ -395,7 +395,7 @@ describe('matchMockHttpRequestForRoute', () => {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -541,7 +541,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -629,7 +629,7 @@ if (false) {
       // @ts-expect-error matched status must stay aligned with the exception rule
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 401,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -646,7 +646,7 @@ if (false) {
       // @ts-expect-error matched code must be reflected in body.code
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'INVALID',
@@ -663,7 +663,7 @@ if (false) {
       // @ts-expect-error matched content must be reflected in body.message
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'PASSWORD_REQUIRED',

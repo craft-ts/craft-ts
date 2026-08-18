@@ -90,7 +90,7 @@ describe('catchTag', () => {
     );
 
     expect(drive(program)).toBe('recovered');
-    expect(seen[0]?.code).toBe('A');
+    expect(seen[0]?._tag).toBe('A');
     expect(seen[0]?.payload).toEqual({ reason: 'expired' });
   });
 

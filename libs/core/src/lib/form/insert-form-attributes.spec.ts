@@ -143,7 +143,7 @@ describe('insertFormAttributes', () => {
 
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        cRequired: { code: 'required' },
+        cRequired: { _tag: 'required' },
       });
 
       fieldState.set('romain');
@@ -151,7 +151,7 @@ describe('insertFormAttributes', () => {
 
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
+        hasAtSign: { _tag: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
@@ -181,7 +181,7 @@ describe('insertFormAttributes', () => {
         );
 
         expect(craftUse(fieldForm.form.errors())[0]).toMatchObject({
-          code: 'required',
+          _tag: 'required',
         });
 
         fieldState.set('ok');
@@ -255,7 +255,7 @@ describe('insertFormAttributes', () => {
       expect(
         craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
       ).toMatchObject({
-        code: 'required',
+        _tag: 'required',
       });
 
       fieldForm.form.reset();
@@ -300,14 +300,14 @@ describe('insertFormAttributes', () => {
             craftUse(fieldForm.form.firstLeftFailedValidation()) as {
               code: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('required');
         expect(
           (
             craftUse(fieldForm.form.lastRightFailedValidation()) as {
               code: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('TOO_SHORT');
 
         // "ab" -> hasAtSign + minLen5 fail
@@ -318,14 +318,14 @@ describe('insertFormAttributes', () => {
             craftUse(fieldForm.form.firstLeftFailedValidation()) as {
               code: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('MISSING_AT');
         expect(
           (
             craftUse(fieldForm.form.lastRightFailedValidation()) as {
               code: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('TOO_SHORT');
 
         // valid -> undefined
@@ -538,7 +538,7 @@ describe('insertFormAttributes', () => {
 
         expect(emailA?.invalid()).toBe(true);
         expect(emailA?.exceptions().byValidator).toMatchObject({
-          cRequired: { code: 'required' },
+          cRequired: { _tag: 'required' },
         });
 
         expect(emailB?.invalid()).toBe(false);
@@ -651,13 +651,13 @@ describe('formAttributes', () => {
 
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        cRequired: { code: 'required' },
+        cRequired: { _tag: 'required' },
       });
 
       fieldState.set('romain');
       flushHost();
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
+        hasAtSign: { _tag: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
@@ -712,7 +712,7 @@ describe('formAttributes', () => {
       expect(email?.invalid()).toBe(true);
       expect(password?.invalid()).toBe(true);
       expect(email?.exceptions().byValidator).toMatchObject({
-        cRequired: { code: 'required' },
+        cRequired: { _tag: 'required' },
       });
 
       loginForm.form.email.set('not-an-email');
@@ -810,14 +810,14 @@ describe('formAttributes', () => {
           craftUse(fieldForm.form.firstLeftFailedValidation()) as {
             code: string;
           }
-        )?.code,
+        )?._tag,
       ).toBe('MISSING_AT');
       expect(
         (
           craftUse(fieldForm.form.lastRightFailedValidation()) as {
             code: string;
           }
-        )?.code,
+        )?._tag,
       ).toBe('MISSING_DOT');
 
       fieldState.set('foo@bar.com');

@@ -69,7 +69,7 @@ describe('insertFormSchema', () => {
       craftUse(userForm.form.schemaExceptions())[0]?.payload.issues[0]?.message,
     ).toBe('Email is required');
     expect(craftUse(userForm.form.email.errors())).toHaveLength(1);
-    expect(craftUse(userForm.form.email.errors())[0]?.code).toBe(
+    expect(craftUse(userForm.form.email.errors())[0]?._tag).toBe(
       'SCHEMA_VALIDATION_ERROR',
     );
     expect(craftUse(userForm.form.validatedFormValue())).toBeUndefined();

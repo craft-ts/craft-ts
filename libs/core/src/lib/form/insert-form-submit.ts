@@ -207,8 +207,8 @@ function isCraftExceptionLike(value: unknown): value is AnyCraftException {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'code' in value &&
-    typeof (value as { code?: unknown }).code === 'string'
+    '_tag' in value &&
+    typeof (value as { _tag?: unknown })._tag === 'string'
   );
 }
 

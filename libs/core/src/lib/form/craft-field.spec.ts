@@ -101,7 +101,7 @@ describe('craftField', () => {
       form.email.ɵregisterValidator(requiredValidator);
 
       expect(form.email.errors().length).toBe(1);
-      expect(form.email.errors()[0].code).toBe('required');
+      expect(form.email.errors()[0]._tag).toBe('required');
       expect(form.email.invalid()).toBe(true);
       expect(form.email.valid()).toBe(false);
 

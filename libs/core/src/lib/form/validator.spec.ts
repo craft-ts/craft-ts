@@ -37,12 +37,12 @@ function expectedException<
   Name extends string,
   Code extends string,
   Payload = undefined,
->(brand: Name, code: Code, payload: Payload) {
+>(brand: Name, tag: Code, payload: Payload) {
   return {
-    code,
+    _tag: tag,
     [CRAFT_EXCEPTION_SYMBOL]: true,
     payload,
-    [code]: payload,
+    [tag]: payload,
     __brand: brand,
     type: 'sync' as const,
   };

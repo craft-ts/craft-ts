@@ -151,7 +151,7 @@ describe('runCraftRouteChainAsync', () => {
     );
     expect(outcome).toEqual({
       kind: 'global',
-      exception: expect.objectContaining({ code: 'USER_DISABLED' }),
+      exception: expect.objectContaining({ _tag: 'USER_DISABLED' }),
     });
   });
 

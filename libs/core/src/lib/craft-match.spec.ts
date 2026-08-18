@@ -95,7 +95,7 @@ describe('match.exhaustive over discriminated exceptions', () => {
     );
     const exception = denied as typeof denied | typeof unavailable;
 
-    const message = match.exhaustive(exception, 'code', {
+    const message = match.exhaustive(exception, '_tag', {
       DENIED: (value) => {
         expectTypeOf(value).toEqualTypeOf<typeof denied>();
         expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
@@ -116,7 +116,7 @@ describe('match.exhaustive over discriminated exceptions', () => {
       | { code: 'DENIED'; payload: string }
       | undefined;
     expect(
-      match.exhaustive(exception, 'code', { DENIED: (value) => value.payload }),
+      match.exhaustive(exception, '_tag', { DENIED: (value) => value.payload }),
     ).toBeUndefined();
   });
 });

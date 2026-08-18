@@ -121,7 +121,7 @@ describe('Standard Schema validation', () => {
     source.set(-1);
 
     expect(craftUse(value())).toBe(1);
-    expect(craftUse(value.exceptions()).parse.state?.code).toBe(
+    expect(craftUse(value.exceptions()).parse.state?._tag).toBe(
       'SCHEMA_VALIDATION_ERROR',
     );
   });
