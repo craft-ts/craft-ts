@@ -63,6 +63,7 @@ const roleHasRequiredAria = require('./role-has-required-aria.cjs');
 const targetBlankNoopener = require('./target-blank-noopener.cjs');
 const requireFocusVisible = require('./require-focus-visible.cjs');
 const requireReducedMotion = require('./require-reduced-motion.cjs');
+const requireEffectAdapters = require('./require-effect-adapters.cjs');
 
 const plugin = {
   rules: {
@@ -133,6 +134,7 @@ const plugin = {
     'target-blank-noopener': targetBlankNoopener,
     'require-focus-visible': requireFocusVisible,
     'require-reduced-motion': requireReducedMotion,
+    'require-effect-adapters': requireEffectAdapters,
   },
 };
 

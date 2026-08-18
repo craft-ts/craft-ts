@@ -17,6 +17,7 @@ export default [
     },
     rules: {
       ...craftDemoRules,
+      'craft-ts/require-effect-adapters': 'error',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@nx/enforce-module-boundaries': 'off',
     },

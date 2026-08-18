@@ -50,11 +50,11 @@ describe('0.1-b — E reaches the exception channel at the type level', () => {
   });
 
   it('advertises nothing for an infallible Effect', () => {
-    const infallible = craftGen(function* () {
+    const _infallible = craftGen(function* () {
       return yield* runEffect(Effect.succeed(1));
     });
     type Advertised = ExtractCraftGenExceptions<
-      GuardYielded<typeof infallible>
+      GuardYielded<typeof _infallible>
     >;
 
     expectTypeOf<Advertised>().toEqualTypeOf<never>();

@@ -11,12 +11,6 @@ import type { Effect } from 'effect';
 // and `Effect<User, UserNotFound>` is not.
 // ---------------------------------------------------------------------------
 
-declare const CRAFT_GEN_EXCEPTION_MARKER: unique symbol;
-
-type ExceptionMarker<Exception> = {
-  readonly [CRAFT_GEN_EXCEPTION_MARKER]: Exception;
-};
-
 /** The exceptions a craft generator advertises through its yielded markers. */
 export type CraftProgramExceptions<Program> = Program extends (
   ...args: never[]

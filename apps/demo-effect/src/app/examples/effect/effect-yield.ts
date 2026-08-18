@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// ɵ EffectTS + CraftTS demo — yield* Effect in a Craft loader.
+// ɵ EffectTS + CraftTS demo — an Effect-aware Craft query.
 //
-// What this page shows: a craft `query` whose loader is a plain generator that
-// does `yield* runEffect(someEffect)`. The Effect bridge is installed once at
-// application startup, so the loader stays focused on the domain operation.
+// What this page shows: a `queryEffect` whose loader returns a domain Effect.
+// The Effect bridge is installed once at application startup, so the loader
+// stays focused on the domain operation.
 //
 // The three scenarios are three different channels, and they are NOT
 // interchangeable:
@@ -24,8 +24,8 @@ import {
   strong,
 } from '@craft-ts/component';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { craftComputed, query, state } from '@craft-ts/core';
-import { runEffect } from '@craft-ts/effect';
+import { craftComputed, state } from '@craft-ts/core';
+import { queryEffect } from '@craft-ts/effect';
 import { Data, Effect } from 'effect';
 
 // Effect's own tagged errors. Nothing craft-specific about them — that is the
@@ -154,15 +154,11 @@ const EffectYieldComponent = craftComponent(
       }),
     );
 
-    const userQuery = yield* query(
+    const userQuery = yield* queryEffect(
       'userQuery',
       {
         params: request,
-        // A plain craft generator. `runEffect` is the only adapter needed at
-        // the boundary between the Effect domain layer and CraftTS.
-        loader: function* ({ params }) {
-          return yield* runEffect(loadUser(params.scenario));
-        },
+        loader: ({ params }) => loadUser(params.scenario),
       },
       ({ resource, exceptions }) => ({
         hasUser: craftComputed('hasUser', () => resource.hasValue()),

@@ -88,12 +88,12 @@ describe('effectService', () => {
   it('KEEPS GENERIC MEMBERS GENERIC through the selection', () => {
     // The regression this file exists for. Wrapping selected members would
     // freeze T at the wrapper's own parameter and collapse every call site.
-    const selectFirst = () =>
+    const _selectFirst = () =>
       effectService(UserApi, ({ first }) => ({ first }));
     // NB: R is UserApi here, not never — the selection keeps its requirement
     // until a provideLayer() satisfies it.
     type Selected =
-      ReturnType<typeof selectFirst> extends Effect.Effect<
+      ReturnType<typeof _selectFirst> extends Effect.Effect<
         infer A,
         infer _E,
         infer _R

@@ -25,3 +25,10 @@ export {
   mockEffectService,
   UnstubbedEffectMember,
 } from './lib/mock-effect-service';
+export {
+  asyncProcessEffect,
+  mutationEffect,
+  queryEffect,
+  type EffectLoader,
+  type EffectLoaderParams,
+} from './lib/effect-adapter';

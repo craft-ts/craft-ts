@@ -21,6 +21,13 @@
         "packageRoot": "dist/{projectRoot}"
       }
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/effect/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {

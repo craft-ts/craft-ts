@@ -34,10 +34,16 @@ import type { Effect } from 'effect';
  * the tag: no transposition, no place for the two vocabularies to drift. That
  * collapse was the most concrete argument for wave 1, and it is now cashed in.
  */
-export type EffectExceptionOf<Error> = Error extends { readonly _tag: infer Tag }
-  ? Tag extends string
-    ? CraftExceptionResult<{ _tag: Tag; scope: 'loader' }, Error>
-    : never
+export type EffectExceptionOf<Error> = Error extends unknown
+  ? CraftExceptionResult<
+      {
+        _tag: Error extends { readonly _tag: infer Tag extends string }
+          ? Tag
+          : 'EffectFailure';
+        scope: 'loader';
+      },
+      Error
+    >
   : never;
 
 /**
