@@ -115,8 +115,8 @@ export type CraftSettledExceptionsOf<Value> =
 /** The exception codes a settled read may surface. */
 export type CraftSettledCodesOf<Value> = Extract<
   CraftSettledExceptionsOf<Value>,
-  { readonly code: string }
->['code'];
+  { readonly _tag: string }
+>['_tag'];
 
 /**
  * Type-level marker surfaced by a {@link settled} call's `Yielded`, carrying the

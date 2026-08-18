@@ -26,7 +26,7 @@ const { UsersApiOnError } = craftService(
             (yield* content('Password is required'))
           ) {
             return craftException(
-              { code: 'PASSWORD_REQUIRED', scope: 'AuthApi' },
+              { _tag: 'PASSWORD_REQUIRED', scope: 'AuthApi' },
               { field: 'password' },
             );
           }

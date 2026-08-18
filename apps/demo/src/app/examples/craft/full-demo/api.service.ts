@@ -37,7 +37,7 @@ export const { ApiService } = craftService(
                   );
                   if (!deletedItem) {
                     return craftException(
-                      { code: 'UNEXPECTED_ERROR' },
+                      { _tag: 'UNEXPECTED_ERROR' },
                       { error: new Error('Item not found') },
                     );
                   }
@@ -84,7 +84,7 @@ export const { ApiService } = craftService(
         const item = list.find((dataItem) => dataItem.id === itemId);
         if (!item) {
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`failed to find the item ${itemId}`) },
           );
         }
@@ -106,7 +106,7 @@ export const { ApiService } = craftService(
         if (_updateError) {
           yield* craftSleep(5000);
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error('Api error during update') },
           );
         }

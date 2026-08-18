@@ -68,7 +68,7 @@ const { ApiService } = craftService(
         const todo = TODOS.find((t) => t.id === id);
         if (!todo)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         yield* craftSleep(500);
@@ -88,7 +88,7 @@ const { ApiService } = craftService(
         const todo = TODOS.find((t) => t.id === id);
         if (!todo)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         todo.completed = !todo.completed;
@@ -99,7 +99,7 @@ const { ApiService } = craftService(
         const index = TODOS.findIndex((t) => t.id === id);
         if (index === -1)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         const removed = TODOS.splice(index, 1)[0];

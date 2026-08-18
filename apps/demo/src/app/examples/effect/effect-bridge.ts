@@ -98,7 +98,7 @@ export function installEffectBridge(): () => void {
           // Effect discriminates on `_tag`, craft still on `code`. This single
           // line is the concrete argument for plan task 1.1; once craft moves
           // to `_tag` the mapping becomes the identity.
-          exception: craftException({ code: tag, scope: 'loader' }, error),
+          exception: craftException({ _tag: tag, scope: 'loader' }, error),
         };
       },
     );

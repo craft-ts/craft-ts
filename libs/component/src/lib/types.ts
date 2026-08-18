@@ -765,7 +765,7 @@ export type ComponentInitializationExceptions<
 > = ComponentFactoryExceptions<Factory> | ProviderExceptions<Providers>;
 
 type ComponentExceptionCodes<Exceptions> = Exceptions extends {
-  readonly code: infer Code extends string;
+  readonly _tag: infer Code extends string;
 }
   ? Code
   : never;

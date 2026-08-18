@@ -89,7 +89,7 @@ export const pendingBlockExceptionDemo = craftComponent(
         // A business failure is a value the loader returns, not a throw.
         if (params.reject) {
           return craftException(
-            { code: 'INVOICE_REJECTED' },
+            { _tag: 'INVOICE_REJECTED' },
             { reference: params.reference },
           );
         }
@@ -177,7 +177,7 @@ export const pendingBlockExceptionDemo = craftComponent(
               render: (exception) =>
                 p(
                   { class: 'pending-exception__error' },
-                  `Invoice rejected (${exception.code})`,
+                  `Invoice rejected (${exception._tag})`,
                 ),
             },
           }),

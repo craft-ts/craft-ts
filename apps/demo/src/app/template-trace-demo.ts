@@ -102,7 +102,7 @@ const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {
       throw error;
     }
     logTrace('[trace:function:error]', { name, error }, injector);
-    return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
+    return craftException({ _tag: 'UNEXPECTED_ERROR' }, { error });
   }
 };
 
@@ -126,7 +126,7 @@ function traceAsync<T>(label: string, context: unknown, next: () => T): T {
             throw error;
           }
           logTrace(`${label}:error`, { context, error }, injector);
-          return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
+          return craftException({ _tag: 'UNEXPECTED_ERROR' }, { error });
         },
       ) as T;
     }
@@ -137,7 +137,7 @@ function traceAsync<T>(label: string, context: unknown, next: () => T): T {
       throw error;
     }
     logTrace(`${label}:error`, { context, error }, injector);
-    return craftException({ code: 'UNEXPECTED_ERROR' }, { error }) as T;
+    return craftException({ _tag: 'UNEXPECTED_ERROR' }, { error }) as T;
   }
 }
 

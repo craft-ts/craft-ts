@@ -38,7 +38,7 @@ const { UsersApi } = craftService(
         const user = USERS.find((candidate) => candidate.id === id);
         if (!user)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`User ${id} not found`) },
           );
         return user;
