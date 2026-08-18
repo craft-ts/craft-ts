@@ -1,33 +1,11 @@
-fix(effect): six more silently-broken type positions, found by sweeping
+docs(effect): point the migration note at find-silent-sites
 
-Spec-program diagnostics 88 -> 70, which is EXACTLY the pre-migration
-baseline. The renames now add nothing.
+The note told users to grep. Greps for these shapes are unreliable — they
+span lines and nest — so it now points at the AST tool, which exits non-zero
+while any silent position remains.
 
-I was wrong to call the remaining 18 "type-only test assertions". Chasing
-one of them found `IsTrackedDependencyNode` testing
-`Dependency extends { scope: infer _Scope }` — dead since the rename, so
-nested missing-provider detection had stopped working. Most of the 18 were
-downstream symptoms of that and of five siblings, not test nits.
-
-So I stopped guessing and wrote the tool that should have existed first.
-find-silent-sites.mjs walks the AST for the two shapes a field rename cannot
-fail loudly on — a conditional whose `extends` clause reads the field, and an
-Extract/Exclude/Omit/Pick over a literal containing it. It found six sites
-nobody had reported:
-
-  scope  branded-component.ts   DependencyScope, IsTrackedDependencyNode
-  code   craft-route-exceptions.ts  route exception lookup by code
-  code   craft-routes.ts        RouteExceptionOutput, ExceptionCode,
-                                TypedExceptionHandlers
-
-Both sweeps now come back empty, and the two genuine leftovers (a local
-literal in craft-match.spec, an expected dependency shape in
-craft-router.spec) are fixed.
-
-Counting the four found earlier by accident, ten type positions broke
-silently across these two renames. Not one produced a diagnostic. Run this
-tool before the next field rename, not after.
-
-Every suite green; demo type-checks at 0.
+Kept the count in both places because it is the argument: ten such positions
+existed here, four found by accident over several days, the other six in
+about a second once the tool existed.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

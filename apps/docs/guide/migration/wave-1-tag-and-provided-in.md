@@ -61,16 +61,21 @@ In every case the whole library suite — 1489 tests — was green.
 
 ### What to do about it
 
-Before you run the codemod, grep your own code for the two shapes:
+Run the finder before you run the codemod, and again afterwards:
 
 ```bash
-grep -rn "extends {[^}]*\bcode\b" src
-grep -rn "Extract<[^>]*\bcode\b" src
-grep -rn "extends {[^}]*\bscope\b" src
+node node_modules/@craft-ts/dev-tools/craft-migrate-errors/find-silent-sites.mjs code src
+node node_modules/@craft-ts/dev-tools/craft-migrate-errors/find-silent-sites.mjs scope src
 ```
 
-Anything that matches must be migrated **by hand and checked by eye** — the
-codemod cannot see these, because the compiler never reports them.
+It walks the AST for the two shapes that cannot fail loudly — a conditional
+whose `extends` clause reads the field, and an `Extract`/`Exclude`/`Omit`/`Pick`
+over a literal containing it — and exits non-zero while any remain. Everything
+it lists must be migrated **by hand**: the codemod cannot see them, because the
+compiler never reports them.
+
+Ten such positions existed inside CraftTS. Four were found by accident, over
+several days. The other six took this tool about a second.
 
 And keep at least one test that asserts something must *not* compile
 (`@ts-expect-error`, or a fixture your build is supposed to reject). It is the

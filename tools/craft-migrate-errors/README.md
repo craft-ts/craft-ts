@@ -21,6 +21,7 @@ worth reading before attempting a similar rename.
 | `retag-expectations.mjs` | `toMatchObject({ code: … })` is neither an access nor a typed position. Cross-checks the value against tags the same file actually builds. |
 | `retag-docs.mjs` | Documentation. Anchored on sample syntax so prose ("source code", "existing code") is untouched. |
 | `normalize-mock-http.mjs` | One file, `mock-http-request-for-route.spec.ts`, where both meanings live in one object tree and only structure can separate them. |
+| `find-silent-sites.mjs` | **Run this first.** Lists the type positions a rename breaks without any diagnostic. Exits non-zero while any remain. |
 
 ## Why none of this is a sed
 
@@ -60,9 +61,13 @@ the framework's headline guarantee was **switched off while every library test
 passed**. What caught it was a single dev-tools integration test that compiles
 negative fixtures and asserts they *fail* to compile.
 
-Before trusting a green build after a discriminant rename, grep for those two
-shapes. And keep at least one test that asserts something must NOT compile —
-it is the only kind that notices a guarantee going missing.
+Ten such positions existed here. Four were found by accident over several
+days, each after the capability had already been dead for a while; the other
+six took `find-silent-sites.mjs` about a second once it existed.
+
+Run that tool before a rename and after it. And keep at least one test that
+asserts something must NOT compile — it is the only kind that notices a
+guarantee going missing.
 
 ## Runtime cost
 
