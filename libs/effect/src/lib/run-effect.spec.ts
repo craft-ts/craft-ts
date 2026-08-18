@@ -68,7 +68,7 @@ describe('installCraftEffectBridge', () => {
       expect(step.kind).toBe('shortCircuit');
       if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
       const exception = step.exception as AnyCraftException;
-      expect(exception.code).toBe('UserNotFound');
+      expect(exception._tag).toBe('UserNotFound');
       expect((exception.payload as UserNotFound).userId).toBe('u-1');
     });
 

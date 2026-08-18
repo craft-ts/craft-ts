@@ -30,7 +30,7 @@ export function withProviders<
 
 export type CatchTagHandlers<Codes extends string> = {
   readonly [Code in Codes]: (
-    exception: AnyCraftException & { readonly code: Code },
+    exception: AnyCraftException & { readonly _tag: Code },
   ) => Generator<unknown, void, unknown>;
 };
 

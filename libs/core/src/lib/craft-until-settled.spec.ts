@@ -201,7 +201,7 @@ describe('craftUntilSettled (HTTP await path)', () => {
     expect(outcome.kind).toBe('thrownError');
     expect(
       (outcome as { kind: 'thrownError'; error: AnyCraftException }).error,
-    ).toMatchObject({ code: 'HttpError', scope: 'HttpClient' });
+    ).toMatchObject({ _tag: 'HttpError', scope: 'HttpClient' });
   });
 
   it('recovers a business exception through .pipe(catchTag(...))', async () => {
@@ -281,7 +281,7 @@ describe('craftUntilSettled (resource branch)', () => {
       expect.unreachable('expected a CraftGenShortCircuit to be thrown');
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
-      expect((error as CraftGenShortCircuit).exception.code).toBe(
+      expect((error as CraftGenShortCircuit).exception._tag).toBe(
         'NOT_ALLOWED',
       );
     }

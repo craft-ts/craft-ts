@@ -70,6 +70,7 @@ const ACTIONABLE = new Set([
   'TS2322',
   'TS2352',
   'TS2345',
+  'TS2769', // no overload matches — how a stale discriminant ARGUMENT shows up
 ]);
 
 function runTsc() {
@@ -171,6 +172,22 @@ function discriminantIdentifiers(node) {
       push(current, false);
       return;
     }
+    // The discriminant passed as an ARGUMENT:
+    // `matchBlock.exhaustive(value, 'code', handlers)` and its craftMatch twin.
+    // Narrow on purpose — second argument of a `.exhaustive` call and nothing
+    // else — so `{ source: 'code' }` and other string uses stay untouched.
+    if (
+      ts.isStringLiteral(current) &&
+      current.text === 'code' &&
+      current.parent &&
+      ts.isCallExpression(current.parent) &&
+      current.parent.arguments[1] === current &&
+      ts.isPropertyAccessExpression(current.parent.expression) &&
+      current.parent.expression.name.text === 'exhaustive'
+    ) {
+      push(current, false);
+      return;
+    }
   };
 
   const visit = (current) => {
@@ -184,6 +201,11 @@ function discriminantIdentifiers(node) {
   let ancestor = node;
   for (let depth = 0; depth < 4 && ancestor && hits.length === 0; depth += 1) {
     consider(ancestor);
+    // A stale discriminant ARGUMENT reports at the callee, not at the string,
+    // so look at the call's arguments too.
+    if (ts.isCallExpression(ancestor)) {
+      for (const argument of ancestor.arguments) consider(argument);
+    }
     ancestor = ancestor.parent;
   }
 

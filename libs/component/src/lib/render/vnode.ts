@@ -1068,8 +1068,8 @@ type CraftNodeDirectSettledExceptions<Value> =
       | CraftSettledCodesOf<Value>
         | Extract<
             ExtractCraftGenExceptions<ChildBindingYielded<Value>>,
-            { readonly code: string }
-          >['code']
+            { readonly _tag: string }
+          >['_tag']
         | (Value extends CraftNodeSettledExceptionsCarrier<infer Codes>
             ? string extends Codes
               ? never

@@ -71,7 +71,7 @@ describe('catchTag', () => {
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
       if (isCraftGenShortCircuit(error)) {
-        expect(error.exception.code).toBe('B');
+        expect(error.exception._tag).toBe('B');
       }
     }
   });
@@ -123,7 +123,7 @@ describe('catchTag', () => {
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
       if (isCraftGenShortCircuit(error)) {
-        expect(error.exception.code).toBe('ESCALATED');
+        expect(error.exception._tag).toBe('ESCALATED');
       }
     }
   });
@@ -189,7 +189,7 @@ describe('retry', () => {
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
       if (isCraftGenShortCircuit(error)) {
-        expect(error.exception.code).toBe('A');
+        expect(error.exception._tag).toBe('A');
       }
     }
   });

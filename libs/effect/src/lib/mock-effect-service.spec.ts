@@ -66,7 +66,7 @@ describe('mockEffectService', () => {
 
     expect(step.kind).toBe('shortCircuit');
     if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
-    expect(step.exception.code).toBe('NotFound');
+    expect(step.exception._tag).toBe('NotFound');
   });
 
   it('fails loudly when a test touches an unstubbed member', async () => {

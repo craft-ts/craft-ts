@@ -128,7 +128,7 @@ describe('0.1-b — the runtime still agrees with the types', () => {
 
     expect(step.kind).toBe('shortCircuit');
     if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
-    expect(step.exception.code).toBe('UserNotFound');
+    expect(step.exception._tag).toBe('UserNotFound');
   });
 
   it('still resumes with the success value', async () => {

@@ -16,14 +16,14 @@ export const CATCH_BLOCK_DIRECTIVE = Symbol('craft-catch-block-directive');
 export type CatchBlockPosition = 'before' | 'after';
 
 export class CraftUnhandledExceptionError extends Error {
-  readonly code: string;
+  readonly _tag: string;
 
   constructor(exception: AnyCraftException) {
     super(
-      `Unhandled Craft exception "${exception.code}" escaped every block boundary.`,
+      `Unhandled Craft exception "${exception._tag}" escaped every block boundary.`,
     );
     this.name = 'CraftUnhandledExceptionError';
-    this.code = exception.code;
+    this._tag = exception._tag;
   }
 }
 

@@ -82,7 +82,7 @@ describe('effectService', () => {
 
     expect(step.kind).toBe('shortCircuit');
     if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
-    expect(step.exception.code).toBe('NotFound');
+    expect(step.exception._tag).toBe('NotFound');
   });
 
   it('KEEPS GENERIC MEMBERS GENERIC through the selection', () => {

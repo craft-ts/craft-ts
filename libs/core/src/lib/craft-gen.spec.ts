@@ -60,7 +60,7 @@ describe('craftGen', () => {
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
       if (isCraftGenShortCircuit(error)) {
-        expect(error.exception.code).toBe('FORBIDDEN');
+        expect(error.exception._tag).toBe('FORBIDDEN');
         expect(error.exception.payload).toEqual({ reason: 'role' });
       }
     }

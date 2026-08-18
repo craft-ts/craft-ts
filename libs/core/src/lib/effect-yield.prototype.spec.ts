@@ -76,7 +76,7 @@ describe('wave-0 prototype: yield* Effect in the craft pump', () => {
 
       expect(step.kind).toBe('shortCircuit');
       if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
-      expect(step.exception.code).toBe('UserNotFound');
+      expect(step.exception._tag).toBe('UserNotFound');
       expect(step.exception.payload).toBeInstanceOf(UserNotFound);
       expect((step.exception.payload as UserNotFound).userId).toBe('u-1');
     });
@@ -148,7 +148,7 @@ describe('wave-0 prototype: yield* Effect in the craft pump', () => {
         const raised = craftUse(
           queryRef.exception(),
         ) as unknown as AnyCraftException;
-        expect(raised.code).toBe('UserNotFound');
+        expect(raised._tag).toBe('UserNotFound');
         expect((raised.payload as UserNotFound).userId).toBe('u-42');
         expect(craftUse(queryRef.value())).toBeUndefined();
       });

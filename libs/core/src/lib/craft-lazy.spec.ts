@@ -78,7 +78,7 @@ describe('craftLazy (generator protocol)', () => {
       expect.unreachable('expected a CraftGenShortCircuit to be thrown');
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
-      expect((error as CraftGenShortCircuit).exception.code).toBe(
+      expect((error as CraftGenShortCircuit).exception._tag).toBe(
         CRAFT_LAZY_LOAD_ERROR_CODE,
       );
     }

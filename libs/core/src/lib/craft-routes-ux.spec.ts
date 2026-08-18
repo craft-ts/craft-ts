@@ -124,7 +124,7 @@ describe('route handleExceptions (third argument)', () => {
           noop,
         }) {
           // `exception.code` is narrowed to the literal, not `any`.
-          const code: string = exception.code;
+          const code: string = exception._tag;
           void code;
           return noop();
         }),

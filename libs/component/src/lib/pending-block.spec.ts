@@ -202,7 +202,7 @@ describe('pendingBlock', () => {
       function* () {
         const users = yield* query('users', {
           params: () =>
-            shouldFail() ? craftException({ code: 'MISSING_USER_ID' }) : true,
+            shouldFail() ? craftException({ _tag: 'MISSING_USER_ID' }) : true,
           loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
         });
         const firstName = craftComputed('firstName', function* () {
@@ -287,7 +287,7 @@ describe('pendingBlock type-level contract', () => {
       readonly settledValue: CraftSettledSignal<
         string,
         'users',
-        CraftExceptionResult<{ code: 'MISSING_USER_ID' }, undefined>
+        CraftExceptionResult<{ _tag: 'MISSING_USER_ID' }, undefined>
       >;
     };
   } => ({ users: { settledValue: (() => '') as never } });
