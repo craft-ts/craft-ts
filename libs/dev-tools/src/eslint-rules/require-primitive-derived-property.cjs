@@ -47,7 +47,7 @@ module.exports = {
         }
 
         const computation = getComputationFunction(node, computedCall);
-        if (!computation || computation.generator) {
+        if (!computation) {
           return;
         }
 
@@ -66,13 +66,18 @@ module.exports = {
           return;
         }
 
-        const fix = createFix({
-          sourceCode,
-          computedCall: node,
-          computedName: declaredName,
-          computation,
-          dependency,
-        });
+        // Generator computations need a human refactor: their yieldable reads
+        // must become insertion-local reads, so the plain computed autofix
+        // cannot safely rewrite them.
+        const fix = computation.generator
+          ? undefined
+          : createFix({
+              sourceCode,
+              computedCall: node,
+              computedName: declaredName,
+              computation,
+              dependency,
+            });
 
         context.report({
           node,

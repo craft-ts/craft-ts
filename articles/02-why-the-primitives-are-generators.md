@@ -156,8 +156,6 @@ I would rather you hear these from me than discover them on day two.
 
 **A primitive invocation is single-use.** Each call produces one generator, to be consumed exactly once. Store one and `yield*` it twice and you get a bug that reads like a reactivity problem but is not.
 
-**You cannot mix in `inject()`.** It works at runtime, and that is precisely the trap: the dependency is invisible to every check that makes this worth doing. The graph is silently wrong, the test register is silently incomplete, and nothing complains. There is a `craft-ts/no-angular-inject` ESLint rule for exactly this reason, and if you adopt the library you should turn it on immediately.
-
 **Angular classes are still Angular classes.** In a `@Component` class there is no generator to yield from, so `craftUse(...)` drives a primitive from a class field instead. It works — it is the interop path — but a class field is the end of the graph, so there is nothing left to track past that point. Interop, not a second way of doing things.
 
 ## Where the idea comes from

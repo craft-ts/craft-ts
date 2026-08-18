@@ -124,6 +124,7 @@ This repository is an npm workspace managed with Nx.
 apps/
 ├── demo/          Angular application used for examples and integration checks
 │                  (`architecture/` — static graph Vitest suite)
+├── demo-effect/   Dedicated EffectTS + CraftTS examples application
 └── docs/          VitePress documentation and documentation tests
 libs/
 ├── core/          Published @craft-ts/core package
@@ -153,6 +154,12 @@ Start the Angular demo:
 
 ```bash
 npx nx serve demo
+```
+
+Start the dedicated EffectTS + CraftTS demo:
+
+```bash
+npx nx serve demo-effect
 ```
 
 La commande lance toutes les routes définies dans

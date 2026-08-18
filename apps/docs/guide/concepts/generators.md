@@ -156,10 +156,6 @@ can safely reuse and evolve".
 **A primitive invocation is single-use.** Each call produces one generator, to be
 consumed exactly once — don't store one and `yield*` it twice.
 
-**Mixing `inject` into a craft factory.** It works at runtime and is invisible to
-every check that makes this library worth using. The
-`craft-ts/no-angular-inject` ESLint rule exists for this.
-
 ## See Also
 
 - [Route guards](/guide/routing/guards)

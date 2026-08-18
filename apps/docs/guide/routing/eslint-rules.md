@@ -63,7 +63,6 @@ What each rule does:
 
 - `craft-ts/brand-angular-gen-deps-required`: generates a missing `GenDeps_*` alias for Angular components, directives, and pipes through the ESLint Quick Fix
 - `craft-ts/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync through the same ESLint Quick Fix flow
-- `craft-ts/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
 - `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires Angular Signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
@@ -170,8 +169,6 @@ div({ class: isActiveClass });
 Literal and otherwise static values are still allowed, as are reads performed
 from DOM events and `onXxx` output callbacks. Because the rule is type-aware,
 the ESLint parser must use `projectService: true` or a TypeScript `project`.
-
-If your project is adopting this progressively, enable both `craft-ts/brand-angular-gen-deps-required` and `craft-ts/brand-angular-deps-match` so the same Quick Fix can generate missing aliases and refresh existing ones. `craft-ts/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
 
 ### Yield insertion writes from generator methods
 

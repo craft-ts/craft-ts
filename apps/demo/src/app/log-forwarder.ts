@@ -161,11 +161,8 @@ export function provideLogForwarding(): Provider {
     provide: SERVICE_RUNTIME_OVERRIDES,
     useFactory: (): ReadonlyMap<string, ServiceRuntimeOverride> => {
       // Bootstrap boundary: the forwarder lifetime follows the app injector.
-      // eslint-disable-next-line craft-ts/no-angular-inject
       const endpoint = inject(LOG_SERVER_URL);
-      // eslint-disable-next-line craft-ts/no-angular-inject
       const clientId = inject(FUNCTION_REGISTRY_CLIENT_ID);
-      // eslint-disable-next-line craft-ts/no-angular-inject
       const destroyRef = inject(DestroyRef);
 
       const forwarder = createLogForwarder({

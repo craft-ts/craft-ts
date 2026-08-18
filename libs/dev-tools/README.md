@@ -486,7 +486,6 @@ Notes:
 
 - the ESLint Quick Fix can generate a missing alias or refresh an existing one, but only for the current file
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`
-- `craft-ts/no-angular-inject` now targets raw Angular `inject()` only
 - `craft-ts/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
 - `craft-ts/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`

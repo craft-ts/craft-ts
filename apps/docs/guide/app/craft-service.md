@@ -200,10 +200,6 @@ compiles.
 **Returning the whole world.** What a service returns is its API. Return the
 narrow thing; consumers that need more can yield more.
 
-**Calling `inject()` inside a craft factory.** It works and it is invisible to
-every check that makes this worthwhile. The `craft-ts/no-angular-inject` rule
-exists for exactly this.
-
 ## See Also
 
 - [Service scopes](/guide/app/service-scopes) — the one decision to make

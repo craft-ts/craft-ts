@@ -66,7 +66,6 @@ Use `ProvidedValues` only as a temporary legacy bridge for direct Angular tokens
 
 Ensure these rules are enabled for migrated projects:
 
-- `craft-ts/no-angular-inject`: blocks Angular `inject(...)` and points toward the generated `X()` service helper.
 - `craft-ts/prefer-craft-service`: blocks new `@Injectable` / `@Service` app services.
 - `craft-ts/prefer-craft-http-client`: keeps HTTP access inside craft-compatible APIs.
 - `craft-ts/brand-angular-gen-deps-required` and `craft-ts/brand-angular-deps-match`: keep `GenDeps_*` current.

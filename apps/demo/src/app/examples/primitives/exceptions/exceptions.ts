@@ -114,23 +114,23 @@ const ExceptionsComponent = craftComponent(
           return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
         }),
       },
-      ({ resource }) => ({
+      ({ resource, exceptions }) => ({
         hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        userExceptionLoader: craftComputed(
+          'userExceptionLoader',
+          function* () {
+            return (yield* exceptions()).loader;
+          },
+        ),
+        userIsLoading: craftComputed('userIsLoading', function* () {
+          const status = yield* resource.status();
+          return status === 'loading' || status === 'reloading';
+        }),
       }),
     );
-    const userExceptionLoader = craftComputed(
-      'userExceptionLoader',
-      function* () {
-        return (yield* userQuery.exceptions()).loader;
-      },
-    );
-    const userIsLoading = craftComputed('userIsLoading', function* () {
-      const status = yield* userQuery.status();
-      return status === 'loading' || status === 'reloading';
-    });
-    return { scenario, userQuery, userExceptionLoader, userIsLoading };
+    return { scenario, userQuery };
   },
-  ({ scenario, userQuery, userExceptionLoader, userIsLoading }) => {
+  ({ scenario, userQuery }) => {
     return div([
       heading(
         function* () {
@@ -172,7 +172,7 @@ const ExceptionsComponent = craftComponent(
         ),
       ]),
       ifBlock(
-        userIsLoading,
+        userQuery.userIsLoading,
         () =>
           div(
             {
@@ -211,7 +211,7 @@ const ExceptionsComponent = craftComponent(
           ]),
         () => [
           matchBlock.exhaustive(
-            userExceptionLoader as unknown as () => UserExceptionLoader,
+            userQuery.userExceptionLoader as unknown as () => UserExceptionLoader,
             '_tag',
             {
               UserNotFoundException: () =>

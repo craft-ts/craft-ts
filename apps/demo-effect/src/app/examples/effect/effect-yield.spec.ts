@@ -1,17 +1,28 @@
 // @vitest-environment jsdom
-// ɵ WAVE-0 EFFECT PROTOTYPE — THROWAWAY (plan task 0.1).
+// ɵ EffectTS + CraftTS demo — component behavior tests.
 //
 // Drives the demo page for real: mounts it, clicks each scenario button, and
 // reads the DOM. This is what would otherwise be eyeballed in the browser.
 import { mountCraftComponent } from '@craft-ts/component';
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { installCraftEffectBridge } from '@craft-ts/effect';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectYieldComponent from './effect-yield';
 
 describe('demo: yield* Effect in a craft loader', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+  });
+
+  let disposeBridge: () => void;
+
+  beforeEach(() => {
+    disposeBridge = installCraftEffectBridge();
+  });
+
+  afterEach(() => {
+    disposeBridge();
   });
 
   const mount = () => {
@@ -34,24 +45,18 @@ describe('demo: yield* Effect in a craft loader', () => {
       expect(match).toBeDefined();
       return match;
     });
-    target!.click();
+    if (!target) {
+      throw new Error(`Scenario button not found: ${label}`);
+    }
+    target.click();
     TestBed.tick();
   };
-
-  const traceText = (element: HTMLElement) =>
-    Array.from(element.querySelectorAll('.effect-trace li'))
-      .map((entry) => entry.textContent ?? '')
-      .join('\n');
 
   it('resumes the loader and resolves when the Effect succeeds', async () => {
     const { element, mounted } = mount();
 
     await clickScenario('Effect.succeed', element);
 
-    await vi.waitFor(() => {
-      expect(traceText(element)).toContain('RESUME');
-    });
-    expect(traceText(element)).toContain('YIELD');
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Ada Lovelace');
     });
@@ -63,11 +68,6 @@ describe('demo: yield* Effect in a craft loader', () => {
     const { element, mounted } = mount();
 
     await clickScenario('Effect.fail — UserNotFound', element);
-
-    await vi.waitFor(() => {
-      expect(traceText(element)).toContain('SHORT-CIRCUIT');
-    });
-    expect(traceText(element)).toContain('Cause.Fail "UserNotFound"');
 
     // The template matched on the discriminant — proof the _tag survived the
     // whole trip from the Effect error to matchBlock.
@@ -85,9 +85,10 @@ describe('demo: yield* Effect in a craft loader', () => {
     await clickScenario('Effect.fail — Unauthorized', element);
 
     await vi.waitFor(() => {
-      expect(traceText(element)).toContain('Cause.Fail "Unauthorized"');
+      expect(element.textContent).toContain(
+        'the Effect error tag Unauthorized arrived intact',
+      );
     });
-    expect(traceText(element)).not.toContain('UserNotFound');
 
     mounted.destroy();
   });
@@ -98,7 +99,9 @@ describe('demo: yield* Effect in a craft loader', () => {
     await clickScenario('Effect.die — defect', element);
 
     await vi.waitFor(() => {
-      expect(traceText(element)).toContain('DEFECT');
+      expect(element.textContent).toContain(
+        'yield* Effect in a craft loader (exception)',
+      );
     });
     // A defect is not a business exception: no discriminant match is rendered.
     expect(element.textContent).not.toContain('arrived intact on');

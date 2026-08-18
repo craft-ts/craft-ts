@@ -213,14 +213,6 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
   {
-    path: 'effect-yield',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/effect/effect-yield')).then(
-        ({ default: component }) => component,
-      ),
-    ),
-  },
-  {
     path: 'craft/query/:userId',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/craft/query/query')).then(
@@ -412,7 +404,6 @@ type DemoRoutePath =
   | 'pixel-art-matrix'
   | 'exceptions'
   | 'exception-query-params'
-  | 'effect-yield'
   | 'craft/query/:userId'
   | 'craft/mutation/:userId'
   | 'craft/list-with-pagination'
@@ -641,14 +632,6 @@ type _CanRunExceptionQueryParams = CanRun<
     (typeof import('./examples/primitives/exceptions/exception-query-params'))['default'],
     never,
     'path: "exception-query-params"'
-  >
->;
-
-type _CanRunEffectYield = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/effect/effect-yield'))['default'],
-    never,
-    'path: "effect-yield"'
   >
 >;
 

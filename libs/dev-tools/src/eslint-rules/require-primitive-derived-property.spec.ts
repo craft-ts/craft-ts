@@ -54,6 +54,26 @@ describe('require-primitive-derived-property', () => {
     expect(messages).toHaveLength(1);
   });
 
+  it('reports generator craftComputed values derived from one primitive', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComponent, craftComputed, query } from '@craft-ts/core';
+
+        const Demo = craftComponent('Demo', {}, function* () {
+          const userQuery = yield* query('userQuery', {});
+          const total = craftComputed('total', function* () {
+            return (yield* userQuery.value())?.length ?? 0;
+          });
+          return { userQuery, total };
+        }, () => null);
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'total' only depends on the 'userQuery' primitive in the same Craft entity. Define it in that primitive's insertion instead of creating a separate computed.",
+    ]);
+  });
+
   it('also reports values derived in a craft service', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

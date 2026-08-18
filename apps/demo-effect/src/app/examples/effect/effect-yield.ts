@@ -1,10 +1,9 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 // ---------------------------------------------------------------------------
-// ɵ WAVE-0 EFFECT PROTOTYPE — THROWAWAY (plan task 0.1).
+// ɵ EffectTS + CraftTS demo — yield* Effect in a Craft loader.
 //
 // What this page shows: a craft `query` whose loader is a plain generator that
-// does `yield* someEffect`. Pick a scenario, read the trace panel — every line
-// is a real step of the craft program pump, pushed by the bridge itself.
+// does `yield* runEffect(someEffect)`. The Effect bridge is installed once at
+// application startup, so the loader stays focused on the domain operation.
 //
 // The three scenarios are three different channels, and they are NOT
 // interchangeable:
@@ -17,24 +16,17 @@ import {
   button,
   craftComponent,
   div,
-  each,
   heading,
   ifBlock,
-  li,
   matchBlock,
   p,
   span,
   strong,
-  ul,
 } from '@craft-ts/component';
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComputed, query, state } from '@craft-ts/core';
+import { runEffect } from '@craft-ts/effect';
 import { Data, Effect } from 'effect';
-import {
-  installEffectBridge,
-  onEffectTrace,
-  resetEffectTrace,
-  type EffectTraceEntry,
-} from './effect-bridge';
 
 // Effect's own tagged errors. Nothing craft-specific about them — that is the
 // point: they come from a domain layer that has never heard of craft.
@@ -55,7 +47,9 @@ type EffectException = {
 type User = { id: string; name: string; email: string };
 
 // The "domain layer": pure Effect, zero craft.
-function loadUser(scenario: Scenario) {
+function loadUser(
+  scenario: Scenario,
+): Effect.Effect<User, UserNotFound | Unauthorized> {
   switch (scenario) {
     case 'not-found':
       return Effect.fail(new UserNotFound({ userId: 'u-42' }));
@@ -125,27 +119,6 @@ const EffectYieldComponent = craftComponent(
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
-      :scope .effect-trace { margin: 0; padding: 0; list-style: none; }
-      :scope .effect-trace li {
-        display: flex;
-        gap: 0.85rem;
-        align-items: baseline;
-        padding: 0.4rem 0;
-        border-bottom: 1px dashed #e2e8f0;
-        font-size: 0.85rem;
-        line-height: 1.45;
-      }
-      :scope .effect-trace li:last-child { border-bottom: none; }
-      :scope .effect-step {
-        flex: none;
-        min-width: 9.5rem;
-        color: #1e40af;
-        font-family: ui-monospace, monospace;
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
-      }
-      :scope .effect-detail { color: #334155; }
-      :scope .effect-empty { margin: 0; color: #94a3b8; font-size: 0.85rem; }
       :scope .effect-outcome { margin: 0.4rem 0; line-height: 1.5; }
       :scope .effect-gap {
         margin-top: 1.25rem;
@@ -170,19 +143,8 @@ const EffectYieldComponent = craftComponent(
     `,
   },
   function* () {
-    installEffectBridge();
-
-    const traceEntries = yield* state(
-      'traceEntries',
-      [] as readonly EffectTraceEntry[],
-      ({ set }) => ({
-        replace: (value: readonly EffectTraceEntry[]) => set(value),
-      }),
-    );
     // `attempt` is a re-run nonce: clicking the scenario you are already on
-    // still changes the params, so the loader always runs and the trace always
-    // refills. Without it, re-picking the current scenario would clear the
-    // trace and leave it empty.
+    // still changes the params, so the loader always runs.
     const request = yield* state(
       'request',
       { scenario: 'success' as Scenario, attempt: 0 },
@@ -192,59 +154,54 @@ const EffectYieldComponent = craftComponent(
       }),
     );
 
-    onEffectTrace((entries) => {
-      void traceEntries.replace(entries);
-    });
-
     const userQuery = yield* query(
       'userQuery',
       {
         params: request,
-        // A plain craft generator. The only unusual line is the `yield*`, and
-        // it reads exactly like every other craft yield.
+        // A plain craft generator. `runEffect` is the only adapter needed at
+        // the boundary between the Effect domain layer and CraftTS.
         loader: function* ({ params }) {
-          const user = yield* loadUser((params as { scenario: Scenario }).scenario);
-          return user as User;
+          return yield* runEffect(loadUser(params.scenario));
         },
       },
-      ({ resource }) => ({
+      ({ resource, exceptions }) => ({
         hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        userExceptionLoader: craftComputed(
+          'userExceptionLoader',
+          function* () {
+            return (yield* exceptions()).loader;
+          },
+        ),
+        userIsLoading: craftComputed('userIsLoading', function* () {
+          const status = yield* resource.status();
+          return status === 'loading' || status === 'reloading';
+        }),
+        userName: craftComputed('userName', function* () {
+          const user = (yield* resource.value()) as User | undefined;
+          return user?.name ?? '…';
+        }),
       }),
     );
 
-    const userExceptionLoader = craftComputed(
-      'userExceptionLoader',
-      function* () {
-        return (yield* userQuery.exceptions()).loader;
-      },
-    );
-    const userIsLoading = craftComputed('userIsLoading', function* () {
-      const status = yield* userQuery.status();
-      return status === 'loading' || status === 'reloading';
-    });
-
-    const run = function* (next: Scenario) {
-      resetEffectTrace();
-      yield* request.run(next);
-    };
-
     return {
       request,
-      run,
-      traceEntries,
       userQuery,
-      userExceptionLoader,
-      userIsLoading,
     };
   },
-  ({ run, traceEntries, userQuery, userExceptionLoader, userIsLoading }) => {
+  ({
+    request,
+    userQuery,
+  }) => {
     return div([
       heading(function* () {
+        // `heading` is itself the reactive binding boundary for this title.
+        // The rule cannot infer that through the helper's generator overload.
+        // eslint-disable-next-line craft-ts/require-reactive-template-bindings
         return `yield* Effect in a craft loader (${yield* userQuery.status()})`;
       }),
       p(
         { class: 'effect-intro' },
-        'The loader below is an ordinary craft generator. It yields an Effect built by a domain layer that knows nothing about craft. Pick a scenario and read the trace: those lines are the actual steps of the craft program pump.',
+        'The loader below is an ordinary craft generator. It yields an Effect built by a domain layer that knows nothing about craft. Pick a scenario and inspect how success, typed failures, and defects reach CraftTS.',
       ),
 
       div({ class: 'effect-actions' }, [
@@ -253,7 +210,7 @@ const EffectYieldComponent = craftComponent(
           {
             type: 'button',
             *click() {
-              yield* run('success');
+              yield* request.run('success');
             },
           },
           'Effect.succeed',
@@ -263,7 +220,7 @@ const EffectYieldComponent = craftComponent(
           {
             type: 'button',
             *click() {
-              yield* run('not-found');
+              yield* request.run('not-found');
             },
           },
           'Effect.fail — UserNotFound',
@@ -273,7 +230,7 @@ const EffectYieldComponent = craftComponent(
           {
             type: 'button',
             *click() {
-              yield* run('unauthorized');
+              yield* request.run('unauthorized');
             },
           },
           'Effect.fail — Unauthorized',
@@ -283,7 +240,7 @@ const EffectYieldComponent = craftComponent(
           {
             type: 'button',
             *click() {
-              yield* run('defect');
+              yield* request.run('defect');
             },
           },
           'Effect.die — defect',
@@ -291,46 +248,20 @@ const EffectYieldComponent = craftComponent(
       ]),
 
       div({ class: 'effect-panel' }, [
-        p({ class: 'effect-panel-title' }, 'What the pump did'),
-        ul(
-          { class: 'effect-trace' },
-          each(
-            traceEntries,
-            {
-              track: (entry: EffectTraceEntry) => entry.id,
-              empty: () => p({ class: 'effect-empty' }, 'Pick a scenario above.'),
-            },
-            (entry) =>
-              li([
-                span({ class: 'effect-step' }, function* () {
-                  return (yield* entry()).label;
-                }),
-                span({ class: 'effect-detail' }, function* () {
-                  return (yield* entry()).detail;
-                }),
-              ]),
-          ),
-        ),
-      ]),
-
-      div({ class: 'effect-panel' }, [
         p({ class: 'effect-panel-title' }, 'What craft ended up with'),
-        ifBlock(userIsLoading, () => p({ class: 'effect-outcome' }, 'Loading…')),
+        ifBlock(userQuery.userIsLoading, () =>
+          p({ class: 'effect-outcome' }, 'Loading…'),
+        ),
         ifBlock(
           userQuery.hasUser,
           () =>
             p({ class: 'effect-outcome' }, [
               strong('Resolved: '),
-              function* () {
-                // `hasUser` can still be true for one tick while the value has
-                // already been cleared by a reload — read defensively.
-                const user = (yield* userQuery.value()) as User | undefined;
-                return user?.name ?? '…';
-              },
+              userQuery.userName,
             ]),
           () => [
             matchBlock.exhaustive(
-              userExceptionLoader as unknown as () => EffectException,
+              userQuery.userExceptionLoader as unknown as () => EffectException,
               '_tag',
               {
                 UserNotFound: () =>
@@ -364,20 +295,14 @@ const EffectYieldComponent = craftComponent(
       ]),
 
       div({ class: 'effect-gap' }, [
-        strong('What this page still does the old way. '),
-        'The loader above uses a bare ',
-        span({ class: 'mono' }, 'yield* effect'),
-        ', which works at runtime but declares nothing to the type system: ',
-        span({ class: 'mono' }, 'userQuery.exception()'),
-        ' is statically ',
-        span({ class: 'mono' }, 'undefined'),
-        ' even though an exception is provably sitting in it — which is why the ',
-        span({ class: 'mono' }, 'matchBlock'),
-        ' above needs a cast. Wrapping the yield in ',
+        strong('The application-level bridge. '),
+        'The Effect bridge is installed once in ',
+        span({ class: 'mono' }, 'app.config.ts'),
+        '. Each loader only wraps its boundary yield with ',
         span({ class: 'mono' }, 'runEffect(...)'),
-        ' from ',
-        span({ class: 'mono' }, '@craft-ts/effect'),
-        ' closes that: the error tags then reach craft\'s exception channel at compile time, and a route that forgets one no longer compiles. The bare form is kept here on purpose, to show the difference.',
+        ': ',
+        span({ class: 'mono' }, 'userQuery.exception()'),
+        " receives Effect's typed failures without a local trace hook, provider, or adapter object. The domain function remains pure Effect code.",
       ]),
     ]);
   },

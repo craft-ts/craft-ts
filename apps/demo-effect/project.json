@@ -1,0 +1,84 @@
+{
+  "name": "demo-effect",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/demo-effect/src",
+  "tags": [],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "cwd": "apps/demo-effect",
+        "command": "tsgo -p tsconfig.app.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.app.json",
+        "{projectRoot}/src/**/*.ts",
+        "!{projectRoot}/src/**/*.spec.ts",
+        "!{projectRoot}/src/**/*.test.ts"
+      ],
+      "cache": true
+    },
+    "build-local-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/effect/tsconfig.lib.json libs/component/tsconfig.lib.json --pretty false"
+      },
+      "cache": false
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo-effect",
+        "command": "tsgo -p tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/src/**/*.d.ts"
+      ],
+      "cache": true
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/demo-effect"],
+      "options": {
+        "command": "npx vite build --config apps/demo-effect/vite.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/demo-effect/vite.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/demo-effect/vite.config.ts --mode development"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "command": "npx vite --config apps/demo-effect/vite.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs apps/demo-effect/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    }
+  }
+}

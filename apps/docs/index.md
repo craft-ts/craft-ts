@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: '@craft-ts/core'
+  name: '@craft-ts'
   text: 'Safe AI-first APP, by construction.'
   tagline: Fine-grained reactivity. Declare. Yield. Derive. Compile — no surprises.
 

@@ -41,7 +41,6 @@ export function ensureFunctionRegistryEntry(
   thisArg: unknown,
   runtimeContext: PrimitiveMethodRuntimeContext | undefined,
 ): string {
-  // eslint-disable-next-line craft-ts/no-angular-inject
   const hostTags = ɵinject(HOST_TAG_LIST);
   const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
   const ancestry = hostTags.slice(0, -1);
@@ -51,9 +50,7 @@ export function ensureFunctionRegistryEntry(
   }
 
   // Wrapper boundary: retain the original scoped injector for remote replay.
-  // eslint-disable-next-line craft-ts/no-angular-inject
   const destroyRef = inject(DestroyRef);
-  // eslint-disable-next-line craft-ts/no-angular-inject
   const injector = inject(Injector);
   const cleanup = registerFunctionEntry(
     hostName,
@@ -80,7 +77,6 @@ export function ensureFunctionRegistryEntry(
 export function ensureResourceRegistryEntry(
   resourceContext: PrimitiveResourceRuntimeContext,
 ): string {
-  // eslint-disable-next-line craft-ts/no-angular-inject
   const hostTags = ɵinject(HOST_TAG_LIST);
   const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
   const ancestry = hostTags.slice(0, -1);
@@ -91,7 +87,6 @@ export function ensureResourceRegistryEntry(
 
   // Primitive value boundary: expose the live primitive instance for dev-only MCP
   // reads and mutations.
-  // eslint-disable-next-line craft-ts/no-angular-inject
   const destroyRef = inject(DestroyRef);
   const cleanup = registerResourceEntry(hostName, ancestry, resourceContext);
   destroyRef.onDestroy(cleanup);
@@ -101,15 +96,11 @@ export function ensureResourceRegistryEntry(
 export const provideMcpExperimentation = () => [
   provideAppInitializer(() => {
     // Bootstrap boundary: the bridge lifetime follows the application injector.
-    // eslint-disable-next-line craft-ts/no-angular-inject
     const destroyRef = inject(DestroyRef);
-    // eslint-disable-next-line craft-ts/no-angular-inject
     const injector = inject(Injector);
     const stopBridge = startFunctionRegistryBridge({
       injector,
-      // eslint-disable-next-line craft-ts/no-angular-inject
       url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
-      // eslint-disable-next-line craft-ts/no-angular-inject
       clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
       getPageInfo: () =>
         runInInjectionContext(injector, () =>
