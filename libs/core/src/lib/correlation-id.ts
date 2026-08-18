@@ -4,6 +4,7 @@ import {
   Injector,
   InjectionToken,
   signal,
+  untracked,
   type Signal,
 } from './host/craft-compat';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
@@ -133,11 +134,15 @@ export function* CorrelationId(): Generator<
     scope: 'function' as const,
     resolve: (injector: Injector) => {
       const service = injector.get(CORRELATION_ID_SERVICE, null);
-      return {
+      // Untracked for the same reason as the correlation-id fn wrapper: this
+      // metadata is read from inside whatever computation is logging, and it
+      // changes on every interaction. Tracking it would make every logging
+      // caller depend on the id of the flow it happens to run in.
+      return untracked(() => ({
         lastCorrelationId: service?.lastCorrelationId() ?? null,
         mayCorrelatedIds: service?.mayCorrelatedIds() ?? [],
         startCorrelationId: _currentStartCorrelationId,
-      };
+      }));
     },
   }) as CorrelationIdMetadata;
 }

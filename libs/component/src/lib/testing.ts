@@ -686,6 +686,9 @@ export async function renderCraftComponent<
     nativeElement: host,
     element: host,
     mounted,
+    // The injector the component was mounted under, so a test can reach the
+    // services its own `providers` installed.
+    injector: parent,
     detectChanges,
     flush,
     destroy() {

@@ -25,7 +25,9 @@ import {
   markYieldableValue,
   provideCraftDomEventHook,
   provideCraftLazyLoadRetry,
+  provideCorrelationIdTracking,
   provideTemplateTrace,
+  CORRELATION_ID_SERVICE,
   query,
   state,
   type CraftDomEvent,
@@ -2062,4 +2064,61 @@ describe('functional component interpreter', () => {
     parent.destroy();
   });
 
+});
+
+describe('binding isolation under the application provider set', () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+  });
+
+  // The narrow tests in `correlation-id-plugin.spec.ts` pin the correlation id
+  // reads themselves. This one pins the property that actually matters, at the
+  // layer the user sees: a binding must not re-run because of a signal it never
+  // read — even with the real application wrappers installed.
+  //
+  // It is written against `provideCorrelationIdTracking()` because that is where
+  // the defect was found: its FN_WRAPPER wraps EVERY craft factory, bindings
+  // included, so one tracked read in it subscribed every binding in the app to a
+  // signal the DOM event hook rewrites on every interaction. One click then
+  // re-ran every binding on the page. Any future wrapper that reads reactively
+  // in that path reintroduces the same class of bug, and fails here.
+  it('does not re-run unrelated bindings when an interaction rotates the correlation id', async () => {
+    const first = signal('A');
+    const second = signal('B');
+    const firstBinding = vi.fn(() => first());
+    const secondBinding = vi.fn(() => second());
+    const constantBinding = vi.fn(() => 'constant');
+    const component = craftComponent(
+      'correlationBindingIsolation',
+      {},
+      () => ({}),
+      () => div([p(firstBinding), p(secondBinding), p(constantBinding)]),
+    );
+
+    const { flush, destroy, injector } = await renderCraftComponent(component, {
+      providers: [provideCorrelationIdTracking()] as never,
+    });
+
+    expect(firstBinding).toHaveBeenCalledTimes(1);
+    expect(secondBinding).toHaveBeenCalledTimes(1);
+    expect(constantBinding).toHaveBeenCalledTimes(1);
+
+    // What every DOM interaction does through the craft dom event hook.
+    injector.get(CORRELATION_ID_SERVICE)?.generateAndSet('click');
+    await flush();
+
+    expect(firstBinding).toHaveBeenCalledTimes(1);
+    expect(secondBinding).toHaveBeenCalledTimes(1);
+    expect(constantBinding).toHaveBeenCalledTimes(1);
+
+    // A real dependency still propagates: isolation, not deafness.
+    first.set('A2');
+    await flush();
+
+    expect(firstBinding).toHaveBeenCalledTimes(2);
+    expect(secondBinding).toHaveBeenCalledTimes(1);
+    expect(constantBinding).toHaveBeenCalledTimes(1);
+
+    destroy();
+  });
 });
