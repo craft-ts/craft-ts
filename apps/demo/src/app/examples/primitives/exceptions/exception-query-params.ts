@@ -110,7 +110,7 @@ const ExceptionQueryParamsComponent = craftComponent(
     return section([
       heading( 'QueryParams decode exception'),
       div([
-        button(
+        button('success',
           { type: 'button',
             *click() {
               yield* navigate('success');
@@ -118,7 +118,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           },
           'Navigate success',
         ),
-        button(
+        button('exception',
           { type: 'button',
             *click() {
               yield* navigate('exception');

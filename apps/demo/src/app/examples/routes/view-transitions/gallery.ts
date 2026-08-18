@@ -47,7 +47,7 @@ const ViewTransitionsGalleryComponent = craftComponent(
       { class: 'vt-grid' },
       each(PHOTOS, { track: (photo) => photo.id }, (photo) =>
         li(
-          a(
+          a('photo',
             {
               class: 'vt-tile',
               href: function* () {

@@ -74,7 +74,7 @@ Keep the assertion next to a comment that states the **product** invariant.
 | Persister without `craftUnique` | `assertPersistedPrimitiveHasUnique` |
 | Same `insertSelect` key twice on one host | `assertInsertSelectUnique` |
 | `craftEffect` calls HTTP or a mutation | `assertCraftEffectNoNetwork` |
-| `craftEffect` writes state or triggers a resource | `assertCraftEffectNoImperativeSync` |
+| Duplicate `data-craft-name` on interactive elements, or a missing / non-literal first-argument name | `assertInteractiveElementNamed` |
 
 Custom lookups (`graph.route`, `graph.providedOn`, `outgoing`) are for
 invariants the helpers do not cover.

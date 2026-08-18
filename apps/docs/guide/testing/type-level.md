@@ -464,9 +464,12 @@ return `false` when the state or action exists only under a visibility branch
 that is incompatible with `when`.
 
 `each` adds `<listName>: 'nonEmpty'` for its item template and
-`<listName>: 'empty'` for its empty template. The
-`craft-ng/template-element-name-unique` ESLint rule checks that each component
-template declares a literal `tag:localName` at most once, including across
+`<listName>: 'empty'` for its empty template. Interactive helpers must use the
+named form (`button('increment', {}, '+')`): ESLint
+`craft-ng/require-interactive-local-name` requires the literal first argument,
+and `assertInteractiveElementNamed` requires that `data-craft-name` to be unique
+in the app. `craft-ng/template-element-name-unique` still forbids two
+`tag:localName` pairs in the same component template, including across
 conditional branches.
 
 ### Proving a named property uses a specific state

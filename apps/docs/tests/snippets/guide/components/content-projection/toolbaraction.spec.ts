@@ -40,7 +40,7 @@ const ToolbarAction = craftComponent(
     content: input.content,
   }),
   ({ contract, content }) =>
-    button(
+    button('action',
       {
         type: 'button',
         disabled: contract.disabled,

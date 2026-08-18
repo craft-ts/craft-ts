@@ -26,8 +26,8 @@ export const SendContextCounterComponent = craftComponent(
     p(function* () {
       return `Value: ${yield* counter()}`;
     }),
-    button({ type: 'button', click: counter.increment }, 'Increment'),
-    button({ type: 'button', click: counter.decrement }, 'Decrement'),
+    button('increment', { type: 'button', click: counter.increment }, 'Increment'),
+    button('decrement', { type: 'button', click: counter.decrement }, 'Decrement'),
   ],
 );
 

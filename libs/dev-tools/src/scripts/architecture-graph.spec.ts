@@ -11,6 +11,7 @@ import {
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
+  assertInteractiveElementNamed,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPathBoundaries,
@@ -23,6 +24,7 @@ import {
   dependencyCycleViolations,
   httpEndpointUniqueViolations,
   insertSelectUniqueViolations,
+  interactiveElementNamedViolations,
   mutationReactOnViolations,
   noExclusiveLink,
   pathBoundaryViolations,
@@ -97,6 +99,14 @@ declare function source$<T>(name: string): {
   set: (value: T) => void;
 };
 declare function div(...args: unknown[]): unknown;
+declare function button(...args: unknown[]): unknown;
+declare function input(...args: unknown[]): unknown;
+declare function a(...args: unknown[]): unknown;
+declare function select(...args: unknown[]): unknown;
+declare function textarea(...args: unknown[]): unknown;
+declare function form(...args: unknown[]): unknown;
+declare function span(...args: unknown[]): unknown;
+declare function h(...args: unknown[]): unknown;
 declare const CraftHttpClient: {
   get(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
   post(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
@@ -1828,6 +1838,130 @@ describe('assertCraftEffectNoImperativeSync', () => {
 
     expect(craftEffectImperativeSyncViolations(graph.graph)).toEqual([]);
     expect(() => assertCraftEffectNoImperativeSync(graph.graph)).not.toThrow();
+  });
+});
+
+describe('assertInteractiveElementNamed', () => {
+  it('rejects an interactive helper without a literal local name', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          () => ({}),
+          () => button({ click() {} }, '+'),
+        );
+      `,
+    });
+
+    expect(interactiveElementNamedViolations(graph.graph)[0]?.kind).toBe(
+      'missing',
+    );
+    expect(() => assertInteractiveElementNamed(graph.graph)).toThrow(
+      /Interactive button is missing a literal data-craft-name/,
+    );
+  });
+
+  it('rejects a non-static interactive local name', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const name = 'increment';
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          () => ({}),
+          () => button(name, {}, '+'),
+        );
+      `,
+    });
+
+    expect(interactiveElementNamedViolations(graph.graph)[0]?.kind).toBe(
+      'non-static',
+    );
+    expect(() => assertInteractiveElementNamed(graph.graph)).toThrow(
+      /Non-static interactive element name cannot be verified/,
+    );
+  });
+
+  it('rejects the same data-craft-name used twice in the app', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        export const Login = craftComponent(
+          'Login',
+          {},
+          () => ({}),
+          () => button('save', { type: 'button' }, 'Save'),
+        );
+
+        export const Checkout = craftComponent(
+          'Checkout',
+          {},
+          () => ({}),
+          () => input('save', { type: 'text' }),
+        );
+      `,
+    });
+
+    expect(interactiveElementNamedViolations(graph.graph)[0]?.kind).toBe(
+      'duplicate',
+    );
+    expect(interactiveElementNamedViolations(graph.graph)[0]?.label).toBe(
+      'save',
+    );
+    expect(() => assertInteractiveElementNamed(graph.graph)).toThrow(
+      /Duplicate data-craft-name "save" used twice/,
+    );
+  });
+
+  it('accepts uniquely named interactive elements and skips hidden inputs', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        export const Login = craftComponent(
+          'Login',
+          {},
+          () => ({}),
+          () => [
+            input('loginEmail', { type: 'email' }),
+            input({ type: 'hidden', name: 'csrf' }),
+            button('loginSubmit', { type: 'submit' }, 'Sign in'),
+            span('hint'),
+          ],
+        );
+      `,
+    });
+
+    expect(interactiveElementNamedViolations(graph.graph)).toEqual([]);
+    expect(() => assertInteractiveElementNamed(graph.graph)).not.toThrow();
+  });
+
+  it('requires a name on a non-interactive tag that has a click handler', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        export const Card = craftComponent(
+          'Card',
+          {},
+          () => ({}),
+          () => div({ click() {} }, 'Open'),
+        );
+      `,
+    });
+
+    expect(interactiveElementNamedViolations(graph.graph)[0]?.kind).toBe(
+      'missing',
+    );
+    expect(() => assertInteractiveElementNamed(graph.graph)).toThrow(
+      /Interactive div is missing a literal data-craft-name/,
+    );
   });
 });
 

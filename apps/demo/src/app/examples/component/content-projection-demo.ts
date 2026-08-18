@@ -72,7 +72,7 @@ const toolbarAction = craftComponent(
     content: input.content,
   }),
   ({ contract, content: label }) =>
-    button(
+    button('action',
       {
         class: 'projection-demo__action',
         type: 'button',
@@ -249,7 +249,7 @@ export const contentProjectionDemo = craftComponent(
           'ToolbarAction expose un contract. Toolbar reçoit une collection explicite, la rend avec renderContent() et la réconcilie par key.',
         ),
         p({ class: 'projection-demo__status' }, lastActionLabel),
-        button(
+        button('toggleToolbar',
           {
             class: 'projection-demo__toggle',
             type: 'button',
@@ -292,7 +292,7 @@ export const contentProjectionDemo = craftComponent(
             yield* recordAction('Action directe');
           },
         }),
-        button(
+        button('openDialog',
           {
             class: 'projection-demo__toggle',
             type: 'button',

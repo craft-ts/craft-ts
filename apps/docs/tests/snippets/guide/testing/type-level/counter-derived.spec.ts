@@ -21,7 +21,7 @@ const Counter = craftComponent(
     return { counter };
   },
   (context) =>
-    button(
+    button('increment',
       {
         type: 'button',
         disabled: context.counter.disabled,

@@ -48,7 +48,7 @@ const ViewTransitionsDetailComponent = craftComponent(
   },
   ({ photoId, back, currentPhoto, hasPhoto }) => {
     return [
-      a(
+      a('back',
         {
           class: 'vt-back',
           href: '/view-transitions',

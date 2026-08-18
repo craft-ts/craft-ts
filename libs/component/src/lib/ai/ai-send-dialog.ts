@@ -290,6 +290,7 @@ export const AiSendDialog = craftComponent(
           header({ class: 'craft-ai-header' }, [
             strong({ id: 'craft-ai-dialog-title' }, 'Send context to AI'),
             button(
+              'aiDialogClose',
               {
                 type: 'button',
                 class: 'craft-ai-close',
@@ -326,7 +327,7 @@ export const AiSendDialog = craftComponent(
             { class: 'craft-ai-label', htmlFor: 'craft-ai-instruction' },
             'Instruction',
           ),
-          textarea({
+          textarea('aiDialogInstruction', {
             id: 'craft-ai-instruction',
             class: 'craft-ai-textarea',
             rows: 6,
@@ -351,6 +352,7 @@ export const AiSendDialog = craftComponent(
 
           footer({ class: 'craft-ai-footer' }, [
             button(
+              'aiDialogCancel',
               {
                 type: 'button',
                 class: 'craft-ai-cancel',
@@ -359,6 +361,7 @@ export const AiSendDialog = craftComponent(
               'Fermer',
             ),
             button(
+              'aiDialogCopy',
               {
                 type: 'button',
                 class: () => [

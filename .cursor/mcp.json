@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ng-craft-page": {
+      "command": "npm",
+      "args": ["run", "registry:mcp"]
+    }
+  }
+}

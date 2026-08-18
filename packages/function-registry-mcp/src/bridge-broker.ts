@@ -6,6 +6,8 @@ import {
   type ServerOptions,
 } from 'ws';
 import type {
+  HelloOk,
+  PageSurface,
   RegistryBrokerMethod,
   RegistryClient,
   RegistryRequest,
@@ -13,20 +15,39 @@ import type {
   RegistrySnapshot,
 } from './protocol.js';
 
+const DEFAULT_PAGE_TIMEOUT_MS = 20_000;
+const RELOADING_CARD_TTL_MS = 20_000;
+
 type PendingCall = Readonly<{
   clientId: string;
+  method: RegistryBrokerMethod;
   resolve(value: unknown): void;
   reject(error: Error): void;
   timeout: ReturnType<typeof setTimeout>;
 }>;
 
+type ReadyWaiter = Readonly<{
+  resolve(): void;
+  reject(error: Error): void;
+  timeout: ReturnType<typeof setTimeout>;
+}>;
+
+type ClientStatus = 'reloading' | 'connecting' | 'ready';
+
 type ClientConnection = {
-  socket: WebSocket;
+  socket: WebSocket | undefined;
   clientId: string;
   connectedAt: string;
   pageUrl?: string;
   pageTitle?: string;
   snapshot: RegistrySnapshot;
+  status: ClientStatus;
+  generation: number;
+  surfaceRev: number;
+  surface: PageSurface | undefined;
+  reloadingSince?: number;
+  expireTimer?: ReturnType<typeof setTimeout>;
+  readyWaiters: ReadyWaiter[];
 };
 
 export class RegistryBridgeBroker {
@@ -34,20 +55,29 @@ export class RegistryBridgeBroker {
   readonly #pending = new Map<string, PendingCall>();
   readonly #clients = new Map<string, ClientConnection>();
   readonly #socketClientIds = new WeakMap<WebSocket, string>();
+  readonly #heartbeats = new WeakMap<WebSocket, ReturnType<typeof setInterval>>();
   readonly #requestTimeoutMs: number;
+  readonly #heartbeatIntervalMs: number;
+  readonly #heartbeatTimeoutMs: number;
 
   constructor({
     host = '127.0.0.1',
     port = 3333,
     requestTimeoutMs = 10_000,
+    heartbeatIntervalMs = 5_000,
+    heartbeatTimeoutMs = 15_000,
   }: {
     host?: string;
     port?: number;
     requestTimeoutMs?: number;
+    heartbeatIntervalMs?: number;
+    heartbeatTimeoutMs?: number;
   } = {}) {
     const options: ServerOptions = { host, port };
     this.#server = new WebSocketServer(options);
     this.#requestTimeoutMs = requestTimeoutMs;
+    this.#heartbeatIntervalMs = heartbeatIntervalMs;
+    this.#heartbeatTimeoutMs = heartbeatTimeoutMs;
     this.#server.on('connection', (socket) => this.#handleConnection(socket));
   }
 
@@ -55,6 +85,8 @@ export class RegistryBridgeBroker {
     return Array.from(this.#clients.values(), (client) => ({
       clientId: client.clientId,
       connectedAt: client.connectedAt,
+      status: client.status,
+      generation: client.generation,
       ...(client.pageUrl === undefined ? {} : { pageUrl: client.pageUrl }),
       ...(client.pageTitle === undefined
         ? {}
@@ -65,7 +97,7 @@ export class RegistryBridgeBroker {
   }
 
   snapshot(clientId: string): RegistrySnapshot {
-    return this.#requireClient(clientId).snapshot;
+    return this.#requireRegistryClient(clientId).snapshot;
   }
 
   async ready(): Promise<void> {
@@ -93,31 +125,158 @@ export class RegistryBridgeBroker {
     if (method === 'registry/clients') {
       return this.clients;
     }
+    if (method === 'page') {
+      return this.#requestPage(params);
+    }
 
     const { clientId, forwardedParams } = splitTargetParams(params);
-    const client = this.#resolveClient(clientId);
+    const client = this.#resolveRegistryClient(clientId);
+    return this.#forward(client, method, forwardedParams, this.#requestTimeoutMs);
+  }
+
+  async close(): Promise<void> {
+    this.#rejectPending('Registry bridge closed');
+    for (const client of this.#clients.values()) {
+      this.#rejectReadyWaiters(client, 'Registry bridge closed');
+      if (client.expireTimer !== undefined) {
+        clearTimeout(client.expireTimer);
+      }
+    }
+    for (const client of this.#server.clients) {
+      this.#clearHeartbeat(client);
+      client.close();
+    }
+    this.#clients.clear();
+    await new Promise<void>((resolve, reject) => {
+      this.#server.close((error) =>
+        error === undefined ? resolve() : reject(error),
+      );
+    });
+  }
+
+  async #requestPage(
+    params?: Readonly<Record<string, unknown>>,
+  ): Promise<unknown> {
+    const timeoutMs = pageTimeoutMs(params);
+    const { clientId, forwardedParams } = splitTargetParams(params, [
+      'timeoutMs',
+    ]);
+    const client = this.#resolvePageClient(clientId);
+    const deadline = Date.now() + timeoutMs;
+    const clientIdForWait = client.clientId;
+
+    while (true) {
+      await this.#waitUntilPageReady(clientIdForWait, deadline);
+      const current = this.#clients.get(clientIdForWait);
+      if (current === undefined) {
+        throw new Error('page client is not connected');
+      }
+      try {
+        const result = await this.#forward(
+          current,
+          'page',
+          forwardedParams,
+          Math.max(1, deadline - Date.now()),
+        );
+        return this.#mergeForwardedPageResult(current, result);
+      } catch (error) {
+        if (!isDisconnectError(error) || Date.now() >= deadline) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  #waitUntilPageReady(clientId: string, deadline: number): Promise<void> {
+    const client = this.#clients.get(clientId);
+    if (client !== undefined && client.status === 'ready' && client.surface !== undefined) {
+      return Promise.resolve();
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0 || client === undefined) {
+      return Promise.reject(
+        new Error(
+          client === undefined
+            ? 'page client is not connected'
+            : reloadingMessage(client),
+        ),
+      );
+    }
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        const current = this.#clients.get(clientId);
+        if (current !== undefined) {
+          current.readyWaiters = current.readyWaiters.filter(
+            (waiter) => waiter.timeout !== timeout,
+          );
+        }
+        reject(
+          new Error(
+            current === undefined
+              ? 'page client is not connected'
+              : reloadingMessage(current),
+          ),
+        );
+      }, remaining);
+      client.readyWaiters.push({ resolve, reject, timeout });
+    });
+  }
+
+  #mergeForwardedPageResult(
+    client: ClientConnection,
+    result: unknown,
+  ): unknown {
+    if (typeof result !== 'object' || result === null) {
+      return result;
+    }
+    const record = result as Record<string, unknown>;
+    if (Array.isArray(record['controls']) && typeof record['url'] === 'string') {
+      this.#acceptSurface(client, {
+        type: 'page/surface',
+        clientId: client.clientId,
+        url: record['url'],
+        ...(typeof record['title'] === 'string' ? { title: record['title'] } : {}),
+        controls: record['controls'] as PageSurface['controls'],
+      });
+    }
+    return {
+      ...record,
+      generation: client.generation,
+      surfaceRev: client.surfaceRev,
+    };
+  }
+
+  #forward(
+    client: ClientConnection,
+    method: RegistryBrokerMethod,
+    forwardedParams: Readonly<Record<string, unknown>> | undefined,
+    timeoutMs: number,
+  ): Promise<unknown> {
+    if (!isSocketOpen(client.socket)) {
+      return Promise.reject(new Error('Registry app disconnected'));
+    }
+    const socket = client.socket;
     const callId = randomUUID();
     const message: RegistryRequest = {
       type: 'request',
       callId,
-      method,
+      method: method === 'page' ? 'page' : method,
       ...(forwardedParams === undefined ? {} : { params: forwardedParams }),
     };
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.#pending.delete(callId);
-        reject(
-          new Error(`${method} timed out after ${this.#requestTimeoutMs}ms`),
-        );
-      }, this.#requestTimeoutMs);
+        reject(new Error(`${method} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
       this.#pending.set(callId, {
         clientId: client.clientId,
+        method,
         resolve,
         reject,
         timeout,
       });
-      client.socket.send(JSON.stringify(message), (error) => {
+      socket.send(JSON.stringify(message), (error) => {
         if (error == null) {
           return;
         }
@@ -131,32 +290,35 @@ export class RegistryBridgeBroker {
     });
   }
 
-  async close(): Promise<void> {
-    this.#rejectPending('Registry bridge closed');
-    for (const client of this.#server.clients) {
-      client.close();
-    }
-    this.#clients.clear();
-    await new Promise<void>((resolve, reject) => {
-      this.#server.close((error) =>
-        error === undefined ? resolve() : reject(error),
-      );
-    });
-  }
-
   #handleConnection(socket: WebSocket): void {
     socket.on('message', (rawData) => this.#handleMessage(socket, rawData));
     socket.on('close', () => {
+      this.#clearHeartbeat(socket);
       const clientId = this.#socketClientIds.get(socket);
       if (clientId === undefined) {
         return;
       }
       const client = this.#clients.get(clientId);
-      if (client?.socket !== socket) {
+      if (client === undefined) {
         return;
       }
-      this.#clients.delete(clientId);
+      if (client.socket !== socket) {
+        return;
+      }
+      client.socket = undefined;
+      client.status = 'reloading';
+      client.reloadingSince = Date.now();
       this.#rejectPending('Registry app disconnected', clientId);
+      client.expireTimer = setTimeout(() => {
+        const current = this.#clients.get(clientId);
+        if (
+          current !== undefined &&
+          current.status === 'reloading' &&
+          current.readyWaiters.length === 0
+        ) {
+          this.#clients.delete(clientId);
+        }
+      }, RELOADING_CARD_TTL_MS);
     });
   }
 
@@ -176,6 +338,15 @@ export class RegistryBridgeBroker {
       return;
     }
 
+    if (record['type'] === 'page/goodbye') {
+      const mappedId = this.#socketClientIds.get(socket);
+      if (mappedId === undefined) {
+        return;
+      }
+      this.#dropClient(mappedId, 'page client is not connected');
+      return;
+    }
+
     const clientId = this.#socketClientIds.get(socket);
     if (clientId === undefined) {
       return;
@@ -188,6 +359,10 @@ export class RegistryBridgeBroker {
       client.snapshot = record;
       client.pageUrl = record.pageUrl ?? client.pageUrl;
       client.pageTitle = record.pageTitle ?? client.pageTitle;
+      return;
+    }
+    if (isPageSurface(record, clientId)) {
+      this.#acceptSurface(client, record);
       return;
     }
     if (isResponse(record)) {
@@ -205,6 +380,22 @@ export class RegistryBridgeBroker {
     }
   }
 
+  #acceptSurface(client: ClientConnection, surface: PageSurface): void {
+    client.surface = surface;
+    client.surfaceRev += 1;
+    client.status = 'ready';
+    client.pageUrl = surface.url;
+    if (surface.title !== undefined) {
+      client.pageTitle = surface.title;
+    }
+    const waiters = client.readyWaiters;
+    client.readyWaiters = [];
+    for (const waiter of waiters) {
+      clearTimeout(waiter.timeout);
+      waiter.resolve();
+    }
+  }
+
   #registerClient(
     socket: WebSocket,
     hello: Readonly<{
@@ -213,27 +404,57 @@ export class RegistryBridgeBroker {
       pageTitle?: string;
     }>,
   ): void {
-    const previous = this.#clients.get(hello.clientId);
-    this.#socketClientIds.set(socket, hello.clientId);
-    this.#clients.set(hello.clientId, {
+    let clientId = hello.clientId;
+    const previous = this.#clients.get(clientId);
+    const previousOpenOnOtherSocket =
+      previous !== undefined &&
+      isSocketOpen(previous.socket) &&
+      previous.socket !== socket;
+
+    if (previousOpenOnOtherSocket) {
+      clientId = randomUUID();
+    } else if (previous?.expireTimer !== undefined) {
+      clearTimeout(previous.expireTimer);
+    }
+
+    const reused = previousOpenOnOtherSocket ? undefined : previous;
+    this.#socketClientIds.set(socket, clientId);
+    const generation = (reused?.generation ?? 0) + 1;
+    const surfaceRev = reused?.surfaceRev ?? 0;
+    const readyWaiters = reused?.readyWaiters ?? [];
+    this.#clients.set(clientId, {
       socket,
-      clientId: hello.clientId,
+      clientId,
       connectedAt: new Date().toISOString(),
       ...(hello.pageUrl === undefined ? {} : { pageUrl: hello.pageUrl }),
       ...(hello.pageTitle === undefined ? {} : { pageTitle: hello.pageTitle }),
-      snapshot: emptySnapshot(hello.clientId, hello.pageUrl, hello.pageTitle),
+      snapshot: emptySnapshot(clientId, hello.pageUrl, hello.pageTitle),
+      status: 'connecting',
+      generation,
+      surfaceRev,
+      surface: undefined,
+      readyWaiters,
     });
-    if (previous !== undefined && previous.socket !== socket) {
-      this.#rejectPending('Registry app reconnected', hello.clientId);
-      previous.socket.close();
+    const helloOk: HelloOk = { type: 'hello/ok', clientId };
+    socket.send(JSON.stringify(helloOk));
+    this.#startHeartbeat(socket);
+    if (
+      !previousOpenOnOtherSocket &&
+      previous !== undefined &&
+      previous.socket !== socket
+    ) {
+      this.#rejectPending('Registry app reconnected', clientId);
+      previous.socket?.close();
     }
   }
 
-  #resolveClient(clientId: string | undefined): ClientConnection {
+  #resolveRegistryClient(clientId: string | undefined): ClientConnection {
     if (clientId !== undefined) {
-      return this.#requireClient(clientId);
+      return this.#requireRegistryClient(clientId);
     }
-    const clients = [...this.#clients.values()];
+    const clients = [...this.#clients.values()].filter((client) =>
+      isSocketOpen(client.socket),
+    );
     if (clients.length === 0) {
       throw new Error('Registry app is not connected to the WebSocket bridge');
     }
@@ -247,9 +468,51 @@ export class RegistryBridgeBroker {
     return clients[0] as ClientConnection;
   }
 
-  #requireClient(clientId: string): ClientConnection {
+  #resolvePageClient(clientId: string | undefined): ClientConnection {
+    if (clientId !== undefined) {
+      const client = this.#clients.get(clientId);
+      if (client === undefined) {
+        throw new Error(`page client "${clientId}" is not connected`);
+      }
+      return client;
+    }
+    const cards = [...this.#clients.values()];
+    const ready = cards.filter(
+      (client) => client.status === 'ready' && isSocketOpen(client.socket),
+    );
+    if (ready.length === 1) {
+      return ready[0] as ClientConnection;
+    }
+    if (ready.length > 1) {
+      throw new Error(
+        `Multiple ready page clients; clientId is required. Available clients: ${ready
+          .slice()
+          .sort((left, right) => left.clientId.localeCompare(right.clientId))
+          .map((client) => `${client.clientId} ready ${client.pageUrl ?? ''}`)
+          .join(', ')}`,
+      );
+    }
+    if (cards.length === 0) {
+      throw new Error('page client is not connected');
+    }
+    if (cards.length === 1) {
+      return cards[0] as ClientConnection;
+    }
+    throw new Error(
+      `No ready page client. Reloading: ${cards
+        .slice()
+        .sort((left, right) => left.clientId.localeCompare(right.clientId))
+        .map(
+          (client) =>
+            `${client.clientId} (last url ${client.pageUrl ?? 'unknown'})`,
+        )
+        .join(', ')}`,
+    );
+  }
+
+  #requireRegistryClient(clientId: string): ClientConnection {
     const client = this.#clients.get(clientId);
-    if (client === undefined || client.socket.readyState !== WebSocket.OPEN) {
+    if (client === undefined || !isSocketOpen(client.socket)) {
       throw new Error(`Registry client "${clientId}" is not connected`);
     }
     return client;
@@ -265,10 +528,61 @@ export class RegistryBridgeBroker {
       this.#pending.delete(callId);
     }
   }
+
+  #rejectReadyWaiters(client: ClientConnection, message: string): void {
+    const waiters = client.readyWaiters;
+    client.readyWaiters = [];
+    for (const waiter of waiters) {
+      clearTimeout(waiter.timeout);
+      waiter.reject(new Error(message));
+    }
+  }
+
+  #startHeartbeat(socket: WebSocket): void {
+    this.#clearHeartbeat(socket);
+    let lastPongAt = Date.now();
+    socket.on('pong', () => {
+      lastPongAt = Date.now();
+    });
+    const timer = setInterval(() => {
+      if (Date.now() - lastPongAt > this.#heartbeatTimeoutMs) {
+        this.#clearHeartbeat(socket);
+        socket.terminate();
+        return;
+      }
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.ping();
+      }
+    }, this.#heartbeatIntervalMs);
+    this.#heartbeats.set(socket, timer);
+  }
+
+  #clearHeartbeat(socket: WebSocket): void {
+    const timer = this.#heartbeats.get(socket);
+    if (timer === undefined) {
+      return;
+    }
+    clearInterval(timer);
+    this.#heartbeats.delete(socket);
+  }
+
+  #dropClient(clientId: string, waiterMessage: string): void {
+    const client = this.#clients.get(clientId);
+    if (client === undefined) {
+      return;
+    }
+    if (client.expireTimer !== undefined) {
+      clearTimeout(client.expireTimer);
+    }
+    this.#rejectReadyWaiters(client, waiterMessage);
+    this.#rejectPending(waiterMessage, clientId);
+    this.#clients.delete(clientId);
+  }
 }
 
 function splitTargetParams(
-  params?: Readonly<Record<string, unknown>>,
+  params: Readonly<Record<string, unknown>> | undefined,
+  omitKeys: readonly string[] = [],
 ): Readonly<{
   clientId?: string;
   forwardedParams?: Readonly<Record<string, unknown>>;
@@ -276,13 +590,17 @@ function splitTargetParams(
   if (params === undefined) {
     return {};
   }
-  const { clientId: rawClientId, ...forwardedParams } = params;
+  const { clientId: rawClientId, ...rest } = params;
   if (rawClientId !== undefined && typeof rawClientId !== 'string') {
     throw new Error('params.clientId must be a string');
   }
+  const forwardedEntries = Object.entries(rest).filter(
+    ([key]) => !omitKeys.includes(key),
+  );
+  const forwardedParams = Object.fromEntries(forwardedEntries);
   return {
     ...(rawClientId === undefined ? {} : { clientId: rawClientId }),
-    ...(Object.keys(forwardedParams).length === 0 ? {} : { forwardedParams }),
+    ...(forwardedEntries.length === 0 ? {} : { forwardedParams }),
   };
 }
 
@@ -335,6 +653,19 @@ function isSnapshot(
   );
 }
 
+function isPageSurface(
+  value: Record<string, unknown>,
+  clientId: string,
+): value is PageSurface & Record<string, unknown> {
+  return (
+    value['type'] === 'page/surface' &&
+    value['clientId'] === clientId &&
+    typeof value['url'] === 'string' &&
+    Array.isArray(value['controls']) &&
+    (value['title'] === undefined || typeof value['title'] === 'string')
+  );
+}
+
 function isResponse(
   value: Record<string, unknown>,
 ): value is RegistryResponse & Record<string, unknown> {
@@ -347,5 +678,37 @@ function isResponse(
     (typeof error === 'object' &&
       error !== null &&
       typeof (error as { message?: unknown }).message === 'string')
+  );
+}
+
+function isSocketOpen(socket: WebSocket | undefined): socket is WebSocket {
+  return socket !== undefined && socket.readyState === WebSocket.OPEN;
+}
+
+function pageTimeoutMs(params?: Readonly<Record<string, unknown>>): number {
+  const timeoutMs = params?.['timeoutMs'];
+  if (timeoutMs === undefined) {
+    return DEFAULT_PAGE_TIMEOUT_MS;
+  }
+  if (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs < 0) {
+    throw new Error('params.timeoutMs must be a non-negative number');
+  }
+  return timeoutMs;
+}
+
+function reloadingMessage(client: ClientConnection): string {
+  const startedAt = client.reloadingSince ?? Date.now();
+  const seconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+  const url = client.pageUrl ?? client.surface?.url ?? 'unknown';
+  return `page reloading since ${seconds}s, last url ${url}, generation ${client.generation} → still ${client.generation}`;
+}
+
+function isDisconnectError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return (
+    error.message === 'Registry app disconnected' ||
+    error.message === 'Registry app reconnected'
   );
 }

@@ -101,6 +101,7 @@ Spread `craftRules.configs.a11y.rules` to enable the WCAG 2.2 AA preset as
 factories extraites, `h('tag')`), not only `craftComponent` argument 3.
 
 - `prefer-named-html-helpers`: forbids `h('img')` / `h('button')` when a named helper exists
+- `require-interactive-local-name`: requires a string-literal first argument on interactive helpers; the local name is the third segment of `data-craft-name="${component}:${tag}:${localName}"`
 - `img-has-alt`, `iframe-has-title`, `button-has-type`, `anchor-has-href`
 - `control-has-accessible-name`, `label-has-associated-control`, `heading-has-content`
 - `no-noninteractive-element-interactions`, `no-positive-tabindex`

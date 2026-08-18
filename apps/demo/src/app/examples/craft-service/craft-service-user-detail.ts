@@ -97,7 +97,7 @@ const CraftServiceUserDetailComponent = craftComponent(
     return div([
       heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
-        select(
+        select('user',
           {
             'aria-label': 'User',
             value: userId,

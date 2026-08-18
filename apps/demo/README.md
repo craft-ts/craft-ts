@@ -34,6 +34,7 @@ Each common rule has its own file under `architecture/rules/`:
 - `rules/insert-select-unique.spec.ts` — `assertInsertSelectUnique`
 - `rules/craft-effect-no-network.spec.ts` — `assertCraftEffectNoNetwork`
 - `rules/craft-effect-no-imperative-sync.spec.ts` — `assertCraftEffectNoImperativeSync`
+- `rules/interactive-element-named.spec.ts` — `assertInteractiveElementNamed`
 
 Run them with Nx, from the repository root:
 

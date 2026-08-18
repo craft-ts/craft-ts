@@ -1,13 +1,24 @@
+// @vitest-environment jsdom
 import {
   createFunctionRegistryClientId,
   handleFunctionRegistryRequest,
+  nextReconnectDelayMs,
+  persistAssignedClientId,
   respondToBridgeMessage,
+  shouldSendGoodbye,
+  startFunctionRegistryBridge,
   type RegistryBridgeRequest,
+  type RegistryBridgeSocket,
 } from './function-registry-bridge';
 import { createFunctionRegistry } from './function-registry';
 import type {
   PrimitiveResourceRuntimeContext,
   StateMethodRuntimeContext,
+} from '@craft-ng/core';
+import {
+  TestBed,
+  ɵInjector as Injector,
+  ɵrunInInjectionContext as runInInjectionContext,
 } from '@craft-ng/core';
 
 describe('function registry WebSocket bridge', () => {
@@ -24,6 +35,32 @@ describe('function registry WebSocket bridge', () => {
     expect(createFunctionRegistryClientId(storage, () => 'generated-b')).toBe(
       'generated-a',
     );
+  });
+
+  it('persists a broker-assigned client id', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    };
+    const first = createFunctionRegistryClientId(storage, () => 'original-id');
+    persistAssignedClientId(storage, 'assigned-id');
+    expect(first).toBe('original-id');
+    expect(createFunctionRegistryClientId(storage, () => 'other')).toBe(
+      'assigned-id',
+    );
+  });
+
+  it('sends goodbye only when the tab is discarded, not when it is frozen', () => {
+    expect(shouldSendGoodbye({ persisted: false })).toBe(true);
+    expect(shouldSendGoodbye({ persisted: true })).toBe(false);
+  });
+
+  it('backs off reconnect delay up to 10s', () => {
+    expect(nextReconnectDelayMs(0, () => 0)).toBe(1000);
+    expect(nextReconnectDelayMs(1, () => 0)).toBe(2000);
+    expect(nextReconnectDelayMs(4, () => 0)).toBe(10000);
+    expect(nextReconnectDelayMs(8, () => 0)).toBe(10000);
   });
 
   it('transmits the registry list with the callId', async () => {
@@ -179,7 +216,123 @@ describe('function registry WebSocket bridge', () => {
       ),
     ).rejects.toThrow('exposes query capabilities, not mutation');
   });
+
+  it('fills a named control through the page method and returns controls', async () => {
+    document.body.replaceChildren();
+    const email = document.createElement('input');
+    email.setAttribute('data-craft-name', 'email');
+    email.setAttribute('aria-label', 'Email');
+    email.type = 'email';
+    document.body.append(email);
+
+    const result = await handleFunctionRegistryRequest(
+      request('page-1', 'page', {
+        act: [{ id: 'email', fill: 'ada@example.com' }],
+      }),
+    );
+
+    expect(email.value).toBe('ada@example.com');
+    expect(result).toMatchObject({
+      status: 'ready',
+      controls: [
+        expect.objectContaining({
+          id: 'email',
+          role: 'textbox',
+          value: 'ada@example.com',
+        }),
+      ],
+    });
+  });
+
+  it('navigates with goto then returns the destination url', async () => {
+    let pageUrl = 'http://localhost/';
+    const navigated: string[] = [];
+    const result = await handleFunctionRegistryRequest(
+      request('page-goto', 'page', { act: [{ goto: '/login-form' }] }),
+      createFunctionRegistry(),
+      () => document,
+      () => ({ pageUrl }),
+      async (url) => {
+        navigated.push(url);
+        pageUrl = `http://localhost${url}`;
+      },
+    );
+
+    expect(navigated).toEqual(['/login-form']);
+    expect(result).toMatchObject({
+      status: 'ready',
+      url: 'http://localhost/login-form',
+    });
+  });
+
+  it('returns an error when goto has no navigator', async () => {
+    const result = await handleFunctionRegistryRequest(
+      request('page-goto', 'page', { act: [{ goto: '/login-form' }] }),
+    );
+    expect(result).toMatchObject({
+      error: 'goto "/login-form" is not available',
+    });
+  });
+
+  it('does not recreate the MCP page badge after stop', () => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+    const socket = fakeRegistryBridgeSocket();
+    const stop = runInInjectionContext(TestBed.inject(Injector), () =>
+      startFunctionRegistryBridge({
+        injector: TestBed.inject(Injector),
+        url: 'ws://127.0.0.1:3333',
+        clientId: 'client-aaaaaaaa',
+        createSocket: () => socket,
+        getPageInfo: () => ({
+          pageUrl: 'http://localhost/',
+          pageTitle: 'Demo',
+        }),
+        navigate: async () => undefined,
+        getDocument: () => document,
+      }),
+    );
+
+    stop();
+    const onclose = socket.onclose;
+    expect(onclose).toEqual(expect.any(Function));
+    (onclose as (event: CloseEvent) => void)(new CloseEvent('close'));
+
+    expect(document.getElementById('mcp-page-bridge-status')).toBeNull();
+  });
+
+  it('starts the bridge without a navigate callback', () => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+    const socket = fakeRegistryBridgeSocket();
+    const stop = runInInjectionContext(TestBed.inject(Injector), () =>
+      startFunctionRegistryBridge({
+        injector: TestBed.inject(Injector),
+        url: 'ws://127.0.0.1:3333',
+        clientId: 'client-aaaaaaaa',
+        createSocket: () => socket,
+        getPageInfo: () => ({
+          pageUrl: 'http://localhost/',
+          pageTitle: 'Demo',
+        }),
+        getDocument: () => document,
+      }),
+    );
+    stop();
+  });
 });
+
+function fakeRegistryBridgeSocket(): RegistryBridgeSocket {
+  return {
+    readyState: 1,
+    send: () => undefined,
+    close: () => undefined,
+    onopen: null,
+    onclose: null,
+    onerror: null,
+    onmessage: null,
+  };
+}
 
 function request(
   callId: string,

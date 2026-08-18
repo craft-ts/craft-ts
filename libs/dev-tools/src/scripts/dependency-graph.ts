@@ -30,7 +30,8 @@ export type DependencyGraphNodeKind =
   | 'primitive'
   | 'source'
   | 'http-endpoint'
-  | 'unique';
+  | 'unique'
+  | 'template-element';
 
 export type DependencyGraphEdgeKind =
   | 'loads'
@@ -308,6 +309,7 @@ export function analyzeDependencyGraph(
   collectAppConfigs(builder, sourceFiles);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
+  collectInteractiveTemplateElements(builder);
   analyzeRoutes(builder);
   analyzeInsertions(builder);
   collectCraftUniques(builder, sourceFiles);
@@ -1707,6 +1709,180 @@ function analyzeComponents(builder: GraphBuilder): void {
     }
     collectServicePropertyUses(builder, component);
   }
+}
+
+const NAMED_HTML_HELPERS = new Set([
+  'a',
+  'area',
+  'article',
+  'aside',
+  'button',
+  'caption',
+  'dialog',
+  'div',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'iframe',
+  'img',
+  'input',
+  'label',
+  'legend',
+  'li',
+  'main',
+  'nav',
+  'ol',
+  'option',
+  'p',
+  'pre',
+  'section',
+  'select',
+  'small',
+  'span',
+  'strong',
+  'svg',
+  'table',
+  'tbody',
+  'td',
+  'textarea',
+  'th',
+  'thead',
+  'tr',
+  'ul',
+]);
+
+const INTERACTIVE_ELEMENT_TAGS = new Set([
+  'a',
+  'button',
+  'input',
+  'select',
+  'textarea',
+]);
+
+const INTERACTIVE_ELEMENT_HANDLERS = new Set([
+  'click',
+  'onClick',
+  'input',
+  'onInput',
+  'change',
+  'onChange',
+  'submit',
+  'onSubmit',
+]);
+
+type ParsedHyperscript = {
+  tag: string;
+  name?: string;
+  nameKind: 'literal' | 'non-static' | 'missing';
+  props?: ObjectLiteralExpression;
+};
+
+function collectInteractiveTemplateElements(builder: GraphBuilder): void {
+  for (const component of builder.components) {
+    const template = component.call.getArguments()[3];
+    if (!template) continue;
+    walkTemplate(template, (node) => {
+      if (!Node.isCallExpression(node)) return;
+      if (node.getExpression().getText() === 'craftComponent') return 'skip';
+      const parsed = parseCraftHyperscript(node);
+      if (!parsed || !isInteractiveElement(parsed)) return;
+      const filePath = node.getSourceFile().getFilePath();
+      const element = addNode(builder, {
+        id: `template-element:${filePath}:${node.getStartLineNumber()}:${node.getStart()}`,
+        kind: 'template-element',
+        label: parsed.name ?? '(unnamed)',
+        filePath,
+        line: node.getStartLineNumber(),
+        details: {
+          tag: parsed.tag,
+          localName: parsed.name,
+          static: parsed.nameKind !== 'non-static',
+          missing: parsed.nameKind === 'missing',
+          component: component.node.label,
+        },
+      });
+      addEdge(builder, component.node.id, element.id, 'contains', 'ast');
+    });
+  }
+}
+
+function walkTemplate(node: Node, visit: (node: Node) => 'skip' | void): void {
+  if (visit(node) === 'skip') return;
+  node.forEachChild((child) => walkTemplate(child, visit));
+}
+
+function parseCraftHyperscript(call: CallExpression): ParsedHyperscript | undefined {
+  const callee = call.getExpression().getText();
+  const args = call.getArguments();
+  if (callee === 'h' || callee === 'customElement') {
+    const tag = args[0]?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+    if (!tag) return undefined;
+    return {
+      tag,
+      nameKind: 'missing',
+      props: args[1]?.asKind(SyntaxKind.ObjectLiteralExpression),
+    };
+  }
+  if (!NAMED_HTML_HELPERS.has(callee)) return undefined;
+  const first = args[0];
+  const second = args[1];
+  if (
+    first?.asKind(SyntaxKind.StringLiteral) &&
+    (second?.asKind(SyntaxKind.ObjectLiteralExpression) ||
+      second?.getKind() === SyntaxKind.NullKeyword)
+  ) {
+    return {
+      tag: callee,
+      name: first.asKind(SyntaxKind.StringLiteral)?.getLiteralValue(),
+      nameKind: 'literal',
+      props: second.asKind(SyntaxKind.ObjectLiteralExpression),
+    };
+  }
+  if (first && Node.isObjectLiteralExpression(first)) {
+    return { tag: callee, nameKind: 'missing', props: first };
+  }
+  if (
+    first &&
+    (second?.asKind(SyntaxKind.ObjectLiteralExpression) ||
+      second?.getKind() === SyntaxKind.NullKeyword) &&
+    !first.asKind(SyntaxKind.StringLiteral)
+  ) {
+    return {
+      tag: callee,
+      nameKind: 'non-static',
+      props: second?.asKind(SyntaxKind.ObjectLiteralExpression),
+    };
+  }
+  return { tag: callee, nameKind: 'missing' };
+}
+
+function isInteractiveElement(parsed: ParsedHyperscript): boolean {
+  if (
+    parsed.tag === 'input' &&
+    getStringProperty(parsed.props, 'type') === 'hidden'
+  ) {
+    return false;
+  }
+  if (INTERACTIVE_ELEMENT_TAGS.has(parsed.tag)) return true;
+  return hasInteractiveHandler(parsed.props);
+}
+
+function hasInteractiveHandler(
+  props: ObjectLiteralExpression | undefined,
+): boolean {
+  if (!props) return false;
+  return [...INTERACTIVE_ELEMENT_HANDLERS].some(
+    (name) => props.getProperty(name) !== undefined,
+  );
 }
 
 function analyzeInsertions(builder: GraphBuilder): void {

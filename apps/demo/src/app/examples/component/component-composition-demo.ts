@@ -70,7 +70,7 @@ export const componentCompositionDemo = craftComponent(
       p(
         'Le provider fournit les données au composant. Cliquez pour passer par le handler NO_ACCESS, puis revenir au template.',
       ),
-      button(
+      button('accessToggle',
         { type: 'button',
           class: 'component-demo__access-toggle',
           click: canReadRestrictedData.toggle,

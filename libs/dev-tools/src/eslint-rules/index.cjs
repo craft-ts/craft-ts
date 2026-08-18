@@ -50,6 +50,7 @@ const labelHasAssociatedControl = require('./label-has-associated-control.cjs');
 const noNoninteractiveElementInteractions = require('./no-noninteractive-element-interactions.cjs');
 const anchorHasHref = require('./anchor-has-href.cjs');
 const buttonHasType = require('./button-has-type.cjs');
+const requireInteractiveLocalName = require('./require-interactive-local-name.cjs');
 const iframeHasTitle = require('./iframe-has-title.cjs');
 const headingHasContent = require('./heading-has-content.cjs');
 const preferRelativeHeading = require('./prefer-relative-heading.cjs');
@@ -119,6 +120,7 @@ const plugin = {
     'no-noninteractive-element-interactions': noNoninteractiveElementInteractions,
     'anchor-has-href': anchorHasHref,
     'button-has-type': buttonHasType,
+    'require-interactive-local-name': requireInteractiveLocalName,
     'iframe-has-title': iframeHasTitle,
     'heading-has-content': headingHasContent,
     'prefer-relative-heading': preferRelativeHeading,
@@ -142,6 +144,7 @@ const a11yRuleSeverity = {
   'craft-ng/no-noninteractive-element-interactions': 'error',
   'craft-ng/anchor-has-href': 'error',
   'craft-ng/button-has-type': 'error',
+  'craft-ng/require-interactive-local-name': 'error',
   'craft-ng/iframe-has-title': 'error',
   'craft-ng/heading-has-content': 'error',
   'craft-ng/prefer-relative-heading': 'error',

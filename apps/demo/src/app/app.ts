@@ -170,7 +170,7 @@ export const App = craftComponent(
           div({ class: 'demo-banner__main' }, [
             strong('Beta demo'),
             span(' — the API and documentation may still evolve.'),
-            a(
+            a('docs',
               {
                 href: DOCS_URL,
                 target: '_blank',
@@ -179,7 +179,7 @@ export const App = craftComponent(
               'Read the documentation',
             ),
             span(' · '),
-            a(
+            a('feedback',
               {
                 href: FEEDBACK_URL,
                 target: '_blank',
@@ -196,6 +196,7 @@ export const App = craftComponent(
         ]),
         nav({ class: 'demo-nav' }, [
           button(
+            'navToggle',
             {
               class: 'demo-nav__toggle',
               type: 'button',
@@ -210,6 +211,7 @@ export const App = craftComponent(
             navOpen,
             () =>
               div(
+                'navPanel',
                 {
                   class: 'demo-nav__panel',
                   click: (event: MouseEvent) => event.stopPropagation(),
@@ -231,6 +233,7 @@ export const App = craftComponent(
                           { track: ([, link]) => link.to },
                           (entry) =>
                             a(
+                              'navLink',
                               {
                                 click: closeNav,
                                 craftRouterLink: function* () {
@@ -250,7 +253,7 @@ export const App = craftComponent(
           ),
         ]),
         main({ id: 'main', class: 'content', tabIndex: -1 }, CraftRouterOutlet()),
-        button(
+        button('clearCache',
           {
             class: 'clear-cache-btn',
             type: 'button',

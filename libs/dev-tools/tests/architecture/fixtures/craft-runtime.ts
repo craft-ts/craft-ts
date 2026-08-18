@@ -19,6 +19,14 @@ export declare function source$<T>(name: string): {
   set: (value: T) => void;
 };
 export declare function div(...args: unknown[]): unknown;
+export declare function button(...args: unknown[]): unknown;
+export declare function input(...args: unknown[]): unknown;
+export declare function a(...args: unknown[]): unknown;
+export declare function select(...args: unknown[]): unknown;
+export declare function textarea(...args: unknown[]): unknown;
+export declare function form(...args: unknown[]): unknown;
+export declare function span(...args: unknown[]): unknown;
+export declare function h(...args: unknown[]): unknown;
 export declare const CraftHttpClient: {
   get(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
   post(config: (helpers: { response: () => unknown }) => { url: string }): unknown;

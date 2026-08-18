@@ -15,9 +15,44 @@ export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
   registerTool(
     server,
     bridge,
+    'page',
+    'page',
+    'Read named controls on the connected browser tab, or run act (goto / fill / click / press) then return the new page state. Omit clientId when exactly one tab is ready. Default detail is controls; pass detail "dom-styles" only to debug layout/CSS.',
+    {
+      clientId: z.string().min(1).optional(),
+      act: z
+        .array(
+          z.union([
+            z.object({
+              goto: z.string().min(1),
+            }),
+            z.object({
+              id: z.string().min(1),
+              fill: z.unknown().optional(),
+              press: z.string().optional(),
+              match: z
+                .object({
+                  index: z.number().int().nonnegative().optional(),
+                  track: z.string().min(1).optional(),
+                })
+                .optional(),
+            }),
+          ]),
+        )
+        .optional(),
+      detail: z.enum(['controls', 'dom-styles']).optional(),
+      styles: z.array(z.string()).optional(),
+      timeoutMs: z.number().int().nonnegative().optional(),
+    },
+    true,
+  );
+
+  registerTool(
+    server,
+    bridge,
     'registry.clients',
     'registry/clients',
-    'List connected browser registry clients; use clientId to target all other tools when more than one client is connected',
+    'List every page/registry client card (ready, connecting, reloading). Pass clientId to page and registry.* when more than one card is ready.',
   );
 
   registerTool(

@@ -285,7 +285,7 @@ const PlaygroundComponent = craftComponent(
       heading('Playground'),
       p('Sandbox for testing @craft-ng — ready to share on StackBlitz'),
       div({ class: 'add-form' }, [
-        input({
+        input('title', {
           type: 'text',
           placeholder: 'New todo title…',
           value: titleInput,
@@ -296,7 +296,7 @@ const PlaygroundComponent = craftComponent(
             if (event.key === 'Enter') yield* add();
           },
         }),
-        button(
+        button('add',
           { type: 'button',
             disabled: pg.addTodo.isLoading,
             *click() {
@@ -324,7 +324,7 @@ const PlaygroundComponent = craftComponent(
                 };
               },
             }, [
-              button(
+              button('toggle',
                 { type: 'button',
                   *click() {
                     yield* pg.toggleTodo.mutate((yield* todo()).id);
@@ -337,7 +337,7 @@ const PlaygroundComponent = craftComponent(
               span({ class: 'title' }, function* () {
                 return (yield* todo()).title;
               }),
-              button(
+              button('delete',
                 { type: 'button',
                   'aria-label': function* () {
                     return `Delete ${(yield* todo()).title}`;

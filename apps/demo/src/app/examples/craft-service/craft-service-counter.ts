@@ -41,9 +41,9 @@ const CraftServiceCounterComponent = craftComponent(
       heading('craftService Counter (toProvide scope)'),
       p({ class: 'value' }, counter),
       div({ class: 'actions' }, [
-        button({ type: 'button', click: counter.decrement }, '-'),
-        button({ type: 'button', click: counter.reset }, 'Reset'),
-        button({ type: 'button', click: counter.increment }, '+'),
+        button('decrement', { type: 'button', click: counter.decrement }, '-'),
+        button('reset', { type: 'button', click: counter.reset }, 'Reset'),
+        button('increment', { type: 'button', click: counter.increment }, '+'),
       ]),
     ]),
 );

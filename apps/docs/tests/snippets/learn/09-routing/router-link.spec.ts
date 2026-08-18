@@ -13,7 +13,7 @@ export const TasksLink = craftComponent(
   'TasksLink',
   {},
   () => ({}),
-  () => a({ craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink),
+  () => a('tasks', { craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink),
 );
 // #endregion router-link
 

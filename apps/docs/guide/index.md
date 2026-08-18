@@ -100,6 +100,7 @@ afternoon:
 [Program operators](/guide/advanced/program-operators) ·
 [Pattern matching](/guide/advanced/pattern-matching) ·
 [Observability](/guide/advanced/observability) ·
+[Live page MCP](/guide/ai/dev-page) ·
 [Coding agents](/resources/ai-agents)
 
 ## Looking for one symbol?

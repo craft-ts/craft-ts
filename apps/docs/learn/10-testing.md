@@ -140,7 +140,7 @@ exclusive feature branches, a method that must not both be called and write a
 verb+URL, pure `craftComputed`, no `depends-on` cycles, `assertPathBoundaries`,
 `noExclusiveLink`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`,
 `assertInsertSelectUnique`, `assertCraftEffectNoNetwork`,
-`assertCraftEffectNoImperativeSync`, and the route DI
+`assertCraftEffectNoImperativeSync`, `assertInteractiveElementNamed`, and the route DI
 proofs from [step 9](/learn/09-routing).
 
 Those proofs (`CanRun`, `RouteCheckedDI`) are unused type aliases — omit one

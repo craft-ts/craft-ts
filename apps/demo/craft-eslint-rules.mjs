@@ -63,6 +63,7 @@ export const craftDemoRules = {
   'craft-ng/no-noninteractive-element-interactions': 'error',
   'craft-ng/anchor-has-href': 'error',
   'craft-ng/button-has-type': 'error',
+  'craft-ng/require-interactive-local-name': 'error',
   'craft-ng/iframe-has-title': 'error',
   'craft-ng/heading-has-content': 'error',
   'craft-ng/prefer-relative-heading': 'error',

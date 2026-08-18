@@ -114,7 +114,7 @@ const PixelArt = craftComponent(
       div(
         { class: 'pixel-palette' },
         each(COLORS, { track: (color) => color }, (color) =>
-          button({ type: 'button',
+          button('color', { type: 'button',
             class: 'pixel-color',
             style: function* () {
               return { backgroundColor: yield* color() };
@@ -128,7 +128,7 @@ const PixelArt = craftComponent(
           }),
         ),
       ),
-      button(
+      button('clear',
         { type: 'button',
           *click() {
             yield* cells.clearAll();
@@ -149,7 +149,7 @@ const PixelArt = craftComponent(
       div(
         { class: 'pixel-grid', role: 'grid' },
         each(INDEXES, { track: (index) => index }, (_item, currentIndex) =>
-          button({ type: 'button',
+          button('cell', { type: 'button',
             class: 'pixel-cell',
             style: function* () {
               return {

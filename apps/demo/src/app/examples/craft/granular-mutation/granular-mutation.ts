@@ -71,10 +71,12 @@ export const { provideGranularMutation, GranularMutation } = craftService(
         },
       },
       insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app-craft',
-          key: 'granular',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app-craft',
+            key: 'granular',
+          }),
+        ),
         insertPaginationPlaceholderData({ initialValue: [] as User[] }),
         insertReactOnMutation(updateUserName, {
           filter: ({ mutationIdentifier, queryResource }) =>
@@ -132,26 +134,25 @@ const GranularMutationCraft = craftComponent(
               ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
             ]),
             div({ class: 'table-container' }, [
-              table( { class: 'table' }, [
-                thead( [
-                  tr( [th( 'ID'), th( 'Name'), th( 'Action')]),
-                ]),
+              table({ class: 'table' }, [
+                thead([tr([th('ID'), th('Name'), th('Action')])]),
                 tbody(
                   each(
                     users.currentPageData,
                     { track: (user) => user.id },
                     (user) =>
-                      tr( [
-                        td( function* () {
-                          return (yield* user()).id;
+                      tr([
+                        td(function* () {
+                          return (yield* user()).id; // todoR use new API
                         }),
-                        td( function* () {
+                        td(function* () {
                           return (yield* user()).name;
                         }),
                         td(
                           button(
                             'UpdateUserName',
-                            { type: 'button',
+                            {
+                              type: 'button',
                               class: 'action-btn',
                               disabled: function* () {
                                 return yield* updateUserName
@@ -206,16 +207,16 @@ const GranularMutationCraft = craftComponent(
               ),
               button(
                 'PreviousPage',
-                { type: 'button', class: 'btn', click: pagination.previousPage },
+                {
+                  type: 'button',
+                  class: 'btn',
+                  click: pagination.previousPage,
+                },
                 'Previous',
               ),
-              span(
-                'CurrentPage',
-                { class: 'current-page' },
-                function* () {
-                  return (yield* pagination()).page;
-                },
-              ),
+              span('CurrentPage', { class: 'current-page' }, function* () {
+                return (yield* pagination()).page;
+              }),
               button(
                 'NextPage',
                 { type: 'button', class: 'btn', click: pagination.nextPage },
