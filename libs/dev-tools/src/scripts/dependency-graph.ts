@@ -1,18 +1,16 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import {
   CallExpression,
   Node,
-  ObjectBindingPattern,
   ObjectLiteralExpression,
   Project,
   PropertyAccessExpression,
   SourceFile,
   SyntaxKind,
   VariableDeclaration,
-  YieldExpression,
 } from 'ts-morph';
 import {
   architectureCatalogToTypeScript,
@@ -36,7 +34,11 @@ export type DependencyGraphNodeKind =
   | 'source'
   | 'http-endpoint'
   | 'unique'
-  | 'template-element';
+  | 'template-element'
+  | 'server-function-family'
+  | 'server-function-contract'
+  | 'server-function-client'
+  | 'server-function-server';
 
 export type DependencyGraphEdgeKind =
   | 'loads'
@@ -320,6 +322,7 @@ export function analyzeDependencyGraph(
   collectCraftUniques(builder, sourceFiles);
   collectRouteChecks(builder);
   collectEffectGraph(builder, sourceFiles);
+  collectServerFunctions(builder, sourceFiles);
 
   builder.graph.nodes = [...builder.nodes.values()].sort((left, right) =>
     left.id.localeCompare(right.id),
@@ -1800,7 +1803,7 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
       if (!Node.isCallExpression(node)) return;
       if (node.getExpression().getText() === 'craftComponent') return 'skip';
       const parsed = parseCraftHyperscript(node);
-      if (!parsed || !isInteractiveElement(parsed)) return;
+      if (!parsed || !isInteractiveElement(parsed)) return undefined;
       const filePath = node.getSourceFile().getFilePath();
       const element = addNode(builder, {
         id: `template-element:${filePath}:${node.getStartLineNumber()}:${node.getStart()}`,
@@ -1817,6 +1820,7 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
         },
       });
       addEdge(builder, component.node.id, element.id, 'contains', 'ast');
+      return undefined;
     });
   }
 }
@@ -3506,6 +3510,250 @@ function collectEffectGraph(
   for (const edge of contribution.edges) {
     addEdge(builder, edge.from, edge.to, edge.kind, edge.evidence, edge.details);
   }
+}
+
+type ServerFunctionPart = {
+  readonly kind:
+    | 'server-function-contract'
+    | 'server-function-client'
+    | 'server-function-server';
+  readonly sourceFile: SourceFile;
+  readonly family: string;
+  readonly id?: string;
+  readonly exposure?: string;
+  readonly usesClientDI?: boolean;
+  readonly contractFamily?: string;
+  readonly runtimeServerImports?: readonly string[];
+  readonly runtimeClientImports?: readonly string[];
+  readonly importsServerOnly?: readonly string[];
+};
+
+/**
+ * Records server-function boundaries from source naming and the small public
+ * API. This deliberately runs on source files, not emitted bundles: the
+ * architecture check must be able to reject a bad boundary before production
+ * build transforms anything.
+ */
+function collectServerFunctions(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const parts: ServerFunctionPart[] = [];
+  const byPath = new Map(sourceFiles.map((file) => [file.getFilePath(), file]));
+
+  for (const sourceFile of sourceFiles) {
+    const baseName = sourceFile.getBaseName();
+    const suffix = serverFunctionSuffix(baseName);
+    if (!suffix) continue;
+    const family = sourceFile.getFilePath().slice(0, -suffix.length);
+    const imports = serverFunctionImports(sourceFile, byPath);
+    if (suffix === '.fn-contract.ts') {
+      const contract = findServerFunctionContract(sourceFile);
+      parts.push({
+        kind: 'server-function-contract',
+        sourceFile,
+        family,
+        id: contract?.id,
+        exposure: contract?.exposure,
+        importsServerOnly: imports.serverOnly,
+      });
+    } else if (suffix === '.fn-client.ts') {
+      const clientContract = findClientContractFamily(sourceFile, byPath);
+      parts.push({
+        kind: 'server-function-client',
+        sourceFile,
+        family,
+        id: clientContract?.id,
+        contractFamily: clientContract?.family,
+        runtimeServerImports: imports.server,
+        runtimeClientImports: imports.client,
+      });
+    } else {
+      const server = findServerFunction(sourceFile, byPath);
+      parts.push({
+        kind: 'server-function-server',
+        sourceFile,
+        family,
+        id: server?.id,
+        exposure: server?.exposure,
+        usesClientDI: server?.usesClientDI,
+        contractFamily: server?.contractFamily,
+        runtimeClientImports: imports.client,
+      });
+    }
+  }
+
+  const families = new Map<string, ServerFunctionPart[]>();
+  for (const part of parts) {
+    const entries = families.get(part.family) ?? [];
+    entries.push(part);
+    families.set(part.family, entries);
+  }
+
+  for (const [family, familyParts] of families) {
+    const id = familyParts.find((part) => part.id)?.id;
+    const familyNode = addNode(builder, {
+      id: `server-function-family:${family}`,
+      kind: 'server-function-family',
+      label: id ?? relative(builder.rootDir, family),
+      filePath: familyParts[0]?.sourceFile.getFilePath(),
+      line: familyParts[0]?.sourceFile.getLineAndColumnAtPos(0).line,
+      details: {
+        family: relative(builder.rootDir, family),
+        ...(id === undefined ? {} : { serverFunctionId: id }),
+      },
+    });
+
+    for (const part of familyParts) {
+      const node = addNode(builder, {
+        id: `server-function-part:${part.kind}:${part.sourceFile.getFilePath()}`,
+        kind: part.kind,
+        label: id ?? part.id ?? relative(builder.rootDir, family),
+        filePath: part.sourceFile.getFilePath(),
+        line: part.sourceFile.getLineAndColumnAtPos(0).line,
+        details: {
+          family: relative(builder.rootDir, family),
+          ...(part.id === undefined ? {} : { serverFunctionId: part.id }),
+          ...(part.exposure === undefined ? {} : { exposure: part.exposure }),
+          ...(part.usesClientDI === undefined
+            ? {}
+            : { usesClientDI: part.usesClientDI }),
+          ...(part.contractFamily === undefined
+            ? {}
+            : { contractFamily: relative(builder.rootDir, part.contractFamily) }),
+          ...(part.runtimeServerImports?.length
+            ? { runtimeServerImports: part.runtimeServerImports.map((file) => relative(builder.rootDir, file)) }
+            : {}),
+          ...(part.runtimeClientImports?.length
+            ? { runtimeClientImports: part.runtimeClientImports.map((file) => relative(builder.rootDir, file)) }
+            : {}),
+          ...(part.importsServerOnly?.length
+            ? { importsServerOnly: part.importsServerOnly.map((file) => relative(builder.rootDir, file)) }
+            : {}),
+        },
+      });
+      addEdge(builder, familyNode.id, node.id, 'contains', 'ast');
+
+      for (const imported of part.runtimeServerImports ?? []) {
+        addEdge(builder, node.id, `server-function-part:server-function-server:${imported}`, 'depends-on', 'ast', {
+          boundary: 'client-imports-server',
+        });
+      }
+      for (const imported of part.runtimeClientImports ?? []) {
+        addEdge(builder, node.id, `server-function-part:server-function-client:${imported}`, 'depends-on', 'ast', {
+          boundary: 'server-imports-client',
+        });
+      }
+    }
+  }
+}
+
+function serverFunctionSuffix(
+  baseName: string,
+): '.fn-contract.ts' | '.fn-client.ts' | '.fn-serveur.ts' | undefined {
+  if (baseName.endsWith('.fn-contract.ts')) return '.fn-contract.ts';
+  if (baseName.endsWith('.fn-client.ts')) return '.fn-client.ts';
+  if (baseName.endsWith('.fn-serveur.ts')) return '.fn-serveur.ts';
+  return undefined;
+}
+
+function serverFunctionImports(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+): { server: string[]; client: string[]; serverOnly: string[] } {
+  const server: string[] = [];
+  const client: string[] = [];
+  const serverOnly: string[] = [];
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    if (declaration.isTypeOnly()) continue;
+    const imported = resolveImportedSource(
+      sourceFile,
+      declaration.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    if (!imported || !byPath.has(imported.getFilePath())) continue;
+    const suffix = serverFunctionSuffix(imported.getBaseName());
+    if (suffix === '.fn-serveur.ts') server.push(imported.getFilePath());
+    if (suffix === '.fn-client.ts') client.push(imported.getFilePath());
+    if (imported.getBaseName().includes('.server.')) {
+      serverOnly.push(imported.getFilePath());
+    }
+  }
+  return { server, client, serverOnly };
+}
+
+function findServerFunctionContract(
+  sourceFile: SourceFile,
+): { id?: string; exposure?: string } | undefined {
+  const call = sourceFile
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find((candidate) => candidate.getExpression().getText() === 'serverFunctionContract');
+  const object = call?.getArguments()[0]?.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (!object) return undefined;
+  return {
+    id: getStringProperty(object, 'id'),
+    exposure: getStringProperty(object, 'exposure'),
+  };
+}
+
+function findServerFunction(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+): { id?: string; exposure?: string; usesClientDI: boolean; contractFamily?: string } | undefined {
+  const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const serverCall = calls.find((candidate) => {
+    const expression = candidate.getExpression().getText();
+    return expression === 'serverFunction';
+  });
+  if (!serverCall) return undefined;
+  const first = serverCall.getArguments()[0];
+  const directId = first?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+  const contractIdentifier = first?.asKind(SyntaxKind.Identifier);
+  let contractFamily: string | undefined;
+  let id = directId;
+  if (contractIdentifier) {
+    const importDeclaration = sourceFile.getImportDeclarations().find((declaration) =>
+      declaration.getNamedImports().some((named) => named.getAliasNode()?.getText() === contractIdentifier.getText() || named.getName() === contractIdentifier.getText()),
+    );
+    const imported = importDeclaration
+      ? resolveImportedSource(sourceFile, importDeclaration.getModuleSpecifierValue(), sourceFile.getProject())
+      : undefined;
+    if (imported && byPath.has(imported.getFilePath())) {
+      contractFamily = imported.getFilePath().replace(/\.fn-contract\.ts$/, '');
+      const contract = findServerFunctionContract(imported);
+      id = contract?.id;
+    }
+  }
+  const usesClientDI = calls.some((candidate) => candidate.getExpression().getText() === 'requireClientDI');
+  return {
+    id,
+    exposure: contractIdentifier ? 'client' : 'server',
+    usesClientDI,
+    ...(contractFamily === undefined ? {} : { contractFamily }),
+  };
+}
+
+function findClientContractFamily(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+): { id?: string; family?: string } | undefined {
+  const call = sourceFile
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find((candidate) => candidate.getExpression().getText() === 'createServerFunctionClient');
+  const identifier = call?.getArguments()[0]?.asKind(SyntaxKind.Identifier);
+  if (!identifier) return undefined;
+  const declaration = sourceFile.getImportDeclarations().find((candidate) =>
+    candidate.getNamedImports().some((named) => named.getName() === identifier.getText() || named.getAliasNode()?.getText() === identifier.getText()),
+  );
+  const imported = declaration
+    ? resolveImportedSource(sourceFile, declaration.getModuleSpecifierValue(), sourceFile.getProject())
+    : undefined;
+  if (!imported || !byPath.has(imported.getFilePath())) return undefined;
+  const contract = findServerFunctionContract(imported);
+  return {
+    id: contract?.id,
+    family: imported.getFilePath().replace(/\.fn-contract\.ts$/, ''),
+  };
 }
 
 function addEdge(

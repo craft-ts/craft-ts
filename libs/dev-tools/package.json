@@ -46,7 +46,8 @@
     "craft-migrate-components": "./src/bin/craft-migrate-components.js",
     "craft-migrate-architecture": "./src/bin/craft-migrate-architecture.js",
     "craft-migrate-template": "./src/bin/craft-migrate-template.js",
-    "craft-graph": "./src/bin/craft-graph.js"
+    "craft-graph": "./src/bin/craft-graph.js",
+    "craft-architecture-check": "./src/bin/craft-architecture-check.js"
   },
   "files": [
     "generators.json",

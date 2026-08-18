@@ -250,6 +250,7 @@ export const architectureCatalog = {
     "signalSource (signalSource)",
     "source$ (source$)"
   ],
+  "serverFunctionFamilies": [],
   "httpEndpoints": [
     {
       "method": "GET",
