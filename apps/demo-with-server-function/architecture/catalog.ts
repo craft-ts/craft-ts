@@ -1,8 +1,11 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "706073d27df7f4fe",
-  "routes": [],
+  "graphHash": "fd99ccb4b6c23310",
+  "routes": [
+    "",
+    "simple-list"
+  ],
   "services": [
     "BrowserCryptoService",
     "BrowserDocumentService",
@@ -29,8 +32,10 @@ export const architectureCatalog = {
     "AiContextMenu",
     "AiSendDialog",
     "AnonymousComponent@800",
+    "AppShell",
     "CraftRouterOutlet",
     "ServerFunctionDemo",
+    "SimpleListDemo",
     "craftPending"
   ],
   "primitives": [
@@ -46,7 +51,6 @@ export const architectureCatalog = {
     "requestTitle",
     "resultCount",
     "searchInput",
-    "searchTerm",
     "setCopied",
     "setInstruction",
     "submitSearch",

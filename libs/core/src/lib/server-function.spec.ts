@@ -84,8 +84,33 @@ describe('server functions', () => {
     const server = createServer({
       functions: [implementation],
       runtime: { resolve: <Value>() => ({ id: 'u-1' } as Value) },
+      checkPermission: (permission) => permission === 'users:read',
     });
     await expect(server.invoke('users.current', 4)).resolves.toBe('u-1:4');
+  });
+
+  it('rejette une permission déclarée mais refusée', async () => {
+    const implementation = serverFunction(
+      'users.restricted',
+      numberSchema((value) => value),
+      { exposure: 'client' },
+    )
+      .pipe(requireServerPermission('users:write'))
+      .handler(({ input }) => input);
+
+    const denying = createServer({
+      functions: [implementation],
+      checkPermission: () => false,
+    });
+    await expect(denying.invoke('users.restricted', 4)).rejects.toThrow(
+      'CRAFT_SERVER_FUNCTION_PERMISSION_DENIED',
+    );
+
+    // Fail-closed : une permission déclarée sans contrôle configuré est refusée.
+    const unchecked = createServer({ functions: [implementation] });
+    await expect(unchecked.invoke('users.restricted', 4)).rejects.toThrow(
+      'no permission checker is configured',
+    );
   });
 
   it('rejects duplicate ids in the server registry', () => {

@@ -108,7 +108,7 @@ const dialog = craftComponent(
     readonly body?: ContentSlot;
     readonly actions: readonly ProjectionOf<typeof toolbarAction>[];
   }) => ({
-    body: input.body ?? content(() => p('Aucun contenu de dialogue fourni.')),
+    body: input.body ?? content(() => p('No dialog content provided.')),
     actions: input.actions,
   }),
   ({ body, actions }) =>
@@ -135,7 +135,7 @@ const card = craftComponent(
     header:
       input.header ??
       content(() =>
-        heading({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
+        heading({ class: 'projection-demo__fallback' }, 'Default title'),
       ),
     body: input.body,
   }),
@@ -173,18 +173,18 @@ export const contentProjectionDemo = craftComponent(
     }));
     const lastAction = yield* state(
       'lastAction',
-      'Aucune action déclenchée.',
+      'No action triggered yet.',
       ({ state, set }) => ({
         record: (label: string) => set(label),
         lastActionLabel: craftComputed('lastActionLabel', function* () {
-          return `Dernière action : ${yield* state()}`;
+          return `Last action: ${yield* state()}`;
         }),
       }),
     );
     const users = [
-      { id: 1, name: 'Ada Lovelace', role: 'Pionnière des algorithmes' },
-      { id: 2, name: 'Grace Hopper', role: 'Compilateurs et systèmes' },
-      { id: 3, name: 'Margaret Hamilton', role: 'Logiciel embarqué' },
+      { id: 1, name: 'Ada Lovelace', role: 'Algorithm pioneer' },
+      { id: 2, name: 'Grace Hopper', role: 'Compilers and systems' },
+      { id: 3, name: 'Margaret Hamilton', role: 'Embedded software' },
     ] satisfies readonly DemoUser[];
 
     return {
@@ -210,18 +210,18 @@ export const contentProjectionDemo = craftComponent(
     recordAction,
   }) =>
     section({ class: 'component-demo projection-demo' }, [
-      heading('Projection de contenu et contrats logiques'),
+      heading('Content projection and logical contracts'),
       headingSection([
         p(
-          'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
+          'Each case uses content() or renderContent() without a runtime registry: the same component can be rendered directly or projected.',
         ),
       card({
-        header: content(() => heading('Slot header fourni par la page')),
+        header: content(() => heading('Header slot provided by the page')),
         body: content(
           () => [
             p(
               { class: 'projection-demo__content' },
-              'Le contenu respecte le contrat DOM du slot.',
+              'The content follows the slot DOM contract.',
             ),
             ul(
               { class: 'projection-demo__list' },
@@ -240,13 +240,13 @@ export const contentProjectionDemo = craftComponent(
         body: () =>
           p(
             { class: 'projection-demo__content' },
-            'Ce second exemple utilise le rendu normal du contenu sans opt-in de styles.',
+            'This second example uses normal content rendering without opting into styles.',
           ),
       }),
       section({ class: 'projection-demo__case' }, [
-        heading('Projection logique et collection keyée'),
+        heading('Logical projection and a keyed collection'),
         p(
-          'ToolbarAction expose un contract. Toolbar reçoit une collection explicite, la rend avec renderContent() et la réconcilie par key.',
+          'ToolbarAction exposes a contract. Toolbar receives an explicit collection, renders it with renderContent(), and reconciles it by key.',
         ),
         p({ class: 'projection-demo__status' }, lastActionLabel),
         button('toggleToolbar',
@@ -257,8 +257,8 @@ export const contentProjectionDemo = craftComponent(
           },
           ifBlock(
             showToolbar,
-            () => 'Masquer la toolbar',
-            () => 'Afficher la toolbar',
+            () => 'Hide the toolbar',
+            () => 'Show the toolbar',
           ),
         ),
         ifBlock(
@@ -268,28 +268,28 @@ export const contentProjectionDemo = craftComponent(
               actions: [
                 toolbarAction({
                   key: 'save',
-                  content: () => 'Enregistrer',
+                  content: () => 'Save',
                   trigger: function* () {
-                    yield* recordAction('Enregistrer');
+                    yield* recordAction('Save');
                   },
                 }),
                 toolbarAction({
                   key: 'cancel',
-                  content: () => 'Annuler',
+                  content: () => 'Cancel',
                   trigger: function* () {
-                    yield* recordAction('Annuler');
+                    yield* recordAction('Cancel');
                   },
                 }),
               ],
             }),
-          () => p('La projection conditionnelle est masquée.'),
+          () => p('The conditional projection is hidden.'),
         ),
-        p('Le même composant, rendu directement :'),
+        p('The same component, rendered directly:'),
         toolbarAction({
           key: 'direct',
-          content: () => 'Action directe',
+          content: () => 'Direct action',
           trigger: function* () {
-            yield* recordAction('Action directe');
+            yield* recordAction('Direct action');
           },
         }),
         button('openDialog',
@@ -298,7 +298,7 @@ export const contentProjectionDemo = craftComponent(
             type: 'button',
             click: openDialog,
           },
-          'Ouvrir le dialog projeté',
+          'Open the projected dialog',
         ),
       ]),
       ifBlock(
@@ -307,23 +307,23 @@ export const contentProjectionDemo = craftComponent(
           dialog({
             body: content(() =>
               div([
-                heading('Dialog avec contenu optionnel'),
+                heading('Dialog with optional content'),
                 p(
-                  'Le corps est un ContentSlot libre, les actions sont contractuelles.',
+                  'The body is a free ContentSlot, the actions are contractual.',
                 ),
               ]),
             ),
             actions: [
               toolbarAction({
                 key: 'close',
-                content: () => 'Fermer',
+                content: () => 'Close',
                 trigger: closeDialog,
               }),
               toolbarAction({
                 key: 'confirm',
-                content: () => 'Confirmer',
+                content: () => 'Confirm',
                 trigger: function* () {
-                  yield* recordAction('Confirmer');
+                  yield* recordAction('Confirm');
                   yield* closeDialog();
                 },
               }),

@@ -1,6 +1,7 @@
 import {
   ɵInjector as Injector,
   type CraftProvider,
+  type NamedBrandedServiceProvider,
 } from '@craft-ts/core';
 import { Context, Effect, Exit, Layer, Scope } from 'effect';
 
@@ -51,17 +52,29 @@ function buildLevel(
  * Provides an Effect `Layer` to a craft injector, exactly as `useValue` and
  * `useFactory` provide plain values — task 2.1.
  *
+ * Typed as a {@link NamedBrandedServiceProvider} carrying `ROut` — the union
+ * of Context.Tag services the layer builds — as its `Output`. This is what
+ * lets `AppProvidedDependencyValuesOf<typeof appConfig>` (from
+ * `@craft-ts/core`, already used for regular `craftService` DI) see Effect
+ * services too, so an `EffectRequirementsCheckedDI` check can compare an
+ * Effect's `R` against what's actually installed instead of trusting a cast.
+ * The brand is type-only: nothing extra is written at runtime.
+ *
  * @example
  * const root = createCraftInjector([provideLayer(ConfigLayer)]);
  * const route = root.createChild([provideLayer(ApiLayer)]);
  */
 export function provideLayer<ROut, RIn>(
   layer: Layer.Layer<ROut, never, RIn>,
-): CraftProvider & {
-  readonly provide: object;
-  readonly deps: readonly [typeof Injector];
-} {
-  return {
+): CraftProvider &
+  NamedBrandedServiceProvider<'CraftEffectLayer', 'toProvide', ROut> & {
+    readonly provide: object;
+    readonly deps: [typeof Injector];
+  } {
+  const provider: CraftProvider & {
+    readonly provide: object;
+    readonly deps: [typeof Injector];
+  } = {
     token: CRAFT_EFFECT_LEVEL,
     // Keep the provider consumable by Angular-style route injectors as well
     // as by Craft's native root injector.
@@ -99,6 +112,14 @@ export function provideLayer<ROut, RIn>(
       return { context, memoMap, scope };
     },
   };
+
+  // `NamedBrandedServiceProvider`'s brand keys don't exist at runtime — same
+  // as `createProviders` in craft-service.ts, this is a type-only claim.
+  return provider as unknown as CraftProvider &
+    NamedBrandedServiceProvider<'CraftEffectLayer', 'toProvide', ROut> & {
+      readonly provide: object;
+      readonly deps: [typeof Injector];
+    };
 }
 
 type InjectorWithTeardown = Injector & {

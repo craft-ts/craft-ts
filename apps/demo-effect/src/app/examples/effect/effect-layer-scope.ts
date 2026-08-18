@@ -64,23 +64,23 @@ const EffectLayerScopeComponent = craftComponent(
   },
   ({ teamOverviewQuery }) =>
     div([
-      heading('Vue de l’équipe'),
+      heading('Team overview'),
       p(
         { class: 'intro' },
-        'La page affiche les membres de l’équipe Support visibles par l’utilisateur connecté. La session vient de l’application et l’équipe vient de cette route ; la donnée affichée est une vraie vue métier mockée.',
+        'The page shows the members of the Support team visible to the signed-in user. The session comes from the application and the team comes from this route; the data shown is a real, mocked business view.',
       ),
       div({ class: 'panel' }, [
-        p({ class: 'panel-title' }, 'Équipe active'),
-        ifBlock(teamOverviewQuery.isLoading, () => p('Chargement de la vue équipe…')),
-        p({ class: 'row' }, [strong('Équipe : '), teamOverviewQuery.teamName]),
-        p({ class: 'row' }, [strong('Utilisateur connecté : '), teamOverviewQuery.viewerName]),
-        p({ class: 'row' }, [strong('Niveau d’accès : '), teamOverviewQuery.viewerAccess]),
-        p({ class: 'row' }, [strong('Membres visibles : '), teamOverviewQuery.memberNames]),
+        p({ class: 'panel-title' }, 'Active team'),
+        ifBlock(teamOverviewQuery.isLoading, () => p('Loading team overview…')),
+        p({ class: 'row' }, [strong('Team: '), teamOverviewQuery.teamName]),
+        p({ class: 'row' }, [strong('Signed-in user: '), teamOverviewQuery.viewerName]),
+        p({ class: 'row' }, [strong('Access level: '), teamOverviewQuery.viewerAccess]),
+        p({ class: 'row' }, [strong('Visible members: '), teamOverviewQuery.memberNames]),
       ]),
       p({ class: 'note' }, [
-        'La query charge ',
+        'The query loads ',
         span({ class: 'mono' }, 'TeamOverview'),
-        '. Cette donnée dépend de deux services Effect, mais les services eux-mêmes restent des dépendances internes de l’opération métier.',
+        '. This data depends on two Effect services, but the services themselves remain internal dependencies of the business operation.',
       ]),
     ]),
 );

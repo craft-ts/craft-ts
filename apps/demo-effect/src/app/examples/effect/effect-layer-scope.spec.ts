@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectLayerScopeComponent from './effect-layer-scope';
 import { SessionLive, SupportTeamLive } from '../../shared/access-domain';
 
-describe('demo: vue d’équipe avec Layers global et route', () => {
+describe('demo: team overview with global and route Layers', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe('demo: vue d’équipe avec Layers global et route', () => {
     TestBed.resetTestingModule();
   });
 
-  it('hérite de la session globale et ajoute le contexte de route', async () => {
+  it('inherits the global session and adds the route context', async () => {
     const element = document.createElement('div');
     document.body.append(element);
     const globalInjector = TestBed.rootInjector.createChild([
@@ -47,7 +47,7 @@ describe('demo: vue d’équipe avec Layers global et route', () => {
     TestBed.tick();
 
     await vi.waitFor(() => {
-      expect(element.textContent).toContain('Équipe Support');
+      expect(element.textContent).toContain('Support Team');
       expect(element.textContent).toContain('Ada Lovelace');
       expect(element.textContent).toContain('Grace Hopper');
       expect(element.textContent).toContain('Linus Torvalds');

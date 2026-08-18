@@ -3,6 +3,7 @@ import {
   craftException,
   isCraftException,
   provideServerFunctionTransport,
+  readServerFunctionFailure,
   TestBed,
 } from '@craft-ts/core';
 import {
@@ -53,7 +54,15 @@ describe('demo with server function', () => {
       );
 
       expect(isCraftException(result)).toBe(true);
-      expect(JSON.stringify(result)).toContain('AuthenticatedUserMismatch');
+      expect(result).toMatchObject({
+        _tag: 'AuthenticatedUserMismatch',
+        scope: 'ServerFunction',
+        identifier: 'demo.users.authenticated-list',
+        payload: {
+          requestedUserId: 'other-user',
+          authenticatedUserId: 'user-ada',
+        },
+      });
     } finally {
       await server.close();
     }
@@ -72,7 +81,11 @@ describe('demo with server function', () => {
       );
 
       expect(isCraftException(result)).toBe(true);
-      expect(JSON.stringify(result)).toContain('admin role required');
+      expect(result).toMatchObject({
+        _tag: 'AdminRequired',
+        scope: 'ServerFunction',
+        payload: { role: 'member' },
+      });
     } finally {
       await server.close();
     }
@@ -97,7 +110,9 @@ describe('demo with server function', () => {
       graph.serverFunctionFamily('demo.users.authenticated-list').kind,
     ).toBe('server-function-family');
     expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
-  });
+    // Construire le programme TypeScript de la démo dépasse le timeout par
+    // défaut : il croît avec le nombre de fichiers analysés.
+  }, 60_000);
 });
 
 function configureServerFunctionTransport(serverUrl: string): void {
@@ -111,6 +126,15 @@ function configureServerFunctionTransport(serverUrl: string): void {
         });
         const body = (await response.json()) as unknown;
         if (response.ok) return body;
+
+        // Échec métier tagué : on le rejoue tel quel, comme le transport par défaut.
+        const failure = readServerFunctionFailure(body);
+        if (failure) {
+          return craftException(
+            { _tag: failure._tag, scope: 'ServerFunction', identifier: id },
+            failure,
+          );
+        }
 
         return craftException(
           {

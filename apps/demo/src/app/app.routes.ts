@@ -18,8 +18,8 @@ import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
 
-// SOURCE DE VÉRITÉ DES ROUTES DE LA DÉMO.
-// Toutes les routes de la démo sont servies et vérifiées par défaut.
+// SOURCE OF TRUTH FOR THE DEMO ROUTES.
+// All demo routes are served and checked by default.
 export const { demoRoutes } = craftRoutes('demo', [
   /* demo-route: query */
   {

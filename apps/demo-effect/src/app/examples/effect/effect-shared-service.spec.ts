@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectSharedServiceComponent from './effect-shared-service';
 import { AccessPolicyLive } from '../../shared/access-domain';
 
-describe('demo: vérification de droits avec un service partagé', () => {
+describe('demo: checking access rights with a shared service', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe('demo: vérification de droits avec un service partagé', () => {
     TestBed.resetTestingModule();
   });
 
-  it('résout la politique d’accès via le Layer applicatif', async () => {
+  it('resolves the access policy via the application Layer', async () => {
     const element = document.createElement('div');
     document.body.append(element);
     const injector = TestBed.rootInjector.createChild([
@@ -38,11 +38,11 @@ describe('demo: vérification de droits avec un service partagé', () => {
     );
     TestBed.tick();
 
-    expect(element.textContent).toContain('Vérification en cours…');
-    expect(element.textContent).not.toContain('Utilisateur inconnu.');
+    expect(element.textContent).toContain('Checking access…');
+    expect(element.textContent).not.toContain('Unknown user.');
 
     await vi.waitFor(() => {
-      expect(element.textContent).toContain('Accès complet');
+      expect(element.textContent).toContain('Full access');
     });
 
     const grace = Array.from(element.querySelectorAll('button')).find(
@@ -52,11 +52,23 @@ describe('demo: vérification de droits avec un service partagé', () => {
     grace?.click();
     TestBed.tick();
 
-    expect(element.textContent).toContain('Vérification en cours…');
-    expect(element.textContent).not.toContain('Utilisateur inconnu.');
+    expect(element.textContent).toContain('Checking access…');
+    expect(element.textContent).not.toContain('Unknown user.');
 
     await vi.waitFor(() => {
-      expect(element.textContent).toContain('Lecture seule');
+      expect(element.textContent).toContain('Read only');
+    });
+
+    const linus = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Linus'),
+    );
+    expect(linus).toBeDefined();
+    linus?.click();
+    TestBed.tick();
+
+    await vi.waitFor(() => {
+      expect(element.textContent).toContain('Linus Torvalds');
+      expect(element.textContent).toContain('Access blocked');
     });
 
     mounted.destroy();

@@ -109,11 +109,11 @@ What each rule does:
 - `craft-ts/require-cascade-route-di-check`: rejects any `craftRoutes(...)` collection without a same-file `ValidateCascadeRoutesFile + CanRun` proof; its autofix adds the conservative `<never, Router>` context, which should be adjusted when the mount inherits providers
 - `craft-ts/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
 
-### Accessibilité (`craft-ts/a11y`)
+### Accessibility (`craft-ts/a11y`)
 
 Spread `craftRules.configs.a11y.rules` to enable the WCAG 2.2 AA preset as
 `error`. The rules walk **all** hyperscript in the file (`craftTemplate`,
-factories extraites, `h('tag')`), not only `craftComponent` argument 3.
+extracted factories, `h('tag')`), not only `craftComponent` argument 3.
 
 - `prefer-named-html-helpers`: forbids `h('img')` / `h('button')` when a named helper exists
 - `require-interactive-local-name`: requires a string-literal first argument on interactive helpers; the local name is the third segment of `data-craft-name="${component}:${tag}:${localName}"`
@@ -125,7 +125,7 @@ factories extraites, `h('tag')`), not only `craftComponent` argument 3.
   `require-outlet-heading-section`, `no-heading-level-skip`
 - `require-focus-visible`, `require-reduced-motion` (CSS of `craftComponent`)
 
-See [Accessibilité](/guide/components/accessibility).
+See [Accessibility](/guide/components/accessibility).
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
 

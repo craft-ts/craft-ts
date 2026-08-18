@@ -13,6 +13,6 @@ export const lazyMessage = craftComponent(
         class: 'component-demo__lazy-content',
         'data-testid': 'deferred-content',
       },
-      'Le composant différé est chargé.',
+      'The deferred component is loaded.',
     ),
 );

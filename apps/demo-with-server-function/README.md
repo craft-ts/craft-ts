@@ -54,6 +54,70 @@ frontend may send a `userId`, but that value and the client-side role are
 considered untrusted. The server resolves its own `CurrentUser`, checks the
 `admin` role again, and then verifies that the ID matches the session.
 
+## Middleware
+
+Both server-side checks live in a middleware chain, in
+`users/admin-access.mw-serveur.ts`, not in the handler:
+
+```ts
+export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
+  Effect.gen(function* () {
+    const authenticatedUser = yield* requireAdmin;
+    return yield* next({ context: { authenticatedUser } });
+  }),
+);
+
+export const matchingUser = craftMiddleware('demo.matching-user')
+  .use(adminOnly)
+  .input(Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })))
+  .server(({ input, context, next }) =>
+    Effect.gen(function* () {
+      if (input.userId !== context.authenticatedUser.id) {
+        return yield* new AuthenticatedUserMismatch({ /* … */ });
+      }
+      return yield* next({ context: {} });
+    }),
+  );
+```
+
+The server function then declares the chain with `.use(...)` and keeps only its
+own work:
+
+```ts
+export const getAuthenticatedUsers = serverFunction(
+  'demo.users.authenticated-list',
+  Schema.toStandardSchemaV1(Schema.Struct({ filter: Schema.String })),
+  { exposure: 'client', output: authenticatedListUsersOutputSchema },
+)
+  .use(matchingUser)
+  .handler(({ input, context }) =>
+    Effect.gen(function* () {
+      context.authenticatedUser; // published by the middleware, fully typed
+      input.userId;              // validated by the middleware input schema
+      input.filter;              // validated by the server function schema
+      // …
+    }),
+  );
+```
+
+Three things are inferred, with no manual declaration:
+
+- **the input** — `userId` is declared by the middleware and merged into the
+  server function input, on the handler side *and* on the client facade side;
+- **the context** — `context.authenticatedUser` is what the middleware published
+  through `next({ context })`;
+- **the error channel** — `AdminRequired` and `AuthenticatedUserMismatch` are
+  raised by the middleware and end up in the `Effect` error channel of the
+  server function, then in the client facade return type.
+
+Middleware run as an onion: each one may act before and after `next()`, and
+dependencies declared with `.use(...)` run first and are deduplicated by id.
+
+Because the input is validated once, ahead of the chain, a middleware input
+schema **must ignore unknown keys** — the default behaviour of `Schema.Struct`.
+A strict schema would reject the fields contributed by the server function
+itself.
+
 The local database is the `data/users.json` file, read by an Effect repository;
 no database server or native package is required. The server handler returns an
 `Effect` with a typed business error and a `UserRepository` dependency.
@@ -105,8 +169,8 @@ npx nx architecture demo-with-server-function
 npx nx typecheck-architecture demo-with-server-function
 ```
 
-Les règles sont regroupées dans `architecture/architecture.spec.ts` afin que
-le graphe TypeScript ne soit analysé qu’une seule fois par exécution Vitest.
+The rules are grouped in `architecture/architecture.spec.ts` so that the
+TypeScript graph is only built once per Vitest run.
 
 The test output also displays the client request and the lines read from the
 local database.

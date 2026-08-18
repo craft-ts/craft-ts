@@ -15,6 +15,15 @@ export type ClientDIRequirement<Value = unknown> = {
   readonly __requiresClientExposure: true;
 };
 
+/**
+ * ATTENTION — déclaratif uniquement pour l'instant.
+ *
+ * `requireClientDI` retype le token accepté par `required()` et impose une
+ * exposition client, mais aucune valeur du DI navigateur n'est encore
+ * transportée jusqu'au serveur : `required()` résout dans le DI **du serveur**.
+ * Le canal client → serveur (`sendContext`) est la V2 du plan middleware, voir
+ * `docs/superpowers/plans/2026-08-18-server-function-middleware.md`.
+ */
 export function requireClientDI<Value>(
   token: ServerFunctionToken<Value>,
   options: { readonly mode?: ClientDIRequirementMode } = {},

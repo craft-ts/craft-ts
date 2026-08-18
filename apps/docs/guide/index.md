@@ -70,7 +70,7 @@ afternoon:
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·
 [Encapsulated styles](/guide/components/styles) ·
-[Accessibilité](/guide/components/accessibility)
+[Accessibility](/guide/components/accessibility)
 
 ### Forms
 

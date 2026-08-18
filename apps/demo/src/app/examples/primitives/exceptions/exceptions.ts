@@ -17,7 +17,6 @@ import {
   craftSleep,
   query,
   craftComputed,
-  state,
 } from '@craft-ts/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
@@ -82,15 +81,10 @@ const ExceptionsComponent = craftComponent(
     `,
   },
   function* () {
-    const scenario = yield* state(
-      'scenario',
-      'success' as Scenario,
-      ({ set }) => ({ select: (value: Scenario) => set(value) }),
-    );
     const userQuery = yield* query(
       'userQuery',
       {
-        params: scenario,
+        method: (scenario: Scenario) => scenario,
         loader: craftGen(function* ({ params }) {
           yield* craftSleep(600);
           if (params === 'not-found') {
@@ -128,9 +122,10 @@ const ExceptionsComponent = craftComponent(
         }),
       }),
     );
-    return { scenario, userQuery };
+    yield* userQuery.call('success'); // trigger first call
+    return { userQuery };
   },
-  ({ scenario, userQuery }) => {
+  ({ userQuery }) => {
     return div([
       heading(
         function* () {
@@ -141,7 +136,7 @@ const ExceptionsComponent = craftComponent(
         button('success',
           { type: 'button',
             *click() {
-              yield* scenario.select('success');
+              yield* userQuery.call('success');
             },
           },
           'Success',
@@ -149,7 +144,7 @@ const ExceptionsComponent = craftComponent(
         button('notFound',
           { type: 'button',
             *click() {
-              yield* scenario.select('not-found');
+              yield* userQuery.call('not-found');
             },
           },
           'User not found',
@@ -157,7 +152,7 @@ const ExceptionsComponent = craftComponent(
         button('consentMissing',
           { type: 'button',
             *click() {
-              yield* scenario.select('consent-missing');
+              yield* userQuery.call('consent-missing');
             },
           },
           'Consent missing',
@@ -165,7 +160,7 @@ const ExceptionsComponent = craftComponent(
         button('forbidden',
           { type: 'button',
             *click() {
-              yield* scenario.select('forbidden');
+              yield* userQuery.call('forbidden');
             },
           },
           'Access forbidden',

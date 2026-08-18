@@ -186,7 +186,7 @@ test('removes the previous page entries after internal navigation', async ({
 
   try {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+    await page.getByRole('button', { name: 'Browse examples' }).click();
     await page.getByRole('link', { name: 'craftService Counter' }).click();
     await expect(page).toHaveURL(/\/craft-service\/counter$/);
     await expect

@@ -58,5 +58,5 @@ export function mockEffectService<Self, Shape extends object>(
       never,
       never
     >,
-  );
+  ) as unknown as CraftProvider;
 }

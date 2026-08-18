@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "620676059b66ca16",
+  "graphHash": "8c068d59a716e180",
   "routes": [
     "",
     "access",
@@ -53,9 +53,9 @@ export const architectureCatalog = {
     "memberNames",
     "profileName",
     "profileQuery",
-    "request",
     "setCopied",
     "setInstruction",
+    "showUnknown",
     "teamName",
     "teamOverviewQuery",
     "userName",

@@ -47,22 +47,20 @@ const FullDemo = craftComponent(
           update((current) => current.filter((todo) => todo.id !== id)),
       }),
     );
-    const refresh = yield* state('refresh', 0, ({ update }) => ({
-      increment: () => update((value) => value + 1),
-    }));
     const todos = yield* query('todos', {
-      params: refresh,
+      method: (_: undefined) => undefined,
       loader: function* () {
           const _records = yield* records();
         return [..._records];
       },
     });
+    yield* todos.call(undefined); // trigger first call
     const addTodo = yield* mutation('addTodo', {
       method: (title: string) => title,
       loader: function* ({ params: title }) {
         const todo = { id: yield* nextId.take(), title };
         yield* records.add(todo);
-        yield* refresh.increment();
+        yield* todos.call(undefined);
         return todo;
       },
     });
@@ -70,7 +68,7 @@ const FullDemo = craftComponent(
       method: (id: number) => id,
       loader: function* ({ params: id }) {
         yield* records.remove(id);
-        yield* refresh.increment();
+        yield* todos.call(undefined);
         return id;
       },
     });

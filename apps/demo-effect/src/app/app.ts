@@ -13,9 +13,9 @@ import {
 import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
 
 const EXAMPLE_LINKS = [
-  ['Consulter un profil', { to: '' }],
-  ['Vérifier les droits', { to: 'access' }],
-  ["Vue d'équipe", { to: 'team' }],
+  ['View a profile', { to: '' }],
+  ['Check access rights', { to: 'access' }],
+  ['Team overview', { to: 'team' }],
 ] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
 export const App = craftComponent(
@@ -39,13 +39,13 @@ export const App = craftComponent(
   () =>
     div([
       div({ class: 'app-header' }, [
-        heading('Utilisateurs & accès — EffectTS + CraftTS'),
+        heading('Users & access — EffectTS + CraftTS'),
         p(
-          'Un mini-parcours métier pour voir où Effect s’insère dans une application CraftTS.',
+          'A small business flow showing where Effect fits into a CraftTS application.',
         ),
       ]),
       nav(
-        { class: 'app-nav', 'aria-label': 'Exemples EffectTS' },
+        { class: 'app-nav', 'aria-label': 'EffectTS examples' },
         EXAMPLE_LINKS.map(([label, link]) =>
           a('exampleLink', { craftRouterLink: link }, label).pipe(
             CraftRouterLink,

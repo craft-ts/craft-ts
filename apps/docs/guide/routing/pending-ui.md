@@ -45,10 +45,10 @@ download or retry does not currently activate this pending timeline; dedicated l
 earlier phase is a planned evolution.
 
 ```
-clic → URL committée
- ├─ 0 → stayMs ........ page PRÉCÉDENTE conservée   ─(résolu)─▶ cible
- ├─ stayMs → +blankMs . page BLANCHE                ─(résolu)─▶ cible
- └─ au-delà ........... LOADER (min pendingMinMs)   ─(résolu / redirect)─▶ cible / redirect
+click → URL committed
+ ├─ 0 → stayMs ........ PREVIOUS page kept          ─(resolved)─▶ target
+ ├─ stayMs → +blankMs . BLANK page                  ─(resolved)─▶ target
+ └─ beyond ............ LOADER (min pendingMinMs)    ─(resolved / redirect)─▶ target / redirect
 ```
 
 `pendingMinMs` adds anti-flicker: once the loader is shown, it stays visible for at least that long,

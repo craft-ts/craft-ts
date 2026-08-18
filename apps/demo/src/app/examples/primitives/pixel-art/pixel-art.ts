@@ -129,7 +129,7 @@ const PixelArt = craftComponent(
               backgroundColor: cellColor(cells.selectCell(currentIndex)),
             };
           },
-          title: `Case ${currentIndex + 1}`,
+          title: `Cell ${currentIndex + 1}`,
           *click() {
             yield* paintCell(currentIndex);
           },
@@ -148,8 +148,8 @@ const PixelArt = craftComponent(
 
     return section([
       header([
-        heading('Atelier Pixel Art'),
-        p(`${CELL_COUNT} cases avec state simple et insertions par case.`),
+        heading('Pixel Art Workshop'),
+        p(`${CELL_COUNT} cells with simple state and per-cell insertions.`),
       ]),
       div(
         { class: 'pixel-palette' },
@@ -161,7 +161,7 @@ const PixelArt = craftComponent(
               return { backgroundColor: yield* color() };
             },
             'aria-label': function* () {
-              return `Choisir ${yield* color()}`;
+              return `Choose ${yield* color()}`;
             },
             *click() {
               yield* ui.setActiveColor(yield* color());
@@ -177,14 +177,14 @@ const PixelArt = craftComponent(
             yield* cells.clearAll();
           },
         },
-        'Effacer',
+        'Clear',
       ),
       p([
         span(function* () {
-          return `Cases peintes: ${yield* cells.paintedCount()}/${INDEXES.length}`;
+          return `Painted cells: ${yield* cells.paintedCount()}/${INDEXES.length}`;
         }),
         span(function* () {
-          return ` · Clics: ${yield* cells.totalPaintActions()}`;
+          return ` · Clicks: ${yield* cells.totalPaintActions()}`;
         }),
       ]),
       div({ class: 'pixel-grid', role: 'grid' }, renderedPixelGrid),

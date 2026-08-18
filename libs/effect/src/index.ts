@@ -15,6 +15,10 @@ export {
   type AssertNoRequirements,
   type MissingRequirements,
 } from './lib/requirements';
+export {
+  type EffectRequirementsCheckedDI,
+  type ProvidedEffectServicesOf,
+} from './lib/effect-checked-di';
 export { effectService, type SelectedMembers } from './lib/effect-service';
 export {
   type AsEffect,

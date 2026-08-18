@@ -100,7 +100,7 @@ const searchModule = yield* asyncProcess('searchModule', {
 
 ```html
 @switch (searchModule.status()) { @case ('loading') { <spinner /> } @case
-('exception') { <button (click)="searchModule.reload()">Réessayer</button> } }
+('exception') { <button (click)="searchModule.reload()">Retry</button> } }
 ```
 
 To **prefetch** as soon as some event fires (the reactive equivalent of an eager

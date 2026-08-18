@@ -9,7 +9,7 @@ import { installCraftEffectBridge } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectYieldComponent from './effect-yield';
 
-describe('demo: consultation de profil avec Effect', () => {
+describe('demo: profile lookup with Effect', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
@@ -52,11 +52,11 @@ describe('demo: consultation de profil avec Effect', () => {
     TestBed.tick();
   };
 
-  it('charge le profil quand la consultation réussit', async () => {
+  it('loads the profile when the lookup succeeds', async () => {
     const { element, mounted } = mount();
 
-    await clickScenario('Profil disponible', element);
-    expect(element.textContent).toContain('Consultation en cours…');
+    await clickScenario('Profile available', element);
+    expect(element.textContent).toContain('Looking up…');
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Ada Lovelace');
@@ -65,10 +65,10 @@ describe('demo: consultation de profil avec Effect', () => {
     mounted.destroy();
   });
 
-  it('affiche un profil introuvable comme erreur métier typée', async () => {
+  it('shows a missing profile as a typed business error', async () => {
     const { element, mounted } = mount();
 
-    await clickScenario('Profil introuvable', element);
+    await clickScenario('Profile not found', element);
 
     // The template matched on the discriminant — proof the _tag survived the
     // whole trip from the Effect error to matchBlock.
@@ -80,10 +80,10 @@ describe('demo: consultation de profil avec Effect', () => {
     mounted.destroy();
   });
 
-  it('distingue une session expirée d’un profil absent', async () => {
+  it('distinguishes an expired session from a missing profile', async () => {
     const { element, mounted } = mount();
 
-    await clickScenario('Session expirée', element);
+    await clickScenario('Session expired', element);
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Unauthorized');
@@ -92,14 +92,14 @@ describe('demo: consultation de profil avec Effect', () => {
     mounted.destroy();
   });
 
-  it('garde une panne technique hors du canal métier', async () => {
+  it('keeps a technical outage out of the business channel', async () => {
     const { element, mounted } = mount();
 
-    await clickScenario('Panne de base de données', element);
+    await clickScenario('Database outage', element);
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain(
-        'Consulter un profil (exception)',
+        'View a profile (exception)',
       );
     });
     // A defect is not a business exception: no discriminant match is rendered.

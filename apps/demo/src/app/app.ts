@@ -165,7 +165,7 @@ export const App = craftComponent(
   },
   ({ clearCache, navOpen, toggleNav, closeNav }) =>
     div([
-        skipLink('main', 'Aller au contenu'),
+        skipLink('main', 'Skip to content'),
         div({ class: 'demo-banner' }, [
           div({ class: 'demo-banner__main' }, [
             strong('Beta demo'),

@@ -81,6 +81,7 @@ export type ArchitectureGraphView<
   primitives(primitive?: string): ArchitectureNodeView<C>[];
   sources(): ArchitectureNodeView<C>[];
   serverFunctionFamilies(): ArchitectureNodeView<C>[];
+  serverFunctionMiddlewares(): ArchitectureNodeView<C>[];
   serverFunctionFamily(id: string): ArchitectureNodeView<C>;
   httpEndpoints(): ArchitectureNodeView<C>[];
   unique(value: CatalogUniques<C>): ArchitectureNodeView<C>;
@@ -446,6 +447,11 @@ export function createArchitectureGraph<
     serverFunctionFamilies() {
       return graph.nodes
         .filter((node) => node.kind === 'server-function-family')
+        .map(wrap);
+    },
+    serverFunctionMiddlewares() {
+      return graph.nodes
+        .filter((node) => node.kind === 'server-function-middleware')
         .map(wrap);
     },
     serverFunctionFamily(id) {
@@ -1688,7 +1694,11 @@ export type ServerFunctionArchitectureDiagnosticCode =
   | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_STATIC'
   | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH'
   | 'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH'
-  | 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING';
+  | 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT';
 
 export type ServerFunctionArchitectureViolation = {
   readonly code: ServerFunctionArchitectureDiagnosticCode;
@@ -1744,6 +1754,8 @@ export function serverFunctionArchitectureViolations(
       line: node.line,
     });
   }
+
+  violations.push(...serverFunctionMiddlewareViolations(graph));
 
   const idFamilies = new Map<string, Set<string>>();
   for (const node of parts) {
@@ -1941,6 +1953,128 @@ export function serverFunctionArchitectureViolations(
     }
   }
   return violations;
+}
+
+/**
+ * Middleware rules. A middleware carries authorization and request context, so
+ * an ambiguous identity or a browser-reachable implementation is a boundary
+ * defect, not a style issue.
+ */
+function serverFunctionMiddlewareViolations(
+  graph: DependencyGraph,
+): ServerFunctionArchitectureViolation[] {
+  const violations: ServerFunctionArchitectureViolation[] = [];
+  const middlewares = graph.nodes.filter(
+    (node) => node.kind === 'server-function-middleware',
+  );
+
+  for (const node of graph.nodes.filter(
+    (node) => node.kind === 'server-function-middleware-misnamed',
+  )) {
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING',
+      message:
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING: craftMiddleware(...) is defined outside a "*.mw-serveur.ts" file, so the architecture graph cannot keep it away from the client bundle. Move it into a "*.mw-serveur.ts" file.',
+      family: String(node.details?.['middlewareId'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  const byId = new Map<string, DependencyGraphNode[]>();
+  for (const node of middlewares) {
+    const id = node.details?.['middlewareId'];
+    if (typeof id !== 'string') continue;
+    byId.set(id, [...(byId.get(id) ?? []), node]);
+  }
+  for (const [id, nodes] of byId) {
+    if (nodes.length < 2) continue;
+    const node = nodes[0];
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID',
+      message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID: middleware id "${id}" is declared ${nodes.length} times (${nodes
+        .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
+        .sort()
+        .join(', ')}). The registry deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
+      family: id,
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const cycle of middlewareCycles(graph, middlewares)) {
+    const node = middlewares.find((candidate) => candidate.id === cycle[0]);
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE',
+      message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE: middleware .use(...) dependencies form a cycle (${cycle
+        .map((id) => middlewareLabel(middlewares, id))
+        .join(' -> ')}).`,
+      family: middlewareLabel(middlewares, cycle[0] ?? ''),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const node of graph.nodes.filter(
+    (node) => node.kind === 'server-function-client',
+  )) {
+    const imported = node.details?.['runtimeMiddlewareImports'];
+    if (!Array.isArray(imported) || imported.length === 0) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT',
+      message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT: client facade imports server middleware at runtime (${imported.join(', ')}). Import only the server function type from the client side.`,
+      family: String(node.details?.['family'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  return violations;
+}
+
+function middlewareLabel(
+  middlewares: readonly DependencyGraphNode[],
+  nodeId: string,
+): string {
+  const node = middlewares.find((candidate) => candidate.id === nodeId);
+  return String(node?.details?.['middlewareId'] ?? node?.label ?? nodeId);
+}
+
+function middlewareCycles(
+  graph: DependencyGraph,
+  middlewares: readonly DependencyGraphNode[],
+): string[][] {
+  const known = new Set(middlewares.map((node) => node.id));
+  const targets = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (edge.details?.['boundary'] !== 'middleware-uses') continue;
+    if (!known.has(edge.from) || !known.has(edge.to)) continue;
+    targets.set(edge.from, [...(targets.get(edge.from) ?? []), edge.to]);
+  }
+
+  const cycles: string[][] = [];
+  const seen = new Set<string>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+
+  const visit = (nodeId: string): void => {
+    if (onStack.has(nodeId)) {
+      cycles.push([...stack.slice(stack.indexOf(nodeId)), nodeId]);
+      return;
+    }
+    if (seen.has(nodeId)) return;
+    seen.add(nodeId);
+    stack.push(nodeId);
+    onStack.add(nodeId);
+    for (const target of targets.get(nodeId) ?? []) visit(target);
+    stack.pop();
+    onStack.delete(nodeId);
+  };
+
+  for (const node of middlewares) visit(node.id);
+  return cycles;
 }
 
 export function assertServerFunctionArchitecture(graph: DependencyGraph): void {

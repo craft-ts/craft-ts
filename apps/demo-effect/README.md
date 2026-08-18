@@ -69,9 +69,9 @@ npx nx architecture demo-effect
 npx nx typecheck-architecture demo-effect
 ```
 
-Le graphe statique de l’application est analysé depuis
-`tsconfig.graph.json`. Depuis la racine du dépôt, `npm run graph:update` met à
-jour les artefacts `craft-dependency-graph.demo-effect.{json,mmd,html}`.
-Pour l’architecture seule, `npx nx architecture demo-effect` exécute les règles
-Vitest regroupées dans `architecture/architecture.spec.ts`, sans démarrer
-Angular. Le graphe TypeScript n’est donc construit qu’une seule fois.
+The application's static graph is analysed from `tsconfig.graph.json`. From
+the repository root, `npm run graph:update` refreshes the
+`craft-dependency-graph.demo-effect.{json,mmd,html}` artifacts. For
+architecture only, `npx nx architecture demo-effect` runs the Vitest rules
+grouped in `architecture/architecture.spec.ts`, without starting Angular. The
+TypeScript graph is therefore only built once.

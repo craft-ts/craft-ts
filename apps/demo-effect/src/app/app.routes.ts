@@ -8,8 +8,20 @@ import {
   type CraftRouteExceptionType,
   type RouteCheckedDI,
 } from '@craft-ts/core';
-import { provideLayer } from '@craft-ts/effect';
+import {
+  provideLayer,
+  type EffectRequirementsCheckedDI,
+  type ProvidedEffectServicesOf,
+} from '@craft-ts/effect';
+import type { Effect } from 'effect';
+import type { AppProvidedEffectServices } from './app.config';
 import { SupportTeamLive } from './shared/access-domain';
+import type { checkUserAccess, loadTeamOverview } from './shared/access-domain';
+
+// Named so `ProvidedEffectServicesOf` can read back what this route actually
+// installs — inlining the array in `loadCraftComponent(...)` below would
+// leave nothing for the DI check further down to type-check against.
+const teamRouteProviders = [provideLayer(SupportTeamLive)] as const;
 
 export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
@@ -48,7 +60,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(import('./examples/effect/effect-layer-scope')).then(
           ({ default: component }) => component,
         ),
-      [provideLayer(SupportTeamLive)],
+      teamRouteProviders,
     ),
   },
 ]);
@@ -96,3 +108,23 @@ type _CheckEffectLayerScopeDI = RouteCheckedDI<
   'component: effect-layer-scope'
 >;
 type _CanRunEffectLayerScope = CanRun<_CheckEffectLayerScopeDI>;
+
+// EffectRequirementsCheckedDI proofs — the DI check above only covers
+// `injectX`-style craft services. `checkUserAccess`/`loadTeamOverview` are
+// Effects resolved through `provideLayer(...)` on the injector, invisible to
+// the checks above; removing the `provideLayer(...)` that satisfies one of
+// them must still fail the build.
+type _CheckAccessQueryRequirements = EffectRequirementsCheckedDI<
+  Effect.Services<ReturnType<typeof checkUserAccess>>,
+  AppProvidedEffectServices
+>;
+type _CanRunAccessQueryRequirements = CanRun<_CheckAccessQueryRequirements>;
+
+// `/team` also relies on this route's own `provideLayer(SupportTeamLive)` —
+// read from `teamRouteProviders` so removing it from the route is what fails
+// the build, not just removing the `SupportTeamLive` import.
+type _CheckTeamOverviewRequirements = EffectRequirementsCheckedDI<
+  Effect.Services<typeof loadTeamOverview>,
+  AppProvidedEffectServices | ProvidedEffectServicesOf<typeof teamRouteProviders>
+>;
+type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;

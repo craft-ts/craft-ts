@@ -13,7 +13,7 @@ import {
   strong,
 } from '@craft-ts/component';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Dedicated demo UI styles. */
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   loadUserProfile,
@@ -44,23 +44,11 @@ const EffectYieldComponent = craftComponent(
     `,
   },
   function* () {
-    const request = yield* state(
-      'request',
-      { scenario: 'success' as ProfileScenario, attempt: 0 },
-      ({ update }) => ({
-        run: (scenario: ProfileScenario) =>
-          update((previous) => ({
-            scenario,
-            attempt: previous.attempt + 1,
-          })),
-      }),
-    );
-
     const profileQuery = yield* queryEffect(
       'profileQuery',
       {
-        params: request,
-        loader: ({ params }) => loadUserProfile(params.scenario),
+        method: (scenario: ProfileScenario) => scenario,
+        loader: ({ params }) => loadUserProfile(params),
       },
       ({ resource, exceptions }) => ({
         hasProfile: craftComputed('hasProfile', () => resource.hasValue()),
@@ -73,59 +61,61 @@ const EffectYieldComponent = craftComponent(
       }),
     );
 
-    return { request, profileQuery };
+    yield* profileQuery.call('success'); // trigger first call
+
+    return { profileQuery };
   },
-  ({ request, profileQuery }) =>
+  ({ profileQuery }) =>
     div([
       heading(function* () {
         // `heading` is the reactive binding boundary for this title.
         // eslint-disable-next-line craft-ts/require-reactive-template-bindings
-        return `Consulter un profil (${yield* profileQuery.status()})`;
+        return `View a profile (${yield* profileQuery.status()})`;
       }),
       p(
         { class: 'intro' },
-        'Une équipe support consulte le profil d’un utilisateur. Les quatre boutons représentent les résultats possibles d’une opération métier : profil trouvé, profil absent, session expirée ou panne technique.',
+        'A support team looks up a user profile. The four buttons represent the possible outcomes of a business operation: profile found, profile missing, session expired, or a technical outage.',
       ),
       div({ class: 'actions' }, [
         button(
           'profileButton',
-          { type: 'button', *click() { yield* request.run('success'); } },
-          'Profil disponible',
+          { type: 'button', *click() { yield* profileQuery.call('success'); } },
+          'Profile available',
         ),
         button(
           'notFoundButton',
-          { type: 'button', *click() { yield* request.run('not-found'); } },
-          'Profil introuvable',
+          { type: 'button', *click() { yield* profileQuery.call('not-found'); } },
+          'Profile not found',
         ),
         button(
           'expiredButton',
           {
             type: 'button',
             *click() {
-              yield* request.run('session-expired');
+              yield* profileQuery.call('session-expired');
             },
           },
-          'Session expirée',
+          'Session expired',
         ),
         button(
           'databaseButton',
           {
             type: 'button',
             *click() {
-              yield* request.run('database-down');
+              yield* profileQuery.call('database-down');
             },
           },
-          'Panne de base de données',
+          'Database outage',
         ),
       ]),
       div({ class: 'panel' }, [
-        p({ class: 'panel-title' }, 'Résultat de la consultation'),
-        ifBlock(profileQuery.isLoading, () => p('Consultation en cours…')),
+        p({ class: 'panel-title' }, 'Lookup result'),
+        ifBlock(profileQuery.isLoading, () => p('Looking up…')),
         ifBlock(
           profileQuery.hasProfile,
           () =>
             p({ class: 'outcome' }, [
-              strong('Profil chargé : '),
+              strong('Profile loaded: '),
               profileQuery.profileName,
             ]),
           () =>
@@ -135,29 +125,29 @@ const EffectYieldComponent = craftComponent(
               {
                 UserNotFound: () =>
                   p({ class: 'outcome' }, [
-                    strong('Profil introuvable : '),
-                    'aucun profil ne correspond à la demande. ',
+                    strong('Profile not found: '),
+                    'no profile matches the request. ',
                     span({ class: 'mono' }, 'UserNotFound'),
-                    ' est l’erreur métier propagée par Effect.',
+                    ' is the business error propagated by Effect.',
                   ]),
                 Unauthorized: () =>
                   p({ class: 'outcome' }, [
-                    strong('Accès refusé : '),
-                    'la session a expiré. ',
+                    strong('Access denied: '),
+                    'the session has expired. ',
                     span({ class: 'mono' }, 'Unauthorized'),
-                    ' est l’erreur métier propagée par Effect.',
+                    ' is the business error propagated by Effect.',
                   ]),
               },
             ),
         ),
       ]),
       div({ class: 'note' }, [
-        strong('Ce que montre la passerelle Effect : '),
-        'un ',
+        strong('What the Effect bridge shows: '),
+        'an ',
         span({ class: 'mono' }, 'Effect.fail'),
-        ' devient une exception métier Craft, tandis qu’un ',
+        ' becomes a Craft business exception, while an ',
         span({ class: 'mono' }, 'Effect.die'),
-        ' reste une erreur technique et ne passe pas par les handlers métier.',
+        ' remains a technical error and does not go through business handlers.',
       ]),
     ]),
 );

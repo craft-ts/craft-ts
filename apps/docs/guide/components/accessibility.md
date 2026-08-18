@@ -1,27 +1,27 @@
-# Accessibilité
+# Accessibility
 
-Craft force déjà les exceptions exhaustives, `pendingBlock`, et les templates
-réactifs. L’accessibilité suit le même ADN : **un état illégal ne compile pas,
-un oubli est une erreur ESLint, le runtime des blocs n’attend pas que l’auteur
-s’en souvienne.**
+Craft already enforces exhaustive exceptions, `pendingBlock`, and reactive
+templates. Accessibility follows the same DNA: **an illegal state doesn't
+compile, an omission is an ESLint error, the block runtime doesn't wait for
+the author to remember.**
 
-Cible : **WCAG 2.2 niveau AA**.
+Target: **WCAG 2.2 level AA**.
 
-## Les cinq couches
+## The five layers
 
-1. **Types** — `img` et `area` exigent `alt` (y compris `''` décoratif). Les
-   helpers sémantiques (`dialog`, `fieldset`, `table`, `iframe`, `h4`–`h6`,
-   `svg`…) existent pour que le lint s’applique sans passer par `h()`.
-2. **ESLint `craft-ts/a11y`** — nom accessible, labels, ARIA, pas de click sur
-   un `div`, `button` avec `type`, `h()` interdit quand un helper nommé existe.
-3. **Runtime des blocs** — `pendingBlock` annonce le fallback (`aria-live`,
-   `aria-busy`), `catchBlock` pose `role="alert"`, `defer` rend le placeholder
-   clavier, `CraftRouterLink` pose `aria-current="page"`.
-4. **Primitives** — `heading` / `headingSection` (outline relatif), `dialog`
-   (modale native + focus), `liveRegion` (toasts). Pas de bouton **stylé** :
-   `buttonControl` / `fieldControl` / `disclosureControl` injectent les props
-   d’accessibilité dans vos éléments natifs.
-5. **Tests** — `toBeAccessible()` sur le helper de template.
+1. **Types** — `img` and `area` require `alt` (including a decorative `''`).
+   Semantic helpers (`dialog`, `fieldset`, `table`, `iframe`, `h4`–`h6`,
+   `svg`…) exist so the lint applies without going through `h()`.
+2. **ESLint `craft-ts/a11y`** — accessible name, labels, ARIA, no click on a
+   `div`, `button` with `type`, `h()` forbidden when a named helper exists.
+3. **Block runtime** — `pendingBlock` announces the fallback (`aria-live`,
+   `aria-busy`), `catchBlock` sets `role="alert"`, `defer` renders a keyboard
+   placeholder, `CraftRouterLink` sets `aria-current="page"`.
+4. **Primitives** — `heading` / `headingSection` (relative outline), `dialog`
+   (native modal + focus), `liveRegion` (toasts). No **styled** button:
+   `buttonControl` / `fieldControl` / `disclosureControl` inject accessibility
+   props into your native elements.
+5. **Tests** — `toBeAccessible()` on the template helper.
 
 ```ts
 import craftRules from '@craft-ts/dev-tools/eslint-rules';
@@ -37,120 +37,121 @@ export default [
 ];
 ```
 
-Les règles sont en `error` dans le preset. Un disable est un écart documenté,
-pas le chemin par défaut.
+The rules are `error` in the preset. A disable is a documented deviation,
+not the default path.
 
-## Templates hyperscript
+## Hyperscript templates
 
-Un template Craft est du TypeScript, pas un fichier `.html` : les règles
-d’accessibilité marchent les appels hyperscript eux-mêmes — `button(...)`,
-`img(...)` **et** `h('img', …)`.
+A Craft template is TypeScript, not an `.html` file: accessibility rules
+operate on the hyperscript calls themselves — `button(...)`, `img(...)` **and**
+`h('img', …)`.
 
 ```ts
-img({ src: photo.url, alt: photo.title }); // décoratif : alt: ''
-button({ type: 'button' }, 'Enregistrer');
-a({ href: '/tasks' }, 'Tâches');
+img({ src: photo.url, alt: photo.title }); // decorative: alt: ''
+button({ type: 'button' }, 'Save');
+a({ href: '/tasks' }, 'Tasks');
 label({ htmlFor: 'email' }, 'Email');
 input({ id: 'email', type: 'email' });
 ```
 
-`h('button')` alors qu’un helper nommé existe est une erreur
-(`prefer-named-html-helpers`) : c’est le bypass des types.
+`h('button')` when a named helper exists is an error
+(`prefer-named-html-helpers`): it's a bypass of the types.
 
-## Outline de titres
+## Heading outline
 
-Un `h3` dans une Card est un faux positif classique : parfois sous un `h1`,
-parfois sous un `h2`. Le titre ne choisit pas son rang. **Le parent le
-fournit.**
+An `h3` inside a Card is a classic false positive: sometimes under an `h1`,
+sometimes under an `h2`. The title doesn't choose its rank. **The parent
+supplies it.**
 
 ```ts
-heading('Liste des tâches');
+heading('Task list');
 
 headingSection([
-  heading('Détail'),
-  TaskCard(), // le heading() interne devient hN+1
+  heading('Detail'),
+  TaskCard(), // the internal heading() becomes hN+1
 ]);
 ```
 
-Le snippet ci-dessus est le cœur de l’API. Le skip-link et `main` appartiennent
-au shell applicatif :
+The snippet above is the core of the API. The skip-link and `main` belong to
+the application shell:
 
-- `heading()` lit le niveau courant (1–6) et rend `h1`…`h6`.
-- `headingSection(...)` incrémente d’un cran pour le sous-arbre — fragments
-  commentaires, pas de wrapper DOM, comme `ifBlock`.
-- `headingRoot(...)` repart à `h1` (dialog, reset explicite). Un `dialog` pose
-  aussi sa propre racine d’outline (titre du dialogue = niveau 1 **dans** le
-  dialog). Les SFC `loadComponent` restent sur `heading()`.
-- `h1()`…`h6()` restent pour le HTML brut. La règle `prefer-relative-heading`
-  les interdit dans un `craftComponent` (hors specs).
+- `heading()` reads the current level (1–6) and renders `h1`…`h6`.
+- `headingSection(...)` increments by one for the subtree — comment
+  fragments, no DOM wrapper, like `ifBlock`.
+- `headingRoot(...)` resets to `h1` (dialog, explicit reset). A `dialog` also
+  sets its own outline root (the dialog title = level 1 **inside** the
+  dialog). SFCs loaded via `loadComponent` stay on `heading()`.
+- `h1()`…`h6()` remain for raw HTML. The `prefer-relative-heading` rule
+  forbids them inside a `craftComponent` (outside specs).
 
-Un composant réutilisable expose `heading()` sans `headingSection` local : le
-besoin d’outline **remonte** au parent. Appeler ce composant hors d’un
-`headingSection` **ne compile pas** (même ADN que `pendingBlock`).
+A reusable component exposes `heading()` without a local `headingSection`:
+the need for an outline **bubbles up** to the parent. Calling this component
+outside a `headingSection` **doesn't compile** (same DNA as `pendingBlock`).
 
-Toute SFC montée via `loadComponent` / `loadCraftComponent` appelle
-`heading()` — pas `headingRoot()`. Le rang (h1 vs h2+) vient du parent :
+Any SFC mounted via `loadComponent` / `loadCraftComponent` calls `heading()` —
+not `headingRoot()`. The rank (h1 vs h2+) comes from the parent:
 
-- **Page** (sœur sous le shell) : `heading()` est le h1.
-- **Layout** (SFC avec `CraftRouterOutlet`) : `heading()` +
-  `headingSection([…, CraftRouterOutlet()])` pour que l’enfant hérite h2+.
-- **Shell** (`App`) : `skipLink` + `main` + `CraftRouterOutlet`, **sans**
-  `heading()` au-dessus de l’outlet. Sinon deux h1, ou des enfants coincés
-  au même niveau que le titre du chrome.
+- **Page** (sibling under the shell): `heading()` is the h1.
+- **Layout** (SFC with `CraftRouterOutlet`): `heading()` +
+  `headingSection([…, CraftRouterOutlet()])` so the child inherits h2+.
+- **Shell** (`App`): `skipLink` + `main` + `CraftRouterOutlet`, **without**
+  `heading()` above the outlet. Otherwise two h1s, or children stuck at the
+  same level as the chrome's title.
 
-`require-route-heading-outline` lit la cible lazy. `require-outlet-heading-section`
-distingue layout et shell. Les types ne relient pas l’outlet à l’enfant routé.
+`require-route-heading-outline` reads the lazy target.
+`require-outlet-heading-section` distinguishes layout from shell. The types
+don't connect the outlet to the routed child.
 
 ```ts
-// Shell — pas de heading() au-dessus de l’outlet
-skipLink('main', 'Aller au contenu');
+// Shell — no heading() above the outlet
+skipLink('main', 'Skip to content');
 main({ id: 'main', tabIndex: -1 }, CraftRouterOutlet());
 
-// Layout — titre + outlet dans headingSection
-heading('Équipe');
+// Layout — title + outlet inside headingSection
+heading('Team');
 headingSection([CraftRouterOutlet()]);
 
-// Page (loadComponent) — heading() seulement ; h1 ou h2+ selon le parent
-heading('Liste des tâches');
+// Page (loadComponent) — heading() only; h1 or h2+ depending on the parent
+heading('Task list');
 headingSection([
-  heading('Détail'),
+  heading('Detail'),
   TaskCard(),
 ]);
 ```
 
-## Blocs
+## Blocks
 
-`pendingBlock` détache la source du document pendant le chargement (les nœuds
-restent montés, ils ne sont pas `hidden` en CSS). Le fallback est enveloppé
-dans `aria-live="polite"` `aria-atomic="true"` `aria-busy="true"`. Au reload,
-la source reste visible ; `aria-busy` signale le rafraîchissement. Le focus
-dans la source est restauré à la reprise.
+`pendingBlock` detaches the source from the document while loading (the
+nodes stay mounted, they aren't CSS `hidden`). The fallback is wrapped in
+`aria-live="polite"` `aria-atomic="true"` `aria-busy="true"`. On reload, the
+source stays visible; `aria-busy` signals the refresh. Focus in the source is
+restored when it resumes.
 
-`catchBlock` enveloppe le message d’erreur dans `role="alert"` si le fallback
-n’est pas déjà une live region.
+`catchBlock` wraps the error message in `role="alert"` if the fallback isn't
+already a live region.
 
-`defer` pose `aria-busy` pendant le chargement. Un trigger `interaction` sur un
-placeholder qui n’est pas un contrôle reçoit `role="button"` et `tabIndex="0"`,
-et ne se déclenche au clavier que sur Entrée / Espace.
+`defer` sets `aria-busy` while loading. An `interaction` trigger on a
+placeholder that isn't already a control gets `role="button"` and
+`tabIndex="0"`, and only fires on keyboard via Enter / Space.
 
-## Dialog et live region
+## Dialog and live region
 
 ```ts
 dialog(
   { labelledBy: 'title', open: true, onClose },
-  [heading({ id: 'title' }, 'Confirmer'), button({ type: 'button', click: onClose }, 'Fermer')],
+  [heading({ id: 'title' }, 'Confirm'), button({ type: 'button', click: onClose }, 'Close')],
 );
 
-liveRegion({ politeness: 'polite' }, copied() ? 'Copié' : '');
+liveRegion({ politeness: 'polite' }, copied() ? 'Copied' : '');
 ```
 
-`dialog` s’appuie sur `<dialog>` natif (`showModal`, Escape, `aria-modal`).
-`liveRegion` est un `<span role="status">` (ou `alert` si `assertive`).
+`dialog` relies on the native `<dialog>` (`showModal`, Escape, `aria-modal`).
+`liveRegion` is a `<span role="status">` (or `alert` if `assertive`).
 
-## Helpers de contrôle (props à merger)
+## Control helpers (props to merge)
 
-Les helpers sont renderless : ils fournissent les attributs à merger sur vos
-éléments HTML, sans imposer de widget visuel.
+The helpers are renderless: they supply the attributes to merge onto your own
+HTML elements, without imposing a visual widget.
 
 ```ts
 const email = fieldControl('email');
@@ -165,12 +166,12 @@ div(faq.panel, '…');
 button(buttonControl({ disabled: isSaving, keepFocusable: true }), 'Save');
 ```
 
-Un panneau fermé reçoit `hidden` et `aria-hidden`, pour qu’aucun focus ne
-reste à l’intérieur. `keepFocusable` pose `aria-disabled` sans `disabled` :
-le clic n’est pas coupé, l’auteur doit no-op le handler.
+A closed panel gets `hidden` and `aria-hidden`, so no focus stays inside it.
+`keepFocusable` sets `aria-disabled` without `disabled`: the click isn't cut
+off, the author must no-op the handler.
 
-Les états sont aussi exposés en `data-*`, ce qui permet une convention CSS
-simple et indépendante du composant :
+The states are also exposed as `data-*`, which allows a simple CSS
+convention independent of the component:
 
 ```css
 button[data-disabled] { opacity: 0.5; }
@@ -178,9 +179,9 @@ input[data-invalid] { border-color: var(--danger); }
 button[data-open] { font-weight: 600; }
 ```
 
-Une live region doit être montée dès le premier rendu : ne conditionnez
-jamais son nœud sur le message. Le lecteur d’écran peut ainsi s’y abonner
-avant qu’un événement survienne.
+A live region must be mounted from the very first render: never condition
+its node on the message. This lets the screen reader subscribe to it before
+any event happens.
 
 ```ts
 // correct — region exists at first paint
@@ -192,25 +193,25 @@ ifBlock(copied, () => liveRegion('Copied'));
 
 ## Navigation
 
-`provideCraftRouter` enregistre `CraftTitleStrategy` : le `title` Angular de la
-route est écrit via `BrowserDocument.setTitle`.
+`provideCraftRouter` registers `CraftTitleStrategy`: the route's Angular
+`title` is written via `BrowserDocument.setTitle`.
 
-`withA11yNavigationFocus()` (opt-in, passé à `provideCraftRouter`) déplace le
-focus vers `#main` / `<main>` après chaque navigation interne — pas au premier
-chargement, le skip-link s’en charge.
+`withA11yNavigationFocus()` (opt-in, passed to `provideCraftRouter`) moves
+focus to `#main` / `<main>` after each internal navigation — not on first
+load, the skip-link handles that.
 
-`skipLink('main', 'Aller au contenu')` en tête du shell, avec
+`skipLink('main', 'Skip to content')` at the top of the shell, with
 `main({ id: 'main', tabIndex: -1 }, …)`.
 
-Pour synchroniser la langue et la direction du document depuis un générateur :
+To sync the document's language and direction from a generator:
 
 ```ts
-yield* BrowserDocument.setLang('fr');
+yield* BrowserDocument.setLang('en');
 yield* BrowserDocument.setDir('ltr');
 ```
 
-`clickFocus` place le focus avant d’exécuter le handler, utile pour les
-contrôles qui ouvrent une recherche ou un dialogue :
+`clickFocus` sets focus before running the handler, useful for controls that
+open a search or a dialog:
 
 ```ts
 button({
@@ -232,14 +233,14 @@ getByRole('button', { name: 'Save' });
 getByLabel('Email');
 ```
 
-`assertAccessible` / `toBeAccessible()` couvrent les checks structurels (alt,
-nom accessible, tabindex, iframe title). Le contraste réel et le reste de
-WCAG 2.2 AA restent un job axe / AccessLint en CI applicative.
+`assertAccessible` / `toBeAccessible()` cover the structural checks (alt,
+accessible name, tabindex, iframe title). Real contrast and the rest of
+WCAG 2.2 AA remain a job for axe / AccessLint in application CI.
 
 ## CSS
 
-Les règles `require-focus-visible` et `require-reduced-motion` s’appliquent aux
-`styles` du `craftComponent` : si vous stylez `button` / `a` / `input`, définissez
-`:focus-visible` ; si vous animez, gatez avec `prefers-reduced-motion`. Le
-contraste passe par les tokens (`no-hardcoded-design-values`), pas par une
-deuxième linter CSS.
+The `require-focus-visible` and `require-reduced-motion` rules apply to the
+`styles` of a `craftComponent`: if you style `button` / `a` / `input`, define
+`:focus-visible`; if you animate, gate it with `prefers-reduced-motion`.
+Contrast goes through tokens (`no-hardcoded-design-values`), not a second CSS
+linter.

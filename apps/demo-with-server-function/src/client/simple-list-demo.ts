@@ -21,18 +21,18 @@ import {
   ul,
 } from '@craft-ts/component';
 import { Effect } from 'effect';
-import {
-  craftComputed,
-  craftMethod,
-  isCraftException,
-  state,
-} from '@craft-ts/core';
+import { craftComputed, craftMethod, isCraftException, state } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
-import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
-import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
+import { getUsers } from '../users/list.fn-client';
 
-const ServerFunctionDemo = craftComponent(
-  'ServerFunctionDemo',
+/**
+ * Companion to `authenticated-list-demo`: same shape, but `demo.users.list`
+ * requires no client DI at all — no current-user check, no role gate. It
+ * shows the server function pipeline (client → HTTP → Effect handler → DB)
+ * stripped down to its simplest form.
+ */
+const SimpleListDemo = craftComponent(
+  'SimpleListDemo',
   {
     styles: `
       :scope { display: block; min-height: 100vh; color: #e8edf8; background: radial-gradient(circle at 85% 5%, #243768 0, #0b1020 36rem); }
@@ -92,32 +92,15 @@ const ServerFunctionDemo = craftComponent(
     const searchInput = yield* state('searchInput', '', ({ set }) => ({
       setSearchInput: (value: string) => set(value),
     }));
-    const currentUserQuery = yield* queryEffect('currentUserQuery', {
-      params: () => true,
-      loader: () => CurrentUser,
-    });
-    const currentUser = craftComputed('currentUser', function* () {
-      return yield* currentUserQuery.value();
-    });
-    const isAdmin = craftComputed('isAdmin', function* () {
-      return (yield* currentUser())?.role === 'admin';
-    });
     const usersQuery = yield* queryEffect(
       'usersQuery',
       {
         method: (term: string) => term,
         loader: ({ params }) =>
           Effect.gen(function* () {
-            const authenticatedUser = yield* requireAdmin;
             const result = yield* Effect.promise(() =>
-              getAuthenticatedUsers({
-                filter: params,
-                userId: authenticatedUser.id,
-              }),
+              getUsers({ filter: params }),
             );
-            // Le canal d'erreur du serveur arrive typé jusqu'ici : `AdminRequired`
-            // et `AuthenticatedUserMismatch` viennent de la chaîne de middleware.
-            // On le traite au lieu de le faire passer pour une liste d'utilisateurs.
             if (isCraftException(result)) {
               return yield* Effect.fail(result);
             }
@@ -125,14 +108,10 @@ const ServerFunctionDemo = craftComponent(
           }),
       },
       ({ resource }) => ({
-        accessDenied: craftComputed('accessDenied', function* () {
-          return (yield* currentUser())?.role === 'member';
-        }),
         hasUsers: craftComputed('hasUsers', () => resource.hasValue()),
         isEmpty: craftComputed('isEmpty', function* () {
           const currentStatus = yield* resource.status();
           return (
-            (yield* currentUser())?.role !== 'member' &&
             currentStatus !== 'loading' &&
             currentStatus !== 'reloading' &&
             !resource.hasValue()
@@ -140,18 +119,12 @@ const ServerFunctionDemo = craftComponent(
         }),
         requestTitle: craftComputed('requestTitle', function* () {
           const currentStatus = yield* resource.status();
-          if ((yield* currentUser())?.role === 'member') {
-            return 'Client-side access denied';
-          }
           return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'Calling demo.users.authenticated-list…'
+            ? 'Calling demo.users.list…'
             : 'Server function ready';
         }),
         requestDetail: craftComputed('requestDetail', function* () {
           const currentStatus = yield* resource.status();
-          if ((yield* currentUser())?.role === 'member') {
-            return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
-          }
           return currentStatus === 'loading' || currentStatus === 'reloading'
             ? 'POST /__server-functions · Effect is running'
             : `Status: ${currentStatus}`;
@@ -165,7 +138,6 @@ const ServerFunctionDemo = craftComponent(
     yield* usersQuery.call(''); // trigger first call
     const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
-      if (!(yield* isAdmin())) return; // todo remove
       yield* usersQuery.call((yield* searchInput()).trim());
     });
 
@@ -173,25 +145,24 @@ const ServerFunctionDemo = craftComponent(
       searchInput,
       setSearchInput: searchInput.setSearchInput,
       usersQuery,
-      currentUser,
       submitSearch,
     };
   },
-  ({ searchInput, setSearchInput, usersQuery, currentUser, submitSearch }) =>
+  ({ searchInput, setSearchInput, usersQuery, submitSearch }) =>
     main({ class: 'shell' }, [
       header({ class: 'hero' }, [
         div({ class: 'eyebrow' }, [
           span({ class: 'pulse' }),
           ' runnable playground',
         ]),
-        heading('Frontend → DI → Server Function → Effect → DB'),
+        heading('Frontend → Server Function → Effect → DB'),
         p(
           { class: 'hero-copy' },
-          'The frontend reads the current user through DI for immediate UX feedback. The backend reads its own session and checks the role before accessing data.',
+          'No client DI, no access check: this server function is exposed to any caller. It shows the shortest path from a client call to a server-side Effect handler.',
         ),
       ]),
       section({ class: 'flow', attrs: { 'aria-label': 'Demo flow' } }, [
-        flowStep('01', 'CraftTS DI', 'current user + role'),
+        flowStep('01', 'Client call', 'getUsers({ filter })'),
         span({ class: 'flow-arrow' }, '→'),
         flowStep('02', 'HTTP', 'POST /__server-functions'),
         span({ class: 'flow-arrow' }, '→'),
@@ -203,26 +174,15 @@ const ServerFunctionDemo = craftComponent(
         div({ class: 'panel query-panel' }, [
           div({ class: 'panel-heading' }, [
             div([
-              span({ class: 'panel-kicker' }, 'Protected server function'),
+              span({ class: 'panel-kicker' }, 'Public server function'),
               heading('Search users'),
             ]),
-            span({ class: 'mono' }, 'demo.users.authenticated-list'),
+            span({ class: 'mono' }, 'demo.users.list'),
           ]),
           p(
             { class: 'panel-copy' },
-            'The role comes from a client-side Craft service: if the user is not an admin, no network request is sent. This check improves UX, but the server does not trust it.',
+            'Every request reaches the server: there is no client-side gate to short-circuit it.',
           ),
-          div({ class: 'request-card' }, [
-            span({ class: 'request-dot' }),
-            div([
-              strong(function* () {
-                return `User: ${(yield* currentUser())?.id ?? '…'}`;
-              }),
-              small(function* () {
-                return `Role: ${(yield* currentUser())?.role ?? '…'}`;
-              }),
-            ]),
-          ]),
           form('searchForm', { class: 'search-form', submit: submitSearch }, [
             label({ htmlFor: 'filterInput' }, 'Filter'),
             div({ class: 'search-row' }, [
@@ -267,14 +227,6 @@ const ServerFunctionDemo = craftComponent(
           ]),
           ifBlock(usersQuery.isLoading, () =>
             p({ class: 'loading' }, '⏳ The Effect backend is working…'),
-          ),
-          ifBlock(usersQuery.accessDenied, () =>
-            div({ class: 'empty' }, [
-              strong('Access denied'),
-              span(
-                'The client-side check blocked the request before it reached the network: admin role required.',
-              ),
-            ]),
           ),
           ifBlock(usersQuery.hasUsers, () =>
             ul(
@@ -322,4 +274,4 @@ function flowStep(number: string, title: string, description: string) {
   ]);
 }
 
-export { ServerFunctionDemo };
+export { SimpleListDemo };

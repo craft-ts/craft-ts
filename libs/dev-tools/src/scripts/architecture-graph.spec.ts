@@ -639,6 +639,116 @@ describe('server function architecture', () => {
     );
   });
 
+  it('models middleware, their .use(...) edges and the server functions using them', async () => {
+    const graph = await graphOf({
+      'users/access.mw-serveur.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; input(value: unknown): any; server(value: unknown): unknown };
+        export const adminOnly = craftMiddleware('demo.admin-only').server(() => 1);
+        export const matchingUser = craftMiddleware('demo.matching-user').use(adminOnly).input({}).server(() => 1);
+      `,
+      'users/list.fn-serveur.ts': `
+        import { matchingUser } from './access.mw-serveur';
+        declare function serverFunction(...values: unknown[]): { use(value: unknown): any; handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}, { exposure: 'client' }).use(matchingUser).handler(() => 1);
+      `,
+      'users/list.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'));
+      `,
+    });
+
+    expect(
+      graph.serverFunctionMiddlewares().map((node) => node.label).sort(),
+    ).toEqual(['demo.admin-only', 'demo.matching-user']);
+
+    const edges = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'middleware-uses',
+    );
+    // matchingUser -> adminOnly, et la server function -> matchingUser
+    expect(edges).toHaveLength(2);
+    expect(
+      edges.some(
+        (edge) =>
+          edge.from.includes('#matchingUser') && edge.to.includes('#adminOnly'),
+      ),
+    ).toBe(true);
+    expect(
+      edges.some(
+        (edge) =>
+          edge.from.startsWith('server-function-part:server-function-server:') &&
+          edge.to.includes('#matchingUser'),
+      ),
+    ).toBe(true);
+
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('flags a craftMiddleware(...) defined outside a *.mw-serveur.ts file', async () => {
+    const graph = await graphOf({
+      'users/access.ts': `
+        declare function craftMiddleware(id: string): { server(value: unknown): unknown };
+        export const adminOnly = craftMiddleware('demo.admin-only').server(() => 1);
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING');
+  });
+
+  it('flags duplicate middleware ids, cycles and client runtime imports', async () => {
+    const graph = await graphOf({
+      'users/one.mw-serveur.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const first = craftMiddleware('demo.duplicate').server(() => 1);
+      `,
+      'users/two.mw-serveur.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const second = craftMiddleware('demo.duplicate').server(() => 1);
+      `,
+      'users/cycle.mw-serveur.ts': `
+        import { right } from './cycle-two.mw-serveur';
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const left = craftMiddleware('demo.left').use(right).server(() => 1);
+      `,
+      'users/cycle-two.mw-serveur.ts': `
+        import { left } from './cycle.mw-serveur';
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const right = craftMiddleware('demo.right').use(left).server(() => 1);
+      `,
+      'users/leak.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const leak = serverFunction('users.leak', {}, { exposure: 'client' }).handler(() => 1);
+      `,
+      'users/leak.fn-client.ts': `
+        import { first } from './one.mw-serveur';
+        import type { leak as ServerLeak } from './leak.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const leakClient = createServerFunctionClient<typeof ServerLeak>(craftUnique('users.leak'));
+        void first;
+      `,
+    });
+
+    const codes = serverFunctionArchitectureViolations(graph.graph).map(
+      (violation) => violation.code,
+    );
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID',
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE',
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT',
+      ]),
+    );
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE/,
+    );
+  });
+
   it('flags a serverFunction(...) defined outside a *.fn-serveur.ts file', async () => {
     const graph = await graphOf({
       'users/list.service.ts': `

@@ -181,56 +181,104 @@ la validation dès qu’une fn ajoute ses propres champs.
 
 ### Étape 1 — Le middleware dans le core
 
-- [ ] Créer `libs/core/src/lib/server-function-middleware.ts` (types + builder + `flatten`).
-- [ ] Porter la machinerie prototypée (`MiddlewareResult`, `DownstreamError`, `Overwrite`, `MergeInputs`).
-- [ ] Implémenter `craftMiddleware(id).use(...).input(...).server(...)`.
-- [ ] Aplatir et dédupliquer les dépendances par id, dépendance d’abord.
-- [ ] Refuser deux middleware d’id identique avec des implémentations différentes.
-- [ ] Exporter depuis `libs/core/src/index.ts`.
+- [x] Créer `libs/core/src/lib/server-function-middleware.ts` (types + builder + `flatten`).
+- [x] Porter la machinerie prototypée (`MiddlewareResult`, `DownstreamError`, `Overwrite`, `MergeInputs`).
+- [x] Implémenter `craftMiddleware(id).use(...).input(...).server(...)`.
+- [x] Aplatir et dédupliquer les dépendances par id, dépendance d’abord.
+- [x] Refuser deux middleware d’id identique avec des implémentations différentes.
+- [x] Exporter depuis `libs/core/src/index.ts`.
 
 ### Étape 2 — Brancher `serverFunction`
 
-- [ ] Ajouter `.use(middleware)` au builder, avec accumulation du tuple `Middlewares`.
-- [ ] Fusionner les schémas d’input dans le contrat effectif.
-- [ ] Exposer `context` dans `ServerFunctionHandlerContext`, à côté de `input`.
-- [ ] Injecter `MergedError` / `MergedRequirements` dans l’Effect retourné par `.handler()`.
-- [ ] Composer la chaîne dans `invoke()`.
-- [ ] Conserver `required()` et le tuple `pipes` : aucune rupture des appels existants.
+- [x] Ajouter `.use(middleware)` au builder, avec accumulation du tuple `Middlewares`.
+- [x] Fusionner les schémas d’input dans le contrat effectif.
+- [x] Exposer `context` dans `ServerFunctionHandlerContext`, à côté de `input`.
+- [x] Injecter `MergedError` / `MergedRequirements` dans l’Effect retourné par `.handler()`.
+- [x] Composer la chaîne dans `invoke()`.
+- [x] Conserver `required()` et le tuple `pipes` : aucune rupture des appels existants.
 
 ### Étape 3 — Validation et registre
 
-- [ ] Valider l’input brut avec chaque schéma collecté, puis fusionner les sorties.
-- [ ] Vérifier qu’un schéma strict produit un diagnostic lisible, pas un échec obscur.
-- [ ] Vérifier que `execute()` reçoit bien un Effect dont le canal R contient les services des middleware.
-- [ ] Documenter que le `runtimeLayer` applicatif doit fournir ces services.
+- [x] Valider l’input brut avec chaque schéma collecté, puis fusionner les sorties.
+- [x] Vérifier qu’un schéma strict produit un diagnostic lisible, pas un échec obscur.
+      *(diagnostic `CRAFT_SERVER_FUNCTION_INPUT_NOT_MERGEABLE` pour un schéma non objet ; un schéma strict tombe sur `CRAFT_SERVER_FUNCTION_INPUT_INVALID` avec la clé fautive)*
+- [x] Vérifier que `execute()` reçoit bien un Effect dont le canal R contient les services des middleware.
+- [x] Documenter que le `runtimeLayer` applicatif doit fournir ces services.
 
 ### Étape 4 — Erreurs taguées de bout en bout (trou existant)
 
-- [ ] Sérialiser les échecs Effect tagués en `{ _tag, payload }` au lieu de `{ error: message }`.
-- [ ] Choisir le code HTTP selon la nature de l’échec (échec métier vs défaut).
-- [ ] Reconstituer l’erreur taguée côté client et la rejouer en `craftException`.
-- [ ] Vérifier qu’un `catchTag('AdminRequired', ...)` client compile et attrape réellement.
+> Constat de vérification : en Effect v4 rc, `Effect.runPromise` rejette avec **l'erreur
+> taguée elle-même**, pas avec un `FiberFailure`. Aucun `Cause` à déballer, le core reste
+> donc sans dépendance runtime sur Effect.
+
+- [x] Sérialiser les échecs Effect tagués en `{ _tag, payload }` au lieu de `{ error: message }`.
+- [x] Choisir le code HTTP selon la nature de l’échec (échec métier vs défaut).
+- [x] Reconstituer l’erreur taguée côté client et la rejouer en `craftException`.
+- [x] Vérifier qu’un `catchTag('AdminRequired', ...)` client compile et attrape réellement.
 
 ### Étape 5 — Migrer les pipes existants
 
-- [ ] Réimplémenter `requireServerPermission` comme un vrai middleware qui vérifie et court-circuite.
-- [ ] Laisser `requireClientDI` en l’état, marqué explicitement comme non fonctionnel jusqu’à la V2.
-- [ ] Ajouter un test qui prouve qu’une permission manquante rejette la requête.
+- [x] ~~Réimplémenter `requireServerPermission` comme un vrai middleware~~ → **écart** : le core
+      ne peut pas *construire* d'Effect (peer dependency type-only), donc pas de middleware
+      livré par le core. Implémenté comme contrôle du registre en amont de la chaîne
+      (`createServer({ checkPermission })`), **fail-closed**.
+- [x] Laisser `requireClientDI` en l’état, marqué explicitement comme non fonctionnel jusqu’à la V2.
+- [x] Ajouter un test qui prouve qu’une permission manquante rejette la requête.
 
 ### Étape 6 — Graphe et règles d’architecture
 
-- [ ] Convention de nommage `*.mw-serveur.ts`.
-- [ ] Détecter les `craftMiddleware(...)` et les arêtes `.use(...)` dans le graphe.
-- [ ] Diagnostic `CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID`.
-- [ ] Diagnostic `CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE`.
-- [ ] Vérifier qu’un `*.mw-serveur.ts` n’est jamais importé par un module client.
+- [x] Convention de nommage `*.mw-serveur.ts`.
+- [x] Détecter les `craftMiddleware(...)` et les arêtes `.use(...)` dans le graphe.
+- [x] Diagnostic `CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID`.
+- [x] Diagnostic `CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE`.
+- [x] Vérifier qu’un `*.mw-serveur.ts` n’est jamais importé par un module client.
 
 ### Étape 7 — Démo et documentation
 
-- [ ] Ajouter `authenticated` + `audited` dans `apps/demo-with-server-function`.
-- [ ] Remplacer l’appel direct à `requireAdmin` de `authenticated-list.fn-serveur.ts` par le middleware.
-- [ ] Documenter le modèle onion, l’ordre d’exécution et la fusion des schémas.
-- [ ] Documenter la contrainte « schéma non strict » pour les middleware.
+- [x] Ajouter `authenticated` + `audited` dans `apps/demo-with-server-function`.
+- [x] Remplacer l’appel direct à `requireAdmin` de `authenticated-list.fn-serveur.ts` par le middleware.
+- [x] Documenter le modèle onion, l’ordre d’exécution et la fusion des schémas.
+- [x] Documenter la contrainte « schéma non strict » pour les middleware.
+
+## État de réalisation
+
+Toutes les étapes réalisées (1 à 7).
+
+Étape 6 — le graphe modélise désormais les middleware :
+
+- nœuds `server-function-middleware` (un par déclaration `craftMiddleware(...)`, pas par
+  fichier : un fichier peut en déclarer plusieurs) et `server-function-middleware-misnamed` ;
+- arêtes `depends-on` marquées `boundary: 'middleware-uses'`, entre middleware et depuis la
+  server function qui les déclare, résolues à travers les imports ;
+- requête `graph.serverFunctionMiddlewares()` ;
+- 4 diagnostics : `..._MIDDLEWARE_NAMING_CONVENTION_MISSING`, `..._MIDDLEWARE_DUPLICATE_ID`,
+  `..._MIDDLEWARE_CYCLE`, `..._MIDDLEWARE_IMPORTED_BY_CLIENT`.
+
+Vérifications passées :
+
+- `tsc` sur `libs/core/tsconfig.lib.json` ;
+- suite complète `libs/core` : 124 fichiers, 1275 tests verts ;
+- `server-function-middleware.spec.ts` : 9 tests (oignon, dédup, court-circuit, fusion
+  des schémas, 400/422, rehydratation via le transport par défaut) ;
+- `server-function.spec.ts` : 5 tests, dont la permission refusée et le fail-closed ;
+- démo : 4 tests end-to-end sur HTTP réel, erreurs taguées reçues avec leur charge utile ;
+- `architecture-graph.spec.ts` : 3 tests ajoutés (chaîne valide → zéro violation ; les 3
+  diagnostics se déclenchent exactement, vérifié par égalité stricte de la liste des codes) ;
+- suite `dev-tools` : 487 verts, 1 échec pré-existant (`verify-routes`, présent aussi sans
+  ces changements) ;
+- suite d'architecture de la démo : le middleware réel est modélisé (2 nœuds, 2 arêtes).
+
+Effets de bord assumés, à connaître :
+
+- le type `input` du handler est désormais la **sortie** des schémas (ce que la validation
+  produit réellement) et non plus leur entrée — l'ancien type était faux ;
+- `ServerFunctionInput` (argument de la façade client) inclut maintenant les schémas des
+  middleware ;
+- le type de retour de la façade client s'élargit en
+  `Success | ServerFunctionClientFailure | ServerFunctionHttpError`. Cela a révélé que le
+  composant de démo traitait un échec possible comme une liste d'utilisateurs ; corrigé ;
+- `requireServerPermission` est désormais **fail-closed** : une permission déclarée sans
+  `checkPermission` configuré rejette l'appel.
 
 ## Repoussé en V2 (frontière client)
 

@@ -43,6 +43,21 @@ describe('architecture', () => {
     );
   });
 
+  it('models the server-function middleware chain', () => {
+    expect(
+      graph
+        .serverFunctionMiddlewares()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual(['demo.admin-only', 'demo.matching-user']);
+
+    // matchingUser -> adminOnly, et la server function -> matchingUser.
+    const uses = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'middleware-uses',
+    );
+    expect(uses).toHaveLength(2);
+  });
+
   it('requires craftUnique identities to appear once', () => {
     assertCraftUnique(graph.graph);
   });

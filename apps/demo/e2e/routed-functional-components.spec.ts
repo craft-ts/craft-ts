@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('uses client-side routing for the application tabs', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
   await page.evaluate(() => {
     (
       window as Window & { craftNavigationMarker?: string }
@@ -30,14 +30,14 @@ test('navigates to the reactive component composition demo', async ({
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto('/');
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
   await page
     .getByRole('link', { name: 'Reactive Composition', exact: true })
     .click();
 
   await expect(page).toHaveURL(/\/component-composition$/);
   await expect(
-    page.getByRole('heading', { name: 'Composition réactive avec providers' }),
+    page.getByRole('heading', { name: 'Reactive composition with providers' }),
   ).toBeVisible();
   expect(pageErrors).toEqual([]);
 });

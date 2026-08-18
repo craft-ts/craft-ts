@@ -2,16 +2,27 @@ import {
   assertServerFunctionId,
   serverFunctionContract,
   type ServerFunctionContract,
-  type ServerFunctionContractInput,
   type ServerFunctionExposure,
 } from './server-function-contract';
 import {
   type ClientDIRequirement,
-  type ClientDIRequirementOf,
   type ClientDITokensOf,
+  type ClientDIRequirementOf,
   type ServerFunctionPipe,
   type ServerFunctionToken,
 } from './client-di-requirement';
+import {
+  collectMiddlewareSchemas,
+  runMiddlewareChain,
+  type AnyCraftMiddleware,
+  type MergedMiddlewareContext,
+  type MergedMiddlewareError,
+  type MergedMiddlewareRequirements,
+  type MergeSchemaInputs,
+  type MergeSchemaOutputs,
+  type MiddlewareSchemasOf,
+  type MiddlewareSchemasOfAll,
+} from './server-function-middleware';
 import type { CraftSchema } from './schema-validation';
 import type * as Effect from 'effect/Effect';
 
@@ -22,8 +33,16 @@ export type ServerFunctionRequired<
 export type ServerFunctionHandlerContext<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
+  Middlewares extends readonly AnyCraftMiddleware[] = readonly [],
+  Schemas extends readonly CraftSchema[] = readonly [Contract['input']],
 > = {
-  readonly input: ServerFunctionContractInput<Contract>;
+  /**
+   * Input validé : la fusion des sorties du schéma du contrat et de tous les
+   * schémas déclarés par les middleware de la chaîne.
+   */
+  readonly input: MergeSchemaOutputs<Schemas>;
+  /** Contexte produit par la chaîne de middleware, fusionné dans l'ordre. */
+  readonly context: MergedMiddlewareContext<Middlewares>;
   readonly required: ServerFunctionRequired<Pipes>;
   readonly pipes: Pipes;
 };
@@ -32,17 +51,25 @@ export type ServerFunctionHandler<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
   Output = unknown,
-> = (context: ServerFunctionHandlerContext<Contract, Pipes>) => Output;
+  Middlewares extends readonly AnyCraftMiddleware[] = readonly [],
+  Schemas extends readonly CraftSchema[] = readonly [Contract['input']],
+> = (
+  context: ServerFunctionHandlerContext<Contract, Pipes, Middlewares, Schemas>,
+) => Output;
 
 export type ServerFunctionDefinition<
   Contract extends ServerFunctionContract<any, any, any> = ServerFunctionContract,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
   Output = unknown,
+  Middlewares extends readonly AnyCraftMiddleware[] = readonly AnyCraftMiddleware[],
 > = {
   readonly kind: 'server-function';
   readonly contract: Contract;
   readonly pipes: Pipes;
-  readonly handler: ServerFunctionHandler<Contract, Pipes, Output>;
+  readonly middlewares: Middlewares;
+  /** Schéma du contrat suivi de ceux des middleware, dédupliqués. */
+  readonly inputSchemas: readonly CraftSchema[];
+  readonly handler: ServerFunctionHandler<Contract, Pipes, Output, Middlewares>;
   readonly invoke: (
     input: unknown,
     runtime?: ServerFunctionRuntime,
@@ -53,9 +80,38 @@ export type ServerFunctionRuntime = {
   readonly resolve?: <Value>(token: ServerFunctionToken<Value>) => Value;
 };
 
+/**
+ * Dès qu'un middleware est branché, le handler doit renvoyer un Effect : c'est
+ * le seul moyen de composer la chaîne sans que le core dépende d'Effect au
+ * runtime.
+ */
+type HandlerOutputConstraint<
+  Middlewares extends readonly AnyCraftMiddleware[],
+> = Middlewares extends readonly [] ? unknown : Effect.Effect<any, any, any>;
+
+/** Injecte les canaux d'erreur et de dépendances des middleware dans la sortie. */
+type ComposedOutput<
+  Middlewares extends readonly AnyCraftMiddleware[],
+  Output,
+> = Middlewares extends readonly []
+  ? Output
+  : Output extends Effect.Effect<
+        infer Success,
+        infer Error,
+        infer Requirements
+      >
+    ? Effect.Effect<
+        Success,
+        Error | MergedMiddlewareError<Middlewares>,
+        Requirements | MergedMiddlewareRequirements<Middlewares>
+      >
+    : Output;
+
 type Builder<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
+  Middlewares extends readonly AnyCraftMiddleware[] = readonly [],
+  Schemas extends readonly CraftSchema[] = readonly [Contract['input']],
 > = {
   readonly pipe: <Pipe extends ServerFunctionPipe>(
     pipe: Contract['exposure'] extends 'server'
@@ -63,10 +119,29 @@ type Builder<
         ? never
         : Pipe
       : Pipe,
-  ) => Builder<Contract, readonly [...Pipes, Pipe]>;
-  readonly handler: <Output>(
-    handler: ServerFunctionHandler<Contract, Pipes, Output>,
-  ) => ServerFunctionDefinition<Contract, Pipes, Output>;
+  ) => Builder<Contract, readonly [...Pipes, Pipe], Middlewares, Schemas>;
+  readonly use: <Middleware extends AnyCraftMiddleware>(
+    middleware: Middleware,
+  ) => Builder<
+    Contract,
+    Pipes,
+    readonly [...Middlewares, Middleware],
+    readonly [...Schemas, ...MiddlewareSchemasOf<Middleware>]
+  >;
+  readonly handler: <Output extends HandlerOutputConstraint<Middlewares>>(
+    handler: ServerFunctionHandler<
+      Contract,
+      Pipes,
+      Output,
+      Middlewares,
+      Schemas
+    >,
+  ) => ServerFunctionDefinition<
+    Contract,
+    Pipes,
+    ComposedOutput<Middlewares, Output>,
+    Middlewares
+  >;
 };
 
 export function serverFunction<const Id extends string, Schema extends CraftSchema>(
@@ -129,42 +204,55 @@ export function serverFunction<
   ) as ServerFunctionContract<Schema, Exposure, OutputSchema, Id>;
   assertServerFunctionId(contract.id);
 
-  return createBuilder(contract, [] as readonly []);
+  return createBuilder(contract, [] as readonly [], [] as readonly []);
 }
 
 function createBuilder<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
+  Middlewares extends readonly AnyCraftMiddleware[],
 >(
   contract: Contract,
   pipes: Pipes,
-): Builder<Contract, Pipes> {
+  middlewares: Middlewares,
+): Builder<Contract, Pipes, Middlewares> {
   return {
-    pipe(pipe) {
+    pipe(pipe: ServerFunctionPipe) {
       return createBuilder(
         contract,
         [...pipes, pipe] as readonly [...Pipes, ServerFunctionPipe],
-      ) as unknown as Builder<Contract, readonly [...Pipes, typeof pipe]>;
+        middlewares,
+      ) as never;
     },
-    handler(handler) {
-      return createDefinition(contract, pipes, handler);
+    use(middleware: AnyCraftMiddleware) {
+      return createBuilder(contract, pipes, [
+        ...middlewares,
+        middleware,
+      ] as readonly [...Middlewares, typeof middleware]) as never;
     },
-  } as Builder<Contract, Pipes>;
+    handler(handler: ServerFunctionHandler<Contract, Pipes, unknown, Middlewares>) {
+      return createDefinition(contract, pipes, middlewares, handler) as never;
+    },
+  } as unknown as Builder<Contract, Pipes, Middlewares>;
 }
 
 function createDefinition<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
+  Middlewares extends readonly AnyCraftMiddleware[],
   Output,
 >(
   contract: Contract,
   pipes: Pipes,
-  handler: ServerFunctionHandler<Contract, Pipes, Output>,
-): ServerFunctionDefinition<Contract, Pipes, Output> {
+  middlewares: Middlewares,
+  handler: ServerFunctionHandler<Contract, Pipes, Output, Middlewares>,
+): ServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
   return {
     kind: 'server-function',
     contract,
     pipes,
+    middlewares,
+    inputSchemas: collectMiddlewareSchemas(contract.input, middlewares),
     handler,
     invoke(input, runtime) {
       const required: ServerFunctionRequired<Pipes> = (token) => {
@@ -175,35 +263,51 @@ function createDefinition<
         }
         return runtime.resolve(token);
       };
-      return handler({
-        input: input as ServerFunctionContractInput<Contract>,
-        required,
-        pipes,
-      });
+      const call = (context: Record<string, unknown>): Output =>
+        handler({
+          input: input as never,
+          context: context as never,
+          required,
+          pipes,
+        });
+
+      if (middlewares.length === 0) return call({});
+      return runMiddlewareChain(middlewares, input, ({ context }) =>
+        call(context),
+      ) as Output;
     },
   };
 }
 
+/**
+ * Ce que l'appelant doit fournir : le schéma du contrat et ceux des middleware,
+ * côté entrée. La façade client reste donc alignée sur ce que le registre valide.
+ */
 export type ServerFunctionInput<
-  Definition extends ServerFunctionDefinition<any, any, any>,
-> = ServerFunctionContractInput<Definition['contract']>;
+  Definition extends ServerFunctionDefinition<any, any, any, any>,
+> = Definition extends ServerFunctionDefinition<
+  infer Contract,
+  any,
+  any,
+  infer Middlewares
+>
+  ? MergeSchemaInputs<
+      readonly [Contract['input'], ...MiddlewareSchemasOfAll<Middlewares>]
+    >
+  : never;
 
 export type ServerFunctionOutput<
-  Definition extends ServerFunctionDefinition<any, any, any>,
-> = Definition extends ServerFunctionDefinition<
-  Definition['contract'],
-  Definition['pipes'],
-  infer Output
->
+  Definition extends ServerFunctionDefinition<any, any, any, any>,
+> = Definition extends ServerFunctionDefinition<any, any, infer Output, any>
   ? Output
   : never;
 
 type AwaitedServerFunctionOutput<
-  Definition extends ServerFunctionDefinition<any, any, any>,
+  Definition extends ServerFunctionDefinition<any, any, any, any>,
 > = Awaited<ServerFunctionOutput<Definition>>;
 
 export type ServerFunctionSuccess<
-  Definition extends ServerFunctionDefinition<any, any, any>,
+  Definition extends ServerFunctionDefinition<any, any, any, any>,
 > = AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
   infer Success,
   infer _Error,
@@ -213,7 +317,7 @@ export type ServerFunctionSuccess<
   : AwaitedServerFunctionOutput<Definition>;
 
 export type ServerFunctionError<
-  Definition extends ServerFunctionDefinition<any, any, any>,
+  Definition extends ServerFunctionDefinition<any, any, any, any>,
 > = AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
   infer _Success,
   infer Error,

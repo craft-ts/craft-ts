@@ -188,6 +188,34 @@ export function queryEffect<
     Name
   >
 >;
+export function queryEffect<
+  Name extends string,
+  Args,
+  Params,
+  Value extends object | undefined,
+  Error,
+  Requirements,
+  Insertion extends (...args: any[]) => any,
+>(
+  name: Name,
+  config: EffectQueryMethodConfig<Args, Params, Value, Error, Requirements>,
+  insertion: Insertion,
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    Value,
+    Params,
+    Args,
+    Params,
+    GroupIdentifier<typeof config>,
+    EffectInsertionResult<Insertion>,
+    EffectExceptions<Error>,
+    Record<never, never>,
+    false,
+    never,
+    Name
+  >
+>;
 export function queryEffect(
   name: string,
   config: {

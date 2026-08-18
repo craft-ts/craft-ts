@@ -39,7 +39,9 @@ export type DependencyGraphNodeKind =
   | 'server-function-contract'
   | 'server-function-client'
   | 'server-function-server'
-  | 'server-function-misnamed';
+  | 'server-function-misnamed'
+  | 'server-function-middleware'
+  | 'server-function-middleware-misnamed';
 
 export type DependencyGraphEdgeKind =
   | 'loads'
@@ -322,6 +324,7 @@ export function analyzeDependencyGraph(
   // Server-function nodes must exist before service/component analysis so
   // loader calls can be linked directly to their family node.
   collectServerFunctions(builder, sourceFiles);
+  collectServerFunctionMiddlewares(builder, sourceFiles);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
   collectInteractiveTemplateElements(builder);
@@ -3684,7 +3687,9 @@ type ServerFunctionPart = {
   readonly clientIdentityStatic?: boolean;
   readonly runtimeServerImports?: readonly string[];
   readonly runtimeClientImports?: readonly string[];
+  readonly runtimeMiddlewareImports?: readonly string[];
   readonly importsServerOnly?: readonly string[];
+  readonly middlewareUses?: readonly string[];
 };
 
 /**
@@ -3729,6 +3734,7 @@ function collectServerFunctions(
         clientIdentityStatic: clientContract?.identityStatic,
         runtimeServerImports: imports.server,
         runtimeClientImports: imports.client,
+        runtimeMiddlewareImports: imports.middleware,
       });
     } else {
       const server = findServerFunction(sourceFile, byPath);
@@ -3741,6 +3747,7 @@ function collectServerFunctions(
         usesClientDI: server?.usesClientDI,
         contractFamily: server?.contractFamily,
         runtimeClientImports: imports.client,
+        middlewareUses: server?.middlewareUses,
       });
     }
   }
@@ -3806,6 +3813,16 @@ function collectServerFunctions(
           ...(part.importsServerOnly?.length
             ? { importsServerOnly: part.importsServerOnly.map((file) => relative(builder.rootDir, file)) }
             : {}),
+          ...(part.runtimeMiddlewareImports?.length
+            ? {
+                runtimeMiddlewareImports: part.runtimeMiddlewareImports.map(
+                  (file) => relative(builder.rootDir, file),
+                ),
+              }
+            : {}),
+          ...(part.middlewareUses?.length
+            ? { middlewareUses: [...part.middlewareUses] }
+            : {}),
         },
       });
       addEdge(builder, familyNode.id, node.id, 'contains', 'ast');
@@ -3840,6 +3857,188 @@ function collectServerFunctions(
   }
 }
 
+/**
+ * Remonte une chaîne d'appels `a(...).b(...).c(...)` depuis l'appel racine et
+ * renvoie les identifiants passés en premier argument à `.<method>(...)`.
+ */
+function chainedCallArguments(
+  call: CallExpression,
+  method: string,
+): string[] {
+  const names: string[] = [];
+  let current: Node = call;
+  for (;;) {
+    const access = current.getParentIfKind(
+      SyntaxKind.PropertyAccessExpression,
+    );
+    if (!access) break;
+    const outer = access.getParentIfKind(SyntaxKind.CallExpression);
+    if (!outer) break;
+    if (access.getName() === method) {
+      const argument = outer.getArguments()[0]?.asKind(SyntaxKind.Identifier);
+      if (argument) names.push(argument.getText());
+    }
+    current = outer;
+  }
+  return names;
+}
+
+type ServerFunctionMiddlewarePart = {
+  readonly sourceFile: SourceFile;
+  readonly variableName: string;
+  readonly id?: string;
+  readonly uses: readonly string[];
+  readonly line: number;
+};
+
+/**
+ * Records server-function middleware declared with `craftMiddleware(...)`, plus
+ * the `.use(...)` edges between them and towards the server functions that
+ * declare them. Like the server-function boundaries above, this reads source
+ * files so a bad boundary fails before any bundle transform.
+ */
+function collectServerFunctionMiddlewares(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const byPath = new Map(sourceFiles.map((file) => [file.getFilePath(), file]));
+  const registry = new Map<string, ServerFunctionMiddlewarePart>();
+
+  for (const sourceFile of sourceFiles) {
+    const isMiddlewareFile = isServerMiddlewareFile(sourceFile.getBaseName());
+    for (const part of findCraftMiddlewares(sourceFile)) {
+      if (!isMiddlewareFile) {
+        addNode(builder, {
+          id: `server-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
+          kind: 'server-function-middleware-misnamed',
+          label: part.id ?? part.variableName,
+          filePath: sourceFile.getFilePath(),
+          line: part.line,
+          details: {
+            ...(part.id === undefined ? {} : { middlewareId: part.id }),
+            middlewareName: part.variableName,
+          },
+        });
+        continue;
+      }
+      registry.set(middlewareKey(sourceFile.getFilePath(), part.variableName), part);
+    }
+  }
+
+  for (const part of registry.values()) {
+    addNode(builder, {
+      id: middlewareNodeId(part.sourceFile.getFilePath(), part.variableName),
+      kind: 'server-function-middleware',
+      label: part.id ?? part.variableName,
+      filePath: part.sourceFile.getFilePath(),
+      line: part.line,
+      details: {
+        ...(part.id === undefined ? {} : { middlewareId: part.id }),
+        middlewareName: part.variableName,
+      },
+    });
+  }
+
+  for (const part of registry.values()) {
+    for (const used of part.uses) {
+      const target = resolveMiddlewareReference(part.sourceFile, used, byPath, registry);
+      if (!target) continue;
+      addEdge(
+        builder,
+        middlewareNodeId(part.sourceFile.getFilePath(), part.variableName),
+        middlewareNodeId(target.sourceFile.getFilePath(), target.variableName),
+        'depends-on',
+        'ast',
+        { boundary: 'middleware-uses' },
+      );
+    }
+  }
+
+  for (const sourceFile of sourceFiles) {
+    if (!sourceFile.getBaseName().endsWith('.fn-serveur.ts')) continue;
+    const server = findServerFunction(sourceFile, byPath);
+    for (const used of server?.middlewareUses ?? []) {
+      const target = resolveMiddlewareReference(sourceFile, used, byPath, registry);
+      if (!target) continue;
+      addEdge(
+        builder,
+        `server-function-part:server-function-server:${sourceFile.getFilePath()}`,
+        middlewareNodeId(target.sourceFile.getFilePath(), target.variableName),
+        'depends-on',
+        'ast',
+        { boundary: 'middleware-uses' },
+      );
+    }
+  }
+}
+
+function middlewareKey(filePath: string, variableName: string): string {
+  return `${filePath}#${variableName}`;
+}
+
+function middlewareNodeId(filePath: string, variableName: string): string {
+  return `server-function-middleware:${middlewareKey(filePath, variableName)}`;
+}
+
+function findCraftMiddlewares(
+  sourceFile: SourceFile,
+): ServerFunctionMiddlewarePart[] {
+  const parts: ServerFunctionMiddlewarePart[] = [];
+  for (const declaration of sourceFile.getVariableDeclarations()) {
+    const initializer = declaration.getInitializer();
+    if (!initializer) continue;
+    const candidates = [
+      ...(Node.isCallExpression(initializer) ? [initializer] : []),
+      ...initializer.getDescendantsOfKind(SyntaxKind.CallExpression),
+    ];
+    const call = candidates.find(
+      (candidate) => candidate.getExpression().getText() === 'craftMiddleware',
+    );
+    if (!call) continue;
+    const id = call
+      .getArguments()[0]
+      ?.asKind(SyntaxKind.StringLiteral)
+      ?.getLiteralValue();
+    parts.push({
+      sourceFile,
+      variableName: declaration.getName(),
+      ...(id === undefined ? {} : { id }),
+      uses: chainedCallArguments(call, 'use'),
+      line: declaration.getStartLineNumber(),
+    });
+  }
+  return parts;
+}
+
+/** Résout un identifiant de middleware, déclaré localement ou importé. */
+function resolveMiddlewareReference(
+  sourceFile: SourceFile,
+  name: string,
+  byPath: ReadonlyMap<string, SourceFile>,
+  registry: ReadonlyMap<string, ServerFunctionMiddlewarePart>,
+): ServerFunctionMiddlewarePart | undefined {
+  const local = registry.get(middlewareKey(sourceFile.getFilePath(), name));
+  if (local) return local;
+
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    const named = declaration
+      .getNamedImports()
+      .find(
+        (candidate) =>
+          (candidate.getAliasNode()?.getText() ?? candidate.getName()) === name,
+      );
+    if (!named) continue;
+    const imported = resolveImportedSource(
+      sourceFile,
+      declaration.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    if (!imported || !byPath.has(imported.getFilePath())) continue;
+    return registry.get(middlewareKey(imported.getFilePath(), named.getName()));
+  }
+  return undefined;
+}
+
 function serverFunctionSuffix(
   baseName: string,
 ): '.fn-contract.ts' | '.fn-client.ts' | '.fn-serveur.ts' | undefined {
@@ -3852,10 +4051,16 @@ function serverFunctionSuffix(
 function serverFunctionImports(
   sourceFile: SourceFile,
   byPath: ReadonlyMap<string, SourceFile>,
-): { server: string[]; client: string[]; serverOnly: string[] } {
+): {
+  server: string[];
+  client: string[];
+  serverOnly: string[];
+  middleware: string[];
+} {
   const server: string[] = [];
   const client: string[] = [];
   const serverOnly: string[] = [];
+  const middleware: string[] = [];
   for (const declaration of sourceFile.getImportDeclarations()) {
     if (declaration.isTypeOnly()) continue;
     const imported = resolveImportedSource(
@@ -3870,8 +4075,15 @@ function serverFunctionImports(
     if (imported.getBaseName().includes('.server.')) {
       serverOnly.push(imported.getFilePath());
     }
+    if (isServerMiddlewareFile(imported.getBaseName())) {
+      middleware.push(imported.getFilePath());
+    }
   }
-  return { server, client, serverOnly };
+  return { server, client, serverOnly, middleware };
+}
+
+function isServerMiddlewareFile(baseName: string): boolean {
+  return baseName.endsWith('.mw-serveur.ts');
 }
 
 function findServerFunctionContract(
@@ -3891,7 +4103,15 @@ function findServerFunctionContract(
 function findServerFunction(
   sourceFile: SourceFile,
   byPath: ReadonlyMap<string, SourceFile>,
-): { id?: string; exposure?: string; usesClientDI: boolean; contractFamily?: string } | undefined {
+):
+  | {
+      id?: string;
+      exposure?: string;
+      usesClientDI: boolean;
+      contractFamily?: string;
+      middlewareUses: readonly string[];
+    }
+  | undefined {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
   const serverCall = calls.find((candidate) => {
     const expression = candidate.getExpression().getText();
@@ -3920,8 +4140,10 @@ function findServerFunction(
     .getArguments()[2]
     ?.asKind(SyntaxKind.ObjectLiteralExpression);
   const usesClientDI = calls.some((candidate) => candidate.getExpression().getText() === 'requireClientDI');
+  const middlewareUses = chainedCallArguments(serverCall, 'use');
   return {
     id,
+    middlewareUses,
     exposure:
       contractIdentifier === undefined
         ? getStringProperty(options, 'exposure') ?? 'server'

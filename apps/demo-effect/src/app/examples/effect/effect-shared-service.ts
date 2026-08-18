@@ -9,7 +9,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { checkUserAccess } from '../../shared/access-domain';
 
@@ -35,19 +35,11 @@ const EffectSharedServiceComponent = craftComponent(
     `,
   },
   function* () {
-    const request = yield* state(
-      'request',
-      { userId: 'user-ada' },
-      ({ update }) => ({
-        select: (userId: string) => update(() => ({ userId })),
-      }),
-    );
-
     const accessQuery = yield* queryEffect(
       'accessQuery',
       {
-        params: request,
-        loader: ({ params }) => checkUserAccess(params.userId),
+        method: (userId: string) => userId,
+        loader: ({ params }) => checkUserAccess(params),
       },
       ({ resource }) => ({
         hasDecision: craftComputed('hasDecision', () => resource.hasValue()),
@@ -67,55 +59,57 @@ const EffectSharedServiceComponent = craftComponent(
       }),
     );
 
-    return { request, accessQuery };
+    yield* accessQuery.call('user-ada'); // trigger first call
+
+    return { accessQuery };
   },
-  ({ request, accessQuery }) =>
+  ({ accessQuery }) =>
     div([
-      heading('Vérifier les droits'),
+      heading('Check access rights'),
       p(
         { class: 'intro' },
-        'Un opérateur veut savoir ce qu’il peut faire avec le profil d’un membre. La décision est calculée par une opération métier partagée qui utilise un service de politique d’accès mocké.',
+        'An operator wants to know what they can do with a member’s profile. The decision is computed by a shared business operation that uses a mocked access policy service.',
       ),
       div({ class: 'actions' }, [
         button(
           'adaButton',
-          { type: 'button', *click() { yield* request.select('user-ada'); } },
-          'Ada — administratrice',
+          { type: 'button', *click() { yield* accessQuery.call('user-ada'); } },
+          'Ada — administrator',
         ),
         button(
           'graceButton',
-          { type: 'button', *click() { yield* request.select('user-grace'); } },
-          'Grace — membre',
+          { type: 'button', *click() { yield* accessQuery.call('user-grace'); } },
+          'Grace — member',
         ),
         button(
           'linusButton',
           {
             type: 'button',
             *click() {
-              yield* request.select('user-linus');
+              yield* accessQuery.call('user-linus');
             },
           },
-          'Linus — compte suspendu',
+          'Linus — suspended account',
         ),
       ]),
       div({ class: 'panel' }, [
-        p({ class: 'panel-title' }, 'Décision d’accès'),
-        ifBlock(accessQuery.isLoading, () => p('Vérification en cours…')),
+        p({ class: 'panel-title' }, 'Access decision'),
+        ifBlock(accessQuery.isLoading, () => p('Checking access…')),
         ifBlock(accessQuery.hasDecision, () => [
-          p({ class: 'row' }, [strong('Utilisateur : '), accessQuery.userName]),
-          p({ class: 'row' }, [strong('Niveau : '), accessQuery.accessLabel]),
-          p({ class: 'row' }, [strong('Pourquoi : '), accessQuery.accessReason]),
+          p({ class: 'row' }, [strong('User: '), accessQuery.userName]),
+          p({ class: 'row' }, [strong('Level: '), accessQuery.accessLabel]),
+          p({ class: 'row' }, [strong('Why: '), accessQuery.accessReason]),
         ]),
         ifBlock(accessQuery.showUnknown, () =>
-          p({ class: 'row' }, 'Utilisateur inconnu.'),
+          p({ class: 'row' }, 'Unknown user.'),
         ),
       ]),
       p({ class: 'note' }, [
-        'Le composant appelle ',
+        'The component calls ',
         span({ class: 'mono' }, 'checkUserAccess(userId)'),
-        '. Il ne connaît pas ',
+        '. It does not know about ',
         span({ class: 'mono' }, 'AccessPolicyService'),
-        ' : le Layer applicatif fournit cette dépendance à l’opération Effect.',
+        ': the application Layer supplies this dependency to the Effect operation.',
       ]),
     ]),
 );

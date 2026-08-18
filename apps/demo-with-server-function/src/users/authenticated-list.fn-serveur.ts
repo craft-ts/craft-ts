@@ -1,46 +1,37 @@
 import { serverFunction } from '@craft-ts/core';
-import { Data, Effect, Schema } from 'effect';
-import { requireAdmin } from '../shared/authenticated-user';
+import { Effect, Schema } from 'effect';
 import { UserRepository } from '../server/database';
+import { matchingUser } from './admin-access.mw-serveur';
 import { UserSchema } from './user-schema';
 
+export { AuthenticatedUserMismatch } from './admin-access.mw-serveur';
+
 const authenticatedListUsersInputSchema = Schema.toStandardSchemaV1(
-  Schema.Struct({
-    filter: Schema.String,
-    userId: Schema.String,
-  }),
+  Schema.Struct({ filter: Schema.String }),
 );
 const authenticatedListUsersOutputSchema = Schema.toStandardSchemaV1(
   Schema.Array(UserSchema),
 );
 
-export class AuthenticatedUserMismatch extends Data.TaggedError(
-  'AuthenticatedUserMismatch',
-)<{
-  readonly message: string;
-  readonly requestedUserId: string;
-  readonly authenticatedUserId: string;
-}> {}
-
+/**
+ * L'autorisation et la vérification d'identité vivent dans la chaîne de
+ * middleware : le handler ne garde que son travail utile, et lit `userId` (venu
+ * du schéma du middleware) comme n'importe quel champ de son propre input.
+ */
 export const getAuthenticatedUsers = serverFunction(
   'demo.users.authenticated-list',
   authenticatedListUsersInputSchema,
   { exposure: 'client', output: authenticatedListUsersOutputSchema },
-).handler(({ input }) =>
-  Effect.gen(function* () {
-    const authenticatedUser = yield* requireAdmin;
-
-    if (input.userId !== authenticatedUser.id) {
-      return yield* new AuthenticatedUserMismatch({
-        message: `AuthenticatedUserMismatch: authenticated user "${authenticatedUser.id}" cannot access user "${input.userId}".`,
-        requestedUserId: input.userId,
-        authenticatedUserId: authenticatedUser.id,
-      });
-    }
-
-    // Intentional latency to make the frontend loading cycle visible.
-    yield* Effect.sleep('600 millis');
-    const users = yield* UserRepository;
-    return yield* users.list(input.filter);
-  }),
-);
+)
+  .use(matchingUser)
+  .handler(({ input, context }) =>
+    Effect.gen(function* () {
+      // Intentional latency to make the frontend loading cycle visible.
+      yield* Effect.sleep('600 millis');
+      const users = yield* UserRepository;
+      yield* Effect.log(
+        `demo.users.authenticated-list actor=${context.authenticatedUser.id} requested=${input.userId}`,
+      );
+      return yield* users.list(input.filter);
+    }),
+  );

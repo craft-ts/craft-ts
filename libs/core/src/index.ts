@@ -48,6 +48,7 @@ export * from './lib/schema-validation';
 export * from './lib/server-function-contract';
 export * from './lib/client-di-requirement';
 export * from './lib/server-function';
+export * from './lib/server-function-middleware';
 export * from './lib/server-function-client';
 export * from './lib/server';
 export type { StandardSchemaV1 } from './lib/standard-schema';

@@ -18,7 +18,7 @@ export const authGuard = craftGen(function* () {
   const userValue = yield* user.value();
 
   if (!userValue) return craftException({ _tag: 'NOT_AUTHENTICATED' });
-  // démo : un utilisateur nommé "disabled" est routé vers l'écran d'erreur global
+  // demo: a user named "disabled" is routed to the global error screen
   if (userValue.name === 'disabled')
     return craftException({ _tag: 'USER_DISABLED' });
 

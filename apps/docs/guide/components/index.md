@@ -197,5 +197,5 @@ with `.pipe(catchBlock.exhaustive(...))` — see
 
 - [Learn: your first state](/learn/01-first-state) — the guided version
 - [Directives and `.pipe(...)`](/guide/components/directives)
-- [Accessibilité](/guide/components/accessibility)
+- [Accessibility](/guide/components/accessibility)
 - [Testing components](/guide/testing/components)

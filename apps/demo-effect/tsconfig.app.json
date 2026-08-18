@@ -9,13 +9,16 @@
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
     {
-      "path": "../../libs/component/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/effect/tsconfig.lib.json"
     },
     {
       "path": "../../libs/core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/component/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/dev-tools/tsconfig.lib.json"
     }
   ]
 }

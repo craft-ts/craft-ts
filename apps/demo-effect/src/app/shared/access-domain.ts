@@ -107,24 +107,24 @@ export const AccessPolicyLive = Layer.sync(AccessPolicyService)(() => ({
             user,
             allowed: true,
             level: 'full',
-            label: 'Accès complet',
-            reason: 'Le rôle administrateur autorise la consultation du profil.',
+            label: 'Full access',
+            reason: 'The administrator role allows viewing the profile.',
           } satisfies AccessDecision;
         case 'member':
           return {
             user,
             allowed: true,
             level: 'read-only',
-            label: 'Lecture seule',
-            reason: 'Le membre peut consulter le profil sans le modifier.',
+            label: 'Read only',
+            reason: 'The member can view the profile without editing it.',
           } satisfies AccessDecision;
         case 'suspended':
           return {
             user,
             allowed: false,
             level: 'blocked',
-            label: 'Accès bloqué',
-            reason: 'Le compte est suspendu et ne peut pas être consulté.',
+            label: 'Access blocked',
+            reason: 'The account is suspended and cannot be viewed.',
           } satisfies AccessDecision;
       }
     }),
@@ -156,7 +156,7 @@ export class TeamContextService extends Context.Service<
 
 export const SupportTeamLive = Layer.succeed(TeamContextService, {
   id: 'support',
-  name: 'Équipe Support',
+  name: 'Support Team',
 });
 
 /** Mocked read of a business view requiring both global and route context. */
@@ -174,7 +174,7 @@ export const loadTeamOverview: Effect.Effect<
       teamName: team.name,
       viewerName: session.user.name,
       viewerAccess:
-        session.user.role === 'admin' ? 'Administratrice' : 'Membre',
+        session.user.role === 'admin' ? 'Administrator' : 'Member',
       members,
     } satisfies TeamOverview;
   });

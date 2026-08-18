@@ -191,4 +191,4 @@ payload itself.
   compile-time obligations — the runtime backstops still fire.
 
 The pending fallback is announced to assistive tech (`aria-live`, `aria-busy`).
-See [Accessibilité](/guide/components/accessibility).
+See [Accessibility](/guide/components/accessibility).
