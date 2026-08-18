@@ -87,12 +87,11 @@ describe('0.1-b — E reaches the exception channel at the type level', () => {
         craftRoute(
           'probe',
           { canActivate: guard, loadChildren: () => Promise.resolve([]) },
-          // REGRESSION, recorded rather than hidden: before the wave-1
-          // renames, the error ALSO landed here, at the route definition,
-          // naming the missing tag. It now surfaces only on the assert below.
-          // The guarantee still holds — a forgotten Effect tag does not
-          // compile — but the diagnostic is less precise, which is the same
-          // weakness 0.4 measured for a craft-native EXTRA handler.
+          // The diagnostic lands here, at the route definition, naming the
+          // missing handler key. It is reported a second time by the assert
+          // below; both directives are load-bearing, and removing either one
+          // turns this test red.
+          // @ts-expect-error - 'Unauthorized' has no handler.
           {
             UserNotFound: craftExceptionHandler(function* ({ globalError }) {
               return globalError();

@@ -1,8 +1,9 @@
 # Schema validation
 
 Primitives accept any schema implementing `StandardSchemaV1`, so Zod, Valibot,
-Effect or a hand-written schema all work — and none of them becomes a dependency
-of `@craft-ts`.
+ArkType, Effect Schema or a hand-written schema all work — and none of them
+becomes a dependency of `@craft-ts`. (Effect needs one conversion call; see
+[Effect Schema](#effect-schema).)
 
 **Use it when** data crosses a boundary you don't control: a method argument, a
 server response, a restored value.
@@ -163,6 +164,71 @@ Resource exceptions expose the stage through `exceptions().parse.method`,
 
 All four primitives expose `hasSchema()`, which is `true` when at least one
 schema is configured.
+
+## Effect Schema
+
+Effect Schema works, but not by handing the schema over directly. An
+`effect/Schema` is **not** itself a Standard Schema — you convert it once with
+`Schema.toStandardSchemaV1`, and the result goes anywhere a schema goes:
+
+```typescript
+import { Schema } from 'effect';
+
+const Person = Schema.Struct({
+  name: Schema.String,
+  age: Schema.Number,
+});
+
+const people = yield* query('people', {
+  loaderSchema: Schema.toStandardSchemaV1(Schema.Array(Person)),
+  loader: async () => fetchPeople(),
+});
+```
+
+Nothing in `@craft-ts/core` knows about Effect, and `@craft-ts/effect` ships no
+adapter for this: the whole interop is the Standard Schema spec, which both
+sides already implement. You do not need `@craft-ts/effect` installed to
+validate with Effect Schema.
+
+Failures behave like any other schema failure. Effect's issues become a
+`SCHEMA_VALIDATION_ERROR` on the parse channel — they are never thrown, and
+never surface as an Effect `Cause`:
+
+```typescript
+craftUse(person.exceptions()).parse.state?._tag; // 'SCHEMA_VALIDATION_ERROR'
+```
+
+### The one thing to watch: async decoding
+
+`paramsSchema`, `methodSchema` and the local writes (`set`, `update`, `patch`)
+are **synchronous** stages. They throw if a schema returns a `Promise`:
+
+> The query:people params schema returned a Promise where a synchronous result
+> is required.
+
+A plain Effect schema decodes synchronously, so it is fine at every stage. But
+a schema with an asynchronous transformation is only usable in `loaderSchema`,
+which is the one stage that awaits. If you need to validate against something
+async — a uniqueness check, a remote lookup — do it in the loader as an Effect
+and let its typed error flow through `runEffect`, rather than hiding it in a
+schema.
+
+### Decoded output, not encoded input
+
+Craft publishes the schema **output**. When the Effect schema decodes into a
+different type than it accepts, it is the decoded type the rest of your code
+sees:
+
+```typescript
+// `Schema.Date` accepts a Date and REJECTS a string. The one that decodes is
+// `Schema.DateFromString` — encoded: string, decoded: Date.
+const createdAt = yield* state('createdAt', {
+  $self: rawFromServer, // string
+  schema: Schema.toStandardSchemaV1(Schema.DateFromString),
+});
+
+craftUse(createdAt()); // Date
+```
 
 ## See Also
 

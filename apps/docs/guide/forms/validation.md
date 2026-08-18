@@ -13,7 +13,8 @@ when a rule is specific to your domain.
 Use `insertFormSchema` when the rules describe the complete form value rather
 than one field at a time. It accepts any schema compatible with
 `StandardSchemaV1`, including current versions of Zod, Valibot, ArkType and
-Effect Schema.
+Effect Schema — the latter through
+[`Schema.toStandardSchemaV1`](/guide/state/schema-validation#effect-schema).
 
 ```ts
 import { z } from 'zod';

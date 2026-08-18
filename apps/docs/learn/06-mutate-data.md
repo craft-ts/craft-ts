@@ -89,10 +89,12 @@ const createTask = yield* mutation('createTask', {
 schema's **output** value — so a coercion or a `.trim()` in the schema is
 reflected in the type.
 
-Any library implementing `StandardSchemaV1` works — Zod, Valibot, Effect, or a
-hand-written `{ '~standard': … }` object. None of them becomes a dependency of
-`@craft-ts`. Queries have the same hooks for their reactive params
-(`paramsSchema`) and their result (`loaderSchema`).
+Any library implementing `StandardSchemaV1` works — Zod, Valibot, ArkType, or
+a hand-written `{ '~standard': … }` object; Effect Schema works too, after one
+[`Schema.toStandardSchemaV1`](/guide/state/schema-validation#effect-schema)
+call. None of them becomes a dependency of `@craft-ts`. Queries have the same
+hooks for their reactive params (`paramsSchema`) and their result
+(`loaderSchema`).
 
 **Use a schema** when the shape itself is the rule, **a `craftException` from
 `method`** when the rule is business logic — "this title already exists in the
