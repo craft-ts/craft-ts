@@ -165,7 +165,7 @@ Exception propagation is fully typed, with **no** manual plumbing:
 - `craftUntilSettled(searchModule)` relays it to `searchResult`;
 - `search(q)` relays its own `E1 | E2`.
 
-So `searchResult.exception()?.code` is exactly `'CRAFT_LAZY_LOAD_ERROR' | 'E1' | 'E2'`, and
+So `searchResult.exception()?._tag` is exactly `'CRAFT_LAZY_LOAD_ERROR' | 'E1' | 'E2'`, and
 `searchResult.value()` keeps the return type of `search`.
 
 ## In routes

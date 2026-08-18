@@ -291,7 +291,7 @@ describe('Browser Boundaries doc page', () => {
       'it can declare ordered `exceptions: [function* (...) { ... }]` rules',
     );
     expect(content).toContain(
-      "it returns a promise of `Success | craftException({ code: 'HttpError' })`",
+      "it returns a promise of `Success | craftException({ _tag: 'HttpError' })`",
     );
     expect(content).toContain('const getUsers =');
     expect(content).toContain('CraftHttpClient.get(({ response }) => ({');

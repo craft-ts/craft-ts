@@ -245,13 +245,13 @@ const { userQuery } =
     method: (value: string) =>
       value.length < 3
         ? craftException(
-            { code: 'SEARCH_TERM_TOO_SHORT' },
+            { _tag: 'SEARCH_TERM_TOO_SHORT' },
             { min: 3, received: value.length },
           )
         : value,
     loader: async ({ params }) =>
       params === 'forbidden'
-        ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
+        ? craftException({ _tag: 'USER_ACCESS_FORBIDDEN' }, { id: params })
         : { id: params, name: 'John Doe' },
   });
 
@@ -319,7 +319,7 @@ loader: function* ({ params }) {
         if (!(yield* content('Password is required'))) return;
 
         return craftException({
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           scope: 'UsersFeatureForDependencies',
         });
       },
@@ -332,7 +332,7 @@ loader: function* ({ params }) {
         if (!(yield* header('x-error-kind', 'validation'))) return;
 
         return craftException({
-          code: 'VALIDATION_HEADER_ERROR',
+          _tag: 'VALIDATION_HEADER_ERROR',
           scope: 'UsersFeatureForDependencies',
         });
       },

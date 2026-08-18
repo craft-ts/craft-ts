@@ -1315,7 +1315,7 @@ import { assertExhaustiveRouteExceptions, craftException, craftGen, craftRoute, 
 import { ProvidedDeps } from './support';
 
 const verifyFailure = craftGen(function* () {
-  return craftException({ code: 'VERIFY_UNHANDLED' });
+  return craftException({ _tag: 'VERIFY_UNHANDLED' });
 });
 
 export const { exceptionMissingRoutes } = craftRoutes('exceptionMissing', [
@@ -1339,7 +1339,7 @@ import { assertExhaustiveRouteExceptions, craftException, craftExceptionHandler,
 import { ProvidedDeps } from './support';
 
 const verifyFailure = craftGen(function* () {
-  return craftException({ code: 'VERIFY_HANDLED' });
+  return craftException({ _tag: 'VERIFY_HANDLED' });
 });
 
 export const { exceptionExtraRoutes } = craftRoutes('exceptionExtra', [

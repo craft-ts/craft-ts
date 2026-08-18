@@ -162,7 +162,7 @@ insertFormAttributes(() => ({
       },
       exception: () =>
         craftException(
-          { code: 'weak-password' },
+          { _tag: 'weak-password' },
           {
             message:
               'Password must contain 8 characters and an uppercase letter',
@@ -200,7 +200,7 @@ function* registrationLogic() {
               validWhen: () =>
                 field.value().password === field.value().confirmation,
               exception: () =>
-                craftException({ code: 'passwordMismatch' }, undefined),
+                craftException({ _tag: 'passwordMismatch' }, undefined),
             }),
           ],
         })),
@@ -247,7 +247,7 @@ insertFormAttributes(() => ({
       name: 'emailAvailability',
       exceptionsOnSuccess: ({ validateAsyncCraftResource }) => {
         if (!validateAsyncCraftResource.value()?.available) {
-          return craftException({ code: 'email-taken' }, undefined);
+          return craftException({ _tag: 'email-taken' }, undefined);
         }
         return undefined;
       },

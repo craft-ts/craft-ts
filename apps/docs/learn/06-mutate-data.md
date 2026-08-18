@@ -51,7 +51,7 @@ import { craftException } from '@craft-ts/core';
 const createTask = yield* mutation('createTask', {
   method: (payload: { title: string }) =>
     payload.title.trim().length === 0
-      ? craftException({ code: 'TITLE_REQUIRED' }, { received: payload.title })
+      ? craftException({ _tag: 'TITLE_REQUIRED' }, { received: payload.title })
       : payload,
   loader: /* … */,
 });
