@@ -38,6 +38,11 @@ import { craftDirective } from '../directive';
 import { content, renderContent } from '../project';
 import { defer } from '../defer';
 import { each } from '../each';
+import {
+  EACH_SCHEDULER,
+  scheduleEach,
+  type EachScheduler,
+} from '../each-scheduling';
 import { ifBlock } from '../if-block';
 import { catchBlock } from '../block';
 import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
@@ -77,6 +82,41 @@ function childListMutationNodes(records: readonly MutationRecord[]): Node[] {
   ]);
 }
 
+class VirtualEachScheduler implements EachScheduler {
+  private readonly tasks = new Set<{
+    readonly task: () => void;
+    cancelled: boolean;
+  }>();
+
+  schedule(task: () => void) {
+    const queued = { task, cancelled: false };
+    this.tasks.add(queued);
+    return {
+      cancel: () => {
+        queued.cancelled = true;
+        this.tasks.delete(queued);
+      },
+    };
+  }
+
+  flush(count = Infinity): void {
+    let flushed = 0;
+    while (this.tasks.size > 0 && flushed < count) {
+      const queued = this.tasks.values().next().value as
+        | { readonly task: () => void; cancelled: boolean }
+        | undefined;
+      if (!queued) return;
+      this.tasks.delete(queued);
+      if (!queued.cancelled) queued.task();
+      flushed += 1;
+    }
+  }
+
+  get pendingCount(): number {
+    return this.tasks.size;
+  }
+}
+
 describe('functional component interpreter', () => {
   beforeEach(() => {
     document.body.replaceChildren();
@@ -94,9 +134,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const paragraphs = Array.from(element.querySelectorAll('p'));
     expect(template).toHaveBeenCalledTimes(1);
@@ -138,9 +180,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     title.set('second');
     await flush();
@@ -175,9 +219,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
     expect(hostClass).toHaveBeenCalledTimes(2);
 
     active.set(true);
@@ -203,9 +249,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => p(binding),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     value.set(1);
     value.set(2);
@@ -232,9 +280,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     value.set('updated');
     await flush();
@@ -263,9 +313,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => ifBlock(condition, () => p('stable')),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const stableNode = element.querySelector('p');
     if (!stableNode) {
@@ -305,9 +357,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       template,
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const nodes = Array.from(element.querySelectorAll('li'));
     items[0].label.set('updated');
@@ -329,8 +383,14 @@ describe('functional component interpreter', () => {
     const items = signal([first, second]);
     const itemTemplate = vi.fn((item, index: number) =>
       li(
-        { 'data-id': function* () { return (yield* item()).id; } },
-        function* () { return `${index}:${(yield* item()).label}`; },
+        {
+          'data-id': function* () {
+            return (yield* item()).id;
+          },
+        },
+        function* () {
+          return `${index}:${(yield* item()).label}`;
+        },
       ),
     );
     const component = craftComponent(
@@ -340,9 +400,11 @@ describe('functional component interpreter', () => {
       ({ items }) =>
         ul(each(items, { track: (item) => item.id }, itemTemplate)),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const nodes = Array.from(element.querySelectorAll('li'));
     const updatedFirst = { ...first, label: 'updated' };
@@ -373,15 +435,23 @@ describe('functional component interpreter', () => {
         ul(
           each(items, { track: (item) => item.id }, (item) =>
             li(
-              { 'data-id': function* () { return (yield* item()).id; } },
-              function* () { return (yield* item()).label; },
+              {
+                'data-id': function* () {
+                  return (yield* item()).id;
+                },
+              },
+              function* () {
+                return (yield* item()).label;
+              },
             ),
           ),
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const list = element.querySelector('ul');
     const rows = Array.from(element.querySelectorAll('li'));
@@ -437,9 +507,11 @@ describe('functional component interpreter', () => {
           ),
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
     traces.length = 0;
 
     items.set([{ ...first, label: 'updated' }, second]);
@@ -469,9 +541,11 @@ describe('functional component interpreter', () => {
           button({ click: () => count.update((value) => value + 1) }, '+'),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      counter,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(counter);
 
     expect(element.getAttribute('data-kind')).toBe('counter');
     expect(element.querySelector('.value')?.textContent).toBe('Count: 0');
@@ -505,9 +579,11 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      widget,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(widget);
 
     for (let index = 0; index < 12; index += 1) {
       revision.update((value) => value + 1);
@@ -544,9 +620,11 @@ describe('functional component interpreter', () => {
       () => ({ count }),
       ({ count }) => p(String(count())),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      counter,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(counter);
     count.set(1);
     await flush();
     destroy();
@@ -613,7 +691,11 @@ describe('functional component interpreter', () => {
           p(() => String(clicked())),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(component);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
     element.querySelector<HTMLButtonElement>('button')?.click();
     await flush();
 
@@ -631,9 +713,11 @@ describe('functional component interpreter', () => {
       () => ({ hostTags: inject(HOST_TAG_LIST) }),
       ({ hostTags }) => p(hostTags.join('|')),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      counter,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(counter);
 
     expect(element.textContent).toMatch(/^component:AutomaticHostTag#\d+$/);
     destroy();
@@ -667,9 +751,11 @@ describe('functional component interpreter', () => {
           body: () => [p('before'), p(inject(label)), p('after')],
         }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      parent,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(parent);
 
     expect(element.textContent).toBe('declarerbeforedeclarerafter');
     expect(element.querySelector('section')?.children).toHaveLength(3);
@@ -692,9 +778,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => ifBlock(condition, () => section(renderContent('body', projected))),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const stableNode = element.querySelector('p');
     if (!stableNode) {
@@ -768,9 +856,11 @@ describe('functional component interpreter', () => {
           ],
         }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
 
     expect(element.querySelector('[role="toolbar"]')?.textContent).toBe('Save');
     (element.querySelector('button') as HTMLButtonElement).click();
@@ -819,9 +909,11 @@ describe('functional component interpreter', () => {
           ),
         }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      page,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(page);
 
     const ordinary = element.querySelector('p.projected-value') as HTMLElement;
     expect(ordinary.getAttribute('data-craft-content')).toBe(
@@ -860,9 +952,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => card({ body: () => p({ class: 'isolated' }, 'content') }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      page,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(page);
 
     expect(element.querySelector('p.isolated')).not.toBeNull();
     expect(
@@ -898,9 +992,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => card({ body: () => projectedChild({}) }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      parent,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(parent);
 
     expect(element.textContent).toBe('declarer');
     destroy();
@@ -921,18 +1017,17 @@ describe('functional component interpreter', () => {
       () => ({}),
       () =>
         ul(
-          each(
-            ['Ada', 'Lin'],
-            { track: (value) => value },
-            (value, index) =>
-              renderTemplate(row, { $implicit: value, index }),
+          each(['Ada', 'Lin'], { track: (value) => value }, (value, index) =>
+            renderTemplate(row, { $implicit: value, index }),
           ),
         ),
     );
     expect(renders).toBe(0);
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(renders).toBe(2);
     expect(element.textContent).toBe('0: Ada1: Lin');
@@ -954,9 +1049,11 @@ describe('functional component interpreter', () => {
           renderTemplate(row, { label: `revision-${revision()}` }),
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const stableNode = element.querySelector('p');
     if (!stableNode) {
@@ -1046,9 +1143,11 @@ describe('functional component interpreter', () => {
         },
       }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     element.querySelector('button')?.click();
     await vi.waitFor(() => expect(element.textContent).toContain('failed'));
@@ -1085,9 +1184,11 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      counter,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(counter);
     element.querySelector('button')?.click();
     await flush();
 
@@ -1114,9 +1215,11 @@ describe('functional component interpreter', () => {
           '+',
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(element.querySelector('button')?.hasAttribute('disabled')).toBe(
       true,
@@ -1140,9 +1243,11 @@ describe('functional component interpreter', () => {
       ({ increment }) =>
         button({ click: () => void increment() }, String(count())),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
     element.querySelector('button')?.click();
     await flush();
 
@@ -1172,9 +1277,11 @@ describe('functional component interpreter', () => {
           '+',
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(
       (element.querySelector('button') as HTMLButtonElement).disabled,
@@ -1219,9 +1326,11 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     await flush();
     expect(element.querySelector('.value')?.textContent).toBe('2');
@@ -1300,9 +1409,11 @@ describe('functional component interpreter', () => {
           () => p('hidden'),
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(
       element.querySelector('[data-craft-name="increment"]'),
@@ -1322,9 +1433,11 @@ describe('functional component interpreter', () => {
       () => ({ items }),
       () => p('ready'),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(element.textContent).toContain('ready');
     destroy();
@@ -1343,9 +1456,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => div({ class: 'parent' }, [scopedChild()]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      scopedParent,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(scopedParent);
 
     const parent = element.querySelector('.parent')!;
     const child = element.querySelector('.child')!;
@@ -1371,9 +1486,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => div({ class: 'external' }, 'external'),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(
       document.querySelector<HTMLStyleElement>('style[data-craft-sheet]')
@@ -1385,12 +1502,9 @@ describe('functional component interpreter', () => {
 
   it('patches Input accessors without recreating the component', async () => {
     const value = signal('first');
-    const valueReader = markYieldableValue(
-      function* () {
-        return value();
-      },
-      'inputText',
-    );
+    const valueReader = markYieldableValue(function* () {
+      return value();
+    }, 'inputText');
     let factoryRuns = 0;
     const label = craftComponent(
       'label',
@@ -1399,16 +1513,20 @@ describe('functional component interpreter', () => {
         factoryRuns += 1;
         return { text };
       },
-      ({ text }) => p(function* () {
-        return yield* text();
-      }),
+      ({ text }) =>
+        p(function* () {
+          return yield* text();
+        }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      label,
-      { props: {
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(label, {
+      props: {
         text: valueReader,
-      } },
-    );
+      },
+    });
     const paragraph = element.querySelector('p');
 
     value.set('second');
@@ -1425,9 +1543,10 @@ describe('functional component interpreter', () => {
       'editableStatusComponent',
       { host: { class: 'status-base' } },
       (status: Input<string>) => ({ status }),
-      ({ status }) => span(function* () {
-        return yield* status();
-      }),
+      ({ status }) =>
+        span(function* () {
+          return yield* status();
+        }),
     );
     const directivePage = craftComponent(
       'directivePage',
@@ -1444,9 +1563,11 @@ describe('functional component interpreter', () => {
           }),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      directivePage,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(directivePage);
 
     expect(element.querySelector('span')?.className).toBe(
       'status-base newClassAdded',
@@ -1486,9 +1607,11 @@ describe('functional component interpreter', () => {
       () => ({}),
       () => reactiveStatusComponent({ class: 'caller-class' }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      reactiveDirectivePage,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(reactiveDirectivePage);
     expect(element.querySelector('span')?.className).toBe(
       'status-base visible caller-class',
     );
@@ -1523,18 +1646,22 @@ describe('functional component interpreter', () => {
       'guarded',
       {},
       (user: Input<string>) => ({ user }),
-      ({ user }) => p(function* () {
-        return yield* user();
-      }),
+      ({ user }) =>
+        p(function* () {
+          return yield* user();
+        }),
     ).pipe(guard);
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      guarded,
-      { props: {
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(guarded, {
+      props: {
         user: function* () {
           return 'visible';
         },
-      } },
-    );
+      },
+    });
 
     expect(element.textContent).toBe('visible');
     allowed.set(false);
@@ -1566,21 +1693,25 @@ describe('functional component interpreter', () => {
       'card',
       {},
       (user: Input<string>) => ({ user }),
-      ({ user }) => p(function* () {
-        return yield* user();
-      }),
+      ({ user }) =>
+        p(function* () {
+          return yield* user();
+        }),
     ).pipe(withPermission);
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      card,
-      { props: {
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(card, {
+      props: {
         user: function* () {
           return 'Ada';
         },
         permission: function* () {
           return 'edit';
         },
-      } },
-    );
+      },
+    });
 
     expect(element.textContent).toBe('Ada');
     destroy();
@@ -1601,14 +1732,17 @@ describe('functional component interpreter', () => {
       (visible: Input<boolean>) => ({ visible }),
       () => p('conditional').pipe(when),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      panel,
-      { props: {
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(panel, {
+      props: {
         visible: function* () {
           return visible();
         },
-      } },
-    );
+      },
+    });
 
     expect(element.textContent).toBe('conditional');
     visible.set(false);
@@ -1655,9 +1789,11 @@ describe('functional component interpreter', () => {
             : []),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const spans = Array.from(element.querySelectorAll('span'));
     expect(mountedElements).toEqual(spans);
@@ -1721,9 +1857,11 @@ describe('functional component interpreter', () => {
           ),
         ]),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const toggle = async () => {
       element.querySelector<HTMLButtonElement>('.toggle')?.click();
@@ -1772,16 +1910,21 @@ describe('functional component interpreter', () => {
         const service = yield* Greeting();
         return { name, service };
       },
-      ({ name, service }) => p(function* () {
-        return `${service.prefix} ${yield* name()}`;
-      }),
+      ({ name, service }) =>
+        p(function* () {
+          return `${service.prefix} ${yield* name()}`;
+        }),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(greeting, {
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(greeting, {
       props: {
-      name: function* () {
-        return 'Ada';
-      },
+        name: function* () {
+          return 'Ada';
+        },
       },
     });
 
@@ -1796,12 +1939,13 @@ describe('functional component interpreter', () => {
       () => ({ routeMarker: inject(routeMarker) }),
       ({ routeMarker }) => p(routeMarker),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      injectorRouted,
-      {
-        providers: [{ provide: routeMarker, useValue: 'nested route' }],
-      },
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(injectorRouted, {
+      providers: [{ provide: routeMarker, useValue: 'nested route' }],
+    });
 
     expect(element.textContent).toBe('nested route');
   });
@@ -1843,7 +1987,11 @@ describe('functional component interpreter', () => {
         ]),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(parent);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(parent);
     element.querySelector('button')?.click();
 
     expect(element.textContent).toBe('ParentGrace');
@@ -1869,13 +2017,23 @@ describe('functional component interpreter', () => {
             },
             (user) =>
               p(
-                { 'data-id': function* () { return (yield* user()).id; } },
-                function* () { return (yield* user()).name; },
+                {
+                  'data-id': function* () {
+                    return (yield* user()).id;
+                  },
+                },
+                function* () {
+                  return (yield* user()).name;
+                },
               ),
           ),
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(list);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(list);
     const ada = element.querySelector('[data-id="1"]');
     const grace = element.querySelector('[data-id="2"]');
 
@@ -1901,6 +2059,130 @@ describe('functional component interpreter', () => {
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
   });
 
+  it('renders a scheduled each block progressively and keeps keyed DOM identity', async () => {
+    const values = signal([1, 2, 3]);
+    const scheduler = new VirtualEachScheduler();
+    const list = craftComponent(
+      'scheduled-list',
+      {},
+      () => ({ values }),
+      ({ values }) =>
+        div(
+          each(values, { track: (value) => value }, (value) =>
+            button(
+              {
+                'data-value': function* () {
+                  return yield* value();
+                },
+              },
+              function* () {
+                return String(yield* value());
+              },
+            ),
+          ).pipe(scheduleEach({ enabled: true, strategy: 'frame' })),
+        ),
+    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(list, {
+      providers: [{ provide: EACH_SCHEDULER, useValue: scheduler }],
+    });
+
+    expect(element.querySelectorAll('[data-value]')).toHaveLength(0);
+    scheduler.flush(1);
+    await flush();
+    expect(element.querySelectorAll('[data-value]')).toHaveLength(1);
+
+    scheduler.flush();
+    await flush();
+    const first = element.querySelector('[data-value="1"]');
+    expect(element.textContent).toBe('123');
+
+    values.set([3, 1, 4]);
+    await flush();
+    scheduler.flush();
+    await flush();
+
+    const rows = Array.from(element.querySelectorAll('[data-value]'));
+    expect(rows.map((row) => row.getAttribute('data-value'))).toEqual([
+      '3',
+      '1',
+      '4',
+    ]);
+    expect(element.querySelector('[data-value="1"]')).toBe(first);
+    destroy();
+  });
+
+  it('keeps scheduleEach synchronous when disabled', async () => {
+    const list = craftComponent(
+      'disabled-scheduled-list',
+      {},
+      () => ({}),
+      () =>
+        div(
+          each([1, 2, 3], { track: (value) => value }, (value) =>
+            p(function* () {
+              return String(yield* value());
+            }),
+          ).pipe(scheduleEach({ enabled: false, strategy: 'frame' })),
+        ),
+    );
+    const { nativeElement: element, destroy } =
+      await renderCraftComponent(list);
+
+    expect(element.querySelectorAll('p')).toHaveLength(3);
+    destroy();
+  });
+
+  it('cancels obsolete scheduled work when the collection changes or the node is destroyed', async () => {
+    const values = signal([1, 2, 3]);
+    const scheduler = new VirtualEachScheduler();
+    const list = craftComponent(
+      'cancelled-scheduled-list',
+      {},
+      () => ({ values }),
+      ({ values }) =>
+        div(
+          each(values, { track: (value) => value }, (value) =>
+            p(
+              {
+                'data-value': function* () {
+                  return yield* value();
+                },
+              },
+              function* () {
+                return String(yield* value());
+              },
+            ),
+          ).pipe(scheduleEach({ strategy: 'frame' })),
+        ),
+    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(list, {
+      providers: [{ provide: EACH_SCHEDULER, useValue: scheduler }],
+    });
+
+    expect(scheduler.pendingCount).toBe(3);
+    values.set([4]);
+    await flush();
+    expect(scheduler.pendingCount).toBe(1);
+    scheduler.flush();
+    await flush();
+    expect(element.textContent).toBe('4');
+
+    values.set([5, 6, 7]);
+    await flush();
+    expect(scheduler.pendingCount).toBe(3);
+    destroy();
+    scheduler.flush();
+    expect(scheduler.pendingCount).toBe(0);
+  });
+
   it('treats nullish each sources as empty collections', async () => {
     const users = signal<
       readonly { id: number; name: string }[] | null | undefined
@@ -1919,13 +2201,23 @@ describe('functional component interpreter', () => {
             },
             (user) =>
               p(
-                { 'data-id': function* () { return (yield* user()).id; } },
-                function* () { return (yield* user()).name; },
+                {
+                  'data-id': function* () {
+                    return (yield* user()).id;
+                  },
+                },
+                function* () {
+                  return (yield* user()).name;
+                },
               ),
           ),
         ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(list);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(list);
 
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
 
@@ -1960,8 +2252,11 @@ describe('functional component interpreter', () => {
           loading: () => p({ class: 'loading' }, 'Loading'),
         }),
     );
-    const { nativeElement: successHost, flush: flushSuccess, destroy: destroySuccess } =
-      await renderCraftComponent(success);
+    const {
+      nativeElement: successHost,
+      flush: flushSuccess,
+      destroy: destroySuccess,
+    } = await renderCraftComponent(success);
     expect(successHost.querySelector('.loading')?.textContent).toBe('Loading');
 
     resolveModule('Ready');
@@ -2041,7 +2336,11 @@ describe('functional component interpreter', () => {
           placeholder: () => button({ class: 'interaction-trigger' }, 'Start'),
         }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(interaction);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(interaction);
 
     expect(element.querySelector('.interaction-trigger')?.textContent).toBe(
       'Start',
@@ -2070,9 +2369,7 @@ describe('functional component interpreter', () => {
     );
     const fragment = document.createDocumentFragment();
     const parent = createEnvironmentInjector(
-      [
-        { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
-      ],
+      [{ provide: ɵINJECTOR_SCOPE, useValue: 'root' }],
       Injector.NULL as EnvironmentInjector,
       'interpreter-fragment-spec',
     );
@@ -2103,7 +2400,6 @@ describe('functional component interpreter', () => {
     mounted.destroy();
     parent.destroy();
   });
-
 });
 
 describe('binding isolation under the application provider set', () => {

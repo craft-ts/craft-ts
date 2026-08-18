@@ -25,6 +25,7 @@ export * from './lib/directive';
 export * from './lib/craft-router-outlet';
 export * from './lib/defer';
 export * from './lib/each';
+export * from './lib/each-scheduling';
 export * from './lib/if-block';
 export * from './lib/project';
 export * from './lib/template';

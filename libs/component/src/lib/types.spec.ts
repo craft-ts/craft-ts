@@ -1,6 +1,4 @@
-import {
-  computed,
-} from '../../../core/src/lib/host/craft-compat';
+import { computed } from '../../../core/src/lib/host/craft-compat';
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import {
@@ -12,13 +10,15 @@ import {
   provideHostName,
   state,
   type ComponentDepsOf,
-  type RouteCheckedDI, craftUse } from '@craft-ts/core';
+  type RouteCheckedDI,
+  craftUse,
+} from '@craft-ts/core';
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { defer } from './defer';
 import { ifBlock } from './if-block';
-import { each } from './each';
+import { each, scheduleEach } from './each';
 import { button, div, h2, input, li, p, section, span } from './hyperscript';
 import { content, renderContent } from './project';
 import { craftTemplate, renderTemplate } from './template';
@@ -39,6 +39,28 @@ import type {
   TemplateRendersStateWhen,
   TemplateRenderAvailableActionWhen,
 } from './template-contract';
+
+it('exposes scheduleEach only on each nodes and preserves item/index types', () => {
+  const scheduled = each(
+    [{ id: 1 }],
+    { track: (item) => item.id },
+    (item, index) => {
+      expectTypeOf(index).toEqualTypeOf<number>();
+      return span(function* () {
+        return String((yield* item()).id);
+      });
+    },
+  ).pipe(scheduleEach({ enabled: true, strategy: 'frame' }));
+
+  expectTypeOf(scheduled.schedule?.strategy).toEqualTypeOf<
+    'frame' | undefined
+  >();
+
+  if (false) {
+    // @ts-expect-error scheduleEach is structural and cannot decorate elements.
+    button('not-an-each').pipe(scheduleEach({ strategy: 'frame' }));
+  }
+});
 import type {
   ContentSlot,
   HostRequiredLogic,
@@ -91,13 +113,16 @@ it('infers component input and output props from the branded context', () => {
       onPick,
     }),
     ({ user, onPick }) =>
-      p({
-        *click() {
-          yield* onPick(yield* user());
+      p(
+        {
+          *click() {
+            yield* onPick(yield* user());
+          },
         },
-      }, function* () {
-        return (yield* user()).name;
-      }),
+        function* () {
+          return (yield* user()).name;
+        },
+      ),
   );
 
   type _UserCardProps = Expect<
@@ -115,9 +140,9 @@ it('infers component input and output props from the branded context', () => {
   }>();
 
   userCard({
-      user: function* () {
-        return { id: 1, name: 'Ada' };
-      },
+    user: function* () {
+      return { id: 1, name: 'Ada' };
+    },
     onPick: (user) => user.name,
   });
 
@@ -133,9 +158,10 @@ it('does not expose ordinary context callbacks as component outputs', () => {
       name,
       reset: () => undefined,
     }),
-    ({ name }) => p(function* () {
-      return yield* name();
-    }),
+    ({ name }) =>
+      p(function* () {
+        return yield* name();
+      }),
   );
 
   type _InternalActionProps = Expect<
@@ -146,7 +172,7 @@ it('does not expose ordinary context callbacks as component outputs', () => {
   >;
   expectTypeOf(internalAction).toBeFunction();
   expectTypeOf<PropsOf<typeof internalAction>>().toEqualTypeOf<{
-      name: () => Generator<unknown, string, unknown>;
+    name: () => Generator<unknown, string, unknown>;
   }>();
 });
 
@@ -528,9 +554,10 @@ it('infers public inputs added by a piped directive', () => {
     'card',
     {},
     (user: Input<User>) => ({ user }),
-    ({ user }) => p(function* () {
-      return (yield* user()).name;
-    }),
+    ({ user }) =>
+      p(function* () {
+        return (yield* user()).name;
+      }),
   ).pipe(withPermission);
 
   expectTypeOf<PropsOf<typeof card>>().toEqualTypeOf<{
@@ -538,12 +565,12 @@ it('infers public inputs added by a piped directive', () => {
     permission: () => Generator<unknown, string, unknown>;
   }>();
   card({
-      user: function* () {
-        return { id: 1, name: 'Ada' };
-      },
-      permission: function* () {
-        return 'edit';
-      },
+    user: function* () {
+      return { id: 1, name: 'Ada' };
+    },
+    permission: function* () {
+      return 'edit';
+    },
   });
 });
 
@@ -667,9 +694,10 @@ it('keeps exact child component references and validates their props', () => {
     'contractPropsChild',
     {},
     (value: Input<number>) => ({ value }),
-    ({ value }) => p(function* () {
-      return String(yield* value());
-    }),
+    ({ value }) =>
+      p(function* () {
+        return String(yield* value());
+      }),
   );
   const node = child({
     value: function* () {

@@ -3,6 +3,7 @@ import type {
   CraftNodeChildren,
   EachNode,
 } from './render/vnode';
+import { pipeCraftNode } from './render/vnode';
 import type { InputValue } from './types';
 import { YIELDABLE_VALUE } from '@craft-ts/core';
 
@@ -132,8 +133,8 @@ export function each<
         ]
       : undefined;
 
-  return {
-    kind: 'each',
+  const node = {
+    kind: 'each' as const,
     source: source as EachNode<EachItem<Source>, Key>['source'],
     sourceName: sourceName as SourceName<Source> | undefined,
     track: options.track,
@@ -149,4 +150,29 @@ export function each<
       index: number,
     ) => ReturnType<ItemTemplate>,
   };
+  Object.defineProperty(node, 'pipe', {
+    value: (directive: unknown) =>
+      pipeCraftNode(node as unknown as EachNode, directive as never),
+    enumerable: false,
+  });
+
+  return node as unknown as EachNode<
+    EachItem<Source>,
+    Key,
+    CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
+    SourceName<Source>,
+    ReturnType<ItemTemplate>,
+    Options extends { readonly empty?: (...args: any[]) => infer Empty }
+      ? Empty
+      : never
+  >;
 }
+
+export type { ScheduleEachDirective } from './each-scheduling';
+export {
+  EACH_SCHEDULER,
+  FrameEachScheduler,
+  SyncEachScheduler,
+  createEachScheduler,
+  scheduleEach,
+} from './each-scheduling';

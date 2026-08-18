@@ -112,6 +112,13 @@ import type {
   FieldExceptionHandler,
   FieldExceptionHandlers,
 } from '../field-exception-block';
+import {
+  EACH_SCHEDULER,
+  createEachScheduler,
+  type CancelHandle,
+  type EachSchedulePolicy,
+  type EachScheduler,
+} from '../each-scheduling';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
   CRAFT_STYLE_REGISTRY,
@@ -2054,10 +2061,13 @@ function createFragment(
 }
 
 interface EachRenderedEntry {
+  readonly key: unknown;
   item: unknown;
   index: number;
   readonly view: FragmentRenderedNode;
   readonly traceState: TemplateTraceState;
+  renderEffect?: EffectRef;
+  rendered: boolean;
 }
 
 class EachRenderedNode implements RenderedNode {
@@ -2073,6 +2083,12 @@ class EachRenderedNode implements RenderedNode {
   private readonly start: Comment;
   private readonly end: Comment;
   private readonly context: RenderContext;
+  private scheduler: EachScheduler & { destroy?(): void };
+  private ownsScheduler = false;
+  private schedulePolicy: EachSchedulePolicy | undefined;
+  private schedulerConfigured = false;
+  private readonly pendingTasks = new Set<CancelHandle>();
+  private reconcileVersion = 0;
 
   constructor(
     node: EachNode<unknown, unknown>,
@@ -2086,10 +2102,17 @@ class EachRenderedNode implements RenderedNode {
     this.start = start;
     this.end = end;
     this.context = context;
+    this.scheduler = createEachScheduler({
+      enabled: false,
+      strategy: 'sync',
+      frameBudgetMs: 4,
+    });
+    this.configureScheduler(node.schedule);
     this.descriptor = signal(node);
     this.effectRef = createRenderEffect(context, 'each-block', () => {
       const previousItemTemplate = this.node.itemTemplate;
       this.node = this.descriptor();
+      this.configureScheduler(this.node.schedule);
       this.reconcile(this.node.itemTemplate !== previousItemTemplate);
     });
   }
@@ -2117,8 +2140,23 @@ class EachRenderedNode implements RenderedNode {
       | undefined;
     const collection = items ?? [];
 
+    const keys = collection.map((item, index) => this.node.track(item, index));
+    const seenKeys = new Set<unknown>();
+    keys.forEach((key) => {
+      if (seenKeys.has(key)) {
+        throw new Error(`each() received the duplicate key "${String(key)}".`);
+      }
+      seenKeys.add(key);
+    });
+
+    this.reconcileVersion += 1;
+    this.cancelPendingTasks();
+
     if (collection.length === 0) {
-      this.entries.forEach((entry) => entry.view.destroy());
+      this.entries.forEach((entry) => {
+        entry.renderEffect?.destroy();
+        entry.view.destroy();
+      });
       this.entries.clear();
       this.ordered = [];
 
@@ -2150,39 +2188,38 @@ class EachRenderedNode implements RenderedNode {
     const next = new Map<unknown, EachRenderedEntry>();
     const nextOrdered: FragmentRenderedNode[] = [];
 
+    const entriesToRender: EachRenderedEntry[] = [];
     collection.forEach((item, index) => {
-      const key = this.node.track(item, index);
-      if (next.has(key)) {
-        throw new Error(`each() received the duplicate key "${String(key)}".`);
-      }
-
+      const key = keys[index];
       let entry = previous.get(key);
       if (entry) {
         if (
           itemTemplateChanged ||
           !Object.is(entry.item, item) ||
-          entry.index !== index
+          entry.index !== index ||
+          !entry.rendered
         ) {
-          entry.view.patchChildren(
-            this.renderItem(entry.traceState, item, index),
-          );
           entry.item = item;
           entry.index = index;
+          entriesToRender.push(entry);
         }
       } else {
         const traceState = { renderCount: 0 };
         entry = {
+          key,
           item,
           index,
           traceState,
+          rendered: false,
           view: createFragment(
             this.parent,
             this.end,
             this.context,
-            this.renderItem(traceState, item, index),
+            [],
             `craft-each:${String(key)}`,
           ),
         };
+        entriesToRender.push(entry);
       }
 
       next.set(key, entry);
@@ -2191,6 +2228,7 @@ class EachRenderedNode implements RenderedNode {
 
     previous.forEach((entry, key) => {
       if (!next.has(key)) {
+        entry.renderEffect?.destroy();
         entry.view.destroy();
       }
     });
@@ -2206,6 +2244,58 @@ class EachRenderedNode implements RenderedNode {
 
     this.entries = next;
     this.ordered = nextOrdered;
+
+    entriesToRender.forEach((entry) => this.scheduleEntryRender(entry));
+  }
+
+  private configureScheduler(policy: EachSchedulePolicy | undefined): void {
+    if (this.schedulerConfigured && this.schedulePolicy === policy) return;
+
+    if (this.ownsScheduler) this.scheduler.destroy?.();
+    this.schedulePolicy = policy;
+    this.schedulerConfigured = true;
+    this.cancelPendingTasks();
+
+    const injected = this.context.injector.get(EACH_SCHEDULER, null);
+    if (injected) {
+      this.scheduler = injected;
+      this.ownsScheduler = false;
+      return;
+    }
+
+    this.scheduler = createEachScheduler(
+      policy ?? { enabled: false, strategy: 'sync', frameBudgetMs: 4 },
+    );
+    this.ownsScheduler = true;
+  }
+
+  private scheduleEntryRender(entry: EachRenderedEntry): void {
+    const version = this.reconcileVersion;
+    const scheduled = {
+      completed: false,
+      handle: undefined as CancelHandle | undefined,
+    };
+    const handle = this.scheduler.schedule(() => {
+      scheduled.completed = true;
+      if (scheduled.handle) this.pendingTasks.delete(scheduled.handle);
+      if (version !== this.reconcileVersion || !this.entries.has(entry.key)) {
+        return;
+      }
+      entry.renderEffect?.destroy();
+      entry.renderEffect = createRenderEffect(this.context, 'each-item', () =>
+        entry.view.patchChildren(
+          this.renderItem(entry.traceState, entry.item, entry.index),
+        ),
+      );
+      entry.rendered = true;
+    });
+    scheduled.handle = handle;
+    if (!scheduled.completed) this.pendingTasks.add(handle);
+  }
+
+  private cancelPendingTasks(): void {
+    this.pendingTasks.forEach((handle) => handle.cancel());
+    this.pendingTasks.clear();
   }
 
   private renderItem(
@@ -2229,7 +2319,13 @@ class EachRenderedNode implements RenderedNode {
 
   destroy(): void {
     this.effectRef.destroy();
-    this.entries.forEach((entry) => entry.view.destroy());
+    this.reconcileVersion += 1;
+    this.cancelPendingTasks();
+    if (this.ownsScheduler) this.scheduler.destroy?.();
+    this.entries.forEach((entry) => {
+      entry.renderEffect?.destroy();
+      entry.view.destroy();
+    });
     this.emptyView?.destroy();
     removeNode(this.context.renderer, this.start);
     removeNode(this.context.renderer, this.end);

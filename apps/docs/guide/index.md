@@ -65,6 +65,7 @@ afternoon:
 
 [Components](/guide/components/) ·
 [Fine-grained reactivity](/guide/components/fine-grained-reactivity) ·
+[Progressive `each`](/guide/components/schedule-each) ·
 [Directives and `.pipe(...)`](/guide/components/directives) ·
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·

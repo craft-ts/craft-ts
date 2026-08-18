@@ -6,7 +6,7 @@ import {
   provideLocalStoragePersister,
   provideStoragePersister,
 } from '@craft-ts/core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PixelArt from './pixel-art';
 
 describe('PixelArt', () => {
@@ -40,13 +40,18 @@ describe('PixelArt', () => {
     });
   });
 
-  it('paints a cell background when the cell is clicked', () => {
+  it('paints a cell background when the cell is clicked', async () => {
     const element = document.createElement('div');
     document.body.append(element);
     const mounted = mountCraftComponent(
       PixelArt,
       element,
       TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    await vi.waitFor(() =>
+      expect(element.querySelector('.pixel-cell')).toBeTruthy(),
     );
     TestBed.tick();
 
