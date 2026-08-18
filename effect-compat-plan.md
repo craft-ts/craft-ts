@@ -495,6 +495,71 @@ livrés, et **la vague 3 est complète**.
 | 4.4 | Exemple bout-en-bout : un domaine Effect, un front Craft |
 | 4.5 | Référencement écosystème Effect, article « l'erreur de ton service Effect vérifiée à la compilation dans ton routing » |
 
+### Résultat de 4.0 et 4.1 — fait le 2026-08-18
+
+| # | État | Ce qui a été fait |
+|---|---|---|
+| 4.0 | **fait** | `description` et mots-clés de `libs/core/package.json`, plus le README npm |
+| 4.1 | **fait** | section Effect Schema, et 8 tests qui la tiennent |
+| 4.2 | à faire | |
+| 4.3 | à faire | |
+| 4.4 | à faire | |
+| 4.5 | à faire | |
+
+**4.0 — le README mentait plus que le `package.json`.** Le blocage identifié
+par le plan était la `description`. En pratique le README, qui est la page npm,
+portait deux affirmations devenues **fausses** et pas seulement mal
+positionnées : « targets Angular 21 » (il n'y a plus aucune dépendance de
+runtime framework, la réactivité est alien-signals) et « Angular signals remain
+internal to the primitives » (ce ne sont pas les signaux d'Angular). Corrigés
+tous les deux. `@craft-ts/effect` y est aussi listé : livré aux vagues 2 et 3,
+il n'était mentionné **nulle part** dans la surface publiée.
+
+`@craft-ts/dev-tools` garde son mot-clé `angular` volontairement : il livre de
+vrais codemods de migration Angular et des peer deps ESLint Angular.
+
+**4.1 — la compatibilité était acquise, la documentation était fausse.** Le
+plan classait la tâche en « coût nul, à publier en premier ». La compatibilité
+est bien réelle et sans une ligne d'adaptateur, mais trois pages listaient
+Effect à côté de Zod et Valibot **comme si un `effect/Schema` était lui-même un
+Standard Schema**. Il ne l'est pas : il faut `Schema.toStandardSchemaV1`. Un
+lecteur qui suivait la phrase d'origine passait le schéma brut et se prenait une
+erreur de type.
+
+Deux points que la documentation ne disait nulle part, trouvés en lisant
+`schema-validation.ts` :
+
+- `paramsSchema`, `methodSchema` et les écritures `set`/`update`/`patch` passent
+  par `parseSync`, qui **jette** sur une `Promise`. Un schéma Effect simple est
+  synchrone et passe partout, mais une transformation asynchrone n'est utilisable
+  que dans `loaderSchema`, le seul étage qui attend.
+- craft publie la valeur **décodée**, donc un schéma qui transforme montre son
+  type de sortie en aval.
+
+Le test qui porte vraiment la vague est l'assertion de type entre la copie
+locale du spec Standard Schema dans `standard-schema.ts` et les types
+`@standard-schema/spec` contre lesquels Effect compile : c'est le seul mode de
+défaillance réel de cette interop, et il cesse de compiler si l'un des deux
+dérive. Aucun code d'adaptateur n'est livré et le spec est ce qui maintient
+cette promesse.
+
+À noter, dans le thème de la session : mon premier jet de la doc donnait
+`Schema.Date` comme exemple de décodage `string -> Date`. C'est faux,
+`Schema.Date` **rejette** une chaîne ; le décodeur est `Schema.DateFromString`.
+L'erreur n'a été vue que parce que la doc a été écrite avec un test en face.
+
+**Au passage** : `tsc -p libs/effect/tsconfig.spec.json` était rouge avant cette
+vague. Un commentaire d'`effect-exceptions.spec.ts` affirmait que le diagnostic
+de handler manquant ne tombait plus sur la définition de route ; il y tombe, et
+il n'était pas gardé. Les deux `@ts-expect-error` sont désormais porteurs — tsc
+signale une directive inutilisée si l'une des deux garanties disparaît.
+
+**Reste ouvert avant de publier** : `@craft-ts/effect` déclare
+`"effect": "^4.0.0-rc.110"` en peer dependency. Un `^` sur une RC engage à
+suivre chaque `rc.111`. À trancher — épingler la version exacte, ou garder le
+paquet non publié jusqu'à la v4 stable.
+
+
 ## Vague 5 — À étudier, pas à engager
 
 `rxjs` est encore peer dependency, importé par 7 fichiers source non-spec de
