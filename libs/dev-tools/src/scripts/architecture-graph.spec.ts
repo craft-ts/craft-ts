@@ -638,6 +638,24 @@ describe('server function architecture', () => {
       /CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER/,
     );
   });
+
+  it('flags a serverFunction(...) defined outside a *.fn-serveur.ts file', async () => {
+    const graph = await graphOf({
+      'users/list.service.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING');
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING/,
+    );
+  });
 });
 
 describe('resource loader requirements', () => {

@@ -1687,7 +1687,8 @@ export type ServerFunctionArchitectureDiagnosticCode =
   | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE'
   | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_STATIC'
   | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH'
-  | 'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH';
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH'
+  | 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING';
 
 export type ServerFunctionArchitectureViolation = {
   readonly code: ServerFunctionArchitectureDiagnosticCode;
@@ -1732,6 +1733,17 @@ export function serverFunctionArchitectureViolations(
       line: node.line,
     });
   };
+
+  for (const node of graph.nodes.filter((node) => node.kind === 'server-function-misnamed')) {
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING',
+      message:
+        'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING: serverFunction(...) is defined outside a "*.fn-serveur.ts" file, so the architecture graph cannot verify its client facade, contract, or id wiring. Move it into a "*.fn-serveur.ts" file.',
+      family: String(node.details?.['serverFunctionId'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
 
   const idFamilies = new Map<string, Set<string>>();
   for (const node of parts) {

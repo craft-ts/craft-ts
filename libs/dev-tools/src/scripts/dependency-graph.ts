@@ -38,7 +38,8 @@ export type DependencyGraphNodeKind =
   | 'server-function-family'
   | 'server-function-contract'
   | 'server-function-client'
-  | 'server-function-server';
+  | 'server-function-server'
+  | 'server-function-misnamed';
 
 export type DependencyGraphEdgeKind =
   | 'loads'
@@ -3820,6 +3821,22 @@ function collectServerFunctions(
         });
       }
     }
+  }
+
+  for (const sourceFile of sourceFiles) {
+    if (serverFunctionSuffix(sourceFile.getBaseName())) continue;
+    const misnamed = findServerFunction(sourceFile, byPath);
+    if (!misnamed) continue;
+    addNode(builder, {
+      id: `server-function-misnamed:${sourceFile.getFilePath()}`,
+      kind: 'server-function-misnamed',
+      label: misnamed.id ?? relative(builder.rootDir, sourceFile.getFilePath()),
+      filePath: sourceFile.getFilePath(),
+      line: sourceFile.getLineAndColumnAtPos(0).line,
+      details: {
+        ...(misnamed.id === undefined ? {} : { serverFunctionId: misnamed.id }),
+      },
+    });
   }
 }
 
