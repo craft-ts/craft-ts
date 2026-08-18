@@ -2,7 +2,7 @@ import {
   ɵInjector as Injector,
   type CraftProvider,
 } from '@craft-ts/core';
-import { Context, Effect, Layer, Scope } from 'effect';
+import { Context, Effect, Exit, Layer, Scope } from 'effect';
 
 // ---------------------------------------------------------------------------
 // Tasks 2.1 and 2.2 — `Layer` as a provider of the craft injector, and the
@@ -79,9 +79,34 @@ export function provideLayer<ROut, RIn>(
       const own = buildLevel(composed, memoMap, scope);
       const context = parent ? Context.merge(parent.context, own) : own;
 
+      // Task 2.6, second half. Without this, every level opens an Effect Scope
+      // that nothing ever closes: a layer holding a connection, a subscription
+      // or a timer leaks once per navigation. The injector's own teardown is
+      // the right owner — a level lives exactly as long as its injector.
+      onInjectorDestroy(injector, () => {
+        Effect.runSync(Scope.close(scope, Exit.void));
+      });
+
       return { context, memoMap, scope };
     },
   };
+}
+
+type InjectorWithTeardown = Injector & {
+  readonly ɵonDestroy?: (callback: () => void) => void;
+};
+
+function onInjectorDestroy(injector: Injector, callback: () => void): void {
+  const teardown = (injector as InjectorWithTeardown).ɵonDestroy;
+  if (typeof teardown === 'function') {
+    teardown(callback);
+    return;
+  }
+  // No teardown hook (a bare test double): fail loudly rather than leak
+  // silently, since a silent leak is exactly what this code prevents.
+  throw new Error(
+    'provideLayer() needs an injector with a destroy hook; got one without ɵonDestroy.',
+  );
 }
 
 function getParentLevel(injector: Injector): CraftEffectLevel | null {

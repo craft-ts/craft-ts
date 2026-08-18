@@ -351,7 +351,7 @@ d'annulation — sans quoi 2.1, 2.2 et 2.5 étaient impossibles.
 | 2.3 | **fait** | `installCraftEffectBridge()` + `runEffect()` comme forme stable. Détection structurelle (`Effect.isEffect`), plus de dépendance à `effect/Utils` |
 | 2.4 | **fait** | succès → reprise ; `E` → exception taguée ; défaut → canal d'erreur ; interruption → `CraftEffectInterrupted`, jamais une exception |
 | 2.5 | **fait** | Moitié runtime : `R` satisfait depuis le contexte du niveau. Moitié type-level : `assertNoRequirements` échoue **au site de yield** et nomme les services manquants |
-| 2.6 | **partiel** | `abortSignal` → interruption : fait et testé précisément. **`DestroyRef` → `Fiber.interrupt` n'est pas câblé** |
+| 2.6 | **fait** | `abortSignal` → interruption ; et le `Scope` de chaque niveau est fermé à la destruction de l'injecteur, avec 4 tests de fuite explicites |
 
 **Ce que 0.1-a devient.** La tâche 2.5 avait été identifiée comme non
 optionnelle parce que `Effect.isEffect` ne narrow que vers des requirements
@@ -360,11 +360,12 @@ désigner le code fautif. `assertNoRequirements` déplace le contrôle au site
 d'appel : `AssertNoRequirements<Self>` renvoie un `MissingRequirements<R>`
 branché, non assignable à un `Effect`, donc l'erreur tombe sur le `yield*`.
 
-**Le trou restant, à ne pas sous-estimer.** Chaque niveau crée un `Scope` Effect
-mais **rien ne le ferme quand l'injecteur est détruit**. Les layers à ressource
-(connexion, souscription, timer) fuient donc à chaque navigation. C'est la
-moitié manquante de 2.6, et c'est un vrai défaut, pas un raffinement : les tests
-de fuite explicites que la tâche réclame ne sont pas écrits.
+**La fuite de 2.6 est colmatée.** Chaque niveau créait un `Scope` Effect que
+rien ne fermait : un layer à ressource (connexion, souscription, timer) fuyait
+à chaque navigation. Le `Scope` est maintenant fermé via le hook `ɵonDestroy` de
+l'injecteur — un niveau vit exactement aussi longtemps que son injecteur. Quatre
+tests de fuite le vérifient, et j'ai confirmé qu'ils **échouent tous les quatre**
+si on retire le teardown : ils portent bien la régression.
 
 **Ce qui n'a toujours pas bougé : 0.1-b.** Le pont mappe `E` vers le canal
 d'exception à l'exécution, mais `E` n'atteint toujours pas
@@ -383,6 +384,47 @@ qui sépare encore le dossier de son argument de vente.
 
 Rappel : la sélection fine ne réduit **pas** ce qu'Effect construit (un Layer
 bâtit le service entier). Elle achète le graphe, la surface de type, et le mock.
+
+### Résultat de la vague 3 — fait le 2026-08-18
+
+La porte 0.2 étant ouverte (+0,10 % contre un budget de +3 %), la vague est
+engagée. 31 tests verts sur `@craft-ts/effect`.
+
+| # | État | Ce qui a été fait |
+|---|---|---|
+| 3.1 | **fait** | `effectService(Tag)` et `effectService(Tag, select)` |
+| 3.2 | **fait** | `mockEffectService(Tag, stubs)` — mock par membre |
+| 3.3 | **non fait** | voir plus bas |
+| 3.4 | **fait** | projection `AsEffect<Program>` |
+
+**3.1 — le piège évité, et il n'est pas là où le plan le disait.** Le plan
+prévenait que « le membre mappé doit rester générique ». La conclusion réelle est
+plus forte : **il ne faut pas mapper du tout**. Tout wrapper — pour tracer une
+arête, pour permettre un mock — fige les paramètres de type au niveau du
+wrapper et effondre chaque site d'appel générique. La sortie est que le sélecteur
+*choisit* les membres et que le type du résultat est littéralement le type de
+retour du sélecteur : chaque membre garde sa signature, génériques et surcharges
+compris, et à l'exécution ce sont les fonctions d'origine. Un test le vérifie sur
+un membre `<T>(items: readonly T[]) => Effect<T, NotFound>` et sur l'inférence
+de `T` à l'appel.
+
+Corollaire pratique : en v4 un `Context.Service` **est** un Effect, donc
+`effectService` se réduit à un `Effect.map` sur le tag. Rien à inventer.
+
+**3.2 — le mock par membre échoue bruyamment.** Un membre non stubbé ne rend pas
+`undefined` : il renvoie un appelable qui meurt en nommant le membre oublié.
+Stubber quinze membres pour en exercer un enterrait l'intention du test.
+
+**3.3 n'est pas fait.** Les arêtes fines dans le graphe de dépendances
+supposent d'entrer dans `libs/dev-tools/src/scripts/dependency-graph.ts`, dont
+la surface dépasse ce que je pouvais traiter proprement ici. Le point d'accroche
+existe : `SelectedMembers<Selector>` donne les noms de membres qu'une sélection
+a retenus, ce dont le graphe a besoin pour écrire `UserStore → UserApi.byId`
+plutôt que `UserStore → UserApi`.
+
+**Rappel que la mesure confirme.** La sélection fine ne réduit toujours pas ce
+qu'Effect construit — un `Layer` bâtit le service entier. Elle achète le graphe,
+la surface de type et le mock, rien d'autre.
 
 ## Vague 4 — Écosystème
 

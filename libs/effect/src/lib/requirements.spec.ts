@@ -23,8 +23,10 @@ describe('assertNoRequirements', () => {
 
   it('rejects an Effect that still carries requirements', () => {
     // Type-only: `needsConfig` is a `declare const` with no runtime value, so
-    // this must never execute. The assertion is that tsc consumes the
-    // @ts-expect-error — verified by `tsc -p libs/effect/tsconfig.spec.json`.
+    // this body must never execute. The real assertion is that tsc consumes
+    // the directive below, which `tsc -p libs/effect/tsconfig.spec.json`
+    // verifies. (Do not start a comment line with the directive's name here —
+    // it becomes a second, unused directive.)
     const _typeOnly = () => {
       // @ts-expect-error — ConfigTag is not provided by any level.
       assertNoRequirements(needsConfig);
