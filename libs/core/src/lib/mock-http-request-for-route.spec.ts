@@ -557,7 +557,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'INVALID_PASSWORD_PAYLOAD',
+        _tag: 'INVALID_PASSWORD_PAYLOAD',
         status: 422,
         body: {
           errors: [
@@ -577,7 +577,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'RATE_LIMITED',
+        _tag: 'RATE_LIMITED',
         status: 429,
         body: {},
         headers: {
@@ -593,7 +593,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'TEAPOT',
+        _tag: 'TEAPOT',
         status: 418,
         body: {
           code: 'TEAPOT',
@@ -679,7 +679,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'INVALID_PASSWORD_PAYLOAD',
+        _tag: 'INVALID_PASSWORD_PAYLOAD',
         status: 422,
         body: {
           // @ts-expect-error body<Body>() exceptions must provide the declared body shape
@@ -696,7 +696,7 @@ if (false) {
       // @ts-expect-error matched headers must preserve their expected value
       response: {
         kind: 'exception',
-        code: 'RATE_LIMITED',
+        _tag: 'RATE_LIMITED',
         status: 429,
         body: {},
         headers: {
@@ -713,7 +713,7 @@ if (false) {
       // @ts-expect-error read-mode header dependencies still require the header map
       response: {
         kind: 'exception',
-        code: 'TEAPOT',
+        _tag: 'TEAPOT',
         status: 418,
         body: {
           code: 'TEAPOT',
@@ -731,7 +731,7 @@ if (false) {
       // @ts-expect-error read-mode body dependencies must keep their declared fields
       response: {
         kind: 'exception',
-        code: 'TEAPOT',
+        _tag: 'TEAPOT',
         status: 418,
         body: {
           code: 'TEAPOT',

@@ -466,7 +466,7 @@ describe('CraftHttpClient', () => {
     type GetUsersResult = Awaited<ReturnType<UsersApi['getUsers']>>;
     type UsersNotFoundFromHttpResult = Extract<
       GetUsersResult,
-      { code: 'USERS_NOT_FOUND' }
+      { _tag: 'USERS_NOT_FOUND' }
     >;
 
     expectTypeOf<
@@ -626,7 +626,7 @@ describe('CraftHttpClient', () => {
     type LoginResultUnion = Awaited<ReturnType<AuthApi['login']>>;
     type PasswordRequiredFromHttpResult = Extract<
       LoginResultUnion,
-      { code: 'PASSWORD_REQUIRED' }
+      { _tag: 'PASSWORD_REQUIRED' }
     >;
 
     expectTypeOf<
@@ -642,7 +642,7 @@ describe('CraftHttpClient', () => {
           expected: 400;
         }
       | {
-          source: '_tag';
+          source: 'code';
           mode: 'match';
           expected: 'PASSWORD_REQUIRED';
         }
@@ -983,7 +983,7 @@ describe('CraftHttpClient', () => {
       type TrackedRequestResult = Awaited<ReturnType<TrackedRequest>>;
       type TrackedUsersNotFound = Extract<
         TrackedRequestResult,
-        { code: 'USERS_NOT_FOUND' }
+        { _tag: 'USERS_NOT_FOUND' }
       >;
 
       expectTypeOf<HttpDependency['scope']>().toEqualTypeOf<'global'>();
@@ -1122,7 +1122,7 @@ describe('CraftHttpClient', () => {
     >;
     type ValidationHeaderException = Extract<
       GetUsersDependenciesResult,
-      { code: 'VALIDATION_HEADER_ERROR' }
+      { _tag: 'VALIDATION_HEADER_ERROR' }
     >;
 
     expectTypeOf<

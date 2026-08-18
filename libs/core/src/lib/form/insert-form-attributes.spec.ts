@@ -298,14 +298,14 @@ describe('insertFormAttributes', () => {
         expect(
           (
             craftUse(fieldForm.form.firstLeftFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
           )?._tag,
         ).toBe('required');
         expect(
           (
             craftUse(fieldForm.form.lastRightFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
           )?._tag,
         ).toBe('TOO_SHORT');
@@ -316,14 +316,14 @@ describe('insertFormAttributes', () => {
         expect(
           (
             craftUse(fieldForm.form.firstLeftFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
           )?._tag,
         ).toBe('MISSING_AT');
         expect(
           (
             craftUse(fieldForm.form.lastRightFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
           )?._tag,
         ).toBe('TOO_SHORT');
@@ -808,14 +808,14 @@ describe('formAttributes', () => {
       expect(
         (
           craftUse(fieldForm.form.firstLeftFailedValidation()) as {
-            code: string;
+            _tag: string;
           }
         )?._tag,
       ).toBe('MISSING_AT');
       expect(
         (
           craftUse(fieldForm.form.lastRightFailedValidation()) as {
-            code: string;
+            _tag: string;
           }
         )?._tag,
       ).toBe('MISSING_DOT');
