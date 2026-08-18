@@ -1,0 +1,31 @@
+{
+  "name": "craft-ts-effect",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/effect/src",
+  "prefix": "craft",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/effect",
+        "main": "libs/effect/src/index.ts",
+        "tsConfig": "libs/effect/tsconfig.lib.json",
+        "assets": ["libs/effect/LICENSE"]
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    }
+  }
+}

@@ -336,6 +336,42 @@ sait suspendre (`loader`, `canActivate`, `resolve`, `craftMethod`,
 `asyncProcess`) — **pas dans `craftComputed`**, synchrone par contrat, ni dans
 les équivalents synchrones par contrat de `libs/component`.
 
+### Résultat de la vague 2 — fait le 2026-08-18, sur Effect v4
+
+Paquet **`@craft-ts/effect`** (`libs/effect/`), 18 tests verts. `libs/core` ne
+gagne **aucune** dépendance à `effect` : le seul changement côté core est le
+hook de *foreign yield*, promu de prototype à API réelle
+(`setForeignYieldBridge`), qui reçoit désormais l'injecteur et le signal
+d'annulation — sans quoi 2.1, 2.2 et 2.5 étaient impossibles.
+
+| # | État | Ce qui a été fait |
+|---|---|---|
+| 2.1 | **fait** | `provideLayer(layer)` retourne un `CraftProvider` ordinaire, au même titre que `useValue`/`useFactory` |
+| 2.2 | **fait** | Héritage par **fork de la `MemoMap`** du parent. Racine construite 1 fois, layer de route reconstruit par navigation. Contrôle négatif inclus |
+| 2.3 | **fait** | `installCraftEffectBridge()` + `runEffect()` comme forme stable. Détection structurelle (`Effect.isEffect`), plus de dépendance à `effect/Utils` |
+| 2.4 | **fait** | succès → reprise ; `E` → exception taguée ; défaut → canal d'erreur ; interruption → `CraftEffectInterrupted`, jamais une exception |
+| 2.5 | **fait** | Moitié runtime : `R` satisfait depuis le contexte du niveau. Moitié type-level : `assertNoRequirements` échoue **au site de yield** et nomme les services manquants |
+| 2.6 | **partiel** | `abortSignal` → interruption : fait et testé précisément. **`DestroyRef` → `Fiber.interrupt` n'est pas câblé** |
+
+**Ce que 0.1-a devient.** La tâche 2.5 avait été identifiée comme non
+optionnelle parce que `Effect.isEffect` ne narrow que vers des requirements
+inconnus, et qu'au moment où le pont tient l'Effect il est trop tard pour
+désigner le code fautif. `assertNoRequirements` déplace le contrôle au site
+d'appel : `AssertNoRequirements<Self>` renvoie un `MissingRequirements<R>`
+branché, non assignable à un `Effect`, donc l'erreur tombe sur le `yield*`.
+
+**Le trou restant, à ne pas sous-estimer.** Chaque niveau crée un `Scope` Effect
+mais **rien ne le ferme quand l'injecteur est détruit**. Les layers à ressource
+(connexion, souscription, timer) fuient donc à chaque navigation. C'est la
+moitié manquante de 2.6, et c'est un vrai défaut, pas un raffinement : les tests
+de fuite explicites que la tâche réclame ne sont pas écrits.
+
+**Ce qui n'a toujours pas bougé : 0.1-b.** Le pont mappe `E` vers le canal
+d'exception à l'exécution, mais `E` n'atteint toujours pas
+`RouteExceptionUnion` au niveau des types. L'exhaustivité sur les erreurs
+Effect reste donc non vérifiée, exactement comme en 0.4. C'est la seule chose
+qui sépare encore le dossier de son argument de vente.
+
 ## Vague 3 — Finesse (conditionnée à la mesure 0.2)
 
 | # | Tâche |

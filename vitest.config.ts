@@ -17,6 +17,7 @@ export default defineConfig({
         workspaceRoot,
         'libs/component/src/index.ts',
       ),
+      '@craft-ts/effect': path.join(workspaceRoot, 'libs/effect/src/index.ts'),
       '@craft-ts/angular': path.join(
         workspaceRoot,
         'libs/angular/src/index.ts',
@@ -38,6 +39,7 @@ export default defineConfig({
     include: [
       'libs/core/src/**/*.spec.ts',
       'libs/component/src/**/*.spec.ts',
+      'libs/effect/src/**/*.spec.ts',
       'tools/**/*.spec.ts',
     ],
     reporters: ['default'],

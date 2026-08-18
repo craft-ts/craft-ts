@@ -39,17 +39,18 @@ import {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// ɵ WAVE-0 EFFECT PROTOTYPE — THROWAWAY. Remove with the prototype.
+// Foreign yields.
 //
 // A "foreign yield" is a value the pump cannot resolve as a craft request —
-// typically the `YieldWrap` that `yield* someEffect` produces. A bridge turns
-// such a yield into a promise of a `ForeignYieldOutcome`; the pump then
+// canonically an `Effect`, produced by `yield* someEffect`. A registered bridge
+// turns such a yield into a promise of a `ForeignYieldOutcome`; the pump then
 // suspends on the *existing* `'promise'` await path (nothing new to drive) and,
 // on resume, either feeds the success value back into the generator or
 // short-circuits with the carried craft exception.
 //
-// The bridge itself lives outside this file precisely so `libs/core` keeps no
-// dependency on `effect`: see `effect-yield-bridge.fixture.ts`.
+// The bridge lives outside this file on purpose, so `libs/core` keeps no
+// dependency on `effect`: see `@craft-ts/effect`. Core only knows that
+// *something* may claim a yield it does not understand.
 // ---------------------------------------------------------------------------
 
 /** What a foreign yield settled to, once its bridge resolved it. */
@@ -71,24 +72,40 @@ function isTaggedForeignYieldOutcome(
   );
 }
 
+/** The context a bridge needs in order to resolve and run a foreign yield. */
+export type ForeignYieldContext = {
+  /**
+   * The injector of the program that yielded. A bridge resolves its runtime
+   * from here, which is what makes per-route runtimes and their inheritance
+   * possible at all.
+   */
+  readonly injector: Injector;
+  /** Aborted when the owning program is superseded or destroyed. */
+  readonly abortSignal?: AbortSignal;
+};
+
 /**
  * Returns a promise for yields it recognises, `undefined` for everything else
  * (which then falls through to the usual invalid-yield error).
  */
 export type ForeignYieldBridge = (
   yielded: unknown,
+  context: ForeignYieldContext,
 ) => PromiseLike<ForeignYieldOutcome> | undefined;
 
 let foreignYieldBridge: ForeignYieldBridge | undefined;
 
-/** Installs the bridge; returns a disposer restoring the previous one. */
-export function ɵsetForeignYieldBridge(bridge: ForeignYieldBridge): () => void {
+/** Registers the bridge; returns a disposer restoring the previous one. */
+export function setForeignYieldBridge(bridge: ForeignYieldBridge): () => void {
   const previous = foreignYieldBridge;
   foreignYieldBridge = bridge;
   return () => {
     foreignYieldBridge = previous;
   };
 }
+
+/** @deprecated Prototype spelling, kept for the wave-0 fixtures. */
+export const ɵsetForeignYieldBridge = setForeignYieldBridge;
 
 /** A program's driver step: settled (`done`/`shortCircuit`) or suspended on an await. */
 export type CraftProgramStep =
@@ -129,9 +146,9 @@ export function pumpCraftProgramSync(
   resumeValue?: unknown,
 ): CraftProgramStep {
   try {
-    // ɵ wave-0 prototype: a resumed foreign yield either carries its value back
-    // into the generator or short-circuits here, so the exception lands on the
-    // regular `shortCircuit` step rather than surfacing as a thrown error.
+    // A resumed foreign yield either carries its value back into the generator
+    // or short-circuits here, so the exception lands on the regular
+    // `shortCircuit` step rather than surfacing as a thrown error.
     let resumeWith = resumeValue;
     if (isTaggedForeignYieldOutcome(resumeWith)) {
       if (resumeWith.kind === 'exception') {
@@ -163,9 +180,12 @@ export function pumpCraftProgramSync(
           throw new Error(options.appStartNotSupportedErrorMessage);
         }
 
-        // ɵ wave-0 prototype: last chance before the invalid-yield error — a
-        // bridged foreign yield suspends through the existing `'promise'` path.
-        const bridged = foreignYieldBridge?.(yielded);
+        // Last chance before the invalid-yield error: a bridged foreign yield
+        // suspends through the existing `'promise'` await path.
+        const bridged = foreignYieldBridge?.(yielded, {
+          injector,
+          abortSignal: options.abortSignal,
+        });
         if (bridged) {
           return {
             kind: 'await',

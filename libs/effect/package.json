@@ -1,0 +1,45 @@
+{
+  "name": "@craft-ts/effect",
+  "version": "0.7.0-beta.11",
+  "description": "Speak Effect natively from CraftTS — Layers as providers, typed errors as exceptions",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://craft-ts.github.io/craft/",
+  "bugs": {
+    "url": "https://github.com/craft-ts/craft-ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/craft-ts/craft-ts.git"
+  },
+  "keywords": [
+    "effect",
+    "effect-ts",
+    "typed errors",
+    "dependency injection",
+    "layer",
+    "craft-ts",
+    "typescript"
+  ],
+  "peerDependencies": {
+    "@craft-ts/core": "^0.7.0-beta.11",
+    "effect": "^4.0.0-rc.110"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  }
+}
