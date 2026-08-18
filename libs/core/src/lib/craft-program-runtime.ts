@@ -7,8 +7,9 @@ import {
 import { toObservable } from './host/craft-compat';
 import { filter, take } from 'rxjs';
 import type { AnyCraftException } from './craft-exception';
-import { isCraftGenShortCircuit } from './craft-gen';
+import { CraftGenShortCircuit, isCraftGenShortCircuit } from './craft-gen';
 import {
+  GUARD_AWAIT_REQUEST_MARKER,
   isGenerator,
   isGuardAwaitRequest,
   isServiceAppStartRequest,
@@ -36,6 +37,58 @@ import {
 // `CraftGenShortCircuit` (a composed `craftGen` producing a `craftException`)
 // settles as a structured `shortCircuit` step instead of a thrown error.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// ɵ WAVE-0 EFFECT PROTOTYPE — THROWAWAY. Remove with the prototype.
+//
+// A "foreign yield" is a value the pump cannot resolve as a craft request —
+// typically the `YieldWrap` that `yield* someEffect` produces. A bridge turns
+// such a yield into a promise of a `ForeignYieldOutcome`; the pump then
+// suspends on the *existing* `'promise'` await path (nothing new to drive) and,
+// on resume, either feeds the success value back into the generator or
+// short-circuits with the carried craft exception.
+//
+// The bridge itself lives outside this file precisely so `libs/core` keeps no
+// dependency on `effect`: see `effect-yield-bridge.fixture.ts`.
+// ---------------------------------------------------------------------------
+
+/** What a foreign yield settled to, once its bridge resolved it. */
+export type ForeignYieldOutcome =
+  | { kind: 'value'; value: unknown }
+  | { kind: 'exception'; exception: AnyCraftException };
+
+const FOREIGN_YIELD_OUTCOME = Symbol('foreign-yield-outcome');
+
+type TaggedForeignYieldOutcome = ForeignYieldOutcome & {
+  [FOREIGN_YIELD_OUTCOME]: true;
+};
+
+function isTaggedForeignYieldOutcome(
+  value: unknown,
+): value is TaggedForeignYieldOutcome {
+  return (
+    typeof value === 'object' && value !== null && FOREIGN_YIELD_OUTCOME in value
+  );
+}
+
+/**
+ * Returns a promise for yields it recognises, `undefined` for everything else
+ * (which then falls through to the usual invalid-yield error).
+ */
+export type ForeignYieldBridge = (
+  yielded: unknown,
+) => PromiseLike<ForeignYieldOutcome> | undefined;
+
+let foreignYieldBridge: ForeignYieldBridge | undefined;
+
+/** Installs the bridge; returns a disposer restoring the previous one. */
+export function ɵsetForeignYieldBridge(bridge: ForeignYieldBridge): () => void {
+  const previous = foreignYieldBridge;
+  foreignYieldBridge = bridge;
+  return () => {
+    foreignYieldBridge = previous;
+  };
+}
 
 /** A program's driver step: settled (`done`/`shortCircuit`) or suspended on an await. */
 export type CraftProgramStep =
@@ -76,7 +129,18 @@ export function pumpCraftProgramSync(
   resumeValue?: unknown,
 ): CraftProgramStep {
   try {
-    let current = iterator.next(resumeValue as never);
+    // ɵ wave-0 prototype: a resumed foreign yield either carries its value back
+    // into the generator or short-circuits here, so the exception lands on the
+    // regular `shortCircuit` step rather than surfacing as a thrown error.
+    let resumeWith = resumeValue;
+    if (isTaggedForeignYieldOutcome(resumeWith)) {
+      if (resumeWith.kind === 'exception') {
+        throw new CraftGenShortCircuit(resumeWith.exception);
+      }
+      resumeWith = resumeWith.value;
+    }
+
+    let current = iterator.next(resumeWith as never);
 
     while (!current.done) {
       const yielded = current.value;
@@ -97,6 +161,23 @@ export function pumpCraftProgramSync(
           isServiceAppStartRequest(yielded)
         ) {
           throw new Error(options.appStartNotSupportedErrorMessage);
+        }
+
+        // ɵ wave-0 prototype: last chance before the invalid-yield error — a
+        // bridged foreign yield suspends through the existing `'promise'` path.
+        const bridged = foreignYieldBridge?.(yielded);
+        if (bridged) {
+          return {
+            kind: 'await',
+            request: {
+              [GUARD_AWAIT_REQUEST_MARKER]: true,
+              kind: 'promise',
+              value: bridged.then((outcome) => ({
+                ...outcome,
+                [FOREIGN_YIELD_OUTCOME]: true as const,
+              })),
+            },
+          };
         }
 
         throw new Error(options.invalidYieldErrorMessage);

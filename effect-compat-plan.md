@@ -142,6 +142,64 @@ Angular », aucun pitch « framework qui parle Effect » n'est audible.
 Si 0.4 est indiagnosticable → on s'arrête à la vague 1 + les adaptateurs de
 loaders, sans exhaustivité sur les erreurs Effect.
 
+### Résultat de 0.1 — fait le 2026-08-18, effect@3.22.1
+
+**Le runtime marche, du premier coup.** `yield* someEffect` traverse la pompe et
+le `_tag` de l'erreur Effect arrive bien sur `queryRef.exception()`.
+7 tests verts (`effect-yield.prototype.spec.ts`), suite core complète toujours
+verte (136 fichiers, 1449 tests), zéro erreur tsc ajoutée.
+
+Ce que ça a coûté côté production : **une seule extension**, dans
+`craft-program-runtime.ts` — un « foreign yield bridge » optionnel consulté juste
+avant l'erreur d'invalid-yield, qui réutilise tel quel le chemin `'promise'`.
+Rien d'autre n'a bougé. Le pont lui-même est un `.fixture.ts` (motif exclu de
+`tsconfig.lib.json`), donc `@craft-ts/core` ne gagne aucune dépendance à
+`effect` — la porte de sortie reste gratuite.
+
+Protocole confirmé : `yield* effect` produit un `YieldWrap` dont le contenu est
+un champ `#private` — il faut `yieldWrapGet` de `effect/Utils`, **aucun reniflage
+structurel n'est possible**. Le pont est donc obligatoirement du code qui importe
+`effect`, jamais une heuristique.
+
+**Les deux trous trouvés, tous les deux type-level :**
+
+- **0.1-a — `R` n'est pas vérifié au site de yield.** `Effect.isEffect` ne narrow
+  que vers `Effect<unknown, unknown, unknown>`, alors que `runPromiseExit` exige
+  `R = never`. Au moment où le pont tient l'Effect, il est trop tard : un Effect
+  avec des requirements non satisfaits n'échoue qu'à l'exécution. C'est
+  exactement la tâche 2.5, et elle n'est pas optionnelle.
+- **0.1-b — `E` ne remonte pas dans le canal d'exception.** C'est le trou
+  sérieux. Le loader `function* () { yield* Effect.fail(new UserNotFound(...)) }`
+  produit un `queryRef.exception()` typé `undefined` : **une exception n'est même
+  pas représentable** au niveau des types, alors qu'il y en a une, prouvée, à
+  l'exécution. Le test le fige avec un `expectTypeOf(...).toEqualTypeOf<undefined>()`
+  pour que la vague 2 le fasse tomber.
+
+0.1-b est le vrai enjeu : sans lui, « les erreurs de ton service Effect
+vérifiées à la compilation » — le pitch entier de la vague 4 — est faux. La
+compatibilité *runtime* est acquise et bon marché ; c'est la compatibilité
+*type-level* qui reste à démontrer, et c'est elle que 0.2 doit chiffrer.
+
+**Le mapping `_tag` → `code` est écrit à la main dans le pont** (une ligne). Il
+disparaît dès que la vague 1 est faite : c'est l'argument le plus concret en
+faveur de la tâche 1.1.
+
+**Défauts (`Effect.die`) → canal d'erreur**, jamais exception : vérifié par test,
+conformément à 2.4.
+
+**Coût type-level — pas encore mesuré, et les chiffres faciles trompent.**
+Importer `effect` et écrire `Effect.succeed(1)` coûte 3 instanciations : le coût
+d'entrée de la dépendance est nul. Le coût réel est dans l'*interaction* entre
+les types d'Effect et l'inférence de craft, et c'est précisément ce que 0.2 doit
+isoler sur ses 3 cas. Aucune comparaison valable n'a été produite ici : les deux
+programmes tsc que le prototype permet de comparer n'ont pas la même surface
+craft, le rapport entre eux ne veut rien dire.
+
+**Trouvé en passant, hors périmètre Effect.** `host/no-angular-imports.spec.ts`
+shelle `rg` avec un `|| true` : sur une machine sans ripgrep — dont celle-ci — le
+garde-fou anti-Angular **passe au vert sans rien vérifier**. À réparer
+indépendamment de ce dossier.
+
 ## Vague 1 — Le socle, sans aucune dépendance
 
 Aucune connaissance d'Effect requise. Valeur acquise même si Effect est
