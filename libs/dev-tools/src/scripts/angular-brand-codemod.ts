@@ -69,7 +69,7 @@ export type ServiceMigrationOverride = {
   module?: string;
   symbol?: string;
   name?: string;
-  scope?: ServiceMigrationScope;
+  providedIn?: ServiceMigrationScope;
   strategy?: ServiceMigrationStrategy;
 };
 
@@ -1721,7 +1721,7 @@ function resolveTrackedInjectHelperFromDeclaration(
   )?.getInitializer();
   const scopeInitializer = getObjectPropertyAssignment(
     optionsArgument,
-    'scope',
+    'providedIn',
   )?.getInitializer();
 
   if (

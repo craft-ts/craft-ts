@@ -6,7 +6,7 @@ import {
 } from '../craft-runtime';
 
 export const { UserDetail, provideUserDetail } = craftService(
-  { name: 'UserDetail', scope: 'toProvide' },
+  { name: 'UserDetail', providedIn: 'toProvide' },
   function* () {
     const detail = yield* query(
       'userDetail',

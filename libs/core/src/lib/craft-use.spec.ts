@@ -14,7 +14,7 @@ describe('craftUse', () => {
   it('drives an inline generator and resolves its dependency yields', () => {
     const request = {
       [SERVICE_YIELD_REQUEST_MARKER]: true,
-      scope: 'global',
+      providedIn: 'global',
       resolve: () => 'resolved-dependency',
     } as const;
 

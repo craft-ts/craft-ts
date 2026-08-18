@@ -944,7 +944,7 @@ describe('scope', () => {
     );
 
     //@ts-expect-error it should not be possible to create a global craftService that depends on a toProvide craftService because the dependency cannot be resolved, it should force to provide the craftService in the test or use manuallyProvidedAtRoot for the craftService that need to be yield in a global craftService
-    craftService({ name: 'GlobalCounter', scope: 'global' }, function* () {
+    craftService({ name: 'GlobalCounter', providedIn: 'global' }, function* () {
       const counter = yield* Counter();
       return counter;
     });

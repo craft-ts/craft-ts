@@ -60,7 +60,7 @@ describe('require-primitive-derived-property', () => {
         import { computed } from '@angular/core';
         import { craftService, query } from '@craft-ts/core';
 
-        const { UserService } = craftService({ name: 'UserService', scope: 'global' }, function* () {
+        const { UserService } = craftService({ name: 'UserService', providedIn: 'global' }, function* () {
           const userQuery = yield* query('userQuery', {});
           const total = computed(() => userQuery.value()?.length ?? 0);
           return { userQuery, total };

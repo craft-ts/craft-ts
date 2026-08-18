@@ -25,7 +25,7 @@ describe('require-primitive-generator-unwrap', () => {
       'src/app/auth.ts': `
         import { craftService, mutation } from '@craft-ts/core';
 
-        export const auth = craftService({ name: 'Auth', scope: 'global' }, function* () {
+        export const auth = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
           const register = mutation({
             method: (p) => p,
             loader: () => Promise.resolve(p),
@@ -60,7 +60,7 @@ describe('require-primitive-generator-unwrap', () => {
       'src/app/ok.ts': `
         import { craftService, craftUse, query, state } from '@craft-ts/core';
 
-        export const users = craftService({ name: 'Users', scope: 'global' }, function* () {
+        export const users = craftService({ name: 'Users', providedIn: 'global' }, function* () {
           const list = yield* query({ params: () => true, loader: () => Promise.resolve([]) });
           return { list };
         });
@@ -79,7 +79,7 @@ describe('require-primitive-generator-unwrap', () => {
       'src/app/routes.ts': `
         import { craftService, query, queryParams } from '@craft-ts/core';
 
-        export const slow = craftService({ name: 'Slow', scope: 'global' }, () =>
+        export const slow = craftService({ name: 'Slow', providedIn: 'global' }, () =>
           query({ params: () => true, loader: () => Promise.resolve(1) }),
         );
 
@@ -177,7 +177,7 @@ describe('require-primitive-generator-unwrap', () => {
         'src/app/auth.ts': `
         import { craftService, mutation } from '@craft-ts/core';
 
-        export const auth = craftService({ name: 'Auth', scope: 'global' }, function* () {
+        export const auth = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
           const register = mutation({
             method: (p) => p,
             loader: () => Promise.resolve(p),

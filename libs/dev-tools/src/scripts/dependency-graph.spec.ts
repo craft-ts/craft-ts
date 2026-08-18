@@ -138,7 +138,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
         ${CRAFT_STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'function' },
+          { name: 'Counter', providedIn: 'function' },
           function* () {
             const count = yield* state('count', 0, ({ state, update }) => ({
               doubled: craftComputed('doubled', function* () {
@@ -174,7 +174,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
         ${CRAFT_STUBS}
 
         const { Search } = craftService(
-          { name: 'Search', scope: 'function' },
+          { name: 'Search', providedIn: 'function' },
           function* () {
             const results = yield* query('results', () => Promise.resolve([]), ({ resource }) => ({
               isLoading: craftComputed('isLoading', function* () {
@@ -223,7 +223,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
         ${CRAFT_STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'function' },
+          { name: 'Counter', providedIn: 'function' },
           function* () {
             const count = yield* state('count', 0, ({ state, update }) => ({
               doubled: craftComputed('doubled', function* () {
@@ -312,12 +312,12 @@ describe('analyzeDependencyGraph architecture facts', () => {
         ${CRAFT_STUBS}
 
         const { LocalStore } = craftService(
-          { name: 'LocalStore', scope: 'global', browserBoundary: true },
+          { name: 'LocalStore', providedIn: 'global', browserBoundary: true },
           () => ({}),
         );
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -344,12 +344,12 @@ describe('analyzeDependencyGraph architecture facts', () => {
         declare function craftRoute(...args: unknown[]): unknown;
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           () => ({}),
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           () => ({}),
         );
 
@@ -386,7 +386,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         };
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             const users = yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -425,7 +425,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -437,7 +437,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         );
 
         const { Profile } = craftService(
-          { name: 'Profile', scope: 'global' },
+          { name: 'Profile', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -476,7 +476,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         const identity = { key: 'user', storeName: 'app' };
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -509,7 +509,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         };
 
         export const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             const users = yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -524,7 +524,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         import { UsersApi } from './users-api';
 
         export const { UserList, provideUserList } = craftService(
-          { name: 'UserList', scope: 'toProvide' },
+          { name: 'UserList', providedIn: 'toProvide' },
           function* () {
             yield* UsersApi();
             const list = yield* query(
@@ -596,7 +596,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const updateUserName = yield* mutation('updateUserName', {});
             const user = yield* query(
@@ -626,7 +626,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const save = yield* mutation('updateUserName', {});
             const user = yield* query(
@@ -656,7 +656,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -702,7 +702,7 @@ describe('analyzeDependencyGraph insertions', () => {
         };
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const poll = craftEffect('poll', function* () {
               yield* CraftHttpClient.get(({ response }) => ({
@@ -732,7 +732,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const poll = craftEffect('poll', function* () {
@@ -760,7 +760,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Grid } = craftService(
-          { name: 'Grid', scope: 'global' },
+          { name: 'Grid', providedIn: 'global' },
           function* () {
             const cells = yield* state(
               'cells',

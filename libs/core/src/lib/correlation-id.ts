@@ -117,7 +117,7 @@ export function getCurrentStartCorrelationId(): string | null {
 
 export type CorrelationIdYield = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
-  scope: 'function';
+  providedIn: 'function';
   resolve: (
     injector: Injector,
     hostScope: ConcreteServiceScope,
@@ -131,7 +131,7 @@ export function* CorrelationId(): Generator<
 > {
   return (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    scope: 'function' as const,
+    providedIn: 'function' as const,
     resolve: (injector: Injector) => {
       const service = injector.get(CORRELATION_ID_SERVICE, null);
       // Untracked for the same reason as the correlation-id fn wrapper: this

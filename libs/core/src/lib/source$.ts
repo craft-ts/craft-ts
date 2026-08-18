@@ -93,7 +93,7 @@ export type ReadonlySource$<
  * Yieldable source service
  * ```typescript
  * const { Reset } = craftService(
- *   { name: 'Reset', scope: 'global' },
+ *   { name: 'Reset', providedIn: 'global' },
  *   function* () {
  *     const reset$ = yield* source$<void>('reset$');
  *     return reset$;

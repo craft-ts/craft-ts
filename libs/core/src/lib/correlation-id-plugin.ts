@@ -64,7 +64,7 @@ function initPopstateTracking(injector: Injector): void {
 const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   const service = (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    scope: 'function' as const,
+    providedIn: 'function' as const,
     resolve: (injector: Injector) => injector.get(CORRELATION_ID_SERVICE, null),
   }) as ReturnType<typeof createCorrelationIdService> | null;
 

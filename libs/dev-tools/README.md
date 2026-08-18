@@ -48,7 +48,7 @@ export default defineCraftDevToolsConfig({
         file: 'src/app/legacy-api.service.ts',
         symbol: 'LegacyApiService',
         name: 'Api',
-        scope: 'manuallyProvidedAtRoot',
+        providedIn: 'manuallyProvidedAtRoot',
         strategy: 'craftService',
       },
     ],

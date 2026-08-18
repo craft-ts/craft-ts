@@ -41,7 +41,7 @@ describe('componentMonitoring', () => {
         > {
           const value = yield {
             [SERVICE_YIELD_REQUEST_MARKER]: true,
-            scope: 'function',
+            providedIn: 'function',
             resolve: () => 'monitored',
           };
           resolvedValues.push(value);

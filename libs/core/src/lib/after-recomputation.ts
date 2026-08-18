@@ -53,7 +53,7 @@ import { SourceBranded } from './util/util';
  * Binding a query to a source for automatic execution
  * ```ts
  * const { UserStore } = craftService(
- *   { name: 'UserStore', scope: 'toProvide' },
+ *   { name: 'UserStore', providedIn: 'toProvide' },
  *   function* () {
  *     const userIdChange = signalSource<string>('userIdChange');
  *
@@ -83,7 +83,7 @@ import { SourceBranded } from './util/util';
  * Binding a mutation to a source
  * ```ts
  * const { FormStore } = craftService(
- *   { name: 'FormStore', scope: 'toProvide' },
+ *   { name: 'FormStore', providedIn: 'toProvide' },
  *   function* () {
  *     const submitForm = signalSource<{ name: string; email: string }>('submitForm');
  *
@@ -114,7 +114,7 @@ import { SourceBranded } from './util/util';
  * Binding an async process to a source
  * ```ts
  * const { SearchStore } = craftService(
- *   { name: 'SearchStore', scope: 'toProvide' },
+ *   { name: 'SearchStore', providedIn: 'toProvide' },
  *   function* () {
  *     const searchInput = signalSource<string>('searchInput');
  *
@@ -147,7 +147,7 @@ import { SourceBranded } from './util/util';
  * };
  *
  * const { UserFormStore } = craftService(
- *   { name: 'UserFormStore', scope: 'toProvide' },
+ *   { name: 'UserFormStore', providedIn: 'toProvide' },
  *   function* () {
  *     const formSubmit = signalSource<FormData>('formSubmit');
  *
@@ -181,7 +181,7 @@ import { SourceBranded } from './util/util';
  * Transforming data before execution
  * ```ts
  * const { ResultsStore } = craftService(
- *   { name: 'ResultsStore', scope: 'toProvide' },
+ *   { name: 'ResultsStore', providedIn: 'toProvide' },
  *   function* () {
  *     const searchParams = signalSource<{ query: string; filters: string[] }>('searchParams');
  *
@@ -215,7 +215,7 @@ import { SourceBranded } from './util/util';
  * Validation and type narrowing
  * ```ts
  * const { ValidationStore } = craftService(
- *   { name: 'ValidationStore', scope: 'toProvide' },
+ *   { name: 'ValidationStore', providedIn: 'toProvide' },
  *   function* () {
  *     const inputChange = signalSource<string>('inputChange');
  *
@@ -254,7 +254,7 @@ import { SourceBranded } from './util/util';
  * Multiple sources with different transformations
  * ```ts
  * const { SearchResultsStore } = craftService(
- *   { name: 'SearchResultsStore', scope: 'toProvide' },
+ *   { name: 'SearchResultsStore', providedIn: 'toProvide' },
  *   function* () {
  *     const quickSearch = signalSource<string>('quickSearch');
  *     const advancedSearch = signalSource<{ query: string; options: unknown }>('advancedSearch');
@@ -289,7 +289,7 @@ import { SourceBranded } from './util/util';
  * Identity transformation (pass-through)
  * ```ts
  * const { DataStore } = craftService(
- *   { name: 'DataStore', scope: 'toProvide' },
+ *   { name: 'DataStore', providedIn: 'toProvide' },
  *   function* () {
  *     const dataUpdate = signalSource<{ id: string; payload: unknown }>('dataUpdate');
  *

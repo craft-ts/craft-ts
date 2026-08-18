@@ -61,7 +61,7 @@ describe('services migration', () => {
 
     expect(first.diagnostics).toEqual([]);
     expect(service).toContain(
-      "craftService({ name: 'Counter', scope: 'global' }",
+      "craftService({ name: 'Counter', providedIn: 'global' }",
     );
     expect(service).toContain('function increment(): void');
     expect(page).toContain('injectCounter()');
@@ -287,7 +287,7 @@ describe('services migration', () => {
     const service = await readFile(join(root, 'wizard.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
     expect(service).toContain(
-      "craftService({ name: 'CheckoutWizard', scope: 'function' }",
+      "craftService({ name: 'CheckoutWizard', providedIn: 'function' }",
     );
     expect(service).not.toContain('provideCheckoutWizard');
     expect(page).toContain('injectCheckoutWizard()');
@@ -335,7 +335,7 @@ describe('services migration', () => {
     const service = await readFile(join(root, 'wizard.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
     expect(service).toContain(
-      "craftService({ name: 'CheckoutWizard', scope: 'toProvide' }",
+      "craftService({ name: 'CheckoutWizard', providedIn: 'toProvide' }",
     );
     expect(service).toContain('provideCheckoutWizard');
     expect(page).toContain('provideCheckoutWizard()');
@@ -369,7 +369,7 @@ describe('services migration', () => {
 
     const service = await readFile(join(root, 'wizard.ts'), 'utf8');
     expect(service).toContain(
-      "craftService({ name: 'CheckoutWizard', scope: 'toProvide' }",
+      "craftService({ name: 'CheckoutWizard', providedIn: 'toProvide' }",
     );
     expect(service).toContain('provideCheckoutWizard');
   });
@@ -420,7 +420,7 @@ describe('services migration', () => {
         import { defineCraftDevToolsConfig } from '@craft-ts/dev-tools';
         export default defineCraftDevToolsConfig({
           brand: { importAugmentations: [{ match: { module: 'pkg' }, deps: [{ key: 'Box', symbol: 'Box', typeText: 'Box<string>' }] }] },
-          serviceMigration: { overrides: [{ symbol: 'ApiService', name: 'Backend', scope: 'manuallyProvidedAtRoot' }] },
+          serviceMigration: { overrides: [{ symbol: 'ApiService', name: 'Backend', providedIn: 'manuallyProvidedAtRoot' }] },
         });
       `,
       'api.ts': `
@@ -436,7 +436,7 @@ describe('services migration', () => {
     });
     const output = await readFile(join(root, 'api.ts'), 'utf8');
     expect(output).toContain(
-      "name: 'Backend', scope: 'manuallyProvidedAtRoot'",
+      "name: 'Backend', providedIn: 'manuallyProvidedAtRoot'",
     );
     expect(output).toContain('provideBackend');
     expect(
@@ -510,7 +510,7 @@ describe('services migration', () => {
 
     const companion = await readFile(join(root, 'legacy.craft.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
-    expect(companion).toContain("scope: 'toProvide'");
+    expect(companion).toContain("providedIn: 'toProvide'");
     expect(companion).toContain('provideLegacy');
     expect(page).toContain("from './legacy.craft'");
     expect(page).toContain('provideLegacy()');

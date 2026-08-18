@@ -41,7 +41,7 @@ describe('primitives migration', () => {
         } from '@craft-ts/core';
 
         export const { ApiService } = craftService(
-          { name: 'ApiService', scope: 'global' },
+          { name: 'ApiService', providedIn: 'global' },
           function* () {
             const dataList = yield* state('dataList', [], ({ state }) => ({
               deleteItem: (itemId: string) => {
@@ -185,7 +185,7 @@ describe('primitives migration', () => {
       'wizard.ts': `
         import { craftService, state } from '@craft-ts/core';
         export const { injectWizard } = craftService(
-          { name: 'Wizard', scope: 'function' },
+          { name: 'Wizard', providedIn: 'function' },
           () => {
             const activeStep = state('delivery');
             const stepStatus = state({ delivery: null });

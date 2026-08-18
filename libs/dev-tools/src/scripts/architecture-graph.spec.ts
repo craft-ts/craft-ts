@@ -120,7 +120,7 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             const users = yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -131,7 +131,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           function* () {
             const { users } = yield* UsersApi();
             return { users };
@@ -139,7 +139,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           () => ({}),
         );
 
@@ -200,12 +200,12 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           function* () {
             yield* Auth();
             return {};
@@ -213,7 +213,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           function* () {
             yield* Auth();
             return {};
@@ -245,12 +245,12 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           () => ({}),
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           function* () {
             yield* User();
             return {};
@@ -280,7 +280,7 @@ describe('createArchitectureGraph', () => {
     const root = await fixture({
       'app.ts': `
         ${STUBS}
-        const { User } = craftService({ name: 'User', scope: 'global' }, () => ({}));
+        const { User } = craftService({ name: 'User', providedIn: 'global' }, () => ({}));
       `,
     });
 
@@ -298,11 +298,11 @@ describe('createArchitectureGraph', () => {
     const root = await fixture({
       'users-api.ts': `
         ${STUBS}
-        const { ApiService } = craftService({ name: 'ApiService', scope: 'global' }, () => ({}));
+        const { ApiService } = craftService({ name: 'ApiService', providedIn: 'global' }, () => ({}));
       `,
       'cart-api.ts': `
         ${STUBS}
-        const { ApiService } = craftService({ name: 'ApiService', scope: 'global' }, () => ({}));
+        const { ApiService } = craftService({ name: 'ApiService', providedIn: 'global' }, () => ({}));
       `,
     });
 
@@ -324,7 +324,7 @@ describe('createArchitectureGraph', () => {
       'app.ts': `
         ${STUBS}
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           () => ({}),
         );
         export const appRoutes = craftRoutes('appRoutes', [
@@ -356,7 +356,7 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -368,7 +368,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { Profile } = craftService(
-          { name: 'Profile', scope: 'global' },
+          { name: 'Profile', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -405,7 +405,7 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -430,7 +430,7 @@ describe('createArchitectureGraph', () => {
         const identity = { key: 'user', storeName: 'app' };
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -461,7 +461,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -472,7 +472,7 @@ describe('declarative architecture rules', () => {
         );
 
         const { ProfileApi } = craftService(
-          { name: 'ProfileApi', scope: 'global', browserBoundary: true },
+          { name: 'ProfileApi', providedIn: 'global', browserBoundary: true },
           function* () {
             yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -502,7 +502,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -532,7 +532,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const bump = craftMethod('bump', function* () {
               return 1;
@@ -564,7 +564,7 @@ describe('declarative architecture rules', () => {
         const reset$ = source$<void>('reset$');
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const label = craftComputed('label', function* () {
               reset$.emit();
@@ -591,7 +591,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const label = craftComputed('label', function* () {
@@ -618,7 +618,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const label = craftComputed('label', function* () {
@@ -640,7 +640,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Left } = craftService(
-          { name: 'Left', scope: 'global' },
+          { name: 'Left', providedIn: 'global' },
           function* () {
             yield* Right();
             return {};
@@ -648,7 +648,7 @@ describe('declarative architecture rules', () => {
         );
 
         const { Right } = craftService(
-          { name: 'Right', scope: 'global' },
+          { name: 'Right', providedIn: 'global' },
           function* () {
             yield* Left();
             return {};
@@ -671,21 +671,21 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { A } = craftService(
-          { name: 'A', scope: 'global' },
+          { name: 'A', providedIn: 'global' },
           function* () {
             yield* B();
             return {};
           },
         );
         const { B } = craftService(
-          { name: 'B', scope: 'global' },
+          { name: 'B', providedIn: 'global' },
           function* () {
             yield* C();
             return {};
           },
         );
         const { C } = craftService(
-          { name: 'C', scope: 'global' },
+          { name: 'C', providedIn: 'global' },
           function* () {
             yield* A();
             return {};
@@ -706,7 +706,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const left = craftComputed('left', function* () {
               return yield* right();
@@ -732,12 +732,12 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
 
         const { Left } = craftService(
-          { name: 'Left', scope: 'global' },
+          { name: 'Left', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -745,7 +745,7 @@ describe('declarative architecture rules', () => {
         );
 
         const { Right } = craftService(
-          { name: 'Right', scope: 'global' },
+          { name: 'Right', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -777,14 +777,14 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
       'src/app/features/cart/cart.ts': `
         ${STUBS}
         export const { Cart } = craftService(
-          { name: 'Cart', scope: 'global' },
+          { name: 'Cart', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -793,7 +793,7 @@ describe('assertPathBoundaries', () => {
         import { Auth } from '../../shared/auth';
         import { Cart } from '../cart/cart';
         export const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* Auth();
             yield* Cart();
@@ -805,7 +805,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { Auth } from '../shared/auth';
         export const { Widget } = craftService(
-          { name: 'Widget', scope: 'global' },
+          { name: 'Widget', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -815,7 +815,7 @@ describe('assertPathBoundaries', () => {
       'src/app/data/users-api.ts': `
         ${STUBS}
         export const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           () => ({}),
         );
       `,
@@ -823,7 +823,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { UsersApi } from '../data/users-api';
         export const { LeakyWidget } = craftService(
-          { name: 'LeakyWidget', scope: 'global' },
+          { name: 'LeakyWidget', providedIn: 'global' },
           function* () {
             yield* UsersApi();
             return {};
@@ -852,14 +852,14 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
       'src/app/features/users/profile.ts': `
         ${STUBS}
         export const { Profile } = craftService(
-          { name: 'Profile', scope: 'global' },
+          { name: 'Profile', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -868,7 +868,7 @@ describe('assertPathBoundaries', () => {
         import { Auth } from '../../shared/auth';
         import { Profile } from './profile';
         export const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* Auth();
             yield* Profile();
@@ -904,7 +904,7 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -912,7 +912,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { Auth } from '../shared/auth';
         export const { Widget } = craftService(
-          { name: 'Widget', scope: 'global' },
+          { name: 'Widget', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -954,7 +954,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { Auth } from '../shared/auth';
         export const { Widget } = craftService(
-          { name: 'Widget', scope: 'global' },
+          { name: 'Widget', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -964,7 +964,7 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -982,7 +982,7 @@ describe('assertPathBoundaries', () => {
       'src/app/features/users/users.ts': `
         ${STUBS}
         export const { Users, provideUsers } = craftService(
-          { name: 'Users', scope: 'toProvide' },
+          { name: 'Users', providedIn: 'toProvide' },
           () => ({}),
         );
       `,
@@ -1441,7 +1441,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const user = yield* query('user', {});
@@ -1468,7 +1468,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const logout = yield* mutation('logout', {});
@@ -1500,7 +1500,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const leaked = yield* query(
               'leaked',
@@ -1527,7 +1527,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -1550,7 +1550,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Grid } = craftService(
-          { name: 'Grid', scope: 'global' },
+          { name: 'Grid', providedIn: 'global' },
           function* () {
             const cells = yield* state(
               'cells',
@@ -1576,7 +1576,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Grid } = craftService(
-          { name: 'Grid', scope: 'global' },
+          { name: 'Grid', providedIn: 'global' },
           function* () {
             const left = yield* state('left', [], insertSelect('cell', () => ({})));
             const right = yield* state('right', [], insertSelect('cell', () => ({})));
@@ -1596,7 +1596,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const poll = craftEffect('poll', function* () {
               yield* CraftHttpClient.get(({ response }) => ({
@@ -1626,7 +1626,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const poll = craftEffect('poll', function* () {
@@ -1654,7 +1654,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const poll = craftEffect('poll', function* () {
@@ -1678,7 +1678,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const selectedId = yield* state('selectedId', '1');
             const result = yield* state('result', null);
@@ -1707,7 +1707,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const selectedId = yield* state('selectedId', '1');
             const usersQuery = yield* query('usersQuery', {});
@@ -1733,7 +1733,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         const reset$ = source$<void>('reset$');
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const sync = craftEffect('sync', function* () {
@@ -1756,7 +1756,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const sync = craftEffect('sync', function* () {
@@ -1779,7 +1779,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const validate = yield* asyncProcess('validate', {});
             const sync = craftEffect('sync', function* () {
@@ -1802,7 +1802,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const log = craftEffect('log', function* () {
@@ -1824,7 +1824,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const usersQuery = yield* query('usersQuery', {});
             const log = craftEffect('log', function* () {

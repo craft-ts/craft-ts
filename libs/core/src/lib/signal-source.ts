@@ -124,7 +124,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  * Basic source for user actions
  * ```ts
  * const { UserStore } = craftService(
- *   { name: 'UserStore', scope: 'toProvide' },
+ *   { name: 'UserStore', providedIn: 'toProvide' },
  *   function* () {
  *     const loadUser = signalSource<string>('loadUser');
  *
@@ -157,7 +157,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  * type FormData = { name: string; email: string };
  *
  * const { FormStore } = craftService(
- *   { name: 'FormStore', scope: 'toProvide' },
+ *   { name: 'FormStore', providedIn: 'toProvide' },
  *   function* () {
  *     const submitForm = signalSource<FormData>('submitForm');
  *
@@ -196,7 +196,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  * Source for reload/refresh actions
  * ```ts
  * const { DataStore } = craftService(
- *   { name: 'DataStore', scope: 'toProvide' },
+ *   { name: 'DataStore', providedIn: 'toProvide' },
  *   function* () {
  *     const reload = signalSource<void>('reload');
  *
@@ -227,7 +227,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  * Multiple sources for different actions
  * ```ts
  * const { TodoStore } = craftService(
- *   { name: 'TodoStore', scope: 'toProvide' },
+ *   { name: 'TodoStore', providedIn: 'toProvide' },
  *   function* () {
  *     const addTodo = signalSource<{ text: string }>('addTodo');
  *     const deleteTodo = signalSource<string>('deleteTodo');
@@ -337,7 +337,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  *
  * // Component A's store
  * const { DataViewStore, provideDataViewStore } = craftService(
- *   { name: 'DataViewStore', scope: 'toProvide' },
+ *   { name: 'DataViewStore', providedIn: 'toProvide' },
  *   function* () {
  *     const { refreshAllSource } = RefreshCoordinator();
  *
@@ -387,7 +387,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  * };
  *
  * const { SearchStore } = craftService(
- *   { name: 'SearchStore', scope: 'toProvide' },
+ *   { name: 'SearchStore', providedIn: 'toProvide' },
  *   function* () {
  *     const search = signalSource<SearchParams>('search');
  *

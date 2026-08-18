@@ -7,7 +7,7 @@ import {
 } from '../craft-runtime';
 
 export const { ShopUsers } = craftService(
-  { name: 'ShopUsers', scope: 'global' },
+  { name: 'ShopUsers', providedIn: 'global' },
   function* () {
     const list = yield* query(
       'shopUsers',
@@ -21,7 +21,7 @@ export const { ShopUsers } = craftService(
 );
 
 export const { AdminUsers } = craftService(
-  { name: 'AdminUsers', scope: 'global' },
+  { name: 'AdminUsers', providedIn: 'global' },
   function* () {
     const list = yield* state(
       'adminUsers',

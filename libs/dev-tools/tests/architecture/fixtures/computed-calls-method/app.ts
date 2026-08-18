@@ -1,7 +1,7 @@
 import { craftComputed, craftMethod, craftService } from '../craft-runtime';
 
 export const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
+  { name: 'Counter', providedIn: 'global' },
   function* () {
     const bump = craftMethod('bump', function* () {
       return 1;

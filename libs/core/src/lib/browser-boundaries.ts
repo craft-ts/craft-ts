@@ -55,7 +55,7 @@ type ConsoleMetaContext = {
 
 type ConsoleMetaYield = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
-  scope: 'function';
+  providedIn: 'function';
   resolve: (injector: Injector) => ConsoleMetaContext;
 }>;
 
@@ -300,7 +300,7 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
       correlation: correlationMeta,
     } = (yield {
       [SERVICE_YIELD_REQUEST_MARKER]: true,
-      scope: 'function' as const,
+      providedIn: 'function' as const,
       resolve: (injector: Injector): ConsoleMetaContext => ({
         from: injector.get(ɵHOST_TAG_LIST),
         tags: injector.get(ɵTRACK_TAGS_LIST),

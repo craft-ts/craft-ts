@@ -136,7 +136,7 @@ type YieldRecordYielded<Record extends object> =
  *
  * ```ts
  * const { UserStore } = craftService(
- *   { name: 'UserStore', scope: 'global' },
+ *   { name: 'UserStore', providedIn: 'global' },
  *   () =>
  *     craftYieldRecord({
  *       userQuery: query('userQuery', { ... }),

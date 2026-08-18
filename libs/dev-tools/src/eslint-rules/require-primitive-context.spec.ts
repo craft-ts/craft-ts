@@ -37,7 +37,7 @@ describe('require-primitive-context', () => {
       } from '@craft-ts/core';
 
       const component = craftComponent('Component', {}, () => state('value', 0), () => []);
-      const service = craftService({ name: 'Service', scope: 'global' }, function* () {
+      const service = craftService({ name: 'Service', providedIn: 'global' }, function* () {
         const value = yield* state('value', 0);
         const users = yield* query('users', { params: value, loader: async () => [] });
         const save = yield* mutation('save', { method: (input) => input, loader: async () => true });

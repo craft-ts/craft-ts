@@ -359,14 +359,14 @@ function createCraftRegisterFor(
       'Register Craft service yields for craftRegisterFor.',
       function* (context, next) {
         const ref = yield* next();
-        if (context.scope !== 'global' || includeGlobal) {
+        if (context.providedIn !== 'global' || includeGlobal) {
           const hostTags = context.injector.get(HOST_TAG_LIST, []);
           registerResolvedService(
             context.injector,
             context.name,
             ref,
             hostTags[hostTags.length - 1] ?? `service:${context.name}`,
-            context.scope,
+            context.providedIn,
           );
         }
         return ref;

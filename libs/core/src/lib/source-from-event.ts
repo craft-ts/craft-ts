@@ -85,7 +85,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * }
  *
  * const { ClickTrackerStore, provideClickTrackerStore } = craftService(
- *   { name: 'ClickTrackerStore', scope: 'toProvide' },
+ *   { name: 'ClickTrackerStore', providedIn: 'toProvide' },
  *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
  *     const clickSource = sourceFromEvent<MouseEvent>(hostElement, 'click');
@@ -122,7 +122,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * }
  *
  * const { InfiniteScrollStore, provideInfiniteScrollStore } = craftService(
- *   { name: 'InfiniteScrollStore', scope: 'toProvide' },
+ *   { name: 'InfiniteScrollStore', providedIn: 'toProvide' },
  *   function* () {
  *     const scrollSource = sourceFromEvent(window, 'scroll', {
  *       computedValue: () => ({
@@ -168,7 +168,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * }
  *
  * const { SearchStore, provideSearchStore } = craftService(
- *   { name: 'SearchStore', scope: 'toProvide' },
+ *   { name: 'SearchStore', providedIn: 'toProvide' },
  *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
  *     const inputSource = sourceFromEvent(hostElement, 'input', {
@@ -241,7 +241,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * }
  *
  * const { CustomEventsStore, provideCustomEventsStore } = craftService(
- *   { name: 'CustomEventsStore', scope: 'toProvide' },
+ *   { name: 'CustomEventsStore', providedIn: 'toProvide' },
  *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
  *     const customEventSource = sourceFromEvent<CustomEvent<{ data: string }>>(
@@ -307,7 +307,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * }
  *
  * const { ShortcutsStore, provideShortcutsStore } = craftService(
- *   { name: 'ShortcutsStore', scope: 'toProvide' },
+ *   { name: 'ShortcutsStore', providedIn: 'toProvide' },
  *   function* () {
  *     const keydownSource = sourceFromEvent(document, 'keydown', {
  *       computedValue: (event: KeyboardEvent) => ({

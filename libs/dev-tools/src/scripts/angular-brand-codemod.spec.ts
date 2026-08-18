@@ -215,7 +215,7 @@ describe('angular-brand-codemod', () => {
         import { craftService } from '@craft-ts/core';
 
         export const { ApiService } = craftService(
-          { name: 'ApiService', scope: 'global' },
+          { name: 'ApiService', providedIn: 'global' },
           () => ({
             getItemById: async (userId: string) => ({ id: userId }),
           }),
@@ -229,7 +229,7 @@ describe('angular-brand-codemod', () => {
 
         const { Router: RouterService } = toCraftService({
           name: 'Router',
-          scope: 'global',
+          providedIn: 'global',
           token: Router,
         });
 

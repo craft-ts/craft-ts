@@ -28,7 +28,7 @@ describe('app-start-registry-match', () => {
         export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
-            scope: 'toProvide',
+            providedIn: 'toProvide',
             appStart: true,
           },
           function* () {
@@ -60,7 +60,7 @@ describe('app-start-registry-match', () => {
         export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
-            scope: 'toProvide',
+            providedIn: 'toProvide',
             appStart: true,
           },
           function* () {
@@ -91,7 +91,7 @@ describe('app-start-registry-match', () => {
         export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
-            scope: 'toProvide',
+            providedIn: 'toProvide',
             appStart: true,
           },
           function* () {
@@ -128,7 +128,7 @@ describe('app-start-registry-match', () => {
         export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
-            scope: 'toProvide',
+            providedIn: 'toProvide',
           },
           () => 1,
         );

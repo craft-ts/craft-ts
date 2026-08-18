@@ -1,7 +1,7 @@
 import { craftService, insertSelect, state } from '../craft-runtime';
 
 export const { Grid } = craftService(
-  { name: 'Grid', scope: 'global' },
+  { name: 'Grid', providedIn: 'global' },
   function* () {
     const cells = yield* state(
       'cells',

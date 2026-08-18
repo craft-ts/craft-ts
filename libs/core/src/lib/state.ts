@@ -331,7 +331,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * @example
  * // Inside a craftService generator factory
  * const { Counter } = craftService(
- *   { name: 'Counter', scope: 'global' },
+ *   { name: 'Counter', providedIn: 'global' },
  *   function* () {
  *     const counter = yield* state('counter', 0);
  *     return { counter };

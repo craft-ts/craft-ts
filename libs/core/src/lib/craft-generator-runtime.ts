@@ -30,7 +30,7 @@ export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
 
 export type ServiceYieldContext = Readonly<{
   name: string;
-  scope: ConcreteServiceScope;
+  providedIn: ConcreteServiceScope;
   hostScope: ConcreteServiceScope;
   injector: Injector;
   resolve(): unknown;
@@ -84,7 +84,7 @@ export type GeneratorCompatibleFactory<
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   name: string;
-  scope: ConcreteServiceScope;
+  providedIn: ConcreteServiceScope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
 
@@ -365,7 +365,7 @@ function resolveServiceYield(
   const wrappers = injector.get(SERVICE_YIELD_WRAPPER, []);
   const context: ServiceYieldContext = {
     name: request.name,
-    scope: request.scope,
+    providedIn: request.providedIn,
     hostScope,
     injector,
     resolve: () => request.resolve(injector, hostScope),
