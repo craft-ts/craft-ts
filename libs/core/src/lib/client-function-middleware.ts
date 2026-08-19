@@ -7,7 +7,9 @@ import {
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import { CraftGenShortCircuit } from './craft-gen';
 import type { Injector } from './host/craft-compat';
-import type { CraftSchema } from './schema-validation';
+import type { CraftHandshakeSchema } from './craft-handshake';
+import { craftHandshakeName } from './craft-handshake';
+import type { CraftSchema, SchemaInput } from './schema-validation';
 
 /**
  * Middleware **client** d'une server function : le pendant navigateur du
@@ -172,6 +174,59 @@ export function runClientMiddlewareChain(
   }
 
   return step(0, {});
+}
+
+/**
+ * Implémente un handshake côté navigateur, en une déclaration.
+ *
+ * Le corps est un générateur craft ordinaire — il se lit comme un service :
+ * on `yield*` ce dont on a besoin et on retourne le fragment de contexte. Le
+ * nom et le schéma ne sont pas répétés ici : ils viennent du handshake, donc le
+ * serveur et le client ne peuvent pas en dire deux choses différentes.
+ *
+ * @example
+ * ```ts
+ * // shared/claimed-user.ts
+ * export const claimedUser = craftHandshake(
+ *   'demo.claimed-user',
+ *   Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
+ * );
+ *
+ * // côté navigateur
+ * export const claimedUserContext = craftHandshakeMiddleware(
+ *   claimedUser,
+ *   function* () {
+ *     return { userId: yield* ClaimedUserId() };
+ *   },
+ * );
+ *
+ * // côté serveur — la même valeur, l'autre bout
+ * craftMiddleware('demo.matching-user').clientContext(claimedUser).server(…)
+ * ```
+ */
+export function craftHandshakeMiddleware<
+  Name extends string,
+  Schema extends CraftSchema,
+>(
+  handshake: CraftHandshakeSchema<Name, Schema>,
+  run: () => Generator<unknown, SchemaInput<Schema>, unknown>,
+): CraftClientMiddleware<Name, readonly [Schema], SchemaInput<Schema>> {
+  const name = craftHandshakeName(handshake);
+  if (name === undefined) {
+    throw new Error(
+      'craftHandshakeMiddleware(handshake, run) expects a craftHandshake(name, schema) as its first argument.',
+    );
+  }
+  return Object.freeze({
+    kind: 'client-function-middleware' as const,
+    id: name as Name,
+    provides: [handshake] as unknown as readonly [Schema],
+    dependencies: [],
+    *run({ next }: ClientMiddlewareRunContext) {
+      const fragment = yield* run();
+      return yield* next({ context: fragment as never });
+    },
+  }) as CraftClientMiddleware<Name, readonly [Schema], SchemaInput<Schema>>;
 }
 
 const INVALID_YIELD_ERROR_MESSAGE =

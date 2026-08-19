@@ -1,8 +1,8 @@
 import { Schema } from 'effect';
 
-export const UserEmail = Schema.String.pipe(
-  Schema.annotations({ sensitivity: 'personal-data' }),
-);
+export const UserEmail = Schema.String.annotate({
+  sensitivity: 'personal-data',
+});
 
 export const UserSchema = Schema.Struct({
   id: Schema.Finite,

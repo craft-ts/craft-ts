@@ -1,20 +1,31 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Effect, Schema } from 'effect';
 import {
-  craftMiddleware,
   clientContext,
+  craftHandshake,
+  craftHandshakeMiddleware,
+  craftMiddleware,
   craftUnique,
   craftUse,
   createServer,
   createServerFunctionClient,
   flattenClientMiddlewares,
-  requireClientDI,
   runClientMiddlewareChain,
   serverFunction,
   TestBed,
   type ServerFunctionRequest,
 } from '@craft-ts/core';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
+import { inject, type InjectionToken as Token } from './host/craft-compat';
+
+/** Lecture DI minimale, dans l'esprit d'un `yield*` de service craft. */
+function injectRequest<Value>(token: Token<Value>) {
+  return {
+    [SERVICE_YIELD_REQUEST_MARKER]: true,
+    providedIn: 'global',
+    resolve: () => inject(token),
+  } as const;
+}
 import { InjectionToken } from './host/craft-compat';
 
 const sessionSchema = Schema.toStandardSchemaV1(
@@ -274,30 +285,51 @@ describe('client function middleware', () => {
     ).resolves.toBe('ada');
   });
 
-  it('refuse une collision de clé entre middleware client et requireClientDI', async () => {
+  it('implémente un handshake en une déclaration, lue comme un service', async () => {
     const UserId = new InjectionToken<string>('userId');
-    const requirement = requireClientDI(UserId);
-    const listUsers = serverFunction('client-ctx.collision', filterSchema, {
+    const claimedUser = craftHandshake('client-ctx.claimed-user', sessionSchema);
+    const claimedUserContext = craftHandshakeMiddleware(
+      claimedUser,
+      function* () {
+        return { userId: (yield injectRequest(UserId)) as string };
+      },
+    );
+    const listUsers = serverFunction('client-ctx.handshake', filterSchema, {
       exposure: 'client',
-      clientContext: sessionSchema,
-    })
-      .pipe(requirement)
-      .handler(({ input }) => input.filter);
+      clientContext: claimedUser,
+    }).handler(({ input, clientContext: claims }) =>
+      Effect.succeed(`${input.filter}/${claims.userId}`),
+    );
+    const sent: ServerFunctionRequest[] = [];
     const { provideServerFunctionTransport } = await import('@craft-ts/core');
     TestBed.configureTestingModule({
       providers: [
         { provide: UserId, useValue: 'u-1' },
-        provideServerFunctionTransport(async () => 'ada'),
+        provideServerFunctionTransport(async (request) => {
+          sent.push(request);
+          return 'ok';
+        }),
       ],
     });
-    const client = createServerFunctionClient<typeof listUsers>(
-      craftUnique('client-ctx.collision'),
-      clientContext([sessionContext, requirement]),
-    );
+    // Le middleware tient son id et son schéma du handshake : rien n'est répété.
+    expect(claimedUserContext.id).toBe('client-ctx.claimed-user');
+    expect(claimedUserContext.provides).toEqual([claimedUser]);
 
+    const client = createServerFunctionClient<typeof listUsers>(
+      craftUnique('client-ctx.handshake'),
+      clientContext([claimedUserContext]),
+    );
     await expect(
       TestBed.runInInjectionContext(() => client({ filter: 'ada' })),
-    ).rejects.toThrow('CRAFT_CLIENT_FUNCTION_CONTEXT_COLLISION');
+    ).resolves.toBe('ok');
+    expect(sent).toEqual([
+      {
+        id: 'client-ctx.handshake',
+        input: { filter: 'ada' },
+        context: { userId: 'u-1' },
+        protocolVersion: 1,
+      },
+    ]);
   });
 
   it('refuse un contexte que la chaîne client n’a pas honoré', async () => {
@@ -352,13 +384,29 @@ createServerFunctionClient<typeof typedFunction>(
   craftUnique('client-ctx.typing'),
 );
 
-const diFunction = serverFunction('client-ctx.typing-di', filterSchema, {
+// Un handshake porte le nom et la forme : le middleware ne répète ni l'un ni
+// l'autre, et son contexte doit couvrir ce que la fonction attend.
+const typedHandshake = craftHandshake('client-ctx.typed', workspaceSchema);
+const typedHandshakeContext = craftHandshakeMiddleware(
+  typedHandshake,
+  function* () {
+    return { workspaceId: 'ws-1' };
+  },
+);
+const handshakeFunction = serverFunction('client-ctx.typing-hs', filterSchema, {
   exposure: 'client',
-})
-  .pipe(requireClientDI(new InjectionToken<{ id: string }>('TypedUser')))
-  .handler(({ input, required }) => input.filter + required.name);
+  clientContext: typedHandshake,
+}).handler(({ clientContext: claims }) =>
+  Effect.succeed(claims.workspaceId satisfies string),
+);
 
-// @ts-expect-error un pipe requireClientDI doit être rejoué côté client
-createServerFunctionClient<typeof diFunction>(
-  craftUnique('client-ctx.typing-di'),
+createServerFunctionClient<typeof handshakeFunction>(
+  craftUnique('client-ctx.typing-hs'),
+  clientContext([typedHandshakeContext]),
+);
+
+createServerFunctionClient<typeof handshakeFunction>(
+  craftUnique('client-ctx.typing-hs'),
+  // @ts-expect-error la chaîne attachée ne publie pas `workspaceId`
+  clientContext([sessionContext]),
 );

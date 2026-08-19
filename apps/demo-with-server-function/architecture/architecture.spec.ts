@@ -118,7 +118,11 @@ describe('architecture', () => {
         .clientFunctionMiddlewares()
         .map((node) => node.label)
         .sort(),
-    ).toEqual(['demo.request-context', 'demo.requested-by']);
+    ).toEqual([
+      'demo.claimed-user',
+      'demo.request-context',
+      'demo.requested-by',
+    ]);
 
     // requestContext -> requestedByContext.
     expect(
@@ -126,11 +130,11 @@ describe('architecture', () => {
         (edge) => edge.details?.['boundary'] === 'client-middleware-uses',
       ),
     ).toHaveLength(1);
-    // Et la façade client qui l'attache via clientContext([...]).
+    // Et la façade client qui les attache via clientContext([...]).
     const attached = graph.graph.edges.filter(
       (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
     );
-    expect(attached).toHaveLength(1);
+    expect(attached).toHaveLength(2);
     expect(
       attached[0]?.from.startsWith(
         'server-function-part:server-function-client:',
@@ -149,6 +153,7 @@ describe('architecture', () => {
         .map((node) => node.label)
         .sort(),
     ).toEqual([
+      'demo.claimed-user',
       'demo.request-locale',
       'demo.requested-by',
       'demo.users.authenticated-list',

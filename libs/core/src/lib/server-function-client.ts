@@ -19,10 +19,6 @@ import {
   type ClientMiddlewareContextOf,
 } from './client-function-middleware';
 import type { UnionToIntersection } from './middleware-schema-shared';
-import {
-  isClientDIRequirement,
-  type ClientDIRequirement,
-} from './client-di-requirement';
 
 import { inject, Injector } from './host/craft-compat';
 import {
@@ -36,7 +32,6 @@ import {
   craftException,
   type CraftExceptionResult,
 } from './craft-exception';
-import type { CraftUnique } from './craft-unique';
 
 export type ServerFunctionRequest = {
   readonly id: string;
@@ -142,9 +137,7 @@ type ServerFunctionId<
  * un middleware client composé, ou le rappel d'un `requireClientDI(...)`
  * déclaré côté serveur.
  */
-export type ServerFunctionClientAttachment =
-  | AnyCraftClientMiddleware
-  | ClientDIRequirement;
+export type ServerFunctionClientAttachment = AnyCraftClientMiddleware;
 
 declare const CLIENT_CONTEXT_ATTACHMENTS: unique symbol;
 
@@ -160,19 +153,11 @@ declare const CLIENT_CONTEXT_ATTACHMENTS: unique symbol;
  * devient une simple assignabilité entre ce qu'il publie et ce que le contrat
  * exige.
  */
-export interface ServerFunctionClientContextAttachments<
-  Context,
-  DIValues = never,
-> {
+export interface ServerFunctionClientContextAttachments<Context> {
   readonly [CLIENT_CONTEXT_ATTACHMENTS]: true;
   readonly attachments: readonly ServerFunctionClientAttachment[];
   /** Porteur covariant : ce que la chaîne publie doit couvrir l'attendu. */
   readonly __clientContext: Context;
-  /**
-   * Porteur contravariant : une fonction, donc l'assignabilité s'inverse et
-   * exige que les tokens attachés couvrent ceux déclarés par la fonction.
-   */
-  readonly __clientDI: (values: DIValues) => void;
 }
 
 /**
@@ -183,54 +168,15 @@ export interface ServerFunctionClientContextAttachments<
  */
 type AttachedClientContext<
   Attachments extends readonly ServerFunctionClientAttachment[],
-> = AttachedMiddlewareContext<Attachments> &
-  AttachedClientDIContext<Attachments>;
-
-type AttachedMiddlewareContext<
-  Attachments extends readonly ServerFunctionClientAttachment[],
-> = [Extract<Attachments[number], AnyCraftClientMiddleware>] extends [never]
+> = [Attachments[number]] extends [never]
   ? Record<never, never>
   : UnionToIntersection<
-      Extract<
-        Attachments[number],
-        AnyCraftClientMiddleware
-      > extends infer Middleware
+      Attachments[number] extends infer Middleware
         ? Middleware extends AnyCraftClientMiddleware
           ? ClientMiddlewareContextOf<Middleware>
           : never
         : never
     >;
-
-/**
- * Ce qu'un `requireClientDI(...)` apporte au contexte, quand sa clé est connue
- * statiquement. Sans `{ key: '...' }` littéral, la clé est le `debugName` du
- * token — une valeur d'exécution, invisible ici : la vérification retombe alors
- * sur le contrôle de couverture par type de valeur et sur le runtime.
- */
-type AttachedClientDIContext<
-  Attachments extends readonly ServerFunctionClientAttachment[],
-> = [Extract<Attachments[number], ClientDIRequirement>] extends [never]
-  ? Record<never, never>
-  : UnionToIntersection<
-      Extract<
-        Attachments[number],
-        ClientDIRequirement
-      > extends infer Requirement
-        ? Requirement extends ClientDIRequirement<infer Value, infer Key>
-          ? string extends Key
-            ? Record<never, never>
-            : { readonly [Property in Key]: Value }
-          : never
-        : never
-    >;
-
-type AttachedClientDIValues<
-  Attachments extends readonly ServerFunctionClientAttachment[],
-> = Attachments[number] extends infer Attachment
-  ? Attachment extends ClientDIRequirement<infer Value, any>
-    ? Value
-    : never
-  : never;
 
 /**
  * Déclare ce que le navigateur enverra à une server function : la chaîne de
@@ -240,44 +186,22 @@ export function clientContext<
   const Attachments extends readonly ServerFunctionClientAttachment[],
 >(
   attachments: Attachments,
-): ServerFunctionClientContextAttachments<
-  AttachedClientContext<Attachments>,
-  AttachedClientDIValues<Attachments>
-> {
+): ServerFunctionClientContextAttachments<AttachedClientContext<Attachments>> {
   return {
     attachments,
   } as unknown as ServerFunctionClientContextAttachments<
-    AttachedClientContext<Attachments>,
-    AttachedClientDIValues<Attachments>
+    AttachedClientContext<Attachments>
   >;
 }
-
-type ClientDIRequirementOfPipes<Pipes> = Pipes extends readonly (infer Pipe)[]
-  ? Pipe extends ClientDIRequirement<infer Value, any>
-    ? Value
-    : never
-  : never;
-
-type RequiredClientDIValues<
-  Definition extends ServerFunctionDefinition<any, any, any>,
-> = ClientDIRequirementOfPipes<Definition['pipes']> extends infer Value
-  ? unknown extends Value
-    ? never
-    : Value
-  : never;
 
 type ExpectedClientContext<
   Definition extends ServerFunctionDefinition<any, any, any>,
 > = ServerFunctionExpectedClientContext<Definition>;
 
-/** Vrai dès que la définition attend quoi que ce soit du navigateur. */
+/** Vrai dès que la définition attend un contexte du navigateur. */
 type NeedsClientContext<
   Definition extends ServerFunctionDefinition<any, any, any>,
-> = [keyof ExpectedClientContext<Definition>] extends [never]
-  ? [RequiredClientDIValues<Definition>] extends [never]
-    ? false
-    : true
-  : true;
+> = [keyof ExpectedClientContext<Definition>] extends [never] ? false : true;
 
 /**
  * Le deuxième argument est obligatoire exactement quand la fonction attend un
@@ -289,14 +213,12 @@ type ClientContextParameter<
 > = NeedsClientContext<Definition> extends true
   ? [
       clientContext: ServerFunctionClientContextAttachments<
-        ExpectedClientContext<Definition>,
-        RequiredClientDIValues<Definition>
+        ExpectedClientContext<Definition>
       >,
     ]
   : [
       clientContext?: ServerFunctionClientContextAttachments<
-        Record<never, never>,
-        never
+        Record<never, never>
       >,
     ];
 
@@ -317,7 +239,7 @@ export function createServerFunctionClient<
   Contract extends ServerFunctionContract<any, any, any>,
 >(
   contract: Contract,
-  clientContext?: ServerFunctionClientContextAttachments<any, any>,
+  clientContext?: ServerFunctionClientContextAttachments<any>,
 ): ServerFunctionContractClient<Contract>;
 export function createServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any>,
@@ -332,10 +254,9 @@ export function createServerFunctionClient<
 ): ServerFunctionClient<Definition, ClientOutput> {
   const id = (typeof contract === 'string' ? contract : contract.id) as string;
   const attachments = ((
-    attached[0] as ServerFunctionClientContextAttachments<any, any> | undefined
+    attached[0] as ServerFunctionClientContextAttachments<any> | undefined
   )?.attachments ?? []) as readonly ServerFunctionClientAttachment[];
   const middlewares = attachments.filter(isCraftClientMiddleware);
-  const requirements = attachments.filter(isClientDIRequirement);
   const providedSchemas = collectClientMiddlewareSchemas(middlewares);
 
   return (async (input: ServerFunctionContractInput<typeof contract>) => {
@@ -344,17 +265,14 @@ export function createServerFunctionClient<
     // chaîne, elle, reçoit l'injecteur capturé et le rétablit elle-même après
     // chaque suspension.
     const transport = craftUse(ServerFunctionTransport());
-    if (middlewares.length === 0 && requirements.length === 0) {
-      return transport({ id, input });
-    }
-    const injector = captureInjector();
-    const fromDI = readClientDIValues(requirements);
+    if (middlewares.length === 0) return transport({ id, input });
 
-    const produced =
-      middlewares.length === 0
-        ? {}
-        : await runClientMiddlewareChainAsync(middlewares, input, injector);
-    const context = mergeClientContext(id, produced, fromDI);
+    const injector = captureInjector();
+    const context = await runClientMiddlewareChainAsync(
+      middlewares,
+      input,
+      injector,
+    );
 
     await validateClientContext(id, providedSchemas, context);
     return transport({ id, input, context, protocolVersion: 1 });
@@ -369,37 +287,6 @@ function captureInjector(): Injector {
   }
 }
 
-/** Lecture synchrone du DI navigateur, avant toute suspension. */
-function readClientDIValues(
-  requirements: readonly ClientDIRequirement[],
-): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
-  for (const requirement of requirements) {
-    values[requirement.key] = inject(requirement.token);
-  }
-  return values;
-}
-
-/**
- * Fusion à plat des deux passes. Une clé produite deux fois est une erreur —
- * un écrasement silencieux ferait mentir le contexte reçu par le serveur.
- */
-function mergeClientContext(
-  id: string,
-  produced: Record<string, unknown>,
-  fromDI: Record<string, unknown>,
-): Record<string, unknown> {
-  const context: Record<string, unknown> = { ...produced };
-  for (const [key, value] of Object.entries(fromDI)) {
-    if (Object.prototype.hasOwnProperty.call(context, key)) {
-      throw new Error(
-        `CRAFT_CLIENT_FUNCTION_CONTEXT_COLLISION: client context key "${key}" is produced both by the client middleware chain and by requireClientDI(...) for server function "${id}". Rename one of them: silently overwriting would send a value the server cannot attribute.`,
-      );
-    }
-    context[key] = value;
-  }
-  return context;
-}
 
 type ServerFunctionDefinitionContract<
   Definition extends ServerFunctionDefinition,

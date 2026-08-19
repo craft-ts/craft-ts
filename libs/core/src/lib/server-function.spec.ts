@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  clientContext,
   craftUnique,
   createServer,
   createServerFunctionClient,
   provideServerFunctionTransport,
-  requireClientDI,
   requireServerPermission,
   serverFunction,
   serverFunctionContract,
@@ -35,14 +33,6 @@ describe('server functions', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
   it('keeps a server-only function local to its implementation', async () => {
-    const Secret = new InjectionToken<string>('Secret');
-    const serverOnlyBuilder = serverFunction(
-      'math.server-only',
-      numberSchema((value) => value),
-    );
-    // @ts-expect-error requireClientDI is not legal on a server-only contract.
-    serverOnlyBuilder.pipe(requireClientDI(Secret));
-
     const add = serverFunction('math.add', numberSchema((value) => value)).handler(
       ({ input }) => input + 1,
     );
@@ -54,24 +44,19 @@ describe('server functions', () => {
     );
   });
 
-  it('transporte une valeur du DI navigateur jusqu’à required() côté serveur', async () => {
+  it('résout required() dans le DI du serveur, via le runtime du registre', async () => {
     const CurrentUser = new InjectionToken<{ id: string }>('CurrentUser');
-    const requireCurrentUser = requireClientDI(CurrentUser, {
-      mode: 'snapshot',
-    });
     const contract = serverFunctionContract({
       id: 'users.current',
       input: numberSchema((value) => value),
       exposure: 'client',
     });
     const implementation = serverFunction(contract)
-      .pipe(requireCurrentUser)
       .pipe(requireServerPermission('users:read'))
       .handler(({ input, required }) => `${required(CurrentUser).id}:${input}`);
     const requests: ServerFunctionRequest[] = [];
     TestBed.configureTestingModule({
       providers: [
-        { provide: CurrentUser, useValue: { id: 'u-1' } },
         provideServerFunctionTransport(async (request) => {
           requests.push(request);
           return 'u-1:4';
@@ -80,38 +65,20 @@ describe('server functions', () => {
     });
     const client = createServerFunctionClient<typeof implementation>(
       craftUnique('users.current'),
-      clientContext([requireCurrentUser]),
     );
 
     await expect(
       TestBed.runInInjectionContext(() => client(4)),
     ).resolves.toBe('u-1:4');
-    // La valeur lue dans le DI du navigateur voyage dans le canal `context`,
-    // versionné, jamais mélangée à l'input.
-    expect(requests).toEqual([
-      {
-        id: 'users.current',
-        input: 4,
-        context: { CurrentUser: { id: 'u-1' } },
-        protocolVersion: 1,
-      },
-    ]);
+    // Aucun contexte client attendu : la requête garde sa forme historique.
+    expect(requests).toEqual([{ id: 'users.current', input: 4 }]);
 
     const server = createServer({
       functions: [implementation],
-      // Le résolveur serveur existe, mais `required(CurrentUser)` ne l'utilise
-      // plus : la valeur vient du navigateur, validée, jamais du DI serveur.
-      runtime: { resolve: <Value>() => ({ id: 'server-side' } as Value) },
+      runtime: { resolve: <Value>() => ({ id: 'u-1' } as Value) },
       checkPermission: (permission) => permission === 'users:read',
     });
-    await expect(
-      server.invoke('users.current', 4, { CurrentUser: { id: 'u-1' } }),
-    ).resolves.toBe('u-1:4');
-
-    // Fail-closed : sans contexte client, la requête est refusée.
-    await expect(server.invoke('users.current', 4)).rejects.toThrow(
-      'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID',
-    );
+    await expect(server.invoke('users.current', 4)).resolves.toBe('u-1:4');
   });
 
   it('rejette une permission déclarée mais refusée', async () => {

@@ -222,7 +222,12 @@ function findSchemaAnnotation(node: Node | undefined, value: string): Node | und
 }
 
 function readSensitivity(call: CallExpression): string | undefined {
-  if (!call.getExpression().getText().endsWith('annotations')) return undefined;
+  // Effect expose l'annotation en méthode (`Schema.String.annotate({ … })`) ;
+  // `annotations` reste accepté pour les variantes qui l'orthographient ainsi.
+  const callee = call.getExpression().getText();
+  if (!callee.endsWith('annotate') && !callee.endsWith('annotations')) {
+    return undefined;
+  }
   const object = call
     .getArguments()[0]
     ?.asKind(SyntaxKind.ObjectLiteralExpression);

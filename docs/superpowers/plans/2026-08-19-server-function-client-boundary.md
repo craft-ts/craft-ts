@@ -32,8 +32,8 @@ Deux explorations préalables ont contraint le design :
 | Modèle d'exécution du middleware client | **Générateur craft nu** (`.client(run)` où `run` est `function* ({ input, context, next })`), drivé par la **pompe asynchrone** de craft (`executeGeneratorCompatibleFactoryAsync`) — même famille que les guards. Un `yield*` d'Effect reste possible si le pont est installé ; le core reste Effect-free au runtime. |
 | Où vit `.client(...)` | **Même builder** `craftMiddleware(id)`, second terminal à côté de `.server(run)`, kind `'client-function-middleware'`. `.use(...)` refuse de mélanger les deux familles, au terminal. |
 | Convention de nommage | **`*.mw-client.ts`**, symétrique à `*.mw-serveur.ts`. Hors convention → diagnostic misnamed. |
-| Portée de `requireClientDI` | **Seul `mode: 'snapshot'`.** `reactive`/`cancel-on-change` restent dans `ClientDIRequirementMode` pour la doc, mais la signature ne les accepte pas — les simuler demanderait un tracking caché dans le loader. |
-| Deux mécanismes complémentaires | `requireClientDI(token, { key, schema })` pour le cas simple (un token, zéro fichier), `craftMiddleware(id).client(...)` pour la composition. Les deux s'attachent par `clientContext([...])` sur la façade. |
+| Modes réactifs | **Aucun.** Un générateur s'exécute à l'appel, point. Les simuler demanderait un tracking caché dans le loader, alors que seul `params()` est une dépendance suivie ; la voie reste de composer la lecture dans le `params()` de l'appelant. |
+| Comment le navigateur remplit le canal | **Un middleware client, toujours.** `craftHandshakeMiddleware(handshake, run)` pour le cas simple — une déclaration, lue comme un service — et `craftMiddleware(id).client(...)` pour la composition. Les deux s'attachent par `clientContext([...])` sur la façade. |
 | Comment le serveur déclare ce qu'il attend | `.clientContext(schema)` sur un middleware **serveur**, et/ou `{ clientContext: schema }` sur `serverFunction(...)`. Fusion identique à celle des schémas d'input. Le serveur n'importe **jamais** un `*.mw-client.ts`. |
 | Transport | `context?: unknown` et `protocolVersion?: 1` sur `ServerFunctionRequest`. Absence des deux = format historique `{ id, input }`, inchangé. |
 | Confiance | `context` validé par schéma côté serveur, jamais fusionné dans le `context` de confiance : il atterrit dans un champ distinct, `clientContext`, sur `ServerFunctionHandlerContext` **et** sur le contexte d'exécution des middleware serveur. |
@@ -182,6 +182,35 @@ type ServerFunctionRequest = {
 - [x] Démo : la famille `authenticated-list` passe aux handshakes (identité +
       les deux fragments de contexte client) ; `list` reste sur `craftUnique`,
       pour que les deux orthographes restent exercées.
+
+### Étape 8 — `craftHandshakeMiddleware`, et la fin de `requireClientDI`
+
+> `requireClientDI(token, { mode, key, schema })` disait « lis cette valeur dans
+> le navigateur » en quatre déclarations, dont trois répétées de l'autre côté.
+
+- [x] `craftHandshakeMiddleware(handshake, run)` : le corps est un générateur
+      craft, le nom et le schéma viennent du handshake. Rien n'est répété, donc
+      rien ne peut diverger.
+- [x] `requireClientDI`, `ClientDIRequirement`, `ClientDITokensOf` et le mode
+      `snapshot` supprimés. Avec eux disparaissent : la clé de transport portée
+      par le pipe, la règle de collision entre clés DI et clés de middleware, le
+      porteur contravariant `__clientDI` du site d'attache, et le branchement de
+      `required()` sur le contexte client — `required(token)` redevient ce qu'il
+      dit être, une résolution dans le DI **du serveur**.
+- [x] Le graphe reconnaît `craftHandshakeMiddleware(...)` comme middleware
+      client, id compris.
+- [x] **Règle par famille** : `CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED` et
+      `..._NOT_EXPECTED`. `assertCraftHandshake` répond « ce nom a-t-il un
+      pendant quelque part ? » ; celle-ci répond « cette server function-là
+      reçoit-elle ce qu'elle attend ? », en suivant les arêtes `middleware-uses`
+      côté serveur et `client-middleware-attached` côté client.
+- [x] `..._CLIENT_DI_REQUIRES_CLIENT_EXPOSURE` repointé en
+      `..._CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE` : une fonction qui déclare
+      un contexte client doit être exposée au client, sinon aucun navigateur ne
+      peut le remplir.
+- [x] Démo alignée sur la règle `no-injection-token` arrivée entre-temps :
+      `ClaimedUserId` est un `craftService({ providedIn: 'abstract' })`, fourni
+      par `provideClaimedUserId(...)` dans `app.config.ts`.
 
 ### Étape 6 — Démo et documentation
 

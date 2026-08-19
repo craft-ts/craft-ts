@@ -597,7 +597,7 @@ describe('server function architecture', () => {
     expect(() => assertCraftUnique(graph.graph)).toThrow(/Duplicate craftUnique/);
   });
 
-  it('reports missing families, server imports in clients, client DI misuse and duplicate ids', async () => {
+  it('reports missing families, server imports in clients, a client context on a server-only function, and duplicate ids', async () => {
     const graph = await graphOf({
       'broken.fn-contract.ts': `
         declare function serverFunctionContract(value: unknown): unknown;
@@ -620,10 +620,10 @@ describe('server function architecture', () => {
         declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
         export const two = serverFunction('duplicate', {}).handler(() => 2);
       `,
-      'di-only.fn-serveur.ts': `
-        declare function serverFunction(...values: unknown[]): { pipe(value: unknown): { handler(value: unknown): unknown } };
-        declare function requireClientDI(value: unknown): unknown;
-        export const diOnly = serverFunction('di-only', {}).pipe(requireClientDI({})).handler(() => 1);
+      'client-context-only.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        declare const shape: unknown;
+        export const clientContextOnly = serverFunction('client-context-only', {}, { exposure: 'server', clientContext: shape }).handler(() => 1);
       `,
     });
 
@@ -632,7 +632,7 @@ describe('server function architecture', () => {
       expect.arrayContaining([
         'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING',
         'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER',
-        'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE',
+        'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE',
         'CRAFT_SERVER_FUNCTION_DUPLICATE_ID',
       ]),
     );
@@ -970,6 +970,59 @@ describe('server function architecture', () => {
     expect(craftHandshakeViolations(graph.graph)).toEqual([]);
     // Et le facade n'a plus besoin de craftUnique : le handshake tient le rôle.
     expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('exige que le handshake soit attaché sur la façade de la même famille', async () => {
+    const files = (attach: string) => ({
+      'users/list.handshake.ts': `
+        declare function craftHandshake<N extends string>(name: N, schema?: unknown): N;
+        declare const Schema: { Struct(value: unknown): unknown; String: unknown };
+        export const listUsers = craftHandshake('users.list');
+        export const sessionShape = craftHandshake('users.session', Schema.Struct({ userId: Schema.String }));
+      `,
+      'users/session.mw-serveur.ts': `
+        import { sessionShape } from './list.handshake';
+        declare function craftMiddleware(id: string): { clientContext(value: unknown): any; server(value: unknown): unknown };
+        export const claimedUser = craftMiddleware('demo.claimed-user').clientContext(sessionShape).server(({ clientContext }: any) => clientContext.userId);
+      `,
+      'users/session.mw-client.ts': `
+        import { sessionShape } from './list.handshake';
+        declare function craftHandshakeMiddleware(handshake: unknown, run: unknown): unknown;
+        export const sessionContext = craftHandshakeMiddleware(sessionShape, function* () {
+          return { userId: 'u-1' };
+        });
+      `,
+      'users/list.fn-serveur.ts': `
+        import { listUsers } from './list.handshake';
+        import { claimedUser } from './session.mw-serveur';
+        declare function serverFunction(...values: unknown[]): { use(value: unknown): any; handler(value: unknown): unknown };
+        export const listUsersFn = serverFunction(listUsers, {}, { exposure: 'client' }).use(claimedUser).handler(() => 1);
+      `,
+      'users/list.fn-client.ts': `
+        import { listUsers } from './list.handshake';
+        import { sessionContext } from './session.mw-client';
+        import type { listUsersFn as ServerListUsers } from './list.fn-serveur';
+        declare function clientContext(value: unknown): unknown;
+        declare function createServerFunctionClient<T>(id: unknown, attached?: unknown): unknown;
+        void sessionContext;
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers, clientContext([${attach}]));
+      `,
+    });
+
+    // Attaché : la chaîne serveur reçoit ce qu'elle attend.
+    const honoured = await graphOf(files('sessionContext'));
+    expect(serverFunctionArchitectureViolations(honoured.graph)).toEqual([]);
+    expect(craftHandshakeViolations(honoured.graph)).toEqual([]);
+
+    // Le middleware existe et le handshake est bien tenu des deux côtés — mais
+    // la façade ne l'attache pas. Seule la règle par famille peut le voir.
+    const detached = await graphOf(files(''));
+    expect(craftHandshakeViolations(detached.graph)).toEqual([]);
+    expect(
+      serverFunctionArchitectureViolations(detached.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toEqual(['CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED']);
   });
 
   it('signale un handshake sans pendant, non statique, ou déclaré deux fois', async () => {

@@ -3908,7 +3908,7 @@ type ServerFunctionPart = {
   readonly family: string;
   readonly id?: string;
   readonly exposure?: string;
-  readonly usesClientDI?: boolean;
+  readonly declaresClientContext?: boolean;
   readonly contractFamily?: string;
   readonly clientDefinitionFile?: string;
   readonly usesCraftUnique?: boolean;
@@ -3973,7 +3973,7 @@ function collectServerFunctions(
         family,
         id: server?.id,
         exposure: server?.exposure,
-        usesClientDI: server?.usesClientDI,
+        declaresClientContext: server?.declaresClientContext,
         contractFamily: server?.contractFamily,
         runtimeClientImports: imports.client,
         runtimeClientMiddlewareImports: imports.clientMiddleware,
@@ -4014,9 +4014,9 @@ function collectServerFunctions(
           family: relative(builder.rootDir, family),
           ...(part.id === undefined ? {} : { serverFunctionId: part.id }),
           ...(part.exposure === undefined ? {} : { exposure: part.exposure }),
-          ...(part.usesClientDI === undefined
+          ...(part.declaresClientContext === undefined
             ? {}
-            : { usesClientDI: part.usesClientDI }),
+            : { declaresClientContext: part.declaresClientContext }),
           ...(part.contractFamily === undefined
             ? {}
             : { contractFamily: relative(builder.rootDir, part.contractFamily) }),
@@ -4323,7 +4323,7 @@ function collectClientFunctionMiddlewares(
   for (const sourceFile of sourceFiles) {
     if (declaresApi(sourceFile, 'craftMiddleware')) continue;
     const isClientFile = declaresClientMiddleware(sourceFile.getBaseName());
-    for (const part of findCraftMiddlewares(sourceFile)) {
+    for (const part of findCraftMiddlewares(sourceFile, byPath)) {
       if (part.terminal !== 'client') continue;
       if (!isClientFile) {
         addNode(builder, {
@@ -4700,6 +4700,7 @@ function middlewareNodeId(filePath: string, variableName: string): string {
 
 function findCraftMiddlewares(
   sourceFile: SourceFile,
+  byPath?: ReadonlyMap<string, SourceFile>,
 ): ServerFunctionMiddlewarePart[] {
   const parts: ServerFunctionMiddlewarePart[] = [];
   for (const declaration of sourceFile.getVariableDeclarations()) {
@@ -4709,6 +4710,31 @@ function findCraftMiddlewares(
       ...(Node.isCallExpression(initializer) ? [initializer] : []),
       ...initializer.getDescendantsOfKind(SyntaxKind.CallExpression),
     ];
+    // `craftHandshakeMiddleware(handshake, run)` est un middleware client
+    // complet en une déclaration : son id et son schéma viennent du handshake.
+    const handshakeCall = candidates.find(
+      (candidate) =>
+        candidate.getExpression().getText() === 'craftHandshakeMiddleware',
+    );
+    if (handshakeCall && byPath) {
+      const reference = handshakeCall
+        .getArguments()[0]
+        ?.asKind(SyntaxKind.Identifier);
+      const name = reference
+        ? resolveHandshakeName(sourceFile, reference.getText(), byPath)
+        : undefined;
+      parts.push({
+        sourceFile,
+        variableName: declaration.getName(),
+        ...(name === undefined ? {} : { id: name }),
+        uses: [],
+        line: declaration.getStartLineNumber(),
+        terminal: 'client',
+        providesKeys: [],
+      });
+      continue;
+    }
+
     const call = candidates.find(
       (candidate) => candidate.getExpression().getText() === 'craftMiddleware',
     );
@@ -4855,7 +4881,7 @@ function findServerFunction(
   | {
       id?: string;
       exposure?: string;
-      usesClientDI: boolean;
+      declaresClientContext: boolean;
       contractFamily?: string;
       middlewareUses: readonly string[];
     }
@@ -4893,7 +4919,10 @@ function findServerFunction(
   const options = serverCall
     .getArguments()[2]
     ?.asKind(SyntaxKind.ObjectLiteralExpression);
-  const usesClientDI = calls.some((candidate) => candidate.getExpression().getText() === 'requireClientDI');
+  // Une fonction qui déclare attendre un contexte du navigateur n'a de sens
+  // que si un navigateur peut l'appeler.
+  const declaresClientContext =
+    options?.getProperty('clientContext') !== undefined;
   const middlewareUses = chainedCallArguments(serverCall, 'use');
   return {
     id,
@@ -4902,7 +4931,7 @@ function findServerFunction(
       contractIdentifier === undefined
         ? getStringProperty(options, 'exposure') ?? 'server'
         : 'client',
-    usesClientDI,
+    declaresClientContext,
     ...(contractFamily === undefined ? {} : { contractFamily }),
   };
 }

@@ -1,6 +1,5 @@
 import type { ServerFunctionContract } from './server-function-contract';
 import {
-  clientDIRequirementsOf,
   requiresClientContext,
   type ServerFunctionDefinition,
   type ServerFunctionRuntime,
@@ -343,43 +342,7 @@ async function parseServerFunctionClientContext(
     Object.assign(validated, result.value);
   }
 
-  for (const requirement of clientDIRequirementsOf(definition)) {
-    if (!(requirement.key in raw)) {
-      throw new ServerFunctionClientContextError(id, [
-        {
-          message: `missing client-provided value "${requirement.key}".`,
-        },
-      ]);
-    }
-    // Une clé déjà validée par un schéma du contrat ou d'un middleware n'est
-    // pas un conflit : le pipe n'est alors qu'un accesseur typé sur la même
-    // valeur, et c'est la version validée qui gagne.
-    if (Object.prototype.hasOwnProperty.call(validated, requirement.key)) {
-      continue;
-    }
-    validated[requirement.key] = requirement.schema
-      ? await validateClientValue(id, requirement.key, requirement.schema, raw[requirement.key])
-      : raw[requirement.key];
-  }
   return validated;
-}
-
-async function validateClientValue(
-  id: string,
-  key: string,
-  schema: CraftSchema,
-  value: unknown,
-): Promise<unknown> {
-  const result = await schema['~standard'].validate(value);
-  if (result.issues) {
-    throw new ServerFunctionClientContextError(
-      id,
-      result.issues.map((issue) => ({
-        message: `client-provided value "${key}": ${issue.message}`,
-      })),
-    );
-  }
-  return result.value;
 }
 
 export type ServerFunctionFailure = {

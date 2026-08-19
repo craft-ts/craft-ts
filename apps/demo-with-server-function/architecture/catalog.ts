@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "45797195e8fbb2e2",
+  "graphHash": "5a5b023355524f02",
   "routes": [
     "",
     "simple-list"
@@ -14,6 +14,7 @@ export const architectureCatalog = {
     "BrowserNavigatorService",
     "BrowserPerformanceService",
     "BrowserWindowService",
+    "ClaimedUserId",
     "ClientSession",
     "ConsoleService",
     "CookiesService",

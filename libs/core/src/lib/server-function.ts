@@ -4,13 +4,9 @@ import {
   type ServerFunctionContract,
   type ServerFunctionExposure,
 } from './server-function-contract';
-import {
-  isClientDIRequirement,
-  type ClientDIRequirement,
-  type ClientDITokensOf,
-  type ClientDIRequirementOf,
-  type ServerFunctionPipe,
-  type ServerFunctionToken,
+import type {
+  ServerFunctionPipe,
+  ServerFunctionToken,
 } from './client-di-requirement';
 import {
   collectMiddlewareClientContextSchemas,
@@ -33,9 +29,10 @@ import type {
 import type { CraftSchema } from './schema-validation';
 import type * as Effect from 'effect/Effect';
 
-export type ServerFunctionRequired<
-  Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
-> = <Value>(token: ServerFunctionToken<Value> & ClientDITokensOf<Pipes>) => Value;
+/** Résout un token dans le DI **du serveur**, via le `runtime` du registre. */
+export type ServerFunctionRequired = <Value>(
+  token: ServerFunctionToken<Value>,
+) => Value;
 
 type ContractClientContextSchemas<
   Contract extends ServerFunctionContract<any, any, any>,
@@ -86,7 +83,7 @@ export type ServerFunctionHandlerContext<
   readonly clientContext: MergeOptionalSchemaOutputs<
     ServerFunctionClientContextSchemas<Contract, Middlewares>
   >;
-  readonly required: ServerFunctionRequired<Pipes>;
+  readonly required: ServerFunctionRequired;
   readonly pipes: Pipes;
 };
 
@@ -122,26 +119,11 @@ export type ServerFunctionDefinition<
   ) => Output | Promise<Output>;
 };
 
-/** Vrai dès que la fonction attend quoi que ce soit du DI navigateur. */
+/** Vrai dès que la fonction attend un contexte du navigateur. */
 export function requiresClientContext(
   definition: ServerFunctionDefinition<any, any, any, any>,
 ): boolean {
-  return (
-    (definition.clientContextSchemas ?? []).length > 0 ||
-    definition.pipes.some((pipe: ServerFunctionPipe) =>
-      isClientDIRequirement(pipe),
-    )
-  );
-}
-
-/** Les pipes `requireClientDI(...)` déclarés par la fonction. */
-export function clientDIRequirementsOf(
-  definition: ServerFunctionDefinition<any, any, any, any>,
-): readonly ClientDIRequirement[] {
-  return definition.pipes.filter(
-    (pipe: ServerFunctionPipe): pipe is ClientDIRequirement =>
-      isClientDIRequirement(pipe),
-  );
+  return (definition.clientContextSchemas ?? []).length > 0;
 }
 
 export type ServerFunctionRuntime = {
@@ -182,11 +164,7 @@ export type ServerFunctionBuilder<
   Schemas extends readonly CraftSchema[] = readonly [Contract['input']],
 > = {
   readonly pipe: <Pipe extends ServerFunctionPipe>(
-    pipe: Contract['exposure'] extends 'server'
-      ? Pipe extends ClientDIRequirement
-        ? never
-        : Pipe
-      : Pipe,
+    pipe: Pipe,
   ) => ServerFunctionBuilder<
     Contract,
     readonly [...Pipes, Pipe],
@@ -359,19 +337,7 @@ function createDefinition<
     ),
     handler,
     invoke(input, runtime, clientContext) {
-      const required: ServerFunctionRequired<Pipes> = (token) => {
-        // Un token déclaré par `requireClientDI(...)` vient du navigateur : il
-        // se lit dans le contexte client validé, jamais dans le DI du serveur,
-        // sinon la déclaration mentirait sur l'origine de la valeur.
-        const requirement = clientDIRequirementFor(pipes, token);
-        if (requirement) {
-          if (!clientContext || !(requirement.key in clientContext)) {
-            throw new Error(
-              `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_MISSING: Server function "${contract.id}" requires the browser-provided value "${requirement.key}", but the request carried no such client context. Attach requireClientDI(...) on the client facade too.`,
-            );
-          }
-          return clientContext[requirement.key] as never;
-        }
+      const required: ServerFunctionRequired = (token) => {
         if (!runtime?.resolve) {
           throw new Error(
             `Server function "${contract.id}" requires DI, but no server runtime resolver was provided.`,
@@ -397,16 +363,6 @@ function createDefinition<
       ) as Output;
     },
   };
-}
-
-function clientDIRequirementFor(
-  pipes: readonly ServerFunctionPipe[],
-  token: unknown,
-): ClientDIRequirement | undefined {
-  return pipes.find(
-    (pipe): pipe is ClientDIRequirement =>
-      isClientDIRequirement(pipe) && pipe.token === token,
-  );
 }
 
 /**
@@ -470,9 +426,6 @@ export type ServerFunctionError<
   ? Error
   : never;
 
-export type ServerFunctionClientDIValues<
-  Pipes extends readonly ServerFunctionPipe[],
-> = ClientDIRequirementOf<Pipes[number]>;
 
 /**
  * `serverFunction` pré-équipé d'une chaîne de middleware serveur par défaut.

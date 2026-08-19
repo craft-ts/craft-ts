@@ -145,27 +145,29 @@ selected workspace — travels in its own request channel:
 A request without `context` keeps working exactly as before: the field only
 appears when the function declares it needs one.
 
-Two mechanisms feed it, and the demo uses both.
+Everything that fills it is a client middleware backed by a handshake.
 
-**One token, zero files** — `requireClientDI(...)` is declared once in
-`src/shared/claimed-user-id.ts` and replayed on both sides. It is deliberately
-*not* a handshake: the browser DI fills it, not a client middleware, so pairing
-it with one would be a lie.
+**One handshake, one middleware** — `craftHandshakeMiddleware` implements a
+handshake in a single declaration, and it reads like a service: `yield*` what you
+need, return the fragment. Neither the name nor the schema is repeated — both
+come from the handshake, so the two sides cannot say two different things.
 
 ```ts
-export const ClaimedUserId = new InjectionToken<string>('demo/ClaimedUserId');
-
-export const claimedUserId = requireClientDI(ClaimedUserId, {
-  mode: 'snapshot',
-  key: 'userId',
-  schema: Schema.toStandardSchemaV1(Schema.String),
-});
+// src/client/claimed-user.mw-client.ts
+export const claimedUserContext = craftHandshakeMiddleware(
+  claimedUserHandshake,
+  function* () {
+    return { userId: yield* ClaimedUserId() };
+  },
+);
 ```
 
-Only `mode: 'snapshot'` exists. `reactive` and `cancel-on-change` are
-deliberately absent: in Craft, only `params()` is a tracked reactive dependency
-of a loader, so making a DI read inside a loader re-run would mean hidden
-tracking. Compose the read into the caller's `params()` instead.
+`ClaimedUserId` is an ordinary abstract craft service
+(`craftService({ providedIn: 'abstract' }, abstract<string>())`), provided by the
+application in `app.config.ts`. There is no reactive mode: a generator runs when
+the call is made. Making a DI read *re-run* a loader would mean hidden tracking,
+which Craft refuses — in Craft only `params()` is a tracked dependency, so
+compose such a read into the caller's `params()` instead.
 
 **A composed chain** — `src/client/request-context.mw-client.ts` publishes two
 fields through two middleware, one depending on the other. Each field's shape is
@@ -237,10 +239,21 @@ which is the cross-program case. And when a handshake carries a schema, the
 server's `.clientContext(...)` and the client's `.provides(...)` share the *same*
 schema: they can no longer drift.
 
-Three diagnostics: `CRAFT_HANDSHAKE_MISSING_COUNTERPART`,
-`CRAFT_HANDSHAKE_NOT_STATIC`, `CRAFT_HANDSHAKE_DUPLICATE_NAME`. The
-`demo.users.list` family stays on `craftUnique(...)` on purpose, so both spellings
-remain exercised.
+Three global diagnostics: `CRAFT_HANDSHAKE_MISSING_COUNTERPART`,
+`CRAFT_HANDSHAKE_NOT_STATIC`, `CRAFT_HANDSHAKE_DUPLICATE_NAME`. They answer
+*"does this name have a counterpart somewhere?"*.
+
+A fourth answers the only question that matters at the call site — *does **this**
+server function receive what it expects?* —
+`CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED`: the server chain of a family
+expects a handshake that the family's own facade attaches nothing for. A
+handshake honoured at the other end of the repository, but missing from this
+`clientContext([...])`, would still fail at runtime. Its mirror,
+`CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_EXPECTED`, catches a value that would travel
+and be dropped.
+
+The `demo.users.list` family stays on `craftUnique(...)` on purpose, so both
+spellings remain exercised.
 
 The server never imports a `*.mw-client.ts` file — the architecture graph
 forbids it. It only declares the *shape* it expects, with

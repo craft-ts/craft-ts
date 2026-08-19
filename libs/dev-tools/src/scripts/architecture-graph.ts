@@ -1957,7 +1957,9 @@ export function assertInteractiveElementNamed(graph: DependencyGraph): void {
 export type ServerFunctionArchitectureDiagnosticCode =
   | 'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING'
   | 'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER'
-  | 'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE'
+  | 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED'
+  | 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_EXPECTED'
   | 'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH'
   | 'CRAFT_SERVER_FUNCTION_DUPLICATE_ID'
   | 'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE'
@@ -2094,12 +2096,18 @@ export function serverFunctionArchitectureViolations(
         client,
       );
     }
-    if (server?.details?.['usesClientDI'] === true && exposure !== 'client') {
+    if (
+      server?.details?.['declaresClientContext'] === true &&
+      exposure !== 'client'
+    ) {
       add(
-        'CRAFT_SERVER_FUNCTION_CLIENT_DI_REQUIRES_CLIENT_EXPOSURE',
-        'requireClientDI(...) requires a contract with exposure="client".',
+        'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE',
+        'a declared client context requires a contract with exposure="client": no browser can fill it otherwise.',
         server,
       );
+    }
+    for (const violation of familyHandshakeViolations(graph, server, client)) {
+      add(violation.code, violation.reason, violation.node);
     }
     if (contract && exposure === 'server' && client) {
       add(
@@ -2230,6 +2238,106 @@ export function serverFunctionArchitectureViolations(
     }
   }
   return violations;
+}
+
+/**
+ * Vérifie qu'un handshake exigé par la chaîne **serveur** d'une famille est
+ * bien rempli par la chaîne **client** de la *même* famille, et l'inverse.
+ *
+ * `assertCraftHandshake` répond à la question globale — « ce nom a-t-il un
+ * pendant quelque part ? ». Celle-ci répond à la seule qui compte à l'appel :
+ * cette server function-là reçoit-elle ce qu'elle attend ? Un handshake tenu à
+ * l'autre bout du dépôt, mais pas attaché sur cette façade, laisserait la
+ * fonction échouer à l'exécution.
+ */
+function familyHandshakeViolations(
+  graph: DependencyGraph,
+  server: DependencyGraphNode | undefined,
+  client: DependencyGraphNode | undefined,
+): {
+  code: ServerFunctionArchitectureDiagnosticCode;
+  reason: string;
+  node: DependencyGraphNode;
+}[] {
+  if (!server || !client) return [];
+
+  const serverFiles = reachableFiles(graph, server, 'middleware-uses');
+  const clientFiles = new Set([
+    ...reachableFiles(graph, client, 'client-middleware-attached'),
+    ...reachableFiles(graph, client, 'client-middleware-uses'),
+  ]);
+  // Les dépendances d'un middleware client attaché comptent aussi : la chaîne
+  // est aplatie à l'exécution, elle doit l'être ici.
+  for (const file of [...clientFiles]) {
+    for (const node of graph.nodes) {
+      if (node.kind !== 'client-function-middleware') continue;
+      if (relativeGraphPath(graph, node.filePath) !== file) continue;
+      for (const reached of reachableFiles(graph, node, 'client-middleware-uses')) {
+        clientFiles.add(reached);
+      }
+    }
+  }
+
+  const violations: {
+    code: ServerFunctionArchitectureDiagnosticCode;
+    reason: string;
+    node: DependencyGraphNode;
+  }[] = [];
+
+  for (const handshake of graph.nodes.filter((node) => node.kind === 'handshake')) {
+    const name = handshake.details?.['handshakeName'];
+    if (typeof name !== 'string') continue;
+    const declaredBy = sitesOf(handshake, 'serverSites');
+    const filledBy = sitesOf(handshake, 'clientSites');
+    const expected = declaredBy.some((file) => serverFiles.has(file));
+    const attached = filledBy.some((file) => clientFiles.has(file));
+
+    if (expected && !attached) {
+      violations.push({
+        code: 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED',
+        reason: `server chain expects handshake "${name}", but the client facade attaches nothing that fills it. Add its client middleware to clientContext([...]).`,
+        node: client,
+      });
+    } else if (attached && !expected) {
+      violations.push({
+        code: 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_EXPECTED',
+        reason: `client facade attaches handshake "${name}", but no middleware of the server chain expects it. The value would travel and be dropped.`,
+        node: client,
+      });
+    }
+  }
+
+  return violations;
+}
+
+function sitesOf(node: DependencyGraphNode, key: string): string[] {
+  const sites = node.details?.[key];
+  return Array.isArray(sites) ? sites.map((site) => String(site)) : [];
+}
+
+/** Fichiers atteints depuis un nœud en suivant une frontière d'arêtes. */
+function reachableFiles(
+  graph: DependencyGraph,
+  from: DependencyGraphNode,
+  boundary: string,
+): Set<string> {
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const files = new Set<string>();
+  const seen = new Set<string>();
+  const visit = (nodeId: string): void => {
+    if (seen.has(nodeId)) return;
+    seen.add(nodeId);
+    const node = byId.get(nodeId);
+    const file = node && relativeGraphPath(graph, node.filePath);
+    if (file) files.add(file);
+    for (const edge of graph.edges) {
+      if (edge.from !== nodeId) continue;
+      if (edge.details?.['boundary'] !== boundary) continue;
+      visit(edge.to);
+    }
+  };
+  visit(from.id);
+  return files;
 }
 
 /**
