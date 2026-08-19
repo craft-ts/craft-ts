@@ -59,6 +59,7 @@ const NAV_GROUPS = [
       ['Pixel Art Matrix', { to: 'pixel-art-matrix' }],
       ['Exceptions', { to: 'exceptions' }],
       ['Login Form', { to: 'login-form' }],
+      ['State Machine', { to: 'state-machine' }],
       ['Exception QueryParams', { to: 'exception-query-params' }],
     ],
   },

@@ -1,0 +1,115 @@
+:scope {
+  display: block;
+  max-width: 720px;
+  margin: 0 auto;
+  color: #1f2937;
+}
+
+:scope h2 {
+  margin: 0 0 0.25rem;
+}
+
+.intro {
+  margin: 0 0 1.5rem;
+  color: #475569;
+}
+
+.steps {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.step {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.step--active {
+  color: #1d4ed8;
+  border-color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.hint {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid #94a3b8;
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.field label {
+  font-weight: 600;
+  color: #334155;
+}
+
+:scope input[type='text'],
+:scope input[type='email'] {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  font: inherit;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+:scope button {
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 0.45rem;
+  color: #fff;
+  background: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+:scope button:focus-visible,
+:scope input:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+:scope button.secondary {
+  color: #1e293b;
+  background: #e2e8f0;
+}
+
+.blocked {
+  margin: 0;
+  color: #b91c1c;
+}
+
+
+.read-only {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  color: #475569;
+}
