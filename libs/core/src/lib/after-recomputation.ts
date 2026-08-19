@@ -1,7 +1,11 @@
-import { effect, signal, untracked } from './host/craft-compat';
+import { effect, signal, untracked, type Signal } from './host/craft-compat';
 import { SignalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { SourceBranded } from './util/util';
+import {
+  ɵactiveMachineScope,
+  ɵregisterMachineRecomputation,
+} from './craft-state-machine-runtime';
 
 /**
  * Creates a derived readonly source that transforms source emissions through a callback function.
@@ -324,10 +328,34 @@ export function afterRecomputation<State, SourceType>(
   _source: ReadonlySource<SourceType>,
   callback: (source: SourceType) => State,
 ): ReadonlySource<State>;
+/**
+ * Inside a `transitionStep(...)`, `afterRecomputation` is a machine
+ * registration: every time the watched value recomputes, the callback runs
+ * untracked with its declaring step restored, so the `transit(...)` attempts it
+ * yields target that step. Consume it with `yield*` so the callback's
+ * dependencies join the machine's dependency graph.
+ */
+export function afterRecomputation<Value, Yielded>(
+  source: Signal<Value>,
+  callback: (value: Value) => Generator<Yielded, unknown, unknown>,
+): Generator<Yielded, void, unknown>;
 export function afterRecomputation<State, SourceType>(
-  _source: SignalSource<SourceType> | ReadonlySource<SourceType>,
+  _source:
+    | SignalSource<SourceType>
+    | ReadonlySource<SourceType>
+    | Signal<SourceType>,
   callback: (source: SourceType) => State,
-): ReadonlySource<State> {
+  // The machine overload resolves to a registration generator instead of a
+  // readonly source, so the implementation signature stays deliberately loose.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (ɵactiveMachineScope()) {
+    return ɵregisterMachineRecomputation(
+      _source as unknown as Signal<unknown>,
+      callback as (value: never) => unknown,
+    ) as unknown as ReadonlySource<State>;
+  }
+
   const source = _source as ReadonlySource<SourceType>;
   const initialValue = source();
   const derivedSource = signal<State | undefined>(
