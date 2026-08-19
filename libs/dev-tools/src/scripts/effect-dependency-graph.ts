@@ -2,7 +2,55 @@ import { Node, SyntaxKind, type SourceFile } from 'ts-morph';
 import type {
   DependencyGraphEdge,
   DependencyGraphNode,
+  DependencyGraphProof,
 } from './dependency-graph';
+
+export interface EffectServiceNodeDetails {
+  readonly runtime: 'effect';
+  readonly tag: string;
+  readonly serviceName: string;
+}
+
+export interface EffectServiceRequirementDetails {
+  readonly runtime: 'effect';
+  readonly selection: 'whole-service' | 'member';
+  readonly member?: string;
+}
+
+export interface EffectOperationNodeDetails {
+  readonly runtime: 'effect';
+  readonly operationName: string;
+  readonly resolution: 'static' | 'partial' | 'unknown';
+}
+
+export interface EffectLayerNodeDetails {
+  readonly runtime: 'effect';
+  readonly layerName: string;
+  readonly providedServices: readonly string[];
+  readonly requiredServices: readonly string[];
+  readonly compositions: readonly string[];
+  readonly resolution: 'complete' | 'partial' | 'unknown';
+}
+
+export interface EffectLayerRelationDetails {
+  readonly runtime: 'effect';
+  readonly service: string;
+  readonly resolution: 'complete' | 'partial' | 'unknown';
+}
+
+declare module './dependency-graph' {
+  interface DependencyGraphNodeRegistry {
+    'effect-service': EffectServiceNodeDetails;
+    'effect-operation': EffectOperationNodeDetails;
+    'effect-layer': EffectLayerNodeDetails;
+  }
+
+  interface DependencyGraphEdgeRegistry {
+    'requires-service': EffectServiceRequirementDetails;
+    'provided-by-layer': EffectLayerRelationDetails;
+    'composes-layer': { readonly runtime: 'effect' };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Task 3.3 — fine edges for Effect services.
@@ -33,6 +81,7 @@ export type EffectGraphContribution = {
 };
 
 const serviceId = (name: string) => `service:effect:${name}`;
+const effectServiceId = (name: string) => `effect-service:${name}`;
 const memberId = (name: string, member: string) =>
   `property:${serviceId(name)}:${member}`;
 
@@ -128,6 +177,274 @@ export function selectedMemberNames(selector: Node): readonly string[] {
   return [...names];
 }
 
+export type EffectOperationOwner = {
+  readonly name: string;
+  readonly node: DependencyGraphNode;
+  readonly start: number;
+  readonly end: number;
+  readonly filePath: string;
+};
+
+const operationId = (filePath: string, name: string) =>
+  `effect-operation:${filePath}#${name}`;
+
+/**
+ * Finds named Effect operations around direct service reads. This is the
+ * missing owner for standalone functions such as `checkUserAccess`: they are
+ * not Craft services or components, but they still form a meaningful graph
+ * boundary.
+ */
+export function collectEffectOperationOwners(
+  sourceFiles: readonly SourceFile[],
+  services: ReadonlyMap<string, EffectServiceInfo>,
+): Map<string, EffectOperationOwner> {
+  const owners = new Map<string, EffectOperationOwner>();
+
+  for (const sourceFile of sourceFiles) {
+    const candidates = [
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.YieldExpression),
+      ...sourceFile
+        .getDescendantsOfKind(SyntaxKind.CallExpression)
+        .filter((call) => {
+          const callee = call.getExpression().getText();
+          return callee === 'effectService' || callee.endsWith('.effectService');
+        }),
+    ].filter((candidate) => {
+      if (Node.isYieldExpression(candidate)) {
+        const expression = candidate.getExpression();
+        return (
+          expression !== undefined &&
+          Node.isIdentifier(expression) &&
+          services.has(expression.getText())
+        );
+      }
+      return true;
+    });
+
+    for (const candidate of candidates) {
+      const declaration = namedOperationDeclaration(candidate);
+      if (!declaration) continue;
+      const name = declaration.getName();
+      if (!name) continue;
+      const id = operationId(sourceFile.getFilePath(), name);
+      if (owners.has(id)) continue;
+      const node: DependencyGraphNode = {
+        id,
+        kind: 'effect-operation',
+        label: name,
+        filePath: sourceFile.getFilePath(),
+        line: declaration.getStartLineNumber(),
+        details: {
+          runtime: 'effect',
+          operationName: name,
+          resolution: 'static',
+        },
+      };
+      owners.set(id, {
+        name,
+        node,
+        start: declaration.getStart(),
+        end: declaration.getEnd(),
+        filePath: sourceFile.getFilePath(),
+      });
+    }
+  }
+
+  return owners;
+}
+
+function namedOperationDeclaration(
+  node: Node,
+): import('ts-morph').VariableDeclaration | import('ts-morph').FunctionDeclaration | undefined {
+  let current: Node | undefined = node.getParent();
+  while (current) {
+    if (Node.isVariableDeclaration(current) && current.getName()) {
+      const initializer = current.getInitializer();
+      if (
+        (Node.isCallExpression(initializer) &&
+          initializer.getExpression().getText() === 'Effect.gen') ||
+        initializer?.getDescendantsOfKind(SyntaxKind.CallExpression).some(
+          (call) => call.getExpression().getText() === 'Effect.gen',
+        )
+      ) {
+        return current;
+      }
+    }
+    if (Node.isFunctionDeclaration(current) && current.getName()) {
+      return current;
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+export type EffectLayerContribution = EffectGraphContribution;
+
+const layerId = (filePath: string, name: string) =>
+  `effect-layer:${filePath}#${name}`;
+
+/** Collects only Layer forms whose service and composition are statically visible. */
+export function collectEffectLayers(
+  sourceFiles: readonly SourceFile[],
+  services: ReadonlyMap<string, EffectServiceInfo>,
+): EffectLayerContribution {
+  const nodes = new Map<string, DependencyGraphNode>();
+  const edges = new Map<string, DependencyGraphEdge>();
+  const layerDeclarations = new Map<string, import('ts-morph').VariableDeclaration>();
+  const layerNames = new Map<string, string>();
+
+  const addNode = (node: DependencyGraphNode) => {
+    if (!nodes.has(node.id)) nodes.set(node.id, node);
+  };
+  const addEdge = (edge: DependencyGraphEdge) => {
+    const key = `${edge.from}:${edge.kind}:${edge.to}`;
+    if (!edges.has(key)) edges.set(key, edge);
+  };
+  const proof = (node: Node, pattern: string): DependencyGraphProof => ({
+    filePath: node.getSourceFile().getFilePath(),
+    line: node.getStartLineNumber(),
+    pattern,
+  });
+
+  for (const sourceFile of sourceFiles) {
+    for (const declaration of sourceFile.getVariableDeclarations()) {
+      const initializer = declaration.getInitializer();
+      if (!initializer || !containsLayerCall(initializer)) continue;
+      const name = declaration.getName();
+      const id = layerId(sourceFile.getFilePath(), name);
+      layerDeclarations.set(id, declaration);
+      layerNames.set(name, id);
+    }
+  }
+
+  for (const [id, declaration] of layerDeclarations) {
+    const initializer = declaration.getInitializer();
+    if (!initializer) continue;
+    const provided: { name: string; node: Node }[] = [];
+    const required: { name: string; node: Node }[] = [];
+    const compositions: { id: string; node: Node }[] = [];
+    const calls = [
+      ...(Node.isCallExpression(initializer) ? [initializer] : []),
+      ...initializer.getDescendantsOfKind(SyntaxKind.CallExpression),
+    ];
+
+    for (const call of calls) {
+      const callee = call.getExpression().getText();
+      const method = callee.match(/^Layer\.(succeed|sync|effect|scoped)$/)?.[1];
+      if (method) {
+        const argument = call.getArguments()[0];
+        if (argument && Node.isIdentifier(argument)) {
+          const service = services.get(argument.getText());
+          if (service) provided.push({ name: service.name, node: call });
+        }
+      }
+      if (callee === 'Layer.provide' || callee.endsWith('.provide')) {
+        const argument = call.getArguments()[0];
+        if (argument && Node.isIdentifier(argument)) {
+          const target = layerNames.get(argument.getText());
+          if (target) compositions.push({ id: target, node: argument });
+        }
+      }
+    }
+
+    for (const yielded of initializer.getDescendantsOfKind(SyntaxKind.YieldExpression)) {
+      const expression = yielded.getExpression();
+      if (!expression || !Node.isIdentifier(expression)) continue;
+      const service = services.get(expression.getText());
+      if (service && !provided.some((item) => item.name === service.name)) {
+        required.push({ name: service.name, node: yielded });
+      }
+    }
+
+    const resolution =
+      provided.length > 0 &&
+      required.length === 0 &&
+      [...initializer.getDescendantsOfKind(SyntaxKind.CallExpression)].every(
+        (call) => !isUnknownLayerCall(call),
+      )
+        ? 'complete'
+        : provided.length > 0 || required.length > 0
+          ? 'partial'
+          : 'unknown';
+    const node: DependencyGraphNode = {
+      id,
+      kind: 'effect-layer',
+      label: declaration.getName(),
+      filePath: declaration.getSourceFile().getFilePath(),
+      line: declaration.getStartLineNumber(),
+      details: {
+        runtime: 'effect',
+        layerName: declaration.getName(),
+        providedServices: [...new Set(provided.map((item) => item.name))],
+        requiredServices: [...new Set(required.map((item) => item.name))],
+        compositions: [...new Set(compositions.map((item) => item.id))],
+        resolution,
+      },
+    };
+    addNode(node);
+
+    for (const item of provided) {
+      const target = effectServiceId(item.name);
+      addNode({
+        id: target,
+        kind: 'effect-service',
+        label: item.name,
+        filePath: services.get(item.name)?.filePath,
+        line: services.get(item.name)?.line,
+        details: {
+          runtime: 'effect',
+          tag: services.get(item.name)?.key ?? item.name,
+          serviceName: item.name,
+        },
+      });
+      addEdge({
+        from: target,
+        to: id,
+        kind: 'provided-by-layer',
+        evidence: 'ast',
+        details: { runtime: 'effect', service: item.name, resolution },
+        proof: proof(item.node, `Layer provides ${item.name}`),
+      });
+    }
+    for (const item of required) {
+      const target = effectServiceId(item.name);
+      addEdge({
+        from: id,
+        to: target,
+        kind: 'requires-service',
+        evidence: 'ast',
+        details: { runtime: 'effect', selection: 'whole-service' },
+        proof: proof(item.node, `yield* ${item.name}`),
+      });
+    }
+    for (const item of compositions) {
+      addEdge({
+        from: id,
+        to: item.id,
+        kind: 'composes-layer',
+        evidence: 'ast',
+        details: { runtime: 'effect' },
+        proof: proof(item.node, `Layer provides ${item.id}`),
+      });
+    }
+  }
+
+  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+
+function containsLayerCall(node: Node): boolean {
+  return [
+    ...(Node.isCallExpression(node) ? [node] : []),
+    ...node.getDescendantsOfKind(SyntaxKind.CallExpression),
+  ].some((call) => call.getExpression().getText().startsWith('Layer.'));
+}
+
+function isUnknownLayerCall(call: import('ts-morph').CallExpression): boolean {
+  const callee = call.getExpression().getText();
+  return callee.startsWith('Layer.') &&
+    !/^Layer\.(succeed|sync|effect|scoped|mergeAll|provide)$/.test(callee);
+}
+
 /**
  * Walks `effectService(Tag, selector?)` calls and produces the nodes and edges
  * they justify. `ownerIdOf` maps a call site to the consumer node that should
@@ -138,6 +455,7 @@ export function collectEffectServiceUsage(
   sourceFiles: readonly SourceFile[],
   services: Map<string, EffectServiceInfo>,
   ownerIdOf: (node: Node) => string | undefined,
+  includeBackendRelations = false,
 ): EffectGraphContribution {
   const nodes = new Map<string, DependencyGraphNode>();
   const edges = new Map<string, DependencyGraphEdge>();
@@ -145,6 +463,25 @@ export function collectEffectServiceUsage(
   const addNode = (node: DependencyGraphNode) => {
     if (!nodes.has(node.id)) nodes.set(node.id, node);
   };
+  const addEffectServiceNode = (service: EffectServiceInfo) => {
+    addNode({
+      id: effectServiceId(service.name),
+      kind: 'effect-service',
+      label: service.name,
+      filePath: service.filePath,
+      line: service.line,
+      details: {
+        runtime: 'effect',
+        tag: service.key,
+        serviceName: service.name,
+      },
+    });
+  };
+  const proofFor = (node: Node, pattern: string): DependencyGraphProof => ({
+    filePath: node.getSourceFile().getFilePath(),
+    line: node.getStartLineNumber(),
+    pattern,
+  });
   const addEdge = (edge: DependencyGraphEdge) => {
     const key = `${edge.from}:${edge.kind}:${edge.to}`;
     if (!edges.has(key)) edges.set(key, edge);
@@ -159,6 +496,7 @@ export function collectEffectServiceUsage(
       line: service.line,
       details: { runtime: 'effect', tag: service.key },
     });
+    addEffectServiceNode(service);
   }
 
   for (const sourceFile of sourceFiles) {
@@ -197,6 +535,19 @@ export function collectEffectServiceUsage(
             ...(isInsideLoader(call) ? { resourceRole: 'loader' } : {}),
           },
         });
+        if (includeBackendRelations) {
+          addEdge({
+            from: ownerId,
+            to: effectServiceId(service.name),
+            kind: 'requires-service',
+            evidence: 'ast',
+            details: {
+              runtime: 'effect',
+              selection: 'whole-service',
+            },
+            proof: proofFor(call, call.getExpression().getText()),
+          });
+        }
         continue;
       }
 
@@ -227,7 +578,40 @@ export function collectEffectServiceUsage(
             ...(isInsideLoader(call) ? { resourceRole: 'loader' } : {}),
           },
         });
+        if (includeBackendRelations) {
+          addEdge({
+            from: ownerId,
+            to: effectServiceId(service.name),
+            kind: 'requires-service',
+            evidence: 'ast',
+            details: {
+              runtime: 'effect',
+              selection: 'member',
+              member,
+            },
+            proof: proofFor(call, call.getExpression().getText()),
+          });
+        }
       }
+    }
+
+    for (const yielded of includeBackendRelations
+      ? sourceFile.getDescendantsOfKind(SyntaxKind.YieldExpression)
+      : []) {
+      const expression = yielded.getExpression();
+      if (!expression || !Node.isIdentifier(expression)) continue;
+      const service = services.get(expression.getText());
+      if (!service) continue;
+      const ownerId = ownerIdOf(yielded);
+      if (!ownerId) continue;
+      addEdge({
+        from: ownerId,
+        to: effectServiceId(service.name),
+        kind: 'requires-service',
+        evidence: 'ast',
+        details: { runtime: 'effect', selection: 'whole-service' },
+        proof: proofFor(yielded, `yield* ${service.name}`),
+      });
     }
   }
 

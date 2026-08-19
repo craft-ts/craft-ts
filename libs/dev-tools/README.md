@@ -229,6 +229,49 @@ assertInteractiveElementNamed(graph.graph);
 assertDeclarativeArchitecture(graph.graph);
 ```
 
+### Extending the graph from a TypeScript backend
+
+Backends can add typed node and relation kinds through declaration merging. The
+runtime adapter is still opt-in: importing these types does not run a
+collector.
+
+```ts
+import type {
+  DependencyGraphCollector,
+  DependencyGraphNodeRegistry,
+  DependencyGraphEdgeRegistry,
+} from '@craft-ts/dev-tools/dependency-graph';
+
+declare module '@craft-ts/dev-tools/dependency-graph' {
+  interface DependencyGraphNodeRegistry {
+    'my-service': { runtime: 'my-backend'; tag: string };
+  }
+  interface DependencyGraphEdgeRegistry {
+    'requires-my-service': { selection: 'whole' | 'member'; member?: string };
+  }
+}
+
+const myBackend: DependencyGraphCollector = {
+  name: 'my-backend',
+  collect({ sourceFiles }) {
+    // Return AST/type-backed nodes and relations, including `proof` when
+    // possible. The collector does not mutate rules or renderers.
+    return { nodes: [], edges: [], diagnostics: [] };
+  },
+};
+
+const graph = createArchitectureGraph(
+  analyzeDependencyGraph({ collectors: [myBackend] }),
+);
+
+const services = graph.nodes('my-service');
+const relations = graph.edges('requires-my-service');
+```
+
+`graph.pathsBetween(fromId, toId)` returns nodes, relations and their source
+proofs. Unknown kinds are retained in JSON and generic renderers display their
+kind as a fallback, so an adapter does not need to patch the core renderer.
+
 `noExclusiveLink` forbids edges between nodes exclusive to each branch. A shared
 kernel (Auth, HTTP client, …) is allowed. Branch membership stops at other
 `provides` sites so a leak into another feature is not reclassified as shared.
@@ -502,6 +545,7 @@ Notes:
 - the ESLint Quick Fix can generate a missing alias or refresh an existing one, but only for the current file
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`
 - `craft-ts/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
+- `craft-ts/no-injection-token` forbids authored `InjectionToken` contracts in favor of `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
 - `craft-ts/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
 - `craft-ts/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ts/component` in `craftComponent(...)`

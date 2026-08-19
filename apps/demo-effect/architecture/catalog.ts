@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "8c068d59a716e180",
+  "graphHash": "b8dd55fe13ed6b37",
   "routes": [
     "",
     "access",
@@ -74,7 +74,20 @@ export const architectureCatalog = {
   "componentProviders": {},
   "providedOn": {},
   "collisions": {
-    "services": {},
+    "services": {
+      "AccessPolicyService": [
+        "apps/demo-effect/src/app/shared/access-domain.ts",
+        "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "SessionService": [
+        "apps/demo-effect/src/app/shared/access-domain.ts",
+        "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "TeamContextService": [
+        "apps/demo-effect/src/app/shared/access-domain.ts",
+        "apps/demo-effect/src/app/shared/access-domain.ts"
+      ]
+    },
     "components": {},
     "routes": {}
   },

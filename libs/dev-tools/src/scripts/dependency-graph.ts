@@ -18,9 +18,12 @@ import {
 } from './architecture-graph.js';
 
 import {
+  collectEffectLayers,
+  collectEffectOperationOwners,
   collectEffectServices,
   collectEffectServiceUsage,
 } from './effect-dependency-graph.js';
+import { collectDataFlowGraph } from './data-flow-graph.js';
 
 /**
  * The graph's built-in vocabulary.  Values are deliberately detail records
@@ -163,6 +166,10 @@ export type AnalyzeDependencyGraphOptions = {
   include?: readonly string[];
   /** Additional collectors are opt-in; importing their types has no effect. */
   collectors?: readonly DependencyGraphCollector[];
+  /** Repository-declared middleware capabilities used by security rules. */
+  middlewareCapabilities?: Readonly<
+    Record<string, readonly string[]>
+  >;
 };
 
 export type DependencyGraphCollectorContext = {
@@ -351,6 +358,7 @@ type GraphBuilder = {
   componentByVariableKey: Map<string, ComponentInfo>;
   componentsByVariableName: Map<string, ComponentInfo[]>;
   diagnostics: DependencyGraphDiagnostic[];
+  middlewareCapabilities: Readonly<Record<string, readonly string[]>>;
 };
 
 export function analyzeDependencyGraph(
@@ -386,6 +394,7 @@ export function analyzeDependencyGraph(
     componentByVariableKey: new Map(),
     componentsByVariableName: new Map(),
     diagnostics: [],
+    middlewareCapabilities: options.middlewareCapabilities ?? {},
   };
 
   const sourceFiles = project
@@ -3787,7 +3796,23 @@ function collectEffectGraph(
   sourceFiles: readonly SourceFile[],
 ): void {
   const services = collectEffectServices(sourceFiles);
+  const dataFlow = collectDataFlowGraph(sourceFiles);
+  for (const node of dataFlow.nodes) addNode(builder, node);
+  for (const edge of dataFlow.edges) {
+    addEdge(
+      builder,
+      edge.from,
+      edge.to,
+      edge.kind,
+      edge.evidence,
+      edge.details,
+      edge.proof,
+    );
+  }
   if (services.size === 0) return;
+
+  const operationOwners = collectEffectOperationOwners(sourceFiles, services);
+  for (const owner of operationOwners.values()) addNode(builder, owner.node);
 
   const owners: readonly { start: number; end: number; id: string; file: string }[] =
     [
@@ -3824,7 +3849,16 @@ function collectEffectGraph(
     if (enclosingPrimitive && primitive && best) {
       return addPrimitiveNode(builder, enclosingPrimitive, primitive, best.id).id;
     }
-    return best?.id;
+    if (best) return best.id;
+    const operation = [...operationOwners.values()]
+      .filter(
+        (candidate) =>
+          candidate.filePath === file &&
+          candidate.start <= start &&
+          candidate.end >= start,
+      )
+      .sort((left, right) => left.end - left.start - (right.end - right.start))[0];
+    return operation?.node.id;
   };
 
   const contribution = collectEffectServiceUsage(
@@ -3848,6 +3882,21 @@ function collectEffectGraph(
       edge.proof,
     );
   }
+
+  const layers = collectEffectLayers(sourceFiles, services);
+  for (const node of layers.nodes) addNode(builder, node);
+  for (const edge of layers.edges) {
+    addEdge(
+      builder,
+      edge.from,
+      edge.to,
+      edge.kind,
+      edge.evidence,
+      edge.details,
+      edge.proof,
+    );
+  }
+
 }
 
 type ServerFunctionPart = {
@@ -4206,6 +4255,12 @@ function collectServerFunctionMiddlewares(
       details: {
         ...(part.id === undefined ? {} : { middlewareId: part.id }),
         middlewareName: part.variableName,
+        ...(builder.middlewareCapabilities[part.id ?? part.variableName]
+          ? {
+              protects:
+                builder.middlewareCapabilities[part.id ?? part.variableName],
+            }
+          : {}),
         ...(clientMiddlewareImports.length
           ? {
               runtimeClientMiddlewareImports: clientMiddlewareImports.map(
@@ -4307,6 +4362,12 @@ function collectClientFunctionMiddlewares(
       details: {
         ...(part.id === undefined ? {} : { middlewareId: part.id }),
         middlewareName: part.variableName,
+        ...(builder.middlewareCapabilities[part.id ?? part.variableName]
+          ? {
+              protects:
+                builder.middlewareCapabilities[part.id ?? part.variableName],
+            }
+          : {}),
         ...(part.providesKeys.length
           ? { providesKeys: [...part.providesKeys] }
           : {}),

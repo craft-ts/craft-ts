@@ -179,6 +179,10 @@ const guideSidebar = [
       { text: 'Type-level tests', link: '/guide/testing/type-level' },
       { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
       { text: 'Architecture rules', link: '/guide/testing/architecture' },
+      {
+        text: 'Extensible architecture graph',
+        link: '/guide/testing/extensible-architecture-graph',
+      },
       { text: 'Craft graph vs Nx', link: '/guide/testing/craft-graph-vs-nx' },
     ],
   },

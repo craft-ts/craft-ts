@@ -15,6 +15,7 @@ import {
   assertPrimitiveLoaderRequirements,
   assertRouteDiProofs,
   assertServerFunctionArchitecture,
+  sensitiveOutputProtectionViolations,
 } from '@craft-ts/dev-tools/architecture-graph';
 import { loadArchitectureGraph } from './load-graph';
 
@@ -67,6 +68,33 @@ describe('architecture', () => {
       kind: 'requires-service',
       proof: { pattern: 'yield* UserRepository' },
     });
+  });
+
+  it('tracks annotated data to the exposed server-function response', () => {
+    const email = graph.nodes('data-classification').find(
+      (node) => node.label === 'UserEmail [personal-data]',
+    );
+    const output = graph.nodes('external-output').find(
+      (node) => node.details?.serverFunctionId === 'demo.users.list',
+    );
+    expect(email).toBeDefined();
+    expect(output).toBeDefined();
+    const exposure = graph.edges('exposes-data').find(
+      (edge) => edge.from === email?.id && edge.to === output?.id,
+    );
+    expect(exposure).toMatchObject({
+      details: { classification: 'personal-data', resolution: 'static' },
+      proof: { pattern: expect.stringContaining('server function output') },
+    });
+  });
+
+  it('applies repository-declared middleware capabilities to sensitive outputs', () => {
+    const violations = sensitiveOutputProtectionViolations(graph.graph, {
+      categories: ['personal-data'],
+    });
+    expect(violations).toHaveLength(1);
+    expect(violations[0]?.outputId).toContain('list.fn-serveur.ts');
+    expect(violations[0]?.classification).toBe('personal-data');
   });
 
   it('models the server-function middleware chain', () => {

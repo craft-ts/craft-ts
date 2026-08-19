@@ -305,6 +305,9 @@ Each node exposes `providers()`, `provider(name)`, `outgoing(kind?)`,
 in depth. `{ storeName, key }` and `{ key, storeName }` index as the same
 string.
 
+For adding a TypeScript backend with its own typed nodes and relations, see
+[Extensible architecture graph](/guide/testing/extensible-architecture-graph).
+
 ## Built-in helpers
 
 The declarative baseline is five graph-wide checks. Import them all, then

@@ -38,6 +38,33 @@ describe('architecture', () => {
     expect(graph.service('TeamContextService').kind).toBe('service');
   });
 
+  it('indexes standalone Effect operations, their services, and static Layers', () => {
+    expect(
+      graph.nodes('effect-operation').map((node) => node.label),
+    ).toEqual(expect.arrayContaining(['checkUserAccess', 'loadTeamOverview']));
+    expect(
+      graph.nodes('effect-layer').map((node) => node.label),
+    ).toEqual(
+      expect.arrayContaining(['AccessPolicyLive', 'SessionLive', 'SupportTeamLive']),
+    );
+
+    const requiredServices = graph
+      .edges('requires-service')
+      .map((edge) => graph.graph.nodes.find((node) => node.id === edge.to)?.label)
+      .filter((label): label is string => Boolean(label));
+    expect(requiredServices).toEqual(
+      expect.arrayContaining(['AccessPolicyService', 'SessionService', 'TeamContextService']),
+    );
+
+    const providedByLayer = graph.edges('provided-by-layer');
+    expect(providedByLayer.length).toBeGreaterThanOrEqual(3);
+    expect(
+      providedByLayer.some((edge) =>
+        edge.proof?.pattern?.includes('Layer provides AccessPolicyService'),
+      ),
+    ).toBe(true);
+  });
+
   it('requires craftUnique identities to appear once', () => {
     assertCraftUnique(graph.graph);
   });

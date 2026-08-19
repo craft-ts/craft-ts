@@ -18,6 +18,9 @@ export function loadArchitectureGraph() {
   const graph = analyzeDependencyGraph({
     rootDir: workspaceRoot,
     tsConfigFilePath: 'apps/demo-with-server-function/tsconfig.graph.json',
+    middlewareCapabilities: {
+      'demo.request-audit': ['personal-data'],
+    },
   });
   writeFileSync(
     catalogPath,

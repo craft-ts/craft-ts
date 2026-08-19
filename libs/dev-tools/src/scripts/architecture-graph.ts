@@ -114,6 +114,22 @@ export type ExclusiveLinkViolation = {
   kind: DependencyGraphEdgeKind;
 };
 
+export type SensitiveOutputProtectionOptions = {
+  readonly categories?: readonly string[];
+  readonly allowUnknown?: boolean;
+};
+
+export type SensitiveOutputProtectionViolation = {
+  readonly code:
+    | 'SENSITIVE_OUTPUT_UNPROTECTED'
+    | 'SENSITIVE_OUTPUT_UNKNOWN_PROTECTION';
+  readonly classification: string;
+  readonly outputId: string;
+  readonly message: string;
+  readonly path: readonly string[];
+  readonly proofs: readonly DependencyGraphProof[];
+};
+
 type CatalogRoutes<C extends ArchitectureCatalog> = C['routes'][number];
 type CatalogServices<C extends ArchitectureCatalog> = C['services'][number];
 type CatalogComponents<C extends ArchitectureCatalog> = C['components'][number];
@@ -580,6 +596,73 @@ export function dependencyGraphPathsBetween(
   const start = nodesById.get(fromId);
   if (start) visit(fromId, [start], [], new Set([fromId]));
   return paths;
+}
+
+/**
+ * Checks the first conservative security policy for classified server
+ * responses. Capabilities are repository-declared on middleware nodes through
+ * `analyzeDependencyGraph({ middlewareCapabilities })`.
+ */
+export function sensitiveOutputProtectionViolations(
+  graph: DependencyGraph,
+  options: SensitiveOutputProtectionOptions = {},
+): SensitiveOutputProtectionViolation[] {
+  const allowed = options.categories ? new Set(options.categories) : undefined;
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const violations: SensitiveOutputProtectionViolation[] = [];
+
+  for (const exposure of graph.edges.filter((edge) => edge.kind === 'exposes-data')) {
+    const classification = String(exposure.details?.['classification'] ?? 'unknown');
+    if (allowed && !allowed.has(classification)) continue;
+    const output = nodesById.get(exposure.to);
+    if (!output || output.kind !== 'external-output') continue;
+    const serverFunctionId = output.details?.['serverFunctionId'];
+    const serverParts = graph.nodes.filter(
+      (node) =>
+        node.kind === 'server-function-server' &&
+        (node.details?.['serverFunctionId'] === serverFunctionId ||
+          node.filePath === output.filePath),
+    );
+    const middleware = serverParts.flatMap((part) =>
+      graph.edges
+        .filter((edge) => edge.from === part.id && edge.kind === 'depends-on')
+        .map((edge) => nodesById.get(edge.to))
+        .filter(
+          (node): node is DependencyGraphNode =>
+            node?.kind === 'server-function-middleware',
+        ),
+    );
+    const capable = middleware.some((node) => {
+      const protects = node.details?.['protects'];
+      return Array.isArray(protects) && protects.includes(classification);
+    });
+    const unknown = middleware.some(
+      (node) => node.details?.['protectionUnknown'] === true,
+    );
+    if (capable || (unknown && options.allowUnknown)) continue;
+    const proofs = exposure.proof ? [exposure.proof] : [];
+    const code = unknown
+      ? 'SENSITIVE_OUTPUT_UNKNOWN_PROTECTION'
+      : 'SENSITIVE_OUTPUT_UNPROTECTED';
+    violations.push({
+      code,
+      classification,
+      outputId: output.id,
+      path: [exposure.from, output.id],
+      proofs,
+      message: `${code}: ${output.label} exposes ${classification} without a middleware capability protecting ${classification}.`,
+    });
+  }
+  return violations;
+}
+
+export function assertSensitiveOutputsProtected(
+  graph: DependencyGraph,
+  options: SensitiveOutputProtectionOptions = {},
+): void {
+  const violations = sensitiveOutputProtectionViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(violations.map((violation) => violation.message).join('\n'));
 }
 
 export function exclusiveLinkViolations(
