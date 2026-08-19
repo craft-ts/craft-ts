@@ -889,8 +889,18 @@ type MergeDependencyNodes<Left, Right> = ServiceDependencies<
 // generator surfaces its already-built dependency map (keyed by service name) on
 // `ServiceTrackedDepsRequest`; these are folded into the host service tree so
 // dependencies used only inside loaders/effects are detected.
+// An empty dep map has to leave the union BEFORE it is formed: `{} | Map`
+// reduces to `{}` (every object type is assignable to it), which would erase
+// every sibling map — a service mixing a dependency-free primitive with a
+// dependency-carrying one would silently lose the latter.
 type TrackedDepMapOf<Request> =
-  Request extends ServiceTrackedDepsRequest<infer DepMap> ? DepMap : never;
+  Request extends ServiceTrackedDepsRequest<infer DepMap>
+    ? [DepMap] extends [never]
+      ? never
+      : [keyof DepMap] extends [never]
+        ? never
+        : DepMap
+    : never;
 
 type AppStartYieldedOf<Request> =
   Request extends ServiceAppStartRequest<infer AppStartYielded>

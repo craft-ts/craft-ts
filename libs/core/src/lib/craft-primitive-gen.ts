@@ -73,8 +73,20 @@ type PrimitiveExceptionMarker<Ref> = [PrimitiveExceptionUnion<Ref>] extends [
   ? never
   : CraftGenExceptionMarker<PrimitiveExceptionUnion<Ref>>;
 
+/**
+ * A generator's `Yielded` is an INFERRED union, and TypeScript subtype-reduces
+ * those: `ServiceTrackedDepsRequest<{}>` is a supertype of every other tracked
+ * request, so a primitive with no dependency would swallow the requests of every
+ * primitive yielded beside it. Collapsing an empty map to `never` flips the
+ * relation — the dependency-free request is now the subtype, and it is the one
+ * that disappears.
+ */
+type EmptyDepMapToNever<DepMap> = [keyof DepMap] extends [never]
+  ? never
+  : DepMap;
+
 export type CraftPrimitiveGen<Ref, ExceptionRef = Ref> = Generator<
-  | ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>
+  | ServiceTrackedDepsRequest<EmptyDepMapToNever<HelperDependencyMap<Ref>>>
   | PrimitiveExceptionMarker<ExceptionRef>,
   Ref,
   unknown
