@@ -19,7 +19,7 @@
   "devDependencies": {
     "@types/node": "20.19.9",
     "@types/ws": "8.18.1",
-    "typescript": "~5.9.2",
+    "typescript": "6.0.3",
     "vitest": "^4.0.8"
   }
 }

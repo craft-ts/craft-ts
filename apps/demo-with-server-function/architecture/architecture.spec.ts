@@ -34,10 +34,12 @@ describe('architecture', () => {
     expect(graph.graph.version).toBe(1);
   });
 
-  it('indexes both server-function families and their client identities', () => {
+  it('indexes server-function families and their client identities', () => {
     expect(graph.serverFunctionFamilies().map((node) => node.label)).toEqual([
       'demo.users.authenticated-list',
+      'demo.users.effect-middleware-list',
       'demo.users.list',
+      'demo.users.portable-list',
     ]);
     // Deux façons de nommer une famille, toutes deux vérifiées : `craftUnique`
     // pour la chaîne répétée des deux côtés, `craftHandshake` pour l'identité
@@ -51,9 +53,9 @@ describe('architecture', () => {
   });
 
   it('links a server function to its Effect service requirement with proof', () => {
-    const service = graph.nodes('effect-service').find(
-      (node) => node.label === 'UserRepository',
-    );
+    const service = graph
+      .nodes('effect-service')
+      .find((node) => node.label === 'UserRepository');
     expect(service).toBeDefined();
     const serverPart = graph.graph.nodes.find(
       (node) =>
@@ -71,17 +73,17 @@ describe('architecture', () => {
   });
 
   it('tracks annotated data to the exposed server-function response', () => {
-    const email = graph.nodes('data-classification').find(
-      (node) => node.label === 'UserEmail [personal-data]',
-    );
-    const output = graph.nodes('external-output').find(
-      (node) => node.details?.serverFunctionId === 'demo.users.list',
-    );
+    const email = graph
+      .nodes('data-classification')
+      .find((node) => node.label === 'UserEmail [personal-data]');
+    const output = graph
+      .nodes('external-output')
+      .find((node) => node.details?.serverFunctionId === 'demo.users.list');
     expect(email).toBeDefined();
     expect(output).toBeDefined();
-    const exposure = graph.edges('exposes-data').find(
-      (edge) => edge.from === email?.id && edge.to === output?.id,
-    );
+    const exposure = graph
+      .edges('exposes-data')
+      .find((edge) => edge.from === email?.id && edge.to === output?.id);
     expect(exposure).toMatchObject({
       details: { classification: 'personal-data', resolution: 'static' },
       proof: { pattern: expect.stringContaining('server function output') },
@@ -103,13 +105,19 @@ describe('architecture', () => {
         .serverFunctionMiddlewares()
         .map((node) => node.label)
         .sort(),
-    ).toEqual(['demo.admin-only', 'demo.matching-user', 'demo.request-audit']);
+    ).toEqual([
+      'demo.admin-only',
+      'demo.effect-audit',
+      'demo.matching-user',
+      'demo.portable-audit',
+      'demo.request-audit',
+    ]);
 
     // matchingUser -> adminOnly, et la server function -> ses deux middleware.
     const uses = graph.graph.edges.filter(
       (edge) => edge.details?.['boundary'] === 'middleware-uses',
     );
-    expect(uses).toHaveLength(3);
+    expect(uses).toHaveLength(5);
   });
 
   it('models the client middleware chain and where it is attached', () => {
@@ -188,7 +196,8 @@ describe('architecture', () => {
         {
           label: 'an Effect service',
           matches: ({ target }) =>
-            target.kind === 'service' && target.details?.['runtime'] === 'effect',
+            target.kind === 'service' &&
+            target.details?.['runtime'] === 'effect',
         },
       ],
       // This query is a local DI-state bridge; usersQuery is the server-state

@@ -74,7 +74,7 @@
     "tslib": "^2.3.0",
     "ts-morph": "^24.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "typescript": "6.0.3"
   },
   "peerDependencies": {
     "@angular-eslint/eslint-plugin": ">=21.0.0",

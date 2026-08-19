@@ -102,6 +102,7 @@ const ServerFunctionDemo = craftComponent(
     const isAdmin = craftComputed('isAdmin', function* () {
       return (yield* currentUser())?.role === 'admin';
     });
+    // todo removeImporve and remove all the coments
     const usersQuery = yield* queryEffect(
       'usersQuery',
       {
@@ -126,43 +127,66 @@ const ServerFunctionDemo = craftComponent(
             return result;
           }),
       },
-      ({ resource }) => ({
-        accessDenied: craftComputed('accessDenied', function* () {
-          return (yield* currentUser())?.role === 'member';
-        }),
-        hasUsers: craftComputed('hasUsers', () => resource.hasValue()),
-        isEmpty: craftComputed('isEmpty', function* () {
-          const currentStatus = yield* resource.status();
+      ({ resource, exceptions }) => {
+        const hasUsers = craftComputed('hasUsers', () => resource.hasValue());
+        const notFound = craftComputed('notFound', function* () {
+          const error = (yield* exceptions()).loader;
           return (
-            (yield* currentUser())?.role !== 'member' &&
-            currentStatus !== 'loading' &&
-            currentStatus !== 'reloading' &&
-            !resource.hasValue()
+            isCraftException(error) &&
+            error._tag === 'AuthenticatedUsersNotFound'
           );
-        }),
-        requestTitle: craftComputed('requestTitle', function* () {
-          const currentStatus = yield* resource.status();
-          if ((yield* currentUser())?.role === 'member') {
-            return 'Client-side access denied';
-          }
-          return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'Calling demo.users.authenticated-list…'
-            : 'Server function ready';
-        }),
-        requestDetail: craftComputed('requestDetail', function* () {
-          const currentStatus = yield* resource.status();
-          if ((yield* currentUser())?.role === 'member') {
-            return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
-          }
-          return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'POST /__server-functions · Effect is running'
-            : `Status: ${currentStatus}`;
-        }),
-        resultCount: craftComputed('resultCount', function* () {
-          const value = yield* resource.value();
-          return Array.isArray(value) ? value.length.toString() : '—';
-        }),
-      }),
+        });
+        const notFoundMessage = craftComputed('notFoundMessage', function* () {
+          const error = (yield* exceptions()).loader;
+          if (!isCraftException(error)) return '';
+          const payload = error.payload as { readonly message?: unknown };
+          return `404 · ${String(payload.message ?? 'No matching users.')}`;
+        });
+        return {
+          accessDenied: craftComputed(function* () {
+            return (yield* currentUser())?.role === 'member';
+          }),
+          hasUsers,
+          notFound,
+          notFoundMessage,
+          isEmpty: craftComputed('isEmpty', function* () {
+            const currentStatus = yield* resource.status();
+            return (
+              (yield* currentUser())?.role !== 'member' &&
+              !(yield* notFound()) &&
+              currentStatus !== 'loading' &&
+              currentStatus !== 'reloading' &&
+              !resource.hasValue()
+            );
+          }),
+          requestTitle: craftComputed('requestTitle', function* () {
+            const currentStatus = yield* resource.status();
+            if ((yield* currentUser())?.role === 'member') {
+              return 'Client-side access denied';
+            }
+            if (yield* notFound()) return 'Server returned 404';
+            return currentStatus === 'loading' || currentStatus === 'reloading'
+              ? 'Calling demo.users.authenticated-list…'
+              : 'Server function ready';
+          }),
+          requestDetail: craftComputed('requestDetail', function* () {
+            const currentStatus = yield* resource.status();
+            if ((yield* currentUser())?.role === 'member') {
+              return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
+            }
+            if (yield* notFound()) {
+              return 'No matching users were found on the server';
+            }
+            return currentStatus === 'loading' || currentStatus === 'reloading'
+              ? 'POST /__server-functions · Effect is running'
+              : `Status: ${currentStatus}`;
+          }),
+          resultCount: craftComputed('resultCount', function* () {
+            const value = yield* resource.value();
+            return Array.isArray(value) ? value.length.toString() : '—';
+          }),
+        };
+      },
     );
     yield* usersQuery.call(''); // trigger first call
     const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
@@ -175,11 +199,21 @@ const ServerFunctionDemo = craftComponent(
       searchInput,
       setSearchInput: searchInput.setSearchInput,
       usersQuery,
+      notFound: usersQuery.notFound,
+      notFoundMessage: usersQuery.notFoundMessage,
       currentUser,
       submitSearch,
     };
   },
-  ({ searchInput, setSearchInput, usersQuery, currentUser, submitSearch }) =>
+  ({
+    searchInput,
+    setSearchInput,
+    usersQuery,
+    currentUser,
+    notFound,
+    notFoundMessage,
+    submitSearch,
+  }) =>
     main({ class: 'shell' }, [
       header({ class: 'hero' }, [
         div({ class: 'eyebrow' }, [
@@ -276,6 +310,15 @@ const ServerFunctionDemo = craftComponent(
               span(
                 'The client-side check blocked the request before it reached the network: admin role required.',
               ),
+            ]),
+          ),
+          ifBlock(notFound, () =>
+            div({ class: 'empty' }, [
+              strong('No users found'),
+              span(function* () {
+                return yield* notFoundMessage();
+              }),
+              span('The server returned a 404 exception for this filter.'),
             ]),
           ),
           ifBlock(usersQuery.hasUsers, () =>

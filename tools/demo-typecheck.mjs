@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 
 const workspaceRoot = resolve(import.meta.dirname, '..');
 const statusPath = resolve(workspaceRoot, 'tmp/demo-typecheck-status.json');
-const tsgoPath = resolve(workspaceRoot, 'node_modules/.bin/tsgo');
+const tscPath = resolve(workspaceRoot, 'node_modules/.bin/tsc');
 const nonBlocking = process.argv.includes('--non-blocking');
 
 function writeStatus(status) {
@@ -18,7 +18,7 @@ function writeStatus(status) {
 writeStatus('running');
 
 const result = spawnSync(
-  tsgoPath,
+  tscPath,
   ['-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false'],
   {
     cwd: resolve(workspaceRoot, 'apps/demo'),

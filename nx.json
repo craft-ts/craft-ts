@@ -1,10 +1,7 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -62,30 +59,18 @@
     },
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     }
   },
   "release": {
-    "projects": [
-      "craft-ts-core",
-      "craft-ts-component",
-      "dev-tools",
-      "mcp"
-    ],
+    "projects": ["craft-ts-core", "craft-ts-component", "dev-tools", "mcp"],
     "projectsRelationship": "fixed",
     "releaseTag": {
       "pattern": "v{version}"
     },
     "version": {
-      "manifestRootsToUpdate": [
-        "{projectRoot}"
-      ],
+      "manifestRootsToUpdate": ["{projectRoot}"],
       "currentVersionResolver": "git-tag",
       "git": {
         "commit": false,
@@ -100,5 +85,6 @@
       "workspaceChangelog": true
     }
   },
-  "generators": {}
+  "generators": {},
+  "analytics": false
 }

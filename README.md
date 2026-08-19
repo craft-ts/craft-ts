@@ -39,7 +39,7 @@ It is designed to keep application behavior close to where it is used while maki
 
 `@craft-ts/core` and `@craft-ts/component` have no Angular peer dependencies.
 Angular remains optional through `@craft-ts/angular` when you need Angular
-islands. Node.js 20.19+ (or 22.12+) and TypeScript 5.9+ are required.
+islands. Node.js 20.19+ (or 22.12+) and TypeScript 7+ are required.
 
 ```bash
 npm install @craft-ts/core@beta @craft-ts/component@beta

@@ -1,4 +1,5 @@
 import { createServer } from '@craft-ts/core';
+import { executeEffect } from '@craft-ts/effect';
 import * as NodeHttpServer from '@effect/platform-node/NodeHttpServer';
 import { Effect, Exit, Layer, Scope } from 'effect';
 import * as HttpServerRequest from 'effect/unstable/http/HttpServerRequest';
@@ -11,7 +12,9 @@ import {
 } from './authentication';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-serveur';
 import { listUsers } from '../users/list.fn-serveur';
-import { createDemoDatabase, UserRepository } from './database';
+import { portableListUsers } from '../users/portable-list.fn-serveur';
+import { effectMiddlewareListUsers } from '../users/effect-middleware-list.fn-serveur';
+import { createDemoDatabase } from './database';
 
 export function createDemoApplication(
   authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
@@ -22,20 +25,13 @@ export function createDemoApplication(
     Layer.succeed(CurrentUser)(authenticatedUser),
   );
   const application = createServer({
-    functions: [listUsers, getAuthenticatedUsers],
-    execute(value) {
-      if (!Effect.isEffect(value)) return value;
-      return Effect.runPromise(
-        Effect.provide(
-          value as Effect.Effect<
-            unknown,
-            unknown,
-            UserRepository | CurrentUser
-          >,
-          runtimeLayer,
-        ),
-      );
-    },
+    functions: [
+      listUsers,
+      getAuthenticatedUsers,
+      portableListUsers,
+      effectMiddlewareListUsers,
+    ],
+    execute: executeEffect(runtimeLayer).run,
   });
   return { application, close: database.close };
 }

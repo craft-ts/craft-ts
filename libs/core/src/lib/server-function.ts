@@ -36,17 +36,18 @@ export type ServerFunctionRequired = <Value>(
 
 type ContractClientContextSchemas<
   Contract extends ServerFunctionContract<any, any, any>,
-> = Contract extends ServerFunctionContract<
-  any,
-  any,
-  any,
-  any,
-  infer ClientContextSchema
->
-  ? [ClientContextSchema] extends [CraftSchema]
-    ? readonly [ClientContextSchema]
-    : readonly []
-  : readonly [];
+> =
+  Contract extends ServerFunctionContract<
+    any,
+    any,
+    any,
+    any,
+    infer ClientContextSchema
+  >
+    ? [ClientContextSchema] extends [CraftSchema]
+      ? readonly [ClientContextSchema]
+      : readonly []
+    : readonly [];
 
 /**
  * Le canal du contexte client, fusionné comme celui de l'input : le schéma
@@ -98,12 +99,19 @@ export type ServerFunctionHandler<
 ) => Output;
 
 export type ServerFunctionDefinition<
-  Contract extends ServerFunctionContract<any, any, any> = ServerFunctionContract,
+  Contract extends ServerFunctionContract<
+    any,
+    any,
+    any
+  > = ServerFunctionContract,
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
   Output = unknown,
-  Middlewares extends readonly AnyCraftMiddleware[] = readonly AnyCraftMiddleware[],
+  Middlewares extends
+    readonly AnyCraftMiddleware[] = readonly AnyCraftMiddleware[],
 > = {
   readonly kind: 'server-function';
+  /** Selects whether the registry must hand the result to an opaque adapter. */
+  readonly programMode?: 'portable';
   readonly contract: Contract;
   readonly pipes: Pipes;
   readonly middlewares: Middlewares;
@@ -145,11 +153,7 @@ type ComposedOutput<
   Output,
 > = Middlewares extends readonly []
   ? Output
-  : Output extends Effect.Effect<
-        infer Success,
-        infer Error,
-        infer Requirements
-      >
+  : Output extends Effect.Effect<infer Success, infer Error, infer Requirements>
     ? Effect.Effect<
         Success,
         Error | MergedMiddlewareError<Middlewares>,
@@ -195,7 +199,10 @@ export type ServerFunctionBuilder<
   >;
 };
 
-export function serverFunction<const Id extends string, Schema extends CraftSchema>(
+export function serverFunction<
+  const Id extends string,
+  Schema extends CraftSchema,
+>(
   id: Id,
   input: Schema,
 ): ServerFunctionBuilder<
@@ -217,7 +224,13 @@ export function serverFunction<
     readonly clientContext?: ClientContextSchema;
   },
 ): ServerFunctionBuilder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema, Id, ClientContextSchema>,
+  ServerFunctionContract<
+    Schema,
+    Exposure,
+    OutputSchema,
+    Id,
+    ClientContextSchema
+  >,
   readonly []
 >;
 export function serverFunction<
@@ -250,9 +263,7 @@ export function serverFunction<
   OutputSchema extends CraftSchema | undefined = undefined,
   ClientContextSchema extends CraftSchema | undefined = undefined,
 >(
-  contractOrId:
-    | Id
-    | ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  contractOrId: Id | ServerFunctionContract<Schema, Exposure, OutputSchema>,
   input?: Schema,
   options?: {
     readonly exposure?: Exposure;
@@ -260,7 +271,13 @@ export function serverFunction<
     readonly clientContext?: ClientContextSchema;
   },
 ): ServerFunctionBuilder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema, Id, ClientContextSchema>,
+  ServerFunctionContract<
+    Schema,
+    Exposure,
+    OutputSchema,
+    Id,
+    ClientContextSchema
+  >,
   readonly []
 > {
   const contract = (
@@ -308,7 +325,9 @@ function createBuilder<
         middleware,
       ] as readonly [...Middlewares, typeof middleware]) as never;
     },
-    handler(handler: ServerFunctionHandler<Contract, Pipes, unknown, Middlewares>) {
+    handler(
+      handler: ServerFunctionHandler<Contract, Pipes, unknown, Middlewares>,
+    ) {
       return createDefinition(contract, pipes, middlewares, handler) as never;
     },
   } as unknown as ServerFunctionBuilder<Contract, Pipes, Middlewares>;
@@ -360,6 +379,7 @@ function createDefinition<
         input,
         ({ context }) => call(context),
         clientContext ?? {},
+        required,
       ) as Output;
     },
   };
@@ -371,36 +391,39 @@ function createDefinition<
  */
 export type ServerFunctionInput<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-> = Definition extends ServerFunctionDefinition<
-  infer Contract,
-  any,
-  any,
-  infer Middlewares
->
-  ? MergeSchemaInputs<
-      readonly [Contract['input'], ...MiddlewareSchemasOfAll<Middlewares>]
-    >
-  : never;
+> =
+  Definition extends ServerFunctionDefinition<
+    infer Contract,
+    any,
+    any,
+    infer Middlewares
+  >
+    ? MergeSchemaInputs<
+        readonly [Contract['input'], ...MiddlewareSchemasOfAll<Middlewares>]
+      >
+    : never;
 
 /** Ce que le navigateur doit produire pour cette fonction. */
 export type ServerFunctionExpectedClientContext<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-> = Definition extends ServerFunctionDefinition<
-  infer Contract,
-  any,
-  any,
-  infer Middlewares
->
-  ? MergeOptionalSchemaInputs<
-      ServerFunctionClientContextSchemas<Contract, Middlewares>
-    >
-  : Record<never, never>;
+> =
+  Definition extends ServerFunctionDefinition<
+    infer Contract,
+    any,
+    any,
+    infer Middlewares
+  >
+    ? MergeOptionalSchemaInputs<
+        ServerFunctionClientContextSchemas<Contract, Middlewares>
+      >
+    : Record<never, never>;
 
 export type ServerFunctionOutput<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-> = Definition extends ServerFunctionDefinition<any, any, infer Output, any>
-  ? Output
-  : never;
+> =
+  Definition extends ServerFunctionDefinition<any, any, infer Output, any>
+    ? Output
+    : never;
 
 type AwaitedServerFunctionOutput<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
@@ -408,24 +431,25 @@ type AwaitedServerFunctionOutput<
 
 export type ServerFunctionSuccess<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-> = AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
-  infer Success,
-  infer _Error,
-  infer _Requirements
->
-  ? Success
-  : AwaitedServerFunctionOutput<Definition>;
+> =
+  AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
+    infer Success,
+    infer _Error,
+    infer _Requirements
+  >
+    ? Success
+    : AwaitedServerFunctionOutput<Definition>;
 
 export type ServerFunctionError<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-> = AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
-  infer _Success,
-  infer Error,
-  infer _Requirements
->
-  ? Error
-  : never;
-
+> =
+  AwaitedServerFunctionOutput<Definition> extends Effect.Effect<
+    infer _Success,
+    infer Error,
+    infer _Requirements
+  >
+    ? Error
+    : never;
 
 /**
  * `serverFunction` pré-équipé d'une chaîne de middleware serveur par défaut.

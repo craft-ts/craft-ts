@@ -28,10 +28,7 @@ export class ServerFunctionInputError extends Error {
   readonly id: string;
   readonly issues: readonly { readonly message: string }[];
 
-  constructor(
-    id: string,
-    issues: readonly { readonly message: string }[],
-  ) {
+  constructor(id: string, issues: readonly { readonly message: string }[]) {
     super(
       `CRAFT_SERVER_FUNCTION_INPUT_INVALID: Invalid input for server function "${id}": ${issues
         .map((issue) => issue.message)
@@ -96,10 +93,7 @@ export class ServerFunctionOutputError extends Error {
   readonly id: string;
   readonly issues: readonly { readonly message: string }[];
 
-  constructor(
-    id: string,
-    issues: readonly { readonly message: string }[],
-  ) {
+  constructor(id: string, issues: readonly { readonly message: string }[]) {
     super(
       `CRAFT_SERVER_FUNCTION_OUTPUT_INVALID: Invalid output for server function "${id}": ${issues
         .map((issue) => issue.message)
@@ -147,12 +141,19 @@ export function createServer(
       throw new Error(`Server function "${id}" is not registered.`);
     }
     await checkServerFunctionPermissions(definition, options.checkPermission);
-    const result = await definition.invoke(
+    const invoked = definition.invoke(
       await parseServerFunctionInput(definition, input),
       options.runtime,
       await parseServerFunctionClientContext(definition, clientContext),
     );
-    const executed = options.execute ? await options.execute(result) : result;
+    // Portable definitions keep their opaque program intact until the adapter
+    // sees it. Legacy definitions retain the historical behaviour where a
+    // Promise returned by the handler is awaited before execute(value).
+    const program =
+      definition.programMode === 'portable' ? invoked : await invoked;
+    const executed = options.execute
+      ? await options.execute(program)
+      : await program;
     return parseServerFunctionOutput(definition.contract, executed);
   };
 
@@ -164,7 +165,7 @@ export function createServer(
         return new Response('Method Not Allowed', { status: 405 });
       }
       const body = (await request.json()) as unknown;
-    if (!isRecord(body) || typeof body['id'] !== 'string') {
+      if (!isRecord(body) || typeof body['id'] !== 'string') {
         return new Response('Invalid server function request', { status: 400 });
       }
       try {
@@ -198,7 +199,12 @@ export function createServer(
           );
         }
         const failure = toServerFunctionFailure(error);
-        if (failure) return Response.json({ error: failure }, { status: 422 });
+        if (failure) {
+          return Response.json(
+            { error: failure },
+            { status: serverFunctionFailureStatus(failure) },
+          );
+        }
         return Response.json(
           {
             error: {
@@ -368,6 +374,18 @@ export function toServerFunctionFailure(
     failure[key] = (error as Record<string, unknown>)[key];
   }
   return failure as ServerFunctionFailure;
+}
+
+function serverFunctionFailureStatus(failure: ServerFunctionFailure): number {
+  const status =
+    failure.status ??
+    (isRecord(failure.payload) ? failure.payload['status'] : undefined);
+  return typeof status === 'number' &&
+    Number.isInteger(status) &&
+    status >= 400 &&
+    status <= 599
+    ? status
+    : 422;
 }
 
 async function parseServerFunctionOutput(

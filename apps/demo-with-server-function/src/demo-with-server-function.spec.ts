@@ -4,6 +4,7 @@ import {
   isCraftException,
   provideServerFunctionTransport,
   readServerFunctionFailure,
+  type ServerFunctionInput,
   TestBed,
 } from '@craft-ts/core';
 import {
@@ -15,11 +16,21 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { getAuthenticatedUsers } from './users/authenticated-list.fn-client';
 import { getUsers } from './users/list.fn-client';
+import { getPortableUsers } from './users/portable-list.fn-client';
+import { getEffectMiddlewareUsers } from './users/effect-middleware-list.fn-client';
+import type { effectMiddlewareListUsers as ServerEffectMiddlewareListUsers } from './users/effect-middleware-list.fn-serveur';
 import { provideClaimedUserId } from './shared/claimed-user-id';
 import { demoAuthenticatedUser } from './server/authentication';
 import { listenDemoServer } from './server/server';
 
 const demoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// Compile-time regression guard: an Effect middleware with no input schema
+// must not widen the server-function contract to `object`.
+const effectMiddlewareInputRegression: ServerFunctionInput<
+  typeof ServerEffectMiddlewareListUsers
+> = { filter: 'ada', simulateError: 'none' };
+void effectMiddlewareInputRegression;
 
 describe('demo with server function', () => {
   beforeEach(() => TestBed.resetTestingModule());
@@ -40,6 +51,74 @@ describe('demo with server function', () => {
         `server function demo: client -> ${server.url} -> Effect -> local DB`,
         users,
       );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('calls the portable Promise middleware example through the same registry', async () => {
+    const server = await listenDemoServer();
+    try {
+      configureServerFunctionTransport(server.url);
+
+      const users = await TestBed.runInInjectionContext(() =>
+        getPortableUsers({ filter: 'ada' }),
+      );
+
+      expect(users).toEqual([
+        { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
+      ]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('calls the Effect middleware example through the same registry', async () => {
+    const server = await listenDemoServer();
+    try {
+      configureServerFunctionTransport(server.url);
+
+      const users = await TestBed.runInInjectionContext(() =>
+        getEffectMiddlewareUsers({ filter: 'ada', simulateError: 'none' }),
+      );
+
+      expect(users).toEqual([
+        { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
+      ]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('renders typed server failures from the Effect middleware and handler', async () => {
+    const server = await listenDemoServer();
+    try {
+      configureServerFunctionTransport(server.url);
+
+      const middlewareFailure = await TestBed.runInInjectionContext(() =>
+        getEffectMiddlewareUsers({
+          filter: 'ada',
+          simulateError: 'middleware',
+        }),
+      );
+      expect(middlewareFailure).toMatchObject({
+        _tag: 'DemoMiddlewareFailure',
+        payload: {
+          DemoMiddlewareFailure: { layer: 'effectAudit' },
+        },
+      });
+      expect(isCraftException(middlewareFailure)).toBe(true);
+
+      const handlerFailure = await TestBed.runInInjectionContext(() =>
+        getEffectMiddlewareUsers({ filter: 'ada', simulateError: 'handler' }),
+      );
+      expect(handlerFailure).toMatchObject({
+        _tag: 'DemoHandlerFailure',
+        payload: {
+          DemoHandlerFailure: { operation: 'UserRepository.list' },
+        },
+      });
+      expect(isCraftException(handlerFailure)).toBe(true);
     } finally {
       await server.close();
     }
@@ -144,7 +223,48 @@ describe('demo with server function', () => {
     }
   });
 
-  it('is visible as a valid two-file server-function family', () => {
+  it('returns a 404 exception when authenticated-list has no matching users', async () => {
+    const server = await listenDemoServer();
+    try {
+      configureServerFunctionTransport(server.url);
+      const response = await fetch(`${server.url}/__server-functions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: 'demo.users.authenticated-list',
+          input: { filter: 'does-not-exist' },
+          context: {
+            requestedBy: 'user-ada',
+            locale: 'fr-FR',
+            userId: 'user-ada',
+          },
+          protocolVersion: 1,
+        }),
+      });
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          _tag: 'AuthenticatedUsersNotFound',
+          payload: { status: 404 },
+        },
+      });
+
+      const result = await TestBed.runInInjectionContext(() =>
+        getAuthenticatedUsers({ filter: 'does-not-exist' }),
+      );
+      expect(result).toMatchObject({
+        _tag: 'AuthenticatedUsersNotFound',
+        payload: {
+          payload: { status: 404 },
+        },
+      });
+      expect(isCraftException(result)).toBe(true);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('is visible as valid server-function families', () => {
     const graph = createArchitectureGraph(
       analyzeDependencyGraph({
         rootDir: demoRoot,
@@ -154,7 +274,9 @@ describe('demo with server function', () => {
 
     expect(graph.catalog.serverFunctionFamilies).toEqual([
       'demo.users.authenticated-list',
+      'demo.users.effect-middleware-list',
       'demo.users.list',
+      'demo.users.portable-list',
     ]);
     expect(graph.serverFunctionFamily('demo.users.list').kind).toBe(
       'server-function-family',

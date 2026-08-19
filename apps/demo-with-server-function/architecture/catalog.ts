@@ -1,9 +1,11 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "5a5b023355524f02",
+  "graphHash": "121b83b1419ab0dd",
   "routes": [
     "",
+    "effect-middleware",
+    "portable",
     "simple-list"
   ],
   "services": [
@@ -36,6 +38,8 @@ export const architectureCatalog = {
     "AnonymousComponent@800",
     "AppShell",
     "CraftRouterOutlet",
+    "EffectServerMiddlewareDemo",
+    "PortableServerFunctionDemo",
     "ServerFunctionDemo",
     "SimpleListDemo",
     "craftPending"
@@ -45,16 +49,33 @@ export const architectureCatalog = {
     "copied",
     "currentUser",
     "currentUserQuery",
+    "effectMiddlewareFilter",
+    "effectMiddlewareHasServerError",
+    "effectMiddlewareHasUsers",
+    "effectMiddlewareIsEmpty",
+    "effectMiddlewareServerError",
+    "effectMiddlewareServerErrorText",
+    "effectMiddlewareUsersQuery",
     "hasUsers",
     "instruction",
     "isAdmin",
     "isEmpty",
+    "notFound",
+    "notFoundMessage",
+    "portableHasUsers",
+    "portableIsEmpty",
+    "portableResultCount",
+    "portableSearchInput",
+    "portableUsersQuery",
     "requestDetail",
     "requestTitle",
     "resultCount",
+    "runEffectMiddlewareScenario",
     "searchInput",
     "setCopied",
     "setInstruction",
+    "submitEffectMiddlewareSearch",
+    "submitPortableSearch",
     "submitSearch",
     "usersQuery"
   ],
@@ -64,11 +85,15 @@ export const architectureCatalog = {
   ],
   "serverFunctionFamilies": [
     "demo.users.authenticated-list",
-    "demo.users.list"
+    "demo.users.effect-middleware-list",
+    "demo.users.list",
+    "demo.users.portable-list"
   ],
   "httpEndpoints": [],
   "uniques": [
-    "\"demo.users.list\""
+    "\"demo.users.effect-middleware-list\"",
+    "\"demo.users.list\"",
+    "\"demo.users.portable-list\""
   ],
   "providers": [],
   "routeProviders": {},

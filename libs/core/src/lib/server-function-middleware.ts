@@ -17,6 +17,7 @@ import type {
   CraftClientMiddleware,
 } from './client-function-middleware';
 import type { CraftSchema } from './schema-validation';
+import type { ServerFunctionToken } from './client-di-requirement';
 import type * as Effect from 'effect/Effect';
 
 export {
@@ -40,14 +41,29 @@ export type MiddlewareSchemasOfAll<
   ? readonly [...MiddlewareSchemasOf<Head>, ...MiddlewareSchemasOfAll<Tail>]
   : readonly [];
 
-export type MiddlewareNext = <Context extends MiddlewareContext>(patch: {
+export type MiddlewareProgram = unknown;
+
+export type MiddlewareNext<
+  Program = Effect.Effect<
+    unknown,
+    MiddlewareDownstreamError,
+    never
+  >,
+> = <Context extends MiddlewareContext>(patch: {
   readonly context: Context;
-}) => Effect.Effect<MiddlewareResult<Context>, MiddlewareDownstreamError, never>;
+}) => Program extends Effect.Effect<unknown, infer Error, infer Requirements>
+  ? Effect.Effect<MiddlewareResult<Context>, Error, Requirements>
+  : Program;
 
 export type MiddlewareRunContext<
   Schemas extends readonly CraftSchema[],
   ContextIn extends MiddlewareContext,
   ClientSchemas extends readonly CraftSchema[] = readonly [],
+  Program = Effect.Effect<
+    MiddlewareResult<MiddlewareContext>,
+    MiddlewareDownstreamError,
+    never
+  >,
 > = {
   readonly input: MergeSchemaOutputs<Schemas>;
   readonly context: ContextIn;
@@ -58,7 +74,9 @@ export type MiddlewareRunContext<
    * middleware d'autorisation est là pour confronter à la vraie session.
    */
   readonly clientContext: MergeOptionalSchemaOutputs<ClientSchemas>;
-  readonly next: MiddlewareNext;
+  readonly next: MiddlewareNext<Program>;
+  /** Résout une dépendance dans le runtime serveur de la server function. */
+  readonly resolve: <Value>(token: ServerFunctionToken<Value>) => Value;
 };
 
 export interface CraftMiddleware<
@@ -68,6 +86,7 @@ export interface CraftMiddleware<
   Error = never,
   Requirements = never,
   ClientSchemas extends readonly CraftSchema[] = readonly CraftSchema[],
+  Program = Effect.Effect<unknown, Error, Requirements>,
 > {
   readonly kind: 'server-function-middleware';
   readonly id: Id;
@@ -76,10 +95,69 @@ export interface CraftMiddleware<
   readonly clientContexts: ClientSchemas;
   readonly dependencies: readonly AnyCraftMiddleware[];
   readonly run: (
-    context: MiddlewareRunContext<Schemas, MiddlewareContext, ClientSchemas>,
-  ) => Effect.Effect<unknown, Error, Requirements>;
+    context: MiddlewareRunContext<
+      Schemas,
+      MiddlewareContext,
+      ClientSchemas,
+      Program
+    >,
+  ) => Program;
   /** Porteur type-only du contexte publié, dépendances transitives comprises. */
   readonly __contextOut?: ContextOut;
+  /** Porteur type-only du programme exécuté par ce middleware. */
+  readonly __program?: Program;
+}
+
+/**
+ * Middleware whose program type is owned by the application rather than by
+ * core. The first generic is the only one an adapter needs to specialise.
+ */
+export type PortableServerMiddleware<
+  Program = unknown,
+  Id extends string = string,
+  Schemas extends readonly CraftSchema[] = readonly CraftSchema[],
+  ContextOut extends MiddlewareContext = MiddlewareContext,
+  Error = unknown,
+  Requirements = unknown,
+  ClientSchemas extends readonly CraftSchema[] = readonly CraftSchema[],
+> = CraftMiddleware<
+  Id,
+  Schemas,
+  ContextOut,
+  Error,
+  Requirements,
+  ClientSchemas,
+  Program
+>;
+
+export function portableServerMiddleware<const Id extends string, Program>(
+  id: Id,
+  run: (
+    context: MiddlewareRunContext<
+      readonly [],
+      Record<never, never>,
+      readonly [],
+      Program
+    >,
+  ) => Program,
+): PortableServerMiddleware<
+  Program,
+  Id,
+  readonly [],
+  MiddlewareContext,
+  never,
+  never,
+  readonly []
+> {
+  assertMiddlewareId(id);
+  return Object.freeze({
+    kind: 'server-function-middleware' as const,
+    id,
+    inputs: [] as const,
+    clientContexts: [] as const,
+    dependencies: [] as const,
+    run,
+  });
 }
 
 export type AnyCraftMiddleware = CraftMiddleware<
@@ -88,7 +166,8 @@ export type AnyCraftMiddleware = CraftMiddleware<
   any,
   any,
   any,
-  readonly CraftSchema[]
+  readonly CraftSchema[],
+  any
 >;
 
 export type MiddlewareClientContextsOf<Middleware> =
@@ -98,7 +177,8 @@ export type MiddlewareClientContextsOf<Middleware> =
     any,
     any,
     any,
-    infer ClientSchemas
+    infer ClientSchemas,
+    any
   >
     ? ClientSchemas
     : readonly [];
@@ -116,38 +196,36 @@ export type MiddlewareClientContextsOfAll<
     ]
   : readonly [];
 
-export type MiddlewareSchemasOf<Middleware> = Middleware extends CraftMiddleware<
-  any,
-  infer Schemas,
-  any,
-  any,
-  any,
-  any
->
-  ? Schemas
-  : readonly [];
+export type MiddlewareSchemasOf<Middleware> =
+  Middleware extends CraftMiddleware<
+    any,
+    infer Schemas,
+    any,
+    any,
+    any,
+    any,
+    any
+  >
+    ? Schemas
+    : readonly [];
 
-export type MiddlewareContextOf<Middleware> = Middleware extends CraftMiddleware<
-  any,
-  any,
-  infer Context,
-  any,
-  any,
-  any
->
-  ? Context
-  : never;
+export type MiddlewareContextOf<Middleware> =
+  Middleware extends CraftMiddleware<
+    any,
+    any,
+    infer Context,
+    any,
+    any,
+    any,
+    any
+  >
+    ? Context
+    : never;
 
-export type MiddlewareErrorOf<Middleware> = Middleware extends CraftMiddleware<
-  any,
-  any,
-  any,
-  infer Error,
-  any,
-  any
->
-  ? Error
-  : never;
+export type MiddlewareErrorOf<Middleware> =
+  Middleware extends CraftMiddleware<any, any, any, infer Error, any, any, any>
+    ? Error
+    : never;
 
 export type MiddlewareRequirementsOf<Middleware> =
   Middleware extends CraftMiddleware<
@@ -156,6 +234,7 @@ export type MiddlewareRequirementsOf<Middleware> =
     any,
     any,
     infer Requirements,
+    any,
     any
   >
     ? Requirements
@@ -284,7 +363,8 @@ export interface CraftMiddlewareBuilder<
     OverwriteContext<ContextIn, ContextOut>,
     Error | Exclude<RunError, MiddlewareDownstreamError>,
     Requirements | RunRequirements,
-    ClientSchemas
+    ClientSchemas,
+    Effect.Effect<unknown, Error | RunError, Requirements | RunRequirements>
   >;
   /**
    * Terminal client : `run` est un générateur craft nu, drivé par le runtime
@@ -483,6 +563,11 @@ export function runMiddlewareChain(
   input: unknown,
   handler: MiddlewareChainHandler,
   clientContext: MiddlewareContext = {},
+  resolve: <Value>(token: ServerFunctionToken<Value>) => Value = () => {
+    throw new Error(
+      'This server middleware requires DI, but no server runtime resolver was provided.',
+    );
+  },
 ): unknown {
   const chain = flattenMiddlewares(middlewares);
 
@@ -493,6 +578,7 @@ export function runMiddlewareChain(
       input: input as never,
       context,
       clientContext: clientContext as never,
+      resolve,
       next: ((patch: { readonly context: MiddlewareContext }) =>
         step(index + 1, { ...context, ...patch.context })) as never,
     });

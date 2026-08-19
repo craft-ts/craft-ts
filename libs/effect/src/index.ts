@@ -36,3 +36,11 @@ export {
   type EffectLoader,
   type EffectLoaderParams,
 } from './lib/effect-adapter';
+export {
+  composeEffect,
+  effectServerMiddleware,
+  executeEffect,
+  type EffectMiddlewareNext,
+  type EffectServerMiddleware,
+  type EffectServerMiddlewareContext,
+} from './lib/server-function-middleware';

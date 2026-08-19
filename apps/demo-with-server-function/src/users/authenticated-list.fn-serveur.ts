@@ -1,4 +1,4 @@
-import { serverFunction } from '@craft-ts/core';
+import { craftException, serverFunction } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
 import { UserRepository } from '../server/database';
 import { authenticatedListHandshake } from '../shared/claimed-user-id';
@@ -40,6 +40,19 @@ export const getAuthenticatedUsers = serverFunction(
       yield* Effect.log(
         `demo.users.authenticated-list actor=${context.authenticatedUser.id} claimed=${clientContext.userId} locale=${context.requestLocale}`,
       );
-      return yield* users.list(input.filter);
+      const result = yield* users.list(input.filter);
+      if (result.length === 0) {
+        return yield* Effect.fail(
+          craftException(
+            { _tag: 'AuthenticatedUsersNotFound' },
+            {
+              status: 404,
+              message: `No users matched the filter "${input.filter}".`,
+              filter: input.filter,
+            },
+          ),
+        );
+      }
+      return result;
     }),
   );
