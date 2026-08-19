@@ -85,7 +85,8 @@ myState.reset(); // ❌ Not available (TypeScript error)
 
 ## Automatic Cleanup
 
-`on$` automatically unsubscribes from the source when the Angular injection context is destroyed, preventing memory leaks.
+`on$` automatically unsubscribes from the source when the injection context is
+destroyed, preventing memory leaks.
 
 ## Common Patterns
 
@@ -184,13 +185,13 @@ const { filters } = state('filters', [] as string[], ({ set }) => ({
 }));
 
 // Set some values
-search.set('angular');
+search.set('craft');
 page.next();
 page.next();
 filters.add('tutorial');
 filters.add('advanced');
 
-console.log(search()); // 'angular'
+console.log(search()); // 'craft'
 console.log(page()); // 3
 console.log(filters()); // ['tutorial', 'advanced']
 
@@ -230,10 +231,10 @@ const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, () =
 
 const filters = Filters();
 
-filters.search.set('angular');
+filters.search.set('craft');
 filters.category.set('frameworks');
 
-console.log(filters.search()); // 'angular'
+console.log(filters.search()); // 'craft'
 console.log(filters.category()); // 'frameworks'
 
 // Reset all filters

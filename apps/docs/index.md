@@ -24,7 +24,7 @@ hero:
 
 features:
   - title: Agents drive the tab you already have open
-    details: In development the running app publishes its named controls. A coding agent fills, clicks and inspects that page — no second browser, no DOM reverse-engineering. Unique among frontend frameworks.
+    details: In development the running app publishes its named controls. A coding agent fills, clicks and inspects that page — no second browser or DOM reverse-engineering required.
     link: /guide/ai/dev-page
   - title: Fine-grained reactivity
     details: A signal read inside a binding invalidates only that text, property, class or style. Sibling bindings and the component template stay untouched.

@@ -124,7 +124,7 @@ Every handler receives a `CraftExceptionHandlerContext` typed for its exception 
 | `exception`       | The complete typed `craftException`, including `code`, `scope`, and `payload`.               |
 | `payload`         | The typed payload passed as the second argument of `craftException(...)`.                    |
 | `phase`           | `'enter'` during initial activation, `'active'` during a live guard re-check.                |
-| `router`          | The native Angular `Router` instance.                                                        |
+| `router`          | The active `Router` instance.                                                                |
 | `createUrlTree`   | Bound `Router.createUrlTree`, useful for building a redirect with query params or fragments. |
 | `navigate`        | Bound `Router.navigate`. Imperative; prefer returning `yield* redirectTo(...)`.              |
 | `navigateByUrl`   | Bound `Router.navigateByUrl`. Imperative; prefer a redirect outcome.                         |
@@ -151,7 +151,7 @@ Each handler receives a context and returns an outcome constructor:
 | `stay()`                      | Cancel the navigation; restore the previous URL (stay on the triggering page).                           |
 | `noop()`                      | Render the target anyway, with `resolve` data left `undefined`.                                          |
 
-The context also carries the typed `exception`, its `payload`, the Angular-native `redirect`
+The context also carries the typed `exception`, its `payload`, the native `redirect`
 helpers (`createUrlTree` / `navigate` / `navigateByUrl`), and the navigation `phase` (see below). A
 handler may be a **generator** that `yield*`s craft services before its outcome.
 

@@ -21,7 +21,7 @@
 
 ## What is craft-ts?
 
-craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional. Angular is an optional island via `@craft-ts/angular`.
+craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional.
 
 It is designed to keep application behavior close to where it is used while making dependency graphs visible to the compiler and to tests.
 
@@ -29,7 +29,7 @@ It is designed to keep application behavior close to where it is used while maki
 
 - **One reactive model for every kind of state** — `state`, `query`, `mutation`, `asyncProcess`, and `queryParams` cover local, server, asynchronous, and URL state.
 - **Composable behavior** — insertions add reusable capabilities such as persistence, entity management, selection, pagination placeholders, and optimistic updates.
-- **Function-based services** — `craftService` composes state and dependencies; `toCraftService` (from `@craft-ts/angular`) adapts existing Angular services and tokens.
+- **Function-based services** — `craftService` composes state and dependencies with explicit scopes and typed providers.
 - **Type-safe routing and DI** — typed dependency injection, navigation, route inputs, route providers, guards, pending UI, and lazy-load error handling.
 - **Derived forms** — form state, validation, submission, and interdependent logic remain reactive and declarative.
 - **Deterministic testing** — tests describe the real dependency graph and can isolate browser or platform boundaries explicitly.
@@ -37,20 +37,17 @@ It is designed to keep application behavior close to where it is used while maki
 
 ## Installation
 
-`@craft-ts/core` and `@craft-ts/component` have no Angular peer dependencies.
-Angular remains optional through `@craft-ts/angular` when you need Angular
-islands. Node.js 20.19+ (or 22.12+) and TypeScript 7+ are required.
+`@craft-ts/core` and `@craft-ts/component` provide the runtime and component
+model. Node.js 20.19+ (or 22.12+) and TypeScript 7+ are required.
 
 ```bash
 npm install @craft-ts/core@beta @craft-ts/component@beta
-npm install @craft-ts/angular@beta   # optional Angular islands
 npm install -D @craft-ts/dev-tools@beta
 ```
 
 The packages are currently published on the `beta` channel. `@craft-ts/core`
-provides the reactive primitives, `@craft-ts/component` provides selectorless
-functional components, `@craft-ts/angular` adapts Angular components and
-services, and `@craft-ts/dev-tools` provides the codemods and
+provides the reactive primitives, `@craft-ts/component` provides functional
+components, and `@craft-ts/dev-tools` provides the codemods and
 ESLint rules used by the type-safe DI and routing workflow.
 
 ## Quick start
@@ -122,7 +119,7 @@ This repository is an npm workspace managed with Nx.
 
 ```text
 apps/
-├── demo/          Angular application used for examples and integration checks
+├── demo/          Craft application used for examples and integration checks
 │                  (`architecture/` — static graph Vitest suite)
 ├── demo-effect/   Dedicated EffectTS + CraftTS examples application
 └── docs/          VitePress documentation and documentation tests
@@ -150,7 +147,7 @@ npm ci
 
 ### Run the project locally
 
-Start the Angular demo:
+Start the Craft demo:
 
 ```bash
 npx nx serve demo

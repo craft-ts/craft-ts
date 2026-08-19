@@ -29,10 +29,6 @@ const guideSidebar = [
     items: [
       { text: 'The mental model', link: '/guide/concepts/mental-model' },
       {
-        text: 'What craft adds to Angular',
-        link: '/guide/concepts/vs-angular',
-      },
-      {
         text: 'Which primitive should I use?',
         link: '/guide/concepts/choose-primitive',
       },
@@ -92,10 +88,6 @@ const guideSidebar = [
       { text: 'Service scopes', link: '/guide/app/service-scopes' },
       { text: 'Shaping the public API', link: '/guide/app/expose-api' },
       { text: 'Abstract services', link: '/guide/app/abstract-services' },
-      {
-        text: 'Integrating existing code',
-        link: '/guide/app/integrate-existing',
-      },
       { text: 'App start', link: '/guide/app/app-start' },
       { text: 'Lazy services', link: '/guide/app/lazy-services' },
       { text: 'craftRegisterFor', link: '/guide/app/register' },
@@ -122,10 +114,6 @@ const guideSidebar = [
       },
       { text: 'Route load errors', link: '/guide/routing/route-load-errors' },
       { text: 'Scaling routes', link: '/guide/routing/scaling' },
-      {
-        text: 'Angular brand config',
-        link: '/guide/routing/angular-brand-config',
-      },
     ],
   },
   {
@@ -237,7 +225,7 @@ const resourcesSidebar = [
 export default defineConfig({
   title: '@craft-ts/core',
   base: '/craft/',
-  description: 'Type-safe Angular, by construction',
+  description: 'Type-safe Craft applications, by construction',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/assets/favicon.png',
@@ -333,9 +321,9 @@ export default defineConfig({
       llmstxt({
         title: '@craft-ts/core',
         description:
-          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ts/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
+          'Type-safe Craft applications. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ts/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
         details:
-          'After importing @craft-ts/core, run `npx -y @craft-ts/mcp@beta` and read /resources/ai-agents. In local development, the open ng serve tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
+          'After importing @craft-ts/core, run `npx -y @craft-ts/mcp@beta` and read /resources/ai-agents. In local development, the open development tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Keep authored application code within the Craft primitives and service model.',
         domain: 'https://craft-ts.github.io',
         ignoreFiles: ['public/**', 'README.md'],
       }),

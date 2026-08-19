@@ -256,11 +256,10 @@ matchBlock.exhaustive(() => userQuery.exceptions().loader, '_tag', {
 ## What Craft handles directly
 
 Craft supports compositions that are not native properties of a standard
-Angular component or directive:
+the host component or directive:
 
 - a Craft directive can declare `meta.styles` and contribute to the stylesheet
-  of the component using it; Angular associates styles with a component, not
-  with an `@Directive`;
+  of the component using it; Craft keeps the association with the component;
 - directive styles remain encapsulated with `@scope`, without rewriting
   selectors or adding a wrapper;
 - multiple directives can compose their logic, template, host classes, and
@@ -268,9 +267,8 @@ Angular component or directive:
 - styles are deduplicated and reference-counted across instances, then removed
   when the last instance is destroyed.
 
-With standard Angular, this usually requires moving styles into a component,
-manually adding classes to the host, or managing stylesheet injection and
-cleanup yourself. Craft keeps those responsibilities in the directive runtime.
+The directive runtime owns stylesheet injection, scoping, and cleanup, so those
+responsibilities do not leak into application code.
 
 ## Choosing the right level
 
@@ -299,8 +297,8 @@ In practice:
 
 - `:scope` targets the root itself;
 - `.title` targets `Card` descendants;
-- when a child Craft component or Angular component is encountered, its host
-  becomes a boundary: parent rules can reach the host, but not its internal
+- when a child Craft component is encountered, its root becomes a boundary:
+  parent rules can reach the root, but not its internal
   DOM;
 - ordinary elements do not become boundaries and do not receive an additional
   token;

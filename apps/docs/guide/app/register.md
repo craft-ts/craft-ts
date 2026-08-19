@@ -326,7 +326,7 @@ is no compile error and no runtime error: the signal is simply `undefined`.
 :::
 
 ::: warning Craft targets only
-`craftRegisterFor` does not detect arbitrary Angular classes. It targets
+`craftRegisterFor` does not detect arbitrary classes. It targets
 `craftService`, `craftComponent` and `craftDirective`, whose scope and lifecycle
 the runtime knows.
 :::

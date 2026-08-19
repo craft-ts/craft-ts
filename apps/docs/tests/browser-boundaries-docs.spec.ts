@@ -212,15 +212,10 @@ describe('Type-safe DI/Routes setup doc page', () => {
 
   it('documents the codemod script and the refresh workflow', () => {
     expect(content).toContain(
-      '## 3. Run the Angular brand codemod through the published script',
+      '## 3. Generate dependency metadata',
     );
-    expect(content).toContain('craft-brand --root src/app');
-    expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-gen-deps-required`',
-    );
-    expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ts/brand-angular-deps-match`',
-    );
+    expect(content).toContain('craft-brand --root src');
+    expect(content).toContain('run the dependency generator for the relevant source root');
   });
 
   it('points at the dedicated ESLint rules page', () => {
@@ -236,9 +231,7 @@ describe('ESLint rules doc page', () => {
     expect(content).toContain(
       "'craft-ts/require-cascade-route-di-check': 'error'",
     );
-    expect(content).toContain(
-      'generate missing aliases and refresh existing ones',
-    );
+    expect(content).toContain('Three rules do more than complain');
   });
 });
 
@@ -301,11 +294,8 @@ describe('Browser Boundaries doc page', () => {
     );
   });
 
-  it('links back to craftService and toCraftService', () => {
+  it('links back to craftService', () => {
     expect(content).toContain('[`craftService`](/guide/app/craft-service)');
-    expect(content).toContain(
-      '[`toCraftService`](/guide/app/integrate-existing)',
-    );
   });
 });
 
@@ -386,26 +376,6 @@ describe('craftComputed doc page', () => {
   });
 });
 
-describe('toCraftService doc page', () => {
-  const content = readDoc('../guide/app/integrate-existing.md');
-
-  it('includes an HttpClient adaptation example', () => {
-    expect(content).toContain('## `HttpClient` Example');
-    expect(content).toContain(
-      "",
-    );
-    expect(content).toContain("name: 'HttpClient'");
-    expect(content).toContain('const { HttpClient } = toCraftService({');
-    expect(content).toContain(
-      'const http = yield* HttpClient(undefined, ({ get, post }) => ({',
-    );
-    expect(content).toContain(
-      "listUsers: () => http.get<User[]>('/api/users'),",
-    );
-    expect(content).toContain("http.post<User>('/api/users', payload)");
-  });
-});
-
 describe('craftService doc page', () => {
   const content = readDoc('../guide/app/craft-service.md');
 
@@ -416,41 +386,6 @@ describe('craftService doc page', () => {
     expect(content).toContain("yield* Console.log('startup log');");
     expect(content).toContain(
       'Dependencies used only inside that callback are still tracked on the parent service.',
-    );
-  });
-});
-
-describe('Angular Brand Config doc page', () => {
-  const content = readDoc('../guide/routing/angular-brand-config.md');
-
-  it('documents the project config entrypoint and the main rule shape', () => {
-    expect(content).toContain('# Angular brand config');
-    expect(content).toContain('craft-brand.config.ts');
-    expect(content).toContain('defineAngularBrandConfig');
-    expect(content).toContain('importAugmentations');
-    expect(content).toContain("module: '@ngx-translate/core'");
-    expect(content).toContain("symbols: ['TranslatePipe']");
-    expect(content).toContain("metadata: ['imports']");
-  });
-
-  it('documents the generated deps and lint alignment behavior', () => {
-    expect(content).toContain('TranslateService: TranslateService;');
-    expect(content).toContain('missingProvider');
-    expect(content).toContain('brand-angular-gen-deps-required');
-    expect(content).toContain('brand-angular-deps-match');
-    expect(content).toContain(
-      'A plain TypeScript import in the file is ignored',
-    );
-  });
-
-  it('mentions the built-in router augmentation and related docs', () => {
-    expect(content).toContain('@angular/router');
-    expect(content).toContain('Router');
-    expect(content).toContain(
-      '[`toCraftService`](/guide/app/integrate-existing)',
-    );
-    expect(content).toContain(
-      '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );
   });
 });

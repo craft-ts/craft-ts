@@ -73,5 +73,5 @@ The application's static graph is analysed from `tsconfig.graph.json`. From
 the repository root, `npm run graph:update` refreshes the
 `craft-dependency-graph.demo-effect.{json,mmd,html}` artifacts. For
 architecture only, `npx nx architecture demo-effect` runs the Vitest rules
-grouped in `architecture/architecture.spec.ts`, without starting Angular. The
+grouped in `architecture/architecture.spec.ts`, without starting the application. The
 TypeScript graph is therefore only built once.

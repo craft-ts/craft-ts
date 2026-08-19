@@ -194,7 +194,7 @@ export default [
 ];
 ```
 
-- `require-reactive-template-bindings` rejects direct reads of Angular Signals,
+- `require-reactive-template-bindings` rejects direct reads of signals,
   Craft values, and component inputs during VNode construction.
 - `no-render-writes` rejects detectable `set`, `update`, and `mutate` calls from
   templates and binding callbacks while allowing event and output handlers.

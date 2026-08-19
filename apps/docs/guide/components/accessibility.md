@@ -193,8 +193,8 @@ ifBlock(copied, () => liveRegion('Copied'));
 
 ## Navigation
 
-`provideCraftRouter` registers `CraftTitleStrategy`: the route's Angular
-`title` is written via `BrowserDocument.setTitle`.
+`provideCraftRouter` registers `CraftTitleStrategy`: the route's `title` is
+written via `BrowserDocument.setTitle`.
 
 `withA11yNavigationFocus()` (opt-in, passed to `provideCraftRouter`) moves
 focus to `#main` / `<main>` after each internal navigation — not on first

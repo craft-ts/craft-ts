@@ -26,14 +26,9 @@ data, optimistic updates, URL state, a validated form, a typed route and tests.
 
 Then: [Where to go next](/learn/next).
 
-::: tip Wondering what this buys you over plain Angular?
-[What craft adds to Angular](/guide/concepts/vs-angular) is the inventory —
-including what it costs.
-:::
-
 ## Before you start
 
-You need an Angular 21 application and Node.js 20.19+ (or 22.12+). No prior
+You need a TypeScript application and Node.js 20.19+ (or 22.12+). No prior
 knowledge of generators, RxJS or signals internals is required — each is
 introduced when it first earns its place.
 

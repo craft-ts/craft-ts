@@ -153,9 +153,8 @@ depends on exactly what it reads — and a test provides exactly that, no more.
 
 A service is a factory with a name and a scope, not a class:
 [`craftService`](/guide/app/craft-service) for the ones you write,
-[`toCraftService`](/guide/app/integrate-existing) for existing Angular
-dependencies. Both participate in the same typed composition and the same
-testing workflow.
+and small host adapters for dependencies owned by the runtime. Both participate
+in the same typed composition and the same testing workflow.
 
 ```typescript
 const { UserProfile } = craftService(
@@ -228,7 +227,6 @@ if nobody does. See [Exceptions as values](/guide/concepts/exceptions).
 
 ## See Also
 
-- [What craft adds to Angular](/guide/concepts/vs-angular) — the full inventory
 - [Which primitive should I use?](/guide/concepts/choose-primitive)
 - [Anatomy of a primitive](/guide/concepts/primitive-anatomy)
 - [Learn: the guided path](/learn/)

@@ -1,6 +1,6 @@
 # Demo app
 
-Angular application that exercises `@craft-ts/core` examples and integration
+Craft application that exercises `@craft-ts/core` examples and integration
 checks. Architecture rules live next to `e2e/`, in `architecture/`.
 
 ## Serve
@@ -41,6 +41,6 @@ npx nx typecheck-architecture demo
 ```
 
 The target is defined in `project.json` and runs Vitest against
-`vitest.architecture.config.ts`. It does not boot Angular.
+`vitest.architecture.config.ts`. It does not boot the application runtime.
 
 Full reference: [Architecture rules](https://craft-ts.github.io/craft/guide/testing/architecture).

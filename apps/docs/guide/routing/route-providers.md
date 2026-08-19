@@ -8,7 +8,7 @@ type-safe dependency tracking.
 "current project" service, a tenant-scoped API client.
 **Not when** the dependency is global — provide it at the app level instead.
 
-Build route-level Angular providers from a route's **own auto-provisioned tokens** — path params,
+Build route-level providers from a route's **own auto-provisioned tokens** — path params,
 `data`, `queryParams`, and `canActivate` guarded data — with full, type-safe dependency tracking.
 
 ## The problem
@@ -27,7 +27,7 @@ component injects.
 
 `craftRoute(path, definition)` authors a single route and returns a builder with a `.withProviders(...)`
 method. The callback receives **route-scoped service generators**, one per auto-provisioned token
-that exists on the route, and returns a normal Angular providers array.
+that exists on the route, and returns a normal providers array.
 
 ```ts
 import {
@@ -155,7 +155,7 @@ route does not actually expose.
 
 ## Plain providers still work
 
-`.withProviders(...)` is additive. A route can still declare a plain Angular `providers` array, and
+`.withProviders(...)` is additive. A route can still declare a plain `providers` array, and
 both are merged (auto-provisioned services first, then `providers`, then the `withProviders`
 factory output):
 
@@ -163,14 +163,14 @@ factory output):
 craftRoute('admin', {
   componentDeps: {} as import('./admin').GenDeps_Admin,
   loadComponent: ({ withRetry }) => withRetry(import('./admin')),
-  providers: [SomeAngularProvider], // plain array, untyped helpers
+  providers: [SomeCraftProvider], // plain array, untyped helpers
 }).withProviders(({ Data }) => [
   /* factory-built providers with tracking */
 ]);
 ```
 
 Under the hood the builder stores the factory on a dedicated `providersFn` field, kept separate from
-Angular's `providers` array.
+the route's `providers` array.
 
 ## See Also
 

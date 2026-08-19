@@ -9,7 +9,8 @@ release dates.
 
 ### SSR as a Craft host
 
-SSR is a Craft host concern (serialize Craft trees to HTML), not Angular SSR.
+SSR is a Craft deployment concern: serialize Craft trees to HTML at the runtime
+boundary.
 That work lives in a later compiler/host plan; this release does not ship a
 product SSR renderer.
 

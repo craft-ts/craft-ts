@@ -3,9 +3,8 @@
 A Craft component is a **function**, not a class. No decorator, no separate
 template file, no host element wrapped around your markup.
 
-**Use it for** anything you would have written as an Angular component.
-**Keep Angular components** where you have them — the two coexist, and
-[`loadCraftComponent`](/guide/routing/setup) mounts a Craft one on a route.
+**Use it for** application components. [`loadCraftComponent`](/guide/routing/setup)
+mounts a Craft component on a route.
 
 ## Install
 
@@ -76,12 +75,12 @@ Rendering a child is a function call, so there is no binding layer to get wrong:
 UserCard({ user: currentUser, onRemove: removeUser });
 ```
 
-| Angular                                     | Craft                                       |
-| ------------------------------------------- | ------------------------------------------- |
-| `@Input()` / `input()` / `input.required()` | an `Input<T>` factory parameter             |
-| `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: u, onRemove: fn })` |
-| Missing required input → runtime            | missing parameter → **compile error**       |
+| Contract | Craft |
+| --- | --- |
+| Input | an `Input<T>` factory parameter |
+| Output | an `Output<H>` parameter, called directly |
+| Component call | `UserCard({ user: u, onRemove: fn })` |
+| Missing required input | **compile error** |
 
 ## The template
 
@@ -116,9 +115,9 @@ outputs, mutations, or explicit business effects. Enable
 `craft-ts/no-render-writes` to diagnose common violations.
 
 Control flow is made of functions rather than syntax — `each`, `ifBlock`,
-`matchBlock`, `defer`. The correspondence with Angular's blocks, and why a raw
+`matchBlock`, `defer`. The relationship between these blocks, and why a raw
 ternary is the wrong tool for **structure**, is in
-[Learn step 2](/learn/02-derive#control-flow-the-angular-equivalents).
+[Learn step 2](/learn/02-derive#control-flow).
 
 ## The meta
 

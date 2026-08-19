@@ -95,23 +95,20 @@ generator and `yield*`.
 The logic factory is now three lines. That's the point: **behaviour lives on the
 state, not around it.**
 
-## Control flow: the Angular equivalents
+## Control flow
 
 Craft templates are TypeScript, so control flow is made of functions rather than
-syntax. Each Angular block has a counterpart:
+syntax. Each block is a typed function with an explicit contract:
 
-| Angular    | Craft                                              |
-| ---------- | -------------------------------------------------- |
-| `@for`     | `each(source, { track, empty }, render)`            |
-| `@empty`   | the `empty` option of `each`                        |
-| `@if`      | `ifBlock(condition, whenTrue, whenFalse?)`          |
-| `@switch`  | `matchBlock.exhaustive(source, key, handlers)`      |
-| `@defer`   | `defer(loader, options)`                            |
+| Block | Purpose |
+| --- | --- |
+| `each` | Renders a collection with stable tracking and an optional empty branch |
+| `ifBlock` | Preserves a conditional branch in the render contract |
+| `matchBlock.exhaustive` | Matches every member of a discriminated union |
+| `defer` | Loads a branch lazily |
 
-`matchBlock.exhaustive` is the closest thing to `@switch`, and it is stricter:
-it matches on a **discriminant key** of a union and the handler map must cover
-every member — a missing case is a compile error, which `@switch` cannot give
-you.
+`matchBlock.exhaustive` matches on a **discriminant key** of a union and the
+handler map must cover every member — a missing case is a compile error.
 
 ```typescript
 matchBlock.exhaustive(() => tasksQuery.exceptions().loader, '_tag', {

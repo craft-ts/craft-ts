@@ -179,7 +179,7 @@ Order matters: guards run top-to-bottom and the first exception wins (fail-fast)
 ## The handler context
 
 Each route exception handler receives the typed exception and payload, the navigation phase, the
-native Angular `Router` helpers, and the five outcome constructors. See
+typed `Router` helpers, and the five outcome constructors. See
 [Centralised Exception Handling](/guide/concepts/exceptions#handler-context) for the exhaustive list
 and examples.
 

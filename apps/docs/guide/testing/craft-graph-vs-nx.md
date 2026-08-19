@@ -74,7 +74,7 @@ tsconfig). It does not become a build system.
 | Folder lanes on `depends-on` | A deep import that bypasses a lib's `index.ts` | `enforce-module-boundaries` |
 | A duplicate `GET users` | Nest imported from a frontend project | `bannedExternalImports` |
 | A service cycle in `apps/shop` | `orders` ↔ `customers` as libs | circular project dependencies |
-| Craft/Angular TypeScript | Python, Nest, assets, configs | polyglot project graph, implicit deps |
+| Craft TypeScript | Python, Nest, assets, configs | polyglot project graph, implicit deps |
 | A failing Vitest assertion | A generator that rewrites the file | Conformance fix generators |
 | Seconds of ts-morph analysis | Millisecond cache hits on unchanged libs | local / remote computation cache |
 
@@ -87,7 +87,7 @@ does not scale in CI.
 architecture target — analysis reloads the tsconfig, in seconds, not
 milliseconds.
 
-Craft is a Craft/Angular analyser. Outside that dialect the graph is empty.
+Craft is a TypeScript analyser. Outside that dialect the graph is empty.
 Nx tags Nest, React, Python, assets and config files.
 
 ## The overlap
@@ -135,6 +135,4 @@ Vitest on the Craft graph. Copy that layout from
   target
 - [ESLint rules](/guide/routing/eslint-rules) — local slips the graph cannot
   autofix
-- [What craft adds to Angular](/guide/concepts/vs-angular) — compile-time
-  inventory this graph sits on
 - [Learn: test what you wrote](/learn/10-testing)

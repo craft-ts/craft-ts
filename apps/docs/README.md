@@ -2,7 +2,7 @@
 
 This is the VitePress documentation site for the `@craft-ts` packages.
 
-The current beta supports Angular 21 with Node.js 20.19+ (or 22.12+).
+The current beta requires Node.js 20.19+ (or 22.12+).
 
 ## Development
 

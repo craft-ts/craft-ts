@@ -3,7 +3,7 @@
 Service and component tests prove a unit behaves. Architecture rules prove the
 **shape of the app**: this feature must not talk to that one, this HTTP endpoint
 is owned once, this persisted identity appears once. They analyze TypeScript
-without starting Angular — the same role as `e2e/`, on the static Craft graph
+without starting the application — the same role as `e2e/`, on the static Craft graph
 instead of a browser.
 
 **Use them when** a constraint is about who may depend on whom, not about what

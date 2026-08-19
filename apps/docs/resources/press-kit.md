@@ -1,34 +1,38 @@
 # Press Kit
 
-Resources and information about @craft-ts/core for articles, presentations, and sharing.
+Resources and information about `@craft-ts/core` for articles, presentations,
+and sharing.
 
-## Project Description
+## Project description
 
-### Short Description
+### Short description
 
-@craft-ts/core is a reactive state management tool for Angular, focusing on URL, Client, and Server state with 100% type-safety and Signal-based architecture.
+`@craft-ts/core` is a reactive TypeScript toolkit for URL, client, and server
+state. Its primitives make dependencies explicit and keep application code
+fully type-safe.
 
-### Long Description
+### Long description
 
-@craft-ts/core is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @craft-ts/core provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with configurable storage persistence (localStorage by default), optimistic updates, and smart loading states.
+`@craft-ts/core` brings state, asynchronous work, services, forms, routing, and
+testing into one composable model. Named generators and typed insertions make
+the dependency graph visible to both the compiler and development tools. The
+result is granular reactivity, typed failures, optimistic updates, persistence,
+and predictable loading states without repetitive coordination code.
 
-## Key Features
+## Key features
 
-- ✅ **100% Type-Safe** - Built with TypeScript, leveraging inference to minimize manual type declarations
-- ✅ **Signal-Based** - Fully powered by Angular Signals (RxJS optional)
-- ✅ **Composable** - Design for composition and logic reuse
-- ✅ **Granular State** - Promotes focused state slices
-- ✅ **Flexible Architecture** - Method-based to source-based approaches
-- ✅ **Declarative** - 100% declarative state definition
-- ✅ **Frictionless DX** - Maximum TypeScript inference and intuitive API
+- ✅ **Type-safe** — TypeScript inference minimizes manual declarations
+- ✅ **Composable** — primitives and insertions share one composition model
+- ✅ **Granular** — updates target the readers that actually depend on them
+- ✅ **Declarative** — state, effects, forms, and routes are explicit data
+- ✅ **Observable** — the same graph powers logging, tracing, and diagnostics
+- ✅ **Testable** — services, components, and architecture contracts can be tested independently
 
-## Logo & Brand Assets
-
-### Logo
+## Logo and brand assets
 
 ![craft-ts Logo](/assets/craft-ts-logo.png)
 
-- [Download Logo](/assets/craft-ts-logo.png)
+- [Download logo](/assets/craft-ts-logo.png)
 
 ## Installation
 
@@ -42,35 +46,32 @@ npm i @craft-ts/core@beta
 - **Documentation**: [craft-ts.github.io/craft/](https://craft-ts.github.io/craft/)
 - **NPM**: [npmjs.com/package/@craft-ts/core](https://npmjs.com/package/@craft-ts/core)
 
-## Social Media
+## Social media
 
 ### LinkedIn
 
-```
-Excited to share @craft-ts/core - a new reactive state management tool for Angular!
+```text
+Excited to share @craft-ts/core — a type-safe toolkit for state, services,
+forms, routing, and asynchronous work.
 
-@craft-ts/core helps you focus on delivering business value by handling the common patterns in Angular applications. Built on Signals with 100% type safety, it offers:
+Craft makes dependencies explicit and gives every primitive a predictable
+lifecycle, typed failures, and composable behaviour:
 
-• Reactive state with automatic updates
-• Async method handling with loading states
-• URL parameter synchronization
-• Server data queries with caching
+• Reactive local and server state
+• URL state with typed codecs
 • Optimistic mutations
-• Configurable storage persistence (localStorage by default)
-• And much more!
+• Typed forms and validation
+• Explicit service composition
+• Architecture checks and observability
 
 Check it out: [link]
 
-#Angular #WebDevelopment #TypeScript #OpenSource
+#TypeScript #WebDevelopment #OpenSource
 ```
-
-## Testimonials
-
-_We'd love to hear from you! Share your experience with @craft-ts/core._
 
 ## License
 
-MIT License - Free for personal and commercial use
+MIT License — free for personal and commercial use.
 
 ## Credits
 
@@ -80,7 +81,3 @@ Created and maintained by Romain Geffrault.
 
 - **Issues**: [GitHub Issues](https://github.com/craft-ts/craft-ts/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/craft-ts/craft-ts/discussions)
-
----
-
-Thank you for your interest in @craft-ts/core! 🙏

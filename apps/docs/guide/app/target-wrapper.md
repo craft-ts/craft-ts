@@ -59,7 +59,7 @@ type CraftTargetContext = {
 `target`, `kind`, `name` and `ref` describe the real instance and are immutable.
 **`hostName` is the only field you can change**, by passing it to `next(...)`.
 
-## Tagging the host name
+## Tagging the target name
 
 ```ts
 import { HOST_TAG_LIST, provideCraftTargetWrapper } from '@craft-ts/core';

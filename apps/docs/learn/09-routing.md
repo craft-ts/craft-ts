@@ -124,7 +124,7 @@ just disappear](/guide/concepts/exceptions). Everything else is on
 
 <<< @/tests/snippets/learn/09-routing/app-config.spec.ts#app-config
 
-`toRoutes()` hands Angular the real routes; `META_DATA` hands the compile-time
+`toRoutes()` returns the runtime routes; `META_DATA` carries the compile-time
 graph to `craftAppConfig`.
 
 ## Make the DI contract enforceable

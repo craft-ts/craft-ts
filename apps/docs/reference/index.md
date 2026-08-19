@@ -82,7 +82,6 @@ already receive those methods as arguments — see
 | Symbol                      | What it does                               | Page                                              |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------- |
 | `craftService`              | Declares a named, scoped service           | [craftService](/guide/app/craft-service)          |
-| `toCraftService`            | Adapts an existing Angular dependency      | [Integrating](/guide/app/integrate-existing)      |
 | `abstract`                  | Declares a contract with no implementation | [Abstract services](/guide/app/abstract-services) |
 | `X.OmitInputs`              | Opts out of a service's input bindings     | [Public API](/guide/app/expose-api)               |
 | `onAppStart`                | Startup callback owned by a service        | [App start](/guide/app/app-start)                 |
@@ -161,7 +160,7 @@ already receive those methods as arguments — see
 | `npx craft route add`              | Scaffolds a typed route                     | [Automation](/guide/routing/automation)                                  |
 | `npx craft route split`            | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)                                 |
 | `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional) |
-| `craft-brand --root src/app`       | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/angular-brand-config)                      |
+| `craft-brand --root src`           | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/setup#generated-dependencies)               |
 | `@craft-ts/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) · [Accessibility](/guide/components/accessibility) |
 | `npx craft-graph`                  | Writes the static Craft graph               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | `npx nx architecture <app>`        | Runs the app's architecture Vitest suite    | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |

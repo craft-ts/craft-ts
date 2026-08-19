@@ -53,12 +53,12 @@ UserCard({
 });
 ```
 
-| Angular                                     | Craft                                       |
-| ------------------------------------------- | ------------------------------------------- |
-| `@Input()` / `input()` / `input.required()` | a `Input<T>` factory parameter              |
-| `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: u, onRemove: fn })` |
-| Missing required input → runtime            | missing parameter → **compile error**       |
+| Contract | Craft |
+| --- | --- |
+| Input | an `Input<T>` factory parameter |
+| Output | an `Output<H>` parameter, called directly |
+| Component call | `UserCard({ user: u, onRemove: fn })` |
+| Missing required input | **compile error** |
 
 Because it's a function call, there is no template-binding layer between caller
 and component: a wrong input name or type is a plain TypeScript error.
@@ -88,7 +88,7 @@ adds no host element or wrapper around your markup to achieve it. See
 ## Mounting the root
 
 The app's root is a Craft component too. `provideCraftRootComponent(App)`
-designates it, and Angular bootstraps a thin host:
+designates it, and the Craft host bootstraps the application:
 
 ```typescript
 // app.config.ts
@@ -132,12 +132,6 @@ dependencies so they show up on **its** graph.
 
 For now, treat it as "the way to use a primitive inside a factory".
 [Step 4](/learn/04-compose) explains what it buys you.
-
-::: tip Coming from Angular classes?
-In an Angular `@Component` class there is no generator to yield from, so you
-drive a primitive with `craftUse(state('tasks', []))` instead. Same primitive,
-same result — see [Anatomy of a primitive](/guide/concepts/primitive-anatomy).
-:::
 
 ## The template
 

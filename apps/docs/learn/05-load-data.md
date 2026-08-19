@@ -33,7 +33,7 @@ tasksQuery.exception(); // craftException | undefined
 ## In the template
 
 `ifBlock` / `matchBlock` are the structural conditionals (see [step
-2](/learn/02-derive#control-flow-the-angular-equivalents)). For a first pass a
+2](/learn/02-derive#control-flow)). For a first pass a
 ternary chain reads fine — just remember it makes the branch invisible to the
 [type-level assertions](/guide/testing/type-level):
 

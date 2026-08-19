@@ -110,8 +110,8 @@ a resolution loop.
 The contract also checks the required public props of `ComponentNode` and keeps
 the concrete child component reference. Dynamic component unions produce a
 dedicated diagnostic; split them into static branches so they can be checked at
-the type level. External Angular components form an explicit boundary and
-should be tested with their Angular harness.
+the type level. Components owned by another package form an explicit boundary
+and should be tested with that package's harness.
 
 The available assertions can verify elements, their exact props, event
 arguments, generator callbacks, and outputs. For example, start with a

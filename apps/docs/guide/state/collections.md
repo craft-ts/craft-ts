@@ -120,12 +120,12 @@ tags.addOne({ entity: 'typescript' });
 console.log(tags()); // ['typescript']
 
 // Add multiple tags
-tags.addMany({ newEntities: ['angular', 'signals'] });
-console.log(tags()); // ['typescript', 'angular', 'signals']
+tags.addMany({ newEntities: ['craft', 'signals'] });
+console.log(tags()); // ['typescript', 'craft', 'signals']
 
 // Remove tag
 tags.removeOne({ id: 'typescript' });
-console.log(tags()); // ['angular', 'signals']
+console.log(tags()); // ['craft', 'signals']
 ```
 
 
@@ -359,7 +359,7 @@ interface Todo {
 const { todos } = state(
   'todos',
   [
-    { id: '1', title: 'Learn Angular', completed: false },
+    { id: '1', title: 'Learn Craft', completed: false },
     { id: '2', title: 'Build app', completed: false },
   ] as Todo[],
   insertEntities({
@@ -380,7 +380,7 @@ console.log(todos()[0].completed); // true
 // Update multiple todos
 todos.updateMany({
   updates: [
-    { id: '1', changes: { title: 'Learn Angular Signals' } },
+    { id: '1', changes: { title: 'Learn Craft Signals' } },
     { id: '2', changes: { completed: true } },
   ],
 });

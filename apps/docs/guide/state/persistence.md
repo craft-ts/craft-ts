@@ -38,7 +38,7 @@ providers: [
 ```
 
 The `StoragePersister` provider is required by `craftAppConfig` and follows
-the normal Angular DI hierarchy. A child route, feature or test can override
+the normal Craft DI hierarchy. A child route, feature or test can override
 the active backend:
 
 ```typescript

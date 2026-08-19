@@ -496,7 +496,7 @@ keydown$.subscribe((key) => {
 
 ## Notes
 
-- Must be called within an Angular injection context
+- Must be called within an injection context
 - Event listeners are automatically removed on component destruction
 - Returns a **readonly** source - no `emit` method is exposed
 - The `value` signal is `undefined` until the first event is emitted

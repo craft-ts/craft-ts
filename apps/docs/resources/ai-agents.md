@@ -4,17 +4,16 @@ description: Point Cursor, Claude, Copilot, and other coding agents at CraftTS d
 
 # Coding agents
 
-CraftTS is unusual enough that a model trained on Angular classes will invent
-the wrong API. After you import `@craft-ts/core`, give the agent three layered
-entry points — the same split Angular uses with `llms.txt`, the CLI MCP server,
-and Agent Skills.
+CraftTS has a deliberate vocabulary. After you import `@craft-ts/core`, give
+the agent three layered entry points — `llms.txt`, the MCP server, and Agent
+Skills — so it can use the documented primitives and conventions.
 
 | Layer | What it is | When the agent uses it |
 | --- | --- | --- |
 | **LLM files** | [`/llms.txt`](https://craft-ts.github.io/craft/llms.txt), [`/llms-full.txt`](https://craft-ts.github.io/craft/llms-full.txt), and a `.md` sibling for every docs page | Discovery on the internet, no install |
 | **MCP server** | [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp) — `get_best_practices`, `search_documentation`, `find_examples`, skills | Live lookup in Cursor, Claude Code, VS Code, Copilot |
 | **Agent Skills** | `skills/` inside `@craft-ts/mcp`, plus an [Agent Plugin](https://agent-plugins.org/) manifest | Multi-step workflows (architecture tests, routes, spec → primitives, migration) |
-| **Live page MCP** | Local `@craft-ts/function-registry-mcp` tool `page` — fill, click, and inspect the `ng serve` tab already open | Dev only, on the running app. Not shipped in `@craft-ts/mcp`. See [Live page MCP](/guide/ai/dev-page) |
+| **Live page MCP** | Local `@craft-ts/function-registry-mcp` tool `page` — fill, click, and inspect the development tab already open | Dev only, on the running app. Not shipped in `@craft-ts/mcp`. See [Live page MCP](/guide/ai/dev-page) |
 
 Do not scrape the HTML docs. Start from `llms.txt` or the MCP tools.
 
@@ -40,8 +39,8 @@ This application uses `@craft-ts/core`.
 - MCP: `npx -y @craft-ts/mcp@beta` (`get_best_practices`, `search_documentation`)
 - Skills: `node_modules/@craft-ts/mcp/skills`
 
-yield* every Craft reader. Do not generate Angular signal(), inject(), or
-@Injectable in authored Craft code. craftRoutes files need componentDeps and
+yield* every Craft reader. Keep authored code within Craft's primitives and
+service model. craftRoutes files need componentDeps and
 a per-file DI check. The architecture/ suite is the graph contract: scaffold
 at bootstrap, run it during a feature. Do not add an architecture rule for
 the feature.
@@ -88,7 +87,7 @@ claude mcp add craft-ts -- npx -y @craft-ts/mcp@beta
 
 The server is **read-only**. It searches documentation bundled at publish time,
 so it works offline. It is not the runtime registry MCP used to mutate a live
-demo tab, and it does not expose the `page` tool. Driving the open `ng serve`
+demo tab, and it does not expose the `page` tool. Driving the open development
 tab is [Live page MCP](/guide/ai/dev-page) (dev only, function-registry MCP).
 
 ## 3. Agent Skills
@@ -103,7 +102,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) layout
 | `craft-ts-architecture-tests` | Scaffold or run `architecture/`, or freeze a graph smell |
 | `translate-spec-to-craft-ts` | Spec / CRUD / filters / forms → primitives |
 | `craft-ts-routes` | `craftRoutes`, `componentDeps`, `TS2589` |
-| `craft-ts-service-migration` | `@Injectable` / `inject()` → `craftService` |
+| `craft-ts-service-migration` | legacy services → `craftService` |
 | `migrate-to-craft-ts` | `craft-migrate` then manual diagnostics |
 
 The [architecture suite](/guide/testing/architecture) is the app's graph
@@ -121,8 +120,8 @@ Point the agent at `node_modules/@craft-ts/mcp/skills`, or let it call
 Ask it to add a `state` counter, a paged `query`, or a `craftRoutes` file.
 It should `yield*` readers, compose insertions with `craftPipe`, and put a DI
 check in the routes file. If the app already has `architecture/`, it should
-run that suite rather than invent a new rule. If it emits `signal()`,
-`inject()`, or a plain Angular `Routes` array, the MCP server or `AGENTS.md`
+run that suite rather than invent a new rule. If it emits legacy runtime APIs
+or a plain routes array, the MCP server or `AGENTS.md`
 snippet is not in context.
 
 ## See also

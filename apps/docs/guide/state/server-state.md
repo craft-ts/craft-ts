@@ -85,7 +85,7 @@ const { searchQuery } =
   });
 
 // In a tracked generator, consume the trigger with yield*.
-yield * searchQuery.call('angular');
+yield * searchQuery.call('craft');
 ```
 
 From an ordinary UI callback, the imperative form remains valid:

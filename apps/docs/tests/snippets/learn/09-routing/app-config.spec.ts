@@ -16,7 +16,7 @@ export const appConfig = craftAppConfig({
 // #endregion app-config
 
 describe('Learn 09 app config', () => {
-  it('exposes Angular providers from the craft config', () => {
+  it('exposes providers from the craft config', () => {
     expect(appConfig.providers.length).toBeGreaterThan(0);
   });
 });

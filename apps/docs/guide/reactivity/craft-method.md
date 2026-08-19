@@ -47,7 +47,7 @@ function craftMethod<Name extends string, This, Args extends unknown[], Result>(
 ): (...args: Args) => Result;
 ```
 
-The first argument is the **host name**: it is required and must match the
+The first argument is the **name**: it is required and must match the
 property (or variable) the method is assigned to. It is the value used to tag
 the injector context — same role as `provideHostName(...)`. The
 [`craft-ts/craft-method-name-match`](/guide/routing/eslint-rules) ESLint rule
@@ -99,9 +99,9 @@ const increment = craftMethod('increment', function* (value: number) {
 });
 ```
 
-::: details Angular class components — capturing `this`
-In an Angular `@Component` class the generator usually needs the instance, which
-is what the two `this`-aware overloads are for.
+::: details Class-based wrappers — capturing `this`
+When a class-based wrapper needs its instance, use one of the two `this`-aware
+overloads.
 
 ### Recommended form — capture `this`
 
@@ -169,7 +169,7 @@ export class Counter {
 ## Caveats
 
 - `craftMethod(...)` must be created inside an injection context, typically during component instantiation.
-- The first argument is a required host name; it must match the property or variable name. The `craft-ts/craft-method-name-match` ESLint rule enforces this and provides a quick fix.
+- The first argument is a required name; it must match the property or variable name. The `craft-ts/craft-method-name-match` ESLint rule enforces this and provides a quick fix.
 - `craftMethod(name, fn)` depends on the receiver used at call time. If you extract the callback, `this` is no longer guaranteed unless you bind it yourself.
 - `craftMethod(name, this, fn)` is the recommended form whenever the generator reads or writes `this`.
 - `onAppStart(...)` is not supported inside `craftMethod`.

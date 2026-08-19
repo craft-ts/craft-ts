@@ -7,7 +7,7 @@ four, and the output stays ordinary editable TypeScript.
 **Use it for** day-to-day route authoring and for migrating an existing app.
 **Then edit the result** — nothing here is generated code you must not touch.
 
-`@craft-ts/dev-tools` provides codemods to migrate an Angular application to
+`@craft-ts/dev-tools` provides codemods to migrate an existing application to
 Craft primitives, services, type-safe routes, and selectorless Craft Components.
 
 ## Install the migration tool
@@ -85,7 +85,7 @@ npx craft-migrate-architecture \
   --write
 ```
 
-The route migration converts supported Angular route collections to
+The route migration converts supported route collections to
 `craftRoutes(...)`, adds type-safe route metadata, and reports transformations
 that require a manual decision.
 
@@ -152,7 +152,7 @@ That is the application-facing check for the routing contract.
 
 `craft route verify` is a separate, heavier check: it type-checks the project,
 then writes temporary valid and invalid fixtures covering route DI, `toProvide`
-providers, lazy child checks, route params and inputs, Angular and Craft
+providers, lazy child checks, route params and inputs, Craft templates,
 templates, pending/error components, lazy loading, guard/resolve/component
 exceptions, local recovery and exhaustive handlers. Invalid fixtures are
 expected to fail, and their diagnostics are matched with the expected `path`,
@@ -187,5 +187,4 @@ chunk-loading scenarios remain covered by the browser tests.
 
 - [Routing setup](/guide/routing/setup) — what the CLI generates for you
 - [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` is the app-facing routing check
-- [Angular brand config](/guide/routing/angular-brand-config)
 - [Scaling routes](/guide/routing/scaling) — `craft route split`

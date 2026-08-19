@@ -6,8 +6,8 @@ dependency graph visible to the compiler.
 
 **Use it when** logic outgrows a single component field, or when two places need
 the same behaviour.
-**Not when** you are adapting an existing Angular service or token — that is
-[`toCraftService`](/guide/app/integrate-existing).
+Use a small adapter when a dependency is owned by the runtime environment
+rather than by your application.
 
 The contrast with `inject(...)` scattered across classes is the point:
 dependencies here are explicit and **type-visible**, which is what the route DI
@@ -36,7 +36,7 @@ const { UserQuery } = craftService(
 );
 ```
 
-The call site still accepts a resolved value, an Angular signal, or a Craft
+The call site still accepts a resolved value, a signal, or a Craft
 reader — the service boundary adapts it into that reader. Inside the factory,
 always `yield* inputs.x()`.
 
@@ -190,7 +190,7 @@ Dependencies used only inside that callback are still tracked on the parent serv
 whole app, whether or not that was intended. Start at `function` — see
 [Service scopes](/guide/app/service-scopes).
 
-**`toProvide` without the provider.** Angular does not report a missing provider
+**`toProvide` without the provider.** A missing provider is reported by the route
 at compile time; the failure appears at runtime. The
 [route DI check](/guide/routing/setup) is what closes that hole.
 [Architecture tests](/guide/testing/architecture#assertroutediproofs) keep that

@@ -13,7 +13,7 @@ This function binds queries, mutations, and async methods to sources for automat
 
 - Listening to source emissions and computing new values
 - Providing a readonly source suitable for method binding
-- Maintaining reactivity through Angular's effect system
+- Maintaining reactivity through the effect system
 - Enabling source-based triggering patterns
 
 ## Signature
@@ -182,10 +182,10 @@ const { results } = query('results', {
 
 // Data is transformed before query execution
 searchParams.emit({
-  query: '  Angular  ',
+  query: '  craft  ',
   filters: ['tutorial', 'advanced'],
 });
-// -> query receives { q: 'angular', f: 'tutorial,advanced' }
+// -> query receives { q: 'craft', f: 'tutorial,advanced' }
 ```
 
 ### Validation and type narrowing
@@ -257,14 +257,14 @@ const { advancedResults } = query('advancedResults', {
 });
 
 // Quick search with simple string
-quickSearch.emit('angular');
-// -> query receives { query: 'angular', mode: 'quick' }
+quickSearch.emit('craft');
+// -> query receives { query: 'craft', mode: 'quick' }
 
 advancedSearch.emit({
-  query: 'angular',
+  query: 'craft',
   options: { tags: ['signals'] },
 });
-// -> query receives { query: 'angular', options: { ... }, mode: 'advanced' }
+// -> query receives { query: 'craft', options: { ... }, mode: 'advanced' }
 ```
 
 ### Identity transformation (pass-through)

@@ -26,7 +26,7 @@ Important constraints:
 - the callback can be a plain function or a generator function
 - nested `onAppStart(...)` calls inside the callback are not supported
 
-`craftAppConfig(...)` runs registered app-start services during Angular application initialization.
+`craftAppConfig(...)` runs registered app-start services during application initialization.
 
 ## Signature
 
@@ -113,7 +113,7 @@ export const appConfig = craftAppConfig({
 });
 ```
 
-`craftAppConfig` runs every registered app-start service during Angular's
+`craftAppConfig` runs every registered app-start service during the application's
 application initialization, and the app renders once they have settled.
 
 Here it is end to end:
@@ -154,7 +154,7 @@ If the callback returns:
 
 - `void`: startup continues immediately
 - `Promise`: startup waits for the promise to resolve
-- `Observable`: startup waits through Angular's initializer handling
+- `Observable`: startup waits until the observable completes
 
 Generator callbacks preserve the same waiting behavior. The generator itself resolves first, then its returned `Promise` / `Observable` / `void` is used as the startup result.
 

@@ -2,7 +2,7 @@
 
 The rule set is not decoration: several checks in this documentation only work
 because a rule generated or maintained the code they read. Others enforce the
-architecture — no raw `inject`, no Angular `HttpClient` — and most of them
+architecture — no hidden runtime dependencies or direct transport calls — and most of them
 **autofix**.
 
 **Install them once** when you set up routing and type-safe DI.
@@ -78,20 +78,18 @@ export default [
 
 What each rule does:
 
-- `craft-ts/brand-angular-gen-deps-required`: generates a missing `GenDeps_*` alias for Angular components, directives, and pipes through the ESLint Quick Fix
-- `craft-ts/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync through the same ESLint Quick Fix flow
 - `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
-- `craft-ts/require-reactive-template-bindings`: requires Angular Signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
+- `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use-in-template`: forbids the synchronous `craftUse(...)` escape hatch in Craft templates; pass the reactive reader directly, such as `status: usersQuery.currentPageStatus`
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
-- `craft-ts/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
-- `craft-ts/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
+- `craft-ts/prefer-craft-reactivity`: rejects authored signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
+- `craft-ts/prefer-craft-service`: keeps services in the `craftService(...)` model
 - `craft-ts/no-injection-token`: forbids authored `InjectionToken` contracts; declare them with `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
-- `craft-ts/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
+- `craft-ts/prefer-craft-http-client`: forbids direct transport usage in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
-- `craft-ts/prefer-craft-input-output`: forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ts/component` in `craftComponent(...)`
+- `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
@@ -156,8 +154,8 @@ matchBlock.exhaustive(query.exceptions, '_tag', {
 });
 ```
 
-This rule is for Craft's TypeScript templates. Angular HTML templates are not
-rewritten by it.
+This rule is for Craft's TypeScript templates. It does not rewrite external
+template languages.
 
 ### Reactive values belong in binding callbacks
 
@@ -211,8 +209,6 @@ maintain by hand:
 
 | Rule                                         | Generates                                                  |
 | -------------------------------------------- | ---------------------------------------------------------- |
-| `brand-angular-gen-deps-required`            | the missing `GenDeps_*` alias for an Angular component     |
-| `brand-angular-deps-match`                   | keeps an existing `GenDeps_*` in sync                      |
 | `require-cascade-route-di-check`             | the same-file DI proof for a `craftRoutes(...)` collection |
 | `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                 |
 | `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import      |
@@ -223,12 +219,10 @@ maintain by hand:
 
 On an existing codebase, enable them in waves rather than all at once:
 
-1. **The generators first** — `brand-angular-gen-deps-required` and
-   `brand-angular-deps-match`. They only add code.
-2. **The route safety nets** — the `require-*` rules. Mostly autofixable. They
+1. **The route safety nets** — the `require-*` rules. Mostly autofixable. They
    generate the proofs; [architecture tests](/guide/testing/architecture#assertroutediproofs)
    (`assertRouteDiProofs`) fail CI if a proof is later removed or left unarmed.
-3. **The architecture rules last** — `no-angular-inject`, `prefer-craft-service`,
+2. **The architecture rules last** — `prefer-craft-service`,
    `prefer-craft-http-client`, `require-yieldable-reactive-read`,
    `require-yieldable-template-method`, `require-yieldable-insertion-write`.
    These ask for real refactors.
@@ -241,5 +235,4 @@ file before doing the full refactor.
 
 - [Routing setup](/guide/routing/setup) — where these rules are installed
 - [CLI automation](/guide/routing/automation) — the codemods they complement
-- [Angular brand config](/guide/routing/angular-brand-config)
 - [Architecture rules](/guide/testing/architecture) — graph-wide constraints ESLint cannot see

@@ -6,18 +6,8 @@ This is the step that makes everything else obvious. Take your time here.
 
 ## The problem `yield*` solves
 
-Classic Angular injection hides the dependency graph:
-
-```typescript
-class TaskList {
-  private api = inject(TaskApi); // invisible from the outside
-}
-```
-
-Nothing in `TaskList`'s type says it needs `TaskApi`. The compiler cannot tell
-you when you forget to provide it, and a test cannot tell you what to mock.
-
-Craft makes the same call **visible in the type**, by yielding it:
+Dependencies are easy to hide when a service reaches into a runtime container.
+Craft makes each dependency **visible in the type** by yielding it:
 
 ```typescript
 export const { TaskList } = craftService(

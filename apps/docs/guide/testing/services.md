@@ -5,7 +5,7 @@ inverts it: you supply a **register** covering the service's whole dependency
 graph, and the compiler refuses to run the test until every node is accounted
 for.
 
-**Use it for** any `craftService` or `toCraftService`.
+**Use it for** any `craftService`.
 **Use `boundaryOnly`** when the test should stay close to reality — it keeps the
 real graph and only lets you replace
 [browser boundaries](/guide/testing/browser-boundaries).

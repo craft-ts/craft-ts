@@ -322,7 +322,9 @@ Methods:
 
 `CraftHttpClient` is implemented, but it is not a browser boundary.
 
-Unlike `Console`, `LocalStorage`, or `BrowserLocation`, Angular's `HttpClient` is already a DI-managed Angular dependency. It is better modeled as a typed craft adapter than as a browser-host global.
+Unlike `Console`, `LocalStorage`, or `BrowserLocation`, `CraftHttpClient` is a
+typed service boundary. It belongs in the dependency graph rather than being
+treated as a browser-global.
 
 Its contract is intentionally different:
 
@@ -382,15 +384,15 @@ The browser boundaries stay intentionally narrow.
 
 This keeps the API focused on explicit browser interactions instead of reintroducing broad direct access to host globals.
 
-## Relationship With `craftService` And `toCraftService`
+## Relationship With `craftService`
 
 Browser boundaries participate in the same dependency tracking model as any other crafted service.
 
 - [`craftService`](/guide/app/craft-service) is what you use to consume them and compose higher-level services.
-- [`toCraftService`](/guide/app/integrate-existing) remains the right tool for adapting Angular or host dependencies that are not part of this built-in browser boundary set.
+- Use a small `craftService` adapter for host dependencies that are not part of
+  this built-in browser boundary set.
 
 ## See Also
 
 - [`craftService`](/guide/app/craft-service)
-- [`toCraftService`](/guide/app/integrate-existing)
 - [Architecture rules](/guide/testing/architecture) — assert HTTP only crosses a boundary

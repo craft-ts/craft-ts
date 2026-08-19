@@ -6,9 +6,9 @@ generator outside a service.
 
 ## Why a generator at all
 
-Angular's `inject(TaskApi)` is invisible from the outside: nothing in the
-consumer's type says the dependency exists. The compiler can't catch a missing
-provider, and a test can't tell you what to mock.
+Dependencies hidden in a runtime container are invisible from the outside:
+nothing in the consumer's type says they exist. The compiler can't catch a
+missing provider, and a test can't tell you what to mock.
 
 A generator gives the runtime a channel. Each `yield*` reports "I need this",
 the driver resolves it, and the dependency is recorded **in the type**:
@@ -62,10 +62,10 @@ p(counter);
 button({ click: counter.increment }, '+');
 ```
 
-`craftUse(...)` is the Angular-interop path: in a `@Component` class there is no
-generator to yield from, so a class field drives the primitive with it instead.
-A class field is the end of the graph, which is why `craftUse` has nothing to
-track. Use it in tests and other synchronous boundaries too:
+`craftUse(...)` is the synchronous boundary: when there is no generator to yield
+from, a field or callback can drive the primitive with it instead. That is the
+end of the graph, which is why `craftUse` has nothing to track. Use it in tests
+and other synchronous boundaries too:
 `craftUse(counter.increment())`.
 
 Yield only what you use: `yield* TaskApi.fetchAll()` records one property

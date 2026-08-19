@@ -1,6 +1,7 @@
 # CraftTS
 
-This application uses `@craft-ts/core`. Treat Craft APIs as the default. Do not generate Angular `signal()`, `@Injectable`, `inject()`, `@Component` templates, or raw `HttpClient` unless the user is explicitly integrating legacy code.
+This application uses `@craft-ts/core`. Treat Craft APIs as the default. Use
+Craft primitives, services, components, and `CraftHttpClient` in authored code.
 
 ## Before writing Craft code
 
@@ -12,7 +13,7 @@ This application uses `@craft-ts/core`. Treat Craft APIs as the default. Do not 
 
 - `yield*` every Craft reader (`state`, `query.value()`, service helpers). Use `craftUse` only at synchronous boundaries such as tests.
 - One primitive family: `state` / `query` / `mutation` / `queryParams` / `asyncProcess`. Compose insertions with `craftPipe`.
-- `craftService` + generated `X()` helpers. Adapt Angular tokens with `toCraftService`.
+- `craftService` + generated `X()` helpers for explicit dependency composition.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split with `loadChildren` on `TS2589`.
 - Enable `@craft-ts/dev-tools` ESLint rules and run `eslint --fix` after DI or route edits.
 - The `architecture/` suite is the graph contract. Scaffold it at bootstrap. Run it during a feature. Do not add an architecture rule for the feature; encode a smell so it cannot recur.

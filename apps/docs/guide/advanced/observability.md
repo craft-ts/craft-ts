@@ -24,7 +24,7 @@ The three pillars `craft-ts` exposes for that are:
 
 - [`provideFnWrapper`](#providefnwrapper) — wrap every crafted function with cross-cutting behavior
 - [`provideTemplateTrace`](#providetemplatetrace) — observe effective component and template renders
-- [`provideCraftRouterTrace`](#providecraftroutertrace) — observe Angular navigation events and Craft route stages
+- [`provideCraftRouterTrace`](#providecraftroutertrace) — observe navigation events and Craft route stages
 - [`provideCraftHttpTrace`](#providecrafthttptrace) — wrap every `CraftHttpClient` request
 - [`provideTakeAppSnapshot`](#providetakeappsnapshot) — capture all active state when something goes wrong
 - [`provideCraftDomEventHook`](#craft-dom-event-hooks) — observe or wrap every DOM action declared in a Craft template
@@ -95,7 +95,7 @@ normal Craft render error boundary.
 
 ## `provideCraftRouterTrace`
 
-`provideCraftRouterTrace` traces both the Angular Router event stream and the
+`provideCraftRouterTrace` traces both the Router event stream and the
 Craft outlet's non-blocking route chain. The latter exposes `match`, `guard`,
 and `resolve` stages, including reactive guard re-evaluation.
 
@@ -200,7 +200,7 @@ export const appConfig = craftAppConfig({
 
 Each `SnapshotReport` contains:
 
-- `source` — the host tag of the state
+- `source` — the source tag of the state
 - `from` — the ancestry chain that produced it
 - `state` — the actual current value
 

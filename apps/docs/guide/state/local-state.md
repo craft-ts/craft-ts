@@ -129,7 +129,7 @@ yield* state('counter', 0, function* ({ state }) {
   });
 ```
 
-Prefer yielding a craft service over calling Angular's `inject` — yielding is
+Prefer yielding a craft service over reaching into a runtime container — yielding is
 what makes the dependency visible to the route DI check and to test registers.
 
 ## Pitfalls
