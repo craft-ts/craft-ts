@@ -108,12 +108,14 @@ const ServerFunctionDemo = craftComponent(
         method: (term: string) => term,
         loader: ({ params }) =>
           Effect.gen(function* () {
-            const authenticatedUser = yield* requireAdmin;
+            // Contrôle d'UX uniquement : il évite un aller-retour réseau, il
+            // n'autorise rien.
+            yield* requireAdmin;
+            // L'identité annoncée ne se recopie plus à la main dans l'input :
+            // elle voyage dans le canal `context`, alimenté par la chaîne
+            // client déclarée sur la façade.
             const result = yield* Effect.promise(() =>
-              getAuthenticatedUsers({
-                filter: params,
-                userId: authenticatedUser.id,
-              }),
+              getAuthenticatedUsers({ filter: params }),
             );
             // Le canal d'erreur du serveur arrive typé jusqu'ici : `AdminRequired`
             // et `AuthenticatedUserMismatch` viennent de la chaîne de middleware.

@@ -1,7 +1,13 @@
 import { serverFunction } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
 import { UserRepository } from '../server/database';
+import {
+  authenticatedListHandshake,
+  ClaimedUserIdRequirement,
+  claimedUserId,
+} from '../shared/claimed-user-id';
 import { matchingUser } from './admin-access.mw-serveur';
+import { auditedRequest } from './request-audit.mw-serveur';
 import { UserSchema } from './user-schema';
 
 export { AuthenticatedUserMismatch } from './admin-access.mw-serveur';
@@ -15,22 +21,29 @@ const authenticatedListUsersOutputSchema = Schema.toStandardSchemaV1(
 
 /**
  * L'autorisation et la vérification d'identité vivent dans la chaîne de
- * middleware : le handler ne garde que son travail utile, et lit `userId` (venu
- * du schéma du middleware) comme n'importe quel champ de son propre input.
+ * middleware ; l'identité annoncée par le navigateur arrive par le canal
+ * `clientContext`, déclaré par `requireClientDI(...)` et par les middleware.
+ *
+ * Le handler lit cette valeur avec
+ * `required(ClaimedUserIdRequirement.token)` : elle vient du contexte client
+ * **validé**, pas du DI serveur. Elle n'est utilisable ici que
+ * parce que `demo.matching-user` l'a déjà confrontée à la session.
  */
 export const getAuthenticatedUsers = serverFunction(
-  'demo.users.authenticated-list',
+  authenticatedListHandshake,
   authenticatedListUsersInputSchema,
   { exposure: 'client', output: authenticatedListUsersOutputSchema },
 )
+  .pipe(claimedUserId)
   .use(matchingUser)
-  .handler(({ input, context }) =>
+  .use(auditedRequest)
+  .handler(({ input, context, required }) =>
     Effect.gen(function* () {
       // Intentional latency to make the frontend loading cycle visible.
       yield* Effect.sleep('600 millis');
       const users = yield* UserRepository;
       yield* Effect.log(
-        `demo.users.authenticated-list actor=${context.authenticatedUser.id} requested=${input.userId}`,
+        `demo.users.authenticated-list actor=${context.authenticatedUser.id} claimed=${required(ClaimedUserIdRequirement.token)} locale=${context.requestLocale}`,
       );
       return yield* users.list(input.filter);
     }),

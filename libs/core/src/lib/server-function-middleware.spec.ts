@@ -4,6 +4,7 @@ import {
   craftMiddleware,
   createServer,
   createServerFunctionClient,
+  createServerFunctionFactory,
   craftUnique,
   flattenMiddlewares,
   isCraftException,
@@ -231,6 +232,32 @@ describe('server function middleware', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it('applique les middleware par défaut d’une createServerFunctionFactory', async () => {
+    const trace: string[] = [];
+    const appServerFunction = createServerFunctionFactory([audited]);
+    const listed = appServerFunction('users.factory', filterSchema, {
+      exposure: 'client',
+    }).handler(({ input, context }) =>
+      Effect.gen(function* () {
+        const log = yield* Trace;
+        log.push(`factory filter=${input.filter} tenant=${input.tenantId}`);
+        return `${context.user.id}/${context.auditId}`;
+      }),
+    );
+    const server = createTestServer('admin', trace, [listed] as never);
+
+    await expect(
+      server.invoke('users.factory', { filter: 'ada', tenantId: 't-1' }),
+    ).resolves.toBe('u-1/a-1');
+    expect(trace).toEqual([
+      'auth:before',
+      'audit:before actor=u-1',
+      'factory filter=ada tenant=t-1',
+      'audit:after failed=false',
+      'auth:after',
+    ]);
   });
 
   it('renvoie 400 sur un input invalide, sans le confondre avec un échec métier', async () => {

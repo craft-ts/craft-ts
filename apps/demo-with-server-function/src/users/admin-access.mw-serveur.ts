@@ -21,18 +21,23 @@ export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
 /**
  * Vérifie que l'identité annoncée par le navigateur est celle de la session.
  *
- * Le champ `userId` est déclaré ici : il est validé par le registre avec le
- * schéma de la server function, puis lisible typé par le handler.
+ * `userId` n'est plus un champ d'input recopié à la main par le composant :
+ * c'est le **contexte client**, déclaré ici par `.clientContext(...)`, validé
+ * par le registre avant l'entrée dans la chaîne, et lu dans un champ distinct
+ * de `context` — précisément pour qu'on ne puisse pas le confondre avec une
+ * donnée de confiance. Ce middleware est ce qui le transforme en preuve.
  */
 export const matchingUser = craftMiddleware('demo.matching-user')
   .use(adminOnly)
-  .input(Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })))
-  .server(({ input, context, next }) =>
+  .clientContext(
+    Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
+  )
+  .server(({ clientContext, context, next }) =>
     Effect.gen(function* () {
-      if (input.userId !== context.authenticatedUser.id) {
+      if (clientContext.userId !== context.authenticatedUser.id) {
         return yield* new AuthenticatedUserMismatch({
-          message: `AuthenticatedUserMismatch: authenticated user "${context.authenticatedUser.id}" cannot access user "${input.userId}".`,
-          requestedUserId: input.userId,
+          message: `AuthenticatedUserMismatch: authenticated user "${context.authenticatedUser.id}" cannot access user "${clientContext.userId}".`,
+          requestedUserId: clientContext.userId,
           authenticatedUserId: context.authenticatedUser.id,
         });
       }

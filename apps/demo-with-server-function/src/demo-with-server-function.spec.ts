@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { getAuthenticatedUsers } from './users/authenticated-list.fn-client';
 import { getUsers } from './users/list.fn-client';
+import { provideClaimedUserId } from './shared/claimed-user-id';
 import { demoAuthenticatedUser } from './server/authentication';
 import { listenDemoServer } from './server/server';
 
@@ -47,10 +48,12 @@ describe('demo with server function', () => {
   it('rejects a browser identity that does not match the authenticated server user', async () => {
     const server = await listenDemoServer();
     try {
-      configureServerFunctionTransport(server.url);
+      // L'identité annoncée ne fait plus partie de l'input : elle vient du DI
+      // navigateur et voyage dans le canal `context`.
+      configureServerFunctionTransport(server.url, 'other-user');
 
       const result = await TestBed.runInInjectionContext(() =>
-        getAuthenticatedUsers({ filter: 'ada', userId: 'other-user' }),
+        getAuthenticatedUsers({ filter: 'ada' }),
       );
 
       expect(isCraftException(result)).toBe(true);
@@ -77,7 +80,7 @@ describe('demo with server function', () => {
       configureServerFunctionTransport(server.url);
 
       const result = await TestBed.runInInjectionContext(() =>
-        getAuthenticatedUsers({ filter: 'ada', userId: 'user-ada' }),
+        getAuthenticatedUsers({ filter: 'ada' }),
       );
 
       expect(isCraftException(result)).toBe(true);
@@ -85,6 +88,56 @@ describe('demo with server function', () => {
         _tag: 'AdminRequired',
         scope: 'ServerFunction',
         payload: { role: 'member' },
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('transporte le contexte client validé, et le refuse quand il manque', async () => {
+    const server = await listenDemoServer();
+    try {
+      const sent: unknown[] = [];
+      configureServerFunctionTransport(server.url, 'user-ada', sent);
+
+      const users = await TestBed.runInInjectionContext(() =>
+        getAuthenticatedUsers({ filter: 'ada' }),
+      );
+      expect(users).toEqual([
+        { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
+      ]);
+      // Le pipe `requireClientDI` et la chaîne `*.mw-client.ts` alimentent le
+      // même canal, versionné, séparé de l'input.
+      expect(sent).toEqual([
+        {
+          id: 'demo.users.authenticated-list',
+          input: { filter: 'ada' },
+          context: {
+            requestedBy: 'user-ada',
+            locale: expect.any(String),
+            userId: 'user-ada',
+          },
+          protocolVersion: 1,
+        },
+      ]);
+
+      // Une requête forgée sans contexte est refusée par le registre, avec son
+      // propre code : ce n'est pas une donnée métier invalide.
+      const response = await fetch(`${server.url}/__server-functions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: 'demo.users.authenticated-list',
+          input: { filter: 'ada' },
+        }),
+      });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          message: expect.stringContaining(
+            'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID',
+          ),
+        },
       });
     } finally {
       await server.close();
@@ -115,14 +168,21 @@ describe('demo with server function', () => {
   }, 60_000);
 });
 
-function configureServerFunctionTransport(serverUrl: string): void {
+function configureServerFunctionTransport(
+  serverUrl: string,
+  claimedUserId = 'user-ada',
+  sent: unknown[] = [],
+): void {
   TestBed.configureTestingModule({
     providers: [
-      provideServerFunctionTransport(async ({ id, input }) => {
+      provideClaimedUserId(() => claimedUserId),
+      provideServerFunctionTransport(async (request) => {
+        const { id } = request;
+        sent.push(request);
         const response = await fetch(`${serverUrl}/__server-functions`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ id, input }),
+          body: JSON.stringify(request),
         });
         const body = (await response.json()) as unknown;
         if (response.ok) return body;

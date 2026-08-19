@@ -282,6 +282,8 @@ Effets de bord assumés, à connaître :
 
 ## Repoussé en V2 (frontière client)
 
+> Livré : voir [2026-08-19-server-function-client-boundary.md](./2026-08-19-server-function-client-boundary.md).
+
 - `craftMiddleware().client(...)` et le canal `sendContext` client → serveur.
 - Format de transport `{ id, input, context }` versionné.
 - Validation obligatoire par schéma du `sendContext` côté serveur (aucune confiance au client).

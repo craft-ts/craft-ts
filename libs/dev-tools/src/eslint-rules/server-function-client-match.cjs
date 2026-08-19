@@ -15,7 +15,7 @@ module.exports = {
     schema: [],
     messages: {
       missingUnique:
-        'createServerFunctionClient must receive craftUnique(<static server function id>).',
+        'createServerFunctionClient must receive craftUnique(<static server function id>), or a craftHandshake(...) shared with the server.',
       nonStatic:
         'createServerFunctionClient craftUnique(...) must wrap a string literal server function id.',
       missingDefinition:
@@ -46,7 +46,7 @@ module.exports = {
           }
 
           const reportNode = reportLocation(sourceCode, call.getStart(), call.getEnd());
-          const key = readClientKey(call);
+          const key = readClientKey(call, filePath);
           if (key.kind === 'missing') {
             context.report({ ...reportNode, messageId: 'missingUnique' });
             continue;
@@ -94,8 +94,20 @@ function createSourceFile(filePath, text) {
   return project.createSourceFile(path.resolve(filePath), text, { overwrite: true });
 }
 
-function readClientKey(call) {
+function readClientKey(call, clientFilePath) {
   const argument = call.getArguments()[0];
+  // Un `craftHandshake(...)` référencé tient le rôle : les deux côtés passent
+  // alors la même valeur, ce qui est une garantie plus forte que la chaîne
+  // répétée sous `craftUnique`.
+  if (argument && argument.isKind(SyntaxKind.Identifier)) {
+    const handshake = readHandshakeName(
+      call.getSourceFile(),
+      argument.getText(),
+      clientFilePath,
+    );
+    if (handshake !== undefined) return { kind: 'static', value: handshake };
+    return { kind: 'missing' };
+  }
   if (!argument || !argument.isKind(SyntaxKind.CallExpression)) {
     return { kind: 'missing' };
   }
@@ -111,6 +123,50 @@ function readClientKey(call) {
     return { kind: 'non-static' };
   }
   return { kind: 'static', value: value.getLiteralValue() };
+}
+
+/**
+ * Nom du `craftHandshake('…')` désigné par un identifiant, déclaré localement
+ * ou importé — la forme recommandée le met dans un module partagé, donc suivre
+ * l'import n'est pas optionnel.
+ */
+function readHandshakeName(sourceFile, variableName, filePath) {
+  const local = handshakeNameInFile(sourceFile, variableName);
+  if (local !== undefined) return local;
+
+  const importDeclaration = sourceFile.getImportDeclarations().find((declaration) =>
+    declaration.getNamedImports().some(
+      (specifier) =>
+        (specifier.getAliasNode()?.getText() ?? specifier.getName()) === variableName,
+    ),
+  );
+  if (!importDeclaration || !filePath) return undefined;
+  const specifier = importDeclaration.getNamedImports().find(
+    (candidate) =>
+      (candidate.getAliasNode()?.getText() ?? candidate.getName()) === variableName,
+  );
+  const importedPath = resolveRelativeImport(
+    filePath,
+    importDeclaration.getModuleSpecifierValue(),
+  );
+  if (!specifier || !importedPath || !fs.existsSync(importedPath)) return undefined;
+  return handshakeNameInFile(
+    createSourceFile(importedPath, fs.readFileSync(importedPath, 'utf8')),
+    specifier.getName(),
+  );
+}
+
+function handshakeNameInFile(sourceFile, variableName) {
+  const initializer = sourceFile.getVariableDeclaration(variableName)?.getInitializer();
+  if (!initializer) return undefined;
+  const call = initializer.isKind?.(SyntaxKind.CallExpression)
+    ? initializer
+    : initializer.getDescendantsOfKind(SyntaxKind.CallExpression).find(
+        (candidate) => candidate.getExpression().getText() === 'craftHandshake',
+      );
+  if (!call || call.getExpression().getText() !== 'craftHandshake') return undefined;
+  const value = call.getArguments()[0];
+  return value?.isKind(SyntaxKind.StringLiteral) ? value.getLiteralValue() : undefined;
 }
 
 function resolveServerDefinition(sourceFile, call, clientFilePath) {
@@ -152,9 +208,13 @@ function resolveServerDefinition(sourceFile, call, clientFilePath) {
   if (!serverCall) return undefined;
 
   const firstArgument = serverCall.getArguments()[0];
+  // Le serveur nomme son id soit par une chaîne, soit par un handshake partagé,
+  // soit par un contrat importé — dans cet ordre.
   const id = firstArgument?.isKind(SyntaxKind.StringLiteral)
     ? firstArgument.getLiteralValue()
-    : readImportedContractId(serverSource, firstArgument);
+    : (firstArgument?.isKind(SyntaxKind.Identifier)
+        ? readHandshakeName(serverSource, firstArgument.getText(), importedFilePath)
+        : undefined) ?? readImportedContractId(serverSource, firstArgument);
 
   return {
     filePath: importedFilePath,

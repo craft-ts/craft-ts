@@ -1,9 +1,12 @@
 import type { ServerFunctionContract } from './server-function-contract';
-import type {
-  ServerFunctionDefinition,
-  ServerFunctionRuntime,
+import {
+  clientDIRequirementsOf,
+  requiresClientContext,
+  type ServerFunctionDefinition,
+  type ServerFunctionRuntime,
 } from './server-function';
 import type { CraftSchema } from './schema-validation';
+import { craftHandshakeName } from './craft-handshake';
 
 export type ServerFunctionServerOptions = {
   readonly runtime?: ServerFunctionRuntime;
@@ -38,6 +41,39 @@ export class ServerFunctionInputError extends Error {
     this.id = id;
     this.issues = issues;
     this.name = 'ServerFunctionInputError';
+  }
+}
+
+/**
+ * Contexte client refusé. Distinct de `ServerFunctionInputError` à dessein :
+ * dans les journaux, une donnée métier invalide et un contexte navigateur
+ * invalide ne racontent pas la même histoire.
+ */
+export class ServerFunctionClientContextError extends Error {
+  readonly code = 'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID';
+  readonly id: string;
+  readonly issues: readonly { readonly message: string }[];
+
+  constructor(id: string, issues: readonly { readonly message: string }[]) {
+    super(
+      `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID: Invalid client context for server function "${id}": ${issues
+        .map((issue) => issue.message)
+        .join(', ')}`,
+    );
+    this.id = id;
+    this.issues = issues;
+    this.name = 'ServerFunctionClientContextError';
+  }
+}
+
+export class ServerFunctionProtocolError extends Error {
+  readonly code = 'CRAFT_SERVER_FUNCTION_PROTOCOL_UNSUPPORTED';
+
+  constructor(version: unknown) {
+    super(
+      `CRAFT_SERVER_FUNCTION_PROTOCOL_UNSUPPORTED: unsupported server function protocol version ${JSON.stringify(version)}. This registry speaks version 1 (and the version-less legacy format).`,
+    );
+    this.name = 'ServerFunctionProtocolError';
   }
 }
 
@@ -81,6 +117,8 @@ export type Server = {
   readonly invoke: (
     id: string,
     input: unknown,
+    /** Contexte brut envoyé par le navigateur, validé avant tout usage. */
+    clientContext?: unknown,
   ) => Promise<unknown>;
   readonly handle: (request: Request) => Promise<Response>;
 };
@@ -100,7 +138,11 @@ export function createServer(
     byId.set(definition.contract.id, definition);
   }
 
-  const invoke = async (id: string, input: unknown): Promise<unknown> => {
+  const invoke = async (
+    id: string,
+    input: unknown,
+    clientContext?: unknown,
+  ): Promise<unknown> => {
     const definition = byId.get(id);
     if (!definition) {
       throw new Error(`Server function "${id}" is not registered.`);
@@ -109,6 +151,7 @@ export function createServer(
     const result = await definition.invoke(
       await parseServerFunctionInput(definition, input),
       options.runtime,
+      await parseServerFunctionClientContext(definition, clientContext),
     );
     const executed = options.execute ? await options.execute(result) : result;
     return parseServerFunctionOutput(definition.contract, executed);
@@ -126,9 +169,11 @@ export function createServer(
         return new Response('Invalid server function request', { status: 400 });
       }
       try {
+        assertSupportedProtocol(body['protocolVersion']);
         const result = await invoke(
           body['id'] as string,
           body['input'],
+          body['context'],
         );
         return Response.json(result);
       } catch (error) {
@@ -138,9 +183,18 @@ export function createServer(
             { status: 403 },
           );
         }
-        if (error instanceof ServerFunctionInputError) {
+        if (
+          error instanceof ServerFunctionInputError ||
+          error instanceof ServerFunctionClientContextError
+        ) {
           return Response.json(
             { error: { message: error.message, issues: error.issues } },
+            { status: 400 },
+          );
+        }
+        if (error instanceof ServerFunctionProtocolError) {
+          return Response.json(
+            { error: { message: error.message } },
             { status: 400 },
           );
         }
@@ -227,6 +281,103 @@ async function validateInputSchema(
   const result = await schema['~standard'].validate(input);
   if (result.issues) {
     throw new ServerFunctionInputError(id, result.issues);
+  }
+  return result.value;
+}
+
+function assertSupportedProtocol(version: unknown): void {
+  if (version === undefined || version === 1) return;
+  throw new ServerFunctionProtocolError(version);
+}
+
+/**
+ * Valide le contexte envoyé par le navigateur.
+ *
+ * Deux canaux, tous deux issus du client et tous deux traités comme non
+ * fiables : le schéma `clientContext` du contrat (ce que la chaîne de
+ * middleware client publie), et les valeurs de chaque `requireClientDI(...)`.
+ * Rien n'est fusionné dans le contexte de confiance produit par les middleware
+ * serveur : le résultat vit dans son propre champ, `clientContext`.
+ */
+async function parseServerFunctionClientContext(
+  definition: ServerFunctionDefinition<any, any, any, any>,
+  raw: unknown,
+): Promise<Record<string, unknown> | undefined> {
+  if (!requiresClientContext(definition)) return undefined;
+  const id = definition.contract.id as string;
+  if (raw === undefined || raw === null) {
+    throw new ServerFunctionClientContextError(id, [
+      {
+        message:
+          'the function declares a client context but the request carried none.',
+      },
+    ]);
+  }
+  if (!isRecord(raw)) {
+    throw new ServerFunctionClientContextError(id, [
+      { message: 'the client context must be an object.' },
+    ]);
+  }
+
+  const validated: Record<string, unknown> = {};
+  for (const schema of definition.clientContextSchemas ?? []) {
+    const result = await schema['~standard'].validate(raw);
+    if (result.issues) {
+      // Nommer le handshake fautif quand il y en a un : dans un journal, savoir
+      // *quel* accord n'a pas été tenu vaut mieux que la seule liste des clés.
+      const handshake = craftHandshakeName(schema);
+      throw new ServerFunctionClientContextError(
+        id,
+        handshake === undefined
+          ? result.issues
+          : result.issues.map((issue) => ({
+              message: `handshake "${handshake}": ${issue.message}`,
+            })),
+      );
+    }
+    if (!isRecord(result.value)) {
+      throw new ServerFunctionClientContextError(id, [
+        { message: 'a client context schema must produce an object.' },
+      ]);
+    }
+    Object.assign(validated, result.value);
+  }
+
+  for (const requirement of clientDIRequirementsOf(definition)) {
+    if (!(requirement.key in raw)) {
+      throw new ServerFunctionClientContextError(id, [
+        {
+          message: `missing client-provided value "${requirement.key}".`,
+        },
+      ]);
+    }
+    // Une clé déjà validée par un schéma du contrat ou d'un middleware n'est
+    // pas un conflit : le pipe n'est alors qu'un accesseur typé sur la même
+    // valeur, et c'est la version validée qui gagne.
+    if (Object.prototype.hasOwnProperty.call(validated, requirement.key)) {
+      continue;
+    }
+    validated[requirement.key] = requirement.schema
+      ? await validateClientValue(id, requirement.key, requirement.schema, raw[requirement.key])
+      : raw[requirement.key];
+  }
+  return validated;
+}
+
+async function validateClientValue(
+  id: string,
+  key: string,
+  schema: CraftSchema,
+  value: unknown,
+): Promise<unknown> {
+  const result = await schema['~standard'].validate(value);
+  if (result.issues) {
+    throw new ServerFunctionClientContextError(
+      id,
+      result.issues.map((issue) => ({
+        message: `client-provided value "${key}": ${issue.message}`,
+      })),
+    );
   }
   return result.value;
 }

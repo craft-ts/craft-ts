@@ -37,6 +37,50 @@ describe('server-function-client-match', () => {
     expect(messages).toEqual([]);
   });
 
+  it('accepte un craftHandshake déclaré dans la façade', async () => {
+    const messages = await lintFixture({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...args: unknown[]): { handler(fn: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => []);
+      `,
+      'users/list.fn-client.ts': `
+        declare function craftHandshake<N extends string>(name: N): N;
+        declare function createServerFunctionClient<T>(id: string): unknown;
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        const listUsersId = craftHandshake('users.list');
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(
+          listUsersId,
+        );
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('accepte un craftHandshake partagé, référencé des deux côtés', async () => {
+    const messages = await lintFixture({
+      'users/list.handshake.ts': `
+        declare function craftHandshake<N extends string>(name: N): N;
+        export const listUsersId = craftHandshake('users.list');
+      `,
+      'users/list.fn-serveur.ts': `
+        import { listUsersId } from './list.handshake';
+        declare function serverFunction(...args: unknown[]): { handler(fn: unknown): unknown };
+        export const listUsers = serverFunction(listUsersId, {}).handler(() => []);
+      `,
+      'users/list.fn-client.ts': `
+        import { listUsersId } from './list.handshake';
+        declare function createServerFunctionClient<T>(id: string): unknown;
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(
+          listUsersId,
+        );
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
   it('requires a static craftUnique key', async () => {
     const messages = await lintFixture({
       'users/list.fn-serveur.ts': `
@@ -53,7 +97,7 @@ describe('server-function-client-match', () => {
     });
 
     expect(messages).toContain(
-      'createServerFunctionClient must receive craftUnique(<static server function id>).',
+      'createServerFunctionClient must receive craftUnique(<static server function id>), or a craftHandshake(...) shared with the server.',
     );
   });
 

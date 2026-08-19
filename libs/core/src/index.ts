@@ -45,10 +45,24 @@ export * from './lib/signal-source';
 export * from './lib/stacked-source';
 export * from './lib/state';
 export * from './lib/schema-validation';
+export * from './lib/craft-handshake';
 export * from './lib/server-function-contract';
 export * from './lib/client-di-requirement';
 export * from './lib/server-function';
+export {
+  assertMiddlewareId,
+  flattenMiddlewareGraph,
+  type MergeSchemaInputs,
+  type MergeSchemaOutputs,
+  type MiddlewareContext,
+  type MiddlewareDownstreamError,
+  type MiddlewareNode,
+  type MiddlewareResult,
+  type OverwriteContext,
+  type Simplify as MiddlewareSimplify,
+} from './lib/middleware-schema-shared';
 export * from './lib/server-function-middleware';
+export * from './lib/client-function-middleware';
 export * from './lib/server-function-client';
 export * from './lib/server';
 export type { StandardSchemaV1 } from './lib/standard-schema';

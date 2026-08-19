@@ -1,36 +1,34 @@
-import type { CraftSchema, SchemaInput, SchemaOutput } from './schema-validation';
+import {
+  assertMiddlewareId,
+  flattenMiddlewareGraph,
+  type MergeOptionalSchemaOutputs,
+  type MergeSchemaInputs,
+  type MergeSchemaOutputs,
+  type MiddlewareContext,
+  type MiddlewareDownstreamError,
+  type MiddlewareResult,
+  type OverwriteContext,
+} from './middleware-schema-shared';
+import type {
+  AnyCraftClientMiddleware,
+  ClientMiddlewareContextOf,
+  ClientMiddlewareProvidesOf,
+  ClientMiddlewareRunContext,
+  CraftClientMiddleware,
+} from './client-function-middleware';
+import type { CraftSchema } from './schema-validation';
 import type * as Effect from 'effect/Effect';
 
-export type MiddlewareContext = Record<string, unknown>;
-
-/** Fusion ordonnée de deux contextes : les clés de droite gagnent. */
-export type OverwriteContext<Left, Right> = Simplify<
-  Omit<Left, keyof Right & keyof Left> & Right
->;
-
-type Simplify<Value> = { [Key in keyof Value]: Value[Key] } & {};
-
-type UnionToIntersection<Union> = (
-  Union extends unknown ? (value: Union) => void : never
-) extends (value: infer Intersection) => void
-  ? Intersection
-  : never;
-
-/**
- * Intersection des sorties de tous les schémas collectés le long de la chaîne.
- * Un schéma unique est conservé tel quel : une server function sans middleware
- * peut donc garder un input non objet.
- */
-export type MergeSchemaOutputs<Schemas extends readonly CraftSchema[]> =
-  Schemas extends readonly [infer Only extends CraftSchema]
-    ? SchemaOutput<Only>
-    : Simplify<UnionToIntersection<SchemaOutput<Schemas[number]>>>;
-
-/** Pendant de `MergeSchemaOutputs` côté entrée : ce que l'appelant doit fournir. */
-export type MergeSchemaInputs<Schemas extends readonly CraftSchema[]> =
-  Schemas extends readonly [infer Only extends CraftSchema]
-    ? SchemaInput<Only>
-    : Simplify<UnionToIntersection<SchemaInput<Schemas[number]>>>;
+export {
+  assertMiddlewareId,
+  type MergeOptionalSchemaOutputs,
+  type MergeSchemaInputs,
+  type MergeSchemaOutputs,
+  type MiddlewareContext,
+  type MiddlewareDownstreamError,
+  type MiddlewareResult,
+  type OverwriteContext,
+};
 
 /** Concatène les schémas de tous les middleware d'une chaîne, dépendances comprises. */
 export type MiddlewareSchemasOfAll<
@@ -42,28 +40,6 @@ export type MiddlewareSchemasOfAll<
   ? readonly [...MiddlewareSchemasOf<Head>, ...MiddlewareSchemasOfAll<Tail>]
   : readonly [];
 
-declare const MIDDLEWARE_RESULT: unique symbol;
-declare const MIDDLEWARE_DOWNSTREAM_ERROR: unique symbol;
-
-/**
- * Résultat opaque de `next()`, porteur du contexte que le middleware ajoute.
- *
- * C'est le pivot de l'inférence : TypeScript ne peut rien déduire de l'argument
- * passé à un paramètre, mais il déduit sans peine depuis le type de retour. Le
- * contexte voyage donc dans le type retourné par `next()`.
- *
- * Conséquence utile : ce type n'est constructible que par `next()`, donc un
- * middleware ne peut pas réussir sans avoir appelé la suite de la chaîne.
- */
-export interface MiddlewareResult<Context extends MiddlewareContext> {
-  readonly [MIDDLEWARE_RESULT]: Context;
-}
-
-/** Échec produit par la suite de la chaîne : observable, non inspectable. */
-export interface MiddlewareDownstreamError {
-  readonly [MIDDLEWARE_DOWNSTREAM_ERROR]: true;
-}
-
 export type MiddlewareNext = <Context extends MiddlewareContext>(patch: {
   readonly context: Context;
 }) => Effect.Effect<MiddlewareResult<Context>, MiddlewareDownstreamError, never>;
@@ -71,9 +47,17 @@ export type MiddlewareNext = <Context extends MiddlewareContext>(patch: {
 export type MiddlewareRunContext<
   Schemas extends readonly CraftSchema[],
   ContextIn extends MiddlewareContext,
+  ClientSchemas extends readonly CraftSchema[] = readonly [],
 > = {
   readonly input: MergeSchemaOutputs<Schemas>;
   readonly context: ContextIn;
+  /**
+   * Ce que le middleware a déclaré attendre du navigateur, via
+   * `.clientContext(schema)`, validé par le registre avant l'entrée dans la
+   * chaîne. Donnée **non fiable** par nature : c'est précisément ce qu'un
+   * middleware d'autorisation est là pour confronter à la vraie session.
+   */
+  readonly clientContext: MergeOptionalSchemaOutputs<ClientSchemas>;
   readonly next: MiddlewareNext;
 };
 
@@ -83,13 +67,16 @@ export interface CraftMiddleware<
   ContextOut extends MiddlewareContext = MiddlewareContext,
   Error = never,
   Requirements = never,
+  ClientSchemas extends readonly CraftSchema[] = readonly CraftSchema[],
 > {
   readonly kind: 'server-function-middleware';
   readonly id: Id;
   readonly inputs: Schemas;
+  /** Schémas du contexte client exigés, dépendances comprises. */
+  readonly clientContexts: ClientSchemas;
   readonly dependencies: readonly AnyCraftMiddleware[];
   readonly run: (
-    context: MiddlewareRunContext<Schemas, MiddlewareContext>,
+    context: MiddlewareRunContext<Schemas, MiddlewareContext, ClientSchemas>,
   ) => Effect.Effect<unknown, Error, Requirements>;
   /** Porteur type-only du contexte publié, dépendances transitives comprises. */
   readonly __contextOut?: ContextOut;
@@ -100,12 +87,39 @@ export type AnyCraftMiddleware = CraftMiddleware<
   readonly CraftSchema[],
   any,
   any,
-  any
+  any,
+  readonly CraftSchema[]
 >;
+
+export type MiddlewareClientContextsOf<Middleware> =
+  Middleware extends CraftMiddleware<
+    any,
+    any,
+    any,
+    any,
+    any,
+    infer ClientSchemas
+  >
+    ? ClientSchemas
+    : readonly [];
+
+/** Schémas de contexte client de toute une chaîne, dépendances comprises. */
+export type MiddlewareClientContextsOfAll<
+  Middlewares extends readonly AnyCraftMiddleware[],
+> = Middlewares extends readonly [
+  infer Head extends AnyCraftMiddleware,
+  ...infer Tail extends readonly AnyCraftMiddleware[],
+]
+  ? readonly [
+      ...MiddlewareClientContextsOf<Head>,
+      ...MiddlewareClientContextsOfAll<Tail>,
+    ]
+  : readonly [];
 
 export type MiddlewareSchemasOf<Middleware> = Middleware extends CraftMiddleware<
   any,
   infer Schemas,
+  any,
   any,
   any,
   any
@@ -118,6 +132,7 @@ export type MiddlewareContextOf<Middleware> = Middleware extends CraftMiddleware
   any,
   infer Context,
   any,
+  any,
   any
 >
   ? Context
@@ -128,13 +143,21 @@ export type MiddlewareErrorOf<Middleware> = Middleware extends CraftMiddleware<
   any,
   any,
   infer Error,
+  any,
   any
 >
   ? Error
   : never;
 
 export type MiddlewareRequirementsOf<Middleware> =
-  Middleware extends CraftMiddleware<any, any, any, any, infer Requirements>
+  Middleware extends CraftMiddleware<
+    any,
+    any,
+    any,
+    any,
+    infer Requirements,
+    any
+  >
     ? Requirements
     : never;
 
@@ -166,17 +189,38 @@ export interface CraftMiddlewareBuilder<
   ContextIn extends MiddlewareContext,
   Error,
   Requirements,
+  Provides extends readonly CraftSchema[] = readonly [],
+  ClientSchemas extends readonly CraftSchema[] = readonly [],
 > {
-  /** Déclare une dépendance : son contexte, ses schémas et ses canaux sont hérités. */
-  readonly use: <Middleware extends AnyCraftMiddleware>(
-    middleware: Middleware,
-  ) => CraftMiddlewareBuilder<
-    Id,
-    readonly [...Schemas, ...MiddlewareSchemasOf<Middleware>],
-    OverwriteContext<ContextIn, MiddlewareContextOf<Middleware>>,
-    Error | MiddlewareErrorOf<Middleware>,
-    Requirements | MiddlewareRequirementsOf<Middleware>
-  >;
+  /**
+   * Déclare une dépendance : son contexte, ses schémas et ses canaux sont
+   * hérités. Les deux familles sont acceptées, mais pas mélangées : le
+   * terminal (`.server` ou `.client`) refuse une dépendance de l'autre famille.
+   */
+  readonly use: {
+    <Middleware extends AnyCraftMiddleware>(
+      middleware: Middleware,
+    ): CraftMiddlewareBuilder<
+      Id,
+      readonly [...Schemas, ...MiddlewareSchemasOf<Middleware>],
+      OverwriteContext<ContextIn, MiddlewareContextOf<Middleware>>,
+      Error | MiddlewareErrorOf<Middleware>,
+      Requirements | MiddlewareRequirementsOf<Middleware>,
+      Provides,
+      readonly [...ClientSchemas, ...MiddlewareClientContextsOf<Middleware>]
+    >;
+    <Middleware extends AnyCraftClientMiddleware>(
+      middleware: Middleware,
+    ): CraftMiddlewareBuilder<
+      Id,
+      Schemas,
+      OverwriteContext<ContextIn, ClientMiddlewareContextOf<Middleware>>,
+      Error,
+      Requirements,
+      readonly [...Provides, ...ClientMiddlewareProvidesOf<Middleware>],
+      ClientSchemas
+    >;
+  };
   /** Ajoute un fragment d'input, fusionné dans celui de la server function. */
   readonly input: <Schema extends CraftSchema>(
     schema: Schema,
@@ -185,7 +229,46 @@ export interface CraftMiddlewareBuilder<
     readonly [...Schemas, Schema],
     ContextIn,
     Error,
-    Requirements
+    Requirements,
+    Provides,
+    ClientSchemas
+  >;
+  /**
+   * Déclare ce que ce middleware **serveur** attend du navigateur.
+   *
+   * Le schéma remonte dans le contexte client attendu par toute server function
+   * qui l'utilise — même mécanique que la fusion des schémas d'input. Le
+   * registre le valide en amont de la chaîne, et le middleware le lit sous
+   * `clientContext`, séparé de `context` : c'est une déclaration du client, à
+   * confronter à la session, jamais à accepter telle quelle.
+   */
+  readonly clientContext: <Schema extends CraftSchema>(
+    schema: Schema,
+  ) => CraftMiddlewareBuilder<
+    Id,
+    Schemas,
+    ContextIn,
+    Error,
+    Requirements,
+    Provides,
+    readonly [...ClientSchemas, Schema]
+  >;
+  /**
+   * Déclare ce qu'un middleware **client** publie dans le contexte transporté.
+   * Ce schéma est le contrat lisible par le serveur : il valide la sortie de la
+   * chaîne côté navigateur, et c'est lui que le graphe d'architecture compare
+   * au `clientContext` attendu par la server function.
+   */
+  readonly provides: <Schema extends CraftSchema>(
+    schema: Schema,
+  ) => CraftMiddlewareBuilder<
+    Id,
+    Schemas,
+    ContextIn,
+    Error,
+    Requirements,
+    readonly [...Provides, Schema],
+    ClientSchemas
   >;
   readonly server: <
     ContextOut extends MiddlewareContext,
@@ -193,56 +276,151 @@ export interface CraftMiddlewareBuilder<
     RunRequirements,
   >(
     run: (
-      context: MiddlewareRunContext<Schemas, ContextIn>,
+      context: MiddlewareRunContext<Schemas, ContextIn, ClientSchemas>,
     ) => Effect.Effect<MiddlewareResult<ContextOut>, RunError, RunRequirements>,
   ) => CraftMiddleware<
     Id,
     Schemas,
     OverwriteContext<ContextIn, ContextOut>,
     Error | Exclude<RunError, MiddlewareDownstreamError>,
-    Requirements | RunRequirements
+    Requirements | RunRequirements,
+    ClientSchemas
+  >;
+  /**
+   * Terminal client : `run` est un générateur craft nu, drivé par le runtime
+   * craft (le même que les guards), et non un Effect.
+   */
+  readonly client: <ContextOut extends MiddlewareContext>(
+    run: (
+      context: ClientMiddlewareRunContext<ContextIn>,
+    ) => Generator<unknown, MiddlewareResult<ContextOut>, unknown>,
+  ) => CraftClientMiddleware<
+    Id,
+    Provides,
+    OverwriteContext<ContextIn, ContextOut>
   >;
 }
 
 export function craftMiddleware<const Id extends string>(
   id: Id,
-): CraftMiddlewareBuilder<Id, readonly [], Record<never, never>, never, never> {
+): CraftMiddlewareBuilder<
+  Id,
+  readonly [],
+  Record<never, never>,
+  never,
+  never,
+  readonly [],
+  readonly []
+> {
   assertMiddlewareId(id);
-  return makeBuilder(id, [], []) as CraftMiddlewareBuilder<
+  return makeBuilder(id, [], [], [], []) as CraftMiddlewareBuilder<
     Id,
     readonly [],
     Record<never, never>,
     never,
-    never
+    never,
+    readonly [],
+    readonly []
   >;
 }
+
+type AnyMiddlewareValue = AnyCraftMiddleware | AnyCraftClientMiddleware;
 
 function makeBuilder(
   id: string,
   inputs: readonly CraftSchema[],
-  dependencies: readonly AnyCraftMiddleware[],
+  dependencies: readonly AnyMiddlewareValue[],
+  provides: readonly CraftSchema[],
+  clientContexts: readonly CraftSchema[],
 ): unknown {
   return {
-    use(middleware: AnyCraftMiddleware) {
+    use(middleware: AnyMiddlewareValue) {
       return makeBuilder(
         id,
-        [...inputs, ...middleware.inputs],
+        middleware.kind === 'server-function-middleware'
+          ? [...inputs, ...middleware.inputs]
+          : inputs,
         [...dependencies, middleware],
+        middleware.kind === 'client-function-middleware'
+          ? [...provides, ...middleware.provides]
+          : provides,
+        middleware.kind === 'server-function-middleware'
+          ? [...clientContexts, ...middleware.clientContexts]
+          : clientContexts,
       );
     },
     input(schema: CraftSchema) {
-      return makeBuilder(id, [...inputs, schema], dependencies);
+      return makeBuilder(
+        id,
+        [...inputs, schema],
+        dependencies,
+        provides,
+        clientContexts,
+      );
+    },
+    provides(schema: CraftSchema) {
+      return makeBuilder(
+        id,
+        inputs,
+        dependencies,
+        [...provides, schema],
+        clientContexts,
+      );
+    },
+    clientContext(schema: CraftSchema) {
+      return makeBuilder(id, inputs, dependencies, provides, [
+        ...clientContexts,
+        schema,
+      ]);
     },
     server(run: CraftMiddleware['run']) {
       return Object.freeze({
         kind: 'server-function-middleware' as const,
         id,
         inputs,
-        dependencies,
+        clientContexts,
+        dependencies: assertSameFamily(
+          id,
+          dependencies,
+          'server-function-middleware',
+        ),
+        run,
+      });
+    },
+    client(run: CraftClientMiddleware['run']) {
+      return Object.freeze({
+        kind: 'client-function-middleware' as const,
+        id,
+        provides,
+        dependencies: assertSameFamily(
+          id,
+          dependencies,
+          'client-function-middleware',
+        ),
         run,
       });
     },
   };
+}
+
+/**
+ * Un middleware client et un middleware serveur ne s'exécutent ni au même
+ * endroit ni avec le même moteur : les composer serait un contresens, et le
+ * runtime ne saurait pas quoi faire de la dépendance étrangère.
+ */
+function assertSameFamily<Kind extends AnyMiddlewareValue['kind']>(
+  id: string,
+  dependencies: readonly AnyMiddlewareValue[],
+  kind: Kind,
+): readonly Extract<AnyMiddlewareValue, { kind: Kind }>[] {
+  for (const dependency of dependencies) {
+    if (dependency.kind !== kind) {
+      throw new Error(
+        `Middleware "${id}" is a ${kind === 'client-function-middleware' ? 'client' : 'server'} middleware but depends on "${dependency.id}", which is a ${dependency.kind === 'client-function-middleware' ? 'client' : 'server'} middleware. A chain cannot mix both families.`,
+      );
+    }
+  }
+  return dependencies as readonly Extract<AnyMiddlewareValue, { kind: Kind }>[];
 }
 
 export function isCraftMiddleware(value: unknown): value is AnyCraftMiddleware {
@@ -253,44 +431,11 @@ export function isCraftMiddleware(value: unknown): value is AnyCraftMiddleware {
   );
 }
 
-export function assertMiddlewareId(id: string): void {
-  if (!/^[A-Za-z][A-Za-z0-9._:-]*$/.test(id)) {
-    throw new Error(
-      `Invalid middleware id "${id}". Use a stable dotted identifier.`,
-    );
-  }
-}
-
-/**
- * Aplatit les dépendances (profondeur d'abord) et déduplique par identifiant.
- *
- * La déduplication est silencieuse par construction : deux middleware de même
- * identifiant mais d'implémentation différente donneraient un typage juste et un
- * runtime faux, d'où le rejet explicite.
- */
+/** Aplatit les dépendances (profondeur d'abord) et déduplique par identifiant. */
 export function flattenMiddlewares(
   middlewares: readonly AnyCraftMiddleware[],
 ): readonly AnyCraftMiddleware[] {
-  const seen = new Map<string, AnyCraftMiddleware>();
-  const ordered: AnyCraftMiddleware[] = [];
-
-  const visit = (middleware: AnyCraftMiddleware): void => {
-    const known = seen.get(middleware.id);
-    if (known) {
-      if (known !== middleware) {
-        throw new Error(
-          `Duplicate middleware id "${middleware.id}" with two different implementations.`,
-        );
-      }
-      return;
-    }
-    seen.set(middleware.id, middleware);
-    for (const dependency of middleware.dependencies) visit(dependency);
-    ordered.push(middleware);
-  };
-
-  for (const middleware of middlewares) visit(middleware);
-  return ordered;
+  return flattenMiddlewareGraph(middlewares);
 }
 
 /** Schémas d'input collectés le long de la chaîne, dédupliqués, contrat en tête. */
@@ -301,6 +446,22 @@ export function collectMiddlewareSchemas(
   const schemas: CraftSchema[] = [contractInput];
   for (const middleware of flattenMiddlewares(middlewares)) {
     for (const schema of middleware.inputs) {
+      if (!schemas.includes(schema)) schemas.push(schema);
+    }
+  }
+  return schemas;
+}
+
+/** Même mécanique, appliquée au canal du contexte client. */
+export function collectMiddlewareClientContextSchemas(
+  contractClientContext: CraftSchema | undefined,
+  middlewares: readonly AnyCraftMiddleware[],
+): readonly CraftSchema[] {
+  const schemas: CraftSchema[] = contractClientContext
+    ? [contractClientContext]
+    : [];
+  for (const middleware of flattenMiddlewares(middlewares)) {
+    for (const schema of middleware.clientContexts ?? []) {
       if (!schemas.includes(schema)) schemas.push(schema);
     }
   }
@@ -321,6 +482,7 @@ export function runMiddlewareChain(
   middlewares: readonly AnyCraftMiddleware[],
   input: unknown,
   handler: MiddlewareChainHandler,
+  clientContext: MiddlewareContext = {},
 ): unknown {
   const chain = flattenMiddlewares(middlewares);
 
@@ -330,6 +492,7 @@ export function runMiddlewareChain(
     return middleware.run({
       input: input as never,
       context,
+      clientContext: clientContext as never,
       next: ((patch: { readonly context: MiddlewareContext }) =>
         step(index + 1, { ...context, ...patch.context })) as never,
     });

@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "fd99ccb4b6c23310",
+  "graphHash": "45797195e8fbb2e2",
   "routes": [
     "",
     "simple-list"
@@ -14,6 +14,7 @@ export const architectureCatalog = {
     "BrowserNavigatorService",
     "BrowserPerformanceService",
     "BrowserWindowService",
+    "ClientSession",
     "ConsoleService",
     "CookiesService",
     "CurrentUser",
@@ -66,7 +67,6 @@ export const architectureCatalog = {
   ],
   "httpEndpoints": [],
   "uniques": [
-    "\"demo.users.authenticated-list\"",
     "\"demo.users.list\""
   ],
   "providers": [],
@@ -74,7 +74,16 @@ export const architectureCatalog = {
   "componentProviders": {},
   "providedOn": {},
   "collisions": {
-    "services": {},
+    "services": {
+      "CurrentUser": [
+        "apps/demo-with-server-function/src/shared/authenticated-user.ts",
+        "apps/demo-with-server-function/src/shared/authenticated-user.ts"
+      ],
+      "UserRepository": [
+        "apps/demo-with-server-function/src/server/database.ts",
+        "apps/demo-with-server-function/src/server/database.ts"
+      ]
+    },
     "components": {},
     "routes": {}
   },

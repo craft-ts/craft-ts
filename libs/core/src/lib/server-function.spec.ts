@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  clientContext,
   craftUnique,
   createServer,
   createServerFunctionClient,
@@ -9,6 +10,7 @@ import {
   serverFunction,
   serverFunctionContract,
   TestBed,
+  type ServerFunctionRequest,
   type StandardSchemaV1,
 } from '@craft-ts/core';
 import { InjectionToken } from './host/craft-compat';
@@ -52,20 +54,24 @@ describe('server functions', () => {
     );
   });
 
-  it('runs client-exposed functions through a typed transport and DI resolver', async () => {
+  it('transporte une valeur du DI navigateur jusqu’à required() côté serveur', async () => {
     const CurrentUser = new InjectionToken<{ id: string }>('CurrentUser');
+    const requireCurrentUser = requireClientDI(CurrentUser, {
+      mode: 'snapshot',
+    });
     const contract = serverFunctionContract({
       id: 'users.current',
       input: numberSchema((value) => value),
       exposure: 'client',
     });
     const implementation = serverFunction(contract)
-      .pipe(requireClientDI(CurrentUser, { mode: 'snapshot' }))
+      .pipe(requireCurrentUser)
       .pipe(requireServerPermission('users:read'))
       .handler(({ input, required }) => `${required(CurrentUser).id}:${input}`);
-    const requests: unknown[] = [];
+    const requests: ServerFunctionRequest[] = [];
     TestBed.configureTestingModule({
       providers: [
+        { provide: CurrentUser, useValue: { id: 'u-1' } },
         provideServerFunctionTransport(async (request) => {
           requests.push(request);
           return 'u-1:4';
@@ -74,19 +80,38 @@ describe('server functions', () => {
     });
     const client = createServerFunctionClient<typeof implementation>(
       craftUnique('users.current'),
+      clientContext([requireCurrentUser]),
     );
 
     await expect(
       TestBed.runInInjectionContext(() => client(4)),
     ).resolves.toBe('u-1:4');
-    expect(requests).toEqual([{ id: 'users.current', input: 4 }]);
+    // La valeur lue dans le DI du navigateur voyage dans le canal `context`,
+    // versionné, jamais mélangée à l'input.
+    expect(requests).toEqual([
+      {
+        id: 'users.current',
+        input: 4,
+        context: { CurrentUser: { id: 'u-1' } },
+        protocolVersion: 1,
+      },
+    ]);
 
     const server = createServer({
       functions: [implementation],
-      runtime: { resolve: <Value>() => ({ id: 'u-1' } as Value) },
+      // Le résolveur serveur existe, mais `required(CurrentUser)` ne l'utilise
+      // plus : la valeur vient du navigateur, validée, jamais du DI serveur.
+      runtime: { resolve: <Value>() => ({ id: 'server-side' } as Value) },
       checkPermission: (permission) => permission === 'users:read',
     });
-    await expect(server.invoke('users.current', 4)).resolves.toBe('u-1:4');
+    await expect(
+      server.invoke('users.current', 4, { CurrentUser: { id: 'u-1' } }),
+    ).resolves.toBe('u-1:4');
+
+    // Fail-closed : sans contexte client, la requête est refusée.
+    await expect(server.invoke('users.current', 4)).rejects.toThrow(
+      'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID',
+    );
   });
 
   it('rejette une permission déclarée mais refusée', async () => {

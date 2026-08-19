@@ -50,9 +50,10 @@ contract and the `requireAdmin` business effect live in
 `src/shared/authenticated-user.ts`. The frontend and server each provide a
 different instance through a `Layer`, but execute exactly the same Effect
 logic. The frontend immediately blocks users who are not administrators. The
-frontend may send a `userId`, but that value and the client-side role are
-considered untrusted. The server resolves its own `CurrentUser`, checks the
-`admin` role again, and then verifies that the ID matches the session.
+frontend announces a `userId` through the **client context** channel, but that
+value and the client-side role are considered untrusted. The server resolves its
+own `CurrentUser`, checks the `admin` role again, and then verifies that the
+announced ID matches the session.
 
 ## Middleware
 
@@ -69,16 +70,24 @@ export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
 
 export const matchingUser = craftMiddleware('demo.matching-user')
   .use(adminOnly)
-  .input(Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })))
-  .server(({ input, context, next }) =>
+  .clientContext(
+    Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
+  )
+  .server(({ clientContext, context, next }) =>
     Effect.gen(function* () {
-      if (input.userId !== context.authenticatedUser.id) {
+      if (clientContext.userId !== context.authenticatedUser.id) {
         return yield* new AuthenticatedUserMismatch({ /* … */ });
       }
       return yield* next({ context: {} });
     }),
   );
 ```
+
+`userId` is **not** an input field: it is what the browser declares about
+itself, and it arrives in `clientContext`, a channel kept separate from
+`context` on purpose. `context` holds what the server chain proved;
+`clientContext` holds what the client claimed. This middleware is what turns the
+second into the first.
 
 The server function then declares the chain with `.use(...)` and keeps only its
 own work:
@@ -89,12 +98,15 @@ export const getAuthenticatedUsers = serverFunction(
   Schema.toStandardSchemaV1(Schema.Struct({ filter: Schema.String })),
   { exposure: 'client', output: authenticatedListUsersOutputSchema },
 )
+  .pipe(claimedUserId)
   .use(matchingUser)
-  .handler(({ input, context }) =>
+  .use(auditedRequest)
+  .handler(({ input, context, required }) =>
     Effect.gen(function* () {
-      context.authenticatedUser; // published by the middleware, fully typed
-      input.userId;              // validated by the middleware input schema
-      input.filter;              // validated by the server function schema
+      context.authenticatedUser;  // published by the middleware, fully typed
+      required(ClaimedUserId);    // read from the validated client context
+      context.requestLocale;      // published by the audit middleware
+      input.filter;               // validated by the server function schema
       // …
     }),
   );
@@ -102,7 +114,7 @@ export const getAuthenticatedUsers = serverFunction(
 
 Three things are inferred, with no manual declaration:
 
-- **the input** — `userId` is declared by the middleware and merged into the
+- **the input** — every middleware `.input(...)` schema is merged into the
   server function input, on the handler side *and* on the client facade side;
 - **the context** — `context.authenticatedUser` is what the middleware published
   through `next({ context })`;
@@ -116,7 +128,126 @@ dependencies declared with `.use(...)` run first and are deduplicated by id.
 Because the input is validated once, ahead of the chain, a middleware input
 schema **must ignore unknown keys** — the default behaviour of `Schema.Struct`.
 A strict schema would reject the fields contributed by the server function
-itself.
+itself. The same holds for client-context schemas.
+
+## Client context
+
+What the browser knows and the server does not — a session id, a locale, a
+selected workspace — travels in its own request channel:
+
+```json
+{ "id": "demo.users.authenticated-list",
+  "input": { "filter": "ada" },
+  "context": { "userId": "user-ada", "requestedBy": "user-ada", "locale": "en" },
+  "protocolVersion": 1 }
+```
+
+A request without `context` keeps working exactly as before: the field only
+appears when the function declares it needs one.
+
+Two mechanisms feed it, and the demo uses both.
+
+**One token, zero files** — `requireClientDI(...)` is declared once in
+`src/shared/claimed-user-id.ts` and replayed on both sides. It is deliberately
+*not* a handshake: the browser DI fills it, not a client middleware, so pairing
+it with one would be a lie.
+
+```ts
+export const ClaimedUserId = new InjectionToken<string>('demo/ClaimedUserId');
+
+export const claimedUserId = requireClientDI(ClaimedUserId, {
+  mode: 'snapshot',
+  key: 'userId',
+  schema: Schema.toStandardSchemaV1(Schema.String),
+});
+```
+
+Only `mode: 'snapshot'` exists. `reactive` and `cancel-on-change` are
+deliberately absent: in Craft, only `params()` is a tracked reactive dependency
+of a loader, so making a DI read inside a loader re-run would mean hidden
+tracking. Compose the read into the caller's `params()` instead.
+
+**A composed chain** — `src/client/request-context.mw-client.ts` publishes two
+fields through two middleware, one depending on the other. Each field's shape is
+a `craftHandshake` shared with the server (see below). `run` is a plain
+craft generator, like a route guard, and it runs on the async craft pump, so a
+bridge (the Effect adapter, for instance) can suspend inside it:
+
+```ts
+export const requestedByContext = craftMiddleware('demo.requested-by')
+  .provides(requestedBySchema)
+  .client(function* ({ next }) {
+    const session = yield* ClientSession();
+    return yield* next({ context: { requestedBy: session.userId } });
+  });
+
+export const requestContext = craftMiddleware('demo.request-context')
+  .use(requestedByContext)
+  .provides(localeSchema)
+  .client(function* ({ next }) {
+    const session = yield* ClientSession();
+    return yield* next({ context: { locale: session.locale } });
+  });
+```
+
+Both are attached on the client facade, and TypeScript checks there that
+together they cover what the server function expects:
+
+```ts
+export const getAuthenticatedUsers =
+  createServerFunctionClient<typeof ServerGetAuthenticatedUsers>(
+    craftUnique('demo.users.authenticated-list'),
+    clientContext([claimedUserId, requestContext]),
+  );
+```
+
+## Handshakes
+
+A handshake is a name the two sides agree on, declared once and referenced from
+both. `craftUnique` says *"this name appears exactly once"*, which is the wrong
+predicate at a boundary: an id, or the shape of a client context, **must** appear
+on both sides, because the two files cannot import each other. `craftHandshake`
+says the opposite — *"this name has a counterpart"* — and
+`assertCraftHandshake(graph)` proves it.
+
+```ts
+// src/shared/claimed-user-id.ts — l'identité, nommée une seule fois
+export const authenticatedListHandshake = craftHandshake(
+  'demo.users.authenticated-list',
+);
+
+// src/shared/request-context.ts — une forme, un producteur, un consommateur
+export const requestedByHandshake = craftHandshake(
+  'demo.requested-by',
+  Schema.toStandardSchemaV1(Schema.Struct({ requestedBy: Schema.String })),
+);
+```
+
+Both sides then pass the same value:
+
+```ts
+serverFunction(authenticatedListHandshake, inputSchema, { … })      // .fn-serveur.ts
+createServerFunctionClient<typeof ServerFn>(authenticatedListHandshake, …) // .fn-client.ts
+```
+
+Two things follow. The id string exists **once** in the repository, so equality
+between the two sides becomes a TypeScript check rather than something the graph
+catches after the fact — the graph only has to prove both sides are reachable,
+which is the cross-program case. And when a handshake carries a schema, the
+server's `.clientContext(...)` and the client's `.provides(...)` share the *same*
+schema: they can no longer drift.
+
+Three diagnostics: `CRAFT_HANDSHAKE_MISSING_COUNTERPART`,
+`CRAFT_HANDSHAKE_NOT_STATIC`, `CRAFT_HANDSHAKE_DUPLICATE_NAME`. The
+`demo.users.list` family stays on `craftUnique(...)` on purpose, so both spellings
+remain exercised.
+
+The server never imports a `*.mw-client.ts` file — the architecture graph
+forbids it. It only declares the *shape* it expects, with
+`.clientContext(schema)` on a middleware or `{ clientContext: schema }` on the
+function, and revalidates it on arrival. A missing or malformed context is
+rejected with `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID` (HTTP 400), which
+is deliberately distinct from an invalid business input.
 
 The local database is the `data/users.json` file, read by an Effect repository;
 no database server or native package is required. The server handler returns an

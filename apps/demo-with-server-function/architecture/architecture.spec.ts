@@ -3,6 +3,7 @@ import {
   assertCraftComputedPure,
   assertCraftEffectNoImperativeSync,
   assertCraftEffectNoNetwork,
+  assertCraftHandshake,
   assertCraftUnique,
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
@@ -37,10 +38,35 @@ describe('architecture', () => {
       'demo.users.authenticated-list',
       'demo.users.list',
     ]);
+    // Deux façons de nommer une famille, toutes deux vérifiées : `craftUnique`
+    // pour la chaîne répétée des deux côtés, `craftHandshake` pour l'identité
+    // partagée déclarée une seule fois.
     expect(graph.unique('"demo.users.list"').kind).toBe('unique');
-    expect(graph.unique('"demo.users.authenticated-list"').kind).toBe(
-      'unique',
+    expect(
+      graph
+        .handshakes()
+        .find((node) => node.label === 'demo.users.authenticated-list')?.kind,
+    ).toBe('handshake');
+  });
+
+  it('links a server function to its Effect service requirement with proof', () => {
+    const service = graph.nodes('effect-service').find(
+      (node) => node.label === 'UserRepository',
     );
+    expect(service).toBeDefined();
+    const serverPart = graph.graph.nodes.find(
+      (node) =>
+        node.kind === 'server-function-server' &&
+        node.details?.['serverFunctionId'] === 'demo.users.list',
+    );
+    expect(serverPart).toBeDefined();
+    const requirement = graph.graph.edges.find(
+      (edge) => edge.from === serverPart?.id && edge.to === service?.id,
+    );
+    expect(requirement).toMatchObject({
+      kind: 'requires-service',
+      proof: { pattern: 'yield* UserRepository' },
+    });
   });
 
   it('models the server-function middleware chain', () => {
@@ -49,17 +75,57 @@ describe('architecture', () => {
         .serverFunctionMiddlewares()
         .map((node) => node.label)
         .sort(),
-    ).toEqual(['demo.admin-only', 'demo.matching-user']);
+    ).toEqual(['demo.admin-only', 'demo.matching-user', 'demo.request-audit']);
 
-    // matchingUser -> adminOnly, et la server function -> matchingUser.
+    // matchingUser -> adminOnly, et la server function -> ses deux middleware.
     const uses = graph.graph.edges.filter(
       (edge) => edge.details?.['boundary'] === 'middleware-uses',
     );
-    expect(uses).toHaveLength(2);
+    expect(uses).toHaveLength(3);
+  });
+
+  it('models the client middleware chain and where it is attached', () => {
+    expect(
+      graph
+        .clientFunctionMiddlewares()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual(['demo.request-context', 'demo.requested-by']);
+
+    // requestContext -> requestedByContext.
+    expect(
+      graph.graph.edges.filter(
+        (edge) => edge.details?.['boundary'] === 'client-middleware-uses',
+      ),
+    ).toHaveLength(1);
+    // Et la façade client qui l'attache via clientContext([...]).
+    const attached = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
+    );
+    expect(attached).toHaveLength(1);
+    expect(
+      attached[0]?.from.startsWith(
+        'server-function-part:server-function-client:',
+      ),
+    ).toBe(true);
   });
 
   it('requires craftUnique identities to appear once', () => {
     assertCraftUnique(graph.graph);
+  });
+
+  it('honore chaque handshake des deux côtés de la frontière', () => {
+    expect(
+      graph
+        .handshakes()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual([
+      'demo.request-locale',
+      'demo.requested-by',
+      'demo.users.authenticated-list',
+    ]);
+    assertCraftHandshake(graph.graph);
   });
 
   it('owns each HTTP endpoint once', () => {

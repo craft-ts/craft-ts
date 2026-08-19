@@ -5,6 +5,7 @@ import {
   type ServerFunctionExposure,
 } from './server-function-contract';
 import {
+  isClientDIRequirement,
   type ClientDIRequirement,
   type ClientDITokensOf,
   type ClientDIRequirementOf,
@@ -12,6 +13,7 @@ import {
   type ServerFunctionToken,
 } from './client-di-requirement';
 import {
+  collectMiddlewareClientContextSchemas,
   collectMiddlewareSchemas,
   runMiddlewareChain,
   type AnyCraftMiddleware,
@@ -20,15 +22,46 @@ import {
   type MergedMiddlewareRequirements,
   type MergeSchemaInputs,
   type MergeSchemaOutputs,
+  type MiddlewareClientContextsOfAll,
   type MiddlewareSchemasOf,
   type MiddlewareSchemasOfAll,
 } from './server-function-middleware';
+import type {
+  MergeOptionalSchemaInputs,
+  MergeOptionalSchemaOutputs,
+} from './middleware-schema-shared';
 import type { CraftSchema } from './schema-validation';
 import type * as Effect from 'effect/Effect';
 
 export type ServerFunctionRequired<
   Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
 > = <Value>(token: ServerFunctionToken<Value> & ClientDITokensOf<Pipes>) => Value;
+
+type ContractClientContextSchemas<
+  Contract extends ServerFunctionContract<any, any, any>,
+> = Contract extends ServerFunctionContract<
+  any,
+  any,
+  any,
+  any,
+  infer ClientContextSchema
+>
+  ? [ClientContextSchema] extends [CraftSchema]
+    ? readonly [ClientContextSchema]
+    : readonly []
+  : readonly [];
+
+/**
+ * Le canal du contexte client, fusionné comme celui de l'input : le schéma
+ * déclaré par la fonction, suivi de ceux exigés par ses middleware.
+ */
+export type ServerFunctionClientContextSchemas<
+  Contract extends ServerFunctionContract<any, any, any>,
+  Middlewares extends readonly AnyCraftMiddleware[],
+> = readonly [
+  ...ContractClientContextSchemas<Contract>,
+  ...MiddlewareClientContextsOfAll<Middlewares>,
+];
 
 export type ServerFunctionHandlerContext<
   Contract extends ServerFunctionContract<any, any, any>,
@@ -43,6 +76,16 @@ export type ServerFunctionHandlerContext<
   readonly input: MergeSchemaOutputs<Schemas>;
   /** Contexte produit par la chaîne de middleware, fusionné dans l'ordre. */
   readonly context: MergedMiddlewareContext<Middlewares>;
+  /**
+   * Contexte envoyé par le **navigateur**, validé par le schéma du contrat.
+   *
+   * Délibérément séparé de `context` : c'est une déclaration du client, pas une
+   * donnée de confiance. Un middleware serveur doit la confronter à la vraie
+   * session avant d'en faire quoi que ce soit.
+   */
+  readonly clientContext: MergeOptionalSchemaOutputs<
+    ServerFunctionClientContextSchemas<Contract, Middlewares>
+  >;
   readonly required: ServerFunctionRequired<Pipes>;
   readonly pipes: Pipes;
 };
@@ -69,12 +112,37 @@ export type ServerFunctionDefinition<
   readonly middlewares: Middlewares;
   /** Schéma du contrat suivi de ceux des middleware, dédupliqués. */
   readonly inputSchemas: readonly CraftSchema[];
+  /** Idem pour le contexte client attendu du navigateur. */
+  readonly clientContextSchemas: readonly CraftSchema[];
   readonly handler: ServerFunctionHandler<Contract, Pipes, Output, Middlewares>;
   readonly invoke: (
     input: unknown,
     runtime?: ServerFunctionRuntime,
+    clientContext?: Record<string, unknown>,
   ) => Output | Promise<Output>;
 };
+
+/** Vrai dès que la fonction attend quoi que ce soit du DI navigateur. */
+export function requiresClientContext(
+  definition: ServerFunctionDefinition<any, any, any, any>,
+): boolean {
+  return (
+    (definition.clientContextSchemas ?? []).length > 0 ||
+    definition.pipes.some((pipe: ServerFunctionPipe) =>
+      isClientDIRequirement(pipe),
+    )
+  );
+}
+
+/** Les pipes `requireClientDI(...)` déclarés par la fonction. */
+export function clientDIRequirementsOf(
+  definition: ServerFunctionDefinition<any, any, any, any>,
+): readonly ClientDIRequirement[] {
+  return definition.pipes.filter(
+    (pipe: ServerFunctionPipe): pipe is ClientDIRequirement =>
+      isClientDIRequirement(pipe),
+  );
+}
 
 export type ServerFunctionRuntime = {
   readonly resolve?: <Value>(token: ServerFunctionToken<Value>) => Value;
@@ -107,7 +175,7 @@ type ComposedOutput<
       >
     : Output;
 
-type Builder<
+export type ServerFunctionBuilder<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
   Middlewares extends readonly AnyCraftMiddleware[] = readonly [],
@@ -119,10 +187,15 @@ type Builder<
         ? never
         : Pipe
       : Pipe,
-  ) => Builder<Contract, readonly [...Pipes, Pipe], Middlewares, Schemas>;
+  ) => ServerFunctionBuilder<
+    Contract,
+    readonly [...Pipes, Pipe],
+    Middlewares,
+    Schemas
+  >;
   readonly use: <Middleware extends AnyCraftMiddleware>(
     middleware: Middleware,
-  ) => Builder<
+  ) => ServerFunctionBuilder<
     Contract,
     Pipes,
     readonly [...Middlewares, Middleware],
@@ -147,31 +220,49 @@ type Builder<
 export function serverFunction<const Id extends string, Schema extends CraftSchema>(
   id: Id,
   input: Schema,
-): Builder<ServerFunctionContract<Schema, 'server', undefined, Id>, readonly []>;
+): ServerFunctionBuilder<
+  ServerFunctionContract<Schema, 'server', undefined, Id>,
+  readonly []
+>;
 export function serverFunction<
   const Id extends string,
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined = undefined,
+  ClientContextSchema extends CraftSchema | undefined = undefined,
 >(
   id: Id,
   input: Schema,
   options: {
     readonly exposure: Exposure;
     readonly output?: OutputSchema;
+    readonly clientContext?: ClientContextSchema;
   },
-): Builder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema, Id>,
+): ServerFunctionBuilder<
+  ServerFunctionContract<Schema, Exposure, OutputSchema, Id, ClientContextSchema>,
   readonly []
 >;
 export function serverFunction<
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined,
+  ClientContextSchema extends CraftSchema | undefined = CraftSchema | undefined,
 >(
-  contract: ServerFunctionContract<Schema, Exposure, OutputSchema>,
-): Builder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema>,
+  contract: ServerFunctionContract<
+    Schema,
+    Exposure,
+    OutputSchema,
+    string,
+    ClientContextSchema
+  >,
+): ServerFunctionBuilder<
+  ServerFunctionContract<
+    Schema,
+    Exposure,
+    OutputSchema,
+    string,
+    ClientContextSchema
+  >,
   readonly []
 >;
 export function serverFunction<
@@ -179,6 +270,7 @@ export function serverFunction<
   Schema extends CraftSchema,
   Exposure extends ServerFunctionExposure,
   OutputSchema extends CraftSchema | undefined = undefined,
+  ClientContextSchema extends CraftSchema | undefined = undefined,
 >(
   contractOrId:
     | Id
@@ -187,9 +279,10 @@ export function serverFunction<
   options?: {
     readonly exposure?: Exposure;
     readonly output?: OutputSchema;
+    readonly clientContext?: ClientContextSchema;
   },
-): Builder<
-  ServerFunctionContract<Schema, Exposure, OutputSchema, Id>,
+): ServerFunctionBuilder<
+  ServerFunctionContract<Schema, Exposure, OutputSchema, Id, ClientContextSchema>,
   readonly []
 > {
   const contract = (
@@ -199,9 +292,16 @@ export function serverFunction<
           input: input as Schema,
           exposure: options?.exposure ?? 'server',
           output: options?.output,
+          clientContext: options?.clientContext,
         })
       : contractOrId
-  ) as ServerFunctionContract<Schema, Exposure, OutputSchema, Id>;
+  ) as ServerFunctionContract<
+    Schema,
+    Exposure,
+    OutputSchema,
+    Id,
+    ClientContextSchema
+  >;
   assertServerFunctionId(contract.id);
 
   return createBuilder(contract, [] as readonly [], [] as readonly []);
@@ -215,7 +315,7 @@ function createBuilder<
   contract: Contract,
   pipes: Pipes,
   middlewares: Middlewares,
-): Builder<Contract, Pipes, Middlewares> {
+): ServerFunctionBuilder<Contract, Pipes, Middlewares> {
   return {
     pipe(pipe: ServerFunctionPipe) {
       return createBuilder(
@@ -233,7 +333,7 @@ function createBuilder<
     handler(handler: ServerFunctionHandler<Contract, Pipes, unknown, Middlewares>) {
       return createDefinition(contract, pipes, middlewares, handler) as never;
     },
-  } as unknown as Builder<Contract, Pipes, Middlewares>;
+  } as unknown as ServerFunctionBuilder<Contract, Pipes, Middlewares>;
 }
 
 function createDefinition<
@@ -253,9 +353,25 @@ function createDefinition<
     pipes,
     middlewares,
     inputSchemas: collectMiddlewareSchemas(contract.input, middlewares),
+    clientContextSchemas: collectMiddlewareClientContextSchemas(
+      contract.clientContext as CraftSchema | undefined,
+      middlewares,
+    ),
     handler,
-    invoke(input, runtime) {
+    invoke(input, runtime, clientContext) {
       const required: ServerFunctionRequired<Pipes> = (token) => {
+        // Un token déclaré par `requireClientDI(...)` vient du navigateur : il
+        // se lit dans le contexte client validé, jamais dans le DI du serveur,
+        // sinon la déclaration mentirait sur l'origine de la valeur.
+        const requirement = clientDIRequirementFor(pipes, token);
+        if (requirement) {
+          if (!clientContext || !(requirement.key in clientContext)) {
+            throw new Error(
+              `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_MISSING: Server function "${contract.id}" requires the browser-provided value "${requirement.key}", but the request carried no such client context. Attach requireClientDI(...) on the client facade too.`,
+            );
+          }
+          return clientContext[requirement.key] as never;
+        }
         if (!runtime?.resolve) {
           throw new Error(
             `Server function "${contract.id}" requires DI, but no server runtime resolver was provided.`,
@@ -267,16 +383,30 @@ function createDefinition<
         handler({
           input: input as never,
           context: context as never,
+          clientContext: (clientContext ?? {}) as never,
           required,
           pipes,
         });
 
       if (middlewares.length === 0) return call({});
-      return runMiddlewareChain(middlewares, input, ({ context }) =>
-        call(context),
+      return runMiddlewareChain(
+        middlewares,
+        input,
+        ({ context }) => call(context),
+        clientContext ?? {},
       ) as Output;
     },
   };
+}
+
+function clientDIRequirementFor(
+  pipes: readonly ServerFunctionPipe[],
+  token: unknown,
+): ClientDIRequirement | undefined {
+  return pipes.find(
+    (pipe): pipe is ClientDIRequirement =>
+      isClientDIRequirement(pipe) && pipe.token === token,
+  );
 }
 
 /**
@@ -295,6 +425,20 @@ export type ServerFunctionInput<
       readonly [Contract['input'], ...MiddlewareSchemasOfAll<Middlewares>]
     >
   : never;
+
+/** Ce que le navigateur doit produire pour cette fonction. */
+export type ServerFunctionExpectedClientContext<
+  Definition extends ServerFunctionDefinition<any, any, any, any>,
+> = Definition extends ServerFunctionDefinition<
+  infer Contract,
+  any,
+  any,
+  infer Middlewares
+>
+  ? MergeOptionalSchemaInputs<
+      ServerFunctionClientContextSchemas<Contract, Middlewares>
+    >
+  : Record<never, never>;
 
 export type ServerFunctionOutput<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
@@ -329,3 +473,80 @@ export type ServerFunctionError<
 export type ServerFunctionClientDIValues<
   Pipes extends readonly ServerFunctionPipe[],
 > = ClientDIRequirementOf<Pipes[number]>;
+
+/**
+ * `serverFunction` pré-équipé d'une chaîne de middleware serveur par défaut.
+ *
+ * Sucre volontairement léger : la factory ne fait qu'appliquer `.use(...)` dans
+ * l'ordre donné avant de rendre la main au builder habituel. Les middleware par
+ * défaut sont donc soumis aux mêmes règles que les autres — aplatissement,
+ * déduplication par id, fusion des schémas — et une fonction peut toujours en
+ * ajouter les siens par-dessus.
+ */
+export type ServerFunctionFactory<
+  Defaults extends readonly AnyCraftMiddleware[],
+> = {
+  <const Id extends string, Schema extends CraftSchema>(
+    id: Id,
+    input: Schema,
+  ): ServerFunctionBuilder<
+    ServerFunctionContract<Schema, 'server', undefined, Id>,
+    readonly [],
+    Defaults,
+    readonly [Schema, ...MiddlewareSchemasOfAll<Defaults>]
+  >;
+  <
+    const Id extends string,
+    Schema extends CraftSchema,
+    Exposure extends ServerFunctionExposure,
+    OutputSchema extends CraftSchema | undefined = undefined,
+    ClientContextSchema extends CraftSchema | undefined = undefined,
+  >(
+    id: Id,
+    input: Schema,
+    options: {
+      readonly exposure: Exposure;
+      readonly output?: OutputSchema;
+      readonly clientContext?: ClientContextSchema;
+    },
+  ): ServerFunctionBuilder<
+    ServerFunctionContract<
+      Schema,
+      Exposure,
+      OutputSchema,
+      Id,
+      ClientContextSchema
+    >,
+    readonly [],
+    Defaults,
+    readonly [Schema, ...MiddlewareSchemasOfAll<Defaults>]
+  >;
+};
+
+export function createServerFunctionFactory<
+  const Defaults extends readonly AnyCraftMiddleware[],
+>(defaultServerMiddlewares: Defaults): ServerFunctionFactory<Defaults> {
+  return ((
+    id: string,
+    input: CraftSchema,
+    options?: {
+      readonly exposure?: ServerFunctionExposure;
+      readonly output?: CraftSchema;
+      readonly clientContext?: CraftSchema;
+    },
+  ) => {
+    let builder = serverFunction(id, input, {
+      exposure: options?.exposure ?? 'server',
+      ...(options?.output === undefined ? {} : { output: options.output }),
+      ...(options?.clientContext === undefined
+        ? {}
+        : { clientContext: options.clientContext }),
+    }) as unknown as {
+      use: (middleware: AnyCraftMiddleware) => typeof builder;
+    };
+    for (const middleware of defaultServerMiddlewares) {
+      builder = builder.use(middleware);
+    }
+    return builder;
+  }) as unknown as ServerFunctionFactory<Defaults>;
+}
