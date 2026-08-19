@@ -1,5 +1,6 @@
 import {
-  InjectionToken,
+  abstract,
+  craftService,
   type EffectRef,
   type ɵInjector as Injector,
 } from '@craft-ts/core';
@@ -24,13 +25,12 @@ declare global {
   var __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__: string | undefined;
 }
 
-export const FUNCTION_REGISTRY_BRIDGE_URL = new InjectionToken<string>(
-  'FUNCTION_REGISTRY_BRIDGE_URL',
-  {
-    factory: () =>
-      globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ??
-      'ws://127.0.0.1:3333',
-  },
+export const {
+  FunctionRegistryBridgeUrl,
+  provideFunctionRegistryBridgeUrl,
+} = craftService(
+  { name: 'FunctionRegistryBridgeUrl', providedIn: 'abstract' },
+  abstract<string>(),
 );
 
 export const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
@@ -57,19 +57,12 @@ export function nextReconnectDelayMs(
   return exp + Math.floor(random() * 250);
 }
 
-export const FUNCTION_REGISTRY_CLIENT_ID = new InjectionToken<string>(
-  'FUNCTION_REGISTRY_CLIENT_ID',
-  {
-    factory: () =>
-      createFunctionRegistryClientId(
-        // This token is resolved while the root injector is bootstrapping;
-        // using DI-backed browser boundaries here would re-enter this token.
-        // eslint-disable-next-line craft-ts/prefer-browser-boundaries
-        globalThis.sessionStorage,
-        // eslint-disable-next-line craft-ts/prefer-browser-boundaries
-        () => globalThis.crypto.randomUUID(),
-      ),
-  },
+export const {
+  FunctionRegistryClientId,
+  provideFunctionRegistryClientId,
+} = craftService(
+  { name: 'FunctionRegistryClientId', providedIn: 'abstract' },
+  abstract<string>(),
 );
 
 export type RegistryMethod =

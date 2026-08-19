@@ -68,6 +68,7 @@ const serverFunctionClientMatch = require('./server-function-client-match.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
 const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
+const noInjectionToken = require('./no-injection-token.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 
 const plugin = {
@@ -145,6 +146,7 @@ const plugin = {
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
     'prefer-query-method-over-state-trigger': preferQueryMethodOverStateTrigger,
+    'no-injection-token': noInjectionToken,
   },
 };
 

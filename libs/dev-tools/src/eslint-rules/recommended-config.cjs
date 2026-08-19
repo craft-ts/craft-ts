@@ -38,6 +38,7 @@ module.exports = {
   'craft-ts/no-invalid-insertion-pipe': 'error',
   'craft-ts/no-redundant-primitive-insertion': 'error',
   'craft-ts/prefer-query-method-over-state-trigger': 'error',
+  'craft-ts/no-injection-token': 'error',
   'craft-ts/no-async-await': 'error',
   'craft-ts/no-throw': 'error',
   'craft-ts/require-assert-exhaustive-route-exceptions': 'warn',

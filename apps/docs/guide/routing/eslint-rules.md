@@ -57,6 +57,7 @@ export default [
       'craft-ts/require-yieldable-template-method': 'error',
       'craft-ts/require-yieldable-insertion-write': 'error',
       'craft-ts/prefer-craft-http-transport': 'error',
+      'craft-ts/no-injection-token': 'error',
       'craft-ts/require-primitive-derived-property': 'error',
       'craft-ts/no-async-await': 'error',
       'craft-ts/no-throw': 'error',
@@ -87,6 +88,7 @@ What each rule does:
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ts/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ts/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
+- `craft-ts/no-injection-token`: forbids authored `InjectionToken` contracts; declare them with `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
 - `craft-ts/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
 - `craft-ts/prefer-craft-input-output`: forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ts/component` in `craftComponent(...)`

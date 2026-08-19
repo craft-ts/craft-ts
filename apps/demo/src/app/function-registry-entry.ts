@@ -28,8 +28,11 @@ import { provideFnWrapObserver } from '@craft-ts/core';
 import { providePrimitiveResourceRuntimeObserver } from '@craft-ts/core';
 import { functionRegistry } from './function-registry';
 import {
-  FUNCTION_REGISTRY_BRIDGE_URL,
-  FUNCTION_REGISTRY_CLIENT_ID,
+  FunctionRegistryBridgeUrl,
+  FunctionRegistryClientId,
+  createFunctionRegistryClientId,
+  provideFunctionRegistryBridgeUrl,
+  provideFunctionRegistryClientId,
   startFunctionRegistryBridge,
 } from './function-registry-bridge';
 import { toCraftGotoTarget } from './page-actor';
@@ -94,14 +97,33 @@ export function ensureResourceRegistryEntry(
 }
 
 export const provideMcpExperimentation = () => [
+  provideFunctionRegistryBridgeUrl(() =>
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+    globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ?? 'ws://127.0.0.1:3333',
+  ),
+  provideFunctionRegistryClientId(() =>
+    createFunctionRegistryClientId(
+      // This value is resolved while the root injector is bootstrapping.
+      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+      globalThis.sessionStorage,
+      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+      () => globalThis.crypto.randomUUID(),
+    ),
+  ),
   provideAppInitializer(() => {
     // Bootstrap boundary: the bridge lifetime follows the application injector.
     const destroyRef = inject(DestroyRef);
     const injector = inject(Injector);
+    const { url, clientId } = craftUse(function* () {
+      return {
+        url: yield* FunctionRegistryBridgeUrl(),
+        clientId: yield* FunctionRegistryClientId(),
+      };
+    });
     const stopBridge = startFunctionRegistryBridge({
       injector,
-      url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
-      clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
+      url,
+      clientId,
       getPageInfo: () =>
         runInInjectionContext(injector, () =>
           craftUse(function* () {

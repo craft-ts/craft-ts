@@ -33,7 +33,7 @@ import {
 import { App } from './app';
 import { demoRoutes } from './app.routes.runtime';
 import { provideMcpExperimentation } from './function-registry-entry';
-import { provideLogForwarding } from './log-forwarder';
+import { provideLogForwarding, provideLogServerUrl } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { AppStartLog } from './run-on-app-start/run-on-app-start';
@@ -50,6 +50,7 @@ export const appConfig = craftAppConfig({
     // Overrides the craft ConsoleService: every Console.* call keeps printing
     // in the browser and is also shipped to the local log server, where the
     // logs MCP server can read it back.
+    provideLogServerUrl(() => 'http://127.0.0.1:4319/logs'),
     provideLogForwarding(),
     provideDemoTracing(),
     provideGlobalPersisterHandlerService(),

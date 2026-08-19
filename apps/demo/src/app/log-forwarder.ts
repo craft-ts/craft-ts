@@ -1,6 +1,8 @@
 import {
+  abstract,
+  craftService,
+  craftUse,
   DestroyRef,
-  InjectionToken,
   type Provider,
   ɵinject as inject,
 } from '@craft-ts/core';
@@ -9,11 +11,12 @@ import {
   type ConsoleServiceApi,
   type ServiceRuntimeOverride,
 } from '@craft-ts/core';
-import { FUNCTION_REGISTRY_CLIENT_ID } from './function-registry-bridge';
+import { FunctionRegistryClientId } from './function-registry-bridge';
 
-export const LOG_SERVER_URL = new InjectionToken<string>('LOG_SERVER_URL', {
-  factory: () => 'http://127.0.0.1:4319/logs',
-});
+export const { LogServerUrl, provideLogServerUrl } = craftService(
+  { name: 'LogServerUrl', providedIn: 'abstract' },
+  abstract<string>(),
+);
 
 /** Levels that the craft `Console.*` boundary decorates with metadata. */
 const FORWARDED_LEVELS = [
@@ -161,8 +164,12 @@ export function provideLogForwarding(): Provider {
     provide: SERVICE_RUNTIME_OVERRIDES,
     useFactory: (): ReadonlyMap<string, ServiceRuntimeOverride> => {
       // Bootstrap boundary: the forwarder lifetime follows the app injector.
-      const endpoint = inject(LOG_SERVER_URL);
-      const clientId = inject(FUNCTION_REGISTRY_CLIENT_ID);
+      const { endpoint, clientId } = craftUse(function* () {
+        return {
+          endpoint: yield* LogServerUrl(),
+          clientId: yield* FunctionRegistryClientId(),
+        };
+      });
       const destroyRef = inject(DestroyRef);
 
       const forwarder = createLogForwarder({
