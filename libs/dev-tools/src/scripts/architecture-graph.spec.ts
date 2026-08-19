@@ -767,9 +767,9 @@ describe('server function architecture', () => {
         import { workspaceContext } from './session.mw-client';
         import type { listUsers as ServerListUsers } from './list.fn-serveur';
         declare function craftUnique<T>(value: T): T;
-        declare function clientContext(value: unknown): unknown;
-        declare function createServerFunctionClient<T>(id: unknown, attached?: unknown): unknown;
-        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'), clientContext([workspaceContext]));
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list')).pipe(craftClientMiddleware(workspaceContext));
       `,
     });
 
@@ -816,12 +816,12 @@ describe('server function architecture', () => {
         declare function craftUnique<T>(value: T): T;
         declare function craftMiddleware(id: string): { provides(value: unknown): any; client(value: unknown): unknown };
         declare const Schema: { Struct(value: unknown): unknown; String: unknown };
-        declare function clientContext(value: unknown): unknown;
-        declare function createServerFunctionClient<T>(id: unknown, attached?: unknown): unknown;
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
 
         const sessionContext = craftMiddleware('demo.session').provides(Schema.Struct({ userId: Schema.String })).client(() => 1);
 
-        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'), clientContext([sessionContext]));
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list')).pipe(craftClientMiddleware(sessionContext));
       `,
     });
 
@@ -952,10 +952,10 @@ describe('server function architecture', () => {
         import { listUsers, sessionShape } from './list.handshake';
         import type { listUsersFn as ServerListUsers } from './list.fn-serveur';
         declare function craftMiddleware(id: string): { provides(value: unknown): any; client(value: unknown): unknown };
-        declare function clientContext(value: unknown): unknown;
-        declare function createServerFunctionClient<T>(id: unknown, attached?: unknown): unknown;
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
         const session = craftMiddleware('demo.session').provides(sessionShape).client(() => 1);
-        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers, clientContext([session]));
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers).pipe(craftClientMiddleware(session));
       `,
     });
 
@@ -1002,10 +1002,10 @@ describe('server function architecture', () => {
         import { listUsers } from './list.handshake';
         import { sessionContext } from './session.mw-client';
         import type { listUsersFn as ServerListUsers } from './list.fn-serveur';
-        declare function clientContext(value: unknown): unknown;
-        declare function createServerFunctionClient<T>(id: unknown, attached?: unknown): unknown;
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
         void sessionContext;
-        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers, clientContext([${attach}]));
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers).pipe(craftClientMiddleware(${attach}));
       `,
     });
 

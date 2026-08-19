@@ -142,20 +142,21 @@ export type ServerFunctionClientAttachment = AnyCraftClientMiddleware;
 declare const CLIENT_CONTEXT_ATTACHMENTS: unique symbol;
 
 /**
- * Ce que `clientContext([...])` produit : la liste des attaches, plus deux
- * porteurs type-only qui décrivent ce que la chaîne publiera.
+ * Ce que `craftClientMiddleware(...)` produit : la liste des attaches,
+ * plus deux porteurs type-only qui décrivent ce que la chaîne publiera.
  *
- * Ce détour par un helper n'est pas décoratif. `createServerFunctionClient`
- * reçoit son type de définition **explicitement** (`<typeof serverFn>`), et
- * TypeScript n'infère aucun paramètre de type dès qu'un seul est fourni à la
- * main : le tuple d'attaches ne serait donc jamais inféré au site d'appel.
- * `clientContext(...)` a tous ses paramètres inférables ; la vérification
- * devient une simple assignabilité entre ce qu'il publie et ce que le contrat
- * exige.
+ * La composition est terminée par le `.pipe(...)` du builder retourné par
+ * `createServerFunctionClient(...)`. Son type de définition est souvent fourni
+ * explicitement (`<typeof serverFn>`), tandis que les paramètres de
+ * `craftClientMiddleware(...)` restent inférés au site où les middleware sont
+ * attachés.
  */
-export interface ServerFunctionClientContextAttachments<Context> {
+export interface ServerFunctionClientContextAttachments<
+  Context,
+  Attachments extends readonly ServerFunctionClientAttachment[] = readonly ServerFunctionClientAttachment[],
+> {
   readonly [CLIENT_CONTEXT_ATTACHMENTS]: true;
-  readonly attachments: readonly ServerFunctionClientAttachment[];
+  readonly attachments: Attachments;
   /** Porteur covariant : ce que la chaîne publie doit couvrir l'attendu. */
   readonly __clientContext: Context;
 }
@@ -178,19 +179,20 @@ type AttachedClientContext<
         : never
     >;
 
-/**
- * Déclare ce que le navigateur enverra à une server function : la chaîne de
- * middleware client et les `requireClientDI(...)` rejoués côté client.
- */
-export function clientContext<
+/** Déclare ce que le navigateur enverra à une server function. */
+export function craftClientMiddleware<
   const Attachments extends readonly ServerFunctionClientAttachment[],
 >(
-  attachments: Attachments,
-): ServerFunctionClientContextAttachments<AttachedClientContext<Attachments>> {
-  return {
+  ...attachments: Attachments
+): ServerFunctionClientContextAttachments<
+  AttachedClientContext<Attachments>,
+  Attachments
+> {
+  return Object.freeze({
     attachments,
-  } as unknown as ServerFunctionClientContextAttachments<
-    AttachedClientContext<Attachments>
+  }) as unknown as ServerFunctionClientContextAttachments<
+    AttachedClientContext<Attachments>,
+    Attachments
   >;
 }
 
@@ -203,24 +205,16 @@ type NeedsClientContext<
   Definition extends ServerFunctionDefinition<any, any, any>,
 > = [keyof ExpectedClientContext<Definition>] extends [never] ? false : true;
 
-/**
- * Le deuxième argument est obligatoire exactement quand la fonction attend un
- * contexte client, et facultatif sinon : une façade sans contexte garde donc
- * sa signature d'origine, à la lettre.
- */
-type ClientContextParameter<
+/** Builder retourné avant d'attacher le contexte client requis. */
+export type ServerFunctionClientBuilder<
   Definition extends ServerFunctionDefinition<any, any, any>,
-> = NeedsClientContext<Definition> extends true
-  ? [
-      clientContext: ServerFunctionClientContextAttachments<
-        ExpectedClientContext<Definition>
-      >,
-    ]
-  : [
-      clientContext?: ServerFunctionClientContextAttachments<
-        Record<never, never>
-      >,
-    ];
+> = {
+  readonly pipe: (
+    clientContext: ServerFunctionClientContextAttachments<
+      ExpectedClientContext<Definition>
+    >,
+  ) => ServerFunctionClient<Definition>;
+};
 
 export function createServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any>,
@@ -232,51 +226,56 @@ export function createServerFunctionClient<
    * reste accepté pour les familles qui répètent la chaîne des deux côtés.
    */
   id: ServerFunctionId<Definition>,
-  ...clientContext: ClientContextParameter<Definition>
-): ServerFunctionClient<Definition>;
+): NeedsClientContext<Definition> extends true
+  ? ServerFunctionClientBuilder<Definition>
+  : ServerFunctionClient<Definition>;
 
 export function createServerFunctionClient<
   Contract extends ServerFunctionContract<any, any, any>,
 >(
   contract: Contract,
-  clientContext?: ServerFunctionClientContextAttachments<any>,
 ): ServerFunctionContractClient<Contract>;
 export function createServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any>,
   ClientOutput = ServerFunctionSuccess<Definition>,
 >(
   contract: ServerFunctionDefinitionContract<Definition>,
-  // Volontairement non typé : la signature d'implémentation doit rester
-  // compatible avec un rest conditionnel (la surcharge ci-dessus), que le
-  // contrôle de compatibilité des surcharges ne sait pas rapprocher d'un rest
-  // typé. Les appelants ne voient que les surcharges.
-  ...attached: any[]
-): ServerFunctionClient<Definition, ClientOutput> {
+):
+  | ServerFunctionClient<Definition, ClientOutput>
+  | ServerFunctionClientBuilder<Definition> {
   const id = (typeof contract === 'string' ? contract : contract.id) as string;
-  const attachments = ((
-    attached[0] as ServerFunctionClientContextAttachments<any> | undefined
-  )?.attachments ?? []) as readonly ServerFunctionClientAttachment[];
-  const middlewares = attachments.filter(isCraftClientMiddleware);
-  const providedSchemas = collectClientMiddlewareSchemas(middlewares);
+  const makeClient = (
+    attachments: readonly ServerFunctionClientAttachment[],
+  ): ServerFunctionClient<Definition, ClientOutput> => {
+    const middlewares = attachments.filter(isCraftClientMiddleware);
+    const providedSchemas = collectClientMiddlewareSchemas(middlewares);
 
-  return (async (input: ServerFunctionContractInput<typeof contract>) => {
-    // Tout ce qui dépend du contexte d'injection **ambiant** est fait avant le
-    // premier `await` : il n'existe que le temps de l'appel synchrone. La
-    // chaîne, elle, reçoit l'injecteur capturé et le rétablit elle-même après
-    // chaque suspension.
-    const transport = craftUse(ServerFunctionTransport());
-    if (middlewares.length === 0) return transport({ id, input });
+    return (async (input: ServerFunctionContractInput<typeof contract>) => {
+      // Tout ce qui dépend du contexte d'injection **ambiant** est fait avant
+      // le premier `await` : il n'existe que le temps de l'appel synchrone. La
+      // chaîne, elle, reçoit l'injecteur capturé et le rétablit elle-même après
+      // chaque suspension.
+      const transport = craftUse(ServerFunctionTransport());
+      if (middlewares.length === 0) return transport({ id, input });
 
-    const injector = captureInjector();
-    const context = await runClientMiddlewareChainAsync(
-      middlewares,
-      input,
-      injector,
-    );
+      const injector = captureInjector();
+      const context = await runClientMiddlewareChainAsync(
+        middlewares,
+        input,
+        injector,
+      );
 
-    await validateClientContext(id, providedSchemas, context);
-    return transport({ id, input, context, protocolVersion: 1 });
-  }) as ServerFunctionClient<Definition, ClientOutput>;
+      await validateClientContext(id, providedSchemas, context);
+      return transport({ id, input, context, protocolVersion: 1 });
+    }) as ServerFunctionClient<Definition, ClientOutput>;
+  };
+
+  const client = makeClient([]);
+  Object.defineProperty(client, 'pipe', {
+    value: (attachment: ServerFunctionClientContextAttachments<any>) =>
+      makeClient(attachment.attachments),
+  });
+  return client;
 }
 
 function captureInjector(): Injector {

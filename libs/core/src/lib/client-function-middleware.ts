@@ -201,7 +201,9 @@ export function runClientMiddlewareChain(
  * );
  *
  * // côté serveur — la même valeur, l'autre bout
- * craftMiddleware('demo.matching-user').clientContext(claimedUser).server(…)
+ * craftMiddleware('demo.matching-user')
+ *   .pipe(clientContext(claimedUser))
+ *   .server(…)
  * ```
  */
 export function craftHandshakeMiddleware<

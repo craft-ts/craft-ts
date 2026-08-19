@@ -18,7 +18,7 @@ export const authenticatedListHandshake = craftHandshake(
  * l'arrivée, puis confronté à la session réelle par `demo.matching-user`.
  *
  * Le nom et le schéma vivent ici, une seule fois : le serveur les exige avec
- * `.clientContext(...)`, le navigateur les remplit avec
+ * `clientContext(...)` dans le `.pipe(...)`, le navigateur les remplit avec
  * `craftHandshakeMiddleware(...)`, et les deux ne peuvent plus diverger.
  */
 export const claimedUserHandshake = craftHandshake(

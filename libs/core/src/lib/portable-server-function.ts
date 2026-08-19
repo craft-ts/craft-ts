@@ -8,11 +8,26 @@ import type { ServerFunctionPipe } from './client-di-requirement';
 import {
   collectMiddlewareClientContextSchemas,
   collectMiddlewareSchemas,
-  runMiddlewareChain,
+  flattenMiddlewares,
   type AnyCraftMiddleware,
+  type MergedMiddlewareContext,
+  type MiddlewareContextOf,
   type MiddlewareSchemasOf,
   type PortableServerMiddleware,
 } from './server-function-middleware';
+import {
+  isServerLayer,
+  runServerChain,
+  type AnyServerLayer,
+  type NoContextCollision,
+  type ServerChainStep,
+  type ServerLayer,
+} from './server-layer';
+import type {
+  MergeSchemaOutputs,
+  MiddlewareContext,
+  OverwriteContext,
+} from './middleware-schema-shared';
 import type { CraftSchema } from './schema-validation';
 import type {
   ServerFunctionDefinition,
@@ -43,7 +58,14 @@ export type PortableServerFunctionHandlerContext<
   Pipes extends readonly ServerFunctionPipe[],
   Middlewares extends readonly AnyCraftMiddleware[],
   Schemas extends readonly CraftSchema[],
-> = ServerFunctionHandlerContext<Contract, Pipes, Middlewares, Schemas>;
+  Context extends MiddlewareContext = MergedMiddlewareContext<Middlewares>,
+> = Omit<
+  ServerFunctionHandlerContext<Contract, Pipes, Middlewares, Schemas>,
+  'context'
+> & {
+  /** Contexte cumulé de la chaîne, dans l'ordre déclaré. */
+  readonly context: Context;
+};
 
 export type PortableServerFunctionHandler<
   Contract extends ServerFunctionContract<any, any, any>,
@@ -51,29 +73,140 @@ export type PortableServerFunctionHandler<
   Output = unknown,
   Middlewares extends readonly AnyCraftMiddleware[] = readonly [],
   Schemas extends readonly CraftSchema[] = readonly [Contract['input']],
+  Context extends MiddlewareContext = MergedMiddlewareContext<Middlewares>,
 > = (
   context: PortableServerFunctionHandlerContext<
     Contract,
     Pipes,
     Middlewares,
-    Schemas
+    Schemas,
+    Context
   >,
 ) => Output;
+
+/** Ce qu'une couche voit de l'input : la fusion des schémas déjà collectés. */
+type LayerInput<Schemas extends readonly CraftSchema[]> =
+  MergeSchemaOutputs<Schemas>;
+
+/** Une couche acceptable ici, plus le refus des clés déjà produites. */
+type PipeLayer<
+  Schemas extends readonly CraftSchema[],
+  Context extends MiddlewareContext,
+  Added extends MiddlewareContext,
+> = ServerLayer<LayerInput<Schemas>, Context, Added> &
+  NoContextCollision<Context, Added>;
+
+type Fold<
+  Context extends MiddlewareContext,
+  Added extends MiddlewareContext,
+> = OverwriteContext<Context, Added>;
 
 export type PortableServerFunctionBuilder<
   Contract extends ServerFunctionContract<any, any, any>,
   Pipes extends readonly ServerFunctionPipe[],
   Middlewares extends readonly AnyCraftMiddleware[] = readonly [],
   Schemas extends readonly CraftSchema[] = readonly [Contract['input']],
+  Context extends MiddlewareContext = Record<never, never>,
 > = {
-  readonly pipe: <Pipe extends ServerFunctionPipe>(
-    pipe: Pipe,
-  ) => PortableServerFunctionBuilder<
-    Contract,
-    readonly [...Pipes, Pipe],
-    Middlewares,
-    Schemas
-  >;
+  /**
+   * Deux formes, distinguées par leur contrat et jamais mélangées :
+   *
+   * - un **pipe de contrat** (`requireServerPermission(...)`), qui ajoute une
+   *   déclaration lue par le registre avant toute exécution ;
+   * - une ou plusieurs **couches de programme**, composées en oignon dans
+   *   l'ordre déclaré, chacune voyant le contexte cumulé par les précédentes.
+   */
+  readonly pipe: {
+    <A extends MiddlewareContext>(
+      a: PipeLayer<Schemas, Context, A>,
+    ): PortableServerFunctionBuilder<
+      Contract,
+      Pipes,
+      Middlewares,
+      Schemas,
+      Fold<Context, A>
+    >;
+    <A extends MiddlewareContext, B extends MiddlewareContext>(
+      a: PipeLayer<Schemas, Context, A>,
+      b: PipeLayer<Schemas, Fold<Context, A>, B>,
+    ): PortableServerFunctionBuilder<
+      Contract,
+      Pipes,
+      Middlewares,
+      Schemas,
+      Fold<Fold<Context, A>, B>
+    >;
+    <
+      A extends MiddlewareContext,
+      B extends MiddlewareContext,
+      C extends MiddlewareContext,
+    >(
+      a: PipeLayer<Schemas, Context, A>,
+      b: PipeLayer<Schemas, Fold<Context, A>, B>,
+      c: PipeLayer<Schemas, Fold<Fold<Context, A>, B>, C>,
+    ): PortableServerFunctionBuilder<
+      Contract,
+      Pipes,
+      Middlewares,
+      Schemas,
+      Fold<Fold<Fold<Context, A>, B>, C>
+    >;
+    <
+      A extends MiddlewareContext,
+      B extends MiddlewareContext,
+      C extends MiddlewareContext,
+      D extends MiddlewareContext,
+    >(
+      a: PipeLayer<Schemas, Context, A>,
+      b: PipeLayer<Schemas, Fold<Context, A>, B>,
+      c: PipeLayer<Schemas, Fold<Fold<Context, A>, B>, C>,
+      d: PipeLayer<Schemas, Fold<Fold<Fold<Context, A>, B>, C>, D>,
+    ): PortableServerFunctionBuilder<
+      Contract,
+      Pipes,
+      Middlewares,
+      Schemas,
+      Fold<Fold<Fold<Fold<Context, A>, B>, C>, D>
+    >;
+    <
+      A extends MiddlewareContext,
+      B extends MiddlewareContext,
+      C extends MiddlewareContext,
+      D extends MiddlewareContext,
+      E extends MiddlewareContext,
+    >(
+      a: PipeLayer<Schemas, Context, A>,
+      b: PipeLayer<Schemas, Fold<Context, A>, B>,
+      c: PipeLayer<Schemas, Fold<Fold<Context, A>, B>, C>,
+      d: PipeLayer<Schemas, Fold<Fold<Fold<Context, A>, B>, C>, D>,
+      e: PipeLayer<Schemas, Fold<Fold<Fold<Fold<Context, A>, B>, C>, D>, E>,
+    ): PortableServerFunctionBuilder<
+      Contract,
+      Pipes,
+      Middlewares,
+      Schemas,
+      Fold<Fold<Fold<Fold<Fold<Context, A>, B>, C>, D>, E>
+    >;
+    /**
+     * En dernier à dessein : une couche est un objet, jamais un pipe de
+     * contrat, et laisser cette surcharge en tête ferait échouer une première
+     * tentative de résolution — ce qui fige le type des callbacks contextuels
+     * de `mapContext(...)` avant que le contexte cumulé soit connu.
+     */
+    <Pipe extends ServerFunctionPipe>(
+      pipe: Pipe,
+    ): PortableServerFunctionBuilder<
+      Contract,
+      readonly [...Pipes, Pipe],
+      Middlewares,
+      Schemas,
+      Context
+    >;
+  };
+  /**
+   * Compatibilité : le moteur historique de middleware portables. Les nouveaux
+   * exemples composent avec `.pipe(...)`, qui, lui, transmet le contexte typé.
+   */
   readonly use: <
     Middleware extends PortableServerMiddleware<any, any, any, any, any, any>,
   >(
@@ -82,7 +215,8 @@ export type PortableServerFunctionBuilder<
     Contract,
     Pipes,
     readonly [...Middlewares, Middleware],
-    readonly [...Schemas, ...MiddlewareSchemasOf<Middleware>]
+    readonly [...Schemas, ...MiddlewareSchemasOf<Middleware>],
+    OverwriteContext<Context, MiddlewareContextOf<Middleware>>
   >;
   readonly handler: <Output>(
     handler: PortableServerFunctionHandler<
@@ -90,7 +224,8 @@ export type PortableServerFunctionBuilder<
       Pipes,
       Output,
       Middlewares,
-      Schemas
+      Schemas,
+      Context
     >,
   ) => ServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
 };
@@ -178,8 +313,12 @@ export function portableServerFunction(
     contract,
     [] as readonly [],
     [] as readonly [],
+    [] as readonly [],
   ) as never;
 }
+
+/** Une étape de la chaîne, dans l'ordre où elle a été déclarée. */
+type PortableStep = AnyCraftMiddleware | AnyServerLayer;
 
 function createPortableBuilder<
   Contract extends ServerFunctionContract<any, any, any>,
@@ -189,30 +328,65 @@ function createPortableBuilder<
   contract: Contract,
   pipes: Pipes,
   middlewares: Middlewares,
+  steps: readonly PortableStep[],
 ): PortableServerFunctionBuilder<Contract, Pipes, Middlewares> {
   return {
-    pipe(pipe) {
+    pipe(...args: readonly unknown[]) {
+      const nextPipes = [...pipes] as ServerFunctionPipe[];
+      const nextSteps = [...steps];
+      for (const argument of args) {
+        if (isServerLayer(argument)) nextSteps.push(argument);
+        else nextPipes.push(argument as ServerFunctionPipe);
+      }
       return createPortableBuilder(
         contract,
-        [...pipes, pipe] as readonly [...Pipes, ServerFunctionPipe],
+        nextPipes as readonly ServerFunctionPipe[],
         middlewares,
+        nextSteps,
       ) as never;
     },
-    use(middleware) {
-      return createPortableBuilder(contract, pipes, [
-        ...middlewares,
-        middleware,
-      ] as readonly [...Middlewares, typeof middleware]) as never;
+    use(middleware: AnyCraftMiddleware) {
+      return createPortableBuilder(
+        contract,
+        pipes,
+        [...middlewares, middleware] as readonly [
+          ...Middlewares,
+          typeof middleware,
+        ],
+        [...steps, middleware as AnyCraftMiddleware],
+      ) as never;
     },
-    handler(handler) {
+    handler(handler: PortableServerFunctionHandler<Contract, Pipes, unknown>) {
       return createPortableDefinition(
         contract,
         pipes,
         middlewares,
-        handler,
+        steps,
+        handler as never,
       ) as never;
     },
-  } as PortableServerFunctionBuilder<Contract, Pipes, Middlewares>;
+  } as unknown as PortableServerFunctionBuilder<Contract, Pipes, Middlewares>;
+}
+
+/**
+ * Aplatit les dépendances des middleware sans perdre l'ordre de déclaration,
+ * et sans exécuter deux fois un middleware partagé par deux branches.
+ */
+function expandSteps(steps: readonly PortableStep[]): readonly ServerChainStep[] {
+  const seen = new Set<string>();
+  const expanded: ServerChainStep[] = [];
+  for (const step of steps) {
+    if (isServerLayer(step)) {
+      expanded.push(step as unknown as ServerChainStep);
+      continue;
+    }
+    for (const middleware of flattenMiddlewares([step])) {
+      if (seen.has(middleware.id)) continue;
+      seen.add(middleware.id);
+      expanded.push(middleware as unknown as ServerChainStep);
+    }
+  }
+  return expanded;
 }
 
 function createPortableDefinition<
@@ -224,20 +398,23 @@ function createPortableDefinition<
   contract: Contract,
   pipes: Pipes,
   middlewares: Middlewares,
+  steps: readonly PortableStep[],
   handler: PortableServerFunctionHandler<Contract, Pipes, Output, Middlewares>,
 ): ServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
+  const chain = expandSteps(steps);
   return {
     kind: 'server-function',
     programMode: 'portable',
     contract,
     pipes,
     middlewares,
+    layers: steps.filter(isServerLayer),
     inputSchemas: collectMiddlewareSchemas(contract.input, middlewares),
     clientContextSchemas: collectMiddlewareClientContextSchemas(
       contract.clientContext as CraftSchema | undefined,
       middlewares,
     ),
-    handler,
+    handler: handler as never,
     invoke(input, runtime, clientContext) {
       const resolve: ServerFunctionRequired = (token) => {
         if (!runtime?.resolve) {
@@ -247,21 +424,20 @@ function createPortableDefinition<
         }
         return runtime.resolve(token);
       };
-      const call = (context: Record<string, unknown>): Output =>
+      const call = (context: MiddlewareContext): Output =>
         handler({
           input: input as never,
           context: context as never,
           clientContext: (clientContext ?? {}) as never,
           required: resolve,
           pipes,
-        });
+        } as never);
 
-      if (middlewares.length === 0) return call({});
-      return runMiddlewareChain(
-        middlewares,
-        input,
-        ({ context }) => call(context),
-        clientContext ?? {},
+      if (chain.length === 0) return call({});
+      return runServerChain(
+        chain,
+        { input, clientContext: clientContext ?? {} },
+        call,
         resolve,
       ) as Output;
     },

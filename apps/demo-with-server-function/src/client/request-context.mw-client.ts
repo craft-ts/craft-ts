@@ -24,7 +24,7 @@ export const requestedByContext = craftMiddleware('demo.requested-by')
  * une seule attache côté façade.
  */
 export const requestContext = craftMiddleware('demo.request-context')
-  .use(requestedByContext)
+  .pipe(requestedByContext)
   .provides(requestLocaleHandshake)
   .client(function* ({ next }) {
     const session = yield* ClientSession();

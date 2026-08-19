@@ -378,8 +378,8 @@ export function toServerFunctionFailure(
 
 function serverFunctionFailureStatus(failure: ServerFunctionFailure): number {
   const status =
-    failure.status ??
-    (isRecord(failure.payload) ? failure.payload['status'] : undefined);
+    failure['status'] ??
+    (isRecord(failure['payload']) ? failure['payload']['status'] : undefined);
   return typeof status === 'number' &&
     Number.isInteger(status) &&
     status >= 400 &&

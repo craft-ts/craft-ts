@@ -56,18 +56,23 @@ describe('demo with server function', () => {
     }
   });
 
-  it('calls the portable Promise middleware example through the same registry', async () => {
+  it('calls the portable layer pipeline through the same registry', async () => {
     const server = await listenDemoServer();
     try {
       configureServerFunctionTransport(server.url);
 
-      const users = await TestBed.runInInjectionContext(() =>
-        getPortableUsers({ filter: 'ada' }),
+      const response = await TestBed.runInInjectionContext(() =>
+        getPortableUsers({ filter: ' Ada ' }),
       );
 
-      expect(users).toEqual([
-        { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
-      ]);
+      // Chaque champ vient d'une couche différente du `.pipe(...)` : l'audit,
+      // la dérivation pure, puis le programme Promise qui charge la base.
+      expect(response).toMatchObject({
+        filter: 'ada',
+        users: [{ id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' }],
+      });
+      expect(typeof response.auditId).toBe('string');
+      expect(response.scanned).toBeGreaterThan(0);
     } finally {
       await server.close();
     }

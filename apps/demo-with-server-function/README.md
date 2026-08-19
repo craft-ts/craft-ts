@@ -69,9 +69,9 @@ export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
 );
 
 export const matchingUser = craftMiddleware('demo.matching-user')
-  .use(adminOnly)
-  .clientContext(
-    Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
+  .pipe(
+    adminOnly,
+    clientContext(claimedUserHandshake),
   )
   .server(({ clientContext, context, next }) =>
     Effect.gen(function* () {
@@ -90,21 +90,20 @@ itself, and it arrives in `clientContext`, a channel kept separate from
 second into the first.
 
 The server function then declares the chain with `.use(...)` and keeps only its
-own work:
+own work. A middleware declaration can accumulate server dependencies and
+client-context requirements with `.pipe(...)`:
 
 ```ts
 export const getAuthenticatedUsers = serverFunction(
-  'demo.users.authenticated-list',
+  authenticatedListHandshake,
   Schema.toStandardSchemaV1(Schema.Struct({ filter: Schema.String })),
   { exposure: 'client', output: authenticatedListUsersOutputSchema },
 )
-  .pipe(claimedUserId)
   .use(matchingUser)
   .use(auditedRequest)
-  .handler(({ input, context, required }) =>
+  .handler(({ input, context }) =>
     Effect.gen(function* () {
       context.authenticatedUser;  // published by the middleware, fully typed
-      required(ClaimedUserId);    // read from the validated client context
       context.requestLocale;      // published by the audit middleware
       input.filter;               // validated by the server function schema
       // …
@@ -117,18 +116,153 @@ Three things are inferred, with no manual declaration:
 - **the input** — every middleware `.input(...)` schema is merged into the
   server function input, on the handler side *and* on the client facade side;
 - **the context** — `context.authenticatedUser` is what the middleware published
-  through `next({ context })`;
+  through `next({ context })`, or through a direct `{ context }` return for a
+  simple synchronous enrichment;
+- **the client context** — `clientContext.userId` and the audit fields are
+  produced by client middleware and validated for shape on the server; server
+  middleware checks sensitive claims before publishing trusted values into
+  `context`;
 - **the error channel** — `AdminRequired` and `AuthenticatedUserMismatch` are
   raised by the middleware and end up in the `Effect` error channel of the
   server function, then in the client facade return type.
 
 Middleware run as an onion: each one may act before and after `next()`, and
 dependencies declared with `.use(...)` run first and are deduplicated by id.
+When a middleware only adds context, it can return the patch directly; the
+runtime merges it and continues automatically:
+
+```ts
+export const requestMetadata = craftMiddleware('demo.request-metadata').server(
+  () => ({
+    context: { source: 'authenticated-list' },
+  }),
+);
+```
+
+The direct form also accepts a `Promise` of that envelope. An Effect middleware
+keeps `next()`: the core deliberately does not interpret Effect programs, so
+`next()` is still the bridge that composes an Effect with the rest of the
+chain. It is also the form to use for typed failures, DI, or before/after hooks.
+Returning an error or a failed Effect never invokes the next middleware: the
+chain short-circuits. An Effect error can be transformed with
+`Effect.catchTag(...)` around `next(...)`.
 
 Because the input is validated once, ahead of the chain, a middleware input
 schema **must ignore unknown keys** — the default behaviour of `Schema.Struct`.
 A strict schema would reject the fields contributed by the server function
 itself. The same holds for client-context schemas.
+
+The call site only provides the explicit input:
+
+```ts
+getAuthenticatedUsers({ filter: 'ada' });
+```
+
+The attached client middleware fills `clientContext` automatically. Sensitive
+handler logic must consume the verified server `context`, not a client claim.
+
+## Portable layers composed with `.pipe(...)`
+
+`craftMiddleware(...).server(...)` speaks Effect. The portable example does not,
+and composes its chain with `.pipe(...)` instead — same onion, same short
+circuit, same after-hooks, but the program stays whatever the application chose.
+See `users/portable-list.fn-serveur.ts`:
+
+```ts
+portableServerFunction('demo.users.portable-list', filterSchema, {
+  exposure: 'client',
+})
+  .pipe(
+    portableAudit,                                   // + { auditId, startedAt }
+    mapContext(({ input, context }) => ({            // + { normalizedFilter, label }
+      normalizedFilter: input.filter.trim().toLocaleLowerCase(),
+      label: `${context.auditId}#${input.filter}`,
+    })),
+    flatMapContext(() => loadUserDirectory()),       // + { directory, scanned }
+  )
+  .handler(async ({ context }) => ({
+    auditId: context.auditId,          // string, not unknown
+    filter: context.normalizedFilter,
+    scanned: context.scanned,
+    users: context.directory.filter(/* … */),
+  }));
+```
+
+Each step sees the context accumulated by the ones before it, and nothing else:
+
+```txt
+{}
+  -> { auditId, startedAt }
+  -> { auditId, startedAt, normalizedFilter, label }
+  -> { auditId, startedAt, normalizedFilter, label, directory, scanned }
+```
+
+### The three shapes
+
+| Shape | For | Declared with |
+| --- | --- | --- |
+| `withXxx` | a rule, a DI read, before/after hooks, a short circuit | `serverLayer(id, run)`, or `serverLayerReading<Context>()(id, run)` when it reads upstream keys |
+| `mapContext` | a pure, synchronous derivation | `mapContext(({ input, context }) => ({ key: … }))` |
+| `flatMapContext` | a derivation that must run a program | `flatMapContext(({ context }) => promise)`, plus a `chain` for any other protocol |
+
+A `withXxx` layer publishes its keys through `next`, and the return type is what
+carries them:
+
+```ts
+export const portableAudit = serverLayer('demo.portable-audit', async ({ next }) => {
+  const auditId = crypto.randomUUID();
+  try {
+    return await next({ context: { auditId, startedAt: Date.now() } });
+  } finally {
+    // observes success and failure alike
+  }
+});
+```
+
+`mapContext` and `flatMapContext` must return an **object of keys**: a lone
+scalar carries no name for the next layer to read, and is refused by the types —
+and, for JavaScript callers, at runtime with
+`CRAFT_SERVER_LAYER_CONTEXT_PATCH_INVALID`. A layer that re-declares a key an
+earlier layer produced is rejected at the `.pipe(...)` call site, with the
+offending key named in the diagnostic.
+
+`context` is not `clientContext`: the first is produced server-side by the chain
+and trusted, the second is declared by the browser and must be confronted with
+the session before use. Layers do not declare client-context schemas; that stays
+a middleware concern.
+
+### Which program, which tool
+
+| Program | Composition | Adapter |
+| --- | --- | --- |
+| pure value | `mapContext` | none |
+| Promise | `.pipe(serverLayer(...))`, `flatMapContext` | the registry's `execute`, default Promise chain |
+| `Task`, `TaskEither`, any custom protocol | same, plus a `chain` passed to `flatMapContext` | `execute` runs it; add `ServerProgramSuccess<A>` to the type so its success channel stays readable |
+| Effect | `craftMiddleware(...).server(...)` or `effectServerMiddleware` | `executeEffect(layer)` |
+
+The core imports no Effect runtime, and never awaits a program whose protocol it
+was not told about.
+
+### `.pipe(...)` also takes contract pipes
+
+The two forms are told apart by their contract, on the same builder:
+
+```ts
+portableServerFunction(/* … */)
+  .pipe(requireServerPermission('users:read'))  // a declaration the registry reads
+  .pipe(portableAudit, mapContext(/* … */))     // layers, composed in order
+  .handler(/* … */);
+```
+
+### `.use(...)` is still there
+
+`.use(portableServerMiddleware(...))` keeps working and is not deprecated in
+code, but it is legacy for portable functions: a middleware publishes its
+context as `MiddlewareContext`, so downstream steps read `unknown` and cast.
+That is exactly what `.pipe(...)` fixes — before the migration the demo handler
+had to write `String(context.auditId)`; it now reads a `string`. The three
+Effect examples (`list`, `authenticated-list`, `effect-middleware-list`) keep
+their `.use(...)` chains: they are the point of comparison.
 
 ## Client context
 
@@ -177,15 +311,15 @@ bridge (the Effect adapter, for instance) can suspend inside it:
 
 ```ts
 export const requestedByContext = craftMiddleware('demo.requested-by')
-  .provides(requestedBySchema)
+  .provides(requestedByHandshake)
   .client(function* ({ next }) {
     const session = yield* ClientSession();
     return yield* next({ context: { requestedBy: session.userId } });
   });
 
 export const requestContext = craftMiddleware('demo.request-context')
-  .use(requestedByContext)
-  .provides(localeSchema)
+  .pipe(requestedByContext)
+  .provides(requestLocaleHandshake)
   .client(function* ({ next }) {
     const session = yield* ClientSession();
     return yield* next({ context: { locale: session.locale } });
@@ -198,8 +332,9 @@ together they cover what the server function expects:
 ```ts
 export const getAuthenticatedUsers =
   createServerFunctionClient<typeof ServerGetAuthenticatedUsers>(
-    craftUnique('demo.users.authenticated-list'),
-    clientContext([claimedUserId, requestContext]),
+    authenticatedListHandshake,
+  ).pipe(
+    craftClientMiddleware(claimedUserContext, requestContext),
   );
 ```
 
@@ -229,14 +364,15 @@ Both sides then pass the same value:
 
 ```ts
 serverFunction(authenticatedListHandshake, inputSchema, { … })      // .fn-serveur.ts
-createServerFunctionClient<typeof ServerFn>(authenticatedListHandshake, …) // .fn-client.ts
+createServerFunctionClient<typeof ServerFn>(authenticatedListHandshake)  // .fn-client.ts
+  .pipe(craftClientMiddleware(/* … */))
 ```
 
 Two things follow. The id string exists **once** in the repository, so equality
 between the two sides becomes a TypeScript check rather than something the graph
 catches after the fact — the graph only has to prove both sides are reachable,
 which is the cross-program case. And when a handshake carries a schema, the
-server's `.clientContext(...)` and the client's `.provides(...)` share the *same*
+server's `clientContext(...)` declaration and the client's `.provides(...)` share the *same*
 schema: they can no longer drift.
 
 Three global diagnostics: `CRAFT_HANDSHAKE_MISSING_COUNTERPART`,
@@ -248,7 +384,7 @@ server function receive what it expects?* —
 `CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED`: the server chain of a family
 expects a handshake that the family's own facade attaches nothing for. A
 handshake honoured at the other end of the repository, but missing from this
-`clientContext([...])`, would still fail at runtime. Its mirror,
+`.pipe(craftClientMiddleware(...))`, would still fail at runtime. Its mirror,
 `CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_EXPECTED`, catches a value that would travel
 and be dropped.
 
@@ -257,7 +393,8 @@ spellings remain exercised.
 
 The server never imports a `*.mw-client.ts` file — the architecture graph
 forbids it. It only declares the *shape* it expects, with
-`.clientContext(schema)` on a middleware or `{ clientContext: schema }` on the
+`clientContext(schema)` inside a middleware `.pipe(...)`, or
+`{ clientContext: schema }` on the
 function, and revalidates it on arrival. A missing or malformed context is
 rejected with `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_INVALID` (HTTP 400), which
 is deliberately distinct from an invalid business input.

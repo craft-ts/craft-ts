@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Context, Data, Effect, Exit, Layer, Schema } from 'effect';
 import {
+  clientContext,
   craftMiddleware,
   createServer,
   createServerFunctionClient,
@@ -50,9 +51,37 @@ const authenticated = craftMiddleware('auth.authenticated')
     }),
   );
 
+const claimedUserSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({ userId: Schema.String }),
+);
+
+/** Le pipe accumule le contexte serveur et le contrat de contexte client. */
+const authenticatedWithClaim = craftMiddleware('auth.authenticated-with-claim')
+  .pipe(authenticated, clientContext(claimedUserSchema))
+  .server(({ clientContext, context, next }) =>
+    Effect.gen(function* () {
+      if (clientContext.userId !== context.user.id) {
+        return yield* new AdminRequired({
+          authenticatedUserId: context.user.id,
+        });
+      }
+      return yield* next({ context: { verifiedUserId: clientContext.userId } });
+    }),
+  );
+
+/** Un enrichissement direct avance automatiquement sans appeler `next()`. */
+const directContext = craftMiddleware('request.direct-context').server(() => ({
+  context: { requestId: 'request-1' },
+}));
+const directAsyncContext = craftMiddleware(
+  'request.direct-async-context',
+).server(async () => ({
+  context: { source: 'async' },
+}));
+
 /** Dépend du précédent, observe la sortie, peut court-circuiter aussi. */
 const audited = craftMiddleware('audit.trail')
-  .use(authenticated)
+  .pipe(authenticated)
   .server(({ context, next }) =>
     Effect.gen(function* () {
       const trace = yield* Trace;
@@ -148,6 +177,50 @@ describe('server function middleware', () => {
     await expect(
       server.invoke('users.list', { filter: 'ada' }),
     ).rejects.toThrow('CRAFT_SERVER_FUNCTION_INPUT_INVALID');
+  });
+
+  it('accumule les middleware et le clientContext avec pipe', async () => {
+    const piped = serverFunction('users.piped', filterSchema, {
+      exposure: 'client',
+    })
+      .use(authenticatedWithClaim)
+      .handler(({ input, context }) =>
+        Effect.succeed(`${context.verifiedUserId}/${input.filter}`),
+      );
+    const trace: string[] = [];
+    const server = createTestServer('admin', trace, [piped] as never);
+
+    await expect(
+      server.invoke(
+        'users.piped',
+        { filter: 'ada', tenantId: 't-1' },
+        { userId: 'u-1' },
+      ),
+    ).resolves.toBe('u-1/ada');
+
+    await expect(
+      server.invoke(
+        'users.piped',
+        { filter: 'ada', tenantId: 't-1' },
+        { userId: 'u-2' },
+      ),
+    ).rejects.toMatchObject({ _tag: 'AdminRequired' });
+  });
+
+  it('avance automatiquement avec un contexte retourné directement', async () => {
+    const fn = serverFunction('users.direct-context', filterSchema)
+      .use(directContext)
+      .use(directAsyncContext)
+      .handler(({ context }) => {
+        const requestId: string = context.requestId;
+        const source: string = context.source;
+        return Effect.succeed(`${requestId}/${source}`);
+      });
+    const server = createTestServer('admin', [], [fn] as never);
+
+    await expect(
+      server.invoke('users.direct-context', { filter: 'ada' }),
+    ).resolves.toBe('request-1/async');
   });
 
   it('remonte l’échec d’un middleware sans exécuter la suite', async () => {

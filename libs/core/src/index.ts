@@ -62,6 +62,7 @@ export {
   type Simplify as MiddlewareSimplify,
 } from './lib/middleware-schema-shared';
 export * from './lib/server-function-middleware';
+export * from './lib/server-layer';
 export * from './lib/portable-server-function';
 export * from './lib/client-function-middleware';
 export * from './lib/server-function-client';

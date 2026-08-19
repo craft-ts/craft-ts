@@ -62,8 +62,10 @@ declare const MIDDLEWARE_DOWNSTREAM_ERROR: unique symbol;
  * passé à un paramètre, mais il déduit sans peine depuis le type de retour. Le
  * contexte voyage donc dans le type retourné par `next()`.
  *
- * Conséquence utile : ce type n'est constructible que par `next()`, donc un
- * middleware ne peut pas réussir sans avoir appelé la suite de la chaîne.
+ * Conséquence utile : ce type n'est constructible que par `next()`. La chaîne
+ * serveur propose en parallèle une forme directe `{ context }` pour les
+ * enrichissements synchrones ou Promise, qui fait avancer la chaîne
+ * automatiquement.
  */
 export interface MiddlewareResult<Context extends MiddlewareContext> {
   readonly [MIDDLEWARE_RESULT]: Context;

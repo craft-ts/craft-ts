@@ -26,6 +26,7 @@ import type {
   MergeOptionalSchemaInputs,
   MergeOptionalSchemaOutputs,
 } from './middleware-schema-shared';
+import type { AnyServerLayer } from './server-layer';
 import type { CraftSchema } from './schema-validation';
 import type * as Effect from 'effect/Effect';
 
@@ -115,6 +116,12 @@ export type ServerFunctionDefinition<
   readonly contract: Contract;
   readonly pipes: Pipes;
   readonly middlewares: Middlewares;
+  /**
+   * Couches composées par `.pipe(...)`, dans l'ordre déclaré. Séparées des
+   * middleware : elles ne déclarent ni schéma ni contexte client, seulement une
+   * composition de programme.
+   */
+  readonly layers?: readonly AnyServerLayer[];
   /** Schéma du contrat suivi de ceux des middleware, dédupliqués. */
   readonly inputSchemas: readonly CraftSchema[];
   /** Idem pour le contexte client attendu du navigateur. */

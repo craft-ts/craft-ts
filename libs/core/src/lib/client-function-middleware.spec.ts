@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Effect, Schema } from 'effect';
 import {
-  clientContext,
+  craftClientMiddleware,
   craftHandshake,
   craftHandshakeMiddleware,
   craftMiddleware,
@@ -190,8 +190,7 @@ describe('client function middleware', () => {
     try {
       const client = createServerFunctionClient<typeof listUsers>(
         craftUnique('client-ctx.list'),
-        clientContext([workspaceContext]),
-      );
+      ).pipe(craftClientMiddleware(workspaceContext));
       await expect(
         TestBed.runInInjectionContext(() => client({ filter: 'ada' })),
       ).resolves.toBe('ada/u-1/ws-u-1');
@@ -249,8 +248,7 @@ describe('client function middleware', () => {
     // Et la façade client doit couvrir ce que le middleware exige.
     createServerFunctionClient<typeof listUsers>(
       craftUnique('client-ctx.claimed'),
-      clientContext([sessionContext]),
-    );
+    ).pipe(craftClientMiddleware(sessionContext));
   });
 
   it('garde le format historique quand aucun contexte client n’est attendu', async () => {
@@ -317,8 +315,7 @@ describe('client function middleware', () => {
 
     const client = createServerFunctionClient<typeof listUsers>(
       craftUnique('client-ctx.handshake'),
-      clientContext([claimedUserContext]),
-    );
+    ).pipe(craftClientMiddleware(claimedUserContext));
     await expect(
       TestBed.runInInjectionContext(() => client({ filter: 'ada' })),
     ).resolves.toBe('ok');
@@ -348,8 +345,7 @@ describe('client function middleware', () => {
     });
     const client = createServerFunctionClient<typeof listUsers>(
       craftUnique('client-ctx.liar'),
-      clientContext([liar]),
-    );
+    ).pipe(craftClientMiddleware(liar));
 
     await expect(
       TestBed.runInInjectionContext(() => client({ filter: 'ada' })),
@@ -370,19 +366,17 @@ const typedFunction = serverFunction('client-ctx.typing', filterSchema, {
 
 createServerFunctionClient<typeof typedFunction>(
   craftUnique('client-ctx.typing'),
-  clientContext([workspaceContext]),
-);
+).pipe(craftClientMiddleware(workspaceContext));
 
+// @ts-expect-error la chaîne attachée ne publie pas `workspaceId`
 createServerFunctionClient<typeof typedFunction>(
   craftUnique('client-ctx.typing'),
-  // @ts-expect-error la chaîne attachée ne publie pas `workspaceId`
-  clientContext([sessionContext]),
-);
+).pipe(craftClientMiddleware(sessionContext));
 
 // @ts-expect-error rien n'est attaché alors que la fonction attend un contexte
 createServerFunctionClient<typeof typedFunction>(
   craftUnique('client-ctx.typing'),
-);
+).pipe(craftClientMiddleware());
 
 // Un handshake porte le nom et la forme : le middleware ne répète ni l'un ni
 // l'autre, et son contexte doit couvrir ce que la fonction attend.
@@ -402,11 +396,9 @@ const handshakeFunction = serverFunction('client-ctx.typing-hs', filterSchema, {
 
 createServerFunctionClient<typeof handshakeFunction>(
   craftUnique('client-ctx.typing-hs'),
-  clientContext([typedHandshakeContext]),
-);
+).pipe(craftClientMiddleware(typedHandshakeContext));
 
+// @ts-expect-error la chaîne attachée ne publie pas `workspaceId`
 createServerFunctionClient<typeof handshakeFunction>(
   craftUnique('client-ctx.typing-hs'),
-  // @ts-expect-error la chaîne attachée ne publie pas `workspaceId`
-  clientContext([sessionContext]),
-);
+).pipe(craftClientMiddleware(sessionContext));

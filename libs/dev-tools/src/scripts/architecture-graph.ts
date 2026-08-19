@@ -2295,7 +2295,7 @@ function familyHandshakeViolations(
     if (expected && !attached) {
       violations.push({
         code: 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED',
-        reason: `server chain expects handshake "${name}", but the client facade attaches nothing that fills it. Add its client middleware to clientContext([...]).`,
+        reason: `server chain expects handshake "${name}", but the client facade attaches nothing that fills it. Add its client middleware with .pipe(craftClientMiddleware(...)).`,
         node: client,
       });
     } else if (attached && !expected) {

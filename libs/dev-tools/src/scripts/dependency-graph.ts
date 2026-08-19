@@ -4376,6 +4376,33 @@ function collectServerFunctions(
  * Remonte une chaîne d'appels `a(...).b(...).c(...)` depuis l'appel racine et
  * renvoie les identifiants passés en premier argument à `.<method>(...)`.
  */
+/**
+ * Comme `chainedCallArguments`, mais pour un `.pipe(a, b, c)` : la composition
+ * est variadique, et seuls les arguments nommés désignent une brique du graphe
+ * — `mapContext(...)` ou `requireServerPermission(...)` n'en sont pas.
+ */
+function chainedCallIdentifierArguments(
+  call: CallExpression,
+  method: string,
+): string[] {
+  const names: string[] = [];
+  let current: Node = call;
+  for (;;) {
+    const access = current.getParentIfKind(SyntaxKind.PropertyAccessExpression);
+    if (!access) break;
+    const outer = access.getParentIfKind(SyntaxKind.CallExpression);
+    if (!outer) break;
+    if (access.getName() === method) {
+      for (const argument of outer.getArguments()) {
+        const identifier = argument.asKind(SyntaxKind.Identifier);
+        if (identifier) names.push(identifier.getText());
+      }
+    }
+    current = outer;
+  }
+  return names;
+}
+
 function chainedCallArguments(call: CallExpression, method: string): string[] {
   const names: string[] = [];
   let current: Node = call;
@@ -4478,6 +4505,8 @@ type ServerFunctionMiddlewarePart = {
   readonly terminal?: 'server' | 'client';
   /** Clés déclarées par `.provides(Schema.Struct({ ... }))`, best-effort. */
   readonly providesKeys: readonly string[];
+  /** Comment cette brique se compose : `.use(...)` historique, ou `.pipe(...)`. */
+  readonly composition?: 'use' | 'pipe';
 };
 
 /**
@@ -4498,7 +4527,8 @@ function collectServerFunctionMiddlewares(
     if (
       declaresApi(sourceFile, 'craftMiddleware') ||
       declaresApi(sourceFile, 'portableServerMiddleware') ||
-      declaresApi(sourceFile, 'effectServerMiddleware')
+      declaresApi(sourceFile, 'effectServerMiddleware') ||
+      declaresApi(sourceFile, 'serverLayer')
     )
       continue;
     const isMiddlewareFile = isServerMiddlewareFile(sourceFile.getBaseName());
@@ -4541,6 +4571,7 @@ function collectServerFunctionMiddlewares(
       details: {
         ...(part.id === undefined ? {} : { middlewareId: part.id }),
         middlewareName: part.variableName,
+        composition: part.composition ?? 'use',
         ...(builder.middlewareCapabilities[part.id ?? part.variableName]
           ? {
               protects:
@@ -4581,7 +4612,16 @@ function collectServerFunctionMiddlewares(
   for (const sourceFile of sourceFiles) {
     if (!sourceFile.getBaseName().endsWith('.fn-serveur.ts')) continue;
     const server = findServerFunction(sourceFile, byPath);
-    for (const used of server?.middlewareUses ?? []) {
+    // Les deux compositions produisent la même arête — c'est la même
+    // dépendance — mais le graphe garde de laquelle il s'agit : c'est ce qui
+    // permet de vérifier qu'un exemple migré ne passe plus par `.use(...)`.
+    const composed: readonly (readonly [string, 'use' | 'pipe'])[] = [
+      ...(server?.middlewareUses ?? []).map(
+        (used) => [used, 'use'] as const,
+      ),
+      ...(server?.layerPipes ?? []).map((used) => [used, 'pipe'] as const),
+    ];
+    for (const [used, composition] of composed) {
       const target = resolveMiddlewareReference(
         sourceFile,
         used,
@@ -4595,7 +4635,7 @@ function collectServerFunctionMiddlewares(
         middlewareNodeId(target.sourceFile.getFilePath(), target.variableName),
         'depends-on',
         'ast',
-        { boundary: 'middleware-uses' },
+        { boundary: 'middleware-uses', composition },
       );
     }
   }
@@ -4604,7 +4644,7 @@ function collectServerFunctionMiddlewares(
 /**
  * Jumeau client de `collectServerFunctionMiddlewares` : modélise les
  * `craftMiddleware(...).client(...)`, leurs arêtes `.use(...)`, et les façades
- * `*.fn-client.ts` qui les attachent via `clientContext([...])`.
+ * `*.fn-client.ts` qui les attachent via `.pipe(craftClientMiddleware(...))`.
  *
  * La règle de frontière est l'inverse de celle du serveur : un middleware
  * client ne doit jamais être importé au runtime par un module serveur.
@@ -4620,7 +4660,8 @@ function collectClientFunctionMiddlewares(
     if (
       declaresApi(sourceFile, 'craftMiddleware') ||
       declaresApi(sourceFile, 'portableServerMiddleware') ||
-      declaresApi(sourceFile, 'effectServerMiddleware')
+      declaresApi(sourceFile, 'effectServerMiddleware') ||
+      declaresApi(sourceFile, 'serverLayer')
     )
       continue;
     const isClientFile = declaresClientMiddleware(sourceFile.getBaseName());
@@ -4663,6 +4704,7 @@ function collectClientFunctionMiddlewares(
       details: {
         ...(part.id === undefined ? {} : { middlewareId: part.id }),
         middlewareName: part.variableName,
+        composition: part.composition ?? 'use',
         ...(builder.middlewareCapabilities[part.id ?? part.variableName]
           ? {
               protects:
@@ -4942,21 +4984,18 @@ function clientMiddlewareNodeId(
 }
 
 /**
- * Identifiants passés à `clientContext([...])` dans une façade client. Le
- * tableau est lu littéralement : une liste construite dynamiquement échappe au
- * graphe, comme partout ailleurs dans cette analyse.
+ * Identifiants passés à `craftClientMiddleware(...)` dans une façade client.
+ * Les arguments doivent être des identifiants statiques : une valeur construite
+ * dynamiquement échappe au graphe, comme partout ailleurs dans cette analyse.
  */
 function findClientContextAttachments(sourceFile: SourceFile): string[] {
   const names: string[] = [];
   for (const call of sourceFile.getDescendantsOfKind(
     SyntaxKind.CallExpression,
   )) {
-    if (call.getExpression().getText() !== 'clientContext') continue;
-    const array = call
-      .getArguments()[0]
-      ?.asKind(SyntaxKind.ArrayLiteralExpression);
-    for (const element of array?.getElements() ?? []) {
-      const identifier = element.asKind(SyntaxKind.Identifier);
+    if (call.getExpression().getText() !== 'craftClientMiddleware') continue;
+    for (const argument of call.getArguments()) {
+      const identifier = argument.asKind(SyntaxKind.Identifier);
       if (identifier) names.push(identifier.getText());
     }
   }
@@ -5050,6 +5089,38 @@ function findCraftMiddlewares(
       continue;
     }
 
+    // `serverLayer(...)` compose un programme plutôt qu'un Effect, mais c'est
+    // la même famille pour le graphe : mêmes règles d'id, de nommage de
+    // fichier et de frontière client/serveur.
+    const layerCall = candidates.find((candidate) =>
+      ['serverLayer', 'serverLayerReading'].includes(
+        candidate.getExpression().getText(),
+      ),
+    );
+    if (layerCall) {
+      // `serverLayerReading<Ctx>()('id', run)` : l'identifiant est porté par
+      // l'appel extérieur, celui qui suit la curryfication.
+      const idCall =
+        layerCall.getExpression().getText() === 'serverLayerReading'
+          ? layerCall.getParentIfKind(SyntaxKind.CallExpression)
+          : layerCall;
+      const layerId = idCall
+        ?.getArguments()[0]
+        ?.asKind(SyntaxKind.StringLiteral)
+        ?.getLiteralValue();
+      parts.push({
+        sourceFile,
+        variableName: declaration.getName(),
+        ...(layerId === undefined ? {} : { id: layerId }),
+        uses: [],
+        line: declaration.getStartLineNumber(),
+        terminal: 'server',
+        providesKeys: [],
+        composition: 'pipe',
+      });
+      continue;
+    }
+
     const call = candidates.find((candidate) =>
       [
         'craftMiddleware',
@@ -5077,10 +5148,16 @@ function findCraftMiddlewares(
       sourceFile,
       variableName: declaration.getName(),
       ...(id === undefined ? {} : { id }),
-      uses: chainedCallArguments(call, 'use'),
+      uses: [
+        ...chainedCallArguments(call, 'use'),
+        ...chainedCallIdentifierArguments(call, 'pipe'),
+      ],
       line: declaration.getStartLineNumber(),
       ...(terminal === undefined ? {} : { terminal }),
       providesKeys: chainedCallObjectKeys(call, 'provides'),
+      composition: chainedCallIdentifierArguments(call, 'pipe').length
+        ? 'pipe'
+        : 'use',
     });
   }
   return parts;
@@ -5213,6 +5290,8 @@ function findServerFunction(
       declaresClientContext: boolean;
       contractFamily?: string;
       middlewareUses: readonly string[];
+      /** Briques nommées passées à `.pipe(...)`, dans l'ordre déclaré. */
+      layerPipes: readonly string[];
     }
   | undefined {
   const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
@@ -5269,9 +5348,11 @@ function findServerFunction(
   const declaresClientContext =
     options?.getProperty('clientContext') !== undefined;
   const middlewareUses = chainedCallArguments(serverCall, 'use');
+  const layerPipes = chainedCallIdentifierArguments(serverCall, 'pipe');
   return {
     id,
     middlewareUses,
+    layerPipes,
     exposure:
       contractIdentifier === undefined
         ? (getStringProperty(options, 'exposure') ?? 'server')

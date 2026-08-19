@@ -33,8 +33,8 @@ Deux explorations préalables ont contraint le design :
 | Où vit `.client(...)` | **Même builder** `craftMiddleware(id)`, second terminal à côté de `.server(run)`, kind `'client-function-middleware'`. `.use(...)` refuse de mélanger les deux familles, au terminal. |
 | Convention de nommage | **`*.mw-client.ts`**, symétrique à `*.mw-serveur.ts`. Hors convention → diagnostic misnamed. |
 | Modes réactifs | **Aucun.** Un générateur s'exécute à l'appel, point. Les simuler demanderait un tracking caché dans le loader, alors que seul `params()` est une dépendance suivie ; la voie reste de composer la lecture dans le `params()` de l'appelant. |
-| Comment le navigateur remplit le canal | **Un middleware client, toujours.** `craftHandshakeMiddleware(handshake, run)` pour le cas simple — une déclaration, lue comme un service — et `craftMiddleware(id).client(...)` pour la composition. Les deux s'attachent par `clientContext([...])` sur la façade. |
-| Comment le serveur déclare ce qu'il attend | `.clientContext(schema)` sur un middleware **serveur**, et/ou `{ clientContext: schema }` sur `serverFunction(...)`. Fusion identique à celle des schémas d'input. Le serveur n'importe **jamais** un `*.mw-client.ts`. |
+| Comment le navigateur remplit le canal | **Un middleware client, toujours.** `craftHandshakeMiddleware(handshake, run)` pour le cas simple — une déclaration, lue comme un service — et `craftMiddleware(id).client(...)` pour la composition. La façade les attache par `.pipe(craftClientMiddleware(...))`. |
+| Comment le serveur déclare ce qu'il attend | `clientContext(schema)` dans le `.pipe(...)` d'un middleware **serveur**, et/ou `{ clientContext: schema }` sur `serverFunction(...)`. Fusion identique à celle des schémas d'input. Le serveur n'importe **jamais** un `*.mw-client.ts`. |
 | Transport | `context?: unknown` et `protocolVersion?: 1` sur `ServerFunctionRequest`. Absence des deux = format historique `{ id, input }`, inchangé. |
 | Confiance | `context` validé par schéma côté serveur, jamais fusionné dans le `context` de confiance : il atterrit dans un champ distinct, `clientContext`, sur `ServerFunctionHandlerContext` **et** sur le contexte d'exécution des middleware serveur. |
 | Middleware globaux | `createServerFunctionFactory(defaultServerMiddlewares)`, sucre serveur uniquement. |
@@ -46,10 +46,9 @@ Deux explorations préalables ont contraint le design :
 ```ts
 // users/request-audit.mw-serveur.ts — le serveur déclare la FORME attendue
 export const auditedRequest = craftMiddleware('demo.request-audit')
-  .clientContext(
-    Schema.toStandardSchemaV1(
-      Schema.Struct({ requestedBy: Schema.String, locale: Schema.String }),
-    ),
+  .pipe(
+    clientContext(requestedByHandshake),
+    clientContext(requestLocaleHandshake),
   )
   .server(({ clientContext, next }) =>
     Effect.gen(function* () {
@@ -58,42 +57,56 @@ export const auditedRequest = craftMiddleware('demo.request-audit')
     }),
   );
 
+// Pour un enrichissement synchrone sans hook ni erreur Effect :
+export const requestMetadata = craftMiddleware('demo.request-metadata').server(
+  () => ({ context: { source: 'authenticated-list' } }),
+);
+
 // client/request-context.mw-client.ts — le navigateur la remplit
 export const requestedByContext = craftMiddleware('demo.requested-by')
-  .provides(requestedBySchema)
+  .provides(requestedByHandshake)
   .client(function* ({ next }) {
     const session = yield* ClientSession();
     return yield* next({ context: { requestedBy: session.userId } });
   });
 
 export const requestContext = craftMiddleware('demo.request-context')
-  .use(requestedByContext)
-  .provides(localeSchema)
+  .pipe(requestedByContext)
+  .provides(requestLocaleHandshake)
   .client(function* ({ next }) {
     const session = yield* ClientSession();
     return yield* next({ context: { locale: session.locale } });
   });
 
-// shared/claimed-user-id.ts — le cas simple, déclaré une seule fois
-export const ClaimedUserId = new InjectionToken<string>('demo/ClaimedUserId');
-export const claimedUserId = requireClientDI(ClaimedUserId, {
-  mode: 'snapshot',
-  key: 'userId',
-  schema: Schema.toStandardSchemaV1(Schema.String),
-});
+// shared/claimed-user-id.ts — le contrat est déclaré une seule fois
+export const claimedUserHandshake = craftHandshake(
+  'demo.claimed-user',
+  Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
+);
+
+// client/claimed-user.mw-client.ts — le navigateur remplit le contrat
+export const claimedUserContext = craftHandshakeMiddleware(
+  claimedUserHandshake,
+  function* () {
+    return { userId: yield* ClaimedUserId() };
+  },
+);
 
 // users/authenticated-list.fn-serveur.ts
 export const getAuthenticatedUsers = serverFunction(/* … */)
-  .pipe(claimedUserId)
   .use(matchingUser)     // revérifie clientContext.userId contre la session
   .use(auditedRequest)
-  .handler(({ input, context, required }) => /* required(ClaimedUserId) */);
+  .handler(({ input, context }) => {
+    // Les opérations sensibles utilisent uniquement le contexte serveur vérifié.
+    return /* repository.list(input.filter, context.authenticatedUser.id) */;
+  });
 
 // users/authenticated-list.fn-client.ts
 export const getAuthenticatedUsers =
   createServerFunctionClient<typeof ServerGetAuthenticatedUsers>(
-    craftUnique('demo.users.authenticated-list'),
-    clientContext([claimedUserId, requestContext]),
+    authenticatedListHandshake,
+  ).pipe(
+    craftClientMiddleware(claimedUserContext, requestContext),
   );
 ```
 
@@ -121,14 +134,11 @@ type ServerFunctionRequest = {
       `client-function-middleware.ts` — aucune dépendance ajoutée au bundle client.
 - [x] Un terminal refuse une dépendance de l'autre famille.
 
-### Étape 2 — `requireClientDI` fonctionnel (mode snapshot)
+### Étape 2 — Ancien prototype `requireClientDI` (remplacé)
 
-- [x] Signature restreinte à `mode: 'snapshot'` ; les deux autres modes
-      documentés comme repoussés, avec le pourquoi, dans le docstring.
-- [x] `createServerFunctionClient(id, clientContext([...]))` lit les tokens dans
-      le DI navigateur **avant toute suspension** et construit le contexte.
-- [x] `required(token)` d'un pipe client résout depuis le contexte client
-      validé, plus depuis `runtime.resolve`.
+Cette étape a été remplacée par `craftHandshakeMiddleware(...)`. Les notes
+historiques restent conservées pour expliquer pourquoi l'ancien mécanisme n'est
+plus utilisé ; l'API actuelle est documentée dans les étapes 8 et 9.
 
 ### Étape 3 — Transport et validation
 
@@ -192,11 +202,10 @@ type ServerFunctionRequest = {
       craft, le nom et le schéma viennent du handshake. Rien n'est répété, donc
       rien ne peut diverger.
 - [x] `requireClientDI`, `ClientDIRequirement`, `ClientDITokensOf` et le mode
-      `snapshot` supprimés. Avec eux disparaissent : la clé de transport portée
-      par le pipe, la règle de collision entre clés DI et clés de middleware, le
-      porteur contravariant `__clientDI` du site d'attache, et le branchement de
-      `required()` sur le contexte client — `required(token)` redevient ce qu'il
-      dit être, une résolution dans le DI **du serveur**.
+      `snapshot` supprimés au profit de `craftHandshakeMiddleware(...)`. Le
+      service DI reste côté navigateur ; seule sa valeur déclarée par handshake
+      traverse le transport. `required(token)` redevient ce qu'il dit être, une
+      résolution dans le DI **du serveur**.
 - [x] Le graphe reconnaît `craftHandshakeMiddleware(...)` comme middleware
       client, id compris.
 - [x] **Règle par famille** : `CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED` et
@@ -210,17 +219,24 @@ type ServerFunctionRequest = {
       peut le remplir.
 - [x] Démo alignée sur la règle `no-injection-token` arrivée entre-temps :
       `ClaimedUserId` est un `craftService({ providedIn: 'abstract' })`, fourni
-      par `provideClaimedUserId(...)` dans `app.config.ts`.
+      par `provideClaimedUserId(...)` dans `app.config.ts`, puis lu par
+      `claimedUserContext`.
 
 ### Étape 6 — Démo et documentation
 
 - [x] `server-function-demo.ts` : le spread manuel `userId` a disparu ;
-      l'identité annoncée passe par `requireClientDI` et `matchingUser` la
-      confronte à la session via `clientContext.userId`.
+      l'identité annoncée passe par `claimedUserContext` et `matchingUser` la
+      confronte à la session via `clientContext.userId` ; le contrat est ajouté
+      avec `clientContext(...)` dans le `.pipe(...)` du middleware.
 - [x] Exemple `*.mw-client.ts` composé : deux middleware, une dépendance
       `.use(...)`, deux champs publiés.
-- [x] README de la démo : section « Client context », `.clientContext(...)` sur
-      le middleware serveur, et le pourquoi de `snapshot` seul.
+- [x] README de la démo : section « Client context », séparation entre `input`,
+      `clientContext` et `context`, accumulation par `.pipe(...)`, et obligation
+      d'utiliser le contexte serveur vérifié dans le handler.
+- [x] Middleware serveur : un enrichissement direct `{ context }` (ou une
+      `Promise` de cette enveloppe) fusionne le contexte et avance sans `next()`;
+      les programmes Effect gardent `next()` pour la composition, les erreurs
+      typées, le DI et les hooks avant/après.
 - [x] Ce plan tenu à jour.
 
 ## Ce que `craftHandshake` a corrigé
@@ -246,31 +262,28 @@ trois choses que le V2 initial n'avait pas :
    `CLIENT_CONTEXT_UNUSED` compare des noms de clés devinés dans l'AST ;
    `CRAFT_HANDSHAKE_MISSING_COUNTERPART` compare des identifiants.
 
-Le premier passage de la règle sur la démo a d'ailleurs trouvé une vraie
-question de conception : habiller le pipe `requireClientDI` d'un handshake le
-faisait passer pour non tenu, puisque c'est le DI navigateur qui le remplit, pas
-un middleware client. Les deux mécanismes restent donc séparés, et
-`claimed-user-id.ts` le dit explicitement. Les relier — un `requireClientDI` qui
-dériverait sa clé et son schéma d'un handshake — reste un suivi ouvert.
+Le premier modèle séparait le DI navigateur et les handshakes. Le modèle actuel
+garde bien le service DI côté navigateur, mais le middleware
+`claimedUserContext` publie sa valeur via le handshake partagé ; le serveur ne
+reçoit jamais le service lui-même.
 
 ## Écarts assumés
 
-1. **`clientContext([...])` plutôt qu'un tableau nu.** `createServerFunctionClient`
-   reçoit son type de définition explicitement (`<typeof serverFn>`), et
-   TypeScript n'infère plus aucun paramètre de type dès qu'un seul est fourni à
-   la main : un tableau passé directement ne serait jamais inféré, donc jamais
-   vérifié. Le helper a tous ses paramètres inférables ; la vérification devient
-   une assignabilité entre ce qu'il publie et ce que le contrat exige.
-2. **Pas d'auto-câblage de `requireClientDI` depuis `definition.pipes`.** Le plan
-   l'envisageait ; c'est impossible au runtime, parce que la façade client
-   n'importe **que le type** de la définition — l'importer comme valeur ferait
-   entrer le module serveur dans le bundle, exactement ce que le graphe
-   interdit. Le pipe est donc déclaré une fois dans un module partagé et rejoué
-   des deux côtés, avec le contrôle de couverture assuré par TypeScript.
+1. **`.pipe(craftClientMiddleware(...))` plutôt qu'un deuxième argument.** `createServerFunctionClient`
+   reçoit son type de définition explicitement (`<typeof serverFn>`), puis
+   retourne un builder dont `.pipe(...)` vérifie l'attache. Le helper variadique
+   `craftClientMiddleware(...)` garde tous ses paramètres inférables ; la
+   vérification devient une assignabilité entre ce qu'il publie et ce que le
+   contrat exige.
+2. **Pas d'auto-câblage du middleware client depuis la définition serveur.**
+   La façade client n'importe **que le type** de la définition — importer le
+   module serveur comme valeur ferait entrer le module serveur dans le bundle.
+   Le serveur déclare donc la forme attendue par handshake, tandis que la façade
+   attache l'implémentation client avec `.pipe(craftClientMiddleware(...))`.
 3. **Le serveur déclare la forme, pas l'implémentation.** Le plan parlait de
    fusionner les schémas `.provides(...)` des middleware client dans le contrat.
    Impossible sans que le serveur importe le `*.mw-client.ts`. La forme attendue
-   est donc déclarée côté serveur (`.clientContext(schema)` /
+   est donc déclarée côté serveur (`clientContext(schema)` dans un `.pipe(...)` /
    `{ clientContext: schema }`) et la correspondance est vérifiée au site
    d'attache par TypeScript, puis entre fichiers par le graphe.
 4. **`required(token)` change de source.** Le seul appelant qui dépendait de
@@ -314,10 +327,9 @@ dériverait sa clé et son schéma d'un handshake — reste un suivi ouvert.
 - `..._CLIENT_CONTEXT_UNUSED` est heuristique : il lit les accès
   `clientContext.<clé>` dans les fichiers serveur. Une lecture derrière un alias
   lui échappe, et son message le dit.
-- La collision de clé entre un middleware client et un `requireClientDI` est une
-  **erreur explicite à la construction du contexte**, jamais un écrasement. En
-  revanche, une clé déjà validée par un schéma n'est pas un conflit : le pipe
-  n'est alors qu'un accesseur typé sur la même valeur.
+- Une valeur de `clientContext` reste une **déclaration non fiable**, même si sa
+  forme est validée. Les middleware serveur doivent la comparer à la session ou
+  à une autre source de vérité, puis publier une valeur vérifiée dans `context`.
 - `reactive`/`cancel-on-change` restent absents. Si le besoin apparaît, la voie
   reste de composer explicitement la lecture dans le `params()` de l'appelant,
   pas de réintroduire du tracking caché dans le loader.

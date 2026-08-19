@@ -1,4 +1,4 @@
-import { craftMiddleware } from '@craft-ts/core';
+import { clientContext, craftMiddleware } from '@craft-ts/core';
 import { Data, Effect } from 'effect';
 import { requireAdmin } from '../shared/authenticated-user';
 import { claimedUserHandshake } from '../shared/claimed-user-id';
@@ -11,7 +11,11 @@ export class AuthenticatedUserMismatch extends Data.TaggedError(
   readonly authenticatedUserId: string;
 }> {}
 
-/** Exige une session admin et publie l'utilisateur authentifié dans le contexte. */
+/**
+ * Exige une session admin et publie l'utilisateur authentifié dans le contexte.
+ * `next()` reste explicite ici : `requireAdmin` est un programme Effect qui
+ * peut échouer et ce middleware conserve ce canal d'erreur typé.
+ */
 export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
   Effect.gen(function* () {
     const authenticatedUser = yield* requireAdmin;
@@ -23,14 +27,14 @@ export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
  * Vérifie que l'identité annoncée par le navigateur est celle de la session.
  *
  * `userId` n'est plus un champ d'input recopié à la main par le composant :
- * c'est le **contexte client**, déclaré ici par `.clientContext(...)`, validé
+ * c'est le **contexte client**, déclaré ici par `clientContext(...)` dans le
+ * `.pipe(...)`, validé
  * par le registre avant l'entrée dans la chaîne, et lu dans un champ distinct
  * de `context` — précisément pour qu'on ne puisse pas le confondre avec une
  * donnée de confiance. Ce middleware est ce qui le transforme en preuve.
  */
 export const matchingUser = craftMiddleware('demo.matching-user')
-  .use(adminOnly)
-  .clientContext(claimedUserHandshake)
+  .pipe(adminOnly, clientContext(claimedUserHandshake))
   .server(({ clientContext, context, next }) =>
     Effect.gen(function* () {
       if (clientContext.userId !== context.authenticatedUser.id) {

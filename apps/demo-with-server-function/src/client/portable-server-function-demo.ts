@@ -61,6 +61,11 @@ const PortableServerFunctionDemo = craftComponent(
       .request-card small { margin-top: 3px; color: #7483a1; font-size: .7rem; }
       .loading { margin: 29px 0 9px; padding: 11px 12px; border: 1px solid #39715f; border-radius: 10px; color: #b7f5dc; background: #173d36; font-size: .78rem; }
       .count-badge { min-width: 27px; padding: 4px 8px; border-radius: 20px; color: #a9f0d0; background: #27614f; font: 700 .75rem ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
+      .payload { display: grid; gap: 7px; margin: 25px 0 0; padding: 13px; border: 1px solid #2d3d61; border-radius: 11px; background: #0d162a; }
+      .payload-step { display: grid; grid-template-columns: 8.5rem 9.5rem 1fr; gap: 10px; align-items: baseline; }
+      .payload-layer { color: #67cda9; font: 700 .68rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .payload-key { color: #8996b1; font: .72rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .payload-value { overflow: hidden; color: #dce5f8; font: .72rem ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
       .results { display: grid; gap: 9px; margin: 29px 0 0; padding: 0; list-style: none; }
       .user-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #2c3b5b; border-radius: 12px; background: #10192d; }
       .avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: #18233d; background: #83e1bc; font-weight: 900; }
@@ -89,11 +94,30 @@ const PortableServerFunctionDemo = craftComponent(
       loader: ({ params }) => getPortableUsers({ filter: params }),
     });
     yield* usersQuery.call('');
-    const hasUsers = craftComputed('portableHasUsers', () =>
-      usersQuery.hasValue(),
-    );
+    // Le payload remonté par la chaîne : chaque clé a été produite par une
+    // couche différente du `.pipe(...)` côté serveur.
+    const portableUsers = craftComputed('portableUsers', function* () {
+      return (yield* usersQuery.value())?.users ?? [];
+    });
+    const hasUsers = craftComputed('portableHasUsers', function* () {
+      return (yield* portableUsers()).length > 0;
+    });
     const isEmpty = craftComputed('portableIsEmpty', function* () {
       return !usersQuery.isLoading && !(yield* hasUsers());
+    });
+    const auditId = craftComputed('portableAuditId', function* () {
+      return (yield* usersQuery.value())?.auditId ?? '—';
+    });
+    const normalizedFilter = craftComputed(
+      'portableNormalizedFilter',
+      function* () {
+        const value = (yield* usersQuery.value())?.filter ?? '';
+        return value.length === 0 ? '(empty)' : value;
+      },
+    );
+    const scannedCount = craftComputed('portableScannedCount', function* () {
+      const value = yield* usersQuery.value();
+      return value === undefined ? '—' : value.scanned.toString();
     });
 
     const submitSearch = craftMethod(
@@ -105,7 +129,7 @@ const PortableServerFunctionDemo = craftComponent(
     );
     const resultCount = craftComputed('portableResultCount', function* () {
       const value = yield* usersQuery.value();
-      return Array.isArray(value) ? value.length.toString() : '—';
+      return value === undefined ? '—' : value.users.length.toString();
     });
 
     return {
@@ -116,6 +140,10 @@ const PortableServerFunctionDemo = craftComponent(
       resultCount,
       hasUsers,
       isEmpty,
+      portableUsers,
+      auditId,
+      normalizedFilter,
+      scannedCount,
     };
   },
   ({
@@ -126,6 +154,10 @@ const PortableServerFunctionDemo = craftComponent(
     resultCount,
     hasUsers,
     isEmpty,
+    portableUsers,
+    auditId,
+    normalizedFilter,
+    scannedCount,
   }) =>
     main({ class: 'shell' }, [
       header({ class: 'hero' }, [
@@ -133,20 +165,20 @@ const PortableServerFunctionDemo = craftComponent(
           span({ class: 'pulse' }),
           ' runnable playground',
         ]),
-        heading('Frontend → Portable Middleware → Promise → DB'),
+        heading('Frontend → Layer pipe → Promise → DB'),
         p(
           { class: 'hero-copy' },
-          'This page calls the new server function without importing Effect on the server function side. The registry executes the opaque Promise program after the portable middleware chain.',
+          'This page calls the new server function without importing Effect on the server function side. The server composes its layers with .pipe(...), and each one hands a typed payload to the next before the opaque Promise program runs.',
         ),
       ]),
       section({ class: 'flow', attrs: { 'aria-label': 'Demo flow' } }, [
         flowStep('01', 'Client call', 'getPortableUsers({ filter })'),
         span({ class: 'flow-arrow' }, '→'),
-        flowStep('02', 'HTTP', 'POST /__server-functions'),
+        flowStep('02', 'portableAudit', '+ { auditId, startedAt }'),
         span({ class: 'flow-arrow' }, '→'),
-        flowStep('03', 'Middleware', 'portableAudit → next()'),
+        flowStep('03', 'mapContext', '+ { normalizedFilter, label }'),
         span({ class: 'flow-arrow' }, '→'),
-        flowStep('04', 'Promise', 'readFile + filter'),
+        flowStep('04', 'flatMapContext', '+ { directory, scanned }'),
       ]),
       section({ class: 'workspace' }, [
         div({ class: 'panel query-panel' }, [
@@ -159,7 +191,7 @@ const PortableServerFunctionDemo = craftComponent(
           ]),
           p(
             { class: 'panel-copy' },
-            'The middleware creates an audit id and forwards it through the server context before the Promise handler reads the local database.',
+            'The first layer creates an audit id, mapContext derives the normalized filter from it, and flatMapContext runs the Promise that loads the local database. The handler only reads the accumulated context.',
           ),
           form(
             'portableSearchForm',
@@ -212,10 +244,29 @@ const PortableServerFunctionDemo = craftComponent(
           ifBlock(usersQuery.isLoading, () =>
             p({ class: 'loading' }, '⏳ Promise program is running…'),
           ),
+          // Une ligne par couche : ce qu'elle a ajouté au contexte, tel que le
+          // handler l'a lu avant de répondre.
+          div({ class: 'payload' }, [
+            div({ class: 'payload-step' }, [
+              span({ class: 'payload-layer' }, 'portableAudit'),
+              span({ class: 'payload-key' }, 'auditId'),
+              span({ class: 'payload-value' }, auditId),
+            ]),
+            div({ class: 'payload-step' }, [
+              span({ class: 'payload-layer' }, 'mapContext'),
+              span({ class: 'payload-key' }, 'normalizedFilter'),
+              span({ class: 'payload-value' }, normalizedFilter),
+            ]),
+            div({ class: 'payload-step' }, [
+              span({ class: 'payload-layer' }, 'flatMapContext'),
+              span({ class: 'payload-key' }, 'scanned'),
+              span({ class: 'payload-value' }, scannedCount),
+            ]),
+          ]),
           ifBlock(hasUsers, () =>
             ul(
               { class: 'results' },
-              each(usersQuery.value, { track: (user) => user.id }, (user) =>
+              each(portableUsers, { track: (user) => user.id }, (user) =>
                 article({ class: 'user-row' }, [
                   div({ class: 'avatar' }, function* () {
                     return (yield* user()).name.slice(0, 1);
@@ -244,7 +295,7 @@ const PortableServerFunctionDemo = craftComponent(
         ]),
       ]),
       footer({ class: 'demo-footer' }, [
-        span('No Effect import in the server function or middleware.'),
+        span('No Effect import in the server function or its layers.'),
         span({ class: 'footer-file' }, 'users/portable-list.fn-serveur.ts'),
       ]),
     ]),

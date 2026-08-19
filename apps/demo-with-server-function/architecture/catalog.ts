@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "121b83b1419ab0dd",
+  "graphHash": "a075f87d1a4bdd84",
   "routes": [
     "",
     "effect-middleware",
@@ -45,8 +45,8 @@ export const architectureCatalog = {
     "craftPending"
   ],
   "primitives": [
-    "accessDenied",
     "copied",
+    "craftComputed",
     "currentUser",
     "currentUserQuery",
     "effectMiddlewareFilter",
@@ -62,10 +62,14 @@ export const architectureCatalog = {
     "isEmpty",
     "notFound",
     "notFoundMessage",
+    "portableAuditId",
     "portableHasUsers",
     "portableIsEmpty",
+    "portableNormalizedFilter",
     "portableResultCount",
+    "portableScannedCount",
     "portableSearchInput",
+    "portableUsers",
     "portableUsersQuery",
     "requestDetail",
     "requestTitle",

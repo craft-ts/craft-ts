@@ -120,6 +120,36 @@ describe('architecture', () => {
     expect(uses).toHaveLength(5);
   });
 
+  it('distingue la composition par .pipe(...) de celle par .use(...)', () => {
+    const layer = graph
+      .serverFunctionMiddlewares()
+      .find((node) => node.label === 'demo.portable-audit');
+    expect(layer?.details?.['composition']).toBe('pipe');
+
+    const composed = graph.graph.edges.filter(
+      (edge) =>
+        edge.details?.['boundary'] === 'middleware-uses' &&
+        edge.to === layer?.id,
+    );
+    // L'exemple portable est toujours relié à sa couche, mais plus via `.use`.
+    expect(composed).toHaveLength(1);
+    expect(composed[0]?.details?.['composition']).toBe('pipe');
+    expect(
+      graph.graph.edges.some(
+        (edge) =>
+          edge.details?.['boundary'] === 'middleware-uses' &&
+          edge.details?.['composition'] === 'use' &&
+          edge.from.includes('portable-list.fn-serveur.ts'),
+      ),
+    ).toBe(false);
+
+    // Les exemples Effect, eux, composent toujours avec `.use(...)`.
+    const effectAudit = graph
+      .serverFunctionMiddlewares()
+      .find((node) => node.label === 'demo.effect-audit');
+    expect(effectAudit?.details?.['composition']).toBe('use');
+  });
+
   it('models the client middleware chain and where it is attached', () => {
     expect(
       graph
@@ -138,7 +168,7 @@ describe('architecture', () => {
         (edge) => edge.details?.['boundary'] === 'client-middleware-uses',
       ),
     ).toHaveLength(1);
-    // Et la façade client qui les attache via clientContext([...]).
+    // Et la façade client qui les attache via .pipe(craftClientMiddleware(...)).
     const attached = graph.graph.edges.filter(
       (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
     );

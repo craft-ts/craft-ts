@@ -1,4 +1,4 @@
-import { craftMiddleware } from '@craft-ts/core';
+import { clientContext, craftMiddleware } from '@craft-ts/core';
 import { Effect } from 'effect';
 import {
   requestedByHandshake,
@@ -13,8 +13,10 @@ import {
  * forme n'est écrite qu'une fois.
  */
 export const auditedRequest = craftMiddleware('demo.request-audit')
-  .clientContext(requestedByHandshake)
-  .clientContext(requestLocaleHandshake)
+  .pipe(
+    clientContext(requestedByHandshake),
+    clientContext(requestLocaleHandshake),
+  )
   .server(({ clientContext, next }) =>
     Effect.gen(function* () {
       yield* Effect.log(
