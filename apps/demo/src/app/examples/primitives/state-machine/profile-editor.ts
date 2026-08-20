@@ -27,6 +27,8 @@ import {
   state,
   transitionGuard,
   transitionStep,
+  withBackNavigation,
+  withHistory,
   type CraftTransition,
 } from '@craft-ts/core';
 
@@ -189,10 +191,11 @@ const ProfileEditorStateMachine = craftComponent(
 
       // 4. The insertion: derived values, step flags, selectors over the step
       // context, and composed methods — the same shape state/query/mutation
-      // insertions have. Anything the machine core does not own (a history, for
-      // instance) is composed here, or recorded where `transit()` reports that
-      // the machine actually moved.
-      function* ({ context, currentStep, stepContext }) {
+      // insertions have. The history is not part of the machine core either:
+      // `withHistory` is just another insertion, merged in here.
+      function* (machineContext) {
+        const { context, currentStep, stepContext } = machineContext;
+        const history = withHistory(withBackNavigation())(machineContext);
         const stepClass = (step: string) =>
           craftComputed(`${step}Class`, function* () {
             return (yield* currentStep()) === step
@@ -201,6 +204,7 @@ const ProfileEditorStateMachine = craftComponent(
           });
 
         return {
+          ...history,
           profileLabel: craftComputed('profileLabel', function* () {
             const profile =
               (yield* context.saveProfile.value()) ?? INITIAL_PROFILE;
@@ -232,6 +236,11 @@ const ProfileEditorStateMachine = craftComponent(
               !(yield* context.draft.isValid()) ||
               (yield* permissions.readOnly())
             );
+          }),
+          historyLabel: craftComputed('historyLabel', function* () {
+            const entries = yield* history.history();
+            const cursor = yield* history.historyCursor();
+            return `step ${cursor + 1} of ${entries.length}`;
           }),
           requestEdit: () => context.edit$.emit(),
           requestCancel: () => context.cancel$.emit(),
@@ -339,6 +348,38 @@ const ProfileEditorStateMachine = craftComponent(
       ),
 
       ifBlock(machine.isSaving, () => div({ class: 'panel' }, [p('Saving…')])),
+
+      div({ class: 'history' }, [
+        button(
+          'history-back',
+          {
+            type: 'button',
+            class: 'secondary',
+            disabled: function* () {
+              return !(yield* machine.canGoBack());
+            },
+            click: function* () {
+              yield* machine.back();
+            },
+          },
+          '← Back',
+        ),
+        button(
+          'history-forward',
+          {
+            type: 'button',
+            class: 'secondary',
+            disabled: function* () {
+              return !(yield* machine.canGoForward());
+            },
+            click: function* () {
+              yield* machine.forward();
+            },
+          },
+          'Forward →',
+        ),
+        span(machine.historyLabel),
+      ]),
 
       div({ class: 'read-only' }, [
         button(

@@ -145,3 +145,37 @@ describe('ProfileEditorStateMachine', () => {
     vi.useRealTimers();
   });
 });
+
+describe('ProfileEditorStateMachine history', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+  });
+
+  it('records each step and rewinds the machine and its draft', () => {
+    const { element, mounted } = mount();
+
+    expect(element.textContent).toContain('step 1 of 1');
+
+    click(element, 'edit');
+    type(element, 'profile-name', 'Grace Hopper');
+    click(element, 'save');
+
+    expect(activeStep(element)).toBe('saving');
+    expect(element.textContent).toContain('step 3 of 3');
+
+    click(element, 'history-back');
+
+    // The step AND the value it was captured with come back together.
+    expect(activeStep(element)).toBe('editing');
+    expect(field(element, 'profile-name')?.value).toBe('Ada Lovelace');
+    expect(element.textContent).toContain('step 2 of 3');
+
+    click(element, 'history-forward');
+
+    expect(activeStep(element)).toBe('saving');
+    expect(element.textContent).toContain('step 3 of 3');
+
+    mounted.destroy();
+  });
+});

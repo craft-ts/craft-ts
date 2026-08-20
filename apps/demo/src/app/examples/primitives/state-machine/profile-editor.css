@@ -106,6 +106,14 @@
 }
 
 
+.history {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1.5rem;
+  color: #64748b;
+}
+
 .read-only {
   display: flex;
   gap: 0.5rem;
