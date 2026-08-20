@@ -15,7 +15,6 @@ import {
 import {
   afterRecomputation,
   craftComputed,
-  craftGen,
   craftService,
   craftSleep,
   craftStateMachine,
@@ -29,7 +28,6 @@ import {
   transitionSetup,
   transitionGuard,
   transitionStep,
-  type CraftMachineContext,
   type CraftTransition,
 } from '@craft-ts/core';
 
@@ -59,105 +57,6 @@ const { ProfilePermissions } = craftService(
   },
 );
 
-// 1. The machine's context: every primitive its steps and guards work with.
-const profileContext = craftGen(function* () {
-  const draft = yield* state(
-    'draft',
-    INITIAL_PROFILE,
-    insertStatePipe(
-      ({ update }) => ({
-        setName: (name: string) => update((profile) => ({ ...profile, name })),
-        setEmail: (email: string) =>
-          update((profile) => ({ ...profile, email })),
-        restore: (profile: Profile) => update(() => profile),
-      }),
-      ({ state: current }) => ({
-        isValid: craftComputed('isValid', function* () {
-          const profile = yield* current();
-          return profile.name.trim().length > 0 && profile.email.includes('@');
-        }),
-      }),
-    ),
-  );
-
-  const save = yield* mutation('save', {
-    method: (profile: Profile) => profile,
-    loader: function* ({ params }) {
-      yield* craftSleep(600, { owner: 'profile-editor-save' });
-      return params;
-    },
-  });
-
-  const edit$ = yield* source$<void>('edit$');
-  const cancel$ = yield* source$<void>('cancel$');
-  const submit$ = yield* source$<void>('submit$');
-
-  return { draft, save, edit$, cancel$, submit$ };
-});
-
-type ProfileContext = CraftMachineContext<typeof profileContext>;
-
-// 2. The transitions. Each key is the step the machine ENTERS, so `transit()`
-// inside a block targets that block's step.
-const profileTransitions = transitionSetup(function* (
-  context: ProfileContext,
-  transit,
-) {
-  return {
-    reading: transitionStep(function* () {
-      // No static initial state: the first accepted transit defines it.
-      yield* initStateMachine(() => transit());
-
-      // Leaving `saving` is not an event — it is the mutation settling.
-      yield* afterRecomputation(context.save.status, function* (status) {
-        if (status === 'resolved') {
-          yield* transit();
-        }
-      });
-
-      yield* on$(context.cancel$, function* () {
-        if (!(yield* transit())) return;
-
-        const persisted = (yield* context.save.value()) ?? INITIAL_PROFILE;
-        yield* context.draft.restore(persisted);
-      });
-    }),
-
-    editing: transitionStep(function* () {
-      yield* on$(context.edit$, () => transit());
-    }).pipe(
-      // Step-scoped: no way back into the form while a save is in flight.
-      // A step guard does not know the context type, hence the annotation.
-      transitionGuard(
-        ({ context: machine }: CraftTransition<ProfileContext>) =>
-          craftUse(machine.save.status()) !== 'loading',
-      ),
-    ),
-
-    saving: transitionStep(function* () {
-      yield* on$(context.submit$, function* () {
-        const accepted = yield* transit().pipe(
-          // Attempt-scoped, and it resolves a service with `yield*`.
-          transitionGuard(function* ({ context: machine }) {
-            const permissions = yield* ProfilePermissions();
-
-            return (
-              (yield* machine.draft.isValid()) &&
-              !(yield* permissions.readOnly())
-            );
-          }),
-        );
-
-        // `transit()` answers whether the machine actually moved, which is
-        // exactly the hook an entry action needs.
-        if (!accepted) return;
-
-        yield* context.save.mutate(yield* context.draft());
-      });
-    }),
-  };
-});
-
 const ProfileEditorStateMachine = craftComponent(
   'ProfileEditorStateMachine',
   { stylesUrl: styles },
@@ -166,9 +65,108 @@ const ProfileEditorStateMachine = craftComponent(
 
     const machine = yield* craftStateMachine(
       'profileEditor',
-      profileContext,
 
-      profileTransitions,
+      // 1. The machine's context: every primitive its steps and guards work with.
+      function* () {
+        const draft = yield* state(
+          'draft',
+          INITIAL_PROFILE,
+          insertStatePipe(
+            ({ update }) => ({
+              setName: (name: string) =>
+                update((profile) => ({ ...profile, name })),
+              setEmail: (email: string) =>
+                update((profile) => ({ ...profile, email })),
+              restore: (profile: Profile) => update(() => profile),
+            }),
+            ({ state: current }) => ({
+              isValid: craftComputed('isValid', function* () {
+                const profile = yield* current();
+                return (
+                  profile.name.trim().length > 0 && profile.email.includes('@')
+                );
+              }),
+            }),
+          ),
+        );
+
+        const saveProfile = yield* mutation('saveProfile', {
+          method: (profile: Profile) => profile,
+          loader: function* ({ params }) {
+            yield* craftSleep(600, { owner: 'profile-editor-save' });
+            return params;
+          },
+        });
+
+        const edit$ = yield* source$<void>('edit$');
+        const cancel$ = yield* source$<void>('cancel$');
+        const submit$ = yield* source$<void>('submit$');
+
+        return { draft, saveProfile, edit$, cancel$, submit$ };
+      },
+
+      // 2. The transitions. Each key is the step the machine ENTERS, so
+      // `transit()` inside a block targets that block's step.
+      transitionSetup(function* (context, transit) {
+        return {
+          reading: transitionStep(function* () {
+            // No static initial state: the first accepted transit defines it.
+            yield* initStateMachine(() => transit());
+
+            // Leaving `saving` is not an event — it is the mutation settling.
+            yield* afterRecomputation(
+              context.saveProfile.status,
+              function* (status) {
+                if (status === 'resolved') {
+                  yield* transit();
+                }
+              },
+            );
+
+            yield* on$(context.cancel$, function* () {
+              if (!(yield* transit())) return;
+
+              const persisted =
+                (yield* context.saveProfile.value()) ?? INITIAL_PROFILE;
+              yield* context.draft.restore(persisted);
+            });
+          }),
+
+          editing: transitionStep(function* () {
+            yield* on$(context.edit$, () => transit());
+          }).pipe(
+            // Step-scoped: no way back into the form while a save is in flight.
+            // A step guard is not told the context type, so it names it from the
+            // setup's own parameter.
+            transitionGuard(
+              ({ context: machine }: CraftTransition<typeof context>) =>
+                craftUse(machine.saveProfile.status()) !== 'loading',
+            ),
+          ),
+
+          saving: transitionStep(function* () {
+            yield* on$(context.submit$, function* () {
+              const accepted = yield* transit().pipe(
+                // Attempt-scoped, and it resolves a service with `yield*`.
+                transitionGuard(function* ({ context: machine }) {
+                  const permissions = yield* ProfilePermissions();
+
+                  return (
+                    (yield* machine.draft.isValid()) &&
+                    !(yield* permissions.readOnly())
+                  );
+                }),
+              );
+
+              // `transit()` answers whether the machine actually moved, which is
+              // exactly the hook an entry action needs.
+              if (!accepted) return;
+
+              yield* context.saveProfile.mutate(yield* context.draft());
+            });
+          }),
+        };
+      }),
 
       // 3. What each step works with, plus the copy the UI shows for it.
       function* (context) {
@@ -183,7 +181,7 @@ const ProfileEditorStateMachine = craftComponent(
           },
           saving: {
             hint: 'The mutation is in flight. The machine returns to “reading” once it settles.',
-            save: context.save,
+            saveProfile: context.saveProfile,
           },
         };
       },
@@ -196,12 +194,15 @@ const ProfileEditorStateMachine = craftComponent(
       function* ({ context, currentStep, stepContext }) {
         const stepClass = (step: string) =>
           craftComputed(`${step}Class`, function* () {
-            return (yield* currentStep()) === step ? 'step step--active' : 'step';
+            return (yield* currentStep()) === step
+              ? 'step step--active'
+              : 'step';
           });
 
         return {
           profileLabel: craftComputed('profileLabel', function* () {
-            const profile = (yield* context.save.value()) ?? INITIAL_PROFILE;
+            const profile =
+              (yield* context.saveProfile.value()) ?? INITIAL_PROFILE;
             return `${profile.name} <${profile.email}>`;
           }),
           draftName: craftComputed('draftName', function* () {
@@ -285,7 +286,9 @@ const ProfileEditorStateMachine = craftComponent(
               type: 'text',
               value: machine.draftName,
               *input(event) {
-                yield* machine.setName((event.target as HTMLInputElement).value);
+                yield* machine.setName(
+                  (event.target as HTMLInputElement).value,
+                );
               },
             }),
           ]),

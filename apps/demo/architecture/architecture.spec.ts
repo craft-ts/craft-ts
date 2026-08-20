@@ -75,7 +75,7 @@ describe('demo architecture', () => {
 
   it('requires a query to react to each mutation, except pedagogical orphans', () => {
     assertMutationHasReactOn(graph.graph, {
-      allow: ['addTodo', 'removeTodo', 'submitted', 'issue'],
+      allow: ['addTodo', 'removeTodo', 'submitted', 'issue', 'saveProfile'],
     });
   });
 
@@ -102,6 +102,7 @@ describe('demo architecture', () => {
         'slowReport',
         'viewTransitionAccess',
         'auth',
+        'saveProfile',
       ],
     });
   });
@@ -128,7 +129,7 @@ describe('demo architecture', () => {
 
   it('keeps the app declarative', () => {
     assertDeclarativeArchitecture(graph.graph, {
-      allow: ['addTodo', 'removeTodo', 'submitted', 'issue'],
+      allow: ['addTodo', 'removeTodo', 'submitted', 'issue', 'saveProfile'],
     });
   });
 
