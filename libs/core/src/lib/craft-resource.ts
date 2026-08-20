@@ -218,7 +218,7 @@ export function craftResource<Value, Params>(
     });
     paramsWatch?.destroy();
   };
-  const set = (next: Value | undefined): void => {
+  const publish = (next: Value | undefined, status: ResourceStatus): void => {
     abortController?.abort();
     stopStream?.();
     stopStream = undefined;
@@ -233,9 +233,17 @@ export function craftResource<Value, Params>(
     craftBatch(() => {
       valueState.set(next);
       errorState.set(undefined);
-      statusState.set('local');
+      statusState.set(status);
     });
   };
+  const set = (next: Value | undefined): void => publish(next, 'local');
+  /**
+   * Puts back a value the resource had produced itself, rather than one an
+   * application decided. `set` means "this is mine now" and marks the resource
+   * local, which detaches it from its loader for good; a restored value came
+   * FROM the loader, so it settles as resolved and the resource stays attached.
+   */
+  const restore = (next: Value | undefined): void => publish(next, 'resolved');
   const update = (
     updater: (value: Value | undefined) => Value | undefined,
   ): void => set(updater(untracked(valueState)));
@@ -261,6 +269,7 @@ export function craftResource<Value, Params>(
     destroy,
     update,
     set,
+    restore,
     asReadonly: () => resourceRef,
     paramSrc: options.params as Signal<Params | undefined>,
     state: value,

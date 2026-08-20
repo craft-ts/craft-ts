@@ -24,6 +24,12 @@ export type PrimitiveResourceRuntimeContext<
   patch(updater: (current: unknown) => object, id?: string): unknown;
   /** Re-runs the loader from the params in force. */
   reload?(): boolean;
+  /**
+   * Puts back a value the resource had produced itself. Unlike `set`, which
+   * marks the resource local and detaches it from its loader, a restored value
+   * settles as resolved.
+   */
+  restore?(value: unknown, id?: string): unknown;
 }>;
 
 export type PrimitiveResourceRuntimeObserver = (
@@ -35,6 +41,7 @@ type WritableResourceTarget = Readonly<{
   set(value: unknown): unknown;
   update(updater: (current: unknown) => unknown): unknown;
   reload?(): boolean;
+  restore?(value: unknown): unknown;
 }>;
 
 type ResourceByIdTarget = Readonly<{
@@ -79,7 +86,10 @@ export function ɵobservePrimitiveResourceRuntimeContext(
       kind: context.kind,
       name,
       read: () => context.get(),
-      write: (value) => context.set(value),
+      // A registry write puts a value BACK; it is not an application deciding
+      // to override one, so it must not detach the resource from its loader.
+      write: (value) =>
+        context.restore ? context.restore(value) : context.set(value),
       reload: () => context.reload?.() ?? false,
     });
   }
@@ -94,6 +104,12 @@ export function ɵcreatePrimitiveResourceRuntimeContext(
     grouped: false,
     ids: () => [],
     reload: () => target.reload?.() ?? false,
+    restore: (value, id) => {
+      const resolved = rootTarget(target, id);
+      return resolved.restore
+        ? resolved.restore(value)
+        : resolved.set(value);
+    },
     get: (id) => rootTarget(target, id).state(),
     set: (value, id) => rootTarget(target, id).set(value),
     update: (updater, id) => rootTarget(target, id).update(updater),

@@ -77,6 +77,9 @@ export function preservedResource<T, R>(
     destroy,
     update: original.update.bind(original),
     set: original.set.bind(original),
+    restore: (
+      original as unknown as { restore: (value: T | undefined) => void }
+    ).restore.bind(original),
     asReadonly: () => resourceRef,
     paramSrc: config.params as Signal<R | undefined>,
     state,

@@ -467,6 +467,17 @@ describe('machine history with an async resource', () => {
     expect(craftUse(machine.context.selectedId())).toBe('a');
     expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' });
     expect(loads).toEqual(['a', 'b']);
+
+    // The value came FROM the loader, so putting it back settles as resolved:
+    // a `set` would mark the resource local and detach it from its loader.
+    expect(craftUse(machine.context.details.status())).toBe('resolved');
+
+    // And the resource is still attached: a later parameter change reloads.
+    craftUse(machine.context.selectedId.to('c'));
+    await vi.waitFor(() =>
+      expect(craftUse(machine.context.details.value())).toEqual({ id: 'c' }),
+    );
+    expect(loads).toEqual(['a', 'b', 'c']);
   });
 
   it('reloads a resource the snapshot could not capture', async () => {
