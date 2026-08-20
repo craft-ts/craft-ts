@@ -21,6 +21,45 @@ const learnSidebar = [
   },
 ];
 
+const learnEffectSidebar = [
+  {
+    text: 'Learn with Effect',
+    items: [
+      { text: 'Overview', link: '/learn-effect/' },
+      {
+        text: '1. Start with a Craft component',
+        link: '/learn-effect/01-first-component',
+      },
+      { text: '2. Derive UI state', link: '/learn-effect/02-derive' },
+      {
+        text: '3. Put the domain in Effect',
+        link: '/learn-effect/03-effect-domain',
+      },
+      {
+        text: '4. Load data with Effect',
+        link: '/learn-effect/04-load-data',
+      },
+      {
+        text: '5. Write data with Effect',
+        link: '/learn-effect/05-write-data',
+      },
+      {
+        text: '6. Provide Layers and route the app',
+        link: '/learn-effect/06-layers-routing',
+      },
+      {
+        text: '7. Build forms and validate boundaries',
+        link: '/learn-effect/07-forms-validation',
+      },
+      { text: '8. Test the graph', link: '/learn-effect/08-testing' },
+      {
+        text: '9. Server functions — POC',
+        link: '/learn-effect/09-server-functions',
+      },
+    ],
+  },
+];
+
 const guideSidebar = [
   { text: 'Guide overview', link: '/guide/' },
   {
@@ -166,7 +205,77 @@ const guideSidebar = [
       { text: 'Testing components', link: '/guide/testing/components' },
       { text: 'Type-level tests', link: '/guide/testing/type-level' },
       { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
-      { text: 'Architecture rules', link: '/guide/testing/architecture' },
+      {
+        text: 'Architecture rules',
+        collapsed: true,
+        items: [
+          { text: 'Overview', link: '/guide/testing/architecture' },
+          {
+            text: 'Declarative baseline',
+            link: '/guide/testing/architecture/declarative-baseline',
+          },
+          {
+            text: 'Unique identities',
+            link: '/guide/testing/architecture/unique-identities',
+          },
+          {
+            text: 'HTTP endpoint ownership',
+            link: '/guide/testing/architecture/http-endpoint-ownership',
+          },
+          {
+            text: 'Computed purity',
+            link: '/guide/testing/architecture/computed-purity',
+          },
+          {
+            text: 'Dependency cycles',
+            link: '/guide/testing/architecture/dependency-cycles',
+          },
+          {
+            text: 'Mutation reactions',
+            link: '/guide/testing/architecture/mutation-reactions',
+          },
+          {
+            text: 'Route DI proofs',
+            link: '/guide/testing/architecture/route-di-proofs',
+          },
+          {
+            text: 'Path boundaries',
+            link: '/guide/testing/architecture/path-boundaries',
+          },
+          {
+            text: 'Exclusive links',
+            link: '/guide/testing/architecture/exclusive-links',
+          },
+          {
+            text: 'Persisted identities',
+            link: '/guide/testing/architecture/persisted-identities',
+          },
+          {
+            text: 'insertSelect keys',
+            link: '/guide/testing/architecture/insert-select-keys',
+          },
+          {
+            text: 'craftEffect and network',
+            link: '/guide/testing/architecture/craft-effect-network',
+          },
+          {
+            text: 'craftEffect and imperative sync',
+            link: '/guide/testing/architecture/craft-effect-imperative-sync',
+          },
+          {
+            text: 'Interactive element names',
+            link: '/guide/testing/architecture/interactive-element-names',
+          },
+          {
+            text: 'Server-state loaders',
+            link: '/guide/testing/architecture/server-state-loader',
+          },
+          {
+            text: 'Primitive loader requirements',
+            link: '/guide/testing/architecture/primitive-loader-requirements',
+          },
+        ],
+      },
       {
         text: 'Extensible architecture graph',
         link: '/guide/testing/extensible-architecture-graph',
@@ -198,6 +307,7 @@ const guideSidebar = [
     text: 'Going further',
     collapsed: true,
     items: [
+      { text: 'Effect integration', link: '/guide/advanced/effect' },
       { text: 'Program operators', link: '/guide/advanced/program-operators' },
       { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },
       { text: 'Observability', link: '/guide/advanced/observability' },
@@ -251,6 +361,11 @@ export default defineConfig({
     },
     nav: [
       { text: 'Learn', link: '/learn/', activeMatch: '^/learn/' },
+      {
+        text: 'Learn with Effect',
+        link: '/learn-effect/',
+        activeMatch: '^/learn-effect/',
+      },
       { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
       { text: 'Reference', link: '/reference/', activeMatch: '^/reference/' },
       {
@@ -290,6 +405,7 @@ export default defineConfig({
 
     sidebar: {
       '/learn/': learnSidebar,
+      '/learn-effect/': learnEffectSidebar,
       '/guide/': guideSidebar,
       '/reference/': [
         {

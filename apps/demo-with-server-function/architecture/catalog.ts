@@ -1,9 +1,10 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "a075f87d1a4bdd84",
+  "graphHash": "209aa81c57947cbb",
   "routes": [
     "",
+    "authenticated-list",
     "effect-middleware",
     "portable",
     "simple-list"
@@ -40,6 +41,7 @@ export const architectureCatalog = {
     "CraftRouterOutlet",
     "EffectServerMiddlewareDemo",
     "PortableServerFunctionDemo",
+    "PublicProductsDemo",
     "ServerFunctionDemo",
     "SimpleListDemo",
     "craftPending"
@@ -56,6 +58,7 @@ export const architectureCatalog = {
     "effectMiddlewareServerError",
     "effectMiddlewareServerErrorText",
     "effectMiddlewareUsersQuery",
+    "hasProducts",
     "hasUsers",
     "instruction",
     "isAdmin",
@@ -71,6 +74,11 @@ export const architectureCatalog = {
     "portableSearchInput",
     "portableUsers",
     "portableUsersQuery",
+    "productsIsEmpty",
+    "productsRequestDetail",
+    "productsRequestTitle",
+    "productsResultCount",
+    "publicProductsQuery",
     "requestDetail",
     "requestTitle",
     "resultCount",
@@ -88,6 +96,7 @@ export const architectureCatalog = {
     "source$ (source$)"
   ],
   "serverFunctionFamilies": [
+    "demo.products.list",
     "demo.users.authenticated-list",
     "demo.users.effect-middleware-list",
     "demo.users.list",
@@ -95,6 +104,7 @@ export const architectureCatalog = {
   ],
   "httpEndpoints": [],
   "uniques": [
+    "\"demo.products.list\"",
     "\"demo.users.effect-middleware-list\"",
     "\"demo.users.list\"",
     "\"demo.users.portable-list\""

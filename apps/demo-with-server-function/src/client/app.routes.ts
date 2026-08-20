@@ -1,6 +1,7 @@
 import { loadCraftComponent } from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
+  craftExceptionHandler,
   craftRoute,
   craftRoutes,
   type CanRun,
@@ -11,30 +12,76 @@ import {
 export const { appRoutes } = craftRoutes('app', [
   craftRoute('', {
     ...loadCraftComponent(async () => {
-      const { ServerFunctionDemo } = await import('./server-function-demo');
-      return ServerFunctionDemo;
+      const { PublicProductsDemo } = await import('./public-products-demo');
+      return PublicProductsDemo;
     }),
   }),
+  craftRoute(
+    'authenticated-list',
+    {
+      ...loadCraftComponent(async () => {
+        const { ServerFunctionDemo } = await import('./server-function-demo');
+        return ServerFunctionDemo;
+      }),
+    },
+    {
+      AdminRequired: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      AuthenticatedUserMismatch: craftExceptionHandler(function* ({
+        globalError,
+      }) {
+        return globalError();
+      }),
+      AuthenticatedUsersNotFound: craftExceptionHandler(function* ({
+        globalError,
+      }) {
+        return globalError();
+      }),
+      HttpError: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
   craftRoute('simple-list', {
     ...loadCraftComponent(async () => {
       const { SimpleListDemo } = await import('./simple-list-demo');
       return SimpleListDemo;
     }),
   }),
-  craftRoute('portable', {
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./portable-server-function-demo')).then(
-        ({ PortableServerFunctionDemo }) => PortableServerFunctionDemo,
+  craftRoute(
+    'portable',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./portable-server-function-demo')).then(
+          ({ PortableServerFunctionDemo }) => PortableServerFunctionDemo,
+        ),
       ),
-    ),
-  }),
-  craftRoute('effect-middleware', {
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./effect-server-middleware-demo')).then(
-        ({ EffectServerMiddlewareDemo }) => EffectServerMiddlewareDemo,
+    },
+    {
+      HttpError: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
+  craftRoute(
+    'effect-middleware',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./effect-server-middleware-demo')).then(
+          ({ EffectServerMiddlewareDemo }) => EffectServerMiddlewareDemo,
+        ),
       ),
-    ),
-  }),
+    },
+    {
+      DemoHandlerFailure: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      HttpError: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
 ]);
 
 assertExhaustiveRouteExceptions(appRoutes);
@@ -48,6 +95,16 @@ type _CheckServerFunctionDemoDI = RouteCheckedDI<
   'component: server-function-demo'
 >;
 type _CanRunServerFunctionDemo = CanRun<_CheckServerFunctionDemoDI>;
+
+type _CheckPublicProductsDemoDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./public-products-demo'))['PublicProductsDemo']
+  >,
+  'CraftRouter',
+  never,
+  'component: public-products-demo'
+>;
+type _CanRunPublicProductsDemo = CanRun<_CheckPublicProductsDemoDI>;
 
 type _CheckSimpleListDemoDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./simple-list-demo'))['SimpleListDemo']>,

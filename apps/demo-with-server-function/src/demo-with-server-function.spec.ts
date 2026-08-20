@@ -18,6 +18,7 @@ import { getAuthenticatedUsers } from './users/authenticated-list.fn-client';
 import { getUsers } from './users/list.fn-client';
 import { getPortableUsers } from './users/portable-list.fn-client';
 import { getEffectMiddlewareUsers } from './users/effect-middleware-list.fn-client';
+import { getPublicProducts } from './products/public-products.fn-client';
 import type { effectMiddlewareListUsers as ServerEffectMiddlewareListUsers } from './users/effect-middleware-list.fn-serveur';
 import { provideClaimedUserId } from './shared/claimed-user-id';
 import { demoAuthenticatedUser } from './server/authentication';
@@ -34,6 +35,25 @@ void effectMiddlewareInputRegression;
 
 describe('demo with server function', () => {
   beforeEach(() => TestBed.resetTestingModule());
+
+  it('calls the public server function with no middleware', async () => {
+    const server = await listenDemoServer();
+    try {
+      configureServerFunctionTransport(server.url);
+
+      const products = await TestBed.runInInjectionContext(() =>
+        getPublicProducts({}),
+      );
+
+      expect(products).toEqual([
+        expect.objectContaining({ id: 'craft-starter', available: true }),
+        expect.objectContaining({ id: 'craft-pro', available: true }),
+        expect.objectContaining({ id: 'runtime-pass', available: false }),
+      ]);
+    } finally {
+      await server.close();
+    }
+  });
 
   it('calls the Effect backend through the client facade and local DB', async () => {
     const server = await listenDemoServer();
@@ -278,6 +298,7 @@ describe('demo with server function', () => {
     );
 
     expect(graph.catalog.serverFunctionFamilies).toEqual([
+      'demo.products.list',
       'demo.users.authenticated-list',
       'demo.users.effect-middleware-list',
       'demo.users.list',

@@ -36,6 +36,7 @@ describe('architecture', () => {
 
   it('indexes server-function families and their client identities', () => {
     expect(graph.serverFunctionFamilies().map((node) => node.label)).toEqual([
+      'demo.products.list',
       'demo.users.authenticated-list',
       'demo.users.effect-middleware-list',
       'demo.users.list',

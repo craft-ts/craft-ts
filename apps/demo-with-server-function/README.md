@@ -1,9 +1,16 @@
 # Demo with server function
 
-This demo shows two forms of server function:
+The default page starts with the smallest possible server-function example: a
+public product catalogue with no middleware at all. The navigation then moves
+from that baseline to authenticated and portable variants:
 
 ```txt
-simple case called from CraftTS
+default public case called from CraftTS
+  -> products/public-products.fn-client.ts
+  -> products/public-products.fn-serveur.ts
+  -> no middleware, no client context
+
+simple user search called from CraftTS
   -> users/list.fn-client.ts
   -> users/list.fn-serveur.ts
   -> no access to client DI
@@ -14,7 +21,18 @@ case called from CraftTS with an authenticated identity
   -> server-side CurrentUser Effect service + UserRepository
 ```
 
-The CraftTS page now uses the authenticated case and shows the complete path:
+The default product page shows the shortest path:
+
+```txt
+public product catalogue
+  -> client facade
+  -> HTTP POST /__server-functions
+  -> createServer registry
+  -> server function with no middleware
+  -> public response
+```
+
+The authenticated page shows the complete path:
 
 ```txt
 client-side Effect CurrentUser service
@@ -42,8 +60,11 @@ application to Node requests and responses. The Craft registry remains
 responsible for resolving the server function and its JSON protocol, while
 Effect handles HTTP execution and request lifecycles.
 
-The `users/list.fn-serveur.ts` case remains the simple path, without identity or
-authorization, and serves as a comparison.
+The `products/public-products.fn-serveur.ts` case is the first example on the
+root route. It takes an empty input object, declares no middleware, and returns
+public data. The `users/list.fn-serveur.ts` case remains a second simple path,
+without identity or authorization, but adds a user filter and a repository
+lookup for comparison.
 
 The `authenticated-list` case is intentionally more complete. The `CurrentUser`
 contract and the `requireAdmin` business effect live in
@@ -69,14 +90,13 @@ export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
 );
 
 export const matchingUser = craftMiddleware('demo.matching-user')
-  .pipe(
-    adminOnly,
-    clientContext(claimedUserHandshake),
-  )
+  .pipe(adminOnly, clientContext(claimedUserHandshake))
   .server(({ clientContext, context, next }) =>
     Effect.gen(function* () {
       if (clientContext.userId !== context.authenticatedUser.id) {
-        return yield* new AuthenticatedUserMismatch({ /* … */ });
+        return yield* new AuthenticatedUserMismatch({
+          /* … */
+        });
       }
       return yield* next({ context: {} });
     }),
@@ -103,9 +123,9 @@ export const getAuthenticatedUsers = serverFunction(
   .use(auditedRequest)
   .handler(({ input, context }) =>
     Effect.gen(function* () {
-      context.authenticatedUser;  // published by the middleware, fully typed
-      context.requestLocale;      // published by the audit middleware
-      input.filter;               // validated by the server function schema
+      context.authenticatedUser; // published by the middleware, fully typed
+      context.requestLocale; // published by the audit middleware
+      input.filter; // validated by the server function schema
       // …
     }),
   );
@@ -114,7 +134,7 @@ export const getAuthenticatedUsers = serverFunction(
 Three things are inferred, with no manual declaration:
 
 - **the input** — every middleware `.input(...)` schema is merged into the
-  server function input, on the handler side *and* on the client facade side;
+  server function input, on the handler side _and_ on the client facade side;
 - **the context** — `context.authenticatedUser` is what the middleware published
   through `next({ context })`, or through a direct `{ context }` return for a
   simple synchronous enrichment;
@@ -173,15 +193,16 @@ portableServerFunction('demo.users.portable-list', filterSchema, {
   exposure: 'client',
 })
   .pipe(
-    portableAudit,                                   // + { auditId, startedAt }
-    mapContext(({ input, context }) => ({            // + { normalizedFilter, label }
+    portableAudit, // + { auditId, startedAt }
+    mapContext(({ input, context }) => ({
+      // + { normalizedFilter, label }
       normalizedFilter: input.filter.trim().toLocaleLowerCase(),
       label: `${context.auditId}#${input.filter}`,
     })),
-    flatMapContext(() => loadUserDirectory()),       // + { directory, scanned }
+    flatMapContext(() => loadUserDirectory()), // + { directory, scanned }
   )
   .handler(async ({ context }) => ({
-    auditId: context.auditId,          // string, not unknown
+    auditId: context.auditId, // string, not unknown
     filter: context.normalizedFilter,
     scanned: context.scanned,
     users: context.directory.filter(/* … */),
@@ -199,24 +220,27 @@ Each step sees the context accumulated by the ones before it, and nothing else:
 
 ### The three shapes
 
-| Shape | For | Declared with |
-| --- | --- | --- |
-| `withXxx` | a rule, a DI read, before/after hooks, a short circuit | `serverLayer(id, run)`, or `serverLayerReading<Context>()(id, run)` when it reads upstream keys |
-| `mapContext` | a pure, synchronous derivation | `mapContext(({ input, context }) => ({ key: … }))` |
-| `flatMapContext` | a derivation that must run a program | `flatMapContext(({ context }) => promise)`, plus a `chain` for any other protocol |
+| Shape            | For                                                    | Declared with                                                                                   |
+| ---------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `withXxx`        | a rule, a DI read, before/after hooks, a short circuit | `serverLayer(id, run)`, or `serverLayerReading<Context>()(id, run)` when it reads upstream keys |
+| `mapContext`     | a pure, synchronous derivation                         | `mapContext(({ input, context }) => ({ key: … }))`                                              |
+| `flatMapContext` | a derivation that must run a program                   | `flatMapContext(({ context }) => promise)`, plus a `chain` for any other protocol               |
 
 A `withXxx` layer publishes its keys through `next`, and the return type is what
 carries them:
 
 ```ts
-export const portableAudit = serverLayer('demo.portable-audit', async ({ next }) => {
-  const auditId = crypto.randomUUID();
-  try {
-    return await next({ context: { auditId, startedAt: Date.now() } });
-  } finally {
-    // observes success and failure alike
-  }
-});
+export const portableAudit = serverLayer(
+  'demo.portable-audit',
+  async ({ next }) => {
+    const auditId = crypto.randomUUID();
+    try {
+      return await next({ context: { auditId, startedAt: Date.now() } });
+    } finally {
+      // observes success and failure alike
+    }
+  },
+);
 ```
 
 `mapContext` and `flatMapContext` must return an **object of keys**: a lone
@@ -233,12 +257,12 @@ a middleware concern.
 
 ### Which program, which tool
 
-| Program | Composition | Adapter |
-| --- | --- | --- |
-| pure value | `mapContext` | none |
-| Promise | `.pipe(serverLayer(...))`, `flatMapContext` | the registry's `execute`, default Promise chain |
-| `Task`, `TaskEither`, any custom protocol | same, plus a `chain` passed to `flatMapContext` | `execute` runs it; add `ServerProgramSuccess<A>` to the type so its success channel stays readable |
-| Effect | `craftMiddleware(...).server(...)` or `effectServerMiddleware` | `executeEffect(layer)` |
+| Program                                   | Composition                                                    | Adapter                                                                                            |
+| ----------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| pure value                                | `mapContext`                                                   | none                                                                                               |
+| Promise                                   | `.pipe(serverLayer(...))`, `flatMapContext`                    | the registry's `execute`, default Promise chain                                                    |
+| `Task`, `TaskEither`, any custom protocol | same, plus a `chain` passed to `flatMapContext`                | `execute` runs it; add `ServerProgramSuccess<A>` to the type so its success channel stays readable |
+| Effect                                    | `craftMiddleware(...).server(...)` or `effectServerMiddleware` | `executeEffect(layer)`                                                                             |
 
 The core imports no Effect runtime, and never awaits a program whose protocol it
 was not told about.
@@ -249,8 +273,8 @@ The two forms are told apart by their contract, on the same builder:
 
 ```ts
 portableServerFunction(/* … */)
-  .pipe(requireServerPermission('users:read'))  // a declaration the registry reads
-  .pipe(portableAudit, mapContext(/* … */))     // layers, composed in order
+  .pipe(requireServerPermission('users:read')) // a declaration the registry reads
+  .pipe(portableAudit, mapContext(/* … */)) // layers, composed in order
   .handler(/* … */);
 ```
 
@@ -270,10 +294,16 @@ What the browser knows and the server does not — a session id, a locale, a
 selected workspace — travels in its own request channel:
 
 ```json
-{ "id": "demo.users.authenticated-list",
+{
+  "id": "demo.users.authenticated-list",
   "input": { "filter": "ada" },
-  "context": { "userId": "user-ada", "requestedBy": "user-ada", "locale": "en" },
-  "protocolVersion": 1 }
+  "context": {
+    "userId": "user-ada",
+    "requestedBy": "user-ada",
+    "locale": "en"
+  },
+  "protocolVersion": 1
+}
 ```
 
 A request without `context` keeps working exactly as before: the field only
@@ -299,7 +329,7 @@ export const claimedUserContext = craftHandshakeMiddleware(
 `ClaimedUserId` is an ordinary abstract craft service
 (`craftService({ providedIn: 'abstract' }, abstract<string>())`), provided by the
 application in `app.config.ts`. There is no reactive mode: a generator runs when
-the call is made. Making a DI read *re-run* a loader would mean hidden tracking,
+the call is made. Making a DI read _re-run_ a loader would mean hidden tracking,
 which Craft refuses — in Craft only `params()` is a tracked dependency, so
 compose such a read into the caller's `params()` instead.
 
@@ -330,21 +360,20 @@ Both are attached on the client facade, and TypeScript checks there that
 together they cover what the server function expects:
 
 ```ts
-export const getAuthenticatedUsers =
-  createServerFunctionClient<typeof ServerGetAuthenticatedUsers>(
-    authenticatedListHandshake,
-  ).pipe(
-    craftClientMiddleware(claimedUserContext, requestContext),
-  );
+export const getAuthenticatedUsers = createServerFunctionClient<
+  typeof ServerGetAuthenticatedUsers
+>(authenticatedListHandshake).pipe(
+  craftClientMiddleware(claimedUserContext, requestContext),
+);
 ```
 
 ## Handshakes
 
 A handshake is a name the two sides agree on, declared once and referenced from
-both. `craftUnique` says *"this name appears exactly once"*, which is the wrong
+both. `craftUnique` says _"this name appears exactly once"_, which is the wrong
 predicate at a boundary: an id, or the shape of a client context, **must** appear
 on both sides, because the two files cannot import each other. `craftHandshake`
-says the opposite — *"this name has a counterpart"* — and
+says the opposite — _"this name has a counterpart"_ — and
 `assertCraftHandshake(graph)` proves it.
 
 ```ts
@@ -372,15 +401,15 @@ Two things follow. The id string exists **once** in the repository, so equality
 between the two sides becomes a TypeScript check rather than something the graph
 catches after the fact — the graph only has to prove both sides are reachable,
 which is the cross-program case. And when a handshake carries a schema, the
-server's `clientContext(...)` declaration and the client's `.provides(...)` share the *same*
+server's `clientContext(...)` declaration and the client's `.provides(...)` share the _same_
 schema: they can no longer drift.
 
 Three global diagnostics: `CRAFT_HANDSHAKE_MISSING_COUNTERPART`,
 `CRAFT_HANDSHAKE_NOT_STATIC`, `CRAFT_HANDSHAKE_DUPLICATE_NAME`. They answer
-*"does this name have a counterpart somewhere?"*.
+_"does this name have a counterpart somewhere?"_.
 
-A fourth answers the only question that matters at the call site — *does **this**
-server function receive what it expects?* —
+A fourth answers the only question that matters at the call site — _does **this**
+server function receive what it expects?_ —
 `CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED`: the server chain of a family
 expects a handshake that the family's own facade attaches nothing for. A
 handshake honoured at the other end of the repository, but missing from this
@@ -392,7 +421,7 @@ The `demo.users.list` family stays on `craftUnique(...)` on purpose, so both
 spellings remain exercised.
 
 The server never imports a `*.mw-client.ts` file — the architecture graph
-forbids it. It only declares the *shape* it expects, with
+forbids it. It only declares the _shape_ it expects, with
 `clientContext(schema)` inside a middleware `.pipe(...)`, or
 `{ clientContext: schema }` on the
 function, and revalidates it on arrival. A missing or malformed context is

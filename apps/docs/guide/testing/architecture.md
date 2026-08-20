@@ -315,22 +315,29 @@ either call each one or `assertDeclarativeArchitecture` for the five together.
 The demo suite keeps all checks in `apps/demo/architecture/architecture.spec.ts`
 so the graph is loaded once. Run it with `npx nx architecture demo`.
 
+Each rule has a focused page with the invariant it protects, the failure it
+prevents and the smallest useful test. Start with the [declarative
+baseline](/guide/testing/architecture/declarative-baseline), then add the
+rules that express your application's boundaries.
+
 | Helper | Fails when |
 | --- | --- |
-| `assertCraftUnique` | the same `craftUnique` identity appears twice, or the argument is not a static literal |
-| `assertHttpEndpointUnique` | the same HTTP verb+URL is called from more than one site |
-| `assertCraftComputedPure` | a `craftComputed` `calls` a method or `writes` a `source$` |
-| `assertNoDependencyCycles` | a directed cycle exists on `depends-on` (services, components, computeds) |
-| `assertMutationHasReactOn` | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
-| `assertDeclarativeArchitecture` | any of the five above fail |
-| `assertRouteDiProofs` | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
-| `assertPathBoundaries` | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
-| `noExclusiveLink(a, b)` | the only path between two branches is a leak, not a shared kernel |
-| `assertPersistedPrimitiveHasUnique` | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
-| `assertInsertSelectUnique` | the same `insertSelect` key appears twice on one host primitive |
-| `assertCraftEffectNoNetwork` | a `craftEffect` `calls` HTTP or a `mutation` |
-| `assertCraftEffectNoImperativeSync` | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
-| `assertInteractiveElementNamed` | an interactive helper (`button`, `a`, `input` except `hidden`, `textarea`, `select`, or any node with `click` / `input` / `change` / `submit`) is missing a literal first-argument name, the name is not static, or the same `data-craft-name` appears twice in the app |
+| [`assertCraftUnique`](/guide/testing/architecture/unique-identities) | the same `craftUnique` identity appears twice, or the argument is not a static literal |
+| [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership) | the same HTTP verb+URL is called from more than one site |
+| [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity) | a `craftComputed` `calls` a method or `writes` a `source$` |
+| [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles) | a directed cycle exists on `depends-on` (services, components, computeds) |
+| [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions) | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
+| [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the five baseline checks fail |
+| [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs) | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
+| [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries) | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
+| [`noExclusiveLink(a, b)`](/guide/testing/architecture/exclusive-links) | the only path between two branches is a leak, not a shared kernel |
+| [`assertPersistedPrimitiveHasUnique`](/guide/testing/architecture/persisted-identities) | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
+| [`assertInsertSelectUnique`](/guide/testing/architecture/insert-select-keys) | the same `insertSelect` key appears twice on one host primitive |
+| [`assertCraftEffectNoNetwork`](/guide/testing/architecture/craft-effect-network) | a `craftEffect` `calls` HTTP or a `mutation` |
+| [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture/craft-effect-imperative-sync) | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
+| [`assertInteractiveElementNamed`](/guide/testing/architecture/interactive-element-names) | an interactive element lacks a literal name or duplicates a `data-craft-name` |
+| [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader) | a `query` or `mutation` does not reach an allowed server-state boundary |
+| [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements) | an Effect-aware primitive does not declare an allowed dependency boundary |
 
 ### `noExclusiveLink`
 

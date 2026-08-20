@@ -20,9 +20,13 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { Effect } from 'effect';
-import { craftComputed, craftMethod, isCraftException, state } from '@craft-ts/core';
-import { queryEffect } from '@craft-ts/effect';
+import {
+  craftComputed,
+  craftMethod,
+  isCraftException,
+  query,
+  state,
+} from '@craft-ts/core';
 import { getUsers } from '../users/list.fn-client';
 
 /**
@@ -92,20 +96,14 @@ const SimpleListDemo = craftComponent(
     const searchInput = yield* state('searchInput', '', ({ set }) => ({
       setSearchInput: (value: string) => set(value),
     }));
-    const usersQuery = yield* queryEffect(
+    const usersQuery = yield* query(
       'usersQuery',
       {
         method: (term: string) => term,
-        loader: ({ params }) =>
-          Effect.gen(function* () {
-            const result = yield* Effect.promise(() =>
-              getUsers({ filter: params }),
-            );
-            if (isCraftException(result)) {
-              return yield* Effect.fail(result);
-            }
-            return result;
-          }),
+        loader: async ({ params }) => {
+          const result = await getUsers({ filter: params });
+          return isCraftException(result) ? [] : result;
+        },
       },
       ({ resource }) => ({
         hasUsers: craftComputed('hasUsers', () => resource.hasValue()),
@@ -183,26 +181,30 @@ const SimpleListDemo = craftComponent(
             { class: 'panel-copy' },
             'Every request reaches the server: there is no client-side gate to short-circuit it.',
           ),
-          form('searchForm', { class: 'search-form', submit: submitSearch }, [
-            label({ htmlFor: 'filterInput' }, 'Filter'),
-            div({ class: 'search-row' }, [
-              input('filterInput', {
-                type: 'search',
-                value: searchInput,
-                placeholder: 'ada, craft.dev…',
-                autocomplete: 'off',
-                'aria-label': 'User filter',
-                *input(event) {
-                  yield* setSearchInput(event.target.value);
-                },
-              }),
-              button(
-                'searchButton',
-                { type: 'submit', disabled: usersQuery.isLoading },
-                'Run ↗',
-              ),
-            ]),
-          ]),
+          form(
+            'simpleSearchForm',
+            { class: 'search-form', submit: submitSearch },
+            [
+              label({ htmlFor: 'simpleFilterInput' }, 'Filter'),
+              div({ class: 'search-row' }, [
+                input('simpleFilterInput', {
+                  type: 'search',
+                  value: searchInput,
+                  placeholder: 'ada, craft.dev…',
+                  autocomplete: 'off',
+                  'aria-label': 'User filter',
+                  *input(event) {
+                    yield* setSearchInput(event.target.value);
+                  },
+                }),
+                button(
+                  'simpleSearchButton',
+                  { type: 'submit', disabled: usersQuery.isLoading },
+                  'Run ↗',
+                ),
+              ]),
+            ],
+          ),
           div({ class: 'request-card' }, [
             span({ class: 'request-dot' }),
             div([

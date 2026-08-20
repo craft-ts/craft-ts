@@ -14,6 +14,7 @@ import { getAuthenticatedUsers } from '../users/authenticated-list.fn-serveur';
 import { listUsers } from '../users/list.fn-serveur';
 import { portableListUsers } from '../users/portable-list.fn-serveur';
 import { effectMiddlewareListUsers } from '../users/effect-middleware-list.fn-serveur';
+import { listPublicProducts } from '../products/public-products.fn-serveur';
 import { createDemoDatabase } from './database';
 
 export function createDemoApplication(
@@ -26,6 +27,7 @@ export function createDemoApplication(
   );
   const application = createServer({
     functions: [
+      listPublicProducts,
       listUsers,
       getAuthenticatedUsers,
       portableListUsers,
