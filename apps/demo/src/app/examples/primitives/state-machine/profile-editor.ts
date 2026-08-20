@@ -106,7 +106,7 @@ const ProfileEditorStateMachine = craftComponent(
 
       // 2. The transitions. Each key is the step the machine ENTERS, so
       // `transit()` inside a block targets that block's step. No machine-wide
-      // guard here, so the setup generator goes in as-is — `transitionSetup(...)`
+      // guard here, so the setup generator goes in as-is — `transitionsSetup(...)`
       // is only needed to pipe one onto every transition.
       function* (context, transit) {
         return {

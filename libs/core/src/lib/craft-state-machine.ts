@@ -239,7 +239,7 @@ export type CraftTransitionsSetupFn<
 ) => Generator<Yielded, StepsRecord, unknown>;
 
 /**
- * The transitions once {@link transitionSetup} has wrapped them, which is what
+ * The transitions once {@link transitionsSetup} has wrapped them, which is what
  * carries `.pipe(...)`. `Context` travels contravariantly so `craftStateMachine`
  * accepts a setup whose annotated context is satisfied by the machine's actual
  * context, and refuses one that asks for more.
@@ -258,7 +258,7 @@ export interface CraftTransitionsSetup<
 
 /**
  * What `craftStateMachine` accepts as its transitions: the bare setup
- * generator, or the same generator wrapped in {@link transitionSetup} when a
+ * generator, or the same generator wrapped in {@link transitionsSetup} when a
  * machine-wide guard has to be piped onto it.
  */
 export type CraftTransitionsInput<
@@ -390,14 +390,14 @@ export function transitionStep<Yielded = never>(
  * machine `context` and `transit`, and returns one {@link transitionStep} per
  * step; the record's keys ARE the machine's steps.
  *
- * `transitionSetup(...).pipe(transitionGuard(...))` guards every transition of
+ * `transitionsSetup(...).pipe(transitionGuard(...))` guards every transition of
  * every step.
  *
  * Declared standalone, the setup's `context` parameter has to be annotated —
  * typically with `CraftMachineContext<typeof contextFactory>`; `craftStateMachine`
  * then checks the machine's real context against that annotation.
  */
-export function transitionSetup<
+export function transitionsSetup<
   Context,
   StepsRecord extends AnyStepsRecord,
   SetupYielded = never,
@@ -859,7 +859,7 @@ function createStateMachineRef(
 
     if (!isStepsRecord(stepsRecord)) {
       throw new Error(
-        'transitionSetup(...) must return a record of transitionStep(...) entries.',
+        'transitionsSetup(...) must return a record of transitionStep(...) entries.',
       );
     }
 

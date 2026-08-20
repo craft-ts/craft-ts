@@ -11,7 +11,7 @@ import { afterRecomputation } from './after-recomputation';
 import {
   craftStateMachine,
   initStateMachine,
-  transitionSetup,
+  transitionsSetup,
   transitionGuard,
   transitionStep,
   type CraftMachineContext,
@@ -61,7 +61,7 @@ const contextFactory = function* () {
 
 type MachineContext = CraftMachineContext<typeof contextFactory>;
 
-const transitions = transitionSetup(function* (
+const transitions = transitionsSetup(function* (
   context: MachineContext,
   transit,
 ) {
@@ -287,7 +287,7 @@ describe('craftStateMachine typing', () => {
   });
 
   it('rejects a machine whose transitions never initialise', () => {
-    const uninitialised = transitionSetup(function* (
+    const uninitialised = transitionsSetup(function* (
       context: MachineContext,
       transit,
     ) {
@@ -314,7 +314,7 @@ describe('craftStateMachine typing', () => {
 });
 
 describe('craftStateMachine guards', () => {
-  const stepGuarded = transitionSetup(function* (
+  const stepGuarded = transitionsSetup(function* (
     context: MachineContext,
     transit,
   ) {
@@ -406,7 +406,7 @@ describe('craftStateMachine naming', () => {
 
 describe('craftStateMachine bare transitions', () => {
   // No machine-wide guard here, so the setup generator is passed as-is:
-  // `transitionSetup(...)` is only needed to hang a `.pipe(...)` off it.
+  // `transitionsSetup(...)` is only needed to hang a `.pipe(...)` off it.
   function createBareMachine() {
     return craftUse(
       craftStateMachine(
@@ -446,7 +446,7 @@ describe('craftStateMachine bare transitions', () => {
     editable = true;
   });
 
-  it('accepts the setup generator without transitionSetup', () => {
+  it('accepts the setup generator without transitionsSetup', () => {
     const machine = TestBed.runInInjectionContext(createBareMachine);
 
     expect(craftUse(machine.currentStep())).toBe('reading');

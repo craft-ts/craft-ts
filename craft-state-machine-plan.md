@@ -3,7 +3,7 @@
 ## API cible
 
 ```ts
-const transitions = transitionSetup(function* (context, transit) {
+const transitions = transitionsSetup(function* (context, transit) {
   return {
     reading: transitionStep(function* () {
       yield* initStateMachine(() => transit());
@@ -109,10 +109,10 @@ const machine = craftStateMachine(
 
 ## Transitions
 
-- `transitionSetup(...)` construit toutes les transitions.
+- `transitionsSetup(...)` construit toutes les transitions.
 - `transitionStep(...)` est uniquement un utilitaire permettant d’appliquer un pipeline local.
 - `transitionStep(...).pipe(transitionGuard(...))` applique le guard aux transitions déclarées dans ce step.
-- `transitionSetup(...).pipe(transitionGuard(...))` applique le guard global à toutes les transitions.
+- `transitionsSetup(...).pipe(transitionGuard(...))` applique le guard global à toutes les transitions.
 - `transit(event)` crée une tentative de transition yieldable.
 - `transit(event).pipe(...)` permet d’ajouter des guards locaux à une tentative précise.
 - Une transition reçoit :
@@ -147,7 +147,7 @@ Les dépendances yieldées dans les guards doivent être ajoutées au graphe de 
 Le tracking doit fonctionner récursivement à travers :
 
 ```text
-transitionSetup
+transitionsSetup
   → transitionStep
     → on$ / afterRecomputation / initStateMachine
       → transit().pipe(...)
