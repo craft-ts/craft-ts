@@ -76,13 +76,36 @@ describe('craft primitive registry', () => {
       craftUse(Row());
     });
 
-    const addresses = registry
-      .list()
-      .filter((entry) => entry.name === 'value')
-      .map((entry) => entry.address);
+    const entries = registry.list().filter((entry) => entry.name === 'value');
 
     // Both instances are registered, and neither overwrote the other.
-    expect(addresses).toHaveLength(2);
-    expect(new Set(addresses).size).toBe(2);
+    expect(entries).toHaveLength(2);
+    expect(new Set(entries.map((entry) => entry.address)).size).toBe(2);
+
+    // A service that can exist several times at once says WHICH one it is, so
+    // the two are told apart by their host chain rather than only by the
+    // registry's own tiebreaker — which is what snapshots and logs read.
+    const hostChains = entries.map((entry) => entry.hostTags.join(' / '));
+    expect(new Set(hostChains).size).toBe(2);
+    for (const chain of hostChains) {
+      expect(chain).toMatch(/service:Row#\d+/);
+    }
+  });
+
+  it('leaves a singleton host unnumbered', () => {
+    const { Settings } = craftService(
+      { name: 'Settings', providedIn: 'global' },
+      function* () {
+        const theme = yield* state('theme', 'light');
+        return { theme };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => craftUse(Settings()));
+
+    const entry = registry.list().find((candidate) => candidate.name === 'theme');
+
+    // There is exactly one of it, so a number would be noise in every log line.
+    expect(entry?.hostTags).toContain('service:Settings');
   });
 });

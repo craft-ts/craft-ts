@@ -3996,6 +3996,11 @@ function createConcreteServiceInstance(
     injector,
     `service:${definition.name}`,
     definition.providers ?? [],
+    {
+      instanced:
+        definition.providedIn === 'function' ||
+        definition.providedIn === 'toProvide',
+    },
   );
 
   return runInInjectionContext(scopedInjector, () =>
@@ -4671,6 +4676,7 @@ export function ɵcreateHostTaggedInjector(
   injector: Injector,
   hostName: string,
   extraProviders: readonly Provider[] = [],
+  options: { readonly instanced?: boolean } = {},
 ): Injector {
   if (HOST_TAG_INTERNAL_SERVICE_NAMES.has(hostName)) {
     return injector;
@@ -4697,15 +4703,30 @@ export function ɵcreateHostTaggedInjector(
 
   // Insert env-only tags before the last element of nodeTags (the current component's tag)
   // to preserve semantic order: parent components → route → current component → method
+  // EXPERIMENT (option A): stamp the instance ordinal that provideHostName's
+  // factory would have produced, which this useValue would otherwise discard.
+  // A host that can exist several times at once carries which one it is, the
+  // way a component tag already does. A singleton does not: a number on a host
+  // there is exactly one of reads as noise, and would change every log line and
+  // snapshot for nothing.
+  const taggedHostName = options.instanced
+    ? `${hostName}#${(
+        injector.get(
+          COMPONENT_REGISTER as unknown as InjectionToken<ComponentRegister>,
+          null,
+        ) ?? ɵfallbackComponentRegister
+      ).next()}`
+    : hostName;
+
   const mergedTags: readonly string[] =
     nodeTags.length > 0
       ? [
           ...nodeTags.slice(0, -1),
           ...envOnlyTags,
           nodeTags[nodeTags.length - 1],
-          hostName,
+          taggedHostName,
         ]
-      : [...envOnlyTags, hostName];
+      : [...envOnlyTags, taggedHostName];
 
   const envInjector = createEnvironmentInjector(
     [
