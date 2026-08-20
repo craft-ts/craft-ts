@@ -403,3 +403,127 @@ describe('craftStateMachine naming', () => {
     expect(craftUse(machine.currentStep())).toBe('reading');
   });
 });
+
+describe('craftStateMachine bare transitions', () => {
+  // No machine-wide guard here, so the setup generator is passed as-is:
+  // `transitionSetup(...)` is only needed to hang a `.pipe(...)` off it.
+  function createBareMachine() {
+    return craftUse(
+      craftStateMachine(
+        contextFactory,
+
+        function* (context, transit) {
+          return {
+            reading: transitionStep(function* () {
+              yield* initStateMachine(() => transit());
+            }),
+
+            saving: transitionStep(function* () {
+              yield* on$(context.validateEvent, function* () {
+                yield* transit().pipe(
+                  transitionGuard(function* () {
+                    const permissions = yield* PermissionsService();
+                    return permissions.canEdit();
+                  }),
+                );
+              });
+            }),
+          };
+        },
+
+        function* (context) {
+          return {
+            reading: { formValid: context.formValid },
+            saving: { status: context.saveStatus },
+          };
+        },
+      ),
+    );
+  }
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    editable = true;
+  });
+
+  it('accepts the setup generator without transitionSetup', () => {
+    const machine = TestBed.runInInjectionContext(createBareMachine);
+
+    expect(craftUse(machine.currentStep())).toBe('reading');
+
+    machine.context.validateEvent.emit({ reason: 'submit' });
+    expect(craftUse(machine.currentStep())).toBe('saving');
+  });
+
+  it('types the setup context without an annotation', () => {
+    const machine = TestBed.runInInjectionContext(createBareMachine);
+
+    type Step = ReturnType<typeof machine.currentStep>;
+    type _Step = Expect<Equal<Step, 'reading' | 'saving' | undefined>>;
+
+    expect(craftUse(machine.currentStep())).toBe('reading');
+  });
+
+  it('still folds a guard dependency into the machine graph', () => {
+    const { BareMachine } = craftService(
+      { name: 'BareMachine', providedIn: 'function' },
+      function* () {
+        const machine = yield* craftStateMachine(
+          contextFactory,
+          function* (context, transit) {
+            return {
+              reading: transitionStep(function* () {
+                yield* initStateMachine(() => transit());
+              }),
+              saving: transitionStep(function* () {
+                yield* on$(context.validateEvent, function* () {
+                  yield* transit().pipe(
+                    transitionGuard(function* () {
+                      const permissions = yield* PermissionsService();
+                      return permissions.canEdit();
+                    }),
+                  );
+                });
+              }),
+            };
+          },
+          function* (context) {
+            return {
+              reading: { formValid: context.formValid },
+              saving: { status: context.saveStatus },
+            };
+          },
+        );
+
+        return { machine };
+      },
+    );
+
+    type Deps = GetServiceDependencies<typeof BareMachine>;
+    type _Permissions = Expect<HasDependency<Deps, 'PermissionsService'>>;
+    type _Validate = Expect<HasDependency<Deps, 'validateEvent'>>;
+
+    expect(typeof BareMachine).toBe('function');
+  });
+
+  it('still rejects bare transitions that never initialise', () => {
+    TestBed.runInInjectionContext(() => {
+      craftStateMachine(
+        contextFactory,
+        // @ts-expect-error `yield* initStateMachine(...)` is missing.
+        function* (context, transit) {
+          return {
+            idle: transitionStep(function* () {
+              yield* on$(context.validateEvent, () => transit());
+            }),
+          };
+        },
+        function* () {
+          return { idle: {} };
+        },
+      );
+    });
+
+    expect(true).toBe(true);
+  });
+});

@@ -196,47 +196,78 @@ type SetupGuard<Context, Steps extends string, Yielded> = CraftTransitionGuard<
   Yielded
 >;
 
+/** The step names a transitions record declares. */
+type MachineSteps<StepsRecord> = Extract<keyof StepsRecord, string>;
+
 export interface CraftTransitionsSetupPipe<
   Context,
-  Steps extends string,
+  StepsRecord extends AnyStepsRecord,
   Yielded,
 > {
   <Y1>(
-    guard1: SetupGuard<Context, Steps, Y1>,
-  ): CraftTransitionsSetup<Context, Steps, Yielded | Y1>;
+    guard1: SetupGuard<Context, MachineSteps<StepsRecord>, Y1>,
+  ): CraftTransitionsSetup<Context, StepsRecord, Yielded | Y1>;
   <Y1, Y2>(
-    guard1: SetupGuard<Context, Steps, Y1>,
-    guard2: SetupGuard<Context, Steps, Y2>,
-  ): CraftTransitionsSetup<Context, Steps, Yielded | Y1 | Y2>;
+    guard1: SetupGuard<Context, MachineSteps<StepsRecord>, Y1>,
+    guard2: SetupGuard<Context, MachineSteps<StepsRecord>, Y2>,
+  ): CraftTransitionsSetup<Context, StepsRecord, Yielded | Y1 | Y2>;
   <Y1, Y2, Y3>(
-    guard1: SetupGuard<Context, Steps, Y1>,
-    guard2: SetupGuard<Context, Steps, Y2>,
-    guard3: SetupGuard<Context, Steps, Y3>,
-  ): CraftTransitionsSetup<Context, Steps, Yielded | Y1 | Y2 | Y3>;
+    guard1: SetupGuard<Context, MachineSteps<StepsRecord>, Y1>,
+    guard2: SetupGuard<Context, MachineSteps<StepsRecord>, Y2>,
+    guard3: SetupGuard<Context, MachineSteps<StepsRecord>, Y3>,
+  ): CraftTransitionsSetup<Context, StepsRecord, Yielded | Y1 | Y2 | Y3>;
   <Y1, Y2, Y3, Y4>(
-    guard1: SetupGuard<Context, Steps, Y1>,
-    guard2: SetupGuard<Context, Steps, Y2>,
-    guard3: SetupGuard<Context, Steps, Y3>,
-    guard4: SetupGuard<Context, Steps, Y4>,
-  ): CraftTransitionsSetup<Context, Steps, Yielded | Y1 | Y2 | Y3 | Y4>;
+    guard1: SetupGuard<Context, MachineSteps<StepsRecord>, Y1>,
+    guard2: SetupGuard<Context, MachineSteps<StepsRecord>, Y2>,
+    guard3: SetupGuard<Context, MachineSteps<StepsRecord>, Y3>,
+    guard4: SetupGuard<Context, MachineSteps<StepsRecord>, Y4>,
+  ): CraftTransitionsSetup<Context, StepsRecord, Yielded | Y1 | Y2 | Y3 | Y4>;
 }
 
 /**
- * The installed transitions of a machine. `Context` travels contravariantly so
- * `craftStateMachine` accepts a setup whose annotated context is satisfied by
- * the machine's actual context, and refuses one that asks for more.
+ * The setup generator itself: the form `craftStateMachine` takes when the
+ * transitions carry no machine-wide guard. `Context` is contextually typed by
+ * the machine, so the parameter needs no annotation here.
+ */
+export type CraftTransitionsSetupFn<
+  Context,
+  StepsRecord extends AnyStepsRecord,
+  Yielded,
+> = (
+  context: Context,
+  transit: CraftTransit<Context>,
+) => Generator<Yielded, StepsRecord, unknown>;
+
+/**
+ * The transitions once {@link transitionSetup} has wrapped them, which is what
+ * carries `.pipe(...)`. `Context` travels contravariantly so `craftStateMachine`
+ * accepts a setup whose annotated context is satisfied by the machine's actual
+ * context, and refuses one that asks for more.
  */
 export interface CraftTransitionsSetup<
   Context,
-  Steps extends string,
+  StepsRecord extends AnyStepsRecord,
   Yielded = never,
 > {
   readonly [TRANSITIONS_SETUP_MARKER]: true;
   readonly [TRANSITIONS_SETUP_CONTEXT]?: (context: Context) => void;
-  readonly [TRANSITIONS_SETUP_STEPS]?: Steps;
+  readonly [TRANSITIONS_SETUP_STEPS]?: StepsRecord;
   readonly [TRANSITIONS_SETUP_YIELDED]?: Yielded;
-  readonly pipe: CraftTransitionsSetupPipe<Context, Steps, Yielded>;
+  readonly pipe: CraftTransitionsSetupPipe<Context, StepsRecord, Yielded>;
 }
+
+/**
+ * What `craftStateMachine` accepts as its transitions: the bare setup
+ * generator, or the same generator wrapped in {@link transitionSetup} when a
+ * machine-wide guard has to be piped onto it.
+ */
+export type CraftTransitionsInput<
+  Context,
+  StepsRecord extends AnyStepsRecord,
+  Yielded,
+> =
+  | CraftTransitionsSetupFn<Context, StepsRecord, Yielded>
+  | CraftTransitionsSetup<Context, StepsRecord, Yielded>;
 
 /**
  * `yield* initStateMachine(...)` is not optional: without it nothing would ever
@@ -371,23 +402,12 @@ export function transitionSetup<
   StepsRecord extends AnyStepsRecord,
   SetupYielded = never,
 >(
-  setup: (
-    context: Context,
-    transit: CraftTransit<Context>,
-  ) => Generator<SetupYielded, StepsRecord, unknown>,
-): CraftTransitionsSetup<
-  Context,
-  Extract<keyof StepsRecord, string>,
-  SetupYielded | StepsRecordYielded<StepsRecord>
-> {
+  setup: CraftTransitionsSetupFn<Context, StepsRecord, SetupYielded>,
+): CraftTransitionsSetup<Context, StepsRecord, SetupYielded> {
   return createTransitionsSetup(
     setup as unknown as (context: unknown, transit: unknown) => unknown,
     [],
-  ) as unknown as CraftTransitionsSetup<
-    Context,
-    Extract<keyof StepsRecord, string>,
-    SetupYielded | StepsRecordYielded<StepsRecord>
-  >;
+  ) as unknown as CraftTransitionsSetup<Context, StepsRecord, SetupYielded>;
 }
 
 /**
@@ -426,6 +446,11 @@ type MachineInsertion<Context, Steps extends string, StepContexts, Yielded, Inse
     context: CraftMachineInsertionContext<Context, Steps, StepContexts>,
   ) => Generator<Yielded, Insertions, unknown> | Insertions;
 
+/** Everything the transitions advertise: the setup's yields plus each step's. */
+type MachineYielded<SetupYielded, StepsRecord extends AnyStepsRecord> =
+  | SetupYielded
+  | StepsRecordYielded<StepsRecord>;
+
 type MachineDependencies<
   ContextYielded,
   TransitionsYielded,
@@ -439,21 +464,21 @@ export function craftStateMachine<
   Name extends string,
   ContextYielded,
   Context extends object,
-  Steps extends string,
-  TransitionsYielded,
+  StepsRecord extends AnyStepsRecord,
+  SetupYielded,
   StepContextYielded,
-  StepContexts extends Record<Steps, unknown>,
+  StepContexts extends Record<MachineSteps<StepsRecord>, unknown>,
   InsertionYielded,
   Insertions,
 >(
   name: Name,
   contextFactory: ContextFactory<ContextYielded, Context>,
-  transitions: CraftTransitionsSetup<
+  transitions: CraftTransitionsInput<
     NoInfer<Context>,
-    Steps,
-    TransitionsYielded
+    StepsRecord,
+    SetupYielded
   > &
-    CraftMachineInitRequirement<TransitionsYielded>,
+    CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
   stepContextFactory: StepContextFactory<
     NoInfer<Context>,
     StepContextYielded,
@@ -461,7 +486,7 @@ export function craftStateMachine<
   >,
   insertion: MachineInsertion<
     NoInfer<Context>,
-    NoInfer<Steps>,
+    NoInfer<MachineSteps<StepsRecord>>,
     NoInfer<StepContexts>,
     InsertionYielded,
     Insertions
@@ -470,12 +495,12 @@ export function craftStateMachine<
   Name,
   CraftStateMachineOutput<
     Context,
-    Steps,
+    MachineSteps<StepsRecord>,
     StepContexts,
     Insertions,
     MachineDependencies<
       ContextYielded,
-      TransitionsYielded,
+      MachineYielded<SetupYielded, StepsRecord>,
       StepContextYielded,
       InsertionYielded
     >
@@ -485,19 +510,19 @@ export function craftStateMachine<
   Name extends string,
   ContextYielded,
   Context extends object,
-  Steps extends string,
-  TransitionsYielded,
+  StepsRecord extends AnyStepsRecord,
+  SetupYielded,
   StepContextYielded,
-  StepContexts extends Record<Steps, unknown>,
+  StepContexts extends Record<MachineSteps<StepsRecord>, unknown>,
 >(
   name: Name,
   contextFactory: ContextFactory<ContextYielded, Context>,
-  transitions: CraftTransitionsSetup<
+  transitions: CraftTransitionsInput<
     NoInfer<Context>,
-    Steps,
-    TransitionsYielded
+    StepsRecord,
+    SetupYielded
   > &
-    CraftMachineInitRequirement<TransitionsYielded>,
+    CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
   stepContextFactory: StepContextFactory<
     NoInfer<Context>,
     StepContextYielded,
@@ -507,12 +532,12 @@ export function craftStateMachine<
   Name,
   CraftStateMachineOutput<
     Context,
-    Steps,
+    MachineSteps<StepsRecord>,
     StepContexts,
     {},
     MachineDependencies<
       ContextYielded,
-      TransitionsYielded,
+      MachineYielded<SetupYielded, StepsRecord>,
       StepContextYielded,
       never
     >
@@ -521,20 +546,20 @@ export function craftStateMachine<
 export function craftStateMachine<
   ContextYielded,
   Context extends object,
-  Steps extends string,
-  TransitionsYielded,
+  StepsRecord extends AnyStepsRecord,
+  SetupYielded,
   StepContextYielded,
-  StepContexts extends Record<Steps, unknown>,
+  StepContexts extends Record<MachineSteps<StepsRecord>, unknown>,
   InsertionYielded,
   Insertions,
 >(
   contextFactory: ContextFactory<ContextYielded, Context>,
-  transitions: CraftTransitionsSetup<
+  transitions: CraftTransitionsInput<
     NoInfer<Context>,
-    Steps,
-    TransitionsYielded
+    StepsRecord,
+    SetupYielded
   > &
-    CraftMachineInitRequirement<TransitionsYielded>,
+    CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
   stepContextFactory: StepContextFactory<
     NoInfer<Context>,
     StepContextYielded,
@@ -542,7 +567,7 @@ export function craftStateMachine<
   >,
   insertion: MachineInsertion<
     NoInfer<Context>,
-    NoInfer<Steps>,
+    NoInfer<MachineSteps<StepsRecord>>,
     NoInfer<StepContexts>,
     InsertionYielded,
     Insertions
@@ -551,12 +576,12 @@ export function craftStateMachine<
   'stateMachine',
   CraftStateMachineOutput<
     Context,
-    Steps,
+    MachineSteps<StepsRecord>,
     StepContexts,
     Insertions,
     MachineDependencies<
       ContextYielded,
-      TransitionsYielded,
+      MachineYielded<SetupYielded, StepsRecord>,
       StepContextYielded,
       InsertionYielded
     >
@@ -565,18 +590,18 @@ export function craftStateMachine<
 export function craftStateMachine<
   ContextYielded,
   Context extends object,
-  Steps extends string,
-  TransitionsYielded,
+  StepsRecord extends AnyStepsRecord,
+  SetupYielded,
   StepContextYielded,
-  StepContexts extends Record<Steps, unknown>,
+  StepContexts extends Record<MachineSteps<StepsRecord>, unknown>,
 >(
   contextFactory: ContextFactory<ContextYielded, Context>,
-  transitions: CraftTransitionsSetup<
+  transitions: CraftTransitionsInput<
     NoInfer<Context>,
-    Steps,
-    TransitionsYielded
+    StepsRecord,
+    SetupYielded
   > &
-    CraftMachineInitRequirement<TransitionsYielded>,
+    CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
   stepContextFactory: StepContextFactory<
     NoInfer<Context>,
     StepContextYielded,
@@ -586,12 +611,12 @@ export function craftStateMachine<
   'stateMachine',
   CraftStateMachineOutput<
     Context,
-    Steps,
+    MachineSteps<StepsRecord>,
     StepContexts,
     {},
     MachineDependencies<
       ContextYielded,
-      TransitionsYielded,
+      MachineYielded<SetupYielded, StepsRecord>,
       StepContextYielded,
       never
     >
@@ -770,14 +795,30 @@ function exposeInsertionOutput(
   );
 }
 
+/**
+ * Normalises the two accepted forms: a bare setup generator carries no
+ * machine-wide guard, so it becomes a setup with an empty guard list.
+ */
+function toRuntimeTransitionsSetup(
+  transitions: RuntimeTransitionsSetup | ((...args: never[]) => unknown),
+): RuntimeTransitionsSetup {
+  return typeof transitions === 'function'
+    ? createTransitionsSetup(
+        transitions as unknown as (context: unknown, transit: unknown) => unknown,
+        [],
+      )
+    : transitions;
+}
+
 function createStateMachineRef(
   name: string,
   contextFactory: () => unknown,
-  transitions: RuntimeTransitionsSetup,
+  transitionsInput: RuntimeTransitionsSetup | ((...args: never[]) => unknown),
   stepContextFactory?: (context: unknown) => unknown,
   insertion?: (context: unknown) => unknown,
 ): Record<string, unknown> {
   assertInInjectionContext(craftStateMachine);
+  const transitions = toRuntimeTransitionsSetup(transitionsInput);
   const injector = ɵcreateHostTaggedInjector(
     inject(Injector),
     `stateMachine:${name}`,

@@ -25,7 +25,6 @@ import {
   on$,
   source$,
   state,
-  transitionSetup,
   transitionGuard,
   transitionStep,
   type CraftTransition,
@@ -106,8 +105,10 @@ const ProfileEditorStateMachine = craftComponent(
       },
 
       // 2. The transitions. Each key is the step the machine ENTERS, so
-      // `transit()` inside a block targets that block's step.
-      transitionSetup(function* (context, transit) {
+      // `transit()` inside a block targets that block's step. No machine-wide
+      // guard here, so the setup generator goes in as-is — `transitionSetup(...)`
+      // is only needed to pipe one onto every transition.
+      function* (context, transit) {
         return {
           reading: transitionStep(function* () {
             // No static initial state: the first accepted transit defines it.
@@ -166,7 +167,7 @@ const ProfileEditorStateMachine = craftComponent(
             });
           }),
         };
-      }),
+      },
 
       // 3. What each step works with, plus the copy the UI shows for it.
       function* (context) {
