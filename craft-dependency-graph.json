@@ -378,7 +378,7 @@
       "kind": "component",
       "label": "TaskBoardStateMachineList",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 230
+      "line": 233
     },
     {
       "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
@@ -399,7 +399,7 @@
       "kind": "component",
       "label": "TextEditorStateMachine",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 25
+      "line": 23
     },
     {
       "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/routes/guard-demo/GuardDemo.ts:GuardDemo",
@@ -2339,9 +2339,48 @@
     {
       "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:120",
       "kind": "primitive",
-      "label": "craftComputed:historyLabel",
+      "label": "craftComputed:startDisabled",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
       "line": 120,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "startDisabled",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
+        "usage": "startDisabled"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:123",
+      "kind": "primitive",
+      "label": "craftComputed:finishDisabled",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
+      "line": 123,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "finishDisabled",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
+        "usage": "finishDisabled"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:126",
+      "kind": "primitive",
+      "label": "craftComputed:reopenDisabled",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
+      "line": 126,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "reopenDisabled",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
+        "usage": "reopenDisabled"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:129",
+      "kind": "primitive",
+      "label": "craftComputed:historyLabel",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
+      "line": 129,
       "details": {
         "primitive": "craftComputed",
         "name": "historyLabel",
@@ -2350,11 +2389,11 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:125",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:134",
       "kind": "primitive",
       "label": "craftComputed:backDisabled",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 125,
+      "line": 134,
       "details": {
         "primitive": "craftComputed",
         "name": "backDisabled",
@@ -2363,11 +2402,11 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:128",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:137",
       "kind": "primitive",
       "label": "craftComputed:forwardDisabled",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 128,
+      "line": 137,
       "details": {
         "primitive": "craftComputed",
         "name": "forwardDisabled",
@@ -2638,37 +2677,11 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:101",
-      "kind": "primitive",
-      "label": "craftComputed:readingClass",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 101,
-      "details": {
-        "primitive": "craftComputed",
-        "name": "readingClass",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-        "usage": "readingClass"
-      }
-    },
-    {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:106",
-      "kind": "primitive",
-      "label": "craftComputed:editingClass",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 106,
-      "details": {
-        "primitive": "craftComputed",
-        "name": "editingClass",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-        "usage": "editingClass"
-      }
-    },
-    {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:90",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:88",
       "kind": "primitive",
       "label": "craftComputed:value",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 90,
+      "line": 88,
       "details": {
         "primitive": "craftComputed",
         "name": "value",
@@ -2677,11 +2690,11 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:93",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:91",
       "kind": "primitive",
       "label": "craftComputed:committedValue",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 93,
+      "line": 91,
       "details": {
         "primitive": "craftComputed",
         "name": "committedValue",
@@ -2690,24 +2703,37 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:96",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:94",
       "kind": "primitive",
-      "label": "craftComputed:stepState",
+      "label": "craftComputed:readingClass",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 96,
+      "line": 94,
       "details": {
         "primitive": "craftComputed",
-        "name": "stepState",
+        "name": "readingClass",
         "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-        "usage": "stepState"
+        "usage": "readingClass"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:99",
+      "kind": "primitive",
+      "label": "craftComputed:editingClass",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
+      "line": 99,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "editingClass",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
+        "usage": "editingClass"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
       "kind": "primitive",
       "label": "craftStateMachine:textEditor",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 29,
+      "line": 27,
       "details": {
         "primitive": "craftStateMachine",
         "name": "textEditor",
@@ -2716,11 +2742,11 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:state:40",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:state:38",
       "kind": "primitive",
       "label": "state:text",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 40,
+      "line": 38,
       "details": {
         "primitive": "state",
         "name": "text",
@@ -3918,7 +3944,7 @@
       "kind": "property",
       "label": "craftStateMachine:taskRow.back",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 208,
+      "line": 211,
       "details": {
         "member": "back"
       }
@@ -3928,7 +3954,7 @@
       "kind": "property",
       "label": "craftStateMachine:taskRow.finish",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 179,
+      "line": 184,
       "details": {
         "member": "finish"
       }
@@ -3938,7 +3964,7 @@
       "kind": "property",
       "label": "craftStateMachine:taskRow.forward",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 220,
+      "line": 223,
       "details": {
         "member": "forward"
       }
@@ -3948,7 +3974,7 @@
       "kind": "property",
       "label": "craftStateMachine:taskRow.reopen",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 193,
+      "line": 196,
       "details": {
         "member": "reopen"
       }
@@ -3958,7 +3984,7 @@
       "kind": "property",
       "label": "craftStateMachine:taskRow.setNote",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 153,
+      "line": 162,
       "details": {
         "member": "setNote"
       }
@@ -3968,7 +3994,7 @@
       "kind": "property",
       "label": "craftStateMachine:taskRow.start",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 166,
+      "line": 173,
       "details": {
         "member": "start"
       }
@@ -3978,7 +4004,7 @@
       "kind": "property",
       "label": "craftStateMachine:profileEditor.back",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-      "line": 418,
+      "line": 417,
       "details": {
         "member": "back"
       }
@@ -3998,7 +4024,7 @@
       "kind": "property",
       "label": "craftStateMachine:profileEditor.forward",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-      "line": 430,
+      "line": 429,
       "details": {
         "member": "forward"
       }
@@ -4088,47 +4114,47 @@
       "kind": "property",
       "label": "state:readOnly.toggle",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-      "line": 445,
+      "line": 444,
       "details": {
         "member": "toggle"
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:cancel",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:cancel",
       "kind": "property",
       "label": "craftStateMachine:textEditor.cancel",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 181,
+      "line": 171,
       "details": {
         "member": "cancel"
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:change",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:change",
       "kind": "property",
       "label": "craftStateMachine:textEditor.change",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 159,
+      "line": 151,
       "details": {
         "member": "change"
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:commit",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:commit",
       "kind": "property",
       "label": "craftStateMachine:textEditor.commit",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 170,
+      "line": 160,
       "details": {
         "member": "commit"
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:edit",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:edit",
       "kind": "property",
       "label": "craftStateMachine:textEditor.edit",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 146,
+      "line": 138,
       "details": {
         "member": "edit"
       }
@@ -5047,7 +5073,7 @@
         "member": "readOnly.toggle",
         "access": "call",
         "usedAt": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-        "usedAtLine": 445,
+        "usedAtLine": 444,
         "type": "() => Generator<import(\"/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/index\").TemplateMethodUse<\"permissions.readOnly.toggle\">, boolean, unknown>",
         "usedIn": "template"
       }
@@ -9704,19 +9730,9 @@
       }
     },
     {
-      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.cancel:38",
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.cancel:36",
       "kind": "source",
       "label": "text.cancel (source$)",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 38,
-      "details": {
-        "creator": "source$"
-      }
-    },
-    {
-      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.change:36",
-      "kind": "source",
-      "label": "text.change (source$)",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
       "line": 36,
       "details": {
@@ -9724,21 +9740,31 @@
       }
     },
     {
-      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.commit:37",
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.change:34",
       "kind": "source",
-      "label": "text.commit (source$)",
+      "label": "text.change (source$)",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 37,
+      "line": 34,
       "details": {
         "creator": "source$"
       }
     },
     {
-      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.edit:35",
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.commit:35",
+      "kind": "source",
+      "label": "text.commit (source$)",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
+      "line": 35,
+      "details": {
+        "creator": "source$"
+      }
+    },
+    {
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.edit:33",
       "kind": "source",
       "label": "text.edit (source$)",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 35,
+      "line": 33,
       "details": {
         "creator": "source$"
       }
@@ -10978,11 +11004,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:147:4640",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:156:5107",
       "kind": "template-element",
       "label": "task-note",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 147,
+      "line": 156,
       "details": {
         "tag": "input",
         "localName": "task-note",
@@ -10992,11 +11018,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:158:4963",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:167:5430",
       "kind": "template-element",
       "label": "task-start",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 158,
+      "line": 167,
       "details": {
         "tag": "button",
         "localName": "task-start",
@@ -11006,11 +11032,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:171:5274",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:178:5685",
       "kind": "template-element",
       "label": "task-finish",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 171,
+      "line": 178,
       "details": {
         "tag": "button",
         "localName": "task-finish",
@@ -11020,11 +11046,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:184:5589",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:189:5944",
       "kind": "template-element",
       "label": "task-reopen",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 184,
+      "line": 189,
       "details": {
         "tag": "button",
         "localName": "task-reopen",
@@ -11034,11 +11060,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:201:5982",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:204:6285",
       "kind": "template-element",
       "label": "task-back",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 201,
+      "line": 204,
       "details": {
         "tag": "button",
         "localName": "task-back",
@@ -11048,11 +11074,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:213:6267",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:216:6570",
       "kind": "template-element",
       "label": "task-forward",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
-      "line": 213,
+      "line": 216,
       "details": {
         "tag": "button",
         "localName": "task-forward",
@@ -11062,7 +11088,7 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:335:11230",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:335:11204",
       "kind": "template-element",
       "label": "edit",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
@@ -11076,7 +11102,7 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:352:11793",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:352:11733",
       "kind": "template-element",
       "label": "profile-name",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
@@ -11090,7 +11116,7 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:365:12292",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:365:12206",
       "kind": "template-element",
       "label": "profile-email",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
@@ -11104,7 +11130,7 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:383:12952",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:383:12830",
       "kind": "template-element",
       "label": "save",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
@@ -11118,7 +11144,7 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:393:13243",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:393:13101",
       "kind": "template-element",
       "label": "cancel",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
@@ -11132,11 +11158,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:411:13724",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:410:13546",
       "kind": "template-element",
       "label": "history-back",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-      "line": 411,
+      "line": 410,
       "details": {
         "tag": "button",
         "localName": "history-back",
@@ -11146,11 +11172,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:423:14012",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:422:13834",
       "kind": "template-element",
       "label": "history-forward",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-      "line": 423,
+      "line": 422,
       "details": {
         "tag": "button",
         "localName": "history-forward",
@@ -11160,11 +11186,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:439:14395",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:438:14217",
       "kind": "template-element",
       "label": "toggle-read-only",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
-      "line": 439,
+      "line": 438,
       "details": {
         "tag": "button",
         "localName": "toggle-read-only",
@@ -11174,11 +11200,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:141:4168",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:133:3883",
       "kind": "template-element",
       "label": "text-edit",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 141,
+      "line": 133,
       "details": {
         "tag": "button",
         "localName": "text-edit",
@@ -11188,11 +11214,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:155:4548",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:147:4263",
       "kind": "template-element",
       "label": "text-input",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 155,
+      "line": 147,
       "details": {
         "tag": "input",
         "localName": "text-input",
@@ -11202,11 +11228,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:165:4900",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:155:4552",
       "kind": "template-element",
       "label": "text-commit",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 165,
+      "line": 155,
       "details": {
         "tag": "button",
         "localName": "text-commit",
@@ -11216,11 +11242,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:175:5193",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:165:4845",
       "kind": "template-element",
       "label": "text-cancel",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
-      "line": 175,
+      "line": 165,
       "details": {
         "tag": "button",
         "localName": "text-cancel",
@@ -15018,63 +15044,73 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:147:4640",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:156:5107",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:158:4963",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:167:5430",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:171:5274",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:178:5685",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:184:5589",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:189:5944",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:201:5982",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:204:6285",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:213:6267",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:216:6570",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:111",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:120",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
-        "path": "isTodo",
+        "path": "startDisabled",
         "usage": "template"
       }
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:114",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:123",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
-        "path": "isDoing",
+        "path": "finishDisabled",
         "usage": "template"
       }
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:125",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:126",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "reopenDisabled",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:134",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -15084,7 +15120,7 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:TaskRow",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:128",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:137",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -15183,49 +15219,49 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:335:11230",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:335:11204",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:352:11793",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:352:11733",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:365:12292",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:365:12206",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:383:12952",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:383:12830",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:393:13243",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:393:13101",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:411:13724",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:410:13546",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:423:14012",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:422:13834",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:439:14395",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:438:14217",
       "kind": "contains",
       "evidence": "ast"
     },
@@ -15441,7 +15477,7 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:change",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:change",
       "kind": "calls",
       "evidence": "ast",
       "details": {
@@ -15451,7 +15487,7 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -15460,51 +15496,31 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:141:4168",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:133:3883",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:155:4548",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:147:4263",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:165:4900",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:155:4552",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:175:5193",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:165:4845",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:101",
-      "kind": "uses-property",
-      "evidence": "ast",
-      "details": {
-        "path": "readingClass",
-        "usage": "template"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:106",
-      "kind": "uses-property",
-      "evidence": "ast",
-      "details": {
-        "path": "editingClass",
-        "usage": "template"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:90",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:88",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -15515,7 +15531,7 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:93",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:91",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -15525,17 +15541,27 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:96",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:94",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
-        "path": "stepState",
+        "path": "readingClass",
         "usage": "template"
       }
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:cancel",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:99",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "editingClass",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:cancel",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -15545,7 +15571,7 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:commit",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:commit",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -15555,7 +15581,7 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:TextEditorStateMachine",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:edit",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:edit",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -18007,7 +18033,7 @@
     },
     {
       "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftStateMachine:57",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:125",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:123",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18016,7 +18042,34 @@
     },
     {
       "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftStateMachine:57",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:128",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:126",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftStateMachine:57",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:129",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftStateMachine:57",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:134",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftStateMachine:57",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts:craftComputed:137",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18404,8 +18457,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:101",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:88",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18413,8 +18466,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:106",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:91",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18422,8 +18475,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:90",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:94",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18431,8 +18484,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:93",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:99",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18440,8 +18493,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftComputed:96",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:state:38",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18449,17 +18502,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:state:40",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:cancel",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:cancel",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18467,8 +18511,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:change",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:change",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18476,8 +18520,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:commit",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:commit",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -18485,8 +18529,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29:edit",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27:edit",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -22314,7 +22358,7 @@
     },
     {
       "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:cancel$:79",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
       "kind": "triggers",
       "evidence": "ast"
     },
@@ -22325,20 +22369,20 @@
       "evidence": "ast"
     },
     {
-      "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.cancel:38",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
+      "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.cancel:36",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
       "kind": "triggers",
       "evidence": "ast"
     },
     {
-      "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.change:36",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
+      "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.change:34",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
       "kind": "triggers",
       "evidence": "ast"
     },
     {
-      "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.commit:37",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:29",
+      "from": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:text.commit:35",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/primitives/state-machine/text-editor.ts:craftStateMachine:27",
       "kind": "triggers",
       "evidence": "ast"
     }

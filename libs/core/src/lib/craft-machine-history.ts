@@ -1,5 +1,8 @@
 import { inject } from './host/craft-compat';
 import { craftComputed as createCraftComputed, craftSignal } from './host/craft-signal';
+import { StorageService } from './browser-boundaries';
+import type { CraftUnique } from './craft-unique';
+import type { GetServiceYields } from './craft-service';
 import {
   CRAFT_PRIMITIVE_REGISTRY,
   type CraftPrimitiveEntry,
@@ -32,7 +35,7 @@ import type {
  * survives, and re-anchors onto whichever instance is restoring it.
  */
 export type CraftHistoryEntry<Steps extends string = string> = Readonly<{
-  step: Steps | undefined;
+  step: Steps;
   from: Steps | undefined;
   event: unknown;
   at: number;
@@ -40,7 +43,7 @@ export type CraftHistoryEntry<Steps extends string = string> = Readonly<{
 }>;
 
 /**
- * What a history feature composed into {@link withHistory} receives. It is
+ * What a history feature composed into {@link withStateMachineHistory} receives. It is
  * deliberately narrow: a feature navigates the recorded entries, it does not
  * decide what gets recorded.
  */
@@ -78,7 +81,7 @@ type HistoryOptions = Readonly<{
    * happened to be in the injector.
    *
    * ```ts
-   * withHistory({ include: [sharedFilters] }, withBackNavigation())
+   * withStateMachineHistory({ include: [sharedFilters] }, withBackNavigation())
    * ```
    */
   include?: readonly unknown[];
@@ -91,33 +94,39 @@ type HistoryOptions = Readonly<{
    * entity it edits, not on the order it happened to be created in.
    *
    * ```ts
-   * const storage = yield* SessionStorageService();
-   *
-   * withHistory(
-   *   { persist: { storeName: 'app', key: () => bookId(), storage } },
+   * withStateMachineHistory(
+   *   { persist: craftUnique({ storeName: 'app', key: 'book-editor' }) },
    *   withBackNavigation(),
    * )
    * ```
-   *
-   * The storage is passed in rather than injected, so the dependency stays
-   * visible at the call site instead of hiding inside the feature.
    */
-  persist?: CraftHistoryPersistence;
+  persist?:
+    | CraftUnique<CraftHistoryPersistenceStatic>
+    | CraftHistoryPersistenceDynamic;
 }>;
 
-/** The slice of a storage API a persisted history needs. */
-export type CraftHistoryStorage = Readonly<{
+/** The slice of the injected storage service a persisted history needs. */
+type CraftHistoryStorage = Readonly<{
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }>;
 
-export type CraftHistoryPersistence = Readonly<{
+export type CraftHistoryPersistenceStatic = Readonly<{
+  storeName: string;
+  key: string;
+}>;
+
+/** A data-dependent anchor cannot be verified as a static unique identity. */
+export type CraftHistoryPersistenceDynamic = Readonly<{
   storeName: string;
   /** Resolved once, when the machine is built. */
-  key: string | (() => string);
-  storage: CraftHistoryStorage;
+  key: () => string;
 }>;
+
+export type CraftHistoryPersistence =
+  | CraftHistoryPersistenceStatic
+  | CraftHistoryPersistenceDynamic;
 
 /** Reserved prefix for the primitives named through `include`. */
 const EXTERNAL_KEY_PREFIX = '#include/';
@@ -132,10 +141,14 @@ type HistoryOutput<Steps extends string> = {
 
 const DEFAULT_LIMIT = 50;
 
-/** What `withHistory(...)` resolves to: an insertion for `craftStateMachine`. */
+/** What `withStateMachineHistory(...)` resolves to: an insertion for `craftStateMachine`. */
 type HistoryInsertion<Steps extends string, Features> = (
   context: CraftMachineInsertionContext<any, Steps, any>,
-) => HistoryOutput<Steps> & Features;
+) => Generator<
+  GetServiceYields<typeof StorageService>,
+  HistoryOutput<Steps> & Features,
+  unknown
+>;
 
 /**
  * Records the machine's history, and composes features on top of it.
@@ -148,7 +161,7 @@ type HistoryInsertion<Steps extends string, Features> = (
  *   contextFactory,
  *   transitions,
  *   stepContexts,
- *   withHistory(withBackNavigation()),
+ *   withStateMachineHistory(withBackNavigation()),
  * );
  * ```
  *
@@ -158,14 +171,14 @@ type HistoryInsertion<Steps extends string, Features> = (
  * primitive declared OUTSIDE the machine is not captured: pass it explicitly
  * through `include` when it belongs to the story being replayed.
  */
-export function withHistory<Steps extends string = string>(): HistoryInsertion<
+export function withStateMachineHistory<Steps extends string = string>(): HistoryInsertion<
   Steps,
   object
 >;
-export function withHistory<Feature1 extends object, Steps extends string = string>(
+export function withStateMachineHistory<Feature1 extends object, Steps extends string = string>(
   feature1: CraftHistoryFeature<Feature1>,
 ): HistoryInsertion<Steps, Feature1>;
-export function withHistory<
+export function withStateMachineHistory<
   Feature1 extends object,
   Feature2 extends object,
   Steps extends string = string,
@@ -173,7 +186,7 @@ export function withHistory<
   feature1: CraftHistoryFeature<Feature1>,
   feature2: CraftHistoryFeature<Feature2>,
 ): HistoryInsertion<Steps, Feature1 & Feature2>;
-export function withHistory<
+export function withStateMachineHistory<
   Feature1 extends object,
   Feature2 extends object,
   Feature3 extends object,
@@ -183,14 +196,14 @@ export function withHistory<
   feature2: CraftHistoryFeature<Feature2>,
   feature3: CraftHistoryFeature<Feature3>,
 ): HistoryInsertion<Steps, Feature1 & Feature2 & Feature3>;
-export function withHistory<Steps extends string = string>(
+export function withStateMachineHistory<Steps extends string = string>(
   options: HistoryOptions,
 ): HistoryInsertion<Steps, object>;
-export function withHistory<Feature1 extends object, Steps extends string = string>(
+export function withStateMachineHistory<Feature1 extends object, Steps extends string = string>(
   options: HistoryOptions,
   feature1: CraftHistoryFeature<Feature1>,
 ): HistoryInsertion<Steps, Feature1>;
-export function withHistory<
+export function withStateMachineHistory<
   Feature1 extends object,
   Feature2 extends object,
   Steps extends string = string,
@@ -199,7 +212,7 @@ export function withHistory<
   feature1: CraftHistoryFeature<Feature1>,
   feature2: CraftHistoryFeature<Feature2>,
 ): HistoryInsertion<Steps, Feature1 & Feature2>;
-export function withHistory<
+export function withStateMachineHistory<
   Feature1 extends object,
   Feature2 extends object,
   Feature3 extends object,
@@ -210,10 +223,12 @@ export function withHistory<
   feature2: CraftHistoryFeature<Feature2>,
   feature3: CraftHistoryFeature<Feature3>,
 ): HistoryInsertion<Steps, Feature1 & Feature2 & Feature3>;
-export function withHistory(
+export function withStateMachineHistory(
   optionsOrFeature?: HistoryOptions | CraftHistoryFeature<object>,
   ...rest: CraftHistoryFeature<object>[]
-): (context: CraftMachineInsertionContext<any, string, any>) => object {
+): (
+  context: CraftMachineInsertionContext<any, string, any>,
+) => Generator<unknown, unknown, unknown> {
   const options =
     typeof optionsOrFeature === 'function' || optionsOrFeature === undefined
       ? {}
@@ -224,7 +239,8 @@ export function withHistory(
       : rest;
   const limit = options.limit ?? DEFAULT_LIMIT;
 
-  return ({ currentStep, machine }) => {
+  return function* ({ currentStep, machine }) {
+    const storage = yield* StorageService();
     const registry = inject(CRAFT_PRIMITIVE_REGISTRY);
     const persistence = options.persist;
     const storageKey = persistence
@@ -235,7 +251,7 @@ export function withHistory(
         }`
       : undefined;
 
-    const restored = readPersisted(persistence?.storage, storageKey);
+    const restored = readPersisted(storage, storageKey);
     const entries = craftSignal<readonly CraftHistoryEntry[]>(
       restored?.entries ?? [],
     );
@@ -345,13 +361,18 @@ export function withHistory(
         return next.length > limit ? next.slice(next.length - limit) : next;
       });
       cursor.set(entries().length - 1);
-      writePersisted(persistence?.storage, storageKey, entries(), cursor());
+      writePersisted(storage, storageKey, entries(), cursor());
     };
 
     // The machine has already taken its initial step by the time an insertion
     // runs, so the first entry records where it started.
+    const initialStep = readRaw<string>(currentStep);
+    if (initialStep === undefined) {
+      throw new Error('Cannot create history for an uninitialised state machine.');
+    }
+
     append({
-      step: readRaw<string>(currentStep),
+      step: initialStep,
       from: undefined,
       event: undefined,
       at: Date.now(),
@@ -379,7 +400,7 @@ export function withHistory(
         ɵwithCraftReplay(() => machine.restoreStep(entry.step));
       });
       cursor.set(index);
-      writePersisted(persistence?.storage, storageKey, entries(), cursor());
+      writePersisted(storage, storageKey, entries(), cursor());
       return true;
     };
 
@@ -421,10 +442,10 @@ type BackNavigationOutput = {
 
 /**
  * Step-by-step navigation through a machine's history. Composes into
- * {@link withHistory}, which owns the entries it walks:
+ * {@link withStateMachineHistory}, which owns the entries it walks:
  *
  * ```ts
- * withHistory(withBackNavigation())
+ * withStateMachineHistory(withBackNavigation())
  * ```
  *
  * `back()` and `forward()` restore a recorded moment without asking the
@@ -510,7 +531,16 @@ function readPersisted(
     const raw = storage.getItem(storageKey);
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as PersistedHistory;
-    return Array.isArray(parsed?.entries) ? parsed : undefined;
+    if (!Array.isArray(parsed?.entries)) return undefined;
+    if (
+      parsed.entries.some(
+        (entry) =>
+          !entry || typeof entry !== 'object' || typeof entry.step !== 'string',
+      )
+    ) {
+      return undefined;
+    }
+    return parsed;
   } catch {
     // A history that cannot be read back is a history that never existed.
     return undefined;

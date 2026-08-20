@@ -69,7 +69,7 @@ const requireEffectAdapters = require('./require-effect-adapters.cjs');
 const serverFunctionClientMatch = require('./server-function-client-match.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
-const noEffectInParams = require('./no-effect-in-params.cjs');
+const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
 const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
 const noInjectionToken = require('./no-injection-token.cjs');
 const recommendedRules = require('./recommended-config.cjs');
@@ -150,7 +150,9 @@ const plugin = {
     'server-function-client-match': serverFunctionClientMatch,
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
-    'no-effect-in-params': noEffectInParams,
+    'no-effect-outside-loaders': noEffectOutsideLoaders,
+    // Backwards-compatible alias; use no-effect-outside-loaders in new configs.
+    'no-effect-in-params': noEffectOutsideLoaders,
     'prefer-query-method-over-state-trigger': preferQueryMethodOverStateTrigger,
     'no-injection-token': noInjectionToken,
   },
@@ -189,7 +191,7 @@ plugin.configs = {
     rules: {
       ...recommendedRules,
       'craft-ts/require-effect-adapters': 'error',
-      'craft-ts/no-effect-in-params': 'error',
+      'craft-ts/no-effect-outside-loaders': 'error',
     },
   },
   a11y: {

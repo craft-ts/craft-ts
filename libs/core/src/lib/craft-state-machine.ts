@@ -301,9 +301,18 @@ export type CraftMachineContext<ContextFactory> = ContextFactory extends (
     ? Context
     : never;
 
-type StepContextValue<StepContexts, Steps extends string> = Steps extends
-  keyof StepContexts
-  ? StepContexts[Steps]
+type CurrentStepWithContextForStep<StepContexts, Step extends string> =
+  Step extends keyof StepContexts
+    ? StepContexts[Step] extends object
+      ? { readonly step: Step } & StepContexts[Step]
+      : { readonly step: Step; readonly context: StepContexts[Step] }
+    : { readonly step: Step; readonly context: unknown };
+
+type CurrentStepWithContextValue<
+  StepContexts,
+  Steps extends string,
+> = Steps extends string
+  ? CurrentStepWithContextForStep<StepContexts, Steps>
   : never;
 
 /** One decided transition attempt, as an insertion observes it. */
@@ -327,7 +336,7 @@ export type CraftMachineControls<Steps extends string = string> = Readonly<{
     observer: (transition: CraftMachineTransition<Steps>) => void,
   ): () => void;
   /** Moves to a step without consulting any guard. */
-  restoreStep(step: Steps | undefined): void;
+  restoreStep(step: Steps): void;
   /** Runs `restore` with the machine's registrations muted. */
   suspended<Result>(restore: () => Result): Result;
 }>;
@@ -338,10 +347,10 @@ export type CraftMachineInsertionContext<
   StepContexts,
 > = {
   readonly context: Context;
-  readonly currentStep: YieldableReactiveValue<Steps | undefined, 'currentStep'>;
-  readonly stepContext: YieldableReactiveValue<
-    StepContextValue<StepContexts, Steps> | undefined,
-    'stepContext'
+  readonly currentStep: YieldableReactiveValue<Steps, 'currentStep'>;
+  readonly currentStepWithContext: YieldableReactiveValue<
+    CurrentStepWithContextValue<StepContexts, Steps>,
+    'currentStepWithContext'
   >;
   readonly machine: CraftMachineControls<Steps>;
 };
@@ -354,13 +363,10 @@ export type CraftStateMachineOutput<
   Dependencies = {},
 > = MergeObject<
   {
-    readonly currentStep: YieldableReactiveValue<
-      Steps | undefined,
-      'currentStep'
-    >;
-    readonly stepContext: YieldableReactiveValue<
-      StepContextValue<StepContexts, Steps> | undefined,
-      'stepContext'
+    readonly currentStep: YieldableReactiveValue<Steps, 'currentStep'>;
+    readonly currentStepWithContext: YieldableReactiveValue<
+      CurrentStepWithContextValue<StepContexts, Steps>,
+      'currentStepWithContext'
     >;
     readonly context: Context;
   },
@@ -467,7 +473,7 @@ type ContextFactory<Yielded, Context> = () => Generator<
   unknown
 >;
 
-type StepContextFactory<Context, Yielded, StepContexts> = (
+type CurrentStepWithContextFactory<Context, Yielded, StepContexts> = (
   context: Context,
 ) => Generator<Yielded, StepContexts, unknown>;
 
@@ -509,7 +515,7 @@ export function craftStateMachine<
     SetupYielded
   > &
     CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
-  stepContextFactory: StepContextFactory<
+  currentStepWithContextFactory: CurrentStepWithContextFactory<
     NoInfer<Context>,
     StepContextYielded,
     StepContexts
@@ -553,7 +559,7 @@ export function craftStateMachine<
     SetupYielded
   > &
     CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
-  stepContextFactory: StepContextFactory<
+  currentStepWithContextFactory: CurrentStepWithContextFactory<
     NoInfer<Context>,
     StepContextYielded,
     StepContexts
@@ -590,7 +596,7 @@ export function craftStateMachine<
     SetupYielded
   > &
     CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
-  stepContextFactory: StepContextFactory<
+  currentStepWithContextFactory: CurrentStepWithContextFactory<
     NoInfer<Context>,
     StepContextYielded,
     StepContexts
@@ -632,7 +638,7 @@ export function craftStateMachine<
     SetupYielded
   > &
     CraftMachineInitRequirement<MachineYielded<SetupYielded, StepsRecord>>,
-  stepContextFactory: StepContextFactory<
+  currentStepWithContextFactory: CurrentStepWithContextFactory<
     NoInfer<Context>,
     StepContextYielded,
     StepContexts
@@ -658,9 +664,9 @@ export function craftStateMachine(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   contextFactoryOrTransitions?: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  transitionsOrStepContextFactory?: any,
+  transitionsOrCurrentStepWithContextFactory?: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stepContextFactoryOrInsertion?: any,
+  currentStepWithContextFactoryOrInsertion?: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   maybeInsertion?: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -671,18 +677,20 @@ export function craftStateMachine(
     ? contextFactoryOrTransitions
     : nameOrContextFactory;
   const transitions = isNamed
-    ? transitionsOrStepContextFactory
+    ? transitionsOrCurrentStepWithContextFactory
     : contextFactoryOrTransitions;
-  const stepContextFactory = isNamed
-    ? stepContextFactoryOrInsertion
-    : transitionsOrStepContextFactory;
-  const insertion = isNamed ? maybeInsertion : stepContextFactoryOrInsertion;
+  const currentStepWithContextFactory = isNamed
+    ? currentStepWithContextFactoryOrInsertion
+    : transitionsOrCurrentStepWithContextFactory;
+  const insertion = isNamed
+    ? maybeInsertion
+    : currentStepWithContextFactoryOrInsertion;
 
   const ref = createStateMachineRef(
     name,
     contextFactory,
     transitions,
-    stepContextFactory,
+    currentStepWithContextFactory,
     insertion,
   );
 
@@ -844,7 +852,7 @@ function createStateMachineRef(
   name: string,
   contextFactory: () => unknown,
   transitionsInput: RuntimeTransitionsSetup | ((...args: never[]) => unknown),
-  stepContextFactory?: (context: unknown) => unknown,
+  currentStepWithContextFactory?: (context: unknown) => unknown,
   insertion?: (context: unknown) => unknown,
 ): Record<string, unknown> {
   assertInInjectionContext(craftStateMachine);
@@ -861,9 +869,9 @@ function createStateMachineRef(
     >;
 
     const stepContexts = (
-      stepContextFactory
+      currentStepWithContextFactory
         ? driveFactory(
-            stepContextFactory as (...args: never[]) => unknown,
+            currentStepWithContextFactory as (...args: never[]) => unknown,
             injector,
             context,
           )
@@ -916,21 +924,28 @@ function createStateMachineRef(
       registration();
     }
 
+    if (currentStep() === undefined) {
+      throw new Error(
+        `craftStateMachine "${name}" did not initialise: its initial transition was rejected by a guard.`,
+      );
+    }
+
     const currentStepReader = createYieldableReactiveValue(
       currentStep.asReadonly(),
       'currentStep',
     );
-    const stepContextReader = createYieldableReactiveValue(
+    const currentStepWithContextReader = createYieldableReactiveValue(
       createCraftComputed(() => {
         const step = currentStep();
-        return step === undefined ? undefined : stepContexts[step];
+        if (step === undefined) return undefined;
+        return Object.assign({}, stepContexts[step] as object, { step });
       }),
-      'stepContext',
+      'currentStepWithContext',
     );
 
     const ref: Record<string, unknown> = {
       currentStep: currentStepReader,
-      stepContext: stepContextReader,
+      currentStepWithContext: currentStepWithContextReader,
       context,
     };
 
@@ -941,8 +956,14 @@ function createStateMachineRef(
           runtime.observers.add(observer);
           return () => runtime.observers.delete(observer);
         },
-        restoreStep: (step: string | undefined) =>
-          ɵrestoreMachineStep(runtime, step),
+        restoreStep: (step: string) => {
+          if (step === undefined) {
+            throw new Error(
+              `craftStateMachine "${name}" cannot restore an undefined step.`,
+            );
+          }
+          ɵrestoreMachineStep(runtime, step);
+        },
         suspended: <Result,>(restore: () => Result) =>
           ɵwithSuspendedMachine(runtime, restore),
       };
@@ -953,7 +974,7 @@ function createStateMachineRef(
         {
           context,
           currentStep: currentStepReader,
-          stepContext: stepContextReader,
+          currentStepWithContext: currentStepWithContextReader,
           machine: controls,
         },
       );

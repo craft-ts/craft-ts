@@ -271,7 +271,7 @@ export function ɵrunTransition(
 /** Moves the machine to `step` without consulting any guard. */
 export function ɵrestoreMachineStep(
   runtime: MachineRuntime,
-  step: string | undefined,
+  step: string,
 ): void {
   runtime.currentStep.set(step);
 }

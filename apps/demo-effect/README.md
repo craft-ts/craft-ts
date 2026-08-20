@@ -29,11 +29,10 @@ from the route's `providers`. The query returns a `TeamOverview`, not the
 services used to build it.
 
 Use `computedEffect`, `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
-between an Effect domain and a Craft primitive. `queryEffect` keeps `params`
-synchronous; `method` may return an Effect, while `computedEffect` is useful
-when a reactive Craft dependency directly determines the Effect to run. The
-Effect ESLint rule prevents Effect services and Effect values from entering
-`params`. There is intentionally no `stateEffect`.
+between an Effect domain and a Craft primitive. `params` and `method` remain
+synchronous; only `loader` returns an Effect. The Effect ESLint rule prevents
+Effect services and Effect values from entering synchronous Craft callbacks.
+There is intentionally no `stateEffect`.
 Direct
 `runEffect(effect)` remains available for low-level cases and allows an
 explicit `assertNoRequirements`; adapters resolve `R` through the nearest

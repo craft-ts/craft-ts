@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
@@ -125,7 +125,7 @@ function createMachine() {
         };
       },
 
-      function* ({ currentStep, stepContext }) {
+      function* ({ currentStep, currentStepWithContext }) {
         return {
           isReading: craftComputed('isReading', function* () {
             return (yield* currentStep()) === 'reading';
@@ -134,7 +134,7 @@ function createMachine() {
             return (yield* currentStep()) === 'saving';
           }),
           currentContext: craftComputed('currentContext', function* () {
-            return yield* stepContext();
+            return yield* currentStepWithContext();
           }),
         };
       },
@@ -189,28 +189,23 @@ describe('craftStateMachine', () => {
 
   it('refuses every transition rejected by the global guard', () => {
     authenticated = false;
-    const machine = TestBed.runInInjectionContext(createMachine);
-
-    expect(craftUse(machine.currentStep())).toBeUndefined();
-
-    machine.context.validateEvent.emit({ reason: 'submit' });
-    expect(craftUse(machine.currentStep())).toBeUndefined();
-
-    authenticated = true;
-    machine.context.validateEvent.emit({ reason: 'submit' });
-    expect(craftUse(machine.currentStep())).toBe('saving');
+    expect(() => TestBed.runInInjectionContext(createMachine)).toThrow(
+      'did not initialise',
+    );
   });
 
-  it('exposes the current step context', () => {
+  it('exposes the current step with its discriminant', () => {
     const machine = TestBed.runInInjectionContext(createMachine);
 
-    expect(craftUse(machine.stepContext())).toEqual({
+    expect(craftUse(machine.currentStepWithContext())).toEqual({
+      step: 'reading',
       formValid: machine.context.formValid,
     });
 
     machine.context.validateEvent.emit({ reason: 'submit' });
 
-    expect(craftUse(machine.stepContext())).toEqual({
+    expect(craftUse(machine.currentStepWithContext())).toEqual({
+      step: 'saving',
       status: machine.context.saveStatus,
     });
   });
@@ -265,21 +260,23 @@ describe('craftStateMachine typing', () => {
     expect(typeof EditorMachine).toBe('function');
   });
 
-  it('types currentStep and stepContext from the transitions record', () => {
+  it('types currentStep and currentStepWithContext from the transitions record', () => {
     const machine = TestBed.runInInjectionContext(createMachine);
 
     type Step = ReturnType<typeof machine.currentStep>;
     type _Step = Expect<
-      Equal<Step, 'reading' | 'editing' | 'saving' | undefined>
+      Equal<Step, 'reading' | 'editing' | 'saving'>
     >;
 
-    type StepContext = ReturnType<typeof machine.stepContext>;
-    type _StepContext = Expect<
+    type CurrentStepWithContext = ReturnType<
+      typeof machine.currentStepWithContext
+    >;
+    type _CurrentStepWithContext = Expect<
       Equal<
-        StepContext,
-        | { formValid: MachineContext['formValid'] }
-        | { status: MachineContext['saveStatus'] }
-        | undefined
+        CurrentStepWithContext,
+        | { readonly step: 'reading'; formValid: MachineContext['formValid'] }
+        | { readonly step: 'editing'; formValid: MachineContext['formValid'] }
+        | { readonly step: 'saving'; status: MachineContext['saveStatus'] }
       >
     >;
 
@@ -299,14 +296,16 @@ describe('craftStateMachine typing', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      craftStateMachine(
-        contextFactory,
-        // @ts-expect-error `yield* initStateMachine(...)` is missing.
-        uninitialised,
-        function* () {
-          return { idle: {} };
-        },
-      );
+      expect(() =>
+        craftStateMachine(
+          contextFactory,
+          // @ts-expect-error `yield* initStateMachine(...)` is missing.
+          uninitialised,
+          function* () {
+            return { idle: {} };
+          },
+        ),
+      ).toThrow('did not initialise');
     });
 
     expect(true).toBe(true);
@@ -508,20 +507,22 @@ describe('craftStateMachine bare transitions', () => {
 
   it('still rejects bare transitions that never initialise', () => {
     TestBed.runInInjectionContext(() => {
-      craftStateMachine(
-        contextFactory,
-        // @ts-expect-error `yield* initStateMachine(...)` is missing.
-        function* (context, transit) {
-          return {
-            idle: transitionStep(function* () {
-              yield* on$(context.validateEvent, () => transit());
-            }),
-          };
-        },
-        function* () {
-          return { idle: {} };
-        },
-      );
+      expect(() =>
+        craftStateMachine(
+          contextFactory,
+          // @ts-expect-error `yield* initStateMachine(...)` is missing.
+          function* (context, transit) {
+            return {
+              idle: transitionStep(function* () {
+                yield* on$(context.validateEvent, () => transit());
+              }),
+            };
+          },
+          function* () {
+            return { idle: {} };
+          },
+        ),
+      ).toThrow('did not initialise');
     });
 
     expect(true).toBe(true);

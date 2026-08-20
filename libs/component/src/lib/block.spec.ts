@@ -208,4 +208,29 @@ describe('template exception blocks', () => {
       CraftUnhandledExceptionError,
     );
   });
+
+  it('matches a reactive scalar literal union directly', async () => {
+    const step = signal<'reading' | 'editing'>('reading');
+    const root = craftComponent(
+      'scalarMatchRoot',
+      {},
+      () => ({ step }),
+      ({ step }) =>
+        matchBlock.exhaustive(step, {
+          reading: () => p('reading'),
+          editing: () => p('editing'),
+        }),
+    );
+
+    const { nativeElement: element, flush, destroy } =
+      await renderCraftComponent(root);
+
+    expect(element.textContent).toBe('reading');
+
+    step.set('editing');
+    await flush();
+
+    expect(element.textContent).toBe('editing');
+    destroy();
+  });
 });

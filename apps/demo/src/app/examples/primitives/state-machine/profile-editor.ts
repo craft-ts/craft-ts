@@ -8,7 +8,6 @@ import {
   ifBlock,
   input,
   label,
-  matchBlock,
   p,
   section,
   span,
@@ -19,7 +18,7 @@ import {
   craftService,
   craftSleep,
   craftStateMachine,
-  craftUse,
+  craftUnique,
   initStateMachine,
   insertReactOnMutation,
   insertQueryPipe,
@@ -27,13 +26,12 @@ import {
   insertStateMachinePipe,
   mutation,
   on$,
-  SessionStorageService,
   source$,
   state,
   query,
   transitionStep,
   withBackNavigation,
-  withHistory,
+  withStateMachineHistory,
   type SignalSource,
 } from '@craft-ts/core';
 
@@ -41,8 +39,6 @@ type Profile = {
   name: string;
   email: string;
 };
-
-type ProfileStep = 'reading' | 'editing' | 'saving';
 
 const INITIAL_PROFILE: Profile = {
   name: 'Ada Lovelace',
@@ -206,20 +202,15 @@ const ProfileEditorStateMachine = craftComponent(
       // 4. The insertion: derived values, step flags, selectors over the step
       // context, and composed methods — the same shape state/query/mutation
       // insertions have. The history is not part of the machine core either:
-      // `withHistory` is just another insertion, merged in here.
+      // `withStateMachineHistory` is just another insertion, merged in here.
       insertStateMachinePipe(
-        function* (machineContext) {
-          // The storage is resolved here, at the point of use, so the history's
-          // browser dependency stays visible instead of hiding inside the feature.
-          const storage = yield* SessionStorageService();
-          return withHistory(
-            {
-              persist: { storeName: 'demo', key: 'profile-editor', storage },
-            },
-            withBackNavigation(),
-          )(machineContext);
-        },
-        ({ context, currentStep, stepContext, insertions }) => {
+        withStateMachineHistory(
+          {
+            persist: craftUnique({ storeName: 'demo', key: 'profile-editor' }),
+          },
+          withBackNavigation(),
+        ),
+        ({ context, currentStep, currentStepWithContext, insertions }) => {
           const stepClass = (step: string) =>
             craftComputed(`${step}Class`, function* () {
               return (yield* currentStep()) === step
@@ -228,11 +219,6 @@ const ProfileEditorStateMachine = craftComponent(
             });
 
           return {
-            stepState: craftComputed('stepState', function* () {
-              return {
-                step: ((yield* currentStep()) ?? 'reading') as ProfileStep,
-              };
-            }),
             profileLabel: craftComputed('profileLabel', function* () {
               const profile =
                 (yield* context.saveProfile.value()) ??
@@ -250,8 +236,19 @@ const ProfileEditorStateMachine = craftComponent(
             readingClass: stepClass('reading'),
             editingClass: stepClass('editing'),
             savingClass: stepClass('saving'),
+            isReading: craftComputed('isReading', function* () {
+              return (yield* currentStepWithContext()).step === 'reading';
+            }),
+            isEditing: craftComputed('isEditing', function* () {
+              return (yield* currentStepWithContext()).step === 'editing';
+            }),
             stepHint: craftComputed('stepHint', function* () {
-              return (yield* stepContext())?.hint ?? '';
+              const current = yield* currentStepWithContext();
+              return current.step === 'saving'
+                ? ''
+                : 'hint' in current && typeof current.hint === 'string'
+                  ? current.hint
+                  : '';
             }),
             submitBlocked: craftComputed('submitBlocked', function* () {
               return (
@@ -290,9 +287,12 @@ const ProfileEditorStateMachine = craftComponent(
               }
               context.saveRequest$.emit(profile);
             },
-            setName: (name: string) => craftUse(context.draft.setName(name)),
-            setEmail: (email: string) =>
-              craftUse(context.draft.setEmail(email)),
+            setName: function* (name: string) {
+              yield* context.draft.setName(name);
+            },
+            setEmail: function* (email: string) {
+              yield* context.draft.setEmail(email);
+            },
           };
         },
       ),
@@ -316,95 +316,100 @@ const ProfileEditorStateMachine = craftComponent(
 
       p({ class: 'hint' }, machine.stepHint),
 
-      matchBlock.exhaustive(
-        machine.stepState as unknown as () => { step: ProfileStep },
-        'step',
-        {
-          reading: () =>
-            ifBlock(
-              machine.profileIsLoading,
-              () =>
-                div({ class: 'panel loading-panel' }, [
-                  span({ class: 'spinner', 'aria-hidden': 'true' }),
-                  p('Loading profile…'),
-                ]),
-              () =>
-                div({ class: 'panel' }, [
-                  p(['Saved profile: ', machine.profileLabel]),
-                  div({ class: 'actions' }, [
-                    button(
-                      'edit',
-                      {
-                        type: 'button',
-                        click: function* () {
-                          yield* machine.requestEdit();
-                        },
+      ifBlock(
+        machine.isReading,
+        () =>
+          ifBlock(
+            machine.profileIsLoading,
+            () =>
+              div({ class: 'panel loading-panel' }, [
+                span({ class: 'spinner', 'aria-hidden': 'true' }),
+                p('Loading profile…'),
+              ]),
+            () =>
+              div({ class: 'panel' }, [
+                p(['Saved profile: ', machine.profileLabel]),
+                div({ class: 'actions' }, [
+                  button(
+                    'edit',
+                    {
+                      type: 'button',
+                      click: function* () {
+                        yield* machine.requestEdit();
                       },
-                      'Edit',
-                    ),
-                  ]),
+                    },
+                    'Edit',
+                  ),
                 ]),
-            ),
-          editing: () =>
-            div({ class: 'panel' }, [
-              div({ class: 'field' }, [
-                label('profile-name-label', { for: 'profile-name' }, 'Name'),
-                input('profile-name', {
-                  id: 'profile-name',
-                  type: 'text',
-                  value: machine.draftName,
-                  *input(event) {
-                    yield* machine.setName(
-                      (event.target as HTMLInputElement).value,
-                    );
-                  },
-                }),
               ]),
-              div({ class: 'field' }, [
-                label('profile-email-label', { for: 'profile-email' }, 'Email'),
-                input('profile-email', {
-                  id: 'profile-email',
-                  type: 'email',
-                  value: machine.draftEmail,
-                  *input(event) {
-                    yield* machine.setEmail(
-                      (event.target as HTMLInputElement).value,
-                    );
-                  },
-                }),
-              ]),
-              ifBlock(machine.submitBlocked, () =>
-                p(
-                  { class: 'blocked' },
-                  'Save is blocked: the draft is invalid, or the profile is read-only.',
-                ),
-              ),
-              div({ class: 'actions' }, [
-                button(
-                  'save',
-                  {
-                    type: 'button',
-                    click: function* () {
-                      yield* machine.requestSubmit();
+          ),
+        () =>
+          ifBlock(
+            machine.isEditing,
+            () =>
+              div({ class: 'panel' }, [
+                div({ class: 'field' }, [
+                  label('profile-name-label', { for: 'profile-name' }, 'Name'),
+                  input('profile-name', {
+                    id: 'profile-name',
+                    type: 'text',
+                    value: machine.draftName,
+                    *input(event) {
+                      yield* machine.setName(
+                        (event.target as HTMLInputElement).value,
+                      );
                     },
-                  },
-                  'Save',
-                ),
-                button(
-                  'cancel',
-                  {
-                    type: 'button',
-                    class: 'secondary',
-                    click: function* () {
-                      yield* machine.requestCancel();
+                  }),
+                ]),
+                div({ class: 'field' }, [
+                  label(
+                    'profile-email-label',
+                    { for: 'profile-email' },
+                    'Email',
+                  ),
+                  input('profile-email', {
+                    id: 'profile-email',
+                    type: 'email',
+                    value: machine.draftEmail,
+                    *input(event) {
+                      yield* machine.setEmail(
+                        (event.target as HTMLInputElement).value,
+                      );
                     },
-                  },
-                  'Cancel',
+                  }),
+                ]),
+                ifBlock(machine.submitBlocked, () =>
+                  p(
+                    { class: 'blocked' },
+                    'Save is blocked: the draft is invalid, or the profile is read-only.',
+                  ),
                 ),
+                div({ class: 'actions' }, [
+                  button(
+                    'save',
+                    {
+                      type: 'button',
+                      click: function* () {
+                        yield* machine.requestSubmit();
+                      },
+                    },
+                    'Save',
+                  ),
+                  button(
+                    'cancel',
+                    {
+                      type: 'button',
+                      class: 'secondary',
+                      click: function* () {
+                        yield* machine.requestCancel();
+                      },
+                    },
+                    'Cancel',
+                  ),
+                ]),
               ]),
-            ]),
-          saving: () => div({ class: 'panel' }, [p('Saving…')]),
-        },
+            () => div({ class: 'panel' }, [p('Saving…')]),
+          ),
       ),
 
       div({ class: 'history' }, [

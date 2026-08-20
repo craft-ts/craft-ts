@@ -19,14 +19,14 @@ import {
   insertStoragePersister,
   craftUnique,
   query,
-  craftUse,
+  type CraftServiceInput,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
-  function* (inputs: { userId: () => string | undefined }) {
+  function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
     return yield* query(
       'userQuery',
       {
@@ -58,9 +58,7 @@ const CraftGlobalQuery = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const user = yield* UserQuery({
-      userId: () => {
-        return craftUse(userId());
-      },
+      userId,
     });
 
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({

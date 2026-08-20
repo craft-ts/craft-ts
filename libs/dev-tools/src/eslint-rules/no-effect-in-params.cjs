@@ -10,18 +10,19 @@ const PRIMITIVES = new Set([
   'query',
   'queryEffect',
 ]);
+const SYNCHRONOUS_CALLBACKS = new Set(['craftComputed', 'craftEffect']);
 
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'Keep Craft params synchronous by disallowing Effect values and Effect service reads.',
+        'Keep Craft callbacks synchronous by allowing Effect values and Effect service reads only in loaders.',
     },
     schema: [],
     messages: {
       effect:
-        '`params` must remain synchronous. Do not return an Effect or read an Effect service here; use `computedEffect(...)` or `method(...)` for asynchronous work.',
+        'Effect values and Effect service reads are only allowed in an Effect loader. Keep params, methods, craftComputed(...) and craftEffect(...) synchronous.',
     },
   },
 
@@ -53,6 +54,10 @@ module.exports = {
             primitiveBindings.set(specifier.local.name, imported);
           }
 
+          if (source === CORE_PACKAGE && SYNCHRONOUS_CALLBACKS.has(imported)) {
+            primitiveBindings.set(specifier.local.name, imported);
+          }
+
           if (source === EFFECT_RUNTIME_PACKAGE && imported === 'Effect') {
             effectBindings.add(specifier.local.name);
           }
@@ -69,20 +74,36 @@ module.exports = {
       },
 
       CallExpression(node) {
-        if (
-          node.callee.type !== 'Identifier' ||
-          !primitiveBindings.has(node.callee.name)
-        ) {
+        if (node.callee.type !== 'Identifier') {
+          return;
+        }
+
+        const primitive = primitiveBindings.get(node.callee.name);
+        if (!primitive) return;
+
+        if (SYNCHRONOUS_CALLBACKS.has(primitive)) {
+          const factory = [...node.arguments]
+            .reverse()
+            .find((argument) =>
+              ['ArrowFunctionExpression', 'FunctionExpression'].includes(
+                unwrap(argument)?.type,
+              ),
+            );
+          if (factory) inspectParams(factory);
           return;
         }
 
         const config = node.arguments[1];
         if (!config || unwrap(config).type !== 'ObjectExpression') return;
 
-        const params = findProperty(unwrap(config), 'params');
-        if (!params) return;
-
-        inspectParams(params.value);
+        for (const property of unwrap(config).properties) {
+          if (
+            property.type === 'Property' &&
+            getPropertyName(property.key) !== 'loader'
+          ) {
+            inspectParams(property.value);
+          }
+        }
       },
     };
 
@@ -199,15 +220,6 @@ module.exports = {
     }
   },
 };
-
-function findProperty(object, name) {
-  return object.properties.find(
-    (property) =>
-      property.type === 'Property' &&
-      !property.computed &&
-      getPropertyName(property.key) === name,
-  );
-}
 
 function walk(node, visit, visitorKeys) {
   if (!node || typeof node.type !== 'string') return;

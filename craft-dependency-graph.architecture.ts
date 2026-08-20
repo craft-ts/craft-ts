@@ -1,6 +1,6 @@
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "015eabcff64c7d23",
+  "graphHash": "7366e37b0d1ecfdb",
   "routes": [
     "",
     "component-composition",
@@ -185,6 +185,7 @@ export const architectureCatalog = {
     "draftEmail",
     "draftName",
     "editingClass",
+    "finishDisabled",
     "forwardDisabled",
     "goTo",
     "grid",
@@ -234,6 +235,7 @@ export const architectureCatalog = {
     "records",
     "remove",
     "removeTodo",
+    "reopenDisabled",
     "restriction",
     "resultBooks",
     "resultCount",
@@ -249,6 +251,7 @@ export const architectureCatalog = {
     "showToolbar",
     "slowAccess",
     "slowReport",
+    "startDisabled",
     "step",
     "stepHint",
     "stepState",

@@ -91,9 +91,18 @@ const CraftServiceUserDetailComponent = craftComponent(
     }));
     const user = yield* User({ userId });
     const hasValue = craftComputed('hasValue', () => user.hasValue());
-    return { userId, user, hasValue };
+    const userIdValue = craftComputed('userIdValue', function* () {
+      return (yield* user.value())?.id ?? '';
+    });
+    const userName = craftComputed('userName', function* () {
+      return (yield* user.value())?.name ?? '';
+    });
+    const userEmail = craftComputed('userEmail', function* () {
+      return (yield* user.value())?.email ?? '';
+    });
+    return { userId, user, hasValue, userIdValue, userName, userEmail };
   },
-  ({ userId, user, hasValue }) => {
+  ({ userId, user, hasValue, userIdValue, userName, userEmail }) => {
     return div([
       heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
@@ -116,17 +125,11 @@ const CraftServiceUserDetailComponent = craftComponent(
           () =>
             h('dl', [
               h('dt', 'ID'),
-              h('dd', function* () {
-                return ((yield* user.value()) as User).id;
-              }),
+              h('dd', userIdValue),
               h('dt', 'Name'),
-              h('dd', function* () {
-                return ((yield* user.value()) as User).name;
-              }),
+              h('dd', userName),
               h('dt', 'Email'),
-              h('dd', function* () {
-                return ((yield* user.value()) as User).email;
-              }),
+              h('dd', userEmail),
             ]),
           () =>
             ifBlock(

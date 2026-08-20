@@ -578,9 +578,13 @@ export class CraftRouterOutletController {
       ) {
         return;
       }
-      this.displayedTarget.set(target);
       this.displayedInjector.set(injector ?? undefined);
       this.displayedProps.set(props);
+      // Publish the target last: CraftRouterOutlet mounts it as soon as the
+      // target becomes visible, so its route injector and inputs must already
+      // be available or the first render is created with the parent injector
+      // and immediately remounted when the injector signal catches up.
+      this.displayedTarget.set(target);
       this.displayedComponent.set(component);
       this.syncTemplateFlush();
     };

@@ -62,6 +62,27 @@ const EffectServerMiddlewareDemo = craftComponent(
       .empty span { margin-top: 5px; font-size: .76rem; }
       @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 40px; } .flow, .workspace { grid-template-columns: 1fr; } }
       @media (max-width: 470px) { .panel { padding: 21px; } .search-row { display: grid; grid-template-columns: 1fr; } button { min-height: 44px; } }
+      :scope { color: #172033; background: #f6f7fb; }
+      .shell { width: min(1060px, calc(100% - 40px)); padding: 52px 0 30px; }
+      .eyebrow, .panel-kicker { color: #5570c7; }
+      h1, h2 { color: #172033; }
+      h1 { margin: 12px 0; font-size: clamp(2.1rem, 5vw, 3.7rem); line-height: 1.02; }
+      .hero-copy, .copy { color: #68738a; line-height: 1.55; }
+      .flow { display: none; }
+      .workspace { margin-top: 38px; }
+      .panel { min-height: 320px; padding: 25px; border: 1px solid #e2e6ef; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px #25345a0a; }
+      input { border-color: #d7dce7; color: #172033; background: #fff; }
+      input:focus { border-color: #7991df; box-shadow: 0 0 0 3px #5570c71c; }
+      button { color: #fff; background: #4665c4; }
+      button:hover { background: #3855ad; }
+      .status { border-color: #e3e7ef; color: #68738a; background: #fafbfc; }
+      .scenario-actions .danger { color: #fff; background: #c65d66; }
+      .error { border-color: #edc5c8; color: #9e414b; background: #fff5f5; }
+      .user-row { border-color: #e5e8ef; background: #fff; }
+      .avatar { color: #3159c8; background: #edf2ff; }
+      .user-info span, .user-id { color: #7a8498; }
+      .empty { color: #7a8498; }
+      @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 38px; } }
     `,
   },
   function* () {

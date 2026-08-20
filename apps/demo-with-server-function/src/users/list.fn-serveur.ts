@@ -1,4 +1,4 @@
-import { serverFunction } from '@craft-ts/core';
+import { craftException, serverFunction } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
 import { UserRepository, UserSchema } from '../server/database';
 
@@ -21,6 +21,19 @@ export const listUsers = serverFunction(
     // Intentional latency to make the frontend loading cycle visible.
     yield* Effect.sleep('600 millis');
     const users = yield* UserRepository;
-    return yield* users.list(input.filter);
+    const result = yield* users.list(input.filter);
+    if (result.length === 0) {
+      return yield* Effect.fail(
+        craftException(
+          { _tag: 'UsersNotFound' },
+          {
+            status: 404,
+            message: `No users matched the filter "${input.filter}".`,
+            filter: input.filter,
+          },
+        ),
+      );
+    }
+    return result;
   }),
 );

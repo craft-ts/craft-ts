@@ -43,6 +43,21 @@ describe('Effect-aware Craft adapters', () => {
     TestBed.resetTestingModule();
   });
 
+  it('rejects Effect-valued methods at compile time', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      // @ts-expect-error Effect values belong in loaders, never in methods.
+      mutationEffect('effect-method-is-not-a-loader', {
+        method: (id: string) => Effect.succeed(id),
+        loader: ({ params }) => Effect.succeed({ id: params }),
+      });
+      // @ts-expect-error Effect values belong in loaders, never in params.
+      queryEffect('effect-params-is-not-a-loader', {
+        params: () => Effect.succeed('id'),
+        loader: ({ params }) => Effect.succeed({ id: params }),
+      });
+    });
+  });
+
   it('converts the shared loader callback to a Craft generator', async () => {
     const load = effectLoader(({ params }: { params: string }) =>
       Effect.succeed(params.length),
@@ -116,24 +131,9 @@ describe('Effect-aware Craft adapters', () => {
           loader: ({ params }) => Effect.succeed({ id: params }),
         }),
       );
-      const saveEffectMethod = craftUse(
-        mutationEffect('save-effect-method', {
-          method: (id: string) => Effect.succeed(id),
-          loader: ({ params }) => Effect.succeed({ id: params, saved: true }),
-        }),
-      );
-      const refreshEffectMethod = craftUse(
-        asyncProcessEffect('refresh-effect-method', {
-          method: (id: string) => Effect.succeed(id),
-          loader: ({ params }) => Effect.succeed({ id: params }),
-        }),
-      );
-
       await expect.poll(() => craftUse(users.value())).toEqual({ id: 'u-1' });
       save.mutate('u-2');
       refresh.method('u-3');
-      saveEffectMethod.mutate('u-4');
-      refreshEffectMethod.method('u-5');
       await expect
         .poll(() => craftUse(save.value()))
         .toEqual({
@@ -141,16 +141,10 @@ describe('Effect-aware Craft adapters', () => {
           saved: true,
         });
       await expect.poll(() => craftUse(refresh.value())).toEqual({ id: 'u-3' });
-      await expect
-        .poll(() => craftUse(saveEffectMethod.value()))
-        .toEqual({ id: 'u-4', saved: true });
-      await expect
-        .poll(() => craftUse(refreshEffectMethod.value()))
-        .toEqual({ id: 'u-5' });
     });
   });
 
-  it('keeps params synchronous while resolving Effect-valued method arguments', async () => {
+  it('keeps params and methods synchronous', async () => {
     await TestBed.runInInjectionContext(async () => {
       const request = craftUse(
         state('effect-params-input', 'u-1', ({ set }) => ({
@@ -168,7 +162,7 @@ describe('Effect-aware Craft adapters', () => {
       );
       const methodQuery = craftUse(
         queryEffect('effect-method-query', {
-          method: (id: string) => Effect.succeed(id),
+          method: (id: string) => id,
           loader: ({ params }) => Effect.succeed({ id: params }),
         }),
       );

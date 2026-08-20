@@ -167,9 +167,9 @@ Use it when the result is server or domain state. Craft owns `status`, loading,
 previous value, cancellation and reloading. The loader returns
 `Effect<Value, Error, Requirements>`.
 
-The `params` factory is synchronous. It may read Craft dependencies, but it
-must not create an Effect or read an Effect service. A `method` may return an
-Effect; Craft resolves it with the active Layer before invoking the loader:
+The `params` factory and `method` are synchronous. They may read Craft
+dependencies, but must not create an Effect or read an Effect service. The
+loader is the only Effect-aware callback:
 
 ```typescript
 const users =
@@ -200,8 +200,8 @@ const saveUser =
 
 Trigger it with `yield* saveUser.mutate(input)`. Use the normal Craft
 `insertReactOnMutation` insertion to reload a query or apply an optimistic patch.
-The mutation `method` may also return an `Effect`; it is resolved before the
-loader runs.
+The mutation `method` only maps its arguments to synchronous params. The
+`loader` is the only Effect-aware callback.
 
 ### `asyncProcessEffect`: explicit commands
 
@@ -216,8 +216,8 @@ const exportUsers =
 yield * exportUsers.method(currentFilter);
 ```
 
-The `asyncProcessEffect` method follows the same rule: it may return plain
-params, an `Effect`, or a generator producing either one.
+The `asyncProcessEffect` method follows the same rule: it returns plain params;
+the loader owns the asynchronous Effect program.
 
 Use it for an operation with a lifecycle but without a query cache or mutation
 relationship.

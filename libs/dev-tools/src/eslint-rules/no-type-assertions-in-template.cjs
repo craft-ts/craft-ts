@@ -44,6 +44,7 @@ module.exports = {
           node.type === 'TSTypeAssertion'
         ) {
           context.report({ node, messageId: 'forbidden' });
+          return 'skip';
         }
       });
     }
@@ -110,6 +111,7 @@ const DOM_EVENT_NAMES = new Set([
   'fullscreenchange',
   'fullscreenerror',
   'gotpointercapture',
+  'input',
   'invalid',
   'keydown',
   'keypress',

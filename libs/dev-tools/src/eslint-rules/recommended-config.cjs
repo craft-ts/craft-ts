@@ -31,7 +31,7 @@ module.exports = {
   'craft-ts/require-yieldable-reactive-read': 'error',
   'craft-ts/require-yieldable-insertion-write': 'error',
   'craft-ts/prefer-direct-yieldable-callback': 'error',
-  'craft-ts/no-craft-use-in-template': 'error',
+  'craft-ts/no-craft-use': 'error',
   'craft-ts/no-type-assertions-in-template': 'error',
   'craft-ts/no-ephemeral-template-form-state': 'error',
   'craft-ts/template-element-name-unique': 'error',

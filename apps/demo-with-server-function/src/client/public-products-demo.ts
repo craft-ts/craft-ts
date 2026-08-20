@@ -71,6 +71,32 @@ const PublicProductsDemo = craftComponent(
       .footer-file { color: #7f8fb2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 40px; } .flow { display: grid; grid-template-columns: 1fr 1fr; } .flow-arrow { display: none; } }
       @media (max-width: 470px) { .panel { padding: 21px; } .panel-heading { display: block; } .mono { display: inline-block; margin-top: 14px; } .demo-footer { display: block; } .footer-file { display: block; margin-top: 5px; } }
+      :scope { color: #172033; background: #f6f7fb; }
+      .shell { width: min(1060px, calc(100% - 40px)); padding: 52px 0 30px; }
+      .eyebrow, .panel-kicker { color: #5570c7; }
+      .pulse { background: #4a9b73; box-shadow: none; }
+      h1, h2 { color: #172033; }
+      h1 { margin: 12px 0; font-size: clamp(2.1rem, 5vw, 3.7rem); line-height: 1.02; }
+      .hero-copy, .panel-copy { color: #68738a; line-height: 1.55; }
+      .flow { display: none; }
+      .panel { min-height: 320px; padding: 25px; border: 1px solid #e2e6ef; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px #25345a0a; }
+      .mono { border-color: #d8e0f7; color: #5570c7; background: #f5f7ff; }
+      .request-card { border-color: #e3e7ef; background: #fafbfc; }
+      .request-dot { background: #4a9b73; }
+      .request-card strong { color: #344057; }
+      .request-card small { color: #7a8498; }
+      .loading { border-color: #d8e0f7; color: #5570c7; background: #f5f7ff; }
+      .count-badge { color: #4665c4; background: #edf2ff; }
+      .product-row { border-color: #e5e8ef; background: #fff; }
+      .product-mark { color: #3159c8; background: #edf2ff; }
+      .product-info strong { color: #263149; }
+      .product-info span { color: #7a8498; }
+      .product-price { color: #4a9b73; }
+      .empty { border-color: #d7dce7; color: #7a8498; }
+      .empty strong { color: #344057; }
+      .demo-footer { color: #8a94a6; }
+      .footer-file { color: #7a8498; }
+      @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 38px; } }
     `,
   },
   function* () {

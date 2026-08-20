@@ -96,18 +96,18 @@ export const pendingBlockExceptionDemo = craftComponent(
 
         return { reference: params.reference, amount: 4200 };
       }),
-    });
+    },
+      ({ resource }) => ({
+        summary: craftComputed('summary', function* () {
+          const invoice = yield* settled(resource);
+          return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
+        }),
+      }),
+    );
 
-    // Reading through `settled(...)` keeps the happy path free of both
-    // `undefined` and the exception: `invoice` is the resolved invoice, always.
-    const summary = craftComputed('summary', function* () {
-      const invoice = yield* settled(issue);
-      return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
-    });
-
-    return { issue, summary };
+    return { issue };
   },
-  ({ issue, summary }) =>
+  ({ issue }) =>
     section({ class: 'pending-exception' }, [
       heading('settledValue — the failing path'),
       p(
@@ -141,7 +141,7 @@ export const pendingBlockExceptionDemo = craftComponent(
       ]),
       div([
         ul({ class: 'pending-exception__list' }, [
-          li(['Invoice: ', strong(summary)]),
+          li(['Invoice: ', strong(issue.summary)]),
         ]),
       ])
         // The wait belongs to the pendingBlock…

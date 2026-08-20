@@ -76,6 +76,43 @@ describe('demo with server function', () => {
     }
   });
 
+  it('returns a 404 exception when the public list has no matching users', async () => {
+    const server = await listenDemoServer();
+    try {
+      configureServerFunctionTransport(server.url);
+      const response = await fetch(`${server.url}/__server-functions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: 'demo.users.list',
+          input: { filter: 'does-not-exist' },
+        }),
+      });
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          _tag: 'UsersNotFound',
+          payload: { status: 404, filter: 'does-not-exist' },
+        },
+      });
+
+      const result = await TestBed.runInInjectionContext(() =>
+        getUsers({ filter: 'does-not-exist' }),
+      );
+      expect(result).toMatchObject({
+        _tag: 'UsersNotFound',
+        scope: 'ServerFunction',
+        identifier: 'demo.users.list',
+        payload: {
+          payload: { status: 404, filter: 'does-not-exist' },
+        },
+      });
+      expect(isCraftException(result)).toBe(true);
+    } finally {
+      await server.close();
+    }
+  });
+
   it('calls the portable layer pipeline through the same registry', async () => {
     const server = await listenDemoServer();
     try {

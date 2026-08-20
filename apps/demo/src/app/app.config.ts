@@ -13,8 +13,10 @@ import {
   provideGlobalPersisterHandlerService,
   provideLocalStoragePersister,
   provideSessionStoragePersister,
+  provideStorageService,
   provideStoragePersister,
   LocalStoragePersister,
+  SessionStorageService,
   provideFnWrapper,
   provideTakeAppSnapshot,
   withCraftViewTransitions,
@@ -58,6 +60,9 @@ export const appConfig = craftAppConfig({
     provideSessionStoragePersister(),
     provideStoragePersister(function* () {
       return yield* LocalStoragePersister();
+    }),
+    provideStorageService(function* () {
+      return yield* SessionStorageService();
     }),
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),

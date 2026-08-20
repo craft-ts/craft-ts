@@ -2,6 +2,7 @@ import type {
   AnyCraftException,
   YieldableReactiveValue,
 } from '@craft-ts/core';
+import { craftUse } from '@craft-ts/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
@@ -22,11 +23,17 @@ type ExceptionHandlerMap<Value extends object, Key extends keyof Value> = {
 type MatchBlockDependencies<Handlers> =
   Handlers extends Record<string, (...args: any[]) => infer Output>
     ? CraftNodeChildrenDependencies<Output>
-    : {};
+    : Record<never, never>;
 
 type ExceptionKey<Value extends object> = {
   [K in keyof Value]-?: Value[K] extends string | number ? K : never;
 }[keyof Value];
+
+type ScalarValue = string | number;
+
+type ScalarHandlerMap<Value extends ScalarValue> = {
+  [Code in Extract<Value, string | number>]: () => CraftNodeChildren;
+};
 
 function exhaustive<
   Value extends object,
@@ -56,16 +63,68 @@ function exhaustive<
   ReturnType<Handlers[ExceptionCode<Value, Key>]>,
   Extract<ExceptionCode<Value, Key>, string>
 >;
+function exhaustive<
+  Value extends ScalarValue,
+  Handlers extends ScalarHandlerMap<Value>,
+>(
+  source: YieldableReactiveValue<Value>,
+  handlers: Handlers,
+): MatchBlockNode<
+  MatchBlockDependencies<Handlers>,
+  YieldableReactiveValue<{ value: Value }>,
+  ReturnType<Handlers[Extract<Value, string | number>]>,
+  Extract<Value, string>
+>;
+function exhaustive<
+  Value extends ScalarValue,
+  Handlers extends ScalarHandlerMap<Value>,
+>(
+  source: (() => Value | Generator<unknown, Value, unknown>) | Value,
+  handlers: Handlers,
+): MatchBlockNode<
+  MatchBlockDependencies<Handlers>,
+  (() => { value: Value }) | { value: Value },
+  ReturnType<Handlers[Extract<Value, string | number>]>,
+  Extract<Value, string>
+>;
 function exhaustive(
   source: unknown,
-  key: PropertyKey,
-  handlers: Record<string, (exception: AnyCraftException) => CraftNodeChildren>,
+  keyOrHandlers: PropertyKey | Record<string, () => CraftNodeChildren>,
+  maybeHandlers?: Record<
+    string,
+    (exception: AnyCraftException) => CraftNodeChildren
+  >,
 ) {
+  if (maybeHandlers === undefined) {
+    const handlers = keyOrHandlers as Record<
+      string,
+      () => CraftNodeChildren
+    >;
+    const scalarSource =
+      typeof source === 'function'
+        ? () => ({
+            value: craftUse((source as () => unknown)()) as ScalarValue,
+          })
+        : { value: source };
+
+    return {
+      kind: 'match-block' as const,
+      source: scalarSource,
+      key: 'value',
+      handlers: Object.fromEntries(
+        Object.entries(handlers).map(([code, handler]) => [
+          code,
+          () => handler(),
+        ]),
+      ),
+    };
+  }
+
   return {
     kind: 'match-block' as const,
     source,
-    key,
-    handlers,
+    key: keyOrHandlers,
+    handlers: maybeHandlers,
   };
 }
 

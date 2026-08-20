@@ -5,13 +5,12 @@ mutation lifecycle.
 
 ## `mutationEffect`
 
-Use `method` for the argument-to-params mapping and `loader` for the Effect
-program. The method may return params directly or an `Effect`:
+Use `method` for the synchronous argument-to-params mapping and `loader` for
+the Effect program:
 
 ```typescript
-const saveTask = yield* mutationEffect('saveTask', {
-  method: (input: { readonly title: string }) =>
-    Effect.succeed(input),
+  const saveTask = yield* mutationEffect('saveTask', {
+  method: (input: { readonly title: string }) => input,
   loader: ({ params }) => saveTaskEffect(params),
 });
 
@@ -63,7 +62,7 @@ write resource:
 
 ```typescript
 const refresh = yield* asyncProcessEffect('refresh', {
-  method: (userId: string) => Effect.succeed(userId),
+  method: (userId: string) => userId,
   loader: ({ params }) => refreshProfile(params),
 });
 

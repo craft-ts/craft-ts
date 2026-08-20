@@ -1,4 +1,5 @@
 import {
+  abstract,
   craftService,
   type CraftServiceApi,
   type GetServiceYields,
@@ -118,6 +119,18 @@ export interface StorageServiceApi {
   key(index: number): string | null;
   length(): number;
 }
+
+/** Storage backend selected by the application through DI. */
+const storageService = craftService(
+  { name: 'StorageService', providedIn: 'abstract' },
+  abstract<StorageServiceApi>(),
+);
+export const StorageService: typeof storageService.StorageService =
+  storageService.StorageService;
+export const StorageServiceRequirement: typeof storageService.StorageServiceRequirement =
+  storageService.StorageServiceRequirement;
+export const provideStorageService: typeof storageService.provideStorageService =
+  storageService.provideStorageService;
 
 export interface CookiesServiceApi {
   get(name: string): string | undefined;

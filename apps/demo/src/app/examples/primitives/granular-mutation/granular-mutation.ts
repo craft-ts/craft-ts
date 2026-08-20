@@ -95,10 +95,15 @@ const GranularMutation = craftComponent(
         }),
       ),
     );
+    function* isUpdatePending(user: User) {
+      const pending = updateUserName.select(user.id);
+      return pending ? yield* pending.isLoading() : false;
+    }
     return {
       pagination,
       updateUserName,
       usersQuery,
+      isUpdatePending,
       updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
         yield* pagination.updatePageSize(
           Number((event.target as HTMLSelectElement).value),
@@ -106,7 +111,7 @@ const GranularMutation = craftComponent(
       }),
     };
   },
-  ({ pagination, updatePageSize, updateUserName, usersQuery }) =>
+  ({ pagination, updatePageSize, updateUserName, usersQuery, isUpdatePending }) =>
     div({ class: 'container' }, [
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
@@ -150,10 +155,7 @@ const GranularMutation = craftComponent(
                                 // `yield*` it returns the generator itself,
                                 // which is truthy — every button rendered
                                 // disabled before it had ever been clicked.
-                                const pending = updateUserName.select(
-                                  (yield* user()).id,
-                                );
-                                return pending ? yield* pending.isLoading() : false;
+                                return yield* isUpdatePending(yield* user());
                               },
                               *click() {
                                 yield* updateUserName.mutate(yield* user());

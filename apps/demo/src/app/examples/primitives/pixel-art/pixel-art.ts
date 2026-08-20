@@ -114,9 +114,6 @@ const PixelArt = craftComponent(
       if (!cell) return;
       yield* cell.paint();
     });
-    return { ui, cells, paintCell };
-  },
-  ({ ui, cells, paintCell }) => {
     const pixelGrid = each(
       INDEXES,
       { track: (index) => index },
@@ -145,6 +142,10 @@ const PixelArt = craftComponent(
             }),
           )
         : pixelGrid;
+
+    return { ui, cells, paintCell, renderedPixelGrid };
+  },
+  ({ ui, cells, renderedPixelGrid }) => {
 
     return section([
       header([

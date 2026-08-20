@@ -17,15 +17,13 @@ import {
 import {
   craftComputed,
   craftStateMachine,
-  craftUse,
   initStateMachine,
   on$,
-  SessionStorageService,
   source$,
   state,
   transitionStep,
   withBackNavigation,
-  withHistory,
+  withStateMachineHistory,
 } from '@craft-ts/core';
 
 type Task = {
@@ -51,9 +49,7 @@ const TaskRow = craftComponent(
   'TaskRow',
   { stylesUrl: styles },
   function* (task: Input<Task>) {
-    const { id, title } = craftUse(task());
-    const storage = yield* SessionStorageService();
-
+    const { id, title } = yield* task();
     const machine = yield* craftStateMachine(
       'taskRow',
 
@@ -94,17 +90,20 @@ const TaskRow = craftComponent(
       // The anchor comes from the DATA, not from the order the row happened to
       // be created in: reload the page, reorder the list, the history of
       // `craft-3007` is still the history of `craft-3007`.
-      (machineContext) => {
-        const history = withHistory(
-          { persist: { storeName: 'demo', key: () => `task-${id}`, storage } },
+      function* (machineContext) {
+        const history = yield* withStateMachineHistory(
+          {
+            persist: { storeName: 'demo', key: () => `task-${id}` },
+          },
           withBackNavigation(),
         )(machineContext);
 
         return {
           ...history,
           note: machineContext.context.note,
-          setNote: (value: string) =>
-            craftUse(machineContext.context.note.to(value)),
+          setNote: function* (value: string) {
+            yield* machineContext.context.note.to(value);
+          },
           step: craftComputed('step', function* () {
             return (yield* machineContext.currentStep()) ?? 'todo';
           }),

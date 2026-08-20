@@ -4,6 +4,7 @@ import {
   craftComponent,
   div,
   heading,
+  ifBlock,
   input,
   matchBlock,
   p,
@@ -19,8 +20,6 @@ import {
   state,
   transitionStep,
 } from '@craft-ts/core';
-
-type TextEditorStep = 'reading' | 'editing';
 
 const TextEditorStateMachine = craftComponent(
   'TextEditorStateMachine',
@@ -44,10 +43,14 @@ const TextEditorStateMachine = craftComponent(
             value: '',
           },
           ({ patch }) => ({
-            change: on$(change$, (value) =>
-              patch(() => ({
-                value,
-              })),
+            change: on$(
+              change$,
+              (
+                value, // todo pas besoin appelable directement
+              ) =>
+                patch(() => ({
+                  value,
+                })),
             ),
             commit: on$(commit$, () =>
               patch((current) => ({
@@ -86,34 +89,29 @@ const TextEditorStateMachine = craftComponent(
         };
       },
 
-      ({ context, currentStep }) => ({
-        value: craftComputed('value', function* () {
-          return (yield* context.text()).value;
-        }),
-        committedValue: craftComputed('committedValue', function* () {
-          return (yield* context.text()).committedValue;
-        }),
-        stepState: craftComputed('stepState', function* () {
-          // todo remove
-          return {
-            step: ((yield* currentStep()) ?? 'reading') as TextEditorStep,
-          };
-        }),
-        readingClass: craftComputed('readingClass', function* () {
-          return (yield* currentStep()) === 'reading'
-            ? 'step step--active'
-            : 'step';
-        }),
-        editingClass: craftComputed('editingClass', function* () {
-          return (yield* currentStep()) === 'editing'
-            ? 'step step--active'
-            : 'step';
-        }),
-        edit: () => context.edit$.emit(),
-        change: (value: string) => context.change$.emit(value),
-        commit: () => context.commit$.emit(),
-        cancel: () => context.cancel$.emit(),
-      }),
+      ({ context, currentStep, currentStepWithContext }) => {
+        const { text, ..._context } = context;
+
+        return {
+          value: craftComputed('value', function* () {
+            return (yield* text()).committedValue;
+          }),
+          committedValue: craftComputed('committedValue', function* () {
+            return (yield* text()).committedValue;
+          }),
+          readingClass: craftComputed('readingClass', function* () {
+            return (yield* currentStep()) === 'reading'
+              ? 'step step--active'
+              : 'step';
+          }),
+          editingClass: craftComputed('editingClass', function* () {
+            return (yield* currentStep()) === 'editing'
+              ? 'step step--active'
+              : 'step';
+          }),
+          ..._context,
+        };
+      },
     );
 
     return { machine };
@@ -131,61 +129,57 @@ const TextEditorStateMachine = craftComponent(
         span({ class: machine.editingClass }, 'editing'),
       ]),
 
-      matchBlock.exhaustive(
-        machine.stepState as unknown as () => { step: TextEditorStep },
-        'step',
-        {
-          reading: () =>
-            div({ class: 'panel' }, [
-              p(['Committed value: ', machine.committedValue]),
-              p(['Current value: ', machine.value]),
+      matchBlock.exhaustive(machine.currentStepWithContext, 'step', () => ({
+        reading: () =>
+          div({ class: 'panel' }, [
+            p(['Committed value: ', machine.committedValue]),
+            p(['Current value: ', machine.value]),
+            button(
+              'text-edit',
+              {
+                type: 'button',
+                click: function* () {
+                  yield* machine.edit$.emit();
+                },
+              },
+              'Edit',
+            ),
+          ]),
+        editing: () =>
+          div({ class: 'panel' }, [
+            labelText('Value'),
+            input('text-input', {
+              type: 'text',
+              value: machine.value,
+              input: function* (event) {
+                yield* machine.change$.emit(event.target.value);
+              },
+            }),
+            div({ class: 'actions' }, [
               button(
-                'text-edit',
+                'text-commit',
                 {
                   type: 'button',
                   click: function* () {
-                    yield* machine.edit();
+                    yield* machine.commit$.emit();
                   },
                 },
-                'Edit',
+                'Commit',
+              ),
+              button(
+                'text-cancel',
+                {
+                  type: 'button',
+                  class: 'secondary',
+                  click: function* () {
+                    yield* machine.cancel$.emit();
+                  },
+                },
+                'Cancel',
               ),
             ]),
-          editing: () =>
-            div({ class: 'panel' }, [
-              labelText('Value'),
-              input('text-input', {
-                type: 'text',
-                value: machine.value,
-                input: function* (event) {
-                  yield* machine.change(event.target.value);
-                },
-              }),
-              div({ class: 'actions' }, [
-                button(
-                  'text-commit',
-                  {
-                    type: 'button',
-                    click: function* () {
-                      yield* machine.commit();
-                    },
-                  },
-                  'Commit',
-                ),
-                button(
-                  'text-cancel',
-                  {
-                    type: 'button',
-                    class: 'secondary',
-                    click: function* () {
-                      yield* machine.cancel();
-                    },
-                  },
-                  'Cancel',
-                ),
-              ]),
-            ]),
-        },
-      ),
+          ]),
+      })),
     ]),
 );
 

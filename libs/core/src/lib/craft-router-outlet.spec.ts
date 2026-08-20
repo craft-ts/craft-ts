@@ -42,6 +42,7 @@ import {
   provideCraftRouter,
   type CraftRouterNavigationApi,
 } from './craft-router';
+import { craftWatch } from './host/craft-signal';
 import {
   CRAFT_START_VIEW_TRANSITION,
   CRAFT_VIEW_TRANSITION,
@@ -190,6 +191,30 @@ describe('CraftRouterOutlet', () => {
     activate(outlet, undefined);
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('publishes a routed target only after its injector and props are ready', () => {
+    const { outlet } = setup();
+    const observations: Array<{
+      injector: unknown;
+      props: Readonly<Record<string, unknown>>;
+    }> = [];
+    const watch = TestBed.runInInjectionContext(() =>
+      craftWatch(() => {
+        if (outlet.displayedTarget()) {
+          observations.push({
+            injector: outlet.displayedInjector(),
+            props: outlet.displayedProps(),
+          });
+        }
+      }),
+    );
+
+    activate(outlet, undefined);
+
+    expect(observations[0]?.injector).toBeDefined();
+    expect(observations[0]?.props).toEqual({});
+    watch.destroy();
   });
 
   it('activates the matched route after a Craft history push', () => {

@@ -205,723 +205,725 @@ graph TD
   n203["craftComputed:isTodo"]
   n204["craftComputed:isDoing"]
   n205["craftComputed:isDone"]
-  n206["craftComputed:historyLabel — apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts"]
-  n207["craftComputed:backDisabled — apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts"]
-  n208["craftComputed:forwardDisabled — apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts"]
-  n209["craftStateMachine:taskRow"]
-  n210["state:note"]
-  n211["craftComputed:profileSource"]
-  n212["craftComputed:isValid"]
-  n213["craftComputed:craftComputed — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
-  n214["craftComputed:stepState — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
-  n215["craftComputed:profileLabel"]
-  n216["craftComputed:draftName"]
-  n217["craftComputed:draftEmail"]
-  n218["craftComputed:stepHint"]
-  n219["craftComputed:submitBlocked"]
-  n220["craftComputed:historyLabel — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
-  n221["craftComputed:backDisabled — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
-  n222["craftComputed:forwardDisabled — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
-  n223["craftStateMachine:profileEditor"]
-  n224["mutation:saveProfile"]
-  n225["query:profileQuery"]
-  n226["state:draft"]
-  n227["state:readOnly"]
-  n228["craftComputed:readingClass"]
-  n229["craftComputed:editingClass"]
-  n230["craftComputed:value"]
-  n231["craftComputed:committedValue"]
-  n232["craftComputed:stepState — apps/demo/src/app/examples/primitives/state-machine/text-editor.ts"]
-  n233["craftStateMachine:textEditor"]
-  n234["state:text"]
-  n235["state:dataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
-  n236["state:updateError — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
-  n237["craftMethod:updatePageSize — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n238["query:usersQuery — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n239["queryParams:pagination — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n240["query:slowAccess"]
-  n241["query:slowReport"]
-  n242["craftMethod:open"]
-  n243["craftComputed:currentPhoto"]
-  n244["craftComputed:hasPhoto"]
-  n245["craftMethod:back"]
-  n246["craftComputed:hasImage"]
-  n247["craftComputed:imageSrc"]
-  n248["query:viewTransitionAccess"]
-  n249["query:auth"]
-  n250["craftComputed:disabled"]
-  n251["craftComputed:message"]
-  n252["craftMethod:setInstruction"]
-  n253["craftMethod:setCopied"]
-  n254["state:instruction"]
-  n255["state:copied"]
-  n256["state:navOpen.toggle"]
-  n257["state:canReadRestrictedData.toggle"]
-  n258["state:lastHandledException.showNoAccessText"]
-  n259["query:users.call"]
-  n260["mutation:issue.mutate"]
-  n261["state:counter.decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n262["state:counter.increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n263["state:counter.reset"]
-  n264["query:user.hasValue — apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts"]
-  n265["query:user.userIds"]
-  n266["query:user.userIds.map"]
-  n267["query:user.value — apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts"]
-  n268["state:userId.selectUser"]
-  n269["state:counter.decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n270["state:counter.increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n271["state:counterChildIds.addChild"]
-  n272["state:counterChildIds.removeChild"]
-  n273["mutation:add.isLoading"]
-  n274["mutation:add.mutate"]
-  n275["mutation:remove.isLoading"]
-  n276["mutation:remove.mutate"]
-  n277["query:todos.status — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
-  n278["query:users.currentPageStatus"]
-  n279["query:users.total"]
-  n280["queryParams:pagination.nextPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n281["queryParams:pagination.previousPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n282["mutation:updateUserName.isLoading — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n283["mutation:updateUserName.status — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n284["query:user.hasValue — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n285["query:user.status"]
-  n286["query:user.value — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n287["state:counter.decrement — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
-  n288["state:counter.increment — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
-  n289["mutation:addTodo.isLoading — apps/demo/src/app/examples/playground/playground.ts"]
-  n290["mutation:addTodo.mutate — apps/demo/src/app/examples/playground/playground.ts"]
-  n291["mutation:toggleTodo.mutate"]
-  n292["mutation:deleteTodo.mutate"]
-  n293["query:todos.value"]
-  n294["state:titleInput.setTitle"]
-  n295["asyncProcess:debouncedSearch.isLoading"]
-  n296["asyncProcess:debouncedSearch.status"]
-  n297["query:openLibrarySearch.isLoading"]
-  n298["query:openLibrarySearch.status"]
-  n299["query:openLibrarySearch.value"]
-  n300["queryParams:modeQueryParams.exceptions"]
-  n301["query:userQuery.call"]
-  n302["query:userQuery.hasValue — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
-  n303["query:userQuery.status — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
-  n304["query:userQuery.value — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
-  n305["mutation:submitted.hasValue"]
-  n306["state:loginForm.form"]
-  n307["state:loginForm.form.selectEmail"]
-  n308["state:loginForm.form.selectPassword"]
-  n309["state:loginForm.form.submit"]
-  n310["mutation:addTodo.isLoading — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n311["mutation:addTodo.mutate — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n312["mutation:removeTodo.isLoading"]
-  n313["mutation:removeTodo.mutate"]
-  n314["query:todos.status — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n315["mutation:updateUserName.mutate — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n316["mutation:updateUserName.select"]
-  n317["mutation:updateUserName.selectOrCreate"]
-  n318["query:usersQuery.currentPageStatus — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n319["queryParams:pagination.nextPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n320["queryParams:pagination.previousPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n321["queryParams:pagination.updatePageSize — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n322["query:usersQuery.currentPageStatus — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n323["queryParams:pagination.nextPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n324["queryParams:pagination.previousPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n325["queryParams:pagination.updatePageSize — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n326["mutation:updateUserName.isLoading — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n327["mutation:updateUserName.mutate — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n328["mutation:updateUserName.status — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n329["query:userQuery.hasValue — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n330["query:userQuery.status — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n331["query:userQuery.value — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n332["state:activeColor.setColor"]
-  n333["state:grid.addCell"]
-  n334["state:grid.addRow"]
-  n335["state:grid.paint"]
-  n336["state:grid.paintColumn"]
-  n337["state:grid.paintRow"]
-  n338["state:grid.reset"]
-  n339["state:ui.setActiveColor"]
-  n340["state:cells.clearAll"]
-  n341["state:cells.selectCell"]
-  n342["query:userQuery.hasValue — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n343["query:userQuery.status — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n344["query:userQuery.value — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n345["craftStateMachine:taskRow.back"]
-  n346["craftStateMachine:taskRow.finish"]
-  n347["craftStateMachine:taskRow.forward"]
-  n348["craftStateMachine:taskRow.reopen"]
-  n349["craftStateMachine:taskRow.setNote"]
-  n350["craftStateMachine:taskRow.start"]
-  n351["craftStateMachine:profileEditor.back"]
-  n352["craftStateMachine:profileEditor.editingClass"]
-  n353["craftStateMachine:profileEditor.forward"]
-  n354["craftStateMachine:profileEditor.readingClass"]
-  n355["craftStateMachine:profileEditor.requestCancel"]
-  n356["craftStateMachine:profileEditor.requestEdit"]
-  n357["craftStateMachine:profileEditor.requestSubmit"]
-  n358["craftStateMachine:profileEditor.savingClass"]
-  n359["craftStateMachine:profileEditor.setEmail"]
-  n360["craftStateMachine:profileEditor.setName"]
-  n361["query:profileQuery.value"]
-  n362["state:readOnly.toggle"]
-  n363["craftStateMachine:textEditor.cancel"]
-  n364["craftStateMachine:textEditor.change"]
-  n365["craftStateMachine:textEditor.commit"]
-  n366["craftStateMachine:textEditor.edit"]
-  n367["query:usersQuery.currentPageStatus — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n368["queryParams:pagination.nextPage — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n369["queryParams:pagination.pageSize"]
-  n370["queryParams:pagination.previousPage — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n371["queryParams:pagination.updatePageSize — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n372["UsersApiOnError.users.query"]
-  n373["UsersApiOnError.users.query.status"]
-  n374["Counter.decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n375["Counter.increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n376["Counter.reset"]
-  n377["User.hasException"]
-  n378["User.hasValue"]
-  n379["User.userIds"]
-  n380["User.userIds.map"]
-  n381["User.value"]
-  n382["Counter.decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n383["Counter.increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n384["TodoStore.add"]
-  n385["TodoStore.add.isLoading"]
-  n386["TodoStore.add.mutate"]
-  n387["TodoStore.remove"]
-  n388["TodoStore.remove.isLoading"]
-  n389["TodoStore.remove.mutate"]
-  n390["TodoStore.todos"]
-  n391["TodoStore.todos.status"]
-  n392["TodoStore.todos.value"]
-  n393["ApiService.getDataList — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
-  n394["ApiService.updateItem — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
-  n395["test2.test"]
-  n396["UsersApiOnError.query"]
-  n397["UsersApiOnError.query.status"]
-  n398["UsersApiOnError.users"]
-  n399["OtherService.getValue"]
-  n400["ApiService.getDataList — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
-  n401["UserList.pagination"]
-  n402["UserList.pagination.nextPage"]
-  n403["UserList.pagination.previousPage"]
-  n404["UserList.users"]
-  n405["UserList.users.currentPageData"]
-  n406["UserList.users.currentPageStatus"]
-  n407["UserList.users.total"]
-  n408["ApiService.getItemById — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
-  n409["ApiService.updateItem — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
-  n410["UserMutation.updateUserName"]
-  n411["UserMutation.updateUserName.isLoading"]
-  n412["UserMutation.updateUserName.status"]
-  n413["UserMutation.user"]
-  n414["UserMutation.user.hasValue"]
-  n415["UserMutation.user.status"]
-  n416["UserMutation.user.value"]
-  n417["ApiService.getItemById — apps/demo/src/app/examples/craft/query/api.service.ts"]
-  n418["UserQuery.hasValue"]
-  n419["UserQuery.status"]
-  n420["UserQuery.value"]
-  n421["Playground.addTodo"]
-  n422["Playground.addTodo.isLoading"]
-  n423["Playground.addTodo.mutate"]
-  n424["Playground.deleteTodo"]
-  n425["Playground.deleteTodo.mutate"]
-  n426["Playground.todos"]
-  n427["Playground.todos.value"]
-  n428["Playground.toggleTodo"]
-  n429["Playground.toggleTodo.mutate"]
-  n430["ApiService.getDataList — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
-  n431["ApiService.updateItem — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
-  n432["ApiService.getDataList — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
-  n433["ApiService.getItemById — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
-  n434["ApiService.updateItem — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
-  n435["ApiService.getItemById — apps/demo/src/app/examples/primitives/query/api.service.ts"]
-  n436["ProfilePermissions.readOnly"]
-  n437["ProfilePermissions.readOnly.toggle"]
-  n438["ApiService.getDataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
-  n439[["CanRun _CanRunGlobalError"]]
-  n440[["CanRun _CanRunGlobalRouteLoadError"]]
-  n441[["RouteExceptionComponentCheckedDI _CheckGlobalErrorDI"]]
-  n442[["RouteExceptionComponentCheckedDI _CheckGlobalRouteLoadErrorDI"]]
-  n443[["CanRun _CanRunComponentComposition — apps/demo/src/app/app.routes.runtime.ts"]]
-  n444[["RouteCheckedDI _CanRunComponentComposition:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n445[["CanRun _CanRunComponentDemo — apps/demo/src/app/app.routes.runtime.ts"]]
-  n446[["RouteCheckedDI _CanRunComponentDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n447[["CanRun _CanRunContentProjection — apps/demo/src/app/app.routes.runtime.ts"]]
-  n448[["RouteCheckedDI _CanRunContentProjection:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n449[["CanRun _CanRunCraftFullDemo — apps/demo/src/app/app.routes.runtime.ts"]]
-  n450[["RouteCheckedDI _CanRunCraftFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n451[["CanRun _CanRunCraftGranularMutation — apps/demo/src/app/app.routes.runtime.ts"]]
-  n452[["RouteCheckedDI _CanRunCraftGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n453[["CanRun _CanRunCraftListWithPagination — apps/demo/src/app/app.routes.runtime.ts"]]
-  n454[["RouteCheckedDI _CanRunCraftListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n455[["CanRun _CanRunCraftMutation — apps/demo/src/app/app.routes.runtime.ts"]]
-  n456[["RouteCheckedDI _CanRunCraftMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n457[["CanRun _CanRunCraftQuery — apps/demo/src/app/app.routes.runtime.ts"]]
-  n458[["RouteCheckedDI _CanRunCraftQuery:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n459[["CanRun _CanRunCraftServiceCounter — apps/demo/src/app/app.routes.runtime.ts"]]
-  n460[["RouteCheckedDI _CanRunCraftServiceCounter:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n461[["CanRun _CanRunCraftServiceRegisterFor — apps/demo/src/app/app.routes.runtime.ts"]]
-  n462[["RouteCheckedDI _CanRunCraftServiceRegisterFor:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n463[["CanRun _CanRunCraftServiceUserDetail — apps/demo/src/app/app.routes.runtime.ts"]]
-  n464[["RouteCheckedDI _CanRunCraftServiceUserDetail:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n465[["CanRun _CanRunCssVars — apps/demo/src/app/app.routes.runtime.ts"]]
-  n466[["RouteCheckedDI _CanRunCssVars:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n467[["CanRun _CanRunCssVarsForwarding — apps/demo/src/app/app.routes.runtime.ts"]]
-  n468[["RouteCheckedDI _CanRunCssVarsForwarding:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n469[["CanRun _CanRunCssVarsInheritance — apps/demo/src/app/app.routes.runtime.ts"]]
-  n470[["RouteCheckedDI _CanRunCssVarsInheritance:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n471[["CanRun _CanRunCssVarsProperty — apps/demo/src/app/app.routes.runtime.ts"]]
-  n472[["RouteCheckedDI _CanRunCssVarsProperty:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n473[["CanRun _CanRunCssVarsRequired — apps/demo/src/app/app.routes.runtime.ts"]]
-  n474[["RouteCheckedDI _CanRunCssVarsRequired:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n475[["CanRun _CanRunDebouncedWebSearch — apps/demo/src/app/app.routes.runtime.ts"]]
-  n476[["RouteCheckedDI _CanRunDebouncedWebSearch:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n477[["CanRun _CanRunDemoSendContext — apps/demo/src/app/app.routes.runtime.ts"]]
-  n478[["RouteCheckedDI _CanRunDemoSendContext:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n479[["CanRun _CanRunExceptionQueryParams — apps/demo/src/app/app.routes.runtime.ts"]]
-  n480[["RouteCheckedDI _CanRunExceptionQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n481[["CanRun _CanRunExceptions — apps/demo/src/app/app.routes.runtime.ts"]]
-  n482[["RouteCheckedDI _CanRunExceptions:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n483[["CanRun _CanRunFullDemo — apps/demo/src/app/app.routes.runtime.ts"]]
-  n484[["RouteCheckedDI _CanRunFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n485[["CanRun _CanRunGranularMutation — apps/demo/src/app/app.routes.runtime.ts"]]
-  n486[["RouteCheckedDI _CanRunGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n487[["CanRun _CanRunGuardDemo — apps/demo/src/app/app.routes.runtime.ts"]]
-  n488[["RouteCheckedDI _CanRunGuardDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n489[["CanRun _CanRunLazyLayout — apps/demo/src/app/app.routes.runtime.ts"]]
-  n490[["RouteCheckedDI _CanRunLazyLayout:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n491[["CanRun _CanRunLazyLayoutMount — apps/demo/src/app/app.routes.runtime.ts"]]
-  n492[["CanRun _CanRunListWithPagination — apps/demo/src/app/app.routes.runtime.ts"]]
-  n493[["RouteCheckedDI _CanRunListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n494[["CanRun _CanRunLoginForm — apps/demo/src/app/app.routes.runtime.ts"]]
-  n495[["RouteCheckedDI _CanRunLoginForm:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n496[["CanRun _CanRunMutation — apps/demo/src/app/app.routes.runtime.ts"]]
-  n497[["RouteCheckedDI _CanRunMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n498[["CanRun _CanRunPendingBlock — apps/demo/src/app/app.routes.runtime.ts"]]
-  n499[["RouteCheckedDI _CanRunPendingBlock:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n500[["CanRun _CanRunPendingBlockException — apps/demo/src/app/app.routes.runtime.ts"]]
-  n501[["RouteCheckedDI _CanRunPendingBlockException:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n502[["CanRun _CanRunPixelArt — apps/demo/src/app/app.routes.runtime.ts"]]
-  n503[["RouteCheckedDI _CanRunPixelArt:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n504[["CanRun _CanRunPixelArtMatrix — apps/demo/src/app/app.routes.runtime.ts"]]
-  n505[["RouteCheckedDI _CanRunPixelArtMatrix:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n506[["CanRun _CanRunPlayground — apps/demo/src/app/app.routes.runtime.ts"]]
-  n507[["RouteCheckedDI _CanRunPlayground:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n508[["CanRun _CanRunQuery — apps/demo/src/app/app.routes.runtime.ts"]]
-  n509[["RouteCheckedDI _CanRunQuery:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n510[["CanRun _CanRunQueryParams — apps/demo/src/app/app.routes.runtime.ts"]]
-  n511[["RouteCheckedDI _CanRunQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n512[["CanRun _CanRunStateMachine — apps/demo/src/app/app.routes.runtime.ts"]]
-  n513[["RouteCheckedDI _CanRunStateMachine:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n514[["CanRun _CanRunStateMachineList — apps/demo/src/app/app.routes.runtime.ts"]]
-  n515[["RouteCheckedDI _CanRunStateMachineList:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n516[["CanRun _CanRunStateMachineText — apps/demo/src/app/app.routes.runtime.ts"]]
-  n517[["RouteCheckedDI _CanRunStateMachineText:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
-  n518[["CanRun _CanRunViewTransitionsMount — apps/demo/src/app/app.routes.runtime.ts"]]
-  n519[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoRoutes — apps/demo/src/app/app.routes.runtime.ts"]]
-  n520[["CanRun _CanRunComponentComposition — apps/demo/src/app/app.routes.ts"]]
-  n521[["RouteCheckedDI _CanRunComponentComposition:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n522[["CanRun _CanRunComponentDemo — apps/demo/src/app/app.routes.ts"]]
-  n523[["RouteCheckedDI _CanRunComponentDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n524[["CanRun _CanRunContentProjection — apps/demo/src/app/app.routes.ts"]]
-  n525[["RouteCheckedDI _CanRunContentProjection:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n526[["CanRun _CanRunCraftFullDemo — apps/demo/src/app/app.routes.ts"]]
-  n527[["RouteCheckedDI _CanRunCraftFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n528[["CanRun _CanRunCraftGranularMutation — apps/demo/src/app/app.routes.ts"]]
-  n529[["RouteCheckedDI _CanRunCraftGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n530[["CanRun _CanRunCraftListWithPagination — apps/demo/src/app/app.routes.ts"]]
-  n531[["RouteCheckedDI _CanRunCraftListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n532[["CanRun _CanRunCraftMutation — apps/demo/src/app/app.routes.ts"]]
-  n533[["RouteCheckedDI _CanRunCraftMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n534[["CanRun _CanRunCraftQuery — apps/demo/src/app/app.routes.ts"]]
-  n535[["RouteCheckedDI _CanRunCraftQuery:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n536[["CanRun _CanRunCraftServiceCounter — apps/demo/src/app/app.routes.ts"]]
-  n537[["RouteCheckedDI _CanRunCraftServiceCounter:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n538[["CanRun _CanRunCraftServiceRegisterFor — apps/demo/src/app/app.routes.ts"]]
-  n539[["RouteCheckedDI _CanRunCraftServiceRegisterFor:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n540[["CanRun _CanRunCraftServiceUserDetail — apps/demo/src/app/app.routes.ts"]]
-  n541[["RouteCheckedDI _CanRunCraftServiceUserDetail:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n542[["CanRun _CanRunCssVars — apps/demo/src/app/app.routes.ts"]]
-  n543[["RouteCheckedDI _CanRunCssVars:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n544[["CanRun _CanRunCssVarsForwarding — apps/demo/src/app/app.routes.ts"]]
-  n545[["RouteCheckedDI _CanRunCssVarsForwarding:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n546[["CanRun _CanRunCssVarsInheritance — apps/demo/src/app/app.routes.ts"]]
-  n547[["RouteCheckedDI _CanRunCssVarsInheritance:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n548[["CanRun _CanRunCssVarsProperty — apps/demo/src/app/app.routes.ts"]]
-  n549[["RouteCheckedDI _CanRunCssVarsProperty:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n550[["CanRun _CanRunCssVarsRequired — apps/demo/src/app/app.routes.ts"]]
-  n551[["RouteCheckedDI _CanRunCssVarsRequired:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n552[["CanRun _CanRunDebouncedWebSearch — apps/demo/src/app/app.routes.ts"]]
-  n553[["RouteCheckedDI _CanRunDebouncedWebSearch:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n554[["CanRun _CanRunDemoSendContext — apps/demo/src/app/app.routes.ts"]]
-  n555[["RouteCheckedDI _CanRunDemoSendContext:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n556[["CanRun _CanRunExceptionQueryParams — apps/demo/src/app/app.routes.ts"]]
-  n557[["RouteCheckedDI _CanRunExceptionQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n558[["CanRun _CanRunExceptions — apps/demo/src/app/app.routes.ts"]]
-  n559[["RouteCheckedDI _CanRunExceptions:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n560[["CanRun _CanRunFullDemo — apps/demo/src/app/app.routes.ts"]]
-  n561[["RouteCheckedDI _CanRunFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n562[["CanRun _CanRunGranularMutation — apps/demo/src/app/app.routes.ts"]]
-  n563[["RouteCheckedDI _CanRunGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n564[["CanRun _CanRunGuardDemo — apps/demo/src/app/app.routes.ts"]]
-  n565[["RouteCheckedDI _CanRunGuardDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n566[["CanRun _CanRunLazyLayout — apps/demo/src/app/app.routes.ts"]]
-  n567[["RouteCheckedDI _CanRunLazyLayout:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n568[["CanRun _CanRunLazyLayoutMount — apps/demo/src/app/app.routes.ts"]]
-  n569[["CanRun _CanRunListWithPagination — apps/demo/src/app/app.routes.ts"]]
-  n570[["RouteCheckedDI _CanRunListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n571[["CanRun _CanRunLoginForm — apps/demo/src/app/app.routes.ts"]]
-  n572[["RouteCheckedDI _CanRunLoginForm:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n573[["CanRun _CanRunMutation — apps/demo/src/app/app.routes.ts"]]
-  n574[["RouteCheckedDI _CanRunMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n575[["CanRun _CanRunPendingBlock — apps/demo/src/app/app.routes.ts"]]
-  n576[["RouteCheckedDI _CanRunPendingBlock:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n577[["CanRun _CanRunPendingBlockException — apps/demo/src/app/app.routes.ts"]]
-  n578[["RouteCheckedDI _CanRunPendingBlockException:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n579[["CanRun _CanRunPixelArt — apps/demo/src/app/app.routes.ts"]]
-  n580[["RouteCheckedDI _CanRunPixelArt:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n581[["CanRun _CanRunPixelArtMatrix — apps/demo/src/app/app.routes.ts"]]
-  n582[["RouteCheckedDI _CanRunPixelArtMatrix:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n583[["CanRun _CanRunPlayground — apps/demo/src/app/app.routes.ts"]]
-  n584[["RouteCheckedDI _CanRunPlayground:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n585[["CanRun _CanRunQuery — apps/demo/src/app/app.routes.ts"]]
-  n586[["RouteCheckedDI _CanRunQuery:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n587[["CanRun _CanRunQueryParams — apps/demo/src/app/app.routes.ts"]]
-  n588[["RouteCheckedDI _CanRunQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n589[["CanRun _CanRunStateMachine — apps/demo/src/app/app.routes.ts"]]
-  n590[["RouteCheckedDI _CanRunStateMachine:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n591[["CanRun _CanRunStateMachineList — apps/demo/src/app/app.routes.ts"]]
-  n592[["RouteCheckedDI _CanRunStateMachineList:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n593[["CanRun _CanRunStateMachineText — apps/demo/src/app/app.routes.ts"]]
-  n594[["RouteCheckedDI _CanRunStateMachineText:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
-  n595[["CanRun _CanRunViewTransitionsMount — apps/demo/src/app/app.routes.ts"]]
-  n596[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoRoutes — apps/demo/src/app/app.routes.ts"]]
-  n597[["CanRun _CanRunLazyLayout — apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.routes.ts"]]
-  n598[["RouteCheckedDI _CheckLazyLayoutDI"]]
-  n599[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:lazyLayoutRoutes"]]
-  n600[["CanRun _CanRunViewTransitionsDetail"]]
-  n601[["CanRun _CanRunViewTransitionsGallery"]]
-  n602[["CanRun _CanRunViewTransitionsPending"]]
-  n603[["RouteCheckedDI _CheckViewTransitionsDetailDI"]]
-  n604[["RouteCheckedDI _CheckViewTransitionsGalleryDI"]]
-  n605[["RouteCheckedDI _CheckViewTransitionsPendingDI"]]
-  n606[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:viewTransitionsRoutes"]]
-  n607["demo:guard-demo.canActivate — apps/demo/src/app/app.routes.runtime.ts"]
-  n608["demo:query-params.queryParams — apps/demo/src/app/app.routes.runtime.ts"]
-  n609["demo:guard-demo.canActivate — apps/demo/src/app/app.routes.ts"]
-  n610["demo:query-params.queryParams — apps/demo/src/app/app.routes.ts"]
-  n611{{"demo: — apps/demo/src/app/app.routes.runtime.ts"}}
-  n612{{"demo:component-composition — apps/demo/src/app/app.routes.runtime.ts"}}
-  n613{{"demo:content-projection — apps/demo/src/app/app.routes.runtime.ts"}}
-  n614{{"demo:craft-service/counter — apps/demo/src/app/app.routes.runtime.ts"}}
-  n615{{"demo:craft-service/register-for — apps/demo/src/app/app.routes.runtime.ts"}}
-  n616{{"demo:craft-service/user-detail — apps/demo/src/app/app.routes.runtime.ts"}}
-  n617{{"demo:craft/full-demo — apps/demo/src/app/app.routes.runtime.ts"}}
-  n618{{"demo:craft/granular-mutation — apps/demo/src/app/app.routes.runtime.ts"}}
-  n619{{"demo:craft/lazy-layout/:teamId — apps/demo/src/app/app.routes.runtime.ts"}}
-  n620{{"demo:craft/list-with-pagination — apps/demo/src/app/app.routes.runtime.ts"}}
-  n621{{"demo:craft/mutation/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
-  n622{{"demo:craft/query/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
-  n623{{"demo:css-vars — apps/demo/src/app/app.routes.runtime.ts"}}
-  n624{{"demo:css-vars/forwarding — apps/demo/src/app/app.routes.runtime.ts"}}
-  n625{{"demo:css-vars/inheritance — apps/demo/src/app/app.routes.runtime.ts"}}
-  n626{{"demo:css-vars/property — apps/demo/src/app/app.routes.runtime.ts"}}
-  n627{{"demo:css-vars/required — apps/demo/src/app/app.routes.runtime.ts"}}
-  n628{{"demo:debounced-web-search — apps/demo/src/app/app.routes.runtime.ts"}}
-  n629{{"demo:demo-send-context — apps/demo/src/app/app.routes.runtime.ts"}}
-  n630{{"demo:exception-query-params — apps/demo/src/app/app.routes.runtime.ts"}}
-  n631{{"demo:exceptions — apps/demo/src/app/app.routes.runtime.ts"}}
-  n632{{"demo:full-demo — apps/demo/src/app/app.routes.runtime.ts"}}
-  n633{{"demo:granular-mutation — apps/demo/src/app/app.routes.runtime.ts"}}
-  n634{{"demo:guard-demo — apps/demo/src/app/app.routes.runtime.ts"}}
-  n635{{"demo:list-with-pagination — apps/demo/src/app/app.routes.runtime.ts"}}
-  n636{{"demo:login-form — apps/demo/src/app/app.routes.runtime.ts"}}
-  n637{{"demo:mutation/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
-  n638{{"demo:pending-block — apps/demo/src/app/app.routes.runtime.ts"}}
-  n639{{"demo:pending-block/exception — apps/demo/src/app/app.routes.runtime.ts"}}
-  n640{{"demo:pixel-art — apps/demo/src/app/app.routes.runtime.ts"}}
-  n641{{"demo:pixel-art-matrix — apps/demo/src/app/app.routes.runtime.ts"}}
-  n642{{"demo:playground — apps/demo/src/app/app.routes.runtime.ts"}}
-  n643{{"demo:query-params — apps/demo/src/app/app.routes.runtime.ts"}}
-  n644{{"demo:query/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
-  n645{{"demo:slow-page — apps/demo/src/app/app.routes.runtime.ts"}}
-  n646{{"demo:state-machine — apps/demo/src/app/app.routes.runtime.ts"}}
-  n647{{"demo:state-machine-list — apps/demo/src/app/app.routes.runtime.ts"}}
-  n648{{"demo:state-machine-text — apps/demo/src/app/app.routes.runtime.ts"}}
-  n649{{"demo:view-transitions — apps/demo/src/app/app.routes.runtime.ts"}}
-  n650{{"demo: — apps/demo/src/app/app.routes.ts"}}
-  n651{{"demo:component-composition — apps/demo/src/app/app.routes.ts"}}
-  n652{{"demo:content-projection — apps/demo/src/app/app.routes.ts"}}
-  n653{{"demo:craft-service/counter — apps/demo/src/app/app.routes.ts"}}
-  n654{{"demo:craft-service/register-for — apps/demo/src/app/app.routes.ts"}}
-  n655{{"demo:craft-service/user-detail — apps/demo/src/app/app.routes.ts"}}
-  n656{{"demo:craft/full-demo — apps/demo/src/app/app.routes.ts"}}
-  n657{{"demo:craft/granular-mutation — apps/demo/src/app/app.routes.ts"}}
-  n658{{"demo:craft/lazy-layout/:teamId — apps/demo/src/app/app.routes.ts"}}
-  n659{{"demo:craft/list-with-pagination — apps/demo/src/app/app.routes.ts"}}
-  n660{{"demo:craft/mutation/:userId — apps/demo/src/app/app.routes.ts"}}
-  n661{{"demo:craft/query/:userId — apps/demo/src/app/app.routes.ts"}}
-  n662{{"demo:css-vars — apps/demo/src/app/app.routes.ts"}}
-  n663{{"demo:css-vars/forwarding — apps/demo/src/app/app.routes.ts"}}
-  n664{{"demo:css-vars/inheritance — apps/demo/src/app/app.routes.ts"}}
-  n665{{"demo:css-vars/property — apps/demo/src/app/app.routes.ts"}}
-  n666{{"demo:css-vars/required — apps/demo/src/app/app.routes.ts"}}
-  n667{{"demo:debounced-web-search — apps/demo/src/app/app.routes.ts"}}
-  n668{{"demo:demo-send-context — apps/demo/src/app/app.routes.ts"}}
-  n669{{"demo:exception-query-params — apps/demo/src/app/app.routes.ts"}}
-  n670{{"demo:exceptions — apps/demo/src/app/app.routes.ts"}}
-  n671{{"demo:full-demo — apps/demo/src/app/app.routes.ts"}}
-  n672{{"demo:granular-mutation — apps/demo/src/app/app.routes.ts"}}
-  n673{{"demo:guard-demo — apps/demo/src/app/app.routes.ts"}}
-  n674{{"demo:list-with-pagination — apps/demo/src/app/app.routes.ts"}}
-  n675{{"demo:login-form — apps/demo/src/app/app.routes.ts"}}
-  n676{{"demo:mutation/:userId — apps/demo/src/app/app.routes.ts"}}
-  n677{{"demo:pending-block — apps/demo/src/app/app.routes.ts"}}
-  n678{{"demo:pending-block/exception — apps/demo/src/app/app.routes.ts"}}
-  n679{{"demo:pixel-art — apps/demo/src/app/app.routes.ts"}}
-  n680{{"demo:pixel-art-matrix — apps/demo/src/app/app.routes.ts"}}
-  n681{{"demo:playground — apps/demo/src/app/app.routes.ts"}}
-  n682{{"demo:query-params — apps/demo/src/app/app.routes.ts"}}
-  n683{{"demo:query/:userId — apps/demo/src/app/app.routes.ts"}}
-  n684{{"demo:slow-page — apps/demo/src/app/app.routes.ts"}}
-  n685{{"demo:state-machine — apps/demo/src/app/app.routes.ts"}}
-  n686{{"demo:state-machine-list — apps/demo/src/app/app.routes.ts"}}
-  n687{{"demo:state-machine-text — apps/demo/src/app/app.routes.ts"}}
-  n688{{"demo:view-transitions — apps/demo/src/app/app.routes.ts"}}
-  n689{{"lazyLayout:users/:userId"}}
-  n690{{"viewTransitions:"}}
-  n691(["restrictedData"])
-  n692(["Counter — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"])
-  n693(["User"])
-  n694(["UsersApi"])
-  n695(["Counter — apps/demo/src/app/examples/craft-service/register-for.ts"])
-  n696(["TodoStore"])
-  n697(["ApiService — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"])
-  n698(["GranularMutation"])
-  n699(["test2"])
-  n700(["UsersApiOnError"])
-  n701(["OtherService"])
-  n702(["ApiService — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"])
-  n703(["UserList"])
-  n704(["ApiService — apps/demo/src/app/examples/craft/mutation/api.service.ts"])
-  n705(["UserMutation"])
-  n706(["ApiService — apps/demo/src/app/examples/craft/query/api.service.ts"])
-  n707(["UserQuery"])
-  n708(["ApiService — apps/demo/src/app/examples/playground/playground.ts"])
-  n709(["Playground"])
-  n710(["ApiService — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"])
-  n711(["ApiService — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"])
-  n712(["ApiService — apps/demo/src/app/examples/primitives/mutation/api.service.ts"])
-  n713(["ApiService — apps/demo/src/app/examples/primitives/query/api.service.ts"])
-  n714(["ProfilePermissions"])
-  n715(["ApiService — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"])
-  n716(["SlowAccess"])
-  n717(["SlowReport"])
-  n718(["ViewTransitionAccess"])
-  n719(["FunctionRegistryBridgeUrl"])
-  n720(["FunctionRegistryClientId"])
-  n721(["Auth"])
-  n722(["LogServerUrl"])
-  n723(["AppStartLog"])
-  n724(["BrowserCryptoService"])
-  n725(["BrowserDocumentService"])
-  n726(["BrowserHistoryService"])
-  n727(["BrowserLocationService"])
-  n728(["BrowserNavigatorService"])
-  n729(["BrowserPerformanceService"])
-  n730(["BrowserWindowService"])
-  n731(["ConsoleService"])
-  n732(["CookiesService"])
-  n733(["LocalStorageService"])
-  n734(["SessionStorageService"])
-  n735(["api"])
-  n736(["HostName"])
-  n737(["GlobalPersisterHandlerService"])
-  n738(["ServerFunctionTransport"])
-  n739(["LocalStoragePersister"])
-  n740(["SessionStoragePersister"])
-  n741(["StoragePersister"])
-  n742["finish$ (source$)"]
-  n743["reopen$ (source$)"]
-  n744["start$ (source$)"]
-  n745["cancel$ (source$)"]
-  n746["edit$ (source$)"]
-  n747["restore$ (source$)"]
-  n748["saveRequest$ (source$)"]
-  n749["text.cancel (source$)"]
-  n750["text.change (source$)"]
-  n751["text.commit (source$)"]
-  n752["text.edit (source$)"]
-  n753["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
-  n754["source$ (source$) — libs/core/src/lib/insert-select.ts"]
-  n755["signalSource (signalSource)"]
-  n756["docs"]
-  n757["feedback"]
-  n758["navToggle"]
-  n759["navPanel"]
-  n760["navLink"]
-  n761["clearCache"]
-  n762["accessToggle"]
-  n763["loadDeferred"]
-  n764["removeUser"]
-  n765["addUser"]
-  n766["toggleToolbar"]
-  n767["openDialog"]
-  n768["action"]
-  n769["link"]
-  n770["cardLink"]
-  n771["reload — apps/demo/src/app/examples/component/pending-block-demo.ts"]
-  n772["issueSuccess"]
-  n773["issueRejected"]
-  n774["decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n775["reset — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n776["increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n777["user"]
-  n778["incrementAll"]
-  n779["decrementAll"]
-  n780["addChild"]
-  n781["removeChild"]
-  n782["decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n783["increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n784["TodoNameToAddInput — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
-  n785["AddTodoButton — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
-  n786["RemoveTodoButton — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
-  n787["UpdateUserName — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n788["PageSize — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n789["PreviousPage — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n790["NextPage — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n791["PageSize — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n792["PreviousPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n793["NextPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n794["NameInput — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n795["UpdateUserNameButton — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n796["PreviousUser — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n797["NextUser — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n798["GoToNextUser — apps/demo/src/app/examples/craft/query/query.ts"]
-  n799["GoToPreviousUser — apps/demo/src/app/examples/craft/query/query.ts"]
-  n800["increment — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
-  n801["decrement — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
-  n802["title"]
-  n803["add"]
-  n804["toggle"]
-  n805["delete"]
-  n806["search"]
-  n807["book"]
-  n808["success — apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts"]
-  n809["exception"]
-  n810["success — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
-  n811["notFound"]
-  n812["consentMissing"]
-  n813["forbidden"]
-  n814["password"]
-  n815["submit"]
-  n816["login"]
-  n817["email"]
-  n818["AddTodoButton — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n819["RemoveTodoButton — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n820["TodoNameToAddInput — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n821["UpdateUserName — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n822["PageSize — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n823["PreviousPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n824["NextPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n825["PageSize — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n826["PreviousPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n827["NextPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n828["NameInput — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n829["UpdateUserNameButton — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n830["PreviousUser — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n831["NextUser — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n832["color — apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"]
-  n833["reset — apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"]
-  n834["cell — apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"]
-  n835["addCell"]
-  n836["addRow"]
-  n837["cell — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
-  n838["color — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
-  n839["clear"]
-  n840["GoToNextUser — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n841["GoToPreviousUser — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n842["task-note"]
-  n843["task-start"]
-  n844["task-finish"]
-  n845["task-reopen"]
-  n846["task-back"]
-  n847["task-forward"]
-  n848["edit"]
-  n849["profile-name"]
-  n850["profile-email"]
-  n851["save"]
-  n852["cancel"]
-  n853["history-back"]
-  n854["history-forward"]
-  n855["toggle-read-only"]
-  n856["text-edit"]
-  n857["text-input"]
-  n858["text-commit"]
-  n859["text-cancel"]
-  n860["pageSize"]
-  n861["previousPage"]
-  n862["nextPage"]
-  n863["photo"]
-  n864["back"]
-  n865["retry"]
-  n866["reload — apps/demo/src/app/my-route-load-error-screen.ts"]
-  n867["aiContextMenu"]
-  n868["aiSendToIa"]
-  n869["aiDialogClose"]
-  n870["aiDialogInstruction"]
-  n871["aiDialogCancel"]
-  n872["aiDialogCopy"]
-  n873["{\"key\":\"pixel-art-cells-state\",\"storeName\":\"pixel-art-cells\"}"]
-  n874["{\"key\":\"route-list-with-pagination\",\"storeName\":\"demo-app\"}"]
-  n875["{\"key\":\"pixel-art-ui-state\",\"storeName\":\"pixel-art-ui\"}"]
-  n876["{\"key\":\"list-with-pagination\",\"storeName\":\"demo-app-craft\"}"]
-  n877["{\"key\":\"user-query\",\"storeName\":\"demo-app-craft\"}"]
-  n878["{\"key\":\"list-with-pagination\",\"storeName\":\"demo-app\"}"]
-  n879["{\"key\":\"mutation\",\"storeName\":\"demo-app\"}"]
-  n880["{\"key\":\"user-query\",\"storeName\":\"demo-app\"}"]
-  n881["{\"key\":\"granular\",\"storeName\":\"demo-app-craft\"}"]
-  n882["{\"key\":\"granular\",\"storeName\":\"demo-app\"}"]
-  n883["{\"key\":\"mutation\",\"storeName\":\"demo-app-craft\"}"]
+  n206["craftComputed:startDisabled"]
+  n207["craftComputed:finishDisabled"]
+  n208["craftComputed:reopenDisabled"]
+  n209["craftComputed:historyLabel — apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts"]
+  n210["craftComputed:backDisabled — apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts"]
+  n211["craftComputed:forwardDisabled — apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts"]
+  n212["craftStateMachine:taskRow"]
+  n213["state:note"]
+  n214["craftComputed:profileSource"]
+  n215["craftComputed:isValid"]
+  n216["craftComputed:craftComputed — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
+  n217["craftComputed:stepState"]
+  n218["craftComputed:profileLabel"]
+  n219["craftComputed:draftName"]
+  n220["craftComputed:draftEmail"]
+  n221["craftComputed:stepHint"]
+  n222["craftComputed:submitBlocked"]
+  n223["craftComputed:historyLabel — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
+  n224["craftComputed:backDisabled — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
+  n225["craftComputed:forwardDisabled — apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"]
+  n226["craftStateMachine:profileEditor"]
+  n227["mutation:saveProfile"]
+  n228["query:profileQuery"]
+  n229["state:draft"]
+  n230["state:readOnly"]
+  n231["craftComputed:value"]
+  n232["craftComputed:committedValue"]
+  n233["craftComputed:readingClass"]
+  n234["craftComputed:editingClass"]
+  n235["craftStateMachine:textEditor"]
+  n236["state:text"]
+  n237["state:dataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n238["state:updateError — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n239["craftMethod:updatePageSize — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n240["query:usersQuery — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n241["queryParams:pagination — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n242["query:slowAccess"]
+  n243["query:slowReport"]
+  n244["craftMethod:open"]
+  n245["craftComputed:currentPhoto"]
+  n246["craftComputed:hasPhoto"]
+  n247["craftMethod:back"]
+  n248["craftComputed:hasImage"]
+  n249["craftComputed:imageSrc"]
+  n250["query:viewTransitionAccess"]
+  n251["query:auth"]
+  n252["craftComputed:disabled"]
+  n253["craftComputed:message"]
+  n254["craftMethod:setInstruction"]
+  n255["craftMethod:setCopied"]
+  n256["state:instruction"]
+  n257["state:copied"]
+  n258["state:navOpen.toggle"]
+  n259["state:canReadRestrictedData.toggle"]
+  n260["state:lastHandledException.showNoAccessText"]
+  n261["query:users.call"]
+  n262["mutation:issue.mutate"]
+  n263["state:counter.decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n264["state:counter.increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n265["state:counter.reset"]
+  n266["query:user.hasValue — apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts"]
+  n267["query:user.userIds"]
+  n268["query:user.userIds.map"]
+  n269["query:user.value — apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts"]
+  n270["state:userId.selectUser"]
+  n271["state:counter.decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n272["state:counter.increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n273["state:counterChildIds.addChild"]
+  n274["state:counterChildIds.removeChild"]
+  n275["mutation:add.isLoading"]
+  n276["mutation:add.mutate"]
+  n277["mutation:remove.isLoading"]
+  n278["mutation:remove.mutate"]
+  n279["query:todos.status — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
+  n280["query:users.currentPageStatus"]
+  n281["query:users.total"]
+  n282["queryParams:pagination.nextPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n283["queryParams:pagination.previousPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n284["mutation:updateUserName.isLoading — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n285["mutation:updateUserName.status — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n286["query:user.hasValue — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n287["query:user.status"]
+  n288["query:user.value — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n289["state:counter.decrement — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
+  n290["state:counter.increment — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
+  n291["mutation:addTodo.isLoading — apps/demo/src/app/examples/playground/playground.ts"]
+  n292["mutation:addTodo.mutate — apps/demo/src/app/examples/playground/playground.ts"]
+  n293["mutation:toggleTodo.mutate"]
+  n294["mutation:deleteTodo.mutate"]
+  n295["query:todos.value"]
+  n296["state:titleInput.setTitle"]
+  n297["asyncProcess:debouncedSearch.isLoading"]
+  n298["asyncProcess:debouncedSearch.status"]
+  n299["query:openLibrarySearch.isLoading"]
+  n300["query:openLibrarySearch.status"]
+  n301["query:openLibrarySearch.value"]
+  n302["queryParams:modeQueryParams.exceptions"]
+  n303["query:userQuery.call"]
+  n304["query:userQuery.hasValue — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
+  n305["query:userQuery.status — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
+  n306["query:userQuery.value — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
+  n307["mutation:submitted.hasValue"]
+  n308["state:loginForm.form"]
+  n309["state:loginForm.form.selectEmail"]
+  n310["state:loginForm.form.selectPassword"]
+  n311["state:loginForm.form.submit"]
+  n312["mutation:addTodo.isLoading — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n313["mutation:addTodo.mutate — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n314["mutation:removeTodo.isLoading"]
+  n315["mutation:removeTodo.mutate"]
+  n316["query:todos.status — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n317["mutation:updateUserName.mutate — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n318["mutation:updateUserName.select"]
+  n319["mutation:updateUserName.selectOrCreate"]
+  n320["query:usersQuery.currentPageStatus — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n321["queryParams:pagination.nextPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n322["queryParams:pagination.previousPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n323["queryParams:pagination.updatePageSize — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n324["query:usersQuery.currentPageStatus — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n325["queryParams:pagination.nextPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n326["queryParams:pagination.previousPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n327["queryParams:pagination.updatePageSize — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n328["mutation:updateUserName.isLoading — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n329["mutation:updateUserName.mutate — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n330["mutation:updateUserName.status — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n331["query:userQuery.hasValue — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n332["query:userQuery.status — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n333["query:userQuery.value — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n334["state:activeColor.setColor"]
+  n335["state:grid.addCell"]
+  n336["state:grid.addRow"]
+  n337["state:grid.paint"]
+  n338["state:grid.paintColumn"]
+  n339["state:grid.paintRow"]
+  n340["state:grid.reset"]
+  n341["state:ui.setActiveColor"]
+  n342["state:cells.clearAll"]
+  n343["state:cells.selectCell"]
+  n344["query:userQuery.hasValue — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n345["query:userQuery.status — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n346["query:userQuery.value — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n347["craftStateMachine:taskRow.back"]
+  n348["craftStateMachine:taskRow.finish"]
+  n349["craftStateMachine:taskRow.forward"]
+  n350["craftStateMachine:taskRow.reopen"]
+  n351["craftStateMachine:taskRow.setNote"]
+  n352["craftStateMachine:taskRow.start"]
+  n353["craftStateMachine:profileEditor.back"]
+  n354["craftStateMachine:profileEditor.editingClass"]
+  n355["craftStateMachine:profileEditor.forward"]
+  n356["craftStateMachine:profileEditor.readingClass"]
+  n357["craftStateMachine:profileEditor.requestCancel"]
+  n358["craftStateMachine:profileEditor.requestEdit"]
+  n359["craftStateMachine:profileEditor.requestSubmit"]
+  n360["craftStateMachine:profileEditor.savingClass"]
+  n361["craftStateMachine:profileEditor.setEmail"]
+  n362["craftStateMachine:profileEditor.setName"]
+  n363["query:profileQuery.value"]
+  n364["state:readOnly.toggle"]
+  n365["craftStateMachine:textEditor.cancel"]
+  n366["craftStateMachine:textEditor.change"]
+  n367["craftStateMachine:textEditor.commit"]
+  n368["craftStateMachine:textEditor.edit"]
+  n369["query:usersQuery.currentPageStatus — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n370["queryParams:pagination.nextPage — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n371["queryParams:pagination.pageSize"]
+  n372["queryParams:pagination.previousPage — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n373["queryParams:pagination.updatePageSize — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n374["UsersApiOnError.users.query"]
+  n375["UsersApiOnError.users.query.status"]
+  n376["Counter.decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n377["Counter.increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n378["Counter.reset"]
+  n379["User.hasException"]
+  n380["User.hasValue"]
+  n381["User.userIds"]
+  n382["User.userIds.map"]
+  n383["User.value"]
+  n384["Counter.decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n385["Counter.increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n386["TodoStore.add"]
+  n387["TodoStore.add.isLoading"]
+  n388["TodoStore.add.mutate"]
+  n389["TodoStore.remove"]
+  n390["TodoStore.remove.isLoading"]
+  n391["TodoStore.remove.mutate"]
+  n392["TodoStore.todos"]
+  n393["TodoStore.todos.status"]
+  n394["TodoStore.todos.value"]
+  n395["ApiService.getDataList — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n396["ApiService.updateItem — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n397["test2.test"]
+  n398["UsersApiOnError.query"]
+  n399["UsersApiOnError.query.status"]
+  n400["UsersApiOnError.users"]
+  n401["OtherService.getValue"]
+  n402["ApiService.getDataList — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
+  n403["UserList.pagination"]
+  n404["UserList.pagination.nextPage"]
+  n405["UserList.pagination.previousPage"]
+  n406["UserList.users"]
+  n407["UserList.users.currentPageData"]
+  n408["UserList.users.currentPageStatus"]
+  n409["UserList.users.total"]
+  n410["ApiService.getItemById — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n411["ApiService.updateItem — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n412["UserMutation.updateUserName"]
+  n413["UserMutation.updateUserName.isLoading"]
+  n414["UserMutation.updateUserName.status"]
+  n415["UserMutation.user"]
+  n416["UserMutation.user.hasValue"]
+  n417["UserMutation.user.status"]
+  n418["UserMutation.user.value"]
+  n419["ApiService.getItemById — apps/demo/src/app/examples/craft/query/api.service.ts"]
+  n420["UserQuery.hasValue"]
+  n421["UserQuery.status"]
+  n422["UserQuery.value"]
+  n423["Playground.addTodo"]
+  n424["Playground.addTodo.isLoading"]
+  n425["Playground.addTodo.mutate"]
+  n426["Playground.deleteTodo"]
+  n427["Playground.deleteTodo.mutate"]
+  n428["Playground.todos"]
+  n429["Playground.todos.value"]
+  n430["Playground.toggleTodo"]
+  n431["Playground.toggleTodo.mutate"]
+  n432["ApiService.getDataList — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n433["ApiService.updateItem — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n434["ApiService.getDataList — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
+  n435["ApiService.getItemById — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n436["ApiService.updateItem — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n437["ApiService.getItemById — apps/demo/src/app/examples/primitives/query/api.service.ts"]
+  n438["ProfilePermissions.readOnly"]
+  n439["ProfilePermissions.readOnly.toggle"]
+  n440["ApiService.getDataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n441[["CanRun _CanRunGlobalError"]]
+  n442[["CanRun _CanRunGlobalRouteLoadError"]]
+  n443[["RouteExceptionComponentCheckedDI _CheckGlobalErrorDI"]]
+  n444[["RouteExceptionComponentCheckedDI _CheckGlobalRouteLoadErrorDI"]]
+  n445[["CanRun _CanRunComponentComposition — apps/demo/src/app/app.routes.runtime.ts"]]
+  n446[["RouteCheckedDI _CanRunComponentComposition:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n447[["CanRun _CanRunComponentDemo — apps/demo/src/app/app.routes.runtime.ts"]]
+  n448[["RouteCheckedDI _CanRunComponentDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n449[["CanRun _CanRunContentProjection — apps/demo/src/app/app.routes.runtime.ts"]]
+  n450[["RouteCheckedDI _CanRunContentProjection:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n451[["CanRun _CanRunCraftFullDemo — apps/demo/src/app/app.routes.runtime.ts"]]
+  n452[["RouteCheckedDI _CanRunCraftFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n453[["CanRun _CanRunCraftGranularMutation — apps/demo/src/app/app.routes.runtime.ts"]]
+  n454[["RouteCheckedDI _CanRunCraftGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n455[["CanRun _CanRunCraftListWithPagination — apps/demo/src/app/app.routes.runtime.ts"]]
+  n456[["RouteCheckedDI _CanRunCraftListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n457[["CanRun _CanRunCraftMutation — apps/demo/src/app/app.routes.runtime.ts"]]
+  n458[["RouteCheckedDI _CanRunCraftMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n459[["CanRun _CanRunCraftQuery — apps/demo/src/app/app.routes.runtime.ts"]]
+  n460[["RouteCheckedDI _CanRunCraftQuery:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n461[["CanRun _CanRunCraftServiceCounter — apps/demo/src/app/app.routes.runtime.ts"]]
+  n462[["RouteCheckedDI _CanRunCraftServiceCounter:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n463[["CanRun _CanRunCraftServiceRegisterFor — apps/demo/src/app/app.routes.runtime.ts"]]
+  n464[["RouteCheckedDI _CanRunCraftServiceRegisterFor:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n465[["CanRun _CanRunCraftServiceUserDetail — apps/demo/src/app/app.routes.runtime.ts"]]
+  n466[["RouteCheckedDI _CanRunCraftServiceUserDetail:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n467[["CanRun _CanRunCssVars — apps/demo/src/app/app.routes.runtime.ts"]]
+  n468[["RouteCheckedDI _CanRunCssVars:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n469[["CanRun _CanRunCssVarsForwarding — apps/demo/src/app/app.routes.runtime.ts"]]
+  n470[["RouteCheckedDI _CanRunCssVarsForwarding:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n471[["CanRun _CanRunCssVarsInheritance — apps/demo/src/app/app.routes.runtime.ts"]]
+  n472[["RouteCheckedDI _CanRunCssVarsInheritance:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n473[["CanRun _CanRunCssVarsProperty — apps/demo/src/app/app.routes.runtime.ts"]]
+  n474[["RouteCheckedDI _CanRunCssVarsProperty:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n475[["CanRun _CanRunCssVarsRequired — apps/demo/src/app/app.routes.runtime.ts"]]
+  n476[["RouteCheckedDI _CanRunCssVarsRequired:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n477[["CanRun _CanRunDebouncedWebSearch — apps/demo/src/app/app.routes.runtime.ts"]]
+  n478[["RouteCheckedDI _CanRunDebouncedWebSearch:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n479[["CanRun _CanRunDemoSendContext — apps/demo/src/app/app.routes.runtime.ts"]]
+  n480[["RouteCheckedDI _CanRunDemoSendContext:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n481[["CanRun _CanRunExceptionQueryParams — apps/demo/src/app/app.routes.runtime.ts"]]
+  n482[["RouteCheckedDI _CanRunExceptionQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n483[["CanRun _CanRunExceptions — apps/demo/src/app/app.routes.runtime.ts"]]
+  n484[["RouteCheckedDI _CanRunExceptions:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n485[["CanRun _CanRunFullDemo — apps/demo/src/app/app.routes.runtime.ts"]]
+  n486[["RouteCheckedDI _CanRunFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n487[["CanRun _CanRunGranularMutation — apps/demo/src/app/app.routes.runtime.ts"]]
+  n488[["RouteCheckedDI _CanRunGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n489[["CanRun _CanRunGuardDemo — apps/demo/src/app/app.routes.runtime.ts"]]
+  n490[["RouteCheckedDI _CanRunGuardDemo:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n491[["CanRun _CanRunLazyLayout — apps/demo/src/app/app.routes.runtime.ts"]]
+  n492[["RouteCheckedDI _CanRunLazyLayout:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n493[["CanRun _CanRunLazyLayoutMount — apps/demo/src/app/app.routes.runtime.ts"]]
+  n494[["CanRun _CanRunListWithPagination — apps/demo/src/app/app.routes.runtime.ts"]]
+  n495[["RouteCheckedDI _CanRunListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n496[["CanRun _CanRunLoginForm — apps/demo/src/app/app.routes.runtime.ts"]]
+  n497[["RouteCheckedDI _CanRunLoginForm:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n498[["CanRun _CanRunMutation — apps/demo/src/app/app.routes.runtime.ts"]]
+  n499[["RouteCheckedDI _CanRunMutation:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n500[["CanRun _CanRunPendingBlock — apps/demo/src/app/app.routes.runtime.ts"]]
+  n501[["RouteCheckedDI _CanRunPendingBlock:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n502[["CanRun _CanRunPendingBlockException — apps/demo/src/app/app.routes.runtime.ts"]]
+  n503[["RouteCheckedDI _CanRunPendingBlockException:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n504[["CanRun _CanRunPixelArt — apps/demo/src/app/app.routes.runtime.ts"]]
+  n505[["RouteCheckedDI _CanRunPixelArt:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n506[["CanRun _CanRunPixelArtMatrix — apps/demo/src/app/app.routes.runtime.ts"]]
+  n507[["RouteCheckedDI _CanRunPixelArtMatrix:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n508[["CanRun _CanRunPlayground — apps/demo/src/app/app.routes.runtime.ts"]]
+  n509[["RouteCheckedDI _CanRunPlayground:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n510[["CanRun _CanRunQuery — apps/demo/src/app/app.routes.runtime.ts"]]
+  n511[["RouteCheckedDI _CanRunQuery:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n512[["CanRun _CanRunQueryParams — apps/demo/src/app/app.routes.runtime.ts"]]
+  n513[["RouteCheckedDI _CanRunQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n514[["CanRun _CanRunStateMachine — apps/demo/src/app/app.routes.runtime.ts"]]
+  n515[["RouteCheckedDI _CanRunStateMachine:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n516[["CanRun _CanRunStateMachineList — apps/demo/src/app/app.routes.runtime.ts"]]
+  n517[["RouteCheckedDI _CanRunStateMachineList:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n518[["CanRun _CanRunStateMachineText — apps/demo/src/app/app.routes.runtime.ts"]]
+  n519[["RouteCheckedDI _CanRunStateMachineText:RouteCheckedDI — apps/demo/src/app/app.routes.runtime.ts"]]
+  n520[["CanRun _CanRunViewTransitionsMount — apps/demo/src/app/app.routes.runtime.ts"]]
+  n521[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoRoutes — apps/demo/src/app/app.routes.runtime.ts"]]
+  n522[["CanRun _CanRunComponentComposition — apps/demo/src/app/app.routes.ts"]]
+  n523[["RouteCheckedDI _CanRunComponentComposition:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n524[["CanRun _CanRunComponentDemo — apps/demo/src/app/app.routes.ts"]]
+  n525[["RouteCheckedDI _CanRunComponentDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n526[["CanRun _CanRunContentProjection — apps/demo/src/app/app.routes.ts"]]
+  n527[["RouteCheckedDI _CanRunContentProjection:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n528[["CanRun _CanRunCraftFullDemo — apps/demo/src/app/app.routes.ts"]]
+  n529[["RouteCheckedDI _CanRunCraftFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n530[["CanRun _CanRunCraftGranularMutation — apps/demo/src/app/app.routes.ts"]]
+  n531[["RouteCheckedDI _CanRunCraftGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n532[["CanRun _CanRunCraftListWithPagination — apps/demo/src/app/app.routes.ts"]]
+  n533[["RouteCheckedDI _CanRunCraftListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n534[["CanRun _CanRunCraftMutation — apps/demo/src/app/app.routes.ts"]]
+  n535[["RouteCheckedDI _CanRunCraftMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n536[["CanRun _CanRunCraftQuery — apps/demo/src/app/app.routes.ts"]]
+  n537[["RouteCheckedDI _CanRunCraftQuery:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n538[["CanRun _CanRunCraftServiceCounter — apps/demo/src/app/app.routes.ts"]]
+  n539[["RouteCheckedDI _CanRunCraftServiceCounter:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n540[["CanRun _CanRunCraftServiceRegisterFor — apps/demo/src/app/app.routes.ts"]]
+  n541[["RouteCheckedDI _CanRunCraftServiceRegisterFor:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n542[["CanRun _CanRunCraftServiceUserDetail — apps/demo/src/app/app.routes.ts"]]
+  n543[["RouteCheckedDI _CanRunCraftServiceUserDetail:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n544[["CanRun _CanRunCssVars — apps/demo/src/app/app.routes.ts"]]
+  n545[["RouteCheckedDI _CanRunCssVars:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n546[["CanRun _CanRunCssVarsForwarding — apps/demo/src/app/app.routes.ts"]]
+  n547[["RouteCheckedDI _CanRunCssVarsForwarding:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n548[["CanRun _CanRunCssVarsInheritance — apps/demo/src/app/app.routes.ts"]]
+  n549[["RouteCheckedDI _CanRunCssVarsInheritance:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n550[["CanRun _CanRunCssVarsProperty — apps/demo/src/app/app.routes.ts"]]
+  n551[["RouteCheckedDI _CanRunCssVarsProperty:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n552[["CanRun _CanRunCssVarsRequired — apps/demo/src/app/app.routes.ts"]]
+  n553[["RouteCheckedDI _CanRunCssVarsRequired:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n554[["CanRun _CanRunDebouncedWebSearch — apps/demo/src/app/app.routes.ts"]]
+  n555[["RouteCheckedDI _CanRunDebouncedWebSearch:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n556[["CanRun _CanRunDemoSendContext — apps/demo/src/app/app.routes.ts"]]
+  n557[["RouteCheckedDI _CanRunDemoSendContext:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n558[["CanRun _CanRunExceptionQueryParams — apps/demo/src/app/app.routes.ts"]]
+  n559[["RouteCheckedDI _CanRunExceptionQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n560[["CanRun _CanRunExceptions — apps/demo/src/app/app.routes.ts"]]
+  n561[["RouteCheckedDI _CanRunExceptions:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n562[["CanRun _CanRunFullDemo — apps/demo/src/app/app.routes.ts"]]
+  n563[["RouteCheckedDI _CanRunFullDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n564[["CanRun _CanRunGranularMutation — apps/demo/src/app/app.routes.ts"]]
+  n565[["RouteCheckedDI _CanRunGranularMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n566[["CanRun _CanRunGuardDemo — apps/demo/src/app/app.routes.ts"]]
+  n567[["RouteCheckedDI _CanRunGuardDemo:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n568[["CanRun _CanRunLazyLayout — apps/demo/src/app/app.routes.ts"]]
+  n569[["RouteCheckedDI _CanRunLazyLayout:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n570[["CanRun _CanRunLazyLayoutMount — apps/demo/src/app/app.routes.ts"]]
+  n571[["CanRun _CanRunListWithPagination — apps/demo/src/app/app.routes.ts"]]
+  n572[["RouteCheckedDI _CanRunListWithPagination:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n573[["CanRun _CanRunLoginForm — apps/demo/src/app/app.routes.ts"]]
+  n574[["RouteCheckedDI _CanRunLoginForm:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n575[["CanRun _CanRunMutation — apps/demo/src/app/app.routes.ts"]]
+  n576[["RouteCheckedDI _CanRunMutation:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n577[["CanRun _CanRunPendingBlock — apps/demo/src/app/app.routes.ts"]]
+  n578[["RouteCheckedDI _CanRunPendingBlock:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n579[["CanRun _CanRunPendingBlockException — apps/demo/src/app/app.routes.ts"]]
+  n580[["RouteCheckedDI _CanRunPendingBlockException:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n581[["CanRun _CanRunPixelArt — apps/demo/src/app/app.routes.ts"]]
+  n582[["RouteCheckedDI _CanRunPixelArt:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n583[["CanRun _CanRunPixelArtMatrix — apps/demo/src/app/app.routes.ts"]]
+  n584[["RouteCheckedDI _CanRunPixelArtMatrix:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n585[["CanRun _CanRunPlayground — apps/demo/src/app/app.routes.ts"]]
+  n586[["RouteCheckedDI _CanRunPlayground:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n587[["CanRun _CanRunQuery — apps/demo/src/app/app.routes.ts"]]
+  n588[["RouteCheckedDI _CanRunQuery:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n589[["CanRun _CanRunQueryParams — apps/demo/src/app/app.routes.ts"]]
+  n590[["RouteCheckedDI _CanRunQueryParams:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n591[["CanRun _CanRunStateMachine — apps/demo/src/app/app.routes.ts"]]
+  n592[["RouteCheckedDI _CanRunStateMachine:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n593[["CanRun _CanRunStateMachineList — apps/demo/src/app/app.routes.ts"]]
+  n594[["RouteCheckedDI _CanRunStateMachineList:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n595[["CanRun _CanRunStateMachineText — apps/demo/src/app/app.routes.ts"]]
+  n596[["RouteCheckedDI _CanRunStateMachineText:RouteCheckedDI — apps/demo/src/app/app.routes.ts"]]
+  n597[["CanRun _CanRunViewTransitionsMount — apps/demo/src/app/app.routes.ts"]]
+  n598[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoRoutes — apps/demo/src/app/app.routes.ts"]]
+  n599[["CanRun _CanRunLazyLayout — apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.routes.ts"]]
+  n600[["RouteCheckedDI _CheckLazyLayoutDI"]]
+  n601[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:lazyLayoutRoutes"]]
+  n602[["CanRun _CanRunViewTransitionsDetail"]]
+  n603[["CanRun _CanRunViewTransitionsGallery"]]
+  n604[["CanRun _CanRunViewTransitionsPending"]]
+  n605[["RouteCheckedDI _CheckViewTransitionsDetailDI"]]
+  n606[["RouteCheckedDI _CheckViewTransitionsGalleryDI"]]
+  n607[["RouteCheckedDI _CheckViewTransitionsPendingDI"]]
+  n608[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:viewTransitionsRoutes"]]
+  n609["demo:guard-demo.canActivate — apps/demo/src/app/app.routes.runtime.ts"]
+  n610["demo:query-params.queryParams — apps/demo/src/app/app.routes.runtime.ts"]
+  n611["demo:guard-demo.canActivate — apps/demo/src/app/app.routes.ts"]
+  n612["demo:query-params.queryParams — apps/demo/src/app/app.routes.ts"]
+  n613{{"demo: — apps/demo/src/app/app.routes.runtime.ts"}}
+  n614{{"demo:component-composition — apps/demo/src/app/app.routes.runtime.ts"}}
+  n615{{"demo:content-projection — apps/demo/src/app/app.routes.runtime.ts"}}
+  n616{{"demo:craft-service/counter — apps/demo/src/app/app.routes.runtime.ts"}}
+  n617{{"demo:craft-service/register-for — apps/demo/src/app/app.routes.runtime.ts"}}
+  n618{{"demo:craft-service/user-detail — apps/demo/src/app/app.routes.runtime.ts"}}
+  n619{{"demo:craft/full-demo — apps/demo/src/app/app.routes.runtime.ts"}}
+  n620{{"demo:craft/granular-mutation — apps/demo/src/app/app.routes.runtime.ts"}}
+  n621{{"demo:craft/lazy-layout/:teamId — apps/demo/src/app/app.routes.runtime.ts"}}
+  n622{{"demo:craft/list-with-pagination — apps/demo/src/app/app.routes.runtime.ts"}}
+  n623{{"demo:craft/mutation/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
+  n624{{"demo:craft/query/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
+  n625{{"demo:css-vars — apps/demo/src/app/app.routes.runtime.ts"}}
+  n626{{"demo:css-vars/forwarding — apps/demo/src/app/app.routes.runtime.ts"}}
+  n627{{"demo:css-vars/inheritance — apps/demo/src/app/app.routes.runtime.ts"}}
+  n628{{"demo:css-vars/property — apps/demo/src/app/app.routes.runtime.ts"}}
+  n629{{"demo:css-vars/required — apps/demo/src/app/app.routes.runtime.ts"}}
+  n630{{"demo:debounced-web-search — apps/demo/src/app/app.routes.runtime.ts"}}
+  n631{{"demo:demo-send-context — apps/demo/src/app/app.routes.runtime.ts"}}
+  n632{{"demo:exception-query-params — apps/demo/src/app/app.routes.runtime.ts"}}
+  n633{{"demo:exceptions — apps/demo/src/app/app.routes.runtime.ts"}}
+  n634{{"demo:full-demo — apps/demo/src/app/app.routes.runtime.ts"}}
+  n635{{"demo:granular-mutation — apps/demo/src/app/app.routes.runtime.ts"}}
+  n636{{"demo:guard-demo — apps/demo/src/app/app.routes.runtime.ts"}}
+  n637{{"demo:list-with-pagination — apps/demo/src/app/app.routes.runtime.ts"}}
+  n638{{"demo:login-form — apps/demo/src/app/app.routes.runtime.ts"}}
+  n639{{"demo:mutation/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
+  n640{{"demo:pending-block — apps/demo/src/app/app.routes.runtime.ts"}}
+  n641{{"demo:pending-block/exception — apps/demo/src/app/app.routes.runtime.ts"}}
+  n642{{"demo:pixel-art — apps/demo/src/app/app.routes.runtime.ts"}}
+  n643{{"demo:pixel-art-matrix — apps/demo/src/app/app.routes.runtime.ts"}}
+  n644{{"demo:playground — apps/demo/src/app/app.routes.runtime.ts"}}
+  n645{{"demo:query-params — apps/demo/src/app/app.routes.runtime.ts"}}
+  n646{{"demo:query/:userId — apps/demo/src/app/app.routes.runtime.ts"}}
+  n647{{"demo:slow-page — apps/demo/src/app/app.routes.runtime.ts"}}
+  n648{{"demo:state-machine — apps/demo/src/app/app.routes.runtime.ts"}}
+  n649{{"demo:state-machine-list — apps/demo/src/app/app.routes.runtime.ts"}}
+  n650{{"demo:state-machine-text — apps/demo/src/app/app.routes.runtime.ts"}}
+  n651{{"demo:view-transitions — apps/demo/src/app/app.routes.runtime.ts"}}
+  n652{{"demo: — apps/demo/src/app/app.routes.ts"}}
+  n653{{"demo:component-composition — apps/demo/src/app/app.routes.ts"}}
+  n654{{"demo:content-projection — apps/demo/src/app/app.routes.ts"}}
+  n655{{"demo:craft-service/counter — apps/demo/src/app/app.routes.ts"}}
+  n656{{"demo:craft-service/register-for — apps/demo/src/app/app.routes.ts"}}
+  n657{{"demo:craft-service/user-detail — apps/demo/src/app/app.routes.ts"}}
+  n658{{"demo:craft/full-demo — apps/demo/src/app/app.routes.ts"}}
+  n659{{"demo:craft/granular-mutation — apps/demo/src/app/app.routes.ts"}}
+  n660{{"demo:craft/lazy-layout/:teamId — apps/demo/src/app/app.routes.ts"}}
+  n661{{"demo:craft/list-with-pagination — apps/demo/src/app/app.routes.ts"}}
+  n662{{"demo:craft/mutation/:userId — apps/demo/src/app/app.routes.ts"}}
+  n663{{"demo:craft/query/:userId — apps/demo/src/app/app.routes.ts"}}
+  n664{{"demo:css-vars — apps/demo/src/app/app.routes.ts"}}
+  n665{{"demo:css-vars/forwarding — apps/demo/src/app/app.routes.ts"}}
+  n666{{"demo:css-vars/inheritance — apps/demo/src/app/app.routes.ts"}}
+  n667{{"demo:css-vars/property — apps/demo/src/app/app.routes.ts"}}
+  n668{{"demo:css-vars/required — apps/demo/src/app/app.routes.ts"}}
+  n669{{"demo:debounced-web-search — apps/demo/src/app/app.routes.ts"}}
+  n670{{"demo:demo-send-context — apps/demo/src/app/app.routes.ts"}}
+  n671{{"demo:exception-query-params — apps/demo/src/app/app.routes.ts"}}
+  n672{{"demo:exceptions — apps/demo/src/app/app.routes.ts"}}
+  n673{{"demo:full-demo — apps/demo/src/app/app.routes.ts"}}
+  n674{{"demo:granular-mutation — apps/demo/src/app/app.routes.ts"}}
+  n675{{"demo:guard-demo — apps/demo/src/app/app.routes.ts"}}
+  n676{{"demo:list-with-pagination — apps/demo/src/app/app.routes.ts"}}
+  n677{{"demo:login-form — apps/demo/src/app/app.routes.ts"}}
+  n678{{"demo:mutation/:userId — apps/demo/src/app/app.routes.ts"}}
+  n679{{"demo:pending-block — apps/demo/src/app/app.routes.ts"}}
+  n680{{"demo:pending-block/exception — apps/demo/src/app/app.routes.ts"}}
+  n681{{"demo:pixel-art — apps/demo/src/app/app.routes.ts"}}
+  n682{{"demo:pixel-art-matrix — apps/demo/src/app/app.routes.ts"}}
+  n683{{"demo:playground — apps/demo/src/app/app.routes.ts"}}
+  n684{{"demo:query-params — apps/demo/src/app/app.routes.ts"}}
+  n685{{"demo:query/:userId — apps/demo/src/app/app.routes.ts"}}
+  n686{{"demo:slow-page — apps/demo/src/app/app.routes.ts"}}
+  n687{{"demo:state-machine — apps/demo/src/app/app.routes.ts"}}
+  n688{{"demo:state-machine-list — apps/demo/src/app/app.routes.ts"}}
+  n689{{"demo:state-machine-text — apps/demo/src/app/app.routes.ts"}}
+  n690{{"demo:view-transitions — apps/demo/src/app/app.routes.ts"}}
+  n691{{"lazyLayout:users/:userId"}}
+  n692{{"viewTransitions:"}}
+  n693(["restrictedData"])
+  n694(["Counter — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"])
+  n695(["User"])
+  n696(["UsersApi"])
+  n697(["Counter — apps/demo/src/app/examples/craft-service/register-for.ts"])
+  n698(["TodoStore"])
+  n699(["ApiService — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"])
+  n700(["GranularMutation"])
+  n701(["test2"])
+  n702(["UsersApiOnError"])
+  n703(["OtherService"])
+  n704(["ApiService — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"])
+  n705(["UserList"])
+  n706(["ApiService — apps/demo/src/app/examples/craft/mutation/api.service.ts"])
+  n707(["UserMutation"])
+  n708(["ApiService — apps/demo/src/app/examples/craft/query/api.service.ts"])
+  n709(["UserQuery"])
+  n710(["ApiService — apps/demo/src/app/examples/playground/playground.ts"])
+  n711(["Playground"])
+  n712(["ApiService — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"])
+  n713(["ApiService — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"])
+  n714(["ApiService — apps/demo/src/app/examples/primitives/mutation/api.service.ts"])
+  n715(["ApiService — apps/demo/src/app/examples/primitives/query/api.service.ts"])
+  n716(["ProfilePermissions"])
+  n717(["ApiService — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"])
+  n718(["SlowAccess"])
+  n719(["SlowReport"])
+  n720(["ViewTransitionAccess"])
+  n721(["FunctionRegistryBridgeUrl"])
+  n722(["FunctionRegistryClientId"])
+  n723(["Auth"])
+  n724(["LogServerUrl"])
+  n725(["AppStartLog"])
+  n726(["BrowserCryptoService"])
+  n727(["BrowserDocumentService"])
+  n728(["BrowserHistoryService"])
+  n729(["BrowserLocationService"])
+  n730(["BrowserNavigatorService"])
+  n731(["BrowserPerformanceService"])
+  n732(["BrowserWindowService"])
+  n733(["ConsoleService"])
+  n734(["CookiesService"])
+  n735(["LocalStorageService"])
+  n736(["SessionStorageService"])
+  n737(["api"])
+  n738(["HostName"])
+  n739(["GlobalPersisterHandlerService"])
+  n740(["ServerFunctionTransport"])
+  n741(["LocalStoragePersister"])
+  n742(["SessionStoragePersister"])
+  n743(["StoragePersister"])
+  n744["finish$ (source$)"]
+  n745["reopen$ (source$)"]
+  n746["start$ (source$)"]
+  n747["cancel$ (source$)"]
+  n748["edit$ (source$)"]
+  n749["restore$ (source$)"]
+  n750["saveRequest$ (source$)"]
+  n751["text.cancel (source$)"]
+  n752["text.change (source$)"]
+  n753["text.commit (source$)"]
+  n754["text.edit (source$)"]
+  n755["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
+  n756["source$ (source$) — libs/core/src/lib/insert-select.ts"]
+  n757["signalSource (signalSource)"]
+  n758["docs"]
+  n759["feedback"]
+  n760["navToggle"]
+  n761["navPanel"]
+  n762["navLink"]
+  n763["clearCache"]
+  n764["accessToggle"]
+  n765["loadDeferred"]
+  n766["removeUser"]
+  n767["addUser"]
+  n768["toggleToolbar"]
+  n769["openDialog"]
+  n770["action"]
+  n771["link"]
+  n772["cardLink"]
+  n773["reload — apps/demo/src/app/examples/component/pending-block-demo.ts"]
+  n774["issueSuccess"]
+  n775["issueRejected"]
+  n776["decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n777["reset — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n778["increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n779["user"]
+  n780["incrementAll"]
+  n781["decrementAll"]
+  n782["addChild"]
+  n783["removeChild"]
+  n784["decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n785["increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n786["TodoNameToAddInput — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
+  n787["AddTodoButton — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
+  n788["RemoveTodoButton — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
+  n789["UpdateUserName — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n790["PageSize — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n791["PreviousPage — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n792["NextPage — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n793["PageSize — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n794["PreviousPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n795["NextPage — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n796["NameInput — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n797["UpdateUserNameButton — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n798["PreviousUser — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n799["NextUser — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n800["GoToNextUser — apps/demo/src/app/examples/craft/query/query.ts"]
+  n801["GoToPreviousUser — apps/demo/src/app/examples/craft/query/query.ts"]
+  n802["increment — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
+  n803["decrement — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
+  n804["title"]
+  n805["add"]
+  n806["toggle"]
+  n807["delete"]
+  n808["search"]
+  n809["book"]
+  n810["success — apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts"]
+  n811["exception"]
+  n812["success — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
+  n813["notFound"]
+  n814["consentMissing"]
+  n815["forbidden"]
+  n816["password"]
+  n817["submit"]
+  n818["login"]
+  n819["email"]
+  n820["AddTodoButton — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n821["RemoveTodoButton — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n822["TodoNameToAddInput — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n823["UpdateUserName — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n824["PageSize — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n825["PreviousPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n826["NextPage — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n827["PageSize — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n828["PreviousPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n829["NextPage — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n830["NameInput — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n831["UpdateUserNameButton — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n832["PreviousUser — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n833["NextUser — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n834["color — apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"]
+  n835["reset — apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"]
+  n836["cell — apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"]
+  n837["addCell"]
+  n838["addRow"]
+  n839["cell — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
+  n840["color — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
+  n841["clear"]
+  n842["GoToNextUser — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n843["GoToPreviousUser — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n844["task-note"]
+  n845["task-start"]
+  n846["task-finish"]
+  n847["task-reopen"]
+  n848["task-back"]
+  n849["task-forward"]
+  n850["edit"]
+  n851["profile-name"]
+  n852["profile-email"]
+  n853["save"]
+  n854["cancel"]
+  n855["history-back"]
+  n856["history-forward"]
+  n857["toggle-read-only"]
+  n858["text-edit"]
+  n859["text-input"]
+  n860["text-commit"]
+  n861["text-cancel"]
+  n862["pageSize"]
+  n863["previousPage"]
+  n864["nextPage"]
+  n865["photo"]
+  n866["back"]
+  n867["retry"]
+  n868["reload — apps/demo/src/app/my-route-load-error-screen.ts"]
+  n869["aiContextMenu"]
+  n870["aiSendToIa"]
+  n871["aiDialogClose"]
+  n872["aiDialogInstruction"]
+  n873["aiDialogCancel"]
+  n874["aiDialogCopy"]
+  n875["{\"key\":\"pixel-art-cells-state\",\"storeName\":\"pixel-art-cells\"}"]
+  n876["{\"key\":\"route-list-with-pagination\",\"storeName\":\"demo-app\"}"]
+  n877["{\"key\":\"pixel-art-ui-state\",\"storeName\":\"pixel-art-ui\"}"]
+  n878["{\"key\":\"list-with-pagination\",\"storeName\":\"demo-app-craft\"}"]
+  n879["{\"key\":\"user-query\",\"storeName\":\"demo-app-craft\"}"]
+  n880["{\"key\":\"list-with-pagination\",\"storeName\":\"demo-app\"}"]
+  n881["{\"key\":\"mutation\",\"storeName\":\"demo-app\"}"]
+  n882["{\"key\":\"user-query\",\"storeName\":\"demo-app\"}"]
+  n883["{\"key\":\"granular\",\"storeName\":\"demo-app-craft\"}"]
+  n884["{\"key\":\"granular\",\"storeName\":\"demo-app\"}"]
+  n885["{\"key\":\"mutation\",\"storeName\":\"demo-app-craft\"}"]
   n1 -->|calls| n71
   n1 -->|calls| n72
   n1 -->|contains| n71
   n1 -->|contains| n72
   n1 -->|contains| n73
-  n1 -->|contains| n756
-  n1 -->|contains| n757
   n1 -->|contains| n758
   n1 -->|contains| n759
   n1 -->|contains| n760
   n1 -->|contains| n761
+  n1 -->|contains| n762
+  n1 -->|contains| n763
   n1 -->|renders| n68
   n1 -->|uses-property| n73
   n2 -->|contains| n75
   n2 -->|contains| n76
-  n2 -->|contains| n762
-  n2 -->|depends-on| n691
+  n2 -->|contains| n764
+  n2 -->|depends-on| n693
   n2 -->|uses-property| n74
-  n2 -->|uses-property| n257
-  n2 -->|uses-property| n258
-  n3 -->|depends-on| n691
-  n3 -->|uses-property| n691
+  n2 -->|uses-property| n259
+  n2 -->|uses-property| n260
+  n3 -->|depends-on| n693
+  n3 -->|uses-property| n693
   n4 -->|contains| n78
-  n4 -->|contains| n763
   n4 -->|contains| n765
+  n4 -->|contains| n767
   n4 -->|renders| n5
-  n5 -->|contains| n764
+  n5 -->|contains| n766
   n7 -->|contains| n80
   n7 -->|contains| n81
   n7 -->|contains| n82
-  n7 -->|contains| n766
-  n7 -->|contains| n767
+  n7 -->|contains| n768
+  n7 -->|contains| n769
   n7 -->|renders| n6
   n7 -->|renders| n8
   n7 -->|renders| n9
   n7 -->|renders| n10
-  n10 -->|contains| n768
-  n12 -->|contains| n769
-  n13 -->|contains| n770
+  n10 -->|contains| n770
+  n12 -->|contains| n771
+  n13 -->|contains| n772
   n13 -->|renders| n12
   n14 -->|renders| n12
   n14 -->|renders| n15
@@ -933,85 +935,83 @@ graph TD
   n19 -->|renders| n20
   n21 -->|renders| n12
   n21 -->|renders| n22
-  n24 -->|calls| n259
+  n24 -->|calls| n261
   n24 -->|contains| n83
   n24 -->|contains| n84
   n24 -->|contains| n85
-  n24 -->|contains| n771
+  n24 -->|contains| n773
   n24 -->|uses-property| n85
-  n25 -->|calls| n260
+  n25 -->|calls| n262
   n25 -->|contains| n86
   n25 -->|contains| n87
-  n25 -->|contains| n772
-  n25 -->|contains| n773
+  n25 -->|contains| n774
+  n25 -->|contains| n775
   n25 -->|uses-property| n87
-  n26 -->|calls| n261
-  n26 -->|calls| n262
   n26 -->|calls| n263
-  n26 -->|contains| n774
-  n26 -->|contains| n775
+  n26 -->|calls| n264
+  n26 -->|calls| n265
   n26 -->|contains| n776
-  n26 -->|depends-on| n692
-  n26 -->|provides| n692
-  n26 -->|uses-property| n374
-  n26 -->|uses-property| n375
+  n26 -->|contains| n777
+  n26 -->|contains| n778
+  n26 -->|depends-on| n694
+  n26 -->|provides| n694
   n26 -->|uses-property| n376
-  n27 -->|calls| n266
+  n26 -->|uses-property| n377
+  n26 -->|uses-property| n378
   n27 -->|calls| n268
+  n27 -->|calls| n270
   n27 -->|contains| n89
   n27 -->|contains| n91
-  n27 -->|contains| n777
-  n27 -->|depends-on| n380
-  n27 -->|depends-on| n381
-  n27 -->|depends-on| n693
-  n27 -->|provides| n693
+  n27 -->|contains| n779
+  n27 -->|depends-on| n382
+  n27 -->|depends-on| n383
+  n27 -->|depends-on| n695
+  n27 -->|provides| n695
   n27 -->|uses-property| n91
-  n27 -->|uses-property| n265
   n27 -->|uses-property| n267
-  n27 -->|uses-property| n377
-  n27 -->|uses-property| n378
+  n27 -->|uses-property| n269
   n27 -->|uses-property| n379
+  n27 -->|uses-property| n380
   n27 -->|uses-property| n381
-  n28 -->|calls| n269
-  n28 -->|calls| n270
-  n28 -->|contains| n782
-  n28 -->|contains| n783
-  n28 -->|depends-on| n695
-  n28 -->|provides| n695
-  n28 -->|uses-property| n382
-  n28 -->|uses-property| n383
+  n27 -->|uses-property| n383
+  n28 -->|calls| n271
+  n28 -->|calls| n272
+  n28 -->|contains| n784
+  n28 -->|contains| n785
+  n28 -->|depends-on| n697
+  n28 -->|provides| n697
+  n28 -->|uses-property| n384
+  n28 -->|uses-property| n385
   n29 -->|contains| n92
   n29 -->|contains| n93
   n29 -->|contains| n95
-  n29 -->|contains| n778
-  n29 -->|contains| n779
   n29 -->|contains| n780
   n29 -->|contains| n781
+  n29 -->|contains| n782
+  n29 -->|contains| n783
   n29 -->|renders| n28
   n29 -->|uses-property| n92
   n29 -->|uses-property| n93
-  n29 -->|uses-property| n271
-  n29 -->|uses-property| n272
-  n30 -->|calls| n274
+  n29 -->|uses-property| n273
+  n29 -->|uses-property| n274
   n30 -->|calls| n276
+  n30 -->|calls| n278
   n30 -->|contains| n99
-  n30 -->|contains| n784
-  n30 -->|contains| n785
   n30 -->|contains| n786
-  n30 -->|depends-on| n386
-  n30 -->|depends-on| n389
-  n30 -->|depends-on| n696
-  n30 -->|provides| n696
+  n30 -->|contains| n787
+  n30 -->|contains| n788
+  n30 -->|depends-on| n388
+  n30 -->|depends-on| n391
+  n30 -->|depends-on| n698
+  n30 -->|provides| n698
   n30 -->|renders| n64
   n30 -->|uses-property| n96
   n30 -->|uses-property| n97
   n30 -->|uses-property| n98
   n30 -->|uses-property| n99
-  n30 -->|uses-property| n273
   n30 -->|uses-property| n275
   n30 -->|uses-property| n277
-  n30 -->|uses-property| n384
-  n30 -->|uses-property| n385
+  n30 -->|uses-property| n279
   n30 -->|uses-property| n386
   n30 -->|uses-property| n387
   n30 -->|uses-property| n388
@@ -1019,120 +1019,120 @@ graph TD
   n30 -->|uses-property| n390
   n30 -->|uses-property| n391
   n30 -->|uses-property| n392
+  n30 -->|uses-property| n393
+  n30 -->|uses-property| n394
   n31 -->|calls| n104
   n31 -->|contains| n104
-  n31 -->|contains| n787
-  n31 -->|contains| n788
   n31 -->|contains| n789
   n31 -->|contains| n790
-  n31 -->|depends-on| n698
-  n31 -->|provides| n698
+  n31 -->|contains| n791
+  n31 -->|contains| n792
+  n31 -->|depends-on| n700
+  n31 -->|provides| n700
   n31 -->|renders| n64
   n32 -->|renders| n34
   n33 -->|renders| n68
-  n34 -->|depends-on| n397
   n34 -->|depends-on| n399
-  n34 -->|depends-on| n699
-  n34 -->|depends-on| n700
+  n34 -->|depends-on| n401
   n34 -->|depends-on| n701
-  n34 -->|provides| n701
-  n34 -->|uses-property| n372
-  n34 -->|uses-property| n373
-  n34 -->|uses-property| n396
-  n34 -->|uses-property| n397
+  n34 -->|depends-on| n702
+  n34 -->|depends-on| n703
+  n34 -->|provides| n703
+  n34 -->|uses-property| n374
+  n34 -->|uses-property| n375
+  n34 -->|uses-property| n398
   n34 -->|uses-property| n399
+  n34 -->|uses-property| n401
   n35 -->|calls| n113
   n35 -->|contains| n112
   n35 -->|contains| n113
-  n35 -->|contains| n791
-  n35 -->|contains| n792
   n35 -->|contains| n793
-  n35 -->|depends-on| n401
-  n35 -->|depends-on| n407
-  n35 -->|depends-on| n703
-  n35 -->|provides| n703
+  n35 -->|contains| n794
+  n35 -->|contains| n795
+  n35 -->|depends-on| n403
+  n35 -->|depends-on| n409
+  n35 -->|depends-on| n705
+  n35 -->|provides| n705
   n35 -->|renders| n64
   n35 -->|uses-property| n114
   n35 -->|uses-property| n115
-  n35 -->|uses-property| n278
-  n35 -->|uses-property| n279
   n35 -->|uses-property| n280
   n35 -->|uses-property| n281
-  n35 -->|uses-property| n401
-  n35 -->|uses-property| n402
+  n35 -->|uses-property| n282
+  n35 -->|uses-property| n283
   n35 -->|uses-property| n403
   n35 -->|uses-property| n404
   n35 -->|uses-property| n405
   n35 -->|uses-property| n406
   n35 -->|uses-property| n407
-  n35 -->|uses-property| n703
+  n35 -->|uses-property| n408
+  n35 -->|uses-property| n409
+  n35 -->|uses-property| n705
   n36 -->|calls| n119
   n36 -->|calls| n120
   n36 -->|contains| n118
   n36 -->|contains| n119
   n36 -->|contains| n120
   n36 -->|contains| n123
-  n36 -->|contains| n794
-  n36 -->|contains| n795
   n36 -->|contains| n796
   n36 -->|contains| n797
-  n36 -->|depends-on| n416
-  n36 -->|depends-on| n705
-  n36 -->|provides| n705
+  n36 -->|contains| n798
+  n36 -->|contains| n799
+  n36 -->|depends-on| n418
+  n36 -->|depends-on| n707
+  n36 -->|provides| n707
   n36 -->|renders| n64
   n36 -->|uses-property| n121
   n36 -->|uses-property| n122
   n36 -->|uses-property| n123
-  n36 -->|uses-property| n282
-  n36 -->|uses-property| n283
+  n36 -->|uses-property| n284
   n36 -->|uses-property| n285
-  n36 -->|uses-property| n286
-  n36 -->|uses-property| n410
-  n36 -->|uses-property| n411
+  n36 -->|uses-property| n287
+  n36 -->|uses-property| n288
   n36 -->|uses-property| n412
   n36 -->|uses-property| n413
   n36 -->|uses-property| n414
   n36 -->|uses-property| n415
   n36 -->|uses-property| n416
+  n36 -->|uses-property| n417
+  n36 -->|uses-property| n418
   n37 -->|calls| n127
   n37 -->|contains| n126
   n37 -->|contains| n127
-  n37 -->|contains| n798
-  n37 -->|contains| n799
-  n37 -->|depends-on| n420
-  n37 -->|depends-on| n707
+  n37 -->|contains| n800
+  n37 -->|contains| n801
+  n37 -->|depends-on| n422
+  n37 -->|depends-on| n709
   n37 -->|renders| n64
-  n37 -->|uses-property| n418
-  n37 -->|uses-property| n419
   n37 -->|uses-property| n420
-  n38 -->|calls| n287
-  n38 -->|calls| n288
+  n37 -->|uses-property| n421
+  n37 -->|uses-property| n422
+  n38 -->|calls| n289
+  n38 -->|calls| n290
   n38 -->|contains| n129
-  n38 -->|contains| n800
-  n38 -->|contains| n801
+  n38 -->|contains| n802
+  n38 -->|contains| n803
   n38 -->|uses-property| n129
   n39 -->|renders| n38
   n40 -->|calls| n132
-  n40 -->|calls| n291
-  n40 -->|calls| n292
+  n40 -->|calls| n293
+  n40 -->|calls| n294
   n40 -->|contains| n130
   n40 -->|contains| n131
   n40 -->|contains| n132
   n40 -->|contains| n137
-  n40 -->|contains| n802
-  n40 -->|contains| n803
   n40 -->|contains| n804
   n40 -->|contains| n805
-  n40 -->|depends-on| n425
-  n40 -->|depends-on| n429
-  n40 -->|depends-on| n709
+  n40 -->|contains| n806
+  n40 -->|contains| n807
+  n40 -->|depends-on| n427
+  n40 -->|depends-on| n431
+  n40 -->|depends-on| n711
   n40 -->|uses-property| n133
   n40 -->|uses-property| n134
   n40 -->|uses-property| n135
   n40 -->|uses-property| n137
-  n40 -->|uses-property| n289
-  n40 -->|uses-property| n421
-  n40 -->|uses-property| n422
+  n40 -->|uses-property| n291
   n40 -->|uses-property| n423
   n40 -->|uses-property| n424
   n40 -->|uses-property| n425
@@ -1140,90 +1140,92 @@ graph TD
   n40 -->|uses-property| n427
   n40 -->|uses-property| n428
   n40 -->|uses-property| n429
+  n40 -->|uses-property| n430
+  n40 -->|uses-property| n431
   n41 -->|contains| n139
   n41 -->|contains| n149
   n41 -->|contains| n150
   n41 -->|contains| n151
-  n41 -->|contains| n806
-  n41 -->|contains| n807
+  n41 -->|contains| n808
+  n41 -->|contains| n809
   n41 -->|renders| n64
   n41 -->|uses-property| n144
   n41 -->|uses-property| n151
-  n41 -->|uses-property| n296
   n41 -->|uses-property| n298
+  n41 -->|uses-property| n300
   n42 -->|calls| n153
   n42 -->|contains| n153
   n42 -->|contains| n154
-  n42 -->|contains| n808
-  n42 -->|contains| n809
+  n42 -->|contains| n810
+  n42 -->|contains| n811
   n42 -->|uses-property| n154
-  n42 -->|uses-property| n300
-  n43 -->|calls| n301
+  n42 -->|uses-property| n302
+  n43 -->|calls| n303
   n43 -->|contains| n158
-  n43 -->|contains| n810
-  n43 -->|contains| n811
   n43 -->|contains| n812
   n43 -->|contains| n813
+  n43 -->|contains| n814
+  n43 -->|contains| n815
   n43 -->|uses-property| n156
-  n43 -->|uses-property| n303
-  n43 -->|uses-property| n304
+  n43 -->|uses-property| n305
+  n43 -->|uses-property| n306
   n44 -->|contains| n160
   n44 -->|contains| n161
-  n44 -->|contains| n814
-  n44 -->|contains| n815
   n44 -->|contains| n816
   n44 -->|contains| n817
-  n44 -->|uses-property| n306
-  n44 -->|uses-property| n307
+  n44 -->|contains| n818
+  n44 -->|contains| n819
   n44 -->|uses-property| n308
   n44 -->|uses-property| n309
-  n45 -->|calls| n311
+  n44 -->|uses-property| n310
+  n44 -->|uses-property| n311
   n45 -->|calls| n313
+  n45 -->|calls| n315
   n45 -->|contains| n162
   n45 -->|contains| n163
   n45 -->|contains| n164
   n45 -->|contains| n165
   n45 -->|contains| n166
   n45 -->|contains| n167
-  n45 -->|contains| n818
-  n45 -->|contains| n819
   n45 -->|contains| n820
+  n45 -->|contains| n821
+  n45 -->|contains| n822
   n45 -->|renders| n64
   n45 -->|uses-property| n167
-  n45 -->|uses-property| n310
   n45 -->|uses-property| n312
   n45 -->|uses-property| n314
+  n45 -->|uses-property| n316
   n46 -->|calls| n170
-  n46 -->|calls| n315
-  n46 -->|calls| n316
   n46 -->|calls| n317
+  n46 -->|calls| n318
+  n46 -->|calls| n319
   n46 -->|contains| n170
   n46 -->|contains| n171
   n46 -->|contains| n172
   n46 -->|contains| n173
-  n46 -->|contains| n821
-  n46 -->|contains| n822
   n46 -->|contains| n823
   n46 -->|contains| n824
-  n46 -->|depends-on| n710
+  n46 -->|contains| n825
+  n46 -->|contains| n826
+  n46 -->|depends-on| n712
   n46 -->|renders| n64
   n46 -->|uses-property| n173
-  n46 -->|uses-property| n318
-  n46 -->|uses-property| n319
   n46 -->|uses-property| n320
+  n46 -->|uses-property| n321
+  n46 -->|uses-property| n322
   n47 -->|calls| n177
   n47 -->|contains| n177
   n47 -->|contains| n178
   n47 -->|contains| n179
-  n47 -->|contains| n825
-  n47 -->|contains| n826
   n47 -->|contains| n827
-  n47 -->|depends-on| n711
+  n47 -->|contains| n828
+  n47 -->|contains| n829
+  n47 -->|depends-on| n713
   n47 -->|renders| n64
   n47 -->|uses-property| n179
-  n47 -->|uses-property| n322
-  n47 -->|uses-property| n323
   n47 -->|uses-property| n324
+  n47 -->|uses-property| n325
+  n47 -->|uses-property| n326
   n48 -->|calls| n183
   n48 -->|calls| n184
   n48 -->|contains| n183
@@ -1231,278 +1233,278 @@ graph TD
   n48 -->|contains| n185
   n48 -->|contains| n186
   n48 -->|contains| n187
-  n48 -->|contains| n828
-  n48 -->|contains| n829
   n48 -->|contains| n830
   n48 -->|contains| n831
-  n48 -->|depends-on| n712
+  n48 -->|contains| n832
+  n48 -->|contains| n833
+  n48 -->|depends-on| n714
   n48 -->|renders| n64
   n48 -->|uses-property| n187
-  n48 -->|uses-property| n326
   n48 -->|uses-property| n328
   n48 -->|uses-property| n330
-  n48 -->|uses-property| n331
-  n49 -->|calls| n332
-  n49 -->|calls| n333
+  n48 -->|uses-property| n332
+  n48 -->|uses-property| n333
+  n49 -->|calls| n334
   n49 -->|calls| n335
-  n49 -->|calls| n336
   n49 -->|calls| n337
   n49 -->|calls| n338
+  n49 -->|calls| n339
+  n49 -->|calls| n340
   n49 -->|contains| n188
   n49 -->|contains| n189
-  n49 -->|contains| n832
-  n49 -->|contains| n833
   n49 -->|contains| n834
   n49 -->|contains| n835
   n49 -->|contains| n836
-  n49 -->|uses-property| n334
+  n49 -->|contains| n837
+  n49 -->|contains| n838
+  n49 -->|uses-property| n336
   n50 -->|calls| n192
-  n50 -->|calls| n339
   n50 -->|calls| n341
+  n50 -->|calls| n343
   n50 -->|contains| n192
   n50 -->|contains| n194
   n50 -->|contains| n195
-  n50 -->|contains| n837
-  n50 -->|contains| n838
   n50 -->|contains| n839
+  n50 -->|contains| n840
+  n50 -->|contains| n841
   n50 -->|uses-property| n190
   n50 -->|uses-property| n191
-  n50 -->|uses-property| n340
+  n50 -->|uses-property| n342
   n51 -->|calls| n199
   n51 -->|calls| n200
   n51 -->|contains| n199
   n51 -->|contains| n200
   n51 -->|contains| n201
-  n51 -->|contains| n840
-  n51 -->|contains| n841
-  n51 -->|depends-on| n713
+  n51 -->|contains| n842
+  n51 -->|contains| n843
+  n51 -->|depends-on| n715
   n51 -->|renders| n64
-  n51 -->|uses-property| n343
-  n51 -->|uses-property| n344
+  n51 -->|uses-property| n345
+  n51 -->|uses-property| n346
   n52 -->|renders| n53
-  n53 -->|calls| n349
-  n53 -->|contains| n209
-  n53 -->|contains| n842
-  n53 -->|contains| n843
+  n53 -->|calls| n351
+  n53 -->|contains| n212
   n53 -->|contains| n844
   n53 -->|contains| n845
   n53 -->|contains| n846
   n53 -->|contains| n847
-  n53 -->|uses-property| n203
-  n53 -->|uses-property| n204
+  n53 -->|contains| n848
+  n53 -->|contains| n849
+  n53 -->|uses-property| n206
   n53 -->|uses-property| n207
   n53 -->|uses-property| n208
   n53 -->|uses-property| n210
-  n53 -->|uses-property| n345
-  n53 -->|uses-property| n346
+  n53 -->|uses-property| n211
+  n53 -->|uses-property| n213
   n53 -->|uses-property| n347
   n53 -->|uses-property| n348
+  n53 -->|uses-property| n349
   n53 -->|uses-property| n350
-  n54 -->|calls| n359
-  n54 -->|calls| n360
-  n54 -->|contains| n223
-  n54 -->|contains| n848
-  n54 -->|contains| n849
+  n53 -->|uses-property| n352
+  n54 -->|calls| n361
+  n54 -->|calls| n362
+  n54 -->|contains| n226
   n54 -->|contains| n850
   n54 -->|contains| n851
   n54 -->|contains| n852
   n54 -->|contains| n853
   n54 -->|contains| n854
   n54 -->|contains| n855
-  n54 -->|depends-on| n437
-  n54 -->|depends-on| n714
-  n54 -->|uses-property| n214
-  n54 -->|uses-property| n215
-  n54 -->|uses-property| n216
+  n54 -->|contains| n856
+  n54 -->|contains| n857
+  n54 -->|depends-on| n439
+  n54 -->|depends-on| n716
   n54 -->|uses-property| n217
-  n54 -->|uses-property| n221
-  n54 -->|uses-property| n222
-  n54 -->|uses-property| n227
-  n54 -->|uses-property| n351
-  n54 -->|uses-property| n352
+  n54 -->|uses-property| n218
+  n54 -->|uses-property| n219
+  n54 -->|uses-property| n220
+  n54 -->|uses-property| n224
+  n54 -->|uses-property| n225
+  n54 -->|uses-property| n230
   n54 -->|uses-property| n353
   n54 -->|uses-property| n354
   n54 -->|uses-property| n355
   n54 -->|uses-property| n356
   n54 -->|uses-property| n357
   n54 -->|uses-property| n358
-  n54 -->|uses-property| n362
-  n54 -->|uses-property| n436
-  n54 -->|uses-property| n437
-  n54 -->|uses-property| n714
-  n55 -->|calls| n364
-  n55 -->|contains| n233
-  n55 -->|contains| n856
-  n55 -->|contains| n857
+  n54 -->|uses-property| n359
+  n54 -->|uses-property| n360
+  n54 -->|uses-property| n364
+  n54 -->|uses-property| n438
+  n54 -->|uses-property| n439
+  n54 -->|uses-property| n716
+  n55 -->|calls| n366
+  n55 -->|contains| n235
   n55 -->|contains| n858
   n55 -->|contains| n859
-  n55 -->|uses-property| n228
-  n55 -->|uses-property| n229
-  n55 -->|uses-property| n230
+  n55 -->|contains| n860
+  n55 -->|contains| n861
   n55 -->|uses-property| n231
   n55 -->|uses-property| n232
-  n55 -->|uses-property| n363
+  n55 -->|uses-property| n233
+  n55 -->|uses-property| n234
   n55 -->|uses-property| n365
-  n55 -->|uses-property| n366
-  n57 -->|calls| n237
-  n57 -->|contains| n237
-  n57 -->|contains| n238
+  n55 -->|uses-property| n367
+  n55 -->|uses-property| n368
+  n57 -->|calls| n239
   n57 -->|contains| n239
-  n57 -->|contains| n860
-  n57 -->|contains| n861
+  n57 -->|contains| n240
+  n57 -->|contains| n241
   n57 -->|contains| n862
-  n57 -->|depends-on| n715
+  n57 -->|contains| n863
+  n57 -->|contains| n864
+  n57 -->|depends-on| n717
   n57 -->|renders| n64
-  n57 -->|uses-property| n367
-  n57 -->|uses-property| n368
   n57 -->|uses-property| n369
   n57 -->|uses-property| n370
-  n57 -->|uses-property| n438
-  n59 -->|calls| n242
-  n59 -->|contains| n242
-  n59 -->|contains| n863
-  n60 -->|calls| n245
-  n60 -->|contains| n243
-  n60 -->|contains| n244
+  n57 -->|uses-property| n371
+  n57 -->|uses-property| n372
+  n57 -->|uses-property| n440
+  n59 -->|calls| n244
+  n59 -->|contains| n244
+  n59 -->|contains| n865
+  n60 -->|calls| n247
   n60 -->|contains| n245
-  n60 -->|contains| n864
-  n60 -->|uses-property| n243
-  n61 -->|contains| n246
-  n61 -->|contains| n247
-  n61 -->|uses-property| n247
-  n62 -->|contains| n250
-  n63 -->|contains| n251
-  n63 -->|contains| n865
-  n63 -->|contains| n866
-  n65 -->|contains| n867
-  n65 -->|contains| n868
-  n66 -->|contains| n252
-  n66 -->|contains| n253
+  n60 -->|contains| n246
+  n60 -->|contains| n247
+  n60 -->|contains| n866
+  n60 -->|uses-property| n245
+  n61 -->|contains| n248
+  n61 -->|contains| n249
+  n61 -->|uses-property| n249
+  n62 -->|contains| n252
+  n63 -->|contains| n253
+  n63 -->|contains| n867
+  n63 -->|contains| n868
+  n65 -->|contains| n869
+  n65 -->|contains| n870
   n66 -->|contains| n254
   n66 -->|contains| n255
-  n66 -->|contains| n869
-  n66 -->|contains| n870
+  n66 -->|contains| n256
+  n66 -->|contains| n257
   n66 -->|contains| n871
   n66 -->|contains| n872
-  n71 -->|depends-on| n256
-  n73 -->|contains| n256
+  n66 -->|contains| n873
+  n66 -->|contains| n874
+  n71 -->|depends-on| n258
+  n73 -->|contains| n258
   n74 -->|depends-on| n75
   n75 -->|contains| n74
-  n75 -->|contains| n257
-  n76 -->|contains| n258
+  n75 -->|contains| n259
+  n76 -->|contains| n260
   n77 -->|depends-on| n78
   n78 -->|contains| n77
   n79 -->|depends-on| n82
   n82 -->|contains| n79
   n83 -->|depends-on| n85
   n84 -->|depends-on| n85
-  n85 -->|contains| n259
+  n85 -->|contains| n261
   n86 -->|depends-on| n87
-  n87 -->|contains| n260
-  n88 -->|contains| n261
-  n88 -->|contains| n262
+  n87 -->|contains| n262
   n88 -->|contains| n263
-  n89 -->|depends-on| n264
-  n89 -->|depends-on| n378
-  n89 -->|depends-on| n693
-  n90 -->|contains| n264
-  n90 -->|contains| n265
+  n88 -->|contains| n264
+  n88 -->|contains| n265
+  n89 -->|depends-on| n266
+  n89 -->|depends-on| n380
+  n89 -->|depends-on| n695
   n90 -->|contains| n266
   n90 -->|contains| n267
-  n91 -->|contains| n268
-  n94 -->|contains| n269
-  n94 -->|contains| n270
-  n95 -->|contains| n271
-  n95 -->|contains| n272
-  n96 -->|contains| n273
-  n96 -->|contains| n274
+  n90 -->|contains| n268
+  n90 -->|contains| n269
+  n91 -->|contains| n270
+  n94 -->|contains| n271
+  n94 -->|contains| n272
+  n95 -->|contains| n273
+  n95 -->|contains| n274
+  n96 -->|contains| n275
+  n96 -->|contains| n276
   n96 -->|triggers| n98
-  n97 -->|contains| n275
-  n97 -->|contains| n276
+  n97 -->|contains| n277
+  n97 -->|contains| n278
   n97 -->|triggers| n98
-  n98 -->|contains| n277
-  n104 -->|depends-on| n698
-  n105 -->|depends-on| n394
-  n105 -->|depends-on| n697
+  n98 -->|contains| n279
+  n104 -->|depends-on| n700
+  n105 -->|depends-on| n396
+  n105 -->|depends-on| n699
   n105 -->|triggers| n106
-  n106 -->|calls| n881
-  n106 -->|depends-on| n393
-  n106 -->|depends-on| n697
+  n106 -->|calls| n883
+  n106 -->|depends-on| n395
+  n106 -->|depends-on| n699
   n111 -->|depends-on| n114
   n112 -->|depends-on| n114
-  n112 -->|depends-on| n278
-  n112 -->|depends-on| n406
-  n112 -->|depends-on| n703
-  n113 -->|depends-on| n703
-  n114 -->|calls| n876
+  n112 -->|depends-on| n280
+  n112 -->|depends-on| n408
+  n112 -->|depends-on| n705
+  n113 -->|depends-on| n705
+  n114 -->|calls| n878
   n114 -->|contains| n111
-  n114 -->|contains| n278
-  n114 -->|contains| n279
-  n114 -->|depends-on| n400
-  n114 -->|depends-on| n702
-  n115 -->|contains| n280
-  n115 -->|contains| n281
+  n114 -->|contains| n280
+  n114 -->|contains| n281
+  n114 -->|depends-on| n402
+  n114 -->|depends-on| n704
+  n115 -->|contains| n282
+  n115 -->|contains| n283
   n118 -->|depends-on| n122
-  n118 -->|depends-on| n284
-  n118 -->|depends-on| n414
-  n118 -->|depends-on| n705
-  n120 -->|depends-on| n705
-  n121 -->|contains| n282
-  n121 -->|contains| n283
-  n121 -->|depends-on| n409
-  n121 -->|depends-on| n704
+  n118 -->|depends-on| n286
+  n118 -->|depends-on| n416
+  n118 -->|depends-on| n707
+  n120 -->|depends-on| n707
+  n121 -->|contains| n284
+  n121 -->|contains| n285
+  n121 -->|depends-on| n411
+  n121 -->|depends-on| n706
   n121 -->|triggers| n122
-  n122 -->|calls| n883
-  n122 -->|contains| n284
-  n122 -->|contains| n285
+  n122 -->|calls| n885
   n122 -->|contains| n286
-  n122 -->|depends-on| n408
-  n122 -->|depends-on| n704
-  n126 -->|depends-on| n418
-  n126 -->|depends-on| n707
-  n128 -->|calls| n877
-  n128 -->|depends-on| n417
-  n128 -->|depends-on| n706
-  n129 -->|contains| n287
-  n129 -->|contains| n288
+  n122 -->|contains| n287
+  n122 -->|contains| n288
+  n122 -->|depends-on| n410
+  n122 -->|depends-on| n706
+  n126 -->|depends-on| n420
+  n126 -->|depends-on| n709
+  n128 -->|calls| n879
+  n128 -->|depends-on| n419
+  n128 -->|depends-on| n708
+  n129 -->|contains| n289
+  n129 -->|contains| n290
   n130 -->|depends-on| n133
-  n130 -->|depends-on| n289
-  n130 -->|depends-on| n422
-  n130 -->|depends-on| n709
+  n130 -->|depends-on| n291
+  n130 -->|depends-on| n424
+  n130 -->|depends-on| n711
   n131 -->|depends-on| n136
-  n131 -->|depends-on| n293
-  n131 -->|depends-on| n427
-  n131 -->|depends-on| n709
-  n132 -->|calls| n290
-  n132 -->|calls| n294
+  n131 -->|depends-on| n295
+  n131 -->|depends-on| n429
+  n131 -->|depends-on| n711
+  n132 -->|calls| n292
+  n132 -->|calls| n296
   n132 -->|depends-on| n133
   n132 -->|depends-on| n137
-  n132 -->|depends-on| n423
-  n132 -->|depends-on| n709
-  n133 -->|contains| n289
-  n133 -->|contains| n290
+  n132 -->|depends-on| n425
+  n132 -->|depends-on| n711
+  n133 -->|contains| n291
+  n133 -->|contains| n292
   n133 -->|triggers| n136
-  n134 -->|contains| n291
+  n134 -->|contains| n293
   n134 -->|triggers| n136
-  n135 -->|contains| n292
+  n135 -->|contains| n294
   n135 -->|triggers| n136
-  n136 -->|contains| n293
-  n137 -->|contains| n294
+  n136 -->|contains| n295
+  n137 -->|contains| n296
   n139 -->|contains| n142
-  n139 -->|contains| n295
-  n139 -->|contains| n296
+  n139 -->|contains| n297
+  n139 -->|contains| n298
   n140 -->|depends-on| n151
   n141 -->|depends-on| n151
-  n142 -->|depends-on| n295
-  n143 -->|depends-on| n299
-  n144 -->|depends-on| n299
-  n145 -->|depends-on| n299
+  n142 -->|depends-on| n297
+  n143 -->|depends-on| n301
+  n144 -->|depends-on| n301
+  n145 -->|depends-on| n301
   n146 -->|depends-on| n150
   n147 -->|depends-on| n150
-  n147 -->|depends-on| n297
+  n147 -->|depends-on| n299
   n148 -->|depends-on| n140
   n148 -->|depends-on| n150
-  n148 -->|depends-on| n297
+  n148 -->|depends-on| n299
   n149 -->|depends-on| n142
   n149 -->|depends-on| n151
   n150 -->|contains| n143
@@ -1511,666 +1513,668 @@ graph TD
   n150 -->|contains| n146
   n150 -->|contains| n147
   n150 -->|contains| n148
-  n150 -->|contains| n297
-  n150 -->|contains| n298
   n150 -->|contains| n299
+  n150 -->|contains| n300
+  n150 -->|contains| n301
   n151 -->|contains| n140
   n151 -->|contains| n141
   n152 -->|depends-on| n154
   n154 -->|contains| n152
-  n154 -->|contains| n300
-  n155 -->|depends-on| n302
+  n154 -->|contains| n302
+  n155 -->|depends-on| n304
   n156 -->|depends-on| n158
-  n157 -->|depends-on| n303
+  n157 -->|depends-on| n305
   n158 -->|contains| n155
   n158 -->|contains| n156
   n158 -->|contains| n157
-  n158 -->|contains| n301
-  n158 -->|contains| n302
   n158 -->|contains| n303
   n158 -->|contains| n304
-  n159 -->|depends-on| n305
-  n160 -->|contains| n305
+  n158 -->|contains| n305
+  n158 -->|contains| n306
+  n159 -->|depends-on| n307
+  n160 -->|contains| n307
   n161 -->|contains| n159
-  n161 -->|contains| n306
-  n161 -->|contains| n307
   n161 -->|contains| n308
   n161 -->|contains| n309
-  n162 -->|contains| n310
-  n162 -->|contains| n311
-  n163 -->|contains| n312
-  n163 -->|contains| n313
-  n164 -->|contains| n314
-  n170 -->|calls| n321
-  n171 -->|contains| n315
-  n171 -->|contains| n316
+  n161 -->|contains| n310
+  n161 -->|contains| n311
+  n162 -->|contains| n312
+  n162 -->|contains| n313
+  n163 -->|contains| n314
+  n163 -->|contains| n315
+  n164 -->|contains| n316
+  n170 -->|calls| n323
   n171 -->|contains| n317
-  n171 -->|depends-on| n431
-  n171 -->|depends-on| n710
+  n171 -->|contains| n318
+  n171 -->|contains| n319
+  n171 -->|depends-on| n433
+  n171 -->|depends-on| n712
   n171 -->|triggers| n172
-  n172 -->|calls| n882
-  n172 -->|contains| n318
-  n172 -->|depends-on| n430
-  n172 -->|depends-on| n710
-  n173 -->|contains| n319
-  n173 -->|contains| n320
+  n172 -->|calls| n884
+  n172 -->|contains| n320
+  n172 -->|depends-on| n432
+  n172 -->|depends-on| n712
   n173 -->|contains| n321
-  n177 -->|calls| n325
-  n178 -->|calls| n878
+  n173 -->|contains| n322
+  n173 -->|contains| n323
+  n177 -->|calls| n327
+  n178 -->|calls| n880
   n178 -->|contains| n176
-  n178 -->|contains| n322
-  n178 -->|depends-on| n432
-  n178 -->|depends-on| n711
-  n179 -->|contains| n323
-  n179 -->|contains| n324
+  n178 -->|contains| n324
+  n178 -->|depends-on| n434
+  n178 -->|depends-on| n713
   n179 -->|contains| n325
-  n182 -->|depends-on| n329
-  n184 -->|calls| n327
-  n184 -->|depends-on| n331
-  n185 -->|contains| n326
-  n185 -->|contains| n327
+  n179 -->|contains| n326
+  n179 -->|contains| n327
+  n182 -->|depends-on| n331
+  n184 -->|calls| n329
+  n184 -->|depends-on| n333
   n185 -->|contains| n328
-  n185 -->|depends-on| n434
-  n185 -->|depends-on| n712
+  n185 -->|contains| n329
+  n185 -->|contains| n330
+  n185 -->|depends-on| n436
+  n185 -->|depends-on| n714
   n185 -->|triggers| n186
-  n186 -->|calls| n879
+  n186 -->|calls| n881
   n186 -->|contains| n182
-  n186 -->|contains| n329
-  n186 -->|contains| n330
   n186 -->|contains| n331
-  n186 -->|depends-on| n433
-  n186 -->|depends-on| n712
-  n188 -->|contains| n332
-  n189 -->|contains| n333
-  n189 -->|contains| n334
+  n186 -->|contains| n332
+  n186 -->|contains| n333
+  n186 -->|depends-on| n435
+  n186 -->|depends-on| n714
+  n188 -->|contains| n334
   n189 -->|contains| n335
   n189 -->|contains| n336
   n189 -->|contains| n337
   n189 -->|contains| n338
+  n189 -->|contains| n339
+  n189 -->|contains| n340
   n190 -->|depends-on| n195
   n191 -->|depends-on| n195
-  n192 -->|calls| n341
-  n194 -->|calls| n875
-  n194 -->|contains| n339
-  n195 -->|calls| n873
+  n192 -->|calls| n343
+  n194 -->|calls| n877
+  n194 -->|contains| n341
+  n195 -->|calls| n875
   n195 -->|contains| n190
   n195 -->|contains| n191
   n195 -->|contains| n193
-  n195 -->|contains| n340
-  n195 -->|contains| n341
-  n198 -->|depends-on| n342
-  n201 -->|calls| n880
+  n195 -->|contains| n342
+  n195 -->|contains| n343
+  n198 -->|depends-on| n344
+  n201 -->|calls| n882
   n201 -->|contains| n198
-  n201 -->|contains| n342
-  n201 -->|contains| n343
   n201 -->|contains| n344
-  n201 -->|depends-on| n435
-  n201 -->|depends-on| n713
-  n209 -->|contains| n202
-  n209 -->|contains| n203
-  n209 -->|contains| n204
-  n209 -->|contains| n205
-  n209 -->|contains| n206
-  n209 -->|contains| n207
-  n209 -->|contains| n208
-  n209 -->|contains| n210
-  n209 -->|contains| n345
-  n209 -->|contains| n346
-  n209 -->|contains| n347
-  n209 -->|contains| n348
-  n209 -->|contains| n349
-  n209 -->|contains| n350
-  n211 -->|depends-on| n361
-  n219 -->|depends-on| n227
-  n219 -->|depends-on| n436
-  n219 -->|depends-on| n714
-  n223 -->|contains| n213
-  n223 -->|contains| n214
-  n223 -->|contains| n215
-  n223 -->|contains| n216
-  n223 -->|contains| n217
-  n223 -->|contains| n218
-  n223 -->|contains| n219
-  n223 -->|contains| n220
-  n223 -->|contains| n221
-  n223 -->|contains| n222
-  n223 -->|contains| n224
-  n223 -->|contains| n225
-  n223 -->|contains| n226
-  n223 -->|contains| n351
-  n223 -->|contains| n352
-  n223 -->|contains| n353
-  n223 -->|contains| n354
-  n223 -->|contains| n355
-  n223 -->|contains| n356
-  n223 -->|contains| n357
-  n223 -->|contains| n358
-  n223 -->|contains| n359
-  n223 -->|contains| n360
-  n223 -->|depends-on| n436
-  n223 -->|depends-on| n714
-  n224 -->|reads| n748
-  n224 -->|triggers| n225
-  n225 -->|contains| n211
-  n225 -->|contains| n361
-  n226 -->|contains| n212
-  n227 -->|contains| n362
-  n233 -->|contains| n228
-  n233 -->|contains| n229
-  n233 -->|contains| n230
-  n233 -->|contains| n231
-  n233 -->|contains| n232
-  n233 -->|contains| n234
-  n233 -->|contains| n363
-  n233 -->|contains| n364
-  n233 -->|contains| n365
-  n233 -->|contains| n366
-  n237 -->|calls| n371
-  n238 -->|calls| n874
-  n238 -->|contains| n367
-  n238 -->|depends-on| n438
-  n238 -->|depends-on| n715
-  n239 -->|contains| n368
-  n239 -->|contains| n369
-  n239 -->|contains| n370
-  n239 -->|contains| n371
-  n244 -->|depends-on| n243
-  n384 -->|contains| n385
-  n384 -->|contains| n386
-  n387 -->|contains| n388
-  n387 -->|contains| n389
-  n390 -->|contains| n391
-  n390 -->|contains| n392
-  n396 -->|contains| n397
-  n398 -->|contains| n372
-  n398 -->|contains| n373
-  n401 -->|contains| n402
-  n401 -->|contains| n403
-  n404 -->|contains| n405
-  n404 -->|contains| n406
-  n404 -->|contains| n407
-  n410 -->|contains| n411
-  n410 -->|contains| n412
-  n413 -->|contains| n414
-  n413 -->|contains| n415
-  n413 -->|contains| n416
-  n421 -->|contains| n422
-  n421 -->|contains| n423
-  n424 -->|contains| n425
+  n201 -->|contains| n345
+  n201 -->|contains| n346
+  n201 -->|depends-on| n437
+  n201 -->|depends-on| n715
+  n212 -->|contains| n202
+  n212 -->|contains| n203
+  n212 -->|contains| n204
+  n212 -->|contains| n205
+  n212 -->|contains| n206
+  n212 -->|contains| n207
+  n212 -->|contains| n208
+  n212 -->|contains| n209
+  n212 -->|contains| n210
+  n212 -->|contains| n211
+  n212 -->|contains| n213
+  n212 -->|contains| n347
+  n212 -->|contains| n348
+  n212 -->|contains| n349
+  n212 -->|contains| n350
+  n212 -->|contains| n351
+  n212 -->|contains| n352
+  n214 -->|depends-on| n363
+  n222 -->|depends-on| n230
+  n222 -->|depends-on| n438
+  n222 -->|depends-on| n716
+  n226 -->|contains| n216
+  n226 -->|contains| n217
+  n226 -->|contains| n218
+  n226 -->|contains| n219
+  n226 -->|contains| n220
+  n226 -->|contains| n221
+  n226 -->|contains| n222
+  n226 -->|contains| n223
+  n226 -->|contains| n224
+  n226 -->|contains| n225
+  n226 -->|contains| n227
+  n226 -->|contains| n228
+  n226 -->|contains| n229
+  n226 -->|contains| n353
+  n226 -->|contains| n354
+  n226 -->|contains| n355
+  n226 -->|contains| n356
+  n226 -->|contains| n357
+  n226 -->|contains| n358
+  n226 -->|contains| n359
+  n226 -->|contains| n360
+  n226 -->|contains| n361
+  n226 -->|contains| n362
+  n226 -->|depends-on| n438
+  n226 -->|depends-on| n716
+  n227 -->|reads| n750
+  n227 -->|triggers| n228
+  n228 -->|contains| n214
+  n228 -->|contains| n363
+  n229 -->|contains| n215
+  n230 -->|contains| n364
+  n235 -->|contains| n231
+  n235 -->|contains| n232
+  n235 -->|contains| n233
+  n235 -->|contains| n234
+  n235 -->|contains| n236
+  n235 -->|contains| n365
+  n235 -->|contains| n366
+  n235 -->|contains| n367
+  n235 -->|contains| n368
+  n239 -->|calls| n373
+  n240 -->|calls| n876
+  n240 -->|contains| n369
+  n240 -->|depends-on| n440
+  n240 -->|depends-on| n717
+  n241 -->|contains| n370
+  n241 -->|contains| n371
+  n241 -->|contains| n372
+  n241 -->|contains| n373
+  n246 -->|depends-on| n245
+  n386 -->|contains| n387
+  n386 -->|contains| n388
+  n389 -->|contains| n390
+  n389 -->|contains| n391
+  n392 -->|contains| n393
+  n392 -->|contains| n394
+  n398 -->|contains| n399
+  n400 -->|contains| n374
+  n400 -->|contains| n375
+  n403 -->|contains| n404
+  n403 -->|contains| n405
+  n406 -->|contains| n407
+  n406 -->|contains| n408
+  n406 -->|contains| n409
+  n412 -->|contains| n413
+  n412 -->|contains| n414
+  n415 -->|contains| n416
+  n415 -->|contains| n417
+  n415 -->|contains| n418
+  n423 -->|contains| n424
+  n423 -->|contains| n425
   n426 -->|contains| n427
   n428 -->|contains| n429
-  n436 -->|contains| n437
-  n439 -->|contains| n441
-  n440 -->|contains| n442
-  n441 -->|checks| n0
-  n442 -->|checks| n0
-  n443 -->|contains| n444
-  n444 -->|checks| n612
+  n430 -->|contains| n431
+  n438 -->|contains| n439
+  n441 -->|contains| n443
+  n442 -->|contains| n444
+  n443 -->|checks| n0
+  n444 -->|checks| n0
   n445 -->|contains| n446
-  n446 -->|checks| n611
+  n446 -->|checks| n614
   n447 -->|contains| n448
   n448 -->|checks| n613
   n449 -->|contains| n450
-  n450 -->|checks| n617
-  n450 -->|checks| n632
+  n450 -->|checks| n615
   n451 -->|contains| n452
-  n452 -->|checks| n618
-  n452 -->|checks| n633
+  n452 -->|checks| n619
+  n452 -->|checks| n634
   n453 -->|contains| n454
   n454 -->|checks| n620
   n454 -->|checks| n635
   n455 -->|contains| n456
-  n456 -->|checks| n621
+  n456 -->|checks| n622
+  n456 -->|checks| n637
   n457 -->|contains| n458
-  n458 -->|checks| n622
+  n458 -->|checks| n623
   n459 -->|contains| n460
-  n460 -->|checks| n614
+  n460 -->|checks| n624
   n461 -->|contains| n462
-  n462 -->|checks| n615
+  n462 -->|checks| n616
   n463 -->|contains| n464
-  n464 -->|checks| n616
+  n464 -->|checks| n617
   n465 -->|contains| n466
-  n466 -->|checks| n623
+  n466 -->|checks| n618
   n467 -->|contains| n468
-  n468 -->|checks| n624
+  n468 -->|checks| n625
   n469 -->|contains| n470
-  n470 -->|checks| n625
+  n470 -->|checks| n626
   n471 -->|contains| n472
-  n472 -->|checks| n626
+  n472 -->|checks| n627
   n473 -->|contains| n474
-  n474 -->|checks| n627
+  n474 -->|checks| n628
   n475 -->|contains| n476
-  n476 -->|checks| n628
+  n476 -->|checks| n629
   n477 -->|contains| n478
-  n478 -->|checks| n629
+  n478 -->|checks| n630
   n479 -->|contains| n480
-  n480 -->|checks| n630
-  n480 -->|checks| n643
+  n480 -->|checks| n631
   n481 -->|contains| n482
-  n482 -->|checks| n631
+  n482 -->|checks| n632
+  n482 -->|checks| n645
   n483 -->|contains| n484
-  n484 -->|checks| n632
+  n484 -->|checks| n633
   n485 -->|contains| n486
-  n486 -->|checks| n633
+  n486 -->|checks| n634
   n487 -->|contains| n488
-  n488 -->|checks| n634
+  n488 -->|checks| n635
   n489 -->|contains| n490
-  n490 -->|checks| n619
-  n492 -->|contains| n493
-  n493 -->|checks| n635
+  n490 -->|checks| n636
+  n491 -->|contains| n492
+  n492 -->|checks| n621
   n494 -->|contains| n495
-  n495 -->|checks| n636
+  n495 -->|checks| n637
   n496 -->|contains| n497
-  n497 -->|checks| n637
+  n497 -->|checks| n638
   n498 -->|contains| n499
-  n499 -->|checks| n638
+  n499 -->|checks| n639
   n500 -->|contains| n501
-  n501 -->|checks| n639
+  n501 -->|checks| n640
   n502 -->|contains| n503
-  n503 -->|checks| n640
+  n503 -->|checks| n641
   n504 -->|contains| n505
-  n505 -->|checks| n641
+  n505 -->|checks| n642
   n506 -->|contains| n507
-  n507 -->|checks| n642
+  n507 -->|checks| n643
   n508 -->|contains| n509
   n509 -->|checks| n644
   n510 -->|contains| n511
-  n511 -->|checks| n635
-  n511 -->|checks| n643
+  n511 -->|checks| n646
   n512 -->|contains| n513
-  n513 -->|checks| n646
+  n513 -->|checks| n637
+  n513 -->|checks| n645
   n514 -->|contains| n515
-  n515 -->|checks| n647
+  n515 -->|checks| n648
   n516 -->|contains| n517
-  n517 -->|checks| n648
-  n519 -->|checks| n611
-  n519 -->|checks| n612
-  n519 -->|checks| n613
-  n519 -->|checks| n614
-  n519 -->|checks| n615
-  n519 -->|checks| n616
-  n519 -->|checks| n617
-  n519 -->|checks| n618
-  n519 -->|checks| n619
-  n519 -->|checks| n620
-  n519 -->|checks| n621
-  n519 -->|checks| n622
-  n519 -->|checks| n623
-  n519 -->|checks| n624
-  n519 -->|checks| n625
-  n519 -->|checks| n626
-  n519 -->|checks| n627
-  n519 -->|checks| n628
-  n519 -->|checks| n629
-  n519 -->|checks| n630
-  n519 -->|checks| n631
-  n519 -->|checks| n632
-  n519 -->|checks| n633
-  n519 -->|checks| n634
-  n519 -->|checks| n635
-  n519 -->|checks| n636
-  n519 -->|checks| n637
-  n519 -->|checks| n638
-  n519 -->|checks| n639
-  n519 -->|checks| n640
-  n519 -->|checks| n641
-  n519 -->|checks| n642
-  n519 -->|checks| n643
-  n519 -->|checks| n644
-  n519 -->|checks| n645
-  n519 -->|checks| n646
-  n519 -->|checks| n647
-  n519 -->|checks| n648
-  n519 -->|checks| n649
-  n520 -->|contains| n521
+  n517 -->|checks| n649
+  n518 -->|contains| n519
+  n519 -->|checks| n650
+  n521 -->|checks| n613
+  n521 -->|checks| n614
+  n521 -->|checks| n615
+  n521 -->|checks| n616
+  n521 -->|checks| n617
+  n521 -->|checks| n618
+  n521 -->|checks| n619
+  n521 -->|checks| n620
+  n521 -->|checks| n621
+  n521 -->|checks| n622
+  n521 -->|checks| n623
+  n521 -->|checks| n624
+  n521 -->|checks| n625
+  n521 -->|checks| n626
+  n521 -->|checks| n627
+  n521 -->|checks| n628
+  n521 -->|checks| n629
+  n521 -->|checks| n630
+  n521 -->|checks| n631
+  n521 -->|checks| n632
+  n521 -->|checks| n633
+  n521 -->|checks| n634
+  n521 -->|checks| n635
+  n521 -->|checks| n636
+  n521 -->|checks| n637
+  n521 -->|checks| n638
+  n521 -->|checks| n639
+  n521 -->|checks| n640
+  n521 -->|checks| n641
+  n521 -->|checks| n642
+  n521 -->|checks| n643
+  n521 -->|checks| n644
+  n521 -->|checks| n645
+  n521 -->|checks| n646
+  n521 -->|checks| n647
+  n521 -->|checks| n648
+  n521 -->|checks| n649
+  n521 -->|checks| n650
   n521 -->|checks| n651
   n522 -->|contains| n523
-  n523 -->|checks| n650
+  n523 -->|checks| n653
   n524 -->|contains| n525
   n525 -->|checks| n652
   n526 -->|contains| n527
-  n527 -->|checks| n656
-  n527 -->|checks| n671
+  n527 -->|checks| n654
   n528 -->|contains| n529
-  n529 -->|checks| n657
-  n529 -->|checks| n672
+  n529 -->|checks| n658
+  n529 -->|checks| n673
   n530 -->|contains| n531
   n531 -->|checks| n659
   n531 -->|checks| n674
   n532 -->|contains| n533
-  n533 -->|checks| n660
+  n533 -->|checks| n661
+  n533 -->|checks| n676
   n534 -->|contains| n535
-  n535 -->|checks| n661
+  n535 -->|checks| n662
   n536 -->|contains| n537
-  n537 -->|checks| n653
+  n537 -->|checks| n663
   n538 -->|contains| n539
-  n539 -->|checks| n654
+  n539 -->|checks| n655
   n540 -->|contains| n541
-  n541 -->|checks| n655
+  n541 -->|checks| n656
   n542 -->|contains| n543
-  n543 -->|checks| n662
+  n543 -->|checks| n657
   n544 -->|contains| n545
-  n545 -->|checks| n663
+  n545 -->|checks| n664
   n546 -->|contains| n547
-  n547 -->|checks| n664
+  n547 -->|checks| n665
   n548 -->|contains| n549
-  n549 -->|checks| n665
+  n549 -->|checks| n666
   n550 -->|contains| n551
-  n551 -->|checks| n666
+  n551 -->|checks| n667
   n552 -->|contains| n553
-  n553 -->|checks| n667
+  n553 -->|checks| n668
   n554 -->|contains| n555
-  n555 -->|checks| n668
+  n555 -->|checks| n669
   n556 -->|contains| n557
-  n557 -->|checks| n669
-  n557 -->|checks| n682
+  n557 -->|checks| n670
   n558 -->|contains| n559
-  n559 -->|checks| n670
+  n559 -->|checks| n671
+  n559 -->|checks| n684
   n560 -->|contains| n561
-  n561 -->|checks| n671
+  n561 -->|checks| n672
   n562 -->|contains| n563
-  n563 -->|checks| n672
+  n563 -->|checks| n673
   n564 -->|contains| n565
-  n565 -->|checks| n673
+  n565 -->|checks| n674
   n566 -->|contains| n567
-  n567 -->|checks| n658
-  n569 -->|contains| n570
-  n570 -->|checks| n674
+  n567 -->|checks| n675
+  n568 -->|contains| n569
+  n569 -->|checks| n660
   n571 -->|contains| n572
-  n572 -->|checks| n675
+  n572 -->|checks| n676
   n573 -->|contains| n574
-  n574 -->|checks| n676
+  n574 -->|checks| n677
   n575 -->|contains| n576
-  n576 -->|checks| n677
+  n576 -->|checks| n678
   n577 -->|contains| n578
-  n578 -->|checks| n678
+  n578 -->|checks| n679
   n579 -->|contains| n580
-  n580 -->|checks| n679
+  n580 -->|checks| n680
   n581 -->|contains| n582
-  n582 -->|checks| n680
+  n582 -->|checks| n681
   n583 -->|contains| n584
-  n584 -->|checks| n681
+  n584 -->|checks| n682
   n585 -->|contains| n586
   n586 -->|checks| n683
   n587 -->|contains| n588
-  n588 -->|checks| n674
-  n588 -->|checks| n682
+  n588 -->|checks| n685
   n589 -->|contains| n590
-  n590 -->|checks| n685
+  n590 -->|checks| n676
+  n590 -->|checks| n684
   n591 -->|contains| n592
-  n592 -->|checks| n686
+  n592 -->|checks| n687
   n593 -->|contains| n594
-  n594 -->|checks| n687
-  n596 -->|checks| n650
-  n596 -->|checks| n651
-  n596 -->|checks| n652
-  n596 -->|checks| n653
-  n596 -->|checks| n654
-  n596 -->|checks| n655
-  n596 -->|checks| n656
-  n596 -->|checks| n657
-  n596 -->|checks| n658
-  n596 -->|checks| n659
-  n596 -->|checks| n660
-  n596 -->|checks| n661
-  n596 -->|checks| n662
-  n596 -->|checks| n663
-  n596 -->|checks| n664
-  n596 -->|checks| n665
-  n596 -->|checks| n666
-  n596 -->|checks| n667
-  n596 -->|checks| n668
-  n596 -->|checks| n669
-  n596 -->|checks| n670
-  n596 -->|checks| n671
-  n596 -->|checks| n672
-  n596 -->|checks| n673
-  n596 -->|checks| n674
-  n596 -->|checks| n675
-  n596 -->|checks| n676
-  n596 -->|checks| n677
-  n596 -->|checks| n678
-  n596 -->|checks| n679
-  n596 -->|checks| n680
-  n596 -->|checks| n681
-  n596 -->|checks| n682
-  n596 -->|checks| n683
-  n596 -->|checks| n684
-  n596 -->|checks| n685
-  n596 -->|checks| n686
-  n596 -->|checks| n687
-  n596 -->|checks| n688
-  n597 -->|contains| n598
+  n594 -->|checks| n688
+  n595 -->|contains| n596
+  n596 -->|checks| n689
+  n598 -->|checks| n652
+  n598 -->|checks| n653
+  n598 -->|checks| n654
+  n598 -->|checks| n655
+  n598 -->|checks| n656
+  n598 -->|checks| n657
+  n598 -->|checks| n658
+  n598 -->|checks| n659
+  n598 -->|checks| n660
+  n598 -->|checks| n661
+  n598 -->|checks| n662
+  n598 -->|checks| n663
+  n598 -->|checks| n664
+  n598 -->|checks| n665
+  n598 -->|checks| n666
+  n598 -->|checks| n667
+  n598 -->|checks| n668
+  n598 -->|checks| n669
+  n598 -->|checks| n670
+  n598 -->|checks| n671
+  n598 -->|checks| n672
+  n598 -->|checks| n673
+  n598 -->|checks| n674
+  n598 -->|checks| n675
+  n598 -->|checks| n676
+  n598 -->|checks| n677
+  n598 -->|checks| n678
+  n598 -->|checks| n679
+  n598 -->|checks| n680
+  n598 -->|checks| n681
+  n598 -->|checks| n682
+  n598 -->|checks| n683
+  n598 -->|checks| n684
+  n598 -->|checks| n685
+  n598 -->|checks| n686
+  n598 -->|checks| n687
+  n598 -->|checks| n688
   n598 -->|checks| n689
-  n599 -->|checks| n689
-  n600 -->|contains| n603
-  n601 -->|contains| n604
+  n598 -->|checks| n690
+  n599 -->|contains| n600
+  n600 -->|checks| n691
+  n601 -->|checks| n691
   n602 -->|contains| n605
-  n604 -->|checks| n690
-  n606 -->|checks| n690
-  n607 -->|depends-on| n721
-  n609 -->|depends-on| n721
-  n611 -->|loads| n4
-  n611 -->|loads| n5
-  n612 -->|loads| n2
-  n612 -->|loads| n3
-  n613 -->|loads| n6
-  n613 -->|loads| n7
-  n613 -->|loads| n8
-  n613 -->|loads| n9
-  n613 -->|loads| n10
-  n613 -->|loads| n11
-  n614 -->|loads| n26
-  n615 -->|loads| n28
-  n615 -->|loads| n29
-  n616 -->|loads| n27
-  n617 -->|loads| n30
-  n618 -->|loads| n31
-  n619 -->|loads| n33
-  n619 -->|loads| n689
-  n620 -->|loads| n35
-  n621 -->|loads| n36
-  n622 -->|loads| n37
-  n623 -->|loads| n13
-  n624 -->|loads| n14
-  n624 -->|loads| n15
-  n625 -->|loads| n16
-  n625 -->|loads| n17
-  n625 -->|loads| n18
-  n626 -->|loads| n19
-  n626 -->|loads| n20
-  n627 -->|loads| n21
-  n627 -->|loads| n22
-  n628 -->|loads| n41
-  n629 -->|loads| n39
-  n630 -->|loads| n42
-  n631 -->|loads| n43
-  n632 -->|loads| n45
-  n633 -->|loads| n46
-  n634 -->|contains| n607
-  n634 -->|loads| n56
-  n635 -->|loads| n47
-  n636 -->|loads| n44
-  n637 -->|loads| n48
-  n638 -->|loads| n24
-  n639 -->|loads| n25
-  n641 -->|loads| n49
-  n640 -->|loads| n50
-  n642 -->|loads| n40
-  n643 -->|contains| n608
-  n643 -->|loads| n57
-  n644 -->|loads| n51
-  n647 -->|loads| n52
-  n647 -->|loads| n53
-  n648 -->|loads| n55
-  n646 -->|loads| n54
-  n649 -->|loads| n690
-  n650 -->|loads| n4
-  n650 -->|loads| n5
-  n651 -->|loads| n2
-  n651 -->|loads| n3
-  n652 -->|loads| n6
-  n652 -->|loads| n7
-  n652 -->|loads| n8
-  n652 -->|loads| n9
-  n652 -->|loads| n10
-  n652 -->|loads| n11
-  n653 -->|loads| n26
-  n654 -->|loads| n28
-  n654 -->|loads| n29
-  n655 -->|loads| n27
-  n656 -->|loads| n30
-  n657 -->|loads| n31
-  n658 -->|loads| n33
-  n658 -->|loads| n689
-  n659 -->|loads| n35
-  n660 -->|loads| n36
-  n661 -->|loads| n37
-  n662 -->|loads| n13
-  n663 -->|loads| n14
-  n663 -->|loads| n15
-  n664 -->|loads| n16
-  n664 -->|loads| n17
-  n664 -->|loads| n18
-  n665 -->|loads| n19
-  n665 -->|loads| n20
-  n666 -->|loads| n21
-  n666 -->|loads| n22
-  n667 -->|loads| n41
-  n668 -->|loads| n39
-  n669 -->|loads| n42
-  n670 -->|loads| n43
-  n671 -->|loads| n45
-  n672 -->|loads| n46
-  n673 -->|contains| n609
-  n673 -->|loads| n56
-  n674 -->|loads| n47
-  n675 -->|loads| n44
-  n676 -->|loads| n48
-  n677 -->|loads| n24
-  n678 -->|loads| n25
-  n680 -->|loads| n49
-  n679 -->|loads| n50
-  n681 -->|loads| n40
-  n682 -->|contains| n610
-  n682 -->|loads| n57
-  n683 -->|loads| n51
-  n686 -->|loads| n52
-  n686 -->|loads| n53
-  n687 -->|loads| n55
-  n685 -->|loads| n54
-  n688 -->|loads| n690
-  n689 -->|loads| n32
-  n690 -->|loads| n59
-  n692 -->|contains| n88
-  n692 -->|contains| n374
-  n692 -->|contains| n375
-  n692 -->|contains| n376
-  n693 -->|contains| n90
-  n693 -->|contains| n377
-  n693 -->|contains| n378
-  n693 -->|contains| n379
-  n693 -->|contains| n380
-  n693 -->|contains| n381
-  n693 -->|depends-on| n694
-  n695 -->|contains| n94
+  n603 -->|contains| n606
+  n604 -->|contains| n607
+  n606 -->|checks| n692
+  n608 -->|checks| n692
+  n609 -->|depends-on| n723
+  n611 -->|depends-on| n723
+  n613 -->|loads| n4
+  n613 -->|loads| n5
+  n614 -->|loads| n2
+  n614 -->|loads| n3
+  n615 -->|loads| n6
+  n615 -->|loads| n7
+  n615 -->|loads| n8
+  n615 -->|loads| n9
+  n615 -->|loads| n10
+  n615 -->|loads| n11
+  n616 -->|loads| n26
+  n617 -->|loads| n28
+  n617 -->|loads| n29
+  n618 -->|loads| n27
+  n619 -->|loads| n30
+  n620 -->|loads| n31
+  n621 -->|loads| n33
+  n621 -->|loads| n691
+  n622 -->|loads| n35
+  n623 -->|loads| n36
+  n624 -->|loads| n37
+  n625 -->|loads| n13
+  n626 -->|loads| n14
+  n626 -->|loads| n15
+  n627 -->|loads| n16
+  n627 -->|loads| n17
+  n627 -->|loads| n18
+  n628 -->|loads| n19
+  n628 -->|loads| n20
+  n629 -->|loads| n21
+  n629 -->|loads| n22
+  n630 -->|loads| n41
+  n631 -->|loads| n39
+  n632 -->|loads| n42
+  n633 -->|loads| n43
+  n634 -->|loads| n45
+  n635 -->|loads| n46
+  n636 -->|contains| n609
+  n636 -->|loads| n56
+  n637 -->|loads| n47
+  n638 -->|loads| n44
+  n639 -->|loads| n48
+  n640 -->|loads| n24
+  n641 -->|loads| n25
+  n643 -->|loads| n49
+  n642 -->|loads| n50
+  n644 -->|loads| n40
+  n645 -->|contains| n610
+  n645 -->|loads| n57
+  n646 -->|loads| n51
+  n649 -->|loads| n52
+  n649 -->|loads| n53
+  n650 -->|loads| n55
+  n648 -->|loads| n54
+  n651 -->|loads| n692
+  n652 -->|loads| n4
+  n652 -->|loads| n5
+  n653 -->|loads| n2
+  n653 -->|loads| n3
+  n654 -->|loads| n6
+  n654 -->|loads| n7
+  n654 -->|loads| n8
+  n654 -->|loads| n9
+  n654 -->|loads| n10
+  n654 -->|loads| n11
+  n655 -->|loads| n26
+  n656 -->|loads| n28
+  n656 -->|loads| n29
+  n657 -->|loads| n27
+  n658 -->|loads| n30
+  n659 -->|loads| n31
+  n660 -->|loads| n33
+  n660 -->|loads| n691
+  n661 -->|loads| n35
+  n662 -->|loads| n36
+  n663 -->|loads| n37
+  n664 -->|loads| n13
+  n665 -->|loads| n14
+  n665 -->|loads| n15
+  n666 -->|loads| n16
+  n666 -->|loads| n17
+  n666 -->|loads| n18
+  n667 -->|loads| n19
+  n667 -->|loads| n20
+  n668 -->|loads| n21
+  n668 -->|loads| n22
+  n669 -->|loads| n41
+  n670 -->|loads| n39
+  n671 -->|loads| n42
+  n672 -->|loads| n43
+  n673 -->|loads| n45
+  n674 -->|loads| n46
+  n675 -->|contains| n611
+  n675 -->|loads| n56
+  n676 -->|loads| n47
+  n677 -->|loads| n44
+  n678 -->|loads| n48
+  n679 -->|loads| n24
+  n680 -->|loads| n25
+  n682 -->|loads| n49
+  n681 -->|loads| n50
+  n683 -->|loads| n40
+  n684 -->|contains| n612
+  n684 -->|loads| n57
+  n685 -->|loads| n51
+  n688 -->|loads| n52
+  n688 -->|loads| n53
+  n689 -->|loads| n55
+  n687 -->|loads| n54
+  n690 -->|loads| n692
+  n691 -->|loads| n32
+  n692 -->|loads| n59
+  n694 -->|contains| n88
+  n694 -->|contains| n376
+  n694 -->|contains| n377
+  n694 -->|contains| n378
+  n695 -->|contains| n90
+  n695 -->|contains| n379
+  n695 -->|contains| n380
+  n695 -->|contains| n381
   n695 -->|contains| n382
   n695 -->|contains| n383
-  n696 -->|contains| n96
-  n696 -->|contains| n97
-  n696 -->|contains| n98
-  n696 -->|contains| n100
-  n696 -->|contains| n101
-  n696 -->|contains| n384
-  n696 -->|contains| n386
-  n696 -->|contains| n387
-  n696 -->|contains| n389
-  n696 -->|contains| n390
-  n697 -->|contains| n102
-  n697 -->|contains| n103
-  n697 -->|contains| n393
-  n697 -->|contains| n394
-  n698 -->|contains| n105
-  n698 -->|contains| n106
-  n698 -->|contains| n107
-  n698 -->|depends-on| n697
+  n695 -->|depends-on| n696
+  n697 -->|contains| n94
+  n697 -->|contains| n384
+  n697 -->|contains| n385
+  n698 -->|contains| n96
+  n698 -->|contains| n97
+  n698 -->|contains| n98
+  n698 -->|contains| n100
+  n698 -->|contains| n101
+  n698 -->|contains| n386
+  n698 -->|contains| n388
+  n698 -->|contains| n389
+  n698 -->|contains| n391
+  n698 -->|contains| n392
+  n699 -->|contains| n102
+  n699 -->|contains| n103
   n699 -->|contains| n395
-  n700 -->|calls| n70
-  n700 -->|contains| n108
-  n700 -->|contains| n396
-  n700 -->|contains| n397
-  n700 -->|contains| n398
-  n701 -->|contains| n399
-  n702 -->|contains| n109
-  n702 -->|contains| n110
+  n699 -->|contains| n396
+  n700 -->|contains| n105
+  n700 -->|contains| n106
+  n700 -->|contains| n107
+  n700 -->|depends-on| n699
+  n701 -->|contains| n397
+  n702 -->|calls| n70
+  n702 -->|contains| n108
+  n702 -->|contains| n398
+  n702 -->|contains| n399
   n702 -->|contains| n400
-  n703 -->|contains| n114
-  n703 -->|contains| n115
   n703 -->|contains| n401
-  n703 -->|contains| n404
-  n703 -->|contains| n406
-  n703 -->|contains| n407
-  n703 -->|depends-on| n702
-  n704 -->|contains| n116
-  n704 -->|contains| n117
-  n704 -->|contains| n408
-  n704 -->|contains| n409
-  n705 -->|contains| n121
-  n705 -->|contains| n122
-  n705 -->|contains| n410
-  n705 -->|contains| n413
-  n705 -->|contains| n414
-  n705 -->|contains| n416
+  n704 -->|contains| n109
+  n704 -->|contains| n110
+  n704 -->|contains| n402
+  n705 -->|contains| n114
+  n705 -->|contains| n115
+  n705 -->|contains| n403
+  n705 -->|contains| n406
+  n705 -->|contains| n408
+  n705 -->|contains| n409
   n705 -->|depends-on| n704
-  n706 -->|contains| n124
-  n706 -->|contains| n125
-  n706 -->|contains| n417
-  n707 -->|contains| n128
+  n706 -->|contains| n116
+  n706 -->|contains| n117
+  n706 -->|contains| n410
+  n706 -->|contains| n411
+  n707 -->|contains| n121
+  n707 -->|contains| n122
+  n707 -->|contains| n412
+  n707 -->|contains| n415
+  n707 -->|contains| n416
   n707 -->|contains| n418
-  n707 -->|contains| n419
-  n707 -->|contains| n420
   n707 -->|depends-on| n706
-  n708 -->|contains| n138
-  n709 -->|contains| n133
-  n709 -->|contains| n134
-  n709 -->|contains| n135
-  n709 -->|contains| n136
+  n708 -->|contains| n124
+  n708 -->|contains| n125
+  n708 -->|contains| n419
+  n709 -->|contains| n128
+  n709 -->|contains| n420
   n709 -->|contains| n421
   n709 -->|contains| n422
-  n709 -->|contains| n423
-  n709 -->|contains| n424
-  n709 -->|contains| n425
-  n709 -->|contains| n426
-  n709 -->|contains| n427
-  n709 -->|contains| n428
-  n709 -->|contains| n429
   n709 -->|depends-on| n708
-  n710 -->|contains| n168
-  n710 -->|contains| n169
-  n710 -->|contains| n430
-  n710 -->|contains| n431
-  n711 -->|contains| n174
-  n711 -->|contains| n175
-  n711 -->|contains| n432
-  n712 -->|contains| n180
-  n712 -->|contains| n181
+  n710 -->|contains| n138
+  n711 -->|contains| n133
+  n711 -->|contains| n134
+  n711 -->|contains| n135
+  n711 -->|contains| n136
+  n711 -->|contains| n423
+  n711 -->|contains| n424
+  n711 -->|contains| n425
+  n711 -->|contains| n426
+  n711 -->|contains| n427
+  n711 -->|contains| n428
+  n711 -->|contains| n429
+  n711 -->|contains| n430
+  n711 -->|contains| n431
+  n711 -->|depends-on| n710
+  n712 -->|contains| n168
+  n712 -->|contains| n169
+  n712 -->|contains| n432
   n712 -->|contains| n433
-  n712 -->|contains| n434
-  n713 -->|contains| n196
-  n713 -->|contains| n197
-  n713 -->|contains| n435
-  n714 -->|contains| n227
+  n713 -->|contains| n174
+  n713 -->|contains| n175
+  n713 -->|contains| n434
+  n714 -->|contains| n180
+  n714 -->|contains| n181
+  n714 -->|contains| n435
   n714 -->|contains| n436
-  n714 -->|contains| n437
-  n715 -->|contains| n235
-  n715 -->|contains| n236
-  n715 -->|contains| n438
-  n716 -->|contains| n240
-  n717 -->|contains| n241
-  n718 -->|contains| n248
-  n721 -->|contains| n249
-  n745 -->|triggers| n233
-  n747 -->|triggers| n223
-  n749 -->|triggers| n233
-  n750 -->|triggers| n233
-  n751 -->|triggers| n233
+  n715 -->|contains| n196
+  n715 -->|contains| n197
+  n715 -->|contains| n437
+  n716 -->|contains| n230
+  n716 -->|contains| n438
+  n716 -->|contains| n439
+  n717 -->|contains| n237
+  n717 -->|contains| n238
+  n717 -->|contains| n440
+  n718 -->|contains| n242
+  n719 -->|contains| n243
+  n720 -->|contains| n250
+  n723 -->|contains| n251
+  n747 -->|triggers| n235
+  n749 -->|triggers| n226
+  n751 -->|triggers| n235
+  n752 -->|triggers| n235
+  n753 -->|triggers| n235

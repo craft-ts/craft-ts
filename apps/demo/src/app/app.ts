@@ -16,6 +16,7 @@ import {
 import {
   BrowserLocation,
   BrowserWindow,
+  craftComputed,
   craftMethod,
   CraftRouterLink,
   GlobalPersisterHandlerService,
@@ -142,10 +143,17 @@ export const App = craftComponent(
     `,
   },
   function* () {
-    const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
-      toggle: () => update((open) => !open),
-      close: () => set(false),
-    }));
+    const navOpen = yield* state(
+      'navOpen',
+      false,
+      ({ set, update, state: navOpenState }) => ({
+        toggle: () => update((open) => !open),
+        close: () => set(false),
+        navToggleLabel: craftComputed('navToggleLabel', function* () {
+          return (yield* navOpenState()) ? 'Close examples' : 'Browse examples';
+        }),
+      }),
+    );
     const toggleNav = craftMethod('toggleNav', function* (event?: Event) {
       event?.stopPropagation();
       yield* navOpen.toggle();
@@ -206,9 +214,7 @@ export const App = craftComponent(
               click: toggleNav,
               'aria-expanded': navOpen,
             },
-            function* () {
-              return (yield* navOpen()) ? 'Close examples' : 'Browse examples';
-            },
+            navOpen.navToggleLabel,
           ),
           ifBlock(
             navOpen,
@@ -217,7 +223,6 @@ export const App = craftComponent(
                 'navPanel',
                 {
                   class: 'demo-nav__panel',
-                  click: (event: MouseEvent) => event.stopPropagation(),
                 },
                 each(
                   VISIBLE_NAV_GROUPS,

@@ -11,7 +11,12 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftSleep,
+  query,
+  settled,
+} from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;
@@ -70,28 +75,26 @@ export const pendingBlockDemo = craftComponent(
         yield* craftSleep(900);
         return { items: USERS };
       },
-    });
+    },
+      ({ resource }) => ({
+        teams: craftComputed('teams', function* () {
+          const list = yield* settled(resource);
+          return [...new Set(list.items.map((user) => user.team))]
+            .sort()
+            .join(' · ');
+        }),
+        total: craftComputed('total', function* () {
+          const list = yield* settled(resource);
+          return `${list.items.length} people`;
+        }),
+      }),
+    );
 
     yield* users.call(undefined); // trigger first call
 
-    // The computed consumes the resolved value: inside the callback `list` is
-    // an `{ items }`, never `undefined`. In exchange the computed is tagged as
-    // depending on the async source "users".
-    const teams = craftComputed('teams', function* () {
-      const list = yield* settled(users);
-      return [...new Set(list.items.map((user) => user.team))]
-        .sort()
-        .join(' · ');
-    });
-
-    const total = craftComputed('total', function* () {
-      const list = yield* settled(users);
-      return `${list.items.length} people`;
-    });
-
-    return { users, teams, total };
+    return { users };
   },
-  ({ teams, total, users }) =>
+  ({ users }) =>
     section({ class: 'pending-demo' }, [
       heading('settledValue + pendingBlock'),
       p(
@@ -108,8 +111,8 @@ export const pendingBlockDemo = craftComponent(
       ),
       div([
         ul({ class: 'pending-demo__list' }, [
-          li(['Teams: ', span(teams)]),
-          li({ class: 'pending-demo__count' }, total),
+          li(['Teams: ', span(users.teams)]),
+          li({ class: 'pending-demo__count' }, users.total),
         ]),
       ]).pipe(
         // One boundary covers both computeds. Remove this line and

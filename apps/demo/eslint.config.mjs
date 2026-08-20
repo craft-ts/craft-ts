@@ -38,6 +38,7 @@ export default [
     files: [
       '**/src/app/app.config.ts',
       '**/src/app/function-registry.ts',
+      '**/src/app/function-registry-entry.ts',
       '**/src/app/function-registry-bridge.ts',
       '**/src/app/page-actor.ts',
       '**/src/app/query-params.utils.ts',
@@ -45,6 +46,8 @@ export default [
     ],
     rules: {
       'craft-ts/no-throw': 'off',
+      // These entry points are synchronous adapters around Craft generators.
+      'craft-ts/no-craft-use': 'off',
     },
   },
   {
@@ -65,9 +68,19 @@ export default [
     files: [
       '**/src/app/function-registry-bridge.ts',
       '**/src/app/log-forwarder.ts',
+      '**/src/app/function-registry-entry.ts',
     ],
     rules: {
       'craft-ts/no-direct-temporal-globals': 'off',
+      'craft-ts/no-craft-use': 'off',
+    },
+  },
+  {
+    // Vite/Vitest config files are Node tooling boundaries and intentionally
+    // import the shared workspace plugin through a relative path.
+    files: ['vite.config.ts', 'vitest.config.ts'],
+    rules: {
+      '@nx/enforce-module-boundaries': 'off',
     },
   },
   {

@@ -147,12 +147,12 @@ typed exceptions. It is useful for a derived Effect value; use `queryEffect`
 when the input/loader boundary and query cache semantics are the important
 part of the feature.
 
-## Synchronous params and Effect-valued methods
+## Synchronous params and methods
 
 The `params` factory remains synchronous: it may read Craft dependencies, but it
 must not construct an Effect or yield an Effect service. Use `computedEffect`
-for an asynchronous derivation. A `method` may return an Effect before the
-loader starts:
+for an asynchronous derivation. A `method` only maps its arguments to params;
+the loader is the only Effect-aware callback:
 
 ```typescript
 const profile =
@@ -174,8 +174,9 @@ const profileByMethod =
 ```
 
 The Effect ESLint rule rejects Effect values and Effect service reads inside
-`params`, keeping `identifier`, `resourceParamsSrc` and the query cache
-synchronous and deterministic.
+`params`, methods, `craftComputed(...)`, and `craftEffect(...)`, keeping the
+query boundary synchronous and deterministic. Only the loader may return an
+Effect.
 
 For purely synchronous local state, use native Craft values and `state`; there
 is intentionally no `stateEffect`:

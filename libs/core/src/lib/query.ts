@@ -1981,11 +1981,13 @@ function createQueryRef<
                 >
               ).addById(id as GroupIdentifier & string);
             }
-            // Bump before the set so both writes land in the same tick and the
-            // resource request changes on every call.
-            methodTriggerSeq.update((n) => n + 1);
             //@ts-expect-error exposed method params cannot use the from-resource entity callback shape
             queryResourceParamsFnSignal.set(paramsResult as QueryParams);
+            // Set the params while the trigger is still inactive. The trigger
+            // is intentionally bumped last: Craft watches run synchronously,
+            // so bumping it first would briefly expose the previous params
+            // (undefined on the first call) and start an extra request.
+            methodTriggerSeq.update((n) => n + 1);
             return yieldableInvocation<MethodYielded, QueryParams>(
               paramsResult,
             );

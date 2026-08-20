@@ -44,9 +44,12 @@ const ViewTransitionsDetailComponent = craftComponent(
     const hasPhoto = craftComputed('hasPhoto', function* () {
       return (yield* currentPhoto()).id !== MISSING_PHOTO.id;
     });
-    return { photoId, back, currentPhoto, hasPhoto };
+    const currentPhotoTitle = craftComputed('currentPhotoTitle', function* () {
+      return (yield* currentPhoto()).title;
+    });
+    return { photoId, back, currentPhoto, currentPhotoTitle, hasPhoto };
   },
-  ({ photoId, back, currentPhoto, hasPhoto }) => {
+  ({ photoId, back, currentPhoto, currentPhotoTitle, hasPhoto }) => {
     return [
       a('back',
         {
@@ -81,9 +84,7 @@ const ViewTransitionsDetailComponent = craftComponent(
               p(function* () {
                 return (yield* currentPhoto()).subtitle;
               }),
-              heading(function* () {
-                return (yield* currentPhoto()).title;
-              }),
+              heading(currentPhotoTitle),
               p(function* () {
                 return (yield* currentPhoto()).description;
               }),

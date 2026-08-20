@@ -4,9 +4,9 @@ import tsParser from '@typescript-eslint/parser';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const rule = require('./no-effect-in-params.cjs');
+const rule = require('./no-effect-outside-loaders.cjs');
 
-describe('no-effect-in-params', () => {
+describe('no-effect-outside-loaders', () => {
   it('rejects Effect values returned from params', async () => {
     const messages = await lint(`
       import { queryEffect } from '@craft-ts/effect';
@@ -19,7 +19,7 @@ describe('no-effect-in-params', () => {
     `);
 
     expect(messages).toEqual([
-      '`params` must remain synchronous. Do not return an Effect or read an Effect service here; use `computedEffect(...)` or `method(...)` for asynchronous work.',
+      'Effect values and Effect service reads are only allowed in an Effect loader. Keep params, methods, craftComputed(...) and craftEffect(...) synchronous.',
     ]);
   });
 
@@ -37,10 +37,10 @@ describe('no-effect-in-params', () => {
     `);
 
     expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('read an Effect service');
+    expect(messages[0]).toContain('Effect service reads');
   });
 
-  it('allows Craft reactive reads in params and Effect-valued methods', async () => {
+  it('rejects Effect-valued methods', async () => {
     const messages = await lint(`
       import { queryEffect } from '@craft-ts/effect';
       import { Effect } from 'effect';
@@ -51,6 +51,34 @@ describe('no-effect-in-params', () => {
           return { id: input };
         },
         method: (id: string) => Effect.succeed({ id }),
+        loader: ({ params }) => Effect.succeed(params),
+      });
+    `);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('only allowed in an Effect loader');
+  });
+
+  it('rejects Effect values in craftComputed and craftEffect callbacks', async () => {
+    const messages = await lint(`
+      import { craftComputed, craftEffect } from '@craft-ts/core';
+      import { Effect } from 'effect';
+
+      craftComputed('total', () => Effect.succeed(1));
+      craftEffect('sync-effect', () => Effect.succeed(1));
+    `);
+
+    expect(messages).toHaveLength(2);
+  });
+
+  it('allows Effect values in loaders and Craft reads in params', async () => {
+    const messages = await lint(`
+      import { queryEffect } from '@craft-ts/effect';
+
+      queryEffect('profile', {
+        params: function* () {
+          return yield* someInput();
+        },
         loader: ({ params }) => Effect.succeed(params),
       });
     `);

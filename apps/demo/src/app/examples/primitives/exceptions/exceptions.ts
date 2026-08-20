@@ -75,6 +75,9 @@ const ExceptionsComponent = craftComponent(
         animation: ExceptionsComponent-exception-spin 0.7s linear infinite;
       }
       @keyframes ExceptionsComponent-exception-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        :scope .exception-spinner { animation: none; }
+      }
       :scope p { margin: 0.5rem 0; }
     
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
@@ -120,6 +123,24 @@ const ExceptionsComponent = craftComponent(
           const status = yield* resource.status();
           return status === 'loading' || status === 'reloading';
         }),
+        userStatusLabel: craftComputed('userStatusLabel', function* () {
+          return yield* resource.status();
+        }),
+        userId: craftComputed('userId', function* () {
+          return ((yield* resource.value()) as { id: string }).id;
+        }),
+        userName: craftComputed('userName', function* () {
+          return ((yield* resource.value()) as { name: string }).name;
+        }),
+        userEmail: craftComputed('userEmail', function* () {
+          return ((yield* resource.value()) as { email: string }).email;
+        }),
+        typedUserExceptionLoader: craftComputed(
+          'typedUserExceptionLoader',
+          function* () {
+            return (yield* exceptions()).loader as UserExceptionLoader;
+          },
+        ),
       }),
     );
     yield* userQuery.call('success'); // trigger first call
@@ -127,11 +148,11 @@ const ExceptionsComponent = craftComponent(
   },
   ({ userQuery }) => {
     return div([
-      heading(
-        function* () {
-          return `Query user with business exceptions (${yield* userQuery.status()})`;
-        },
-      ),
+      heading([
+        'Query user with business exceptions (',
+        userQuery.userStatusLabel,
+        ')',
+      ]),
       div({ class: 'exception-actions' }, [
         button('success',
           { type: 'button',
@@ -188,25 +209,25 @@ const ExceptionsComponent = craftComponent(
             p([
               strong('ID: '),
               function* () {
-                return ((yield* userQuery.value()) as { id: string }).id;
+                return yield* userQuery.userId();
               },
             ]),
             p([
               strong('Name: '),
               function* () {
-                return ((yield* userQuery.value()) as { name: string }).name;
+                return yield* userQuery.userName();
               },
             ]),
             p([
               strong('Email: '),
               function* () {
-                return ((yield* userQuery.value()) as { email: string }).email;
+                return yield* userQuery.userEmail();
               },
             ]),
           ]),
         () => [
           matchBlock.exhaustive(
-            userQuery.userExceptionLoader as unknown as () => UserExceptionLoader,
+            userQuery.typedUserExceptionLoader,
             '_tag',
             {
               UserNotFoundException: () =>

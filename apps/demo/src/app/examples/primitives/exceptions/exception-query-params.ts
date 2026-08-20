@@ -94,6 +94,17 @@ const ExceptionQueryParamsComponent = craftComponent(
             return (yield* exceptions()).parse.mode !== undefined;
           },
         ),
+        parseExceptionMessage: craftComputed(
+          'parseExceptionMessage',
+          function* () {
+            return formatParseException(
+              (yield* exceptions()).parse.mode as {
+                _tag: string;
+                payload: { error: unknown };
+              },
+            );
+          },
+        ),
       }),
     );
     const navigate = craftMethod('navigate', function* (mode: string) {
@@ -138,14 +149,7 @@ const ExceptionQueryParamsComponent = craftComponent(
         () =>
           p([
             strong('Exception: '),
-            function* () {
-              return formatParseException(
-                (yield* modeQueryParams.exceptions()).parse.mode as {
-                  _tag: string;
-                  payload: { error: unknown };
-                },
-              );
-            },
+            modeQueryParams.parseExceptionMessage,
           ]),
         () => p([strong('Exception: '), 'none']),
       ),

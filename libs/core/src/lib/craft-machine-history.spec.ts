@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Expect } from 'test-type';
 import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
+import { craftUnique } from './craft-unique';
+import type { GetServiceDependencies } from './craft-service';
+import {
+  provideStorageService,
+  SessionStorageService,
+} from './browser-boundaries';
 import { state } from './state';
 import { query } from './query';
 import { source$ } from './source$';
@@ -10,7 +17,34 @@ import {
   initStateMachine,
   transitionStep,
 } from './craft-state-machine';
-import { withBackNavigation, withHistory } from './craft-machine-history';
+import {
+  withBackNavigation,
+  withStateMachineHistory,
+} from './craft-machine-history';
+
+type ChildrenOf<Deps> = Deps extends { dependencies: infer Children }
+  ? Children
+  : never;
+type HasDependency<Deps, Name extends string> = Name extends keyof ChildrenOf<
+  Deps
+>
+  ? true
+  : false;
+
+function configureStorageService() {
+  TestBed.configureTestingModule({
+    providers: [
+      provideStorageService(function* () {
+        return yield* SessionStorageService();
+      }),
+    ],
+  });
+}
+
+function resetHistoryTestBed() {
+  TestBed.resetTestingModule();
+  configureStorageService();
+}
 
 const contextFactory = function* () {
   const draft = yield* state('draft', 'initial', ({ set }) => ({
@@ -52,13 +86,15 @@ function createMachine() {
         };
       },
 
-      withHistory(withBackNavigation()),
+      withStateMachineHistory(withBackNavigation()),
     ),
   );
 }
 
 describe('machine history', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => {
+    resetHistoryTestBed();
+  });
 
   it('records the initial step as its first entry', () => {
     const machine = TestBed.runInInjectionContext(createMachine);
@@ -163,7 +199,9 @@ describe('machine history', () => {
 });
 
 describe('machine history with an external primitive', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => {
+    resetHistoryTestBed();
+  });
 
   it('captures and restores a state declared outside the machine', () => {
     const built = TestBed.runInInjectionContext(() => {
@@ -192,7 +230,7 @@ describe('machine history with an external primitive', () => {
           function* () {
             return { reading: {}, editing: {} };
           },
-          withHistory({ include: [shared] }, withBackNavigation()),
+          withStateMachineHistory({ include: [shared] }, withBackNavigation()),
         ),
       );
 
@@ -230,7 +268,7 @@ describe('machine history with an external primitive', () => {
           function* () {
             return { reading: {}, editing: {} };
           },
-          withHistory({ include: [{ not: 'a primitive' }] }),
+          withStateMachineHistory({ include: [{ not: 'a primitive' }] }),
         ),
       ),
     );
@@ -242,22 +280,7 @@ describe('machine history with an external primitive', () => {
 });
 
 describe('persisted machine history', () => {
-  function createStorage() {
-    const items = new Map<string, string>();
-    return {
-      items,
-      storage: {
-        getItem: (key: string) => items.get(key) ?? null,
-        setItem: (key: string, value: string) => void items.set(key, value),
-        removeItem: (key: string) => void items.delete(key),
-      },
-    };
-  }
-
-  function createPersistedMachine(
-    storage: ReturnType<typeof createStorage>['storage'],
-    key: string,
-  ) {
+  function createPersistedMachine(key: string) {
     return craftUse(
       craftStateMachine(
         'persisted',
@@ -275,32 +298,44 @@ describe('persisted machine history', () => {
         function* () {
           return { reading: {}, editing: {} };
         },
-        withHistory(
-          { persist: { storeName: 'spec', key, storage } },
+        withStateMachineHistory(
+          { persist: craftUnique({ storeName: 'spec', key }) },
           withBackNavigation(),
         ),
       ),
     );
   }
 
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => {
+    resetHistoryTestBed();
+    sessionStorage.clear();
+  });
+
+  it('declares StorageService as a machine dependency', () => {
+    type Dependencies = GetServiceDependencies<
+      ReturnType<typeof createPersistedMachine>
+    >;
+    type _StorageService = Expect<
+      HasDependency<Dependencies, 'StorageService'>
+    >;
+
+    expect(true).toBe(true);
+  });
 
   it('writes the history under the declared anchor', () => {
-    const { items, storage } = createStorage();
-
     const machine = TestBed.runInInjectionContext(() =>
-      createPersistedMachine(storage, 'book-1'),
+      createPersistedMachine('book-1'),
     );
     machine.context.edit$.emit();
 
-    expect([...items.keys()]).toEqual(['craft-ts-spec-history-book-1']);
+    expect([...Object.keys(sessionStorage)]).toEqual([
+      'craft-ts-spec-history-book-1',
+    ]);
   });
 
   it('restores a pre-reload value into primitives created after the reload', () => {
-    const { storage } = createStorage();
-
     const before = TestBed.runInInjectionContext(() =>
-      createPersistedMachine(storage, 'book-1'),
+      createPersistedMachine('book-1'),
     );
     // The value is set BEFORE the transition, so the recorded moment holds it.
     craftUse(before.context.draft.to('edited'));
@@ -313,9 +348,9 @@ describe('persisted machine history', () => {
 
     // A reload: a brand new machine, brand new primitives, and none of them
     // ever saw the value 'edited'.
-    TestBed.resetTestingModule();
+    resetHistoryTestBed();
     const after = TestBed.runInInjectionContext(() =>
-      createPersistedMachine(storage, 'book-1'),
+      createPersistedMachine('book-1'),
     );
 
     expect(craftUse(after.history()).map((entry) => entry.step)).toEqual([
@@ -333,19 +368,17 @@ describe('persisted machine history', () => {
   });
 
   it('does not stack an identical moment when a machine is rebuilt', () => {
-    const { storage } = createStorage();
-
     const before = TestBed.runInInjectionContext(() =>
-      createPersistedMachine(storage, 'book-1'),
+      createPersistedMachine('book-1'),
     );
     expect(craftUse(before.history())).toHaveLength(1);
 
     // Remounting the component — or reloading the page — builds a machine that
     // starts exactly where the recorded one stood. Recording that again would
     // stack duplicates a rewind then has to walk through.
-    TestBed.resetTestingModule();
+    resetHistoryTestBed();
     const after = TestBed.runInInjectionContext(() =>
-      createPersistedMachine(storage, 'book-1'),
+      createPersistedMachine('book-1'),
     );
 
     expect(craftUse(after.history())).toHaveLength(1);
@@ -353,23 +386,20 @@ describe('persisted machine history', () => {
   });
 
   it('keeps two anchors of the same machine apart', () => {
-    const { items, storage } = createStorage();
-
     TestBed.runInInjectionContext(() => {
-      const first = createPersistedMachine(storage, 'book-1');
-      const second = createPersistedMachine(storage, 'book-2');
+      const first = createPersistedMachine('book-1');
+      const second = createPersistedMachine('book-2');
       first.context.edit$.emit();
       second.context.edit$.emit();
     });
 
-    expect([...items.keys()].sort()).toEqual([
+    expect([...Object.keys(sessionStorage)].sort()).toEqual([
       'craft-ts-spec-history-book-1',
       'craft-ts-spec-history-book-2',
     ]);
   });
 
   it('survives an event that cannot be serialised', () => {
-    const { items, storage } = createStorage();
     const circular: Record<string, unknown> = {};
     circular['self'] = circular;
 
@@ -393,7 +423,9 @@ describe('persisted machine history', () => {
           function* () {
             return { reading: {}, editing: {} };
           },
-          withHistory({ persist: { storeName: 'spec', key: 'circular', storage } }),
+          withStateMachineHistory({
+            persist: craftUnique({ storeName: 'spec', key: 'circular' }),
+          }),
         ),
       ),
     );
@@ -402,7 +434,9 @@ describe('persisted machine history', () => {
 
     // The moment is kept in memory, and persisted with its event dropped.
     expect(craftUse(machine.history())).toHaveLength(2);
-    const persisted = JSON.parse(items.get('craft-ts-spec-history-circular')!);
+    const persisted = JSON.parse(
+      sessionStorage.getItem('craft-ts-spec-history-circular')!,
+    );
     expect(persisted.entries).toHaveLength(2);
   });
 });
@@ -450,13 +484,13 @@ describe('machine history with an async resource', () => {
         function* () {
           return { first: {}, second: {}, third: {} };
         },
-        withHistory(withBackNavigation()),
+        withStateMachineHistory(withBackNavigation()),
       ),
     );
   }
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    resetHistoryTestBed();
     loads.length = 0;
   });
 

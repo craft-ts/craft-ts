@@ -23,14 +23,14 @@ import {
   mutation,
   query,
   state,
-  craftUse,
+  type CraftServiceInput,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
 export const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', providedIn: 'toProvide' },
-  function* (inputs: { userId: () => string | undefined }) {
+  function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
@@ -76,9 +76,7 @@ const MutationCraft = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const store = yield* UserMutation({
-      userId: () => {
-        return craftUse(userId());
-      },
+      userId,
     });
     const nameInput = yield* state('nameInput', '', ({ set }) => ({
       setName: (value: string) => set(value),

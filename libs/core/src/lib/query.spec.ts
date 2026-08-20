@@ -398,6 +398,26 @@ describe('query', () => {
       expect(logs).toEqual(['auto:init', 'manual:user-3']);
     });
   });
+
+  it('does not load a method query with the previous params during call', async () => {
+    await runInInjectionContext(async () => {
+      const loaded: string[] = [];
+      const queryRef = craftUse(
+        query('manualQuery', {
+          method: (term: string) => term,
+          loader: async ({ params }) => {
+            loaded.push(params);
+            return { id: params };
+          },
+        }),
+      );
+
+      queryRef.call('user-3');
+      await vi.runAllTimersAsync();
+
+      expect(loaded).toEqual(['user-3']);
+    });
+  });
 });
 
 describe('query with identifier>', () => {

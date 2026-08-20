@@ -48,9 +48,10 @@ export default [
       'craft-ts/prefer-craft-template-blocks': 'error',
       'craft-ts/no-render-writes': 'error',
       'craft-ts/require-reactive-template-bindings': 'error',
-      'craft-ts/no-craft-use-in-template': 'error',
+      'craft-ts/no-craft-use': 'error',
       'craft-ts/no-type-assertions-in-template': 'error',
       'craft-ts/no-ephemeral-template-form-state': 'error',
+      'craft-ts/template-element-name-unique': 'error',
       'craft-ts/no-craft-computed-side-effects': 'error',
       'craft-ts/require-craft-method-for-yieldable-callback': 'error',
       'craft-ts/prefer-direct-yieldable-callback': 'error',
@@ -83,9 +84,10 @@ What each rule does:
 - `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
-- `craft-ts/no-craft-use-in-template`: forbids the synchronous `craftUse(...)` escape hatch in Craft templates; pass the reactive reader directly, such as `status: usersQuery.currentPageStatus`
+- `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
 - `craft-ts/no-type-assertions-in-template`: forbids `as ...` and angle-bracket type assertions in Craft templates; fix the type in the logic factory or expose a correctly typed derived value
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
+- `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ts/no-effect-in-params`: keeps `params` synchronous by rejecting Effect values and Effect service reads; use `computedEffect(...)` or an Effect-valued `method(...)` for asynchronous work
 - `craft-ts/prefer-craft-reactivity`: rejects authored signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
@@ -102,7 +104,7 @@ What each rule does:
 - `craft-ts/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ts/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
 - `craft-ts/prefer-direct-yieldable-callback`: replaces a template generator that only returns `yield* callback()` with the callback reference itself
-- `craft-ts/require-yieldable-reactive-read`: requires Craft reactive readers to be delegated with `yield*` inside generator functions; a function that reads a Craft reader must itself be a generator (`craftUse` remains the synchronous boundary)
+- `craft-ts/require-yieldable-reactive-read`: requires Craft reactive readers to be delegated with `yield*` inside generator functions; a function that reads a Craft reader must itself be a generator
 - `craft-ts/require-yieldable-template-method`: requires yieldable Craft method calls in a `craftComponent` template to be delegated with `yield*`, or passed as a reference (`click: counter.increment`)
 - `craft-ts/require-yieldable-insertion-write`: requires `set(...)`, `patch(...)`, and `update(...)` to be delegated with `yield*` when they are used inside a generator method
 - `craft-ts/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
@@ -161,6 +163,79 @@ matchBlock.exhaustive(query.exceptions, '_tag', {
 
 This rule is for Craft's TypeScript templates. It does not rewrite external
 template languages.
+
+The same restriction applies to boolean expressions. A negation is still
+application logic, even when it is used only for a DOM property:
+
+```ts
+// Incorrect: the template derives the disabled state.
+button({ disabled: function* () {
+  return !(yield* machine.canGoBack());
+} }, 'Back');
+
+// Correct: derive it in the logic factory and bind the result.
+const backDisabled = craftComputed('backDisabled', function* () {
+  return !(yield* history.canGoBack());
+});
+return { backDisabled };
+```
+
+Keep the template to layout and binding. Move labels, formatted values,
+validation state, and other decisions into `state()` or `craftComputed()`.
+
+### Derived values belong to their primitive
+
+When a computed reads only one local primitive, declare it in that primitive's
+insertion. This keeps the dependency visible and lets pending/exception
+boundaries name the actual source:
+
+```ts
+const users = yield* query(
+  'users',
+  config,
+  ({ resource }) => ({
+    total: craftComputed('total', function* () {
+      return (yield* settled(resource)).length;
+    }),
+  }),
+);
+```
+
+Do not create `craftComputed('total', ...)` beside the query when the
+computation depends only on `users`.
+
+### Keep casts and synchronous reads out of templates
+
+Craft templates reject both `as ...` / angle-bracket assertions and
+`craftUse(...)`. Fix the type or perform the synchronous-to-reactive
+conversion in the component logic, then expose a typed reader or generator to
+the template:
+
+```ts
+const typedStep = machine.stepState as unknown as () => { step: Step };
+return { typedStep };
+
+// Template: no cast and no craftUse.
+matchBlock.exhaustive(typedStep, 'step', steps);
+```
+
+`no-craft-use` applies to Craft TypeScript files, not only the fourth
+`craftComponent(...)` argument. A synchronous integration boundary may opt out
+locally when its external API cannot consume a generator, but application
+state and templates should use `yield*`.
+
+### Form and accessibility diagnostics
+
+The accessibility preset also checks the static structure of hyperscript:
+
+- give every `label` an `htmlFor` matching the control `id`, or wrap the control;
+- give named controls and helpers a unique string local name;
+- use `button` or `a` for interactions instead of adding `click` to a `div`;
+- add a `prefers-reduced-motion` branch whenever component CSS defines an
+  animation or transition.
+
+These checks run on Craft TypeScript templates and extracted helper factories,
+so moving markup into a local function does not bypass them.
 
 ### Reactive values belong in binding callbacks
 
