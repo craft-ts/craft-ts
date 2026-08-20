@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { state } from './state';
+import { query } from './query';
 import { source$ } from './source$';
 import { on$ } from './on$';
 import {
@@ -383,5 +384,94 @@ describe('persisted machine history', () => {
     expect(craftUse(machine.history())).toHaveLength(2);
     const persisted = JSON.parse(items.get('craft-ts-spec-history-circular')!);
     expect(persisted.entries).toHaveLength(2);
+  });
+});
+
+describe('machine history with an async resource', () => {
+  const loads: string[] = [];
+
+  const asyncContext = function* () {
+    const selectedId = yield* state('selectedId', 'a', ({ set }) => ({
+      to: (value: string) => set(value),
+    }));
+    const details = yield* query('details', {
+      params: function* () {
+        return yield* selectedId();
+      },
+      loader: async ({ params }) => {
+        loads.push(params as string);
+        return { id: params as string };
+      },
+    });
+    const go$ = yield* source$<void>('go$');
+
+    return { selectedId, details, go$ };
+  };
+
+  function createAsyncMachine() {
+    return craftUse(
+      craftStateMachine(
+        'async',
+        asyncContext,
+        function* (context, transit) {
+          return {
+            first: transitionStep(function* () {
+              yield* initStateMachine(() => transit());
+            }),
+            second: transitionStep(function* () {
+              yield* on$(context.go$, () => transit());
+            }),
+          };
+        },
+        function* () {
+          return { first: {}, second: {} };
+        },
+        withHistory(withBackNavigation()),
+      ),
+    );
+  }
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    loads.length = 0;
+  });
+
+  // Pins the CURRENT behaviour, limitation included: rewinding a machine puts
+  // a resource's parameter back, and the resource reloads from it. The restored
+  // value is therefore transient — the fetch wins. Freezing the loaders is not
+  // solved; skipping them naively leaves the resource empty instead, which is
+  // worse than a refetch.
+  it('reloads a resource whose restored parameter changed', async () => {
+    const machine = TestBed.runInInjectionContext(createAsyncMachine);
+
+    craftUse(machine.context.details.value());
+    await vi.waitFor(() =>
+      expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' }),
+    );
+
+    // Recorded while the resource holds the value loaded for 'a'.
+    machine.context.go$.emit();
+    expect(craftUse(machine.currentStep())).toBe('second');
+
+    craftUse(machine.context.selectedId.to('b'));
+    await vi.waitFor(() =>
+      expect(craftUse(machine.context.details.value())).toEqual({ id: 'b' }),
+    );
+    expect(loads).toEqual(['a', 'b']);
+
+    craftUse(machine.back());
+
+    // The step and the parameter come back…
+    expect(craftUse(machine.currentStep())).toBe('first');
+    expect(craftUse(machine.context.selectedId())).toBe('a');
+
+    // …and the resource refetches from that parameter rather than keeping the
+    // captured value. The end state is right, the round trip is not free.
+    // …and the resource reloads from that parameter rather than being pinned
+    // to the value the snapshot happened to hold.
+    await vi.waitFor(() =>
+      expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' }),
+    );
+    expect(loads).toEqual(['a', 'b', 'a']);
   });
 });

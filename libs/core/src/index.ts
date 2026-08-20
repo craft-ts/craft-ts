@@ -88,6 +88,7 @@ export * from './lib/util/entities-util';
 export * from './lib/craft-method';
 export * from './lib/craft-computed';
 export * from './lib/craft-primitive-registry';
+export * from './lib/craft-replay';
 export * from './lib/craft-state-machine';
 export * from './lib/craft-machine-history';
 export {

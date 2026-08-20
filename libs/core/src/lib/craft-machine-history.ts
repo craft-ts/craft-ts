@@ -2,8 +2,10 @@ import { inject } from './host/craft-compat';
 import { craftComputed as createCraftComputed, craftSignal } from './host/craft-signal';
 import {
   CRAFT_PRIMITIVE_REGISTRY,
+  type CraftPrimitiveEntry,
   type CraftPrimitiveSnapshot,
 } from './craft-primitive-registry';
+import { ɵwithCraftReplay } from './craft-replay';
 import {
   createYieldableReactiveValue,
   isYieldableReactiveValue,
@@ -267,7 +269,7 @@ export function withHistory(
 
       for (const { entry, key } of relativeKeys()) {
         const captured = registry.capture([entry]);
-        if (entry.address in captured) {
+        if (entry.address in captured && isRecordable(entry, captured[entry.address])) {
           snapshot[key] = captured[entry.address];
         }
       }
@@ -279,7 +281,7 @@ export function withHistory(
         const entry = address ? registry.get(address) : undefined;
         if (!entry) return;
         const captured = registry.capture([entry]);
-        if (entry.address in captured) {
+        if (entry.address in captured && isRecordable(entry, captured[entry.address])) {
           snapshot[`${EXTERNAL_KEY_PREFIX}${index}`] = captured[entry.address];
         }
       });
@@ -293,15 +295,27 @@ export function withHistory(
         relativeKeys().map(({ entry, key }) => [key, entry]),
       );
 
+      const writes: { entry: CraftPrimitiveEntry; value: unknown }[] = [];
+
       for (const [key, value] of Object.entries(snapshot)) {
-        if (key.startsWith(EXTERNAL_KEY_PREFIX)) {
-          const index = Number(key.slice(EXTERNAL_KEY_PREFIX.length));
-          const address = registry.addressOf(includedRefs[index]);
-          if (address) registry.get(address)?.write(value);
-          continue;
-        }
-        current.get(key)?.write(value);
+        const entry = key.startsWith(EXTERNAL_KEY_PREFIX)
+          ? externalEntry(Number(key.slice(EXTERNAL_KEY_PREFIX.length)))
+          : current.get(key);
+        if (entry) writes.push({ entry, value });
       }
+
+      // The whole restore runs under the replay flag, so tooling can tell a
+      // rewind from ordinary user activity.
+      ɵwithCraftReplay(() => {
+        for (const { entry, value } of writes) {
+          entry.write(value);
+        }
+      });
+    };
+
+    const externalEntry = (index: number): CraftPrimitiveEntry | undefined => {
+      const address = registry.addressOf(includedRefs[index]);
+      return address ? registry.get(address) : undefined;
     };
 
     const append = (entry: CraftHistoryEntry) => {
@@ -345,7 +359,7 @@ export function withHistory(
 
       machine.suspended(() => {
         restore(entry.snapshot);
-        machine.restoreStep(entry.step);
+        ɵwithCraftReplay(() => machine.restoreStep(entry.step));
       });
       cursor.set(index);
       writePersisted(persistence?.storage, storageKey, entries(), cursor());
@@ -431,6 +445,18 @@ function readRaw<Value>(reader: unknown): Value | undefined {
     : undefined;
 }
 
+
+/**
+ * Whether a captured value is worth recording.
+ *
+ * A resource read before its loader has settled holds `undefined`, and writing
+ * `undefined` back into it does not restore anything — it pins the resource to
+ * a local value and detaches it from its loader for good. An unsettled
+ * resource records nothing instead, and a restore leaves the live one alone.
+ */
+function isRecordable(entry: CraftPrimitiveEntry, value: unknown): boolean {
+  return entry.kind === 'state' || value !== undefined;
+}
 
 /** Drops the registry's global occurrence suffix from an address. */
 function stripOccurrence(address: string): string {
