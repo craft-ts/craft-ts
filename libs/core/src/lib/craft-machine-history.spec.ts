@@ -404,8 +404,9 @@ describe('machine history with an async resource', () => {
       },
     });
     const go$ = yield* source$<void>('go$');
+    const done$ = yield* source$<void>('done$');
 
-    return { selectedId, details, go$ };
+    return { selectedId, details, go$, done$ };
   };
 
   function createAsyncMachine() {
@@ -421,10 +422,13 @@ describe('machine history with an async resource', () => {
             second: transitionStep(function* () {
               yield* on$(context.go$, () => transit());
             }),
+            third: transitionStep(function* () {
+              yield* on$(context.done$, () => transit());
+            }),
           };
         },
         function* () {
-          return { first: {}, second: {} };
+          return { first: {}, second: {}, third: {} };
         },
         withHistory(withBackNavigation()),
       ),
@@ -436,12 +440,7 @@ describe('machine history with an async resource', () => {
     loads.length = 0;
   });
 
-  // Pins the CURRENT behaviour, limitation included: rewinding a machine puts
-  // a resource's parameter back, and the resource reloads from it. The restored
-  // value is therefore transient — the fetch wins. Freezing the loaders is not
-  // solved; skipping them naively leaves the resource empty instead, which is
-  // worse than a refetch.
-  it('reloads a resource whose restored parameter changed', async () => {
+  it('restores a settled resource with its parameter, without reloading', async () => {
     const machine = TestBed.runInInjectionContext(createAsyncMachine);
 
     craftUse(machine.context.details.value());
@@ -451,8 +450,36 @@ describe('machine history with an async resource', () => {
 
     // Recorded while the resource holds the value loaded for 'a'.
     machine.context.go$.emit();
-    expect(craftUse(machine.currentStep())).toBe('second');
 
+    craftUse(machine.context.selectedId.to('b'));
+    await vi.waitFor(() =>
+      expect(craftUse(machine.context.details.value())).toEqual({ id: 'b' }),
+    );
+    machine.context.done$.emit();
+    expect(loads).toEqual(['a', 'b']);
+
+    craftUse(machine.back());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The parameter and the value it belongs to come back together, so the
+    // resource has nothing to fetch: it already holds the right answer.
+    expect(craftUse(machine.currentStep())).toBe('second');
+    expect(craftUse(machine.context.selectedId())).toBe('a');
+    expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' });
+    expect(loads).toEqual(['a', 'b']);
+  });
+
+  it('reloads a resource the snapshot could not capture', async () => {
+    const machine = TestBed.runInInjectionContext(createAsyncMachine);
+
+    // The very first moment is recorded before the loader settles, so it holds
+    // no value for the resource.
+    craftUse(machine.context.details.value());
+    await vi.waitFor(() =>
+      expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' }),
+    );
+
+    machine.context.go$.emit();
     craftUse(machine.context.selectedId.to('b'));
     await vi.waitFor(() =>
       expect(craftUse(machine.context.details.value())).toEqual({ id: 'b' }),
@@ -460,15 +487,13 @@ describe('machine history with an async resource', () => {
     expect(loads).toEqual(['a', 'b']);
 
     craftUse(machine.back());
+    craftUse(machine.back());
 
-    // The step and the parameter come back…
     expect(craftUse(machine.currentStep())).toBe('first');
     expect(craftUse(machine.context.selectedId())).toBe('a');
 
-    // …and the resource refetches from that parameter rather than keeping the
-    // captured value. The end state is right, the round trip is not free.
-    // …and the resource reloads from that parameter rather than being pinned
-    // to the value the snapshot happened to hold.
+    // Nothing to restore means nothing to freeze: the resource reloads rather
+    // than keeping data that belongs to the other parameter.
     await vi.waitFor(() =>
       expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' }),
     );

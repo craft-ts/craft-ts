@@ -17,6 +17,7 @@ import {
   untracked,
 } from './host/craft-signal';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import { isCraftReplaying } from './craft-replay';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 type CraftResourceOptions<Value, Params> = Omit<
@@ -157,6 +158,11 @@ export function craftResource<Value, Params>(
     if (hasCurrentParams && Object.is(currentParams, params)) return;
     currentParams = params;
     hasCurrentParams = true;
+    // A replay restores a parameter and the value that belongs to it as one
+    // pair. Claiming the parameter without loading is what `set` already does
+    // for a locally set value — "this value belongs to the params in force, do
+    // not reload over it" — and it is the same statement here.
+    if (isCraftReplaying()) return;
     if (params === undefined) {
       abortController?.abort();
       ++requestVersion;

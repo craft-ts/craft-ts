@@ -22,6 +22,8 @@ export type PrimitiveResourceRuntimeContext<
   set(value: unknown, id?: string): unknown;
   update(updater: (current: unknown) => unknown, id?: string): unknown;
   patch(updater: (current: unknown) => object, id?: string): unknown;
+  /** Re-runs the loader from the params in force. */
+  reload?(): boolean;
 }>;
 
 export type PrimitiveResourceRuntimeObserver = (
@@ -32,6 +34,7 @@ type WritableResourceTarget = Readonly<{
   state: Signal<unknown>;
   set(value: unknown): unknown;
   update(updater: (current: unknown) => unknown): unknown;
+  reload?(): boolean;
 }>;
 
 type ResourceByIdTarget = Readonly<{
@@ -77,6 +80,7 @@ export function ɵobservePrimitiveResourceRuntimeContext(
       name,
       read: () => context.get(),
       write: (value) => context.set(value),
+      reload: () => context.reload?.() ?? false,
     });
   }
 }
@@ -89,6 +93,7 @@ export function ɵcreatePrimitiveResourceRuntimeContext(
     kind,
     grouped: false,
     ids: () => [],
+    reload: () => target.reload?.() ?? false,
     get: (id) => rootTarget(target, id).state(),
     set: (value, id) => rootTarget(target, id).set(value),
     update: (updater, id) => rootTarget(target, id).update(updater),

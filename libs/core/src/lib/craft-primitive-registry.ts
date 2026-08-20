@@ -36,6 +36,12 @@ export type CraftPrimitiveEntry = Readonly<{
   hostTags: readonly string[];
   read(): unknown;
   write(value: unknown): void;
+  /**
+   * Re-runs the primitive's loader, when it has one. A resource the snapshot
+   * does not cover is reloaded rather than left showing data that belongs to
+   * another parameter.
+   */
+  reload?(): boolean;
 }>;
 
 /** A value snapshot of part of the registry, keyed by address. */
@@ -159,6 +165,7 @@ type RegisterOptions = Readonly<{
   name: string;
   read(): unknown;
   write(value: unknown): void;
+  reload?(): boolean;
   /** Resolved from the ambient injection context when omitted. */
   injector?: Injector;
 }>;
@@ -205,6 +212,7 @@ export function ɵregisterCraftPrimitive(
       hostTags,
       read: options.read,
       write: options.write,
+      ...(options.reload ? { reload: options.reload } : {}),
     },
   );
 

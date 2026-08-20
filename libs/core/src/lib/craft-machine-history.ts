@@ -304,13 +304,24 @@ export function withHistory(
         if (entry) writes.push({ entry, value });
       }
 
-      // The whole restore runs under the replay flag, so tooling can tell a
-      // rewind from ordinary user activity.
+      // The whole restore runs under the replay flag, so a resource claims its
+      // restored parameter without reloading over the value being restored
+      // with it — and so tooling can tell a rewind from user activity.
       ɵwithCraftReplay(() => {
         for (const { entry, value } of writes) {
           entry.write(value);
         }
       });
+
+      // A resource the snapshot does not cover was still loading when the
+      // moment was recorded, so there is no value to put back. Left frozen it
+      // would keep showing what belongs to another parameter; reloading it is
+      // the honest answer.
+      const restored = new Set(writes.map(({ entry }) => entry.address));
+      for (const entry of registry.under(machine.hostTags)) {
+        if (entry.kind === 'state' || restored.has(entry.address)) continue;
+        entry.reload?.();
+      }
     };
 
     const externalEntry = (index: number): CraftPrimitiveEntry | undefined => {
