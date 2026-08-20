@@ -21,6 +21,13 @@ import type {
  *
  * The step and the values are captured AFTER the transition was applied, so
  * restoring an entry restores the state the machine was in once it had moved.
+ *
+ * Snapshot keys are RELATIVE to the machine, not absolute registry addresses.
+ * An absolute address starts with the host chain of the component that happens
+ * to hold the machine, and that prefix carries a creation ordinal which means
+ * nothing after a reload. Below the machine everything is deterministic — the
+ * same code creates the same primitives in the same order — so a relative key
+ * survives, and re-anchors onto whichever instance is restoring it.
  */
 export type CraftHistoryEntry<Steps extends string = string> = Readonly<{
   step: Steps | undefined;
@@ -73,7 +80,45 @@ type HistoryOptions = Readonly<{
    * ```
    */
   include?: readonly unknown[];
+  /**
+   * Keeps the history across a reload, under an anchor the application names.
+   *
+   * Only the ANCHOR needs a stable identity: everything the machine owns is
+   * addressed relative to it, and those keys are deterministic. `key` may be a
+   * function when the anchor comes from data — a row of a list anchors on the
+   * entity it edits, not on the order it happened to be created in.
+   *
+   * ```ts
+   * const storage = yield* SessionStorageService();
+   *
+   * withHistory(
+   *   { persist: { storeName: 'app', key: () => bookId(), storage } },
+   *   withBackNavigation(),
+   * )
+   * ```
+   *
+   * The storage is passed in rather than injected, so the dependency stays
+   * visible at the call site instead of hiding inside the feature.
+   */
+  persist?: CraftHistoryPersistence;
 }>;
+
+/** The slice of a storage API a persisted history needs. */
+export type CraftHistoryStorage = Readonly<{
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}>;
+
+export type CraftHistoryPersistence = Readonly<{
+  storeName: string;
+  /** Resolved once, when the machine is built. */
+  key: string | (() => string);
+  storage: CraftHistoryStorage;
+}>;
+
+/** Reserved prefix for the primitives named through `include`. */
+const EXTERNAL_KEY_PREFIX = '#include/';
 
 type HistoryOutput<Steps extends string> = {
   readonly history: YieldableReactiveValue<
@@ -179,20 +224,84 @@ export function withHistory(
 
   return ({ currentStep, machine }) => {
     const registry = inject(CRAFT_PRIMITIVE_REGISTRY);
-    const entries = craftSignal<readonly CraftHistoryEntry[]>([]);
-    const cursor = craftSignal(0);
+    const persistence = options.persist;
+    const storageKey = persistence
+      ? `craft-ts-${persistence.storeName}-history-${
+          typeof persistence.key === 'function'
+            ? persistence.key()
+            : persistence.key
+        }`
+      : undefined;
 
-    const included = (options.include ?? [])
-      .map((ref) => registry.addressOf(ref))
-      .filter((address): address is string => address !== undefined);
+    const restored = readPersisted(persistence?.storage, storageKey);
+    const entries = craftSignal<readonly CraftHistoryEntry[]>(
+      restored?.entries ?? [],
+    );
+    const cursor = craftSignal(restored?.cursor ?? 0);
 
-    const captureOwned = () => {
-      const owned = registry.under(machine.hostTags);
-      const external = included
-        .map((address) => registry.get(address))
-        .filter((entry) => entry !== undefined);
+    const includedRefs = options.include ?? [];
+    const machinePrefix = machine.hostTags.join(' / ');
 
-      return registry.capture([...owned, ...external]);
+    /**
+     * Keys an entry relative to the machine, re-indexing occurrences within
+     * the current set rather than reusing the registry's global counter. That
+     * counter only ever grows, so it would drift the moment a machine is
+     * destroyed and rebuilt inside the same host — and a persisted key must not
+     * depend on how many times the page has already built this primitive.
+     */
+    const relativeKeys = () => {
+      const seen = new Map<string, number>();
+
+      return registry.under(machine.hostTags).map((entry) => {
+        const base = stripOccurrence(entry.address).slice(
+          machinePrefix.length === 0 ? 0 : machinePrefix.length + 3,
+        );
+        const occurrence = (seen.get(base) ?? 0) + 1;
+        seen.set(base, occurrence);
+        return { entry, key: `${base}#${occurrence}` };
+      });
+    };
+
+    const capture = (): CraftPrimitiveSnapshot => {
+      const snapshot: Record<string, unknown> = {};
+
+      for (const { entry, key } of relativeKeys()) {
+        const captured = registry.capture([entry]);
+        if (entry.address in captured) {
+          snapshot[key] = captured[entry.address];
+        }
+      }
+
+      // Primitives declared outside the machine are keyed by their position in
+      // the declared `include` list, which is stable by construction.
+      includedRefs.forEach((ref, index) => {
+        const address = registry.addressOf(ref);
+        const entry = address ? registry.get(address) : undefined;
+        if (!entry) return;
+        const captured = registry.capture([entry]);
+        if (entry.address in captured) {
+          snapshot[`${EXTERNAL_KEY_PREFIX}${index}`] = captured[entry.address];
+        }
+      });
+
+      return snapshot;
+    };
+
+    /** Resolves relative keys back onto the primitives present right now. */
+    const restore = (snapshot: CraftPrimitiveSnapshot): void => {
+      const current = new Map(
+        relativeKeys().map(({ entry, key }) => [key, entry]),
+      );
+
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (key.startsWith(EXTERNAL_KEY_PREFIX)) {
+          const index = Number(key.slice(EXTERNAL_KEY_PREFIX.length));
+          const address = registry.addressOf(includedRefs[index]);
+          if (address) registry.get(address)?.write(value);
+          continue;
+        }
+        current.get(key)?.write(value);
+      }
     };
 
     const append = (entry: CraftHistoryEntry) => {
@@ -205,6 +314,7 @@ export function withHistory(
         return next.length > limit ? next.slice(next.length - limit) : next;
       });
       cursor.set(entries().length - 1);
+      writePersisted(persistence?.storage, storageKey, entries(), cursor());
     };
 
     // The machine has already taken its initial step by the time an insertion
@@ -214,7 +324,7 @@ export function withHistory(
       from: undefined,
       event: undefined,
       at: Date.now(),
-      snapshot: captureOwned(),
+      snapshot: capture(),
     });
 
     machine.onTransition((transition) => {
@@ -224,7 +334,7 @@ export function withHistory(
         from: transition.from,
         event: transition.event,
         at: Date.now(),
-        snapshot: captureOwned(),
+        snapshot: capture(),
       });
     });
 
@@ -234,10 +344,11 @@ export function withHistory(
       if (!entry) return false;
 
       machine.suspended(() => {
-        registry.restore(entry.snapshot);
+        restore(entry.snapshot);
         machine.restoreStep(entry.step);
       });
       cursor.set(index);
+      writePersisted(persistence?.storage, storageKey, entries(), cursor());
       return true;
     };
 
@@ -318,4 +429,58 @@ function readRaw<Value>(reader: unknown): Value | undefined {
   return isYieldableReactiveValue(reader)
     ? (rawReactiveValue(reader)() as Value)
     : undefined;
+}
+
+
+/** Drops the registry's global occurrence suffix from an address. */
+function stripOccurrence(address: string): string {
+  return address.replace(/#\d+$/, '');
+}
+
+type PersistedHistory = Readonly<{
+  entries: readonly CraftHistoryEntry[];
+  cursor: number;
+}>;
+
+function readPersisted(
+  storage: CraftHistoryStorage | undefined,
+  storageKey: string | undefined,
+): PersistedHistory | undefined {
+  if (!storage || !storageKey) return undefined;
+  try {
+    const raw = storage.getItem(storageKey);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as PersistedHistory;
+    return Array.isArray(parsed?.entries) ? parsed : undefined;
+  } catch {
+    // A history that cannot be read back is a history that never existed.
+    return undefined;
+  }
+}
+
+function writePersisted(
+  storage: CraftHistoryStorage | undefined,
+  storageKey: string | undefined,
+  entries: readonly CraftHistoryEntry[],
+  cursor: number,
+): void {
+  if (!storage || !storageKey) return;
+  try {
+    storage.setItem(storageKey, JSON.stringify({ entries, cursor }));
+  } catch {
+    // An event can carry anything, a DOM event included. A moment that cannot
+    // be serialised is dropped from the persisted copy rather than taking the
+    // whole history down with it; the in-memory history keeps it.
+    try {
+      storage.setItem(
+        storageKey,
+        JSON.stringify({
+          entries: entries.map((entry) => ({ ...entry, event: undefined })),
+          cursor,
+        }),
+      );
+    } catch {
+      storage.removeItem(storageKey);
+    }
+  }
 }

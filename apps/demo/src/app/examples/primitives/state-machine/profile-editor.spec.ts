@@ -50,6 +50,9 @@ describe('ProfileEditorStateMachine', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    // The machine persists its history in session storage, so a fresh test
+    // starts from a fresh one.
+    sessionStorage.clear();
   });
 
   it('starts in reading, the step initStateMachine transits to', () => {
@@ -150,6 +153,9 @@ describe('ProfileEditorStateMachine history', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    // The machine persists its history in session storage, so a fresh test
+    // starts from a fresh one.
+    sessionStorage.clear();
   });
 
   it('records each step and rewinds the machine and its draft', () => {
@@ -177,5 +183,37 @@ describe('ProfileEditorStateMachine history', () => {
     expect(element.textContent).toContain('step 3 of 3');
 
     mounted.destroy();
+  });
+});
+
+describe('ProfileEditorStateMachine persisted history', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+    sessionStorage.clear();
+  });
+
+  it('carries its history across a reload and rewinds into it', () => {
+    const before = mount();
+    click(before.element, 'edit');
+    type(before.element, 'profile-name', 'Grace Hopper');
+    click(before.element, 'save');
+    expect(activeStep(before.element)).toBe('saving');
+    before.mounted.destroy();
+
+    // A reload: the DOM and every primitive are rebuilt from scratch, but
+    // session storage survives.
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+    const after = mount();
+
+    expect(after.element.textContent).toContain('of 4');
+    expect(activeStep(after.element)).toBe('reading');
+
+    click(after.element, 'history-back');
+
+    expect(activeStep(after.element)).toBe('saving');
+
+    after.mounted.destroy();
   });
 });

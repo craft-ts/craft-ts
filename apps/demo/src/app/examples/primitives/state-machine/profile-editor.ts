@@ -23,6 +23,7 @@ import {
   insertStatePipe,
   mutation,
   on$,
+  SessionStorageService,
   source$,
   state,
   transitionGuard,
@@ -195,7 +196,15 @@ const ProfileEditorStateMachine = craftComponent(
       // `withHistory` is just another insertion, merged in here.
       function* (machineContext) {
         const { context, currentStep, stepContext } = machineContext;
-        const history = withHistory(withBackNavigation())(machineContext);
+        // The storage is resolved here, at the point of use, so the history's
+        // browser dependency stays visible instead of hiding inside the feature.
+        const storage = yield* SessionStorageService();
+        const history = withHistory(
+          {
+            persist: { storeName: 'demo', key: 'profile-editor', storage },
+          },
+          withBackNavigation(),
+        )(machineContext);
         const stepClass = (step: string) =>
           craftComputed(`${step}Class`, function* () {
             return (yield* currentStep()) === step

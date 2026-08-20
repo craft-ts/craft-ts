@@ -239,3 +239,149 @@ describe('machine history with an external primitive', () => {
     expect(craftUse(machine.history())).toHaveLength(2);
   });
 });
+
+describe('persisted machine history', () => {
+  function createStorage() {
+    const items = new Map<string, string>();
+    return {
+      items,
+      storage: {
+        getItem: (key: string) => items.get(key) ?? null,
+        setItem: (key: string, value: string) => void items.set(key, value),
+        removeItem: (key: string) => void items.delete(key),
+      },
+    };
+  }
+
+  function createPersistedMachine(
+    storage: ReturnType<typeof createStorage>['storage'],
+    key: string,
+  ) {
+    return craftUse(
+      craftStateMachine(
+        'persisted',
+        contextFactory,
+        function* (context, transit) {
+          return {
+            reading: transitionStep(function* () {
+              yield* initStateMachine(() => transit());
+            }),
+            editing: transitionStep(function* () {
+              yield* on$(context.edit$, () => transit());
+            }),
+          };
+        },
+        function* () {
+          return { reading: {}, editing: {} };
+        },
+        withHistory(
+          { persist: { storeName: 'spec', key, storage } },
+          withBackNavigation(),
+        ),
+      ),
+    );
+  }
+
+  beforeEach(() => TestBed.resetTestingModule());
+
+  it('writes the history under the declared anchor', () => {
+    const { items, storage } = createStorage();
+
+    const machine = TestBed.runInInjectionContext(() =>
+      createPersistedMachine(storage, 'book-1'),
+    );
+    machine.context.edit$.emit();
+
+    expect([...items.keys()]).toEqual(['craft-ts-spec-history-book-1']);
+  });
+
+  it('restores a pre-reload value into primitives created after the reload', () => {
+    const { storage } = createStorage();
+
+    const before = TestBed.runInInjectionContext(() =>
+      createPersistedMachine(storage, 'book-1'),
+    );
+    // The value is set BEFORE the transition, so the recorded moment holds it.
+    craftUse(before.context.draft.to('edited'));
+    before.context.edit$.emit();
+
+    expect(craftUse(before.history()).map((entry) => entry.step)).toEqual([
+      'reading',
+      'editing',
+    ]);
+
+    // A reload: a brand new machine, brand new primitives, and none of them
+    // ever saw the value 'edited'.
+    TestBed.resetTestingModule();
+    const after = TestBed.runInInjectionContext(() =>
+      createPersistedMachine(storage, 'book-1'),
+    );
+
+    expect(craftUse(after.history()).map((entry) => entry.step)).toEqual([
+      'reading',
+      'editing',
+      'reading',
+    ]);
+    expect(craftUse(after.context.draft())).toBe('initial');
+
+    craftUse(after.back());
+
+    // The relative address re-anchored onto the fresh instance.
+    expect(craftUse(after.currentStep())).toBe('editing');
+    expect(craftUse(after.context.draft())).toBe('edited');
+  });
+
+  it('keeps two anchors of the same machine apart', () => {
+    const { items, storage } = createStorage();
+
+    TestBed.runInInjectionContext(() => {
+      const first = createPersistedMachine(storage, 'book-1');
+      const second = createPersistedMachine(storage, 'book-2');
+      first.context.edit$.emit();
+      second.context.edit$.emit();
+    });
+
+    expect([...items.keys()].sort()).toEqual([
+      'craft-ts-spec-history-book-1',
+      'craft-ts-spec-history-book-2',
+    ]);
+  });
+
+  it('survives an event that cannot be serialised', () => {
+    const { items, storage } = createStorage();
+    const circular: Record<string, unknown> = {};
+    circular['self'] = circular;
+
+    const machine = TestBed.runInInjectionContext(() =>
+      craftUse(
+        craftStateMachine(
+          'circular',
+          contextFactory,
+          function* (context, transit) {
+            return {
+              reading: transitionStep(function* () {
+                yield* initStateMachine(() => transit());
+              }),
+              editing: transitionStep(function* () {
+                yield* on$(context.edit$, function* () {
+                  yield* transit(circular);
+                });
+              }),
+            };
+          },
+          function* () {
+            return { reading: {}, editing: {} };
+          },
+          withHistory({ persist: { storeName: 'spec', key: 'circular', storage } }),
+        ),
+      ),
+    );
+
+    machine.context.edit$.emit();
+
+    // The moment is kept in memory, and persisted with its event dropped.
+    expect(craftUse(machine.history())).toHaveLength(2);
+    const persisted = JSON.parse(items.get('craft-ts-spec-history-circular')!);
+    expect(persisted.entries).toHaveLength(2);
+  });
+});
