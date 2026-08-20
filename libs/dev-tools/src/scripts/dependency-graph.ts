@@ -204,10 +204,13 @@ const PRIMITIVES = new Set([
   'asyncProcess',
   'queryParams',
   'insertSelect',
+  'craftStateMachine',
   'craftComputed',
   'craftEffect',
   'craftMethod',
 ]);
+// A host owns the primitives declared inside it: they hang off the host in the
+// graph instead of flattening into the component or service around it.
 const HOST_PRIMITIVES = new Set([
   'state',
   'query',
@@ -217,6 +220,7 @@ const HOST_PRIMITIVES = new Set([
   'asyncProcess',
   'queryParams',
   'insertSelect',
+  'craftStateMachine',
 ]);
 const STORAGE_PERSISTER_INSERTIONS = new Set([
   'insertStoragePersister',

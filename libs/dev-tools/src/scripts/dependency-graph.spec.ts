@@ -49,6 +49,10 @@ declare function insertStoragePersister(...args: unknown[]): unknown;
 declare function insertReactOnMutation(...args: unknown[]): unknown;
 declare function insertQueryPipe(...args: unknown[]): unknown;
 declare function insertSelect(...args: unknown[]): unknown;
+declare function craftStateMachine(...args: unknown[]): unknown;
+declare function transitionStep(...args: unknown[]): unknown;
+declare function initStateMachine(...args: unknown[]): unknown;
+declare function source$(...args: unknown[]): unknown;
 declare function craftEffect(...args: unknown[]): unknown;
 declare function craftComputed(...args: unknown[]): unknown;
 declare function craftMethod(...args: unknown[]): unknown;
@@ -784,6 +788,71 @@ describe('analyzeDependencyGraph insertions', () => {
       expect.arrayContaining([
         'contains->insertSelect:cell',
       ]),
+    );
+  });
+
+  it('hosts the primitives a craftStateMachine declares', async () => {
+    const root = await fixture({
+      'editor.ts': `
+        ${CRAFT_STUBS}
+
+        const Editor = craftComponent(
+          'Editor',
+          {},
+          function* () {
+            const machine = yield* craftStateMachine(
+              'editor',
+              function* () {
+                const draft = yield* state('draft', '');
+                const save = yield* mutation('save', {});
+                return { draft, save };
+              },
+              function* (context, transit) {
+                return {
+                  reading: transitionStep(function* () {
+                    yield* initStateMachine(() => transit());
+                  }),
+                };
+              },
+              function* () {
+                return { reading: {} };
+              },
+              function* ({ currentStep }) {
+                return {
+                  isReading: craftComputed('isReading', () => currentStep()),
+                };
+              },
+            );
+            return { machine };
+          },
+          () => div([]),
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(nodeByLabel(graph, 'craftStateMachine:editor')).toHaveLength(1);
+
+    // The component owns the machine…
+    expect(edgeLabels(graph, 'Editor', 'contains')).toEqual(
+      expect.arrayContaining(['contains->craftStateMachine:editor']),
+    );
+
+    // …and the machine owns what it declares, instead of the primitives
+    // flattening into the component around it.
+    expect(edgeLabels(graph, 'craftStateMachine:editor', 'contains')).toEqual(
+      expect.arrayContaining([
+        'contains->state:draft',
+        'contains->mutation:save',
+        'contains->craftComputed:isReading',
+      ]),
+    );
+    expect(edgeLabels(graph, 'Editor', 'contains')).not.toEqual(
+      expect.arrayContaining(['contains->state:draft']),
     );
   });
 });
