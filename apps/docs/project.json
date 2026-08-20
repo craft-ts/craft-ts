@@ -12,10 +12,25 @@
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck-learn-effect-snippets"],
+      "dependsOn": [
+        "compile-learn-effect-examples",
+        "typecheck-learn-effect-snippets"
+      ],
       "options": {
         "command": "vitest run --config apps/docs/vitest.config.mts"
       }
+    },
+    "compile-learn-effect-examples": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/compile-learn-effect-examples.mjs"
+      },
+      "inputs": [
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/learn-effect/**/*.md",
+        "{workspaceRoot}/tools/compile-learn-effect-examples.mjs"
+      ]
     },
     "typecheck-learn-effect-snippets": {
       "executor": "nx:run-commands",

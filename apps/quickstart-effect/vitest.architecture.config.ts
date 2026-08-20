@@ -1,11 +1,13 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/quickstart-effect-architecture',
-  plugins: [nxViteTsPaths()],
+  plugins: [],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     name: 'quickstart-effect-architecture',
     globals: true,

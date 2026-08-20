@@ -1,8 +1,8 @@
 # Releasing CraftTS
 
-`@craft-ts/core`, `@craft-ts/component`, and `@craft-ts/dev-tools` share one
-version and one Git tag. For now, releases are run locally from the three
-sibling Git workspaces.
+`@craft-ts/core`, `@craft-ts/component`, `@craft-ts/effect`,
+`@craft-ts/dev-tools`, and `@craft-ts/mcp` share one version and one Git tag.
+For now, releases are run locally from the three sibling Git workspaces.
 
 ## One local command
 
@@ -60,18 +60,19 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 
 Before changing files, the command checks that all three workspaces are clean,
 on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
-the release tooling, and builds all three packages and the documentation.
+the release tooling, and builds all five packages and the documentation.
 
 After showing the resolved version, it asks for confirmation and:
 
-1. updates the three package manifests and `CHANGELOG.md`;
-2. rebuilds the three npm packages and VitePress documentation;
+1. updates the five package manifests and `CHANGELOG.md`;
+2. rebuilds the five npm packages and VitePress documentation;
 3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`;
-4. pins all three CraftTS dependencies in the demo to the exact release version;
+4. pins the three CraftTS packages used by the demo (`core`, `component`, and
+   `dev-tools`) to the exact release version;
 5. removes and ignores the demo `package-lock.json`;
 6. replaces the published documentation with the VitePress build;
 7. commits the three workspaces;
-8. publishes all three packages to npm;
+8. publishes all five packages to npm;
 9. pushes `main`, creates and pushes `v<version>`, and creates the GitHub Release;
 10. pushes the documentation and StackBlitz demo repositories.
 
@@ -97,8 +98,9 @@ gh auth login
 ```
 
 The npm account must be allowed to publish `@craft-ts/core`,
-`@craft-ts/component`, and `@craft-ts/dev-tools`, and the GitHub account must be
-allowed to push all three repositories and create releases.
+`@craft-ts/component`, `@craft-ts/effect`, `@craft-ts/dev-tools`, and
+`@craft-ts/mcp`. The GitHub account must be allowed to push all three
+repositories and create releases.
 
 ## Safe preview
 
@@ -116,7 +118,9 @@ For a non-interactive real release, add `--yes` to skip the confirmation prompt.
 ```bash
 npm view @craft-ts/core dist-tags --json
 npm view @craft-ts/component dist-tags --json
+npm view @craft-ts/effect dist-tags --json
 npm view @craft-ts/dev-tools dist-tags --json
+npm view @craft-ts/mcp dist-tags --json
 gh release view v0.6.0 --repo craft-ts/craft-ts
 ```
 

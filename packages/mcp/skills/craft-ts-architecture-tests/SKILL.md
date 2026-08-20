@@ -7,7 +7,8 @@ description: Use when scaffolding or running a CraftTS architecture suite (archi
 
 The `architecture/` suite is the app's **graph contract**. It proves who may
 depend on whom, which HTTP endpoint is owned once, which identity appears
-once — without booting Angular.
+once — without booting a browser framework. It works for framework-independent
+CraftTS apps as well as migrated Angular apps.
 
 Setup and helpers: https://ng-angular-stack.github.io/craft/guide/testing/architecture
 Do not copy that page. Load it with `get_documentation_page` when you need a
@@ -19,7 +20,26 @@ Do **not** add an architecture rule for the feature. A new `it()` is not part
 of mapping a spec onto primitives. Write application code, then **run** the
 suite that already exists.
 
-## 1. Bootstrap
+## 1. Bootstrap a new project
+
+Prefer `craft create`, which asks for Effect v4 and agent integrations and
+generates the application, API/page example, routes, ESLint, unit tests,
+architecture suite and Playwright commands together:
+
+```shell
+npx craft create my-app --effect=none --agents=codex,cursor,cloud-code
+```
+
+For an Effect v4 starter:
+
+```shell
+npx craft create my-app --effect=v4 --agents=codex
+```
+
+The generated `README.md` is the command contract. The starter's architecture
+suite is ready at bootstrap; do not postpone it until after the first feature.
+
+## 2. Bootstrap an existing project
 
 Use at app start or as the last `craft-migrate` step, when `architecture/` is
 missing.
@@ -37,7 +57,7 @@ That writes the Vitest/Node suite, catalog, baseline rules, and an Nx
 If this comes up **mid-feature**, report the gap and offer the scaffold. Do
 not impose it.
 
-## 2. During a feature
+## 3. During a feature
 
 Run the existing suite. A failure is a graph slip in the **code** (or a
 disarmed DI proof), not a missing `it()`.
@@ -48,7 +68,7 @@ npx nx architecture <app>
 
 Do not add an architecture rule for the feature.
 
-## 3. Encode a smell
+## 4. Encode a smell
 
 When a pattern should not recur — duplicate HTTP, feature leak, mutation
 with no `insertReactOnMutation`, duplicate `craftUnique`, commented `CanRun`,

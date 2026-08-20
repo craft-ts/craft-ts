@@ -74,7 +74,7 @@ describe('prefer-craft-template-blocks', () => {
     expect(messages).toEqual([]);
   });
 
-  it('reports ternaries, logical expressions, and imperative control flow', async () => {
+  it('reports ternaries, logical expressions, negations, and imperative control flow', async () => {
     const messages = await lintText(`
       const Demo = craftComponent(
         'Demo',
@@ -84,7 +84,7 @@ describe('prefer-craft-template-blocks', () => {
           if (ready()) {
             return p(label);
           }
-          return div({ class: ready() ? 'yes' : 'no' }, ready() && label);
+          return div({ class: ready() ? 'yes' : 'no' }, ready() && label, !label);
         },
       );
     `);
@@ -93,7 +93,46 @@ describe('prefer-craft-template-blocks', () => {
       'Do not use imperative control flow in a Craft template. Use ifBlock(...), matchBlock.exhaustive(...), each(...), or defer(...) so the render contract stays type-checkable.',
       'Do not use a ternary in a Craft template. Use ifBlock(...) for boolean visibility or matchBlock.exhaustive(...) for a discriminated union.',
       'Do not use a logical expression in a Craft template. Move the derivation to state, query, or craftComputed, then render it with a Craft block.',
+      'Do not use negation in a Craft template. Move the boolean derivation to state, query, or craftComputed, then bind the resulting value.',
     ]);
+  });
+
+  it('reports negation in a reactive binding callback', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({ canGoBack }),
+        ({ canGoBack }) => button({
+          disabled: function* () {
+            return !(yield* canGoBack());
+          },
+        }, 'Back'),
+      );
+    `);
+
+    expect(messages).toEqual([
+      'Do not use negation in a Craft template. Move the boolean derivation to state, query, or craftComputed, then bind the resulting value.',
+    ]);
+  });
+
+  it('allows negation inside DOM event handlers', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({ store }),
+        ({ store }) => button({
+          click: function* () {
+            if (!store.isReady()) {
+              yield* store.retry();
+            }
+          },
+        }, 'Retry'),
+      );
+    `);
+
+    expect(messages).toEqual([]);
   });
 
   it('does not inspect a nested component twice', async () => {

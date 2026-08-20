@@ -13,6 +13,23 @@ For coding agents, also install
 [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp) and follow the
 [coding-agent guide](https://craft-ts.github.io/craft/resources/ai-agents).
 
+## Create a project
+
+Create a framework-independent CraftTS application from scratch. The command
+asks for the Effect v4 choice first in interactive mode because it changes the
+dependencies, generated API boundary, and agent skills:
+
+```bash
+npx craft create my-app
+npx craft create my-app --effect=v4 --agents=codex,cursor,cloud-code
+npx craft create my-app --effect=none --agents=none
+```
+
+The starter includes a routed page, a typed API call, flat-config ESLint, unit
+tests, a graph-wide `architecture/` suite, Playwright E2E tests, and README
+commands for every quality gate. `codex`, `cursor`, `claude-code`, and the
+`cloud-code`/`gemini` aliases install the corresponding project instructions.
+
 ## Project configuration
 
 Create `craft-dev-tools.config.ts` when a project needs shared codemod or

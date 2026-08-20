@@ -64,7 +64,13 @@
     }
   },
   "release": {
-    "projects": ["craft-ts-core", "craft-ts-component", "dev-tools", "mcp"],
+    "projects": [
+      "craft-ts-core",
+      "craft-ts-component",
+      "craft-ts-effect",
+      "dev-tools",
+      "mcp"
+    ],
     "projectsRelationship": "fixed",
     "releaseTag": {
       "pattern": "v{version}"

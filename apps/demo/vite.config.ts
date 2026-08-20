@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 import { readFileSync } from 'node:fs';
 import { defineConfig, type ViteDevServer } from 'vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { craftTextLoaderPlugin } from '../../tools/vite-text-loader-plugin.mjs';
@@ -48,7 +47,6 @@ export default defineConfig({
   publicDir: 'public',
   plugins: [
     craftTextLoaderPlugin(),
-    nxViteTsPaths(),
     demoTypecheckStatusPlugin(),
   ],
   server: {
@@ -59,6 +57,7 @@ export default defineConfig({
   },
   resolve: {
     mainFields: ['module', 'browser', 'jsnext:main', 'jsnext'],
+    tsconfigPaths: true,
   },
   esbuild: {
     tsconfigRaw: {

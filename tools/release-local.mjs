@@ -86,7 +86,6 @@ function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
   targetManifest.devDependencies ??= {};
   for (const dependency of [
     '@eslint/js',
-    'angular-eslint',
     'eslint',
     'typescript-eslint',
   ]) {

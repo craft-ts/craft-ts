@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { defineConfig, type ViteDevServer } from 'vite';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +24,7 @@ export default defineConfig({
   root,
   cacheDir: '../../node_modules/.vite/apps/demo-with-server-function',
   publicDir: false,
-  plugins: [craftTextLoaderPlugin(), nxViteTsPaths(), serverFunctionsPlugin()],
+  plugins: [craftTextLoaderPlugin(), serverFunctionsPlugin()],
   server: {
     port: 4202,
     fs: {
@@ -33,6 +32,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    tsconfigPaths: true,
     mainFields: ['module', 'browser', 'jsnext:main', 'jsnext'],
   },
   build: {

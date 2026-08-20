@@ -124,6 +124,8 @@ module.exports = {
         'Do not use a ternary in a Craft template. Use ifBlock(...) for boolean visibility or matchBlock.exhaustive(...) for a discriminated union.',
       logical:
         'Do not use a logical expression in a Craft template. Move the derivation to state, query, or craftComputed, then render it with a Craft block.',
+      negation:
+        'Do not use negation in a Craft template. Move the boolean derivation to state, query, or craftComputed, then bind the resulting value.',
       controlFlow:
         'Do not use imperative control flow in a Craft template. Use ifBlock(...), matchBlock.exhaustive(...), each(...), or defer(...) so the render contract stays type-checkable.',
     },
@@ -176,6 +178,11 @@ module.exports = {
 
         if (node.type === 'LogicalExpression') {
           context.report({ node, messageId: 'logical' });
+          return;
+        }
+
+        if (node.type === 'UnaryExpression' && node.operator === '!') {
+          context.report({ node, messageId: 'negation' });
           return;
         }
 

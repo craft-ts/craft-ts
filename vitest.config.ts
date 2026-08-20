@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,8 +8,9 @@ const workspaceRoot = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   root: workspaceRoot,
   cacheDir: path.join(workspaceRoot, 'node_modules/.vite/craft-ts'),
-  plugins: [nxViteTsPaths()],
+  plugins: [],
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
       '@craft-ts/component': path.join(

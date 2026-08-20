@@ -209,7 +209,6 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
     assert.equal(manifest.dependencies['@craft-ts/dev-tools'], '0.6.0');
     for (const dependency of [
       '@eslint/js',
-      'angular-eslint',
       'eslint',
       'typescript-eslint',
     ]) {

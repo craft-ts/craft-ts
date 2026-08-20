@@ -7,10 +7,11 @@ describe('loadCraftMcpResources', () => {
     expect(resources.pages.length).toBeGreaterThan(20);
     expect(resources.skills.map((skill) => skill.name)).toEqual([
       'craft-ts',
-      'migrate-to-craft-ts',
       'craft-ts-architecture-tests',
+      'craft-ts-effect-v4',
       'craft-ts-routes',
       'craft-ts-service-migration',
+      'migrate-to-craft-ts',
       'translate-spec-to-craft-ts',
     ]);
     expect(resources.bestPractices).toContain('yield*');
@@ -30,6 +31,7 @@ describe('loadCraftMcpResources', () => {
     expect(resources.bestPractices).toContain(
       'Do not add an architecture rule for the feature',
     );
+    expect(resources.agentsMd).toContain('without an Angular dependency');
     expect(resources.agentsMd).toContain('architecture/');
     expect(
       resources.skills.find((skill) => skill.name === 'translate-spec-to-craft-ts')

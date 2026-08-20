@@ -96,9 +96,13 @@ npx nx typecheck demo-effect
 npx nx test demo-effect
 ```
 
-The docs test target type-checks the Effect quickstart snippets and executes the
-snippet test. The Effect demo covers success, typed business errors, defects,
-application Layers and route-scoped Layers.
+The docs test target now performs three checks: it transpiles every TypeScript
+or TSX code fence in `learn-effect`, type-checks the complete snippets under
+`tests/snippets/learn-effect`, and executes their Vitest tests. The transpilation
+check is intentionally syntax-focused because several excerpts are meant to be
+copied into an existing Craft or Effect generator; complete examples receive
+the stronger typecheck and runtime coverage. The Effect demo covers success,
+typed business errors, defects, application Layers and route-scoped Layers.
 
 For a runnable starter that keeps this boundary intentionally small, use the
 repository's [`quickstart-effect`](https://github.com/craft-ts/craft-ts/tree/main/apps/quickstart-effect)

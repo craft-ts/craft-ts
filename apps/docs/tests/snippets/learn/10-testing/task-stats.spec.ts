@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { craftUse, craftService, setupCraftServiceTestingByRegister, state } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftService,
+  craftUse,
+  setupCraftServiceTestingByRegister,
+  state,
+} from '@craft-ts/core';
 import { describe, expect, it, vi } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -15,8 +21,6 @@ export const { TaskList } = craftService(
 );
 
 // #region task-stats
-import { craftComputed, craftService, state } from '@craft-ts/core';
-
 export const { TaskStats, provideTaskStats } = craftService(
   { name: 'TaskStats', providedIn: 'toProvide' },
   function* () {

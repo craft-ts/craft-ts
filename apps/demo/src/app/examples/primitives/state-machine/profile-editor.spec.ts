@@ -17,6 +17,14 @@ function mount() {
   return { element, mounted };
 }
 
+async function mountLoaded() {
+  vi.useFakeTimers();
+  const mounted = mount();
+  await vi.advanceTimersByTimeAsync(300);
+  TestBed.tick();
+  return mounted;
+}
+
 function click(element: HTMLElement, name: string) {
   const button = element.querySelector<HTMLButtonElement>(
     `button[data-craft-name="${name}"]`,
@@ -46,6 +54,10 @@ function activeStep(element: HTMLElement) {
   return element.querySelector('.step--active')?.textContent?.trim();
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('ProfileEditorStateMachine', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
@@ -55,17 +67,23 @@ describe('ProfileEditorStateMachine', () => {
     sessionStorage.clear();
   });
 
-  it('starts in reading, the step initStateMachine transits to', () => {
+  it('shows a loader while the initial profile query is pending', async () => {
+    vi.useFakeTimers();
     const { element, mounted } = mount();
 
     expect(activeStep(element)).toBe('reading');
+    expect(element.textContent).toContain('Loading profile…');
+
+    await vi.advanceTimersByTimeAsync(300);
+    TestBed.tick();
+
     expect(element.textContent).toContain('Ada Lovelace');
 
     mounted.destroy();
   });
 
-  it('moves to editing on the edit source and back on cancel', () => {
-    const { element, mounted } = mount();
+  it('moves to editing on the edit source and back on cancel', async () => {
+    const { element, mounted } = await mountLoaded();
 
     click(element, 'edit');
     expect(activeStep(element)).toBe('editing');
@@ -77,8 +95,8 @@ describe('ProfileEditorStateMachine', () => {
     mounted.destroy();
   });
 
-  it('refuses the saving transition while the profile is read-only', () => {
-    const { element, mounted } = mount();
+  it('refuses the saving transition while the profile is read-only', async () => {
+    const { element, mounted } = await mountLoaded();
 
     click(element, 'toggle-read-only');
     click(element, 'edit');
@@ -86,9 +104,9 @@ describe('ProfileEditorStateMachine', () => {
 
     click(element, 'save');
 
-    // The attempt guard resolved ProfilePermissions and said no.
+    // The source validation resolved ProfilePermissions and emitted nothing.
     expect(activeStep(element)).toBe('editing');
-    expect(element.textContent).toContain('A guard will refuse this transition');
+    expect(element.textContent).toContain('Save is blocked');
 
     // ProfilePermissions is a global craft service: hand it back the way the
     // next test expects to find it.
@@ -96,13 +114,13 @@ describe('ProfileEditorStateMachine', () => {
     mounted.destroy();
   });
 
-  it('refuses the saving transition while the draft is invalid', () => {
-    const { element, mounted } = mount();
+  it('refuses the saving transition while the draft is invalid', async () => {
+    const { element, mounted } = await mountLoaded();
 
     click(element, 'edit');
     type(element, 'profile-name', '   ');
 
-    expect(element.textContent).toContain('A guard will refuse this transition');
+    expect(element.textContent).toContain('Save is blocked');
 
     click(element, 'save');
 
@@ -111,8 +129,8 @@ describe('ProfileEditorStateMachine', () => {
     mounted.destroy();
   });
 
-  it('moves to saving on a valid submit', () => {
-    const { element, mounted } = mount();
+  it('moves to saving on a valid submit', async () => {
+    const { element, mounted } = await mountLoaded();
 
     click(element, 'edit');
     type(element, 'profile-name', 'Grace Hopper');
@@ -126,7 +144,7 @@ describe('ProfileEditorStateMachine', () => {
 
   it('returns to reading once the save mutation settles', async () => {
     vi.useFakeTimers();
-    const { element, mounted } = mount();
+    const { element, mounted } = await mountLoaded();
 
     click(element, 'edit');
     type(element, 'profile-name', 'Grace Hopper');
@@ -143,10 +161,6 @@ describe('ProfileEditorStateMachine', () => {
 
     mounted.destroy();
   });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
 });
 
 describe('ProfileEditorStateMachine history', () => {
@@ -158,8 +172,8 @@ describe('ProfileEditorStateMachine history', () => {
     sessionStorage.clear();
   });
 
-  it('records each step and rewinds the machine and its draft', () => {
-    const { element, mounted } = mount();
+  it('records each step and rewinds the machine and its draft', async () => {
+    const { element, mounted } = await mountLoaded();
 
     expect(element.textContent).toContain('step 1 of 1');
 
@@ -193,8 +207,8 @@ describe('ProfileEditorStateMachine persisted history', () => {
     sessionStorage.clear();
   });
 
-  it('carries its history across a reload and rewinds into it', () => {
-    const before = mount();
+  it('carries its history across a reload and rewinds into it', async () => {
+    const before = await mountLoaded();
     click(before.element, 'edit');
     type(before.element, 'profile-name', 'Grace Hopper');
     click(before.element, 'save');
@@ -205,7 +219,7 @@ describe('ProfileEditorStateMachine persisted history', () => {
     // session storage survives.
     TestBed.resetTestingModule();
     document.body.replaceChildren();
-    const after = mount();
+    const after = await mountLoaded();
 
     expect(after.element.textContent).toContain('of 4');
     expect(activeStep(after.element)).toBe('reading');

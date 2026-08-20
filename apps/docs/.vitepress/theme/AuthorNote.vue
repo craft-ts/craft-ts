@@ -7,7 +7,7 @@ import { withBase } from 'vitepress';
     <span class="author-note__photo-frame">
       <img
         class="author-note__photo"
-        :src="withBase('/assets/romain-geffrault.png')"
+        :src="withBase('/assets/romain-geffrault-original.png')"
         alt="Romain Geffrault, creator of @craft-ts"
         width="132"
         height="132"

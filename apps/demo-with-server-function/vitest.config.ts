@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,8 +9,9 @@ const workspaceRoot = path.resolve(root, '../..');
 export default defineConfig({
   root,
   cacheDir: '../../node_modules/.vite/apps/demo-with-server-function',
-  plugins: [nxViteTsPaths()],
+  plugins: [],
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
       '@craft-ts/effect': path.join(workspaceRoot, 'libs/effect/src/index.ts'),

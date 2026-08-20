@@ -2,6 +2,7 @@
   "name": "@craft-ts/source",
   "version": "0.0.0",
   "license": "MIT",
+  "type": "module",
   "engines": {
     "node": ">=24.19.0 <25"
   },

@@ -54,6 +54,33 @@
   background: #fff;
 }
 
+.loading-panel {
+  display: flex;
+  align-items: center;
+  color: #475569;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #cbd5e1;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: ProfileEditorStateMachine-profile-editor-spin 0.7s linear infinite;
+}
+
+@keyframes ProfileEditorStateMachine-profile-editor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 .field {
   display: grid;
   gap: 0.3rem;

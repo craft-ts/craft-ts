@@ -47,6 +47,7 @@ already receive those methods as arguments — see
 | `insertMutationPipe`     | Composes several `mutation` insertions     | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `insertQueryParamsPipe`  | Composes several `queryParams` insertions  | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `insertAsyncProcessPipe` | Composes several `asyncProcess` insertions | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertStateMachinePipe` | Composes several `craftStateMachine` insertions | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `craftGen`               | A standalone tracked generator             | [Generators](/guide/concepts/generators)                 |
 | `craftMatch`             | Exhaustive pattern matching                | [Pattern matching](/guide/advanced/pattern-matching)     |
 | `.pipe(...)`             | Program operators on a craft generator     | [Program operators](/guide/advanced/program-operators)   |

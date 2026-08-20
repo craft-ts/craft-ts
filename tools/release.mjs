@@ -22,6 +22,13 @@ export const releasePackages = [
     distRoot: 'dist/libs/component',
   },
   {
+    key: 'effect',
+    name: '@craft-ts/effect',
+    project: 'craft-ts-effect',
+    sourceManifest: 'libs/effect/package.json',
+    distRoot: 'dist/libs/effect',
+  },
+  {
     key: 'dev_tools',
     name: '@craft-ts/dev-tools',
     project: 'dev-tools',

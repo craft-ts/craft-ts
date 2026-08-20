@@ -10,6 +10,7 @@ insertions, use the pipe named after that primitive:
 | `mutation`     | `insertMutationPipe`     |
 | `queryParams`  | `insertQueryParamsPipe`  |
 | `asyncProcess` | `insertAsyncProcessPipe` |
+| `craftStateMachine` | `insertStateMachinePipe` |
 
 The typed pipe keeps the primitive call readable and gives every member the
 correct contextual type. Members run from left to right, and each member can

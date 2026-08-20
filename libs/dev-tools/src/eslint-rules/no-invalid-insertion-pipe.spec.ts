@@ -26,6 +26,7 @@ describe('no-invalid-insertion-pipe', () => {
         insertMutationPipe,
         insertQueryParamsPipe,
         insertQueryPipe,
+        insertStateMachinePipe,
         insertStatePipe,
       } from '@craft-ts/core';
 
@@ -33,6 +34,7 @@ describe('no-invalid-insertion-pipe', () => {
       insertMutationPipe(() => ({ value: 1 }), function () { return {}; });
       insertQueryParamsPipe(() => ({ value: 1 }), () => ({}) as Record<string, never>);
       insertQueryPipe(() => ({ value: 1 }), () => { return {}; });
+      insertStateMachinePipe(() => ({ value: 1 }), () => { return {}; });
       insertStatePipe(() => ({ value: 1 }), () => ({}));
     `);
 
@@ -41,6 +43,7 @@ describe('no-invalid-insertion-pipe', () => {
       "'insertMutationPipe' cannot contain an insertion callback that returns an empty object.",
       "'insertQueryParamsPipe' cannot contain an insertion callback that returns an empty object.",
       "'insertQueryPipe' cannot contain an insertion callback that returns an empty object.",
+      "'insertStateMachinePipe' cannot contain an insertion callback that returns an empty object.",
       "'insertStatePipe' cannot contain an insertion callback that returns an empty object.",
     ]);
   });

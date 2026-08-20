@@ -8,6 +8,7 @@ import {
   ifBlock,
   input,
   label,
+  matchBlock,
   p,
   section,
   span,
@@ -20,17 +21,20 @@ import {
   craftStateMachine,
   craftUse,
   initStateMachine,
+  insertReactOnMutation,
+  insertQueryPipe,
   insertStatePipe,
+  insertStateMachinePipe,
   mutation,
   on$,
   SessionStorageService,
   source$,
   state,
-  transitionGuard,
+  query,
   transitionStep,
   withBackNavigation,
   withHistory,
-  type CraftTransition,
+  type SignalSource,
 } from '@craft-ts/core';
 
 type Profile = {
@@ -38,15 +42,16 @@ type Profile = {
   email: string;
 };
 
+type ProfileStep = 'reading' | 'editing' | 'saving';
+
 const INITIAL_PROFILE: Profile = {
   name: 'Ada Lovelace',
   email: 'ada@craft-ts.dev',
 };
 
 /**
- * A guard may resolve craft services with `yield*`, and what it resolves joins
- * the machine's dependency graph — the read-only switch below is a real DI
- * dependency of the `saving` transition, not a value the component passes in.
+ * The read-only switch below is a real DI dependency of the machine's
+ * source-driven save workflow, not a value the component passes in.
  */
 const { ProfilePermissions } = craftService(
   { name: 'ProfilePermissions', providedIn: 'global' },
@@ -68,20 +73,56 @@ const ProfileEditorStateMachine = craftComponent(
     const machine = yield* craftStateMachine(
       'profileEditor',
 
-      // 1. The machine's context: every primitive its steps and guards work with.
+      // 1. The machine's context: every primitive its steps and workflows use.
       function* () {
+        const edit$ = yield* source$<void>('edit$');
+        const cancel$ = yield* source$<void>('cancel$');
+        const saveRequest$ = yield* source$<Profile>('saveRequest$');
+        const restore$ = yield* source$<Profile>('restore$');
+
+        const saveProfile = yield* mutation('saveProfile', {
+          method: saveRequest$.value as unknown as SignalSource<Profile>,
+          loader: function* ({ params }) {
+            yield* craftSleep(600, { owner: 'profile-editor-save' });
+            return params;
+          },
+        });
+
+        const profileQuery = yield* query(
+          'profileQuery',
+          {
+            params: () => 'initial',
+            loader: function* () {
+              yield* craftSleep(300, { owner: 'profile-editor-load' });
+              return { ...INITIAL_PROFILE };
+            },
+          },
+          insertQueryPipe(
+            insertReactOnMutation(saveProfile, {
+              optimisticUpdate: ({ mutationParams }) => mutationParams,
+              update: ({ mutationParams }) => mutationParams,
+              reload: { onMutationException: true },
+            }),
+            ({ resource }) => ({
+              profileSource: craftComputed('profileSource', function* () {
+                return (yield* resource.value()) ?? INITIAL_PROFILE;
+              }),
+            }),
+          ),
+        );
+
         const draft = yield* state(
           'draft',
-          INITIAL_PROFILE,
+          profileQuery.profileSource,
           insertStatePipe(
-            ({ update }) => ({
+            ({ set }) => ({
+              restoreFromCancel: on$(restore$, (profile) => set(profile)),
+            }),
+            ({ update, state: current }) => ({
               setName: (name: string) =>
                 update((profile) => ({ ...profile, name })),
               setEmail: (email: string) =>
                 update((profile) => ({ ...profile, email })),
-              restore: (profile: Profile) => update(() => profile),
-            }),
-            ({ state: current }) => ({
               isValid: craftComputed('isValid', function* () {
                 const profile = yield* current();
                 return (
@@ -92,25 +133,20 @@ const ProfileEditorStateMachine = craftComponent(
           ),
         );
 
-        const saveProfile = yield* mutation('saveProfile', {
-          method: (profile: Profile) => profile,
-          loader: function* ({ params }) {
-            yield* craftSleep(600, { owner: 'profile-editor-save' });
-            return params;
-          },
-        });
-
-        const edit$ = yield* source$<void>('edit$');
-        const cancel$ = yield* source$<void>('cancel$');
-        const submit$ = yield* source$<void>('submit$');
-
-        return { draft, saveProfile, edit$, cancel$, submit$ };
+        return {
+          profileQuery,
+          draft,
+          saveProfile,
+          edit$,
+          cancel$,
+          saveRequest$,
+          restore$,
+        };
       },
 
       // 2. The transitions. Each key is the step the machine ENTERS, so
-      // `transit()` inside a block targets that block's step. No machine-wide
-      // guard here, so the setup generator goes in as-is — `transitionsSetup(...)`
-      // is only needed to pipe one onto every transition.
+      // `transit()` inside a block targets that block's step. Resource actions
+      // are driven by sources, not called from these transition callbacks.
       function* (context, transit) {
         return {
           reading: transitionStep(function* () {
@@ -128,46 +164,23 @@ const ProfileEditorStateMachine = craftComponent(
             );
 
             yield* on$(context.cancel$, function* () {
-              if (!(yield* transit())) return;
-
-              const persisted =
-                (yield* context.saveProfile.value()) ?? INITIAL_PROFILE;
-              yield* context.draft.restore(persisted);
+              yield* transit();
             });
           }),
 
           editing: transitionStep(function* () {
             yield* on$(context.edit$, () => transit());
-          }).pipe(
-            // Step-scoped: no way back into the form while a save is in flight.
-            // A step guard is not told the context type, so it names it from the
-            // setup's own parameter.
-            transitionGuard(
-              ({ context: machine }: CraftTransition<typeof context>) =>
-                craftUse(machine.saveProfile.status()) !== 'loading',
-            ),
-          ),
+          }),
 
           saving: transitionStep(function* () {
-            yield* on$(context.submit$, function* () {
-              const accepted = yield* transit().pipe(
-                // Attempt-scoped, and it resolves a service with `yield*`.
-                transitionGuard(function* ({ context: machine }) {
-                  const permissions = yield* ProfilePermissions();
-
-                  return (
-                    (yield* machine.draft.isValid()) &&
-                    !(yield* permissions.readOnly())
-                  );
-                }),
-              );
-
-              // `transit()` answers whether the machine actually moved, which is
-              // exactly the hook an entry action needs.
-              if (!accepted) return;
-
-              yield* context.saveProfile.mutate(yield* context.draft());
-            });
+            yield* afterRecomputation(
+              context.saveProfile.isLoading,
+              function* (isLoading) {
+                if (isLoading) {
+                  yield* transit();
+                }
+              },
+            );
           }),
         };
       },
@@ -180,7 +193,7 @@ const ProfileEditorStateMachine = craftComponent(
             draft: context.draft,
           },
           editing: {
-            hint: 'The draft is live. “Save” runs its guards before the machine moves on.',
+            hint: 'The draft is live. “Save” is validated before the source triggers the mutation.',
             draft: context.draft,
           },
           saving: {
@@ -194,70 +207,95 @@ const ProfileEditorStateMachine = craftComponent(
       // context, and composed methods — the same shape state/query/mutation
       // insertions have. The history is not part of the machine core either:
       // `withHistory` is just another insertion, merged in here.
-      function* (machineContext) {
-        const { context, currentStep, stepContext } = machineContext;
-        // The storage is resolved here, at the point of use, so the history's
-        // browser dependency stays visible instead of hiding inside the feature.
-        const storage = yield* SessionStorageService();
-        const history = withHistory(
-          {
-            persist: { storeName: 'demo', key: 'profile-editor', storage },
-          },
-          withBackNavigation(),
-        )(machineContext);
-        const stepClass = (step: string) =>
-          craftComputed(`${step}Class`, function* () {
-            return (yield* currentStep()) === step
-              ? 'step step--active'
-              : 'step';
-          });
+      insertStateMachinePipe(
+        function* (machineContext) {
+          // The storage is resolved here, at the point of use, so the history's
+          // browser dependency stays visible instead of hiding inside the feature.
+          const storage = yield* SessionStorageService();
+          return withHistory(
+            {
+              persist: { storeName: 'demo', key: 'profile-editor', storage },
+            },
+            withBackNavigation(),
+          )(machineContext);
+        },
+        ({ context, currentStep, stepContext, insertions }) => {
+          const stepClass = (step: string) =>
+            craftComputed(`${step}Class`, function* () {
+              return (yield* currentStep()) === step
+                ? 'step step--active'
+                : 'step';
+            });
 
-        return {
-          ...history,
-          profileLabel: craftComputed('profileLabel', function* () {
-            const profile =
-              (yield* context.saveProfile.value()) ?? INITIAL_PROFILE;
-            return `${profile.name} <${profile.email}>`;
-          }),
-          draftName: craftComputed('draftName', function* () {
-            return (yield* context.draft()).name;
-          }),
-          draftEmail: craftComputed('draftEmail', function* () {
-            return (yield* context.draft()).email;
-          }),
-          isReading: craftComputed('isReading', function* () {
-            return (yield* currentStep()) === 'reading';
-          }),
-          isEditing: craftComputed('isEditing', function* () {
-            return (yield* currentStep()) === 'editing';
-          }),
-          isSaving: craftComputed('isSaving', function* () {
-            return (yield* currentStep()) === 'saving';
-          }),
-          readingClass: stepClass('reading'),
-          editingClass: stepClass('editing'),
-          savingClass: stepClass('saving'),
-          stepHint: craftComputed('stepHint', function* () {
-            return (yield* stepContext())?.hint ?? '';
-          }),
-          submitBlocked: craftComputed('submitBlocked', function* () {
-            return (
-              !(yield* context.draft.isValid()) ||
-              (yield* permissions.readOnly())
-            );
-          }),
-          historyLabel: craftComputed('historyLabel', function* () {
-            const entries = yield* history.history();
-            const cursor = yield* history.historyCursor();
-            return `step ${cursor + 1} of ${entries.length}`;
-          }),
-          requestEdit: () => context.edit$.emit(),
-          requestCancel: () => context.cancel$.emit(),
-          requestSubmit: () => context.submit$.emit(),
-          setName: (name: string) => craftUse(context.draft.setName(name)),
-          setEmail: (email: string) => craftUse(context.draft.setEmail(email)),
-        };
-      },
+          return {
+            stepState: craftComputed('stepState', function* () {
+              return {
+                step: ((yield* currentStep()) ?? 'reading') as ProfileStep,
+              };
+            }),
+            profileLabel: craftComputed('profileLabel', function* () {
+              const profile =
+                (yield* context.saveProfile.value()) ??
+                (yield* context.profileQuery.value()) ??
+                INITIAL_PROFILE;
+              return `${profile.name} <${profile.email}>`;
+            }),
+            profileIsLoading: context.profileQuery.isLoading,
+            draftName: craftComputed('draftName', function* () {
+              return (yield* context.draft()).name;
+            }),
+            draftEmail: craftComputed('draftEmail', function* () {
+              return (yield* context.draft()).email;
+            }),
+            readingClass: stepClass('reading'),
+            editingClass: stepClass('editing'),
+            savingClass: stepClass('saving'),
+            stepHint: craftComputed('stepHint', function* () {
+              return (yield* stepContext())?.hint ?? '';
+            }),
+            submitBlocked: craftComputed('submitBlocked', function* () {
+              return (
+                !(yield* context.draft.isValid()) ||
+                (yield* permissions.readOnly())
+              );
+            }),
+            historyLabel: craftComputed('historyLabel', function* () {
+              const entries = yield* insertions.history();
+              const cursor = yield* insertions.historyCursor();
+              return `step ${cursor + 1} of ${entries.length}`;
+            }),
+            backDisabled: craftComputed('backDisabled', function* () {
+              return !(yield* insertions.canGoBack());
+            }),
+            forwardDisabled: craftComputed('forwardDisabled', function* () {
+              return !(yield* insertions.canGoForward());
+            }),
+            requestEdit: () => context.edit$.emit(),
+            requestCancel: function* () {
+              const persisted =
+                (yield* context.saveProfile.value()) ??
+                (yield* context.profileQuery.value()) ??
+                INITIAL_PROFILE;
+              context.restore$.emit(persisted);
+              context.cancel$.emit();
+            },
+            requestSubmit: function* () {
+              const profile = yield* context.draft();
+              if (
+                !profile.name.trim() ||
+                !profile.email.includes('@') ||
+                (yield* permissions.readOnly())
+              ) {
+                return;
+              }
+              context.saveRequest$.emit(profile);
+            },
+            setName: (name: string) => craftUse(context.draft.setName(name)),
+            setEmail: (email: string) =>
+              craftUse(context.draft.setEmail(email)),
+          };
+        },
+      ),
     );
 
     return { machine, permissions };
@@ -267,7 +305,7 @@ const ProfileEditorStateMachine = craftComponent(
       heading('State machine — profile editor'),
       p(
         { class: 'intro' },
-        'reading → editing → saving → reading. Every move goes through transit(), and every transit() goes through its guards.',
+        'reading → editing → saving → reading. Every move goes through transit(), while the save is driven by reactive sources.',
       ),
 
       div({ class: 'steps' }, [
@@ -278,85 +316,96 @@ const ProfileEditorStateMachine = craftComponent(
 
       p({ class: 'hint' }, machine.stepHint),
 
-      ifBlock(machine.isReading, () =>
-        div({ class: 'panel' }, [
-          p(['Saved profile: ', machine.profileLabel]),
-          div({ class: 'actions' }, [
-            button(
-              'edit',
-              {
-                type: 'button',
-                click: function* () {
-                  yield* machine.requestEdit();
-                },
-              },
-              'Edit',
+      matchBlock.exhaustive(
+        machine.stepState as unknown as () => { step: ProfileStep },
+        'step',
+        {
+          reading: () =>
+            ifBlock(
+              machine.profileIsLoading,
+              () =>
+                div({ class: 'panel loading-panel' }, [
+                  span({ class: 'spinner', 'aria-hidden': 'true' }),
+                  p('Loading profile…'),
+                ]),
+              () =>
+                div({ class: 'panel' }, [
+                  p(['Saved profile: ', machine.profileLabel]),
+                  div({ class: 'actions' }, [
+                    button(
+                      'edit',
+                      {
+                        type: 'button',
+                        click: function* () {
+                          yield* machine.requestEdit();
+                        },
+                      },
+                      'Edit',
+                    ),
+                  ]),
+                ]),
             ),
-          ]),
-        ]),
+          editing: () =>
+            div({ class: 'panel' }, [
+              div({ class: 'field' }, [
+                label('profile-name-label', { for: 'profile-name' }, 'Name'),
+                input('profile-name', {
+                  id: 'profile-name',
+                  type: 'text',
+                  value: machine.draftName,
+                  *input(event) {
+                    yield* machine.setName(
+                      (event.target as HTMLInputElement).value,
+                    );
+                  },
+                }),
+              ]),
+              div({ class: 'field' }, [
+                label('profile-email-label', { for: 'profile-email' }, 'Email'),
+                input('profile-email', {
+                  id: 'profile-email',
+                  type: 'email',
+                  value: machine.draftEmail,
+                  *input(event) {
+                    yield* machine.setEmail(
+                      (event.target as HTMLInputElement).value,
+                    );
+                  },
+                }),
+              ]),
+              ifBlock(machine.submitBlocked, () =>
+                p(
+                  { class: 'blocked' },
+                  'Save is blocked: the draft is invalid, or the profile is read-only.',
+                ),
+              ),
+              div({ class: 'actions' }, [
+                button(
+                  'save',
+                  {
+                    type: 'button',
+                    click: function* () {
+                      yield* machine.requestSubmit();
+                    },
+                  },
+                  'Save',
+                ),
+                button(
+                  'cancel',
+                  {
+                    type: 'button',
+                    class: 'secondary',
+                    click: function* () {
+                      yield* machine.requestCancel();
+                    },
+                  },
+                  'Cancel',
+                ),
+              ]),
+            ]),
+          saving: () => div({ class: 'panel' }, [p('Saving…')]),
+        },
       ),
-
-      ifBlock(machine.isEditing, () =>
-        div({ class: 'panel' }, [
-          div({ class: 'field' }, [
-            label('profile-name-label', { for: 'profile-name' }, 'Name'),
-            input('profile-name', {
-              id: 'profile-name',
-              type: 'text',
-              value: machine.draftName,
-              *input(event) {
-                yield* machine.setName(
-                  (event.target as HTMLInputElement).value,
-                );
-              },
-            }),
-          ]),
-          div({ class: 'field' }, [
-            label('profile-email-label', { for: 'profile-email' }, 'Email'),
-            input('profile-email', {
-              id: 'profile-email',
-              type: 'email',
-              value: machine.draftEmail,
-              *input(event) {
-                yield* machine.setEmail(
-                  (event.target as HTMLInputElement).value,
-                );
-              },
-            }),
-          ]),
-          ifBlock(machine.submitBlocked, () =>
-            p(
-              { class: 'blocked' },
-              'A guard will refuse this transition: the draft is invalid, or the profile is read-only.',
-            ),
-          ),
-          div({ class: 'actions' }, [
-            button(
-              'save',
-              {
-                type: 'button',
-                click: function* () {
-                  yield* machine.requestSubmit();
-                },
-              },
-              'Save',
-            ),
-            button(
-              'cancel',
-              {
-                type: 'button',
-                class: 'secondary',
-                click: function* () {
-                  yield* machine.requestCancel();
-                },
-              },
-              'Cancel',
-            ),
-          ]),
-        ]),
-      ),
-
-      ifBlock(machine.isSaving, () => div({ class: 'panel' }, [p('Saving…')])),
 
       div({ class: 'history' }, [
         button(
@@ -364,9 +413,7 @@ const ProfileEditorStateMachine = craftComponent(
           {
             type: 'button',
             class: 'secondary',
-            disabled: function* () {
-              return !(yield* machine.canGoBack());
-            },
+            disabled: machine.backDisabled,
             click: function* () {
               yield* machine.back();
             },
@@ -378,9 +425,7 @@ const ProfileEditorStateMachine = craftComponent(
           {
             type: 'button',
             class: 'secondary',
-            disabled: function* () {
-              return !(yield* machine.canGoForward());
-            },
+            disabled: machine.forwardDisabled,
             click: function* () {
               yield* machine.forward();
             },
@@ -404,7 +449,7 @@ const ProfileEditorStateMachine = craftComponent(
         ),
         ifBlock(
           permissions.readOnly,
-          () => span('read-only: on — the saving guard refuses'),
+          () => span('read-only: on — saving is blocked'),
           () => span('read-only: off'),
         ),
       ]),

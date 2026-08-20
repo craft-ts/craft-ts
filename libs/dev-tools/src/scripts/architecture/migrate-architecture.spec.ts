@@ -172,7 +172,7 @@ describe('architecture migration', () => {
     expect(spec).not.toContain('export const keep = false');
   });
 
-  it('patches Nx project.json and uses nxViteTsPaths in the Vitest config', async () => {
+  it('patches Nx project.json and enables native tsconfig paths in the Vitest config', async () => {
     const root = await fixture({
       'nx.json': '{}',
       'project.json': JSON.stringify({
@@ -217,7 +217,7 @@ describe('architecture migration', () => {
       join(root, 'vitest.architecture.config.ts'),
       'utf8',
     );
-    expect(vitestConfig).toContain('nxViteTsPaths');
+    expect(vitestConfig).toContain('tsconfigPaths: true');
     expect(vitestConfig).toContain('shop-architecture');
     expect(existsSync(join(root, 'package.json'))).toBe(false);
   });

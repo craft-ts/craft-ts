@@ -8,6 +8,13 @@ Public docs: https://craft-ts.github.io/craft
 LLM index: https://craft-ts.github.io/craft/llms.txt
 Full dump: https://craft-ts.github.io/craft/llms-full.txt
 
+For a new framework-independent app, start with `npx craft create <directory>`.
+The prompt asks for EffectTS v4 first, then the agent integrations to install
+(`codex`, `cursor`, `cloud-code`; `claude-code` is also supported). The starter
+already contains a routed page, a `CraftHttpClient` API query, ESLint, unit and
+Playwright tests, and the `architecture/` contract. Use `--effect=v4` or
+`--effect=none` for non-interactive setup.
+
 When MCP tools are available, call `get_best_practices` once, then `search_documentation` / `get_skill` instead of inventing APIs.
 
 ## Mental model
@@ -45,7 +52,7 @@ Decision page: `/guide/concepts/choose-primitive`.
 8. **Templates:** `ifBlock` / `matchBlock` / `each` / `defer`, not `@if` / `@for`. Interactive helpers take a unique literal local name: `button('save', { type: 'button', ... }, 'Save')`. The name is `data-craft-name` and must be unique in the app (`assertInteractiveElementNamed`).
 9. **Let ESLint keep generated aliases.** After DI or route edits, run `eslint --fix`. Do not hand-edit `GenDeps_*` or `_Check*` / `_CanRun*` blocks.
 
-Install `@craft-ts/dev-tools` and enable the `craft-ts/*` ESLint rules. They are the compiler's partner: a missing route check or a raw `inject()` should fail CI, not production.
+Install `@craft-ts/dev-tools` and enable the `craft-ts/*` ESLint rules. They are the compiler's partner: a missing route check or a raw `inject()` should fail CI, not production. The generated README documents `npm run lint`, `typecheck`, `test`, `architecture`, `e2e`, and, for EffectTS v4, `effect-check`.
 
 The `architecture/` suite is the graph contract: unique HTTP, unique identities, armed route DI proofs, folder lanes. Scaffold it at app start (`craft-ts-architecture-tests`, `craft-migrate-architecture`). During a feature, run it. Do not add an architecture rule for the feature. Add a new `it()` only to freeze a spotted smell so it cannot recur.
 

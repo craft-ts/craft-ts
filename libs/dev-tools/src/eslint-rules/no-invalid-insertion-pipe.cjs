@@ -5,6 +5,7 @@ const INSERTION_PIPES = new Set([
   'insertMutationPipe',
   'insertQueryParamsPipe',
   'insertQueryPipe',
+  'insertStateMachinePipe',
   'insertStatePipe',
 ]);
 

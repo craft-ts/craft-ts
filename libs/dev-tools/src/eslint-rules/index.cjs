@@ -16,6 +16,7 @@ const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.
 const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
 const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
+const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
@@ -29,6 +30,7 @@ const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
 const templateElementNameUnique = require('./template-element-name-unique.cjs');
 const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
 const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
+const noTransitionActions = require('./no-transition-actions.cjs');
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
@@ -93,6 +95,7 @@ const plugin = {
     'require-yieldable-insertion-write': requireYieldableInsertionWrite,
     'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
     'no-craft-use-in-template': noCraftUseInTemplate,
+    'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,
@@ -107,6 +110,7 @@ const plugin = {
     'template-element-name-unique': templateElementNameUnique,
     'prefer-craft-template-blocks': preferCraftTemplateBlocks,
     'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
+    'no-transition-actions': noTransitionActions,
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
     'no-direct-temporal-globals': noDirectTemporalGlobals,
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,

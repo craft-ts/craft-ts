@@ -335,6 +335,16 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: state-machine-text */
+  {
+    path: 'state-machine-text',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine/text-editor'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: login-form */
   {
     path: 'login-form',
@@ -498,6 +508,7 @@ type DemoRoutePath =
   | 'craft/lazy-layout/:teamId/users/:userId'
   | 'login-form'
   | 'state-machine'
+  | 'state-machine-text'
   | 'state-machine-list'
   | 'craft-service/counter'
   | 'craft-service/register-for'
@@ -815,6 +826,15 @@ type _CanRunStateMachine = CanRun<
     (typeof import('./examples/primitives/state-machine/profile-editor'))['default'],
     never,
     'path: "state-machine"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: state-machine-text */
+type _CanRunStateMachineText = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine/text-editor'))['default'],
+    never,
+    'path: "state-machine-text"'
   >
 >;
 /* demo-check-end */

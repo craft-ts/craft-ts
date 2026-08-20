@@ -49,6 +49,7 @@ export default [
       'craft-ts/no-render-writes': 'error',
       'craft-ts/require-reactive-template-bindings': 'error',
       'craft-ts/no-craft-use-in-template': 'error',
+      'craft-ts/no-type-assertions-in-template': 'error',
       'craft-ts/no-ephemeral-template-form-state': 'error',
       'craft-ts/no-craft-computed-side-effects': 'error',
       'craft-ts/require-craft-method-for-yieldable-callback': 'error',
@@ -62,6 +63,7 @@ export default [
       'craft-ts/no-async-await': 'error',
       'craft-ts/no-throw': 'error',
       'craft-ts/no-imperative-craft-resource-trigger': 'error',
+      'craft-ts/no-transition-actions': 'error',
       'craft-ts/require-craft-resource-trigger-yield': 'error',
       'craft-ts/require-assert-exhaustive-route-exceptions': 'error',
       'craft-ts/require-craft-exception-handler': 'error',
@@ -78,10 +80,11 @@ export default [
 
 What each rule does:
 
-- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
+- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use-in-template`: forbids the synchronous `craftUse(...)` escape hatch in Craft templates; pass the reactive reader directly, such as `status: usersQuery.currentPageStatus`
+- `craft-ts/no-type-assertions-in-template`: forbids `as ...` and angle-bracket type assertions in Craft templates; fix the type in the logic factory or expose a correctly typed derived value
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ts/no-effect-in-params`: keeps `params` synchronous by rejecting Effect values and Effect service reads; use `computedEffect(...)` or an Effect-valued `method(...)` for asynchronous work
@@ -95,6 +98,7 @@ What each rule does:
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ts/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).
+- `craft-ts/no-transition-actions`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` inside `transitionStep(...)`; validate the event and emit a source, then let the resource react to that source.
 - `craft-ts/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ts/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
 - `craft-ts/prefer-direct-yieldable-callback`: replaces a template generator that only returns `yield* callback()` with the callback reference itself

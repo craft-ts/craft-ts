@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import { defineConfig } from 'vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { craftTextLoaderPlugin } from '../../tools/vite-text-loader-plugin.mjs';
@@ -11,7 +10,7 @@ export default defineConfig({
   root,
   cacheDir: '../../node_modules/.vite/apps/demo-effect',
   publicDir: 'public',
-  plugins: [craftTextLoaderPlugin(), nxViteTsPaths()],
+  plugins: [craftTextLoaderPlugin()],
   server: {
     port: 4201,
     fs: {
@@ -19,6 +18,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    tsconfigPaths: true,
     mainFields: ['module', 'browser', 'jsnext:main', 'jsnext'],
   },
   build: {

@@ -8,6 +8,7 @@ import {
   compareReleaseVersions,
   extractChangelogEntry,
   parseReleaseVersion,
+  releasePackages,
   releaseTrackedFiles,
   resolveReleaseVersion,
   unpublishedNpmPackPaths,
@@ -139,9 +140,23 @@ test('release PRs are limited to manifests and changelog', () => {
     'libs/component/package.json',
     'libs/core/package.json',
     'libs/dev-tools/package.json',
+    'libs/effect/package.json',
     'package-lock.json',
     'packages/mcp/package.json',
   ]);
+});
+
+test('releases all public CraftTS packages as one fixed group', () => {
+  assert.deepEqual(
+    releasePackages.map(({ name }) => name),
+    [
+      '@craft-ts/core',
+      '@craft-ts/component',
+      '@craft-ts/effect',
+      '@craft-ts/dev-tools',
+      '@craft-ts/mcp',
+    ],
+  );
 });
 
 test('npm packs must not include the internal DevTools tests', () => {

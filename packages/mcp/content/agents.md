@@ -1,7 +1,8 @@
 # CraftTS
 
-This application uses `@craft-ts/core`. Treat Craft APIs as the default. Use
-Craft primitives, services, components, and `CraftHttpClient` in authored code.
+This application uses `@craft-ts/core` without an Angular dependency. Treat
+Craft APIs as the default. Use Craft primitives, services, components,
+`CraftHttpClient`, `bootstrapCraft`, and `provideCraftRouter` in authored code.
 
 ## Before writing Craft code
 
@@ -16,7 +17,10 @@ Craft primitives, services, components, and `CraftHttpClient` in authored code.
 - `craftService` + generated `X()` helpers for explicit dependency composition.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split with `loadChildren` on `TS2589`.
 - Enable `@craft-ts/dev-tools` ESLint rules and run `eslint --fix` after DI or route edits.
-- The `architecture/` suite is the graph contract. Scaffold it at bootstrap. Run it during a feature. Do not add an architecture rule for the feature; encode a smell so it cannot recur.
+- The `architecture/` suite is the graph contract. `craft create` scaffolds it
+  at bootstrap and adds `npm run architecture`. Run it during a feature. Do not
+  add an architecture rule for the feature; encode a smell only when it is a
+  recurring product invariant not covered by a baseline helper.
 
 ## Docs
 

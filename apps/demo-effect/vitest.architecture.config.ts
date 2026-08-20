@@ -1,11 +1,13 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: "../../node_modules/.vite/demo-effect-architecture",
-  plugins: [nxViteTsPaths()],
+  plugins: [],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     name: "demo-effect-architecture",
     watch: false,

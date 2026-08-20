@@ -345,7 +345,7 @@ const resourcesSidebar = [
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: '@craft-ts/core',
+  title: '@craft-ts',
   base: '/craft/',
   description: 'Type-safe Craft applications, by construction',
   themeConfig: {

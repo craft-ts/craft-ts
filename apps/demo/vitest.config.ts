@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { craftTextLoaderPlugin } from '../../tools/vite-text-loader-plugin.mjs';
@@ -11,8 +10,9 @@ const workspaceRoot = path.resolve(root, '../..');
 export default defineConfig({
   root,
   cacheDir: '../../node_modules/.vite/apps/demo-test',
-  plugins: [craftTextLoaderPlugin(), nxViteTsPaths()],
+  plugins: [craftTextLoaderPlugin()],
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
       '@craft-ts/component': path.join(
