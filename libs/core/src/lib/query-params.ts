@@ -708,6 +708,7 @@ function createQueryParamsRef<
               updater(current) as QueryParamsToState<QueryParamsType>,
           ),
       }),
+      name,
     ),
   );
 

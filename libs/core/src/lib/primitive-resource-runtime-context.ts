@@ -4,6 +4,7 @@ import {
   type Provider,
   type Signal,
 } from './host/craft-compat';
+import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
 
 export type PrimitiveResourceRuntimeKind =
   | 'query'
@@ -62,9 +63,21 @@ export function providePrimitiveResourceRuntimeObserver(
 
 export function ɵobservePrimitiveResourceRuntimeContext(
   context: PrimitiveResourceRuntimeContext,
+  name?: string,
 ): void {
   for (const observer of inject(PRIMITIVE_RESOURCE_RUNTIME_OBSERVER)) {
     observer(context);
+  }
+
+  // The same handle, addressable: the observer sees every resource as it is
+  // created, the registry lets tooling find one again by name afterwards.
+  if (name !== undefined) {
+    ɵregisterCraftPrimitive({
+      kind: context.kind,
+      name,
+      read: () => context.get(),
+      write: (value) => context.set(value),
+    });
   }
 }
 

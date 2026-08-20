@@ -1821,6 +1821,7 @@ function createMutationRef<
             'mutation',
             resourceTarget as any,
           ),
+      name,
     ),
   );
 

@@ -1785,6 +1785,7 @@ function createQueryRef<
             'query',
             resourceTarget as any,
           ),
+      name,
     ),
   );
 

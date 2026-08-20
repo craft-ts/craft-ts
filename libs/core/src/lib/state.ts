@@ -53,6 +53,7 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
+import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
@@ -839,6 +840,15 @@ function createStateRef<StateType>(
           return null;
         }
       })();
+
+  // Addressable handle for tooling: read and write this very instance by name.
+  ɵregisterCraftPrimitive({
+    kind: 'state',
+    name,
+    read: () => stateSignal(),
+    write: (value) => setState(value as StateType),
+    ...(injector ? { injector } : {}),
+  });
 
   if (snapshotRegistry && destroyRef) {
     snapshotRegistry.triggerSnapshot$

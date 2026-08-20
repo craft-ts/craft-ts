@@ -1517,6 +1517,7 @@ function createAsyncProcessRef<
             'asyncProcess',
             resourceTarget as any,
           ),
+      name,
     ),
   );
 
