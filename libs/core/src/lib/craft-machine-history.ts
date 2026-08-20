@@ -330,6 +330,12 @@ export function withHistory(
     };
 
     const append = (entry: CraftHistoryEntry) => {
+      // A moment identical to the one the machine already sits on is not a
+      // moment. Remounting a component — or reloading a page onto a machine
+      // that starts where it left off — would otherwise stack the same state
+      // over and over, and `back()` would walk through duplicates.
+      if (isSameMoment(entries()[cursor()], entry)) return;
+
       entries.update((current) => {
         // Recording after a rewind drops the forward entries: the machine took
         // a different branch, and keeping the old one would let `forward()`
@@ -456,6 +462,22 @@ function readRaw<Value>(reader: unknown): Value | undefined {
     : undefined;
 }
 
+
+/**
+ * Whether two recorded moments describe the same state. Compared by value:
+ * a snapshot is already required to survive JSON to be persisted.
+ */
+function isSameMoment(
+  previous: CraftHistoryEntry | undefined,
+  next: CraftHistoryEntry,
+): boolean {
+  if (!previous || previous.step !== next.step) return false;
+  try {
+    return JSON.stringify(previous.snapshot) === JSON.stringify(next.snapshot);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Whether a captured value is worth recording.

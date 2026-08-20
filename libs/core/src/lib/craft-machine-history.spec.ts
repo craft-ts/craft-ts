@@ -332,6 +332,26 @@ describe('persisted machine history', () => {
     expect(craftUse(after.context.draft())).toBe('edited');
   });
 
+  it('does not stack an identical moment when a machine is rebuilt', () => {
+    const { storage } = createStorage();
+
+    const before = TestBed.runInInjectionContext(() =>
+      createPersistedMachine(storage, 'book-1'),
+    );
+    expect(craftUse(before.history())).toHaveLength(1);
+
+    // Remounting the component — or reloading the page — builds a machine that
+    // starts exactly where the recorded one stood. Recording that again would
+    // stack duplicates a rewind then has to walk through.
+    TestBed.resetTestingModule();
+    const after = TestBed.runInInjectionContext(() =>
+      createPersistedMachine(storage, 'book-1'),
+    );
+
+    expect(craftUse(after.history())).toHaveLength(1);
+    expect(craftUse(after.canGoBack())).toBe(false);
+  });
+
   it('keeps two anchors of the same machine apart', () => {
     const { items, storage } = createStorage();
 
