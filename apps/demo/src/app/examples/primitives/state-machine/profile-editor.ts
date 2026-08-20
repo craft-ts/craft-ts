@@ -26,7 +26,7 @@ import {
   on$,
   source$,
   state,
-  transiteSetup,
+  transitionSetup,
   transitionGuard,
   transitionStep,
   type CraftMachineContext,
@@ -99,7 +99,7 @@ type ProfileContext = CraftMachineContext<typeof profileContext>;
 
 // 2. The transitions. Each key is the step the machine ENTERS, so `transit()`
 // inside a block targets that block's step.
-const profileTransitions = transiteSetup(function* (
+const profileTransitions = transitionSetup(function* (
   context: ProfileContext,
   transit,
 ) {

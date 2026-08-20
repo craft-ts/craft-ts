@@ -359,14 +359,14 @@ export function transitionStep<Yielded = never>(
  * machine `context` and `transit`, and returns one {@link transitionStep} per
  * step; the record's keys ARE the machine's steps.
  *
- * `transiteSetup(...).pipe(transitionGuard(...))` guards every transition of
+ * `transitionSetup(...).pipe(transitionGuard(...))` guards every transition of
  * every step.
  *
  * Declared standalone, the setup's `context` parameter has to be annotated —
  * typically with `CraftMachineContext<typeof contextFactory>`; `craftStateMachine`
  * then checks the machine's real context against that annotation.
  */
-export function transiteSetup<
+export function transitionSetup<
   Context,
   StepsRecord extends AnyStepsRecord,
   SetupYielded = never,
@@ -818,7 +818,7 @@ function createStateMachineRef(
 
     if (!isStepsRecord(stepsRecord)) {
       throw new Error(
-        'transiteSetup(...) must return a record of transitionStep(...) entries.',
+        'transitionSetup(...) must return a record of transitionStep(...) entries.',
       );
     }
 

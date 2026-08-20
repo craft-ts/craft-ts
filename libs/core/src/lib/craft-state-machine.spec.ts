@@ -11,7 +11,7 @@ import { afterRecomputation } from './after-recomputation';
 import {
   craftStateMachine,
   initStateMachine,
-  transiteSetup,
+  transitionSetup,
   transitionGuard,
   transitionStep,
   type CraftMachineContext,
@@ -61,7 +61,7 @@ const contextFactory = function* () {
 
 type MachineContext = CraftMachineContext<typeof contextFactory>;
 
-const transitions = transiteSetup(function* (
+const transitions = transitionSetup(function* (
   context: MachineContext,
   transit,
 ) {
@@ -287,7 +287,7 @@ describe('craftStateMachine typing', () => {
   });
 
   it('rejects a machine whose transitions never initialise', () => {
-    const uninitialised = transiteSetup(function* (
+    const uninitialised = transitionSetup(function* (
       context: MachineContext,
       transit,
     ) {
@@ -314,7 +314,7 @@ describe('craftStateMachine typing', () => {
 });
 
 describe('craftStateMachine guards', () => {
-  const stepGuarded = transiteSetup(function* (
+  const stepGuarded = transitionSetup(function* (
     context: MachineContext,
     transit,
   ) {
