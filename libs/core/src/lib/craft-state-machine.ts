@@ -10,7 +10,7 @@ import {
   craftSignal,
 } from './host/craft-signal';
 import { injectFnWrapper } from './fn-wrapper';
-import { ɵcreateHostTaggedInjector } from './craft-service';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import type {
   CompleteServiceDependencyMapFromYielded,
   SERVICE_HELPER_DEPENDENCIES,
@@ -37,10 +37,13 @@ import type { MergeObject } from './util/types/util.type';
 import {
   ɵdriveMachineGenerator,
   ɵregisterMachineInit,
+  ɵrestoreMachineStep,
   ɵrunTransition,
   ɵwithMachineScope,
+  ɵwithSuspendedMachine,
   ɵrequireMachineScope,
   type MachineRuntime,
+  type MachineTransitionObserver,
   type RuntimeTransitionGuard,
 } from './craft-state-machine-runtime';
 
@@ -303,6 +306,32 @@ type StepContextValue<StepContexts, Steps extends string> = Steps extends
   ? StepContexts[Steps]
   : never;
 
+/** One decided transition attempt, as an insertion observes it. */
+export type CraftMachineTransition<Steps extends string = string> = Readonly<{
+  from: Steps | undefined;
+  to: Steps;
+  event: unknown;
+  accepted: boolean;
+}>;
+
+/**
+ * The machine's own controls, handed to its insertion. This is what a feature
+ * built on top of the machine — a history, a replay — needs and the machine
+ * core deliberately does not provide itself.
+ */
+export type CraftMachineControls<Steps extends string = string> = Readonly<{
+  /** Host chain of the machine, to scope a registry capture to what it owns. */
+  hostTags: readonly string[];
+  /** Observes every decided attempt, accepted or refused. Returns a release. */
+  onTransition(
+    observer: (transition: CraftMachineTransition<Steps>) => void,
+  ): () => void;
+  /** Moves to a step without consulting any guard. */
+  restoreStep(step: Steps | undefined): void;
+  /** Runs `restore` with the machine's registrations muted. */
+  suspended<Result>(restore: () => Result): Result;
+}>;
+
 export type CraftMachineInsertionContext<
   Context,
   Steps extends string,
@@ -314,6 +343,7 @@ export type CraftMachineInsertionContext<
     StepContextValue<StepContexts, Steps> | undefined,
     'stepContext'
   >;
+  readonly machine: CraftMachineControls<Steps>;
 };
 
 export type CraftStateMachineOutput<
@@ -848,6 +878,8 @@ function createStateMachineRef(
       stepGuards: new Map(),
       injector,
       initRegistrations: [],
+      observers: new Set(),
+      suspended: false,
     };
 
     const stepsRecord = driveFactory(
@@ -903,6 +935,18 @@ function createStateMachineRef(
     };
 
     if (insertion) {
+      const controls = {
+        hostTags: injector.get(ɵHOST_TAG_LIST, []) as readonly string[],
+        onTransition: (observer: MachineTransitionObserver) => {
+          runtime.observers.add(observer);
+          return () => runtime.observers.delete(observer);
+        },
+        restoreStep: (step: string | undefined) =>
+          ɵrestoreMachineStep(runtime, step),
+        suspended: <Result,>(restore: () => Result) =>
+          ɵwithSuspendedMachine(runtime, restore),
+      };
+
       const output = driveFactory(
         insertion as (...args: never[]) => unknown,
         injector,
@@ -910,6 +954,7 @@ function createStateMachineRef(
           context,
           currentStep: currentStepReader,
           stepContext: stepContextReader,
+          machine: controls,
         },
       );
 

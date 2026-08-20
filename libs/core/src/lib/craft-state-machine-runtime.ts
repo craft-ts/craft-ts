@@ -38,6 +38,18 @@ export type RuntimeTransitionGuard = (transition: {
   readonly event: unknown;
 }) => unknown;
 
+/** What an accepted or refused `transit(...)` reports to its observers. */
+export type MachineTransitionRecord = Readonly<{
+  from: string | undefined;
+  to: string;
+  event: unknown;
+  accepted: boolean;
+}>;
+
+export type MachineTransitionObserver = (
+  record: MachineTransitionRecord,
+) => void;
+
 export type MachineRuntime = {
   readonly context: unknown;
   readonly currentStep: CraftWritableSignal<string | undefined>;
@@ -45,6 +57,13 @@ export type MachineRuntime = {
   readonly stepGuards: Map<string, readonly RuntimeTransitionGuard[]>;
   readonly injector: Injector;
   readonly initRegistrations: Array<() => void>;
+  readonly observers: Set<MachineTransitionObserver>;
+  /**
+   * While suspended, the machine's registrations do not run. Restoring a
+   * captured value would otherwise re-fire the very reactions that produced
+   * the transition being replayed, and the machine would fight the replay.
+   */
+  suspended: boolean;
 };
 
 /**
@@ -120,6 +139,10 @@ export function ɵrunMachineCallback(
   scope: MachineScope,
   run: () => unknown,
 ): unknown {
+  if (scope.runtime.suspended) {
+    return undefined;
+  }
+
   return untracked(() =>
     ɵwithMachineScope(scope, () =>
       runInInjectionContext(scope.runtime.injector, () =>
@@ -209,6 +232,13 @@ export function ɵrunTransition(
       return false;
     }
 
+    const report = (accepted: boolean): boolean => {
+      for (const observer of runtime.observers) {
+        observer({ from, to: target, event, accepted });
+      }
+      return accepted;
+    };
+
     const transition = {
       from,
       to: target,
@@ -229,11 +259,33 @@ export function ɵrunTransition(
         : result;
 
       if (!resolved) {
-        return false;
+        return report(false);
       }
     }
 
     runtime.currentStep.set(target);
-    return true;
+    return report(true);
   })();
+}
+
+/** Moves the machine to `step` without consulting any guard. */
+export function ɵrestoreMachineStep(
+  runtime: MachineRuntime,
+  step: string | undefined,
+): void {
+  runtime.currentStep.set(step);
+}
+
+/** Runs `restore` with the machine's registrations muted. */
+export function ɵwithSuspendedMachine<Result>(
+  runtime: MachineRuntime,
+  restore: () => Result,
+): Result {
+  const previous = runtime.suspended;
+  runtime.suspended = true;
+  try {
+    return restore();
+  } finally {
+    runtime.suspended = previous;
+  }
 }

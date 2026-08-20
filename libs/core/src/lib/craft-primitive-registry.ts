@@ -44,6 +44,25 @@ export type CraftPrimitiveSnapshot = Readonly<Record<string, unknown>>;
 export class CraftPrimitiveRegistry {
   private readonly entries = new Map<string, CraftPrimitiveEntry>();
   private readonly occurrences = new Map<string, number>();
+  /** Public primitive ref → address, so a caller can name what it holds. */
+  private readonly addresses = new WeakMap<object, string>();
+
+  /** Associates the ref an application holds with its registered address. */
+  link(ref: unknown, address: string): void {
+    if (ref !== null && (typeof ref === 'object' || typeof ref === 'function')) {
+      this.addresses.set(ref as object, address);
+    }
+  }
+
+  /**
+   * The address of a primitive from the ref an application holds — how a
+   * feature names a primitive declared outside the host it is scoped to.
+   */
+  addressOf(ref: unknown): string | undefined {
+    return ref !== null && (typeof ref === 'object' || typeof ref === 'function')
+      ? this.addresses.get(ref as object)
+      : undefined;
+  }
 
   /**
    * Registers one instance under `base`, suffixed with an occurrence number.
@@ -144,12 +163,20 @@ type RegisterOptions = Readonly<{
   injector?: Injector;
 }>;
 
+/** What a primitive gets back from registering itself. */
+export type CraftPrimitiveRegistration = Readonly<{
+  /** Associates the public ref with this registration. */
+  link(ref: unknown): void;
+}>;
+
 /**
  * Registers a primitive instance so tooling can read and write it by address.
  * Called by the primitives themselves at creation; a no-op when no injection
  * context is available, so a primitive built outside one keeps working.
  */
-export function ɵregisterCraftPrimitive(options: RegisterOptions): void {
+export function ɵregisterCraftPrimitive(
+  options: RegisterOptions,
+): CraftPrimitiveRegistration {
   const resolve = <T>(token: InjectionToken<T>, fallback: T): T => {
     try {
       return options.injector
@@ -163,14 +190,14 @@ export function ɵregisterCraftPrimitive(options: RegisterOptions): void {
   const registry = resolve(CRAFT_PRIMITIVE_REGISTRY, null as never) as
     | CraftPrimitiveRegistry
     | null;
-  if (!registry) return;
+  if (!registry) return { link: () => undefined };
 
   const hostTags = resolve(
     ɵHOST_TAG_LIST as unknown as InjectionToken<readonly string[]>,
     [] as readonly string[],
   );
 
-  const { release } = registry.register(
+  const { address, release } = registry.register(
     ɵcraftPrimitiveAddress(hostTags, options.kind, options.name),
     {
       kind: options.kind,
@@ -190,4 +217,6 @@ export function ɵregisterCraftPrimitive(options: RegisterOptions): void {
     destroyRef = null;
   }
   destroyRef?.onDestroy(release);
+
+  return { link: (ref: unknown) => registry.link(ref, address) };
 }

@@ -842,7 +842,7 @@ function createStateRef<StateType>(
       })();
 
   // Addressable handle for tooling: read and write this very instance by name.
-  ɵregisterCraftPrimitive({
+  const registration = ɵregisterCraftPrimitive({
     kind: 'state',
     name,
     read: () => stateSignal(),
@@ -881,6 +881,9 @@ function createStateRef<StateType>(
     primitive: 'state',
     path: name,
   });
+  // The ref the application holds is what a feature names when it has to
+  // capture a primitive declared outside its own host.
+  registration.link(publicState);
   return hasDeepYieldableInsertion(insertions)
     ? deepYieldable(publicState)
     : publicState;
