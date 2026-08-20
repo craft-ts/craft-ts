@@ -4,18 +4,7 @@
 rule. It says what a primitive loader must reach, without hard-coding one
 transport library into the graph:
 
-```typescript
-assertPrimitiveLoaderRequirements(graph.graph, {
-  primitives: ['queryEffect', 'mutationEffect'],
-  requirements: [
-    {
-      label: 'an Effect service',
-      matches: ({ target }) =>
-        target.kind === 'service' && target.details?.runtime === 'effect',
-    },
-  ],
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/primitive-loader-requirements.spec.ts#example
 
 ## What it prevents
 

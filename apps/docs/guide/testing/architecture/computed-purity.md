@@ -3,11 +3,7 @@
 `assertCraftComputedPure` requires a `craftComputed` to read dependencies and
 return a value. It may not call a method or write to a source:
 
-```typescript
-it('keeps derivations free of side effects', () => {
-  assertCraftComputedPure(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/computed-purity.spec.ts#example
 
 ## The safe shape
 

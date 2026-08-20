@@ -3,11 +3,7 @@
 `noExclusiveLink(a, b)` checks that two branches do not depend on each other
 through a private leak. Shared kernel nodes are allowed:
 
-```typescript
-it('keeps checkout and admin branches independent', () => {
-  noExclusiveLink(graph.route('/admin'), graph.route('/checkout'));
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/exclusive-links.spec.ts#example
 
 ## What it prevents
 

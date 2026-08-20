@@ -3,11 +3,7 @@
 `assertCraftEffectNoNetwork` prevents a reactive `craftEffect` from calling HTTP
 or a mutation:
 
-```typescript
-it('keeps network work in resources', () => {
-  assertCraftEffectNoNetwork(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/craft-effect-network.spec.ts#example
 
 ## What it prevents
 

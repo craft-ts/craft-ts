@@ -26,6 +26,7 @@ describe('docs sidebar', () => {
     expect(Array.isArray(sidebar)).toBe(false);
     expect(Object.keys(sidebar).sort()).toEqual([
       '/guide/',
+      '/learn-effect/',
       '/learn/',
       '/reference/',
       '/resources/',
@@ -82,6 +83,7 @@ describe('docs sidebar', () => {
 
     expect(nav.map((entry) => entry.text)).toEqual([
       'Learn',
+      'Learn with Effect',
       'Guide',
       'Reference',
       'Packages',

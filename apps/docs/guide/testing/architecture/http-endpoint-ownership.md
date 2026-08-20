@@ -3,11 +3,7 @@
 `assertHttpEndpointUnique` treats an HTTP endpoint as the pair of its method and
 URL. It fails when two graph sites call the same pair:
 
-```typescript
-it('gives every endpoint one owner', () => {
-  assertHttpEndpointUnique(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/http-endpoint-ownership.spec.ts#example
 
 ## What it prevents
 

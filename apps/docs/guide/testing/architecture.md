@@ -1,25 +1,53 @@
 # Architecture rules
 
-Service and component tests prove a unit behaves. Architecture rules prove the
-**shape of the app**: this feature must not talk to that one, this HTTP endpoint
-is owned once, this persisted identity appears once. They analyze TypeScript
-without starting the application — the same role as `e2e/`, on the static Craft graph
-instead of a browser.
+Architecture tests answer one question:
 
-**Use them when** a constraint is about who may depend on whom, not about what
-the user sees.
-**Not instead of** [service](/guide/testing/services) or
-[component](/guide/testing/components) tests — a green architecture suite does
-not mean a button works.
+> **Is the dependency shape of the app still allowed?**
 
-::: tip A rule is an ordinary `it()`
-Look a node up, walk its edges, assert. The helpers below are the declarative
-baseline — unique identities, unique HTTP, pure `craftComputed`, no
-`depends-on` cycles — plus `assertRouteDiProofs` for the routing DI contract
-and insertion rules (`insertReactOnMutation`, persisted `craftUnique`,
-`insertSelect` keys, `craftEffect` off the network and off imperative sync).
-Everything else is Vitest.
+They read the static Craft graph — routes, services, components, primitives and
+their edges — without starting the application. That makes them useful for
+rules that are about relationships, ownership or declarations rather than
+runtime behaviour.
+
+## Choose the right kind of test
+
+| If you want to verify… | Use… | Example |
+| --- | --- | --- |
+| one unit computes the right result | [service tests](/guide/testing/services) | a service returns the expected value |
+| one component renders and reacts correctly | [component tests](/guide/testing/components) | a button disables after a click |
+| two parts of the app are allowed to depend on each other | architecture tests | `checkout` must not depend on `admin` |
+| a complete user journey works in a browser | `e2e/` tests | a user can create and then see a task |
+
+Use an architecture rule when the requirement sounds like one of these:
+
+- **must not depend on** — a feature must not reach into another feature;
+- **must be owned once** — an HTTP endpoint or persisted identity has one owner;
+- **must declare a relationship** — a mutation must refresh a query;
+- **must remain pure** — reading a computed value must not perform work.
+
+A green architecture suite does not prove that a button works. It proves that
+the app still respects the boundaries that make that button maintainable.
+
+::: tip Start with the graph-wide baseline
+Add `assertDeclarativeArchitecture(graph.graph)` first. It checks the five
+invariants that are easiest to break during a refactor: unique identities,
+unique HTTP ownership, pure `craftComputed` values, no dependency cycles and
+declared mutation reactions. Add focused rules when your application has an
+additional boundary, such as route DI or folder ownership.
 :::
+
+## What a rule looks like
+
+A rule is an ordinary Vitest assertion. Look up a node, inspect its graph
+relationships or call a built-in assertion, then let CI protect the invariant:
+
+```typescript
+it('keeps checkout away from admin internals', () => {
+  noExclusiveLink(graph.route('/checkout'), graph.route('/admin'));
+});
+```
+
+The rest of this page explains the graph, the setup and the built-in rules.
 
 ## Import
 
@@ -47,43 +75,6 @@ import {
   noExclusiveLink,
 } from '@craft-ts/dev-tools';
 ```
-
-## Loader requirements
-
-When `query` and `mutation` are reserved for server state, enforce that their
-`loader` reaches a transport boundary:
-
-```typescript
-assertQueryMutationHasServerState(graph.graph);
-```
-
-This accepts a `CraftHttpClient` endpoint or a client-exposed server-function
-family. The generic helper lets an Effect application choose its own boundary:
-
-```typescript
-assertPrimitiveLoaderRequirements(graph.graph, {
-  primitives: ['queryEffect', 'mutationEffect'],
-  requirements: [
-    {
-      label: 'an Effect service',
-      matches: ({ target }) =>
-        target.kind === 'service' && target.details?.runtime === 'effect',
-    },
-  ],
-});
-```
-
-Requirements are OR-ed. The matcher receives the primitive, target node, edge,
-and complete graph, so a project can recognise an Effect service, a domain
-gateway, or another server-state boundary without making `CraftHttpClient` a
-universal requirement. For `queryEffect` and `mutationEffect`, the graph also
-projects the Effect `R` channel onto the matching Effect service nodes, so a
-loader returning `Effect.Effect<A, E, UserApi>` satisfies the service matcher
-even when the loader only calls a domain function.
-
-Intentional local-state examples can be named explicitly with `allow` on the
-rule. Keep this list narrow: it is an exception to the server-state contract,
-not a replacement for choosing the right primitive.
 
 ## Mental model
 

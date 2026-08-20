@@ -3,11 +3,7 @@
 `assertCraftEffectNoImperativeSync` prevents a `craftEffect` from writing a
 state/source or triggering another query, mutation or async process:
 
-```typescript
-it('keeps resource transitions declarative', () => {
-  assertCraftEffectNoImperativeSync(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/craft-effect-imperative-sync.spec.ts#example
 
 ## The syntax is valid — the placement is not
 

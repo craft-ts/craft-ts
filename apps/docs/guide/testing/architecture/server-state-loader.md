@@ -4,11 +4,7 @@
 loaders reach an approved server-state boundary, such as `CraftHttpClient` or a
 client-exposed server-function family:
 
-```typescript
-it('keeps server resources connected to server state', () => {
-  assertQueryMutationHasServerState(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/server-state-loader.spec.ts#example
 
 ## What it prevents
 

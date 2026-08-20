@@ -4,13 +4,7 @@
 `insertReactOnMutation` edge to a query, unless the mutation is explicitly
 allowed:
 
-```typescript
-it('keeps reads fresh after writes', () => {
-  assertMutationHasReactOn(graph.graph, {
-    allow: ['logout'],
-  });
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/mutation-reactions.spec.ts#example
 
 ## What it prevents
 

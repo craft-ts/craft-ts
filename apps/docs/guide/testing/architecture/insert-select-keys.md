@@ -3,11 +3,7 @@
 `assertInsertSelectUnique` requires each `insertSelect` key to appear once on a
 given host primitive:
 
-```typescript
-it('keeps selected insertion keys unambiguous', () => {
-  assertInsertSelectUnique(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/insert-select-keys.spec.ts#example
 
 ## What it prevents
 

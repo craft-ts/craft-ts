@@ -3,11 +3,7 @@
 `assertNoDependencyCycles` checks directed `depends-on` edges between services,
 components and computeds:
 
-```typescript
-it('keeps the dependency graph acyclic', () => {
-  assertNoDependencyCycles(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/dependency-cycles.spec.ts#example
 
 ## What it prevents
 

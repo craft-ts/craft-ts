@@ -4,11 +4,7 @@
 rule: every primitive using storage persistence must receive a `craftUnique`
 identity.
 
-```typescript
-it('does not persist an anonymous resource', () => {
-  assertPersistedPrimitiveHasUnique(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/persisted-identities.spec.ts#example
 
 ## What it prevents
 

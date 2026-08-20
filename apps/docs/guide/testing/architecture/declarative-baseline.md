@@ -5,11 +5,7 @@ Craft app. It is not a style check and it does not test the DOM. It reads the
 static Craft graph and verifies five relationships that are easy to lose during
 a refactor:
 
-```typescript
-it('keeps the app declarative', () => {
-  assertDeclarativeArchitecture(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/declarative-baseline.spec.ts#example
 
 The same test protects five different failure modes:
 

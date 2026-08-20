@@ -4,11 +4,7 @@
 CI. It checks that routed components, lazy route collections, pending screens
 and error screens have a live mapper connected to a `CanRun` proof:
 
-```typescript
-it('keeps every route DI proof armed', () => {
-  assertRouteDiProofs(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/route-di-proofs.spec.ts#example
 
 ## What it prevents
 

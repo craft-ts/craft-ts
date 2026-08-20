@@ -16,6 +16,17 @@
         "command": "vitest run --config apps/docs/vitest.config.mts"
       }
     },
+    "typecheck-architecture-docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs/tsconfig.architecture-docs.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.architecture-docs.json",
+        "{projectRoot}/tests/snippets/guide/testing/architecture/**/*.ts"
+      ]
+    },
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],

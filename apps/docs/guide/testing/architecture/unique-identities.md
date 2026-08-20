@@ -3,11 +3,7 @@
 `assertCraftUnique` checks that every `craftUnique(...)` identity is a static,
 single-use identity in the application graph.
 
-```typescript
-it('keeps storage identities unique and verifiable', () => {
-  assertCraftUnique(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/unique-identities.spec.ts#example
 
 ## What it prevents
 

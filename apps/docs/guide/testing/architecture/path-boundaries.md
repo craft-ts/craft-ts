@@ -4,25 +4,7 @@
 inside one application. It checks graph dependencies, and can optionally check
 calls:
 
-```typescript
-assertPathBoundaries(graph.graph, {
-  constraints: [
-    {
-      source: 'src/app/features/:feature/**',
-      onlyDependOn: [
-        'src/app/features/:feature/**',
-        'src/app/shared/**',
-        'src/app/ui/**',
-      ],
-    },
-    {
-      source: 'src/app/ui/**',
-      onlyDependOn: ['src/app/ui/**', 'src/app/shared/**'],
-      forbidTarget: ['src/app/data/**'],
-    },
-  ],
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/path-boundaries.spec.ts#example
 
 ## What it prevents
 

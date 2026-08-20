@@ -3,11 +3,7 @@
 `assertInteractiveElementNamed` requires a unique literal Craft name on every
 interactive element:
 
-```typescript
-it('keeps interactive controls addressable', () => {
-  assertInteractiveElementNamed(graph.graph);
-});
-```
+<<< @/tests/snippets/guide/testing/architecture/interactive-element-names.spec.ts#example
 
 ## What it prevents
 
