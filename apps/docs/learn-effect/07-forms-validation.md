@@ -40,6 +40,16 @@ The exact field insertions depend on the shape of your component, but the
 ownership rule does not change: form values and validity are Craft state; the
 submit operation is an Effect-backed mutation.
 
+## For more advanced form validation
+
+This Effect example is enough when the main concern is validating the payload
+at the boundary. For richer form behaviour — field-level rules, conditional
+validators, cross-field validation, nested forms or custom typed exceptions —
+use Craft's dedicated form API with `insertFormAttributes`, `cValidate` and
+`insertSelectFormTree`. See the [Forms guide](/guide/forms/) for this
+alternative. Effect Schema can still be kept on `methodSchema` to validate the
+final payload before the Effect runs.
+
 ## Effect Schema at the boundary
 
 Effect Schema is not passed directly to Craft. Convert it to Standard Schema:

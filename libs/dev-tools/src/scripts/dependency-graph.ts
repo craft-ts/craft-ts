@@ -200,6 +200,7 @@ const PRIMITIVES = new Set([
   'query',
   'mutation',
   'queryEffect',
+  'computedEffect',
   'mutationEffect',
   'asyncProcess',
   'queryParams',
@@ -216,6 +217,7 @@ const HOST_PRIMITIVES = new Set([
   'query',
   'mutation',
   'queryEffect',
+  'computedEffect',
   'mutationEffect',
   'asyncProcess',
   'queryParams',
@@ -2525,36 +2527,76 @@ function recordEffectLoaderRequirements(
   call: CallExpression,
   primitive: string,
 ): void {
-  if (primitive !== 'queryEffect' && primitive !== 'mutationEffect') return;
+  if (
+    primitive !== 'queryEffect' &&
+    primitive !== 'mutationEffect' &&
+    primitive !== 'computedEffect'
+  ) {
+    return;
+  }
+
   const config = call
     .getArguments()[1]
     ?.asKind(SyntaxKind.ObjectLiteralExpression);
-  const loader = config
-    ?.getProperty('loader')
-    ?.asKind(SyntaxKind.PropertyAssignment)
-    ?.getInitializer();
-  const returnType = loader?.getType().getCallSignatures()[0]?.getReturnType();
-  const requirementType = returnType?.getTypeArguments()[2];
-  if (!requirementType) return;
-  const requirements = requirementType.isUnion()
-    ? requirementType.getUnionTypes()
-    : [requirementType];
-  const names = requirements
-    .filter(
-      (type) => !['never', 'unknown', 'undefined'].includes(type.getText()),
-    )
-    .map(
-      (type) =>
-        type.getSymbol()?.getName() ??
-        type.getAliasSymbol()?.getName() ??
-        type.getText().split('.').at(-1),
-    )
-    .filter((name): name is string => Boolean(name));
-  if (names.length > 0) {
-    primitiveNode.details = {
-      ...(primitiveNode.details ?? {}),
-      loaderRequirements: [...new Set(names)],
-    };
+  const callbacks: readonly (readonly [string, Node | undefined])[] =
+    primitive === 'computedEffect'
+      ? [['computed', call.getArguments()[1]]]
+      : [
+          [
+            'loader',
+            config
+              ?.getProperty('loader')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer(),
+          ],
+          [
+            'params',
+            config
+              ?.getProperty('params')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer(),
+          ],
+          [
+            'method',
+            config
+              ?.getProperty('method')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer(),
+          ],
+        ];
+
+  for (const [role, callback] of callbacks) {
+    const returnType = callback
+      ?.getType()
+      .getCallSignatures()[0]
+      ?.getReturnType();
+    const effectType =
+      (role === 'computed' || role === 'params') &&
+      returnType?.getSymbol()?.getName() === 'Generator'
+        ? returnType.getTypeArguments()[1]
+        : returnType;
+    const requirementType = effectType?.getTypeArguments()[2];
+    if (!requirementType) continue;
+    const requirements = requirementType.isUnion()
+      ? requirementType.getUnionTypes()
+      : [requirementType];
+    const names = requirements
+      .filter(
+        (type) => !['never', 'unknown', 'undefined'].includes(type.getText()),
+      )
+      .map(
+        (type) =>
+          type.getSymbol()?.getName() ??
+          type.getAliasSymbol()?.getName() ??
+          type.getText().split('.').at(-1),
+      )
+      .filter((name): name is string => Boolean(name));
+    if (names.length > 0) {
+      primitiveNode.details = {
+        ...(primitiveNode.details ?? {}),
+        [`${role}Requirements`]: [...new Set(names)],
+      };
+    }
   }
 }
 
@@ -2568,22 +2610,26 @@ function linkEffectLoaderRequirements(builder: GraphBuilder): void {
       .map((node) => [node.label, node]),
   );
   for (const primitive of builder.nodes.values()) {
-    const requirements = primitive.details?.['loaderRequirements'];
-    if (
-      primitive.kind !== 'primitive' ||
-      !Array.isArray(requirements) ||
-      !requirements.every((value) => typeof value === 'string')
-    ) {
+    if (primitive.kind !== 'primitive') {
       continue;
     }
-    for (const requirement of requirements) {
-      const service = effectServices.get(requirement);
-      if (!service) continue;
-      addEdge(builder, primitive.id, service.id, 'depends-on', 'type', {
-        runtime: 'effect',
-        effectRequirement: true,
-        resourceRole: 'loader',
-      });
+    for (const role of ['loader', 'params', 'method', 'computed']) {
+      const requirements = primitive.details?.[`${role}Requirements`];
+      if (
+        !Array.isArray(requirements) ||
+        !requirements.every((value) => typeof value === 'string')
+      ) {
+        continue;
+      }
+      for (const requirement of requirements) {
+        const service = effectServices.get(requirement);
+        if (!service) continue;
+        addEdge(builder, primitive.id, service.id, 'depends-on', 'type', {
+          runtime: 'effect',
+          effectRequirement: true,
+          resourceRole: role,
+        });
+      }
     }
   }
 }

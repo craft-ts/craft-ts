@@ -1,5 +1,6 @@
 import {
   asyncProcess as craftAsyncProcess,
+  craftComputed,
   mutation as craftMutation,
   query as craftQuery,
   type AsyncProcessOutput,
@@ -7,7 +8,7 @@ import {
   type NamedCraftPrimitiveGen,
   type QueryOutput,
 } from '@craft-ts/core';
-import type { Effect } from 'effect';
+import { Effect } from 'effect';
 import { runEffect } from './run-effect';
 import type { EffectExceptionOf } from './effect-exceptions';
 
@@ -30,6 +31,12 @@ type EffectExceptions<Error> = {
   loader: EffectExceptionOf<Error>;
 };
 
+type EffectComputedFactory<Value, Error, Requirements> =
+  | (() => Effect.Effect<Value, Error, Requirements>)
+  | (() =>
+      | Generator<unknown, Effect.Effect<Value, Error, Requirements>, unknown>
+      | Effect.Effect<Value, Error, Requirements>);
+
 type EffectInsertionResult<Insertion> = Insertion extends (
   ...args: never[]
 ) => infer Result
@@ -44,14 +51,48 @@ type EffectQueryConfig<Params, Value, Error, Requirements> = {
   readonly [key: string]: unknown;
 };
 
-type EffectQueryMethodConfig<Args, Params, Value, Error, Requirements> = {
-  readonly method: (args: Args) => Params;
+type EffectQueryMethodConfig<
+  Args,
+  Params,
+  Value,
+  Error,
+  Requirements,
+  MethodError,
+  MethodRequirements,
+> = {
+  readonly method: (
+    args: Args,
+  ) =>
+    | Params
+    | Effect.Effect<Params, MethodError, MethodRequirements>
+    | Generator<
+        unknown,
+        Params | Effect.Effect<Params, MethodError, MethodRequirements>,
+        unknown
+      >;
   readonly loader: EffectLoader<Params, Value, Error, Requirements>;
   readonly [key: string]: unknown;
 };
 
-type EffectMutationConfig<Args, Params, Value, Error, Requirements> = {
-  readonly method: (args: Args) => Params;
+type EffectMutationConfig<
+  Args,
+  Params,
+  Value,
+  Error,
+  Requirements,
+  MethodError,
+  MethodRequirements,
+> = {
+  readonly method: (
+    args: Args,
+  ) =>
+    | Params
+    | Effect.Effect<Params, MethodError, MethodRequirements>
+    | Generator<
+        unknown,
+        Params | Effect.Effect<Params, MethodError, MethodRequirements>,
+        unknown
+      >;
   readonly loader: EffectLoader<Params, Value, Error, Requirements>;
   readonly [key: string]: unknown;
 };
@@ -62,11 +103,118 @@ type EffectParamsConfig<Params, Value, Error, Requirements> = {
   readonly [key: string]: unknown;
 };
 
-type EffectAsyncProcessConfig<Args, Params, Value, Error, Requirements> = {
-  readonly method: (args: Args) => Params;
+type EffectAsyncProcessConfig<
+  Args,
+  Params,
+  Value,
+  Error,
+  Requirements,
+  MethodError,
+  MethodRequirements,
+> = {
+  readonly method: (
+    args: Args,
+  ) =>
+    | Params
+    | Effect.Effect<Params, MethodError, MethodRequirements>
+    | Generator<
+        unknown,
+        Params | Effect.Effect<Params, MethodError, MethodRequirements>,
+        unknown
+      >;
   readonly loader: EffectLoader<Params, Value, Error, Requirements>;
   readonly [key: string]: unknown;
 };
+
+/**
+ * Creates a reactive Effect computation.
+ *
+ * The factory may read Craft dependencies synchronously through a generator
+ * and returns the Effect that should be run whenever those dependencies
+ * change. The returned ref deliberately has the same resource lifecycle as a
+ * query: loading, cancellation, typed Effect exceptions, and the active
+ * `provideLayer(...)` are all handled by the existing query runtime.
+ */
+export function computedEffect<Name extends string, Value, Error, Requirements>(
+  name: Name,
+  factory: EffectComputedFactory<Value, Error, Requirements>,
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    Value,
+    Effect.Effect<Value, Error, Requirements>,
+    unknown,
+    Effect.Effect<Value, Error, Requirements>,
+    unknown,
+    Record<never, never>,
+    EffectExceptions<Error>,
+    Record<never, never>,
+    false,
+    never,
+    Name
+  >
+>;
+export function computedEffect<
+  Name extends string,
+  Value,
+  Error,
+  Requirements,
+  Insertion extends (...args: any[]) => any,
+>(
+  name: Name,
+  factory: EffectComputedFactory<Value, Error, Requirements>,
+  insertion: Insertion,
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    Value,
+    Effect.Effect<Value, Error, Requirements>,
+    unknown,
+    Effect.Effect<Value, Error, Requirements>,
+    unknown,
+    EffectInsertionResult<Insertion>,
+    EffectExceptions<Error>,
+    Record<never, never>,
+    false,
+    never,
+    Name
+  >
+>;
+export function computedEffect(
+  name: string,
+  factory: EffectComputedFactory<unknown, unknown, unknown>,
+  ...insertions: readonly unknown[]
+): unknown {
+  const effectSource = craftComputed(
+    `${name}EffectFactory`,
+    factory as (...args: never[]) => unknown,
+  );
+
+  return (
+    craftQuery as unknown as (
+      name: string,
+      config: unknown,
+      ...insertions: readonly unknown[]
+    ) => unknown
+  )(
+    name,
+    {
+      params: () => effectSource(),
+      loader: function* ({ params }: { params: unknown }) {
+        if (!Effect.isEffect(params)) {
+          throw new TypeError(
+            `computedEffect('${name}') factory must return an Effect.`,
+          );
+        }
+
+        return yield* runEffect(
+          params as Effect.Effect<unknown, unknown, never>,
+        );
+      },
+    },
+    ...insertions,
+  );
+}
 
 /**
  * Converts an Effect callback into the generator callback expected by Craft.
@@ -76,7 +224,12 @@ type EffectAsyncProcessConfig<Args, Params, Value, Error, Requirements> = {
  * direct-call contract for advanced users who want a compile-time
  * `assertNoRequirements` check at an individual yield site.
  */
-export function effectLoader<Args extends readonly unknown[], Value, Error, Requirements>(
+export function effectLoader<
+  Args extends readonly unknown[],
+  Value,
+  Error,
+  Requirements,
+>(
   callback: (...args: Args) => Effect.Effect<Value, Error, Requirements>,
 ): (...args: Args) => Generator<unknown, Value, unknown> {
   return ((...args: Args) =>
@@ -89,16 +242,36 @@ export function effectLoader<Args extends readonly unknown[], Value, Error, Requ
 
 function adaptConfig<
   Config extends {
-    readonly loader: (...args: never[]) => Effect.Effect<unknown, unknown, unknown>;
+    readonly method?: unknown;
+    readonly loader: (
+      ...args: never[]
+    ) => Effect.Effect<unknown, unknown, unknown>;
   },
 >(
   config: Config,
 ): Omit<Config, 'loader'> & {
   readonly loader: (...args: never[]) => Generator<unknown, unknown, unknown>;
 } {
+  const resolveMethodEffect = typeof config['method'] === 'function';
+
   return {
     ...config,
-    loader: effectLoader(config.loader),
+    loader: function* (context: EffectLoaderParams<unknown>) {
+      const params =
+        resolveMethodEffect && Effect.isEffect(context.params)
+          ? yield* runEffect(
+              context.params as Effect.Effect<unknown, unknown, never>,
+            )
+          : context.params;
+
+      return yield* runEffect(
+        config.loader({ ...context, params } as never) as Effect.Effect<
+          unknown,
+          unknown,
+          never
+        >,
+      );
+    },
   } as Omit<Config, 'loader'> & {
     readonly loader: (...args: never[]) => Generator<unknown, unknown, unknown>;
   };
@@ -169,9 +342,19 @@ export function queryEffect<
   Value extends object | undefined,
   Error,
   Requirements,
+  MethodError = never,
+  MethodRequirements = never,
 >(
   name: Name,
-  config: EffectQueryMethodConfig<Args, Params, Value, Error, Requirements>,
+  config: EffectQueryMethodConfig<
+    Args,
+    Params,
+    Value,
+    Error,
+    Requirements,
+    MethodError,
+    MethodRequirements
+  >,
 ): NamedCraftPrimitiveGen<
   Name,
   QueryOutput<
@@ -181,7 +364,7 @@ export function queryEffect<
     Params,
     GroupIdentifier<typeof config>,
     Record<never, never>,
-    EffectExceptions<Error>,
+    EffectExceptions<Error | MethodError>,
     Record<never, never>,
     false,
     never,
@@ -196,9 +379,19 @@ export function queryEffect<
   Error,
   Requirements,
   Insertion extends (...args: any[]) => any,
+  MethodError = never,
+  MethodRequirements = never,
 >(
   name: Name,
-  config: EffectQueryMethodConfig<Args, Params, Value, Error, Requirements>,
+  config: EffectQueryMethodConfig<
+    Args,
+    Params,
+    Value,
+    Error,
+    Requirements,
+    MethodError,
+    MethodRequirements
+  >,
   insertion: Insertion,
 ): NamedCraftPrimitiveGen<
   Name,
@@ -209,7 +402,7 @@ export function queryEffect<
     Params,
     GroupIdentifier<typeof config>,
     EffectInsertionResult<Insertion>,
-    EffectExceptions<Error>,
+    EffectExceptions<Error | MethodError>,
     Record<never, never>,
     false,
     never,
@@ -219,7 +412,11 @@ export function queryEffect<
 export function queryEffect(
   name: string,
   config: {
-    readonly loader: (...args: never[]) => Effect.Effect<unknown, unknown, unknown>;
+    readonly params?: unknown;
+    readonly method?: unknown;
+    readonly loader: (
+      ...args: never[]
+    ) => Effect.Effect<unknown, unknown, unknown>;
   },
   ...insertions: readonly unknown[]
 ): unknown {
@@ -239,9 +436,19 @@ export function mutationEffect<
   Value,
   Error,
   Requirements,
+  MethodError = never,
+  MethodRequirements = never,
 >(
   name: Name,
-  config: EffectMutationConfig<Args, Params, Value, Error, Requirements>,
+  config: EffectMutationConfig<
+    Args,
+    Params,
+    Value,
+    Error,
+    Requirements,
+    MethodError,
+    MethodRequirements
+  >,
 ): NamedCraftPrimitiveGen<
   Name,
   MutationOutput<
@@ -251,7 +458,7 @@ export function mutationEffect<
     Params,
     GroupIdentifier<typeof config>,
     Record<never, never>,
-    EffectExceptions<Error>,
+    EffectExceptions<Error | MethodError>,
     Record<never, never>,
     false,
     never,
@@ -288,7 +495,9 @@ export function mutationEffect<
 export function mutationEffect(
   name: string,
   config: {
-    readonly loader: (...args: never[]) => Effect.Effect<unknown, unknown, unknown>;
+    readonly loader: (
+      ...args: never[]
+    ) => Effect.Effect<unknown, unknown, unknown>;
   },
   ...insertions: readonly unknown[]
 ): unknown {
@@ -308,9 +517,19 @@ export function asyncProcessEffect<
   Value extends object | undefined,
   Error,
   Requirements,
+  MethodError = never,
+  MethodRequirements = never,
 >(
   name: Name,
-  config: EffectAsyncProcessConfig<Args, Params, Value, Error, Requirements>,
+  config: EffectAsyncProcessConfig<
+    Args,
+    Params,
+    Value,
+    Error,
+    Requirements,
+    MethodError,
+    MethodRequirements
+  >,
 ): NamedCraftPrimitiveGen<
   Name,
   AsyncProcessOutput<
@@ -320,7 +539,7 @@ export function asyncProcessEffect<
     Params,
     GroupIdentifier<typeof config>,
     Record<never, never>,
-    EffectExceptions<Error>,
+    EffectExceptions<Error | MethodError>,
     Record<never, never>,
     false,
     never,
@@ -355,7 +574,9 @@ export function asyncProcessEffect<
 export function asyncProcessEffect(
   name: string,
   config: {
-    readonly loader: (...args: never[]) => Effect.Effect<unknown, unknown, unknown>;
+    readonly loader: (
+      ...args: never[]
+    ) => Effect.Effect<unknown, unknown, unknown>;
   },
   ...insertions: readonly unknown[]
 ): unknown {

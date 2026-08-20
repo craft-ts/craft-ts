@@ -2,16 +2,33 @@ import {
   craftUse,
   createCraftInjector,
   executeGeneratorCompatibleFactoryAsync,
+  state,
   TestBed,
 } from '@craft-ts/core';
-import { Data, Effect } from 'effect';
+import { Context, Data, Effect, Layer } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { asyncProcessEffect, effectLoader, mutationEffect, queryEffect } from './effect-adapter';
+import {
+  asyncProcessEffect,
+  computedEffect,
+  effectLoader,
+  mutationEffect,
+  queryEffect,
+} from './effect-adapter';
 import { CraftEffectInterrupted, installCraftEffectBridge } from './run-effect';
+import { provideLayer } from './effect-level';
 
 class InvalidRequest extends Data.TaggedError('InvalidRequest')<{
   readonly reason: string;
 }> {}
+
+class ComputedConfig extends Context.Service<
+  ComputedConfig,
+  { readonly label: string }
+>()('ComputedConfig') {}
+
+const ComputedConfigLive = Layer.succeed(ComputedConfig, {
+  label: 'from-layer',
+});
 
 describe('Effect-aware Craft adapters', () => {
   let dispose: () => void;
@@ -99,15 +116,147 @@ describe('Effect-aware Craft adapters', () => {
           loader: ({ params }) => Effect.succeed({ id: params }),
         }),
       );
+      const saveEffectMethod = craftUse(
+        mutationEffect('save-effect-method', {
+          method: (id: string) => Effect.succeed(id),
+          loader: ({ params }) => Effect.succeed({ id: params, saved: true }),
+        }),
+      );
+      const refreshEffectMethod = craftUse(
+        asyncProcessEffect('refresh-effect-method', {
+          method: (id: string) => Effect.succeed(id),
+          loader: ({ params }) => Effect.succeed({ id: params }),
+        }),
+      );
 
       await expect.poll(() => craftUse(users.value())).toEqual({ id: 'u-1' });
       save.mutate('u-2');
       refresh.method('u-3');
-      await expect.poll(() => craftUse(save.value())).toEqual({
-        id: 'u-2',
-        saved: true,
-      });
+      saveEffectMethod.mutate('u-4');
+      refreshEffectMethod.method('u-5');
+      await expect
+        .poll(() => craftUse(save.value()))
+        .toEqual({
+          id: 'u-2',
+          saved: true,
+        });
       await expect.poll(() => craftUse(refresh.value())).toEqual({ id: 'u-3' });
+      await expect
+        .poll(() => craftUse(saveEffectMethod.value()))
+        .toEqual({ id: 'u-4', saved: true });
+      await expect
+        .poll(() => craftUse(refreshEffectMethod.value()))
+        .toEqual({ id: 'u-5' });
+    });
+  });
+
+  it('keeps params synchronous while resolving Effect-valued method arguments', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const request = craftUse(
+        state('effect-params-input', 'u-1', ({ set }) => ({
+          setValue: set,
+        })),
+      );
+      const paramsQuery = craftUse(
+        queryEffect('effect-params-query', {
+          params: function* () {
+            const id = yield* request();
+            return id;
+          },
+          loader: ({ params }) => Effect.succeed({ id: params }),
+        }),
+      );
+      const methodQuery = craftUse(
+        queryEffect('effect-method-query', {
+          method: (id: string) => Effect.succeed(id),
+          loader: ({ params }) => Effect.succeed({ id: params }),
+        }),
+      );
+
+      await expect
+        .poll(() => craftUse(paramsQuery.value()))
+        .toEqual({ id: 'u-1' });
+      request.setValue('u-3');
+      await expect
+        .poll(() => craftUse(paramsQuery.value()))
+        .toEqual({ id: 'u-3' });
+      methodQuery.call('u-2');
+      await expect
+        .poll(() => craftUse(methodQuery.value()))
+        .toEqual({ id: 'u-2' });
+    });
+  });
+
+  it('reactively runs computedEffect factories against the active Effect layer', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const input = craftUse(
+        state('computed-effect-input', 'Ada', ({ set }) => ({
+          setValue: set,
+        })),
+      );
+      const value = craftUse(
+        computedEffect('computed-effect-value', function* () {
+          const name = yield* input();
+          return Effect.succeed({ name });
+        }),
+      );
+
+      await expect.poll(() => craftUse(value.value())).toEqual({ name: 'Ada' });
+
+      input.setValue('Grace');
+
+      await expect
+        .poll(() => craftUse(value.value()))
+        .toEqual({ name: 'Grace' });
+    });
+  });
+
+  it('maps computedEffect failures to typed Craft exceptions', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const value = craftUse(
+        computedEffect('computed-effect-failure', () =>
+          Effect.fail(new InvalidRequest({ reason: 'invalid input' })),
+        ),
+      );
+
+      await expect.poll(() => craftUse(value.hasException())).toBe(true);
+      expect(craftUse(value.exception())).toMatchObject({
+        _tag: 'InvalidRequest',
+        payload: { reason: 'invalid input' },
+      });
+    });
+  });
+
+  it('runs computedEffect Effects with services from the nearest Layer', async () => {
+    const injector = TestBed.rootInjector.createChild([
+      provideLayer(ComputedConfigLive),
+    ]);
+
+    await injector.run(async () => {
+      const value = craftUse(
+        computedEffect('computed-effect-layer', () =>
+          Effect.gen(function* () {
+            const config = yield* ComputedConfig;
+            return config.label;
+          }),
+        ),
+      );
+
+      await expect.poll(() => craftUse(value.value())).toBe('from-layer');
+    });
+
+    injector.destroy();
+  });
+
+  it('supports primitive computed values', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const value = craftUse(
+        computedEffect('computed-effect-primitive', () =>
+          Effect.succeed('ready'),
+        ),
+      );
+
+      await expect.poll(() => craftUse(value.value())).toBe('ready');
     });
   });
 });

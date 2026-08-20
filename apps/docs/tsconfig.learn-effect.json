@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "strict": true,
+    "types": ["vitest/globals", "node"],
+    "erasableSyntaxOnly": false
+  },
+  "include": ["tests/snippets/learn-effect/**/*.ts"]
+}

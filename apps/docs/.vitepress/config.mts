@@ -25,6 +25,10 @@ const learnEffectSidebar = [
   {
     text: 'Learn with Effect',
     items: [
+      {
+        text: 'Effect users: start here',
+        link: '/learn-effect/00-start-here',
+      },
       { text: 'Overview', link: '/learn-effect/' },
       {
         text: '1. Start with a Craft component',
@@ -324,6 +328,14 @@ const resourcesSidebar = [
       { text: 'Examples', link: '/resources/examples' },
       { text: 'Coding agents', link: '/resources/ai-agents' },
       { text: 'Migration', link: '/resources/migration' },
+      {
+        text: 'Effect compatibility & maturity',
+        link: '/resources/effect-compatibility',
+      },
+      {
+        text: 'Adopting CraftTS progressively',
+        link: '/resources/effect-adoption',
+      },
       { text: 'Press kit', link: '/resources/press-kit' },
       { text: 'Roadmap', link: '/resources/roadmap' },
       { text: 'Backlog', link: '/resources/backlog' },
@@ -384,6 +396,10 @@ export default defineConfig({
             link: 'https://www.npmjs.com/package/@craft-ts/dev-tools',
           },
           {
+            text: '@craft-ts/effect',
+            link: 'https://www.npmjs.com/package/@craft-ts/effect',
+          },
+          {
             text: '@craft-ts/mcp',
             link: 'https://www.npmjs.com/package/@craft-ts/mcp',
           },
@@ -396,6 +412,14 @@ export default defineConfig({
           { text: 'Examples', link: '/resources/examples' },
           { text: 'Coding agents', link: '/resources/ai-agents' },
           { text: 'Migration', link: '/resources/migration' },
+          {
+            text: 'Effect compatibility & maturity',
+            link: '/resources/effect-compatibility',
+          },
+          {
+            text: 'Adopting CraftTS progressively',
+            link: '/resources/effect-adoption',
+          },
           { text: 'Press kit', link: '/resources/press-kit' },
           { text: 'Roadmap', link: '/resources/roadmap' },
           { text: 'Backlog', link: '/resources/backlog' },

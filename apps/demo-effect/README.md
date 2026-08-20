@@ -28,9 +28,13 @@ the global session Layer from `app.config.ts` and the route-scoped team Layer
 from the route's `providers`. The query returns a `TeamOverview`, not the
 services used to build it.
 
-Use `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
-between an Effect domain and a Craft primitive. Parameters remain synchronous
-Craft values or sources: there is intentionally no `stateEffect`. Direct
+Use `computedEffect`, `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
+between an Effect domain and a Craft primitive. `queryEffect` keeps `params`
+synchronous; `method` may return an Effect, while `computedEffect` is useful
+when a reactive Craft dependency directly determines the Effect to run. The
+Effect ESLint rule prevents Effect services and Effect values from entering
+`params`. There is intentionally no `stateEffect`.
+Direct
 `runEffect(effect)` remains available for low-level cases and allows an
 explicit `assertNoRequirements`; adapters resolve `R` through the nearest
 `provideLayer(...)`.
@@ -39,20 +43,26 @@ Typed `E` errors become Craft exceptions based on their `_tag`. Defects
 (`Effect.die`) remain technical errors, and interruption remains cancellation.
 
 ```ts
-const userQuery = yield* queryEffect('userQuery', {
-  params: request,
-  loader: ({ params }) => loadUser(params.scenario),
-});
+const userQuery =
+  yield *
+  queryEffect('userQuery', {
+    params: request,
+    loader: ({ params }) => loadUser(params.scenario),
+  });
 
-const saveUser = yield* mutationEffect('saveUser', {
-  method: (user: UserInput) => user,
-  loader: ({ params }) => persistUser(params),
-});
+const saveUser =
+  yield *
+  mutationEffect('saveUser', {
+    method: (user: UserInput) => user,
+    loader: ({ params }) => persistUser(params),
+  });
 
-const refresh = yield* asyncProcessEffect('refresh', {
-  method: (id: string) => id,
-  loader: ({ params }) => refreshUser(params),
-});
+const refresh =
+  yield *
+  asyncProcessEffect('refresh', {
+    method: (id: string) => id,
+    loader: ({ params }) => refreshUser(params),
+  });
 ```
 
 Synchronous derivations continue to use `craftComputed`. Reactive parameters

@@ -64,10 +64,33 @@ resource interrupts the Effect.
 
 ## Architecture checks
 
-The static graph can enforce the important boundaries. The Effect demo checks
-that Effect loaders do not perform imperative synchronous writes or network
-calls outside the intended boundary, and that server-function families remain
-coherent. Keep those checks beside the app's architecture tests.
+The static graph includes the Effect backend automatically when
+`analyzeDependencyGraph` runs. It exposes typed nodes for `effect-service`,
+`effect-operation` and `effect-layer`, together with `requires-service`,
+`provided-by-layer` and `composes-layer` relations. You can therefore write
+rules against Effect concepts just as you do against Craft nodes:
+
+```typescript
+const effectServices = graph.nodes('effect-service');
+const effectOperations = graph.nodes('effect-operation');
+const effectLayers = graph.nodes('effect-layer');
+const serviceRequirements = graph.edges('requires-service');
+```
+
+The built-in checks can then be kept beside the app's architecture tests:
+
+```typescript
+assertCraftEffectNoNetwork(graph.graph);
+assertCraftEffectNoImperativeSync(graph.graph);
+assertDeclarativeArchitecture(graph.graph);
+```
+
+For a project-specific invariant, inspect these typed nodes and relations in a
+custom assertion and fail the architecture test when the rule is violated. If
+you need to add concepts that the built-in Effect backend does not model, use
+the [`DependencyGraphNodeRegistry` and `DependencyGraphCollector`](/guide/testing/extensible-architecture-graph).
+The Effect graph is already collected; no extra collector is needed just to
+apply rules to its services, operations or Layers.
 
 ## What you gained
 

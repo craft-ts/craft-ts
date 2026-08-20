@@ -2,8 +2,9 @@
 
 **Goal:** render a reactive task list before introducing Effect.
 
-Effect users do not need to replace their UI model. A Craft component is a
-function with a generator logic factory and a typed template:
+Effect users do not need to replace their domain model or Effect programs. They
+do need to adopt Craft's UI model: a component is a function with a generator
+logic factory and a typed template:
 
 ```typescript
 import { craftComponent, div, h1, li, ul, each } from '@craft-ts/component';
@@ -12,21 +13,23 @@ import { state } from '@craft-ts/core';
 type Task = { readonly id: string; readonly title: string; readonly done: boolean };
 
 export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [
+  'Tasks', // name: stable component name used by tooling and the graph
+  {}, // meta: providers, styles and host configuration
+  function* () { // logic factory: creates the component context
+    const tasks = yield* state('tasks', [ // name: state identifier
       { id: '1', title: 'Learn Craft components', done: true },
       { id: '2', title: 'Add the first Effect program', done: false },
-    ] satisfies Task[]);
+    ] satisfies Task[]); // initial value: the seeded task list
 
     return { tasks };
   },
-  ({ tasks }) => [
+  ({ tasks }) => [ // template: turns the context into rendered nodes
     h1('Tasks'),
     ul(
-      each(tasks, { track: (task) => task.id }, (task) =>
-        li(task.title),
+      each(
+        tasks, // source: the reactive collection to render
+        { track: (task) => task.id }, // options: stable identity for each item
+        (task) => li(task.title), // render: creates one node per task
       ),
     ),
   ],
@@ -70,12 +73,12 @@ import { appConfig } from './app/app.config';
 bootstrapCraft({ config: appConfig });
 ```
 
-## When Effect enters
+## Where Effect fits
 
-Keep short-lived UI state in Craft. When a value is a domain computation with
-typed failures or services, return an Effect from a domain module and connect it
-in the next step. This separation keeps templates synchronous and makes the
-boundary explicit.
+Craft owns reactive UI state and rendering. Effect owns domain operations — work
+that may fail with typed errors or depend on services. In the next step, we will
+connect an Effect program to Craft so the component can render its result
+without managing subscriptions or fibers.
 
 ## What you gained
 

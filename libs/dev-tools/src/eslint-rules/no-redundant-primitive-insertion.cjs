@@ -5,6 +5,7 @@ const ANGULAR_PACKAGE = '@angular/core';
 const PRIMITIVES = new Set([
   'asyncProcess',
   'asyncProcessEffect',
+  'computedEffect',
   'mutation',
   'mutationEffect',
   'query',

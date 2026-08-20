@@ -122,6 +122,7 @@ apps/
 ├── demo/          Craft application used for examples and integration checks
 │                  (`architecture/` — static graph Vitest suite)
 ├── demo-effect/   Dedicated EffectTS + CraftTS examples application
+├── quickstart-effect/  Minimal executable EffectTS + CraftTS starter
 └── docs/          VitePress documentation and documentation tests
 libs/
 ├── core/          Published @craft-ts/core package
@@ -158,6 +159,15 @@ Start the dedicated EffectTS + CraftTS demo:
 ```bash
 npx nx serve demo-effect
 ```
+
+Start the minimal EffectTS + CraftTS quickstart:
+
+```bash
+npx nx serve quickstart-effect
+```
+
+The quickstart runs at `http://localhost:4202` and is also the smallest CI
+fixture for the Effect ESLint, EffectTS diagnostics and architecture rules.
 
 La commande lance toutes les routes définies dans
 `apps/demo/src/app/app.routes.ts`. Le type-check de la démo est exécuté en

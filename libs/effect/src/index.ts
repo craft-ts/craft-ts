@@ -31,6 +31,7 @@ export {
 } from './lib/mock-effect-service';
 export {
   asyncProcessEffect,
+  computedEffect,
   mutationEffect,
   queryEffect,
   type EffectLoader,

@@ -11,18 +11,24 @@ import { state } from '@craft-ts/core';
 type Task = { id: string; title: string; done: boolean };
 
 export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [ // read yield* as "I need"
+  'Tasks', // name: stable component name used by tooling and host tags
+  {}, // meta: providers, styles and host configuration
+  function* () { // logic factory: creates the component context
+    const tasks = yield* state('tasks', [ // name: state identifier
       { id: '1', title: 'Read step 1', done: false },
-    ] as Task[]);
+    ] as Task[]); // initial value: the seeded task list
 
     return { tasks };
   },
-  ({ tasks }) => [
+  ({ tasks }) => [ // template: turns the context into rendered nodes
     h1('Tasks'),
-    ul(each(tasks, { track: (task) => task.id }, (task) => li(task.title))),
+    ul(
+      each(
+        tasks, // source: the reactive collection to render
+        { track: (task) => task.id }, // options: stable identity for each item
+        (task) => li(task.title), // render: creates one node per task
+      ),
+    ),
   ],
 );
 // #endregion tasks-component

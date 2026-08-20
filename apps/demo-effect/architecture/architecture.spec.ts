@@ -91,7 +91,7 @@ describe('architecture', () => {
 
   it('requires Effect resource loaders to declare an Effect service boundary', () => {
     assertPrimitiveLoaderRequirements(graph.graph, {
-      primitives: ['queryEffect', 'mutationEffect'],
+      primitives: ['queryEffect', 'computedEffect', 'mutationEffect'],
       requirements: [
         {
           label: 'an Effect service',

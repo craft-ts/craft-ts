@@ -643,7 +643,7 @@ export type QueryRef<
     >;
 
 export type QueryOutput<
-  State extends object | undefined,
+  State,
   Params,
   ArgParams,
   SourceParams,

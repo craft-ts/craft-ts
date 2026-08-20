@@ -1,0 +1,67 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "target": "es2022",
+    "module": "preserve",
+    "erasableSyntaxOnly": false,
+    "paths": {
+      "@craft-ts/core": ["../../libs/core/src/index.ts"],
+      "@craft-ts/component": ["../../libs/component/src/index.ts"],
+      "@craft-ts/effect": ["../../libs/effect/src/index.ts"],
+      "@craft-ts/dev-tools/architecture-graph": [
+        "../../libs/dev-tools/src/scripts/architecture-graph.ts"
+      ],
+      "@craft-ts/dev-tools/dependency-graph": [
+        "../../libs/dev-tools/src/scripts/dependency-graph.ts"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "diagnosticsName": true,
+        "overrides": [
+          {
+            "include": ["src/**/*.ts"],
+            "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "floatingEffect": "error",
+                "missingEffectContext": "error",
+                "missingEffectError": "error",
+                "missingLayerContext": "error",
+                "missingReturnYieldStar": "error",
+                "missingStarInYieldEffectGen": "error",
+                "outdatedApi": "error",
+                "unsafeEffectTypeAssertion": "error",
+                "asyncFunction": "warning",
+                "newPromise": "warning",
+                "nodeBuiltinImport": "warning",
+                "preferSchemaOverJson": "warning"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.spec.json" },
+    { "path": "./tsconfig.architecture.json" }
+  ]
+}

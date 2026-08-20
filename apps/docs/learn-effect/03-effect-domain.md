@@ -8,7 +8,7 @@ component know how they are provided.
 Effect's tagged errors map naturally to Craft's exception channel:
 
 ```typescript
-import { Data, Effect } from 'effect';
+import { Context, Data, Effect } from 'effect';
 
 export class UserNotFound extends Data.TaggedError('UserNotFound')<{
   readonly userId: string;
@@ -18,8 +18,22 @@ export class Unauthorized extends Data.TaggedError('Unauthorized')<{
   readonly reason: string;
 }> {}
 
+type User = {
+  readonly id: string;
+};
+
+type UserRepository = {
+  readonly find: (userId: string) => Effect.Effect<User | undefined>;
+};
+
+export class UserRepositoryService extends Context.Service<
+  UserRepositoryService,
+  UserRepository
+>()('app/UserRepository') {}
+
 export function loadUser(userId: string) {
   return Effect.gen(function* () {
+    const repository = yield* UserRepositoryService;
     const user = yield* repository.find(userId);
     if (!user) return yield* new UserNotFound({ userId });
     return user;
@@ -27,10 +41,23 @@ export function loadUser(userId: string) {
 }
 ```
 
-The program has the shape `Effect<User, UserNotFound, Repository>`. `UserNotFound`
-is a business outcome that the UI can handle. An unexpected defect raised by
-`Effect.die` remains a technical error; it is not turned into a business
-exception.
+The program has the shape `Effect<User, UserNotFound, UserRepositoryService>`.
+`yield* UserRepositoryService` gets the repository from the Effect context;
+`yield* repository.find(userId)` then runs the `Effect` returned by its method.
+`UserNotFound` is a business outcome that the UI can handle. An unexpected
+defect raised by `Effect.die` remains a technical error; it is not turned into a
+business exception.
+
+`Data.TaggedError` creates a **yieldable error** in Effect v4, so this is the
+idiomatic form inside `Effect.gen`:
+
+```typescript
+if (!user) return yield* new UserNotFound({ userId });
+```
+
+The explicit equivalent is `yield* Effect.fail(new UserNotFound({ userId }))`;
+there is no `Effect.failed` constructor. At the Craft boundary, yield the
+effect through `runEffect(...)` instead of yielding the error instance directly.
 
 ## Define an Effect service
 
@@ -78,6 +105,30 @@ const { decide } = yield* effectService(
 Prefer exposing a domain operation such as `checkUserAccess` to a component. The
 selector form is useful for a Craft service or adapter that deliberately owns
 the boundary and wants the graph to record only the members it uses.
+
+## Derive Craft state from the Effect service
+
+`craftComputed` stays synchronous: it derives a Craft reader. Let
+`queryEffect` execute the Effect operation, then derive a display value from the
+query resource:
+
+```typescript
+import { craftComputed } from '@craft-ts/core';
+import { queryEffect } from '@craft-ts/effect';
+
+const accessQuery = yield* queryEffect('accessQuery', {
+  params: () => 'user-ada',
+  loader: ({ params }) => checkUserAccess(params),
+});
+
+const accessLabel = craftComputed('accessLabel', function* () {
+  return (yield* accessQuery.value())?.label ?? 'Loading…';
+});
+```
+
+The chain is: `queryEffect` runs `checkUserAccess`, the active `Layer` provides
+`AccessPolicyService`, and `accessLabel` reacts to the query's Craft value. The
+computed does not call the Effect service or start an Effect itself.
 
 ## Run a standalone Effect
 

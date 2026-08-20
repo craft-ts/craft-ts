@@ -3,6 +3,11 @@
 This is the guided path for teams that already use [Effect](https://effect.website/)
 and want CraftTS to own the UI, reactivity and application graph.
 
+If you are evaluating CraftTS from an existing Effect codebase, start with
+[Effect users: start here](/learn-effect/00-start-here). It explains what stays
+in Effect, what moves to Craft's UI model, and how to try the integration in
+fifteen minutes.
+
 You start with a Craft component, then move the domain work into Effect programs:
 `Layer` provides services, `Effect<A, E, R>` carries success, typed failures and
 requirements, and Craft adapters expose those programs as reactive resources.
@@ -11,6 +16,7 @@ requirements, and Craft adapters expose those programs as reactive resources.
 
 | Step | What you add |
 | --- | --- |
+| [0. Effect users: start here](/learn-effect/00-start-here) | boundary, quickstart and adapter choice |
 | [1. Start with a Craft component](/learn-effect/01-first-component) | `craftComponent`, templates, native Craft state |
 | [2. Derive UI state](/learn-effect/02-derive) | `craftComputed`, `yield*`, precise dependencies |
 | [3. Put the domain in Effect](/learn-effect/03-effect-domain) | `Effect`, tagged errors, `Context.Service`, `Layer` |

@@ -68,6 +68,7 @@ The toolkit is split into focused packages. They are currently published on the
 | [`@craft-ts/core`](https://www.npmjs.com/package/@craft-ts/core)           | Reactive primitives, services, forms, routing and testing utilities |
 | [`@craft-ts/component`](https://www.npmjs.com/package/@craft-ts/component) | Selectorless functional components and typed hyperscript templates  |
 | [`@craft-ts/dev-tools`](https://www.npmjs.com/package/@craft-ts/dev-tools) | Codemods, generators, CLI commands and ESLint rules                 |
+| [`@craft-ts/effect`](https://www.npmjs.com/package/@craft-ts/effect)       | Effect bridge, Layers and Effect-aware reactive resources            |
 | [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp)             | MCP server, Agent Skills and `llms.txt` helpers for coding agents   |
 
 <AuthorNote />

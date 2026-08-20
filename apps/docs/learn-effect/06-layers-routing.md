@@ -45,6 +45,48 @@ The team query can require `SessionService | TeamContextService` while the
 component only sees `TeamOverview`. Route-scoped resources are closed when the
 route injector is destroyed, so Layer scopes do not leak across navigation.
 
+## Layer scopes follow Craft provider scopes
+
+`provideLayer(...)` is a normal Craft provider, so the same Effect context can
+be attached at every Craft scope that accepts providers:
+
+| Scope | Where to put `provideLayer(...)` | Lifetime and visibility |
+| --- | --- | --- |
+| Application | `appConfig.providers` | shared by the whole application |
+| Route | the route's `providers` array | shared by that route and its children |
+| Component | `craftComponent` meta `providers` | limited to that component subtree |
+| Primitive | a primitive config's `providers` | limited to that primitive |
+| Insertion | the containing primitive's `providers` | inherited by its insertion callbacks and methods |
+
+For example, a component or a primitive can provide a local implementation
+without changing the application Layer:
+
+```typescript
+const Profile = craftComponent(
+  'Profile',
+  { providers: [provideLayer(AccessPolicyLive)] },
+  /* … */
+);
+
+const profile = yield* queryEffect('profile', {
+  providers: [provideLayer(AccessPolicyLive)],
+  params: () => 'user-ada',
+  loader: ({ params }) => checkUserAccess(params),
+});
+```
+
+An insertion receives the primitive's injector, so its generators and methods
+see the primitive's Layer as well. There is no separate `provideLayer` argument
+on an insertion today; use the containing primitive's `providers` to scope it.
+If two services must be provided at the same scope, merge them into one Layer:
+
+```typescript
+providers: [provideLayer(Layer.mergeAll(AccessPolicyLive, SessionLive))]
+```
+
+Child scopes inherit the parent context and can add a more local implementation
+of a service. Their scopes are closed with the corresponding Craft injector.
+
 ## Prove requirements at compile time
 
 Effect requirements are not regular Craft services, so add an explicit proof:
@@ -97,14 +139,19 @@ URL state is a UI concern, so it stays a native `queryParams` primitive even in
 an Effect application:
 
 ```typescript
+import { Schema } from 'effect';
+
+const Search = Schema.String;
+const searchCodec = {
+  decode: Schema.decodeUnknownSync(Search),
+  encode: Schema.encodeSync(Search),
+};
+
 const filters = yield* queryParams('filters', {
   state: {
     search: {
       fallbackValue: '',
-      codec: {
-        decode: (value: string) => value,
-        encode: (value: string) => value,
-      },
+      codec: searchCodec,
     },
   },
 });
@@ -114,6 +161,11 @@ const users = yield* queryEffect('users', {
   loader: ({ params }) => searchUsers(params),
 });
 ```
+
+The codec remains synchronous, as required by `queryParams`, but validation and
+encoding now come from an Effect `Schema`. Replace `Schema.String` with a
+transformation schema when the URL representation differs from the value used
+by the component.
 
 There is no `queryParamsEffect`: Craft synchronises the URL, while the Effect
 loader reacts to the resulting typed params.

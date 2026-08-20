@@ -23,16 +23,17 @@ boundary.
 
 ## The short decision
 
-| Need | Use | Why |
-| --- | --- | --- |
-| Toggle, draft, selection or other local UI value | `state` | Craft owns reactive UI state |
-| Read data with an Effect loader | `queryEffect` | loading, caching, cancellation and exceptions are Craft concerns |
-| Write data with an Effect loader | `mutationEffect` | explicit writes and mutation reactions |
-| Run an explicit command | `asyncProcessEffect` | export, refresh, share action or other non-resource process |
-| Provide Effect services | `provideLayer` | app and route injectors own Layer scope |
-| Select a service from a Craft factory | `effectService` | records the Effect service dependency and selected members |
-| Yield one Effect in a Craft generator | `runEffect` | low-level bridge with typed Craft exceptions |
-| Validate data with Effect Schema | `Schema.toStandardSchemaV1(...)` | uses Craft's schema boundary without coupling core to Effect |
+| Need                                             | Use                              | Why                                                              |
+| ------------------------------------------------ | -------------------------------- | ---------------------------------------------------------------- |
+| Toggle, draft, selection or other local UI value | `state`                          | Craft owns reactive UI state                                     |
+| Read data with an Effect loader                  | `queryEffect`                    | loading, caching, cancellation and exceptions are Craft concerns |
+| Derive a reactive value with an Effect           | `computedEffect`                 | reruns an Effect factory when Craft dependencies change          |
+| Write data with an Effect loader                 | `mutationEffect`                 | explicit writes and mutation reactions                           |
+| Run an explicit command                          | `asyncProcessEffect`             | export, refresh, share action or other non-resource process      |
+| Provide Effect services                          | `provideLayer`                   | app and route injectors own Layer scope                          |
+| Select a service from a Craft factory            | `effectService`                  | records the Effect service dependency and selected members       |
+| Yield one Effect in a Craft generator            | `runEffect`                      | low-level bridge with typed Craft exceptions                     |
+| Validate data with Effect Schema                 | `Schema.toStandardSchemaV1(...)` | uses Craft's schema boundary without coupling core to Effect     |
 
 There is intentionally no `stateEffect`. A reactive value is not made better by
 being an Effect. Use `state` for the value, and use Effect for the computation
@@ -96,7 +97,15 @@ export const Profile = craftComponent(
       const user = yield* profile.value();
       return user?.name ?? 'Loading…';
     }),
-    button('reload', { *click() { yield* profile.reload(); } }, 'Reload'),
+    button(
+      'reload',
+      {
+        *click() {
+          yield* profile.reload();
+        },
+      },
+      'Reload',
+    ),
   ],
 );
 ```
@@ -117,9 +126,7 @@ export class UserNotFound extends Data.TaggedError('UserNotFound')<{
 }> {}
 
 export type UserRepository = {
-  readonly byId: (
-    userId: string,
-  ) => Effect.Effect<User, UserNotFound>;
+  readonly byId: (userId: string) => Effect.Effect<User, UserNotFound>;
 };
 
 export class UserRepositoryService extends Context.Service<
@@ -148,38 +155,69 @@ to know which Layer implements `UserRepositoryService`.
 ### `queryEffect`: Effect-backed reads
 
 ```typescript
-const users = yield* queryEffect('users', {
-  params: () => ({ filter: search() }),
-  loader: ({ params }) => listUsers(params),
-});
+const users =
+  yield *
+  queryEffect('users', {
+    params: () => ({ filter: search() }),
+    loader: ({ params }) => listUsers(params),
+  });
 ```
 
 Use it when the result is server or domain state. Craft owns `status`, loading,
 previous value, cancellation and reloading. The loader returns
 `Effect<Value, Error, Requirements>`.
 
+The `params` factory is synchronous. It may read Craft dependencies, but it
+must not create an Effect or read an Effect service. A `method` may return an
+Effect; Craft resolves it with the active Layer before invoking the loader:
+
+```typescript
+const users =
+  yield *
+  queryEffect('users', {
+    params: function* () {
+      const input = yield* searchInput();
+      return resolveSearchParams(input);
+    },
+    loader: ({ params }) => listUsers(params),
+  });
+```
+
+The Effect ESLint rule enforces this boundary. For an asynchronous derived
+input, use `computedEffect` and feed its resolved Craft value to a synchronous
+`params` function.
+
 ### `mutationEffect`: Effect-backed writes
 
 ```typescript
-const saveUser = yield* mutationEffect('saveUser', {
-  method: (input: UserInput) => input,
-  loader: ({ params }) => saveUserEffect(params),
-});
+const saveUser =
+  yield *
+  mutationEffect('saveUser', {
+    method: (input: UserInput) => input,
+    loader: ({ params }) => saveUserEffect(params),
+  });
 ```
 
 Trigger it with `yield* saveUser.mutate(input)`. Use the normal Craft
 `insertReactOnMutation` insertion to reload a query or apply an optimistic patch.
+The mutation `method` may also return an `Effect`; it is resolved before the
+loader runs.
 
 ### `asyncProcessEffect`: explicit commands
 
 ```typescript
-const exportUsers = yield* asyncProcessEffect('exportUsers', {
-  method: (filter: Filter) => filter,
-  loader: ({ params }) => exportUsersEffect(params),
-});
+const exportUsers =
+  yield *
+  asyncProcessEffect('exportUsers', {
+    method: (filter: Filter) => filter,
+    loader: ({ params }) => exportUsersEffect(params),
+  });
 
-yield* exportUsers.method(currentFilter);
+yield * exportUsers.method(currentFilter);
 ```
+
+The `asyncProcessEffect` method follows the same rule: it may return plain
+params, an `Effect`, or a generator producing either one.
 
 Use it for an operation with a lifecycle but without a query cache or mutation
 relationship.
@@ -192,7 +230,7 @@ program and you need its typed errors to be visible to Craft:
 ```typescript
 import { runEffect } from '@craft-ts/effect';
 
-const user = yield* runEffect(loadUserProfile(userId));
+const user = yield * runEffect(loadUserProfile(userId));
 ```
 
 The adapter is the right choice for most component resources. A bare
@@ -205,11 +243,7 @@ Effect's `E` channel to Craft's route-exception analysis. `runEffect` does.
 
 ```typescript
 export const appConfig = craftAppConfig({
-  providers: [
-    provideLayer(
-      Layer.mergeAll(UserRepositoryLive, SessionLive),
-    ),
-  ],
+  providers: [provideLayer(Layer.mergeAll(UserRepositoryLive, SessionLive))],
 });
 ```
 
@@ -247,12 +281,12 @@ the full `AppProvidedDependencyValuesOf` setup.
 
 The bridge keeps Effect's distinctions intact:
 
-| Effect outcome | Craft outcome | Handle it with |
-| --- | --- | --- |
-| `Effect.succeed(value)` | resource value / generator result | normal rendering |
+| Effect outcome             | Craft outcome                         | Handle it with                           |
+| -------------------------- | ------------------------------------- | ---------------------------------------- |
+| `Effect.succeed(value)`    | resource value / generator result     | normal rendering                         |
 | typed `Effect.fail(error)` | Craft exception keyed by `error._tag` | `matchBlock`, `catchTag`, route handlers |
-| `Effect.die(defect)` | technical error | error boundary / monitoring |
-| interruption | cancellation | normally no user-facing handler |
+| `Effect.die(defect)`       | technical error                       | error boundary / monitoring              |
+| interruption               | cancellation                          | normally no user-facing handler          |
 
 Use exhaustive matching for business errors:
 
@@ -281,11 +315,13 @@ const UserInput = Schema.toStandardSchemaV1(
   }),
 );
 
-const saveUser = yield* mutationEffect('saveUser', {
-  methodSchema: UserInput,
-  method: (input) => input,
-  loader: ({ params }) => saveUserEffect(params),
-});
+const saveUser =
+  yield *
+  mutationEffect('saveUser', {
+    methodSchema: UserInput,
+    method: (input) => input,
+    loader: ({ params }) => saveUserEffect(params),
+  });
 ```
 
 This schema interop does not require `@craft-ts/effect`; it follows the Standard
@@ -298,10 +334,8 @@ Most components should consume a domain operation. A Craft service or adapter
 that really needs an Effect service can select only the members it uses:
 
 ```typescript
-const { byId } = yield* effectService(
-  UserRepositoryService,
-  ({ byId }) => ({ byId }),
-);
+const { byId } =
+  yield * effectService(UserRepositoryService, ({ byId }) => ({ byId }));
 ```
 
 The selection narrows the graph and keeps generic member signatures intact. It
@@ -328,14 +362,14 @@ boundaries](/guide/testing/browser-boundaries).
 
 ## Package map
 
-| Package | Responsibility |
-| --- | --- |
-| `@craft-ts/component` | functional Craft components and typed templates |
-| `@craft-ts/core` | Craft primitives, services, routing, forms, testing and the current server-function registry |
-| `@craft-ts/effect` | Effect bridge, `Layer` providers, Effect-aware primitives, service selection, mocks and server execution helpers |
-| `effect` | `Effect`, `Context.Service`, `Layer`, `Schema`, tagged errors and the Effect runtime |
-| `@effect/platform-*` | Effect-native platform adapters; used by the current server-function experiment |
-| `@craft-ts/dev-tools` | generators, migration tools, graph and architecture checks |
+| Package               | Responsibility                                                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@craft-ts/component` | functional Craft components and typed templates                                                                  |
+| `@craft-ts/core`      | Craft primitives, services, routing, forms, testing and the current server-function registry                     |
+| `@craft-ts/effect`    | Effect bridge, `Layer` providers, Effect-aware primitives, service selection, mocks and server execution helpers |
+| `effect`              | `Effect`, `Context.Service`, `Layer`, `Schema`, tagged errors and the Effect runtime                             |
+| `@effect/platform-*`  | Effect-native platform adapters; used by the current server-function experiment                                  |
+| `@craft-ts/dev-tools` | generators, migration tools, graph and architecture checks                                                       |
 
 Install only the packages needed by the layer you are building. For example,
 Effect Schema validation can be used with `@craft-ts/core` alone; the bridge and

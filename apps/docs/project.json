@@ -12,9 +12,21 @@
     },
     "test": {
       "executor": "nx:run-commands",
+      "dependsOn": ["typecheck-learn-effect-snippets"],
       "options": {
         "command": "vitest run --config apps/docs/vitest.config.mts"
       }
+    },
+    "typecheck-learn-effect-snippets": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs/tsconfig.learn-effect.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.learn-effect.json",
+        "{projectRoot}/tests/snippets/learn-effect/**/*.ts"
+      ]
     },
     "typecheck-architecture-docs": {
       "executor": "nx:run-commands",
