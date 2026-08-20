@@ -4,7 +4,6 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
   input,
   matchBlock,
   p,
@@ -89,7 +88,7 @@ const TextEditorStateMachine = craftComponent(
         };
       },
 
-      ({ context, currentStep, currentStepWithContext }) => {
+      ({ context, currentStep }) => {
         const { text, ..._context } = context;
 
         return {
@@ -129,7 +128,7 @@ const TextEditorStateMachine = craftComponent(
         span({ class: machine.editingClass }, 'editing'),
       ]),
 
-      matchBlock.exhaustive(machine.currentStepWithContext, 'step', () => ({
+      matchBlock.exhaustive(machine.currentStep, {
         reading: () =>
           div({ class: 'panel' }, [
             p(['Committed value: ', machine.committedValue]),
@@ -139,7 +138,7 @@ const TextEditorStateMachine = craftComponent(
               {
                 type: 'button',
                 click: function* () {
-                  yield* machine.edit$.emit();
+                  machine.edit$.emit();
                 },
               },
               'Edit',
@@ -152,7 +151,7 @@ const TextEditorStateMachine = craftComponent(
               type: 'text',
               value: machine.value,
               input: function* (event) {
-                yield* machine.change$.emit(event.target.value);
+                machine.change$.emit(event.target.value);
               },
             }),
             div({ class: 'actions' }, [
@@ -161,7 +160,7 @@ const TextEditorStateMachine = craftComponent(
                 {
                   type: 'button',
                   click: function* () {
-                    yield* machine.commit$.emit();
+                    machine.commit$.emit();
                   },
                 },
                 'Commit',
@@ -172,14 +171,14 @@ const TextEditorStateMachine = craftComponent(
                   type: 'button',
                   class: 'secondary',
                   click: function* () {
-                    yield* machine.cancel$.emit();
+                    machine.cancel$.emit();
                   },
                 },
                 'Cancel',
               ),
             ]),
           ]),
-      })),
+      }),
     ]),
 );
 

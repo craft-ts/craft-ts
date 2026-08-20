@@ -14,6 +14,7 @@ import {
 import {
   craftException,
   craftGen,
+  craftUse,
   craftSleep,
   query,
   craftComputed,
@@ -227,7 +228,7 @@ const ExceptionsComponent = craftComponent(
           ]),
         () => [
           matchBlock.exhaustive(
-            userQuery.typedUserExceptionLoader,
+            () => craftUse(userQuery.typedUserExceptionLoader()),
             '_tag',
             {
               UserNotFoundException: () =>
