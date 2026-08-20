@@ -1,0 +1,94 @@
+:scope {
+  display: block;
+  max-width: 760px;
+  margin: 0 auto;
+  color: #1f2937;
+}
+
+.intro {
+  margin: 0 0 1.5rem;
+  color: #475569;
+}
+
+.rows {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.row__head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.row__title {
+  font-weight: 600;
+}
+
+.badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.row__note {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  font: inherit;
+}
+
+.row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+:scope button {
+  padding: 0.4rem 0.8rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #fff;
+  background: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+:scope button.secondary {
+  color: #1e293b;
+  background: #e2e8f0;
+}
+
+:scope button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+:scope button:focus-visible,
+:scope input:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.row__history {
+  color: #64748b;
+  font-size: 0.85rem;
+}

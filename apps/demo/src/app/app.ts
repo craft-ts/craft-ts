@@ -60,6 +60,7 @@ const NAV_GROUPS = [
       ['Exceptions', { to: 'exceptions' }],
       ['Login Form', { to: 'login-form' }],
       ['State Machine', { to: 'state-machine' }],
+      ['State Machine — list', { to: 'state-machine-list' }],
       ['Exception QueryParams', { to: 'exception-query-params' }],
     ],
   },
