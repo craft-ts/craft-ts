@@ -112,26 +112,25 @@ function disableTargetLogForwarding(targetDemoRoot) {
   }
 
   const contents = readFileSync(appConfigPath, 'utf8');
-  const importPattern = /^(\s*)import \{ provideLogForwarding \} from '(\.\/log-forwarder)';(\s*)$/m;
-  const providerPattern = /^(\s*)provideLogForwarding\(\),(\s*)$/m;
+  const importPattern =
+    /^(\s*)import \{[^}\n]*(?:provideLogForwarding|provideLogServerUrl)[^}\n]*\} from '(\.\/log-forwarder)';(\s*)$/gm;
+  const providerPattern =
+    /^(\s*)(provideLogForwarding\(\)|provideLogServerUrl\([^\n]+\)),(\s*)$/gm;
   const hasImport = importPattern.test(contents);
+  importPattern.lastIndex = 0;
   const hasProvider = providerPattern.test(contents);
+  providerPattern.lastIndex = 0;
 
   if (!hasImport && !hasProvider) return;
-  if (!hasImport || !hasProvider) {
-    throw new Error(
-      `Target demo app config has an incomplete provideLogForwarding setup: ${appConfigPath}`,
-    );
-  }
 
   const updated = contents
     .replace(
       importPattern,
-      '$1// provideLogForwarding import disabled for the target demo.$2',
+      '$1// Log forwarding imports disabled for the target demo.$3',
     )
     .replace(
       providerPattern,
-      '$1// Disabled in the target demo: do not send logs to the local log server.\n$1// provideLogForwarding(),$2',
+      '$1// Disabled in the target demo: do not send logs to the local log server.\n$1// $2,$3',
     );
   writeFileSync(appConfigPath, updated);
 }

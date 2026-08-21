@@ -181,7 +181,7 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
     );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
-      /\/\/ provideLogForwarding import disabled for the target demo\./,
+      /\/\/ Log forwarding imports disabled for the target demo\./,
     );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
