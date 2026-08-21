@@ -1,4 +1,7 @@
-import type { NamedBrandedServiceProvider } from '@craft-ts/core';
+import type {
+  CraftRouteAdditionalProvidersOf,
+  NamedBrandedServiceProvider,
+} from '@craft-ts/core';
 import type { MissingRequirements } from './requirements';
 
 // ---------------------------------------------------------------------------
@@ -63,17 +66,27 @@ type ProvidedEffectServicesFromEntry<Entry> =
  *
  * A route's own `provideLayer(...)` doesn't appear in `AppProvidedEffectServices`
  * (that union only covers the app level), so a route with route-scoped
- * layers needs this on the route's own `providers` array to get the full
- * picture: `AppProvidedEffectServices | ProvidedEffectServicesOf<typeof routeProviders>`.
+ * layers needs `ProvidedEffectServicesOfRoute` to get the full picture from
+ * the typed route collection.
  *
  * @example
- * const teamRouteProviders = [provideLayer(SupportTeamLive)] as const;
  * type _Check = EffectRequirementsCheckedDI<
  *   Effect.Services<typeof loadTeamOverview>,
- *   AppProvidedEffectServices | ProvidedEffectServicesOf<typeof teamRouteProviders>
+ *   AppProvidedEffectServices |
+ *     ProvidedEffectServicesOfRoute<typeof routes._routes, 'team'>
  * >;
  */
 export type ProvidedEffectServicesOf<Providers> =
   Providers extends readonly unknown[]
     ? ProvidedEffectServicesFromEntry<Providers[number]>
     : never;
+
+/** Extracts route-scoped Effect services from one route in a typed route tuple. */
+export type ProvidedEffectServicesOfRoute<
+  Routes,
+  Path extends string,
+> = Routes extends readonly unknown[]
+  ? Extract<Routes[number], { readonly path: Path }> extends infer Route
+    ? ProvidedEffectServicesOf<CraftRouteAdditionalProvidersOf<Route>>
+    : never
+  : never;

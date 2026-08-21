@@ -11,6 +11,7 @@ export default [
     },
     rules: {
       'craft-ts/no-explicit-effect-type': 'error',
+      'craft-ts/prefer-inline-effect-insertion': 'error',
     },
   },
   {

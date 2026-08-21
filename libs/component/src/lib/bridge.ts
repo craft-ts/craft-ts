@@ -4,6 +4,7 @@ import {
   type ComponentDepsCarrier,
   type ComponentDepsOf,
   type ComponentExceptionsCarrier,
+  type CraftRouteAdditionalProvidersCarrier,
   type CraftRouteLazyLoadHelpers,
 } from '@craft-ts/core';
 import {
@@ -134,10 +135,13 @@ export function assertCssVarsSatisfied<Routes>(
   return routes;
 }
 
-export function loadCraftComponent<const Component extends CraftComponent<any>>(
+export function loadCraftComponent<
+  const Component extends CraftComponent<any>,
+  const AdditionalProviders extends NonNullable<Route['providers']> = readonly [],
+>(
   loader: ((helpers: CraftRouteLazyLoadHelpers) => Promise<Component>) &
     RequireHandledRouteFieldExceptions<NoInfer<Component>>,
-  additionalProviders: NonNullable<Route['providers']> = [],
+  additionalProviders: AdditionalProviders = [] as unknown as AdditionalProviders,
 ): {
   loadComponent: (
     helpers: CraftRouteLazyLoadHelpers,
@@ -145,6 +149,7 @@ export function loadCraftComponent<const Component extends CraftComponent<any>>(
   providers: NonNullable<Route['providers']>;
 } & ComponentDepsCarrier<ComponentDepsOf<Component>> &
   ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> &
+  CraftRouteAdditionalProvidersCarrier<AdditionalProviders> &
   CraftRouteCssVarsCarrier<
     ComponentCssVarsOf<Component>,
     ComponentNameOf<Component>
@@ -185,9 +190,15 @@ export function loadCraftComponent<const Component extends CraftComponent<any>>(
     ],
   };
 
-  return fragment as unknown as typeof fragment &
+  return fragment as unknown as {
+    loadComponent: (
+      helpers: CraftRouteLazyLoadHelpers,
+    ) => Promise<Type<unknown>>;
+    providers: NonNullable<Route['providers']>;
+  } &
     ComponentDepsCarrier<ComponentDepsOf<Component>> &
-    ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>>;
+    ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> &
+    CraftRouteAdditionalProvidersCarrier<AdditionalProviders>;
 }
 
 export function craftComponentRouteData(
@@ -237,4 +248,3 @@ export function craftPendingComponentRouteData(
 ): Readonly<Record<string, unknown>> {
   return { craftPendingComponent: component };
 }
-

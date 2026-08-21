@@ -11,7 +11,7 @@ import {
 import {
   provideLayer,
   type EffectRequirementsCheckedDI,
-  type ProvidedEffectServicesOf,
+  type ProvidedEffectServicesOfRoute,
 } from '@craft-ts/effect';
 import type { Effect } from 'effect';
 import type { AppProvidedEffectServices } from './app.config';
@@ -19,12 +19,6 @@ import { SupportTeamLive } from './shared/access-domain';
 import type { checkUserAccess, loadTeamOverview } from './shared/access-domain';
 import { InMemoryDatabaseLive } from './examples/effect/effect-database';
 import type { getData } from './examples/effect/effect-function';
-
-// Named so `ProvidedEffectServicesOf` can read back what this route actually
-// installs — inlining the array in `loadCraftComponent(...)` below would
-// leave nothing for the DI check further down to type-check against.
-const teamRouteProviders = [provideLayer(SupportTeamLive)] as const;
-const effectFunctionRouteProviders = [provideLayer(InMemoryDatabaseLive)] as const;
 
 export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
@@ -63,7 +57,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(
           import('./examples/effect/effect-team-overview-layer-scope'),
         ).then(({ default: component }) => component),
-      teamRouteProviders,
+      [provideLayer(SupportTeamLive)] as const,
     ),
   },
   {
@@ -73,7 +67,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(import('./examples/effect/effect-function')).then(
           ({ default: component }) => component,
         ),
-      effectFunctionRouteProviders,
+      [provideLayer(InMemoryDatabaseLive)] as const,
     ),
     handleExceptions: {
       DatabaseConnectionError: craftExceptionHandler(function* ({
@@ -159,13 +153,11 @@ type _CheckAccessQueryRequirements = EffectRequirementsCheckedDI<
 >;
 type _CanRunAccessQueryRequirements = CanRun<_CheckAccessQueryRequirements>;
 
-// `/team` also relies on this route's own `provideLayer(SupportTeamLive)` —
-// read from `teamRouteProviders` so removing it from the route is what fails
-// the build, not just removing the `SupportTeamLive` import.
+// `/team` also relies on this route's own `provideLayer(SupportTeamLive)`.
 type _CheckTeamOverviewRequirements = EffectRequirementsCheckedDI<
   Effect.Services<typeof loadTeamOverview>,
   | AppProvidedEffectServices
-  | ProvidedEffectServicesOf<typeof teamRouteProviders>
+  | ProvidedEffectServicesOfRoute<typeof demoEffectRoutes._routes, 'team'>
 >;
 type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;
 
@@ -174,6 +166,10 @@ type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;
 // requirement is checked against the provider installed at that route.
 type _CheckEffectFunctionRequirements = EffectRequirementsCheckedDI<
   Effect.Services<typeof getData>,
-  AppProvidedEffectServices | ProvidedEffectServicesOf<typeof effectFunctionRouteProviders>
+  | AppProvidedEffectServices
+  | ProvidedEffectServicesOfRoute<
+      typeof demoEffectRoutes._routes,
+      'effect-function'
+    >
 >;
 type _CanRunEffectFunctionRequirements = CanRun<_CheckEffectFunctionRequirements>;

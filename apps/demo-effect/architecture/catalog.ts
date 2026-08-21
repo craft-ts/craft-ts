@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "59fbf7c4139a13b3",
+  "graphHash": "539a1bd85f69b862",
   "routes": [
     "",
     "access",
@@ -51,6 +51,7 @@ export const architectureCatalog = {
     "accessReason",
     "copied",
     "effectFunctionQuery",
+    "hasData",
     "hasDecision",
     "hasProfile",
     "instruction",
@@ -60,6 +61,7 @@ export const architectureCatalog = {
     "setCopied",
     "setInstruction",
     "showUnknown",
+    "summary",
     "teamName",
     "teamOverviewQuery",
     "userName",

@@ -10,7 +10,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, settled, type InsertionParams } from '@craft-ts/core';
+import { craftComputed, settled } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import { Database } from './effect-database';
@@ -22,22 +22,6 @@ import { Database } from './effect-database';
 export const getData = Effect.gen(function* () {
   const db = yield* Database;
   return yield* db.query('SELECT id, value FROM demo_data');
-});
-
-type DataInsertionContext = InsertionParams<
-  Effect.Success<typeof getData>,
-  true,
-  { params: unknown; loader: Effect.Error<typeof getData> },
-  Record<never, never>,
-  'effectFunctionQuery'
->;
-
-const createDataInsertion = ({ resource }: DataInsertionContext) => ({
-  hasData: craftComputed('hasData', () => resource.hasValue()),
-  summary: craftComputed('summary', function* () {
-    const rows = yield* settled(resource);
-    return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
-  }),
 });
 
 const EffectFunctionComponent = craftComponent(
@@ -59,10 +43,16 @@ const EffectFunctionComponent = craftComponent(
     const dataQuery = yield* queryEffect(
       'effectFunctionQuery',
       {
-        params: () => true,
+        params: () => true, // initial load
         loader: () => getData,
       },
-      createDataInsertion,
+      ({ resource }) => ({
+        hasData: craftComputed('hasData', () => resource.hasValue()),
+        summary: craftComputed('summary', function* () {
+          const rows = yield* settled(resource);
+          return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
+        }),
+      }),
     );
 
     return {

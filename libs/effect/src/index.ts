@@ -18,6 +18,7 @@ export {
 export {
   type EffectRequirementsCheckedDI,
   type ProvidedEffectServicesOf,
+  type ProvidedEffectServicesOfRoute,
 } from './lib/effect-checked-di';
 export { effectService, type SelectedMembers } from './lib/effect-service';
 export {

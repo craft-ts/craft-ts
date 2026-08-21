@@ -250,12 +250,13 @@ export const appConfig = craftAppConfig({
 Use one merged Layer per injector level. A route can add a narrower Layer:
 
 ```typescript
-const routeProviders = [provideLayer(TeamContextLive)] as const;
-
 const routes = craftRoutes('app', [
   {
     path: 'team',
-    ...loadCraftComponent(() => import('./team'), routeProviders),
+    ...loadCraftComponent(
+      () => import('./team'),
+      [provideLayer(TeamContextLive)] as const,
+    ),
   },
 ]);
 ```
@@ -269,7 +270,8 @@ the values provided by the app and route:
 ```typescript
 type Check = EffectRequirementsCheckedDI<
   Effect.Services<typeof loadTeamOverview>,
-  AppProvidedEffectServices | ProvidedEffectServicesOf<typeof routeProviders>
+  AppProvidedEffectServices |
+    ProvidedEffectServicesOfRoute<typeof routes._routes, 'team'>
 >;
 type CanRunCheck = CanRun<Check>;
 ```

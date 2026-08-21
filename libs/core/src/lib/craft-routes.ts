@@ -81,6 +81,20 @@ import { craftComputed } from './host/craft-signal';
 import { CRAFT_SSR_POLICY, type CraftSsrPolicy } from './craft-ssr';
 
 type MaybeAsync<T> = T | Promise<T> | Observable<T>;
+
+/** Type-only carrier for providers passed to loadCraftComponent(...). */
+export const CRAFT_ROUTE_ADDITIONAL_PROVIDERS = Symbol(
+  'CRAFT_ROUTE_ADDITIONAL_PROVIDERS',
+);
+
+export type CraftRouteAdditionalProvidersCarrier<Providers> = {
+  readonly [CRAFT_ROUTE_ADDITIONAL_PROVIDERS]?: Providers;
+};
+
+export type CraftRouteAdditionalProvidersOf<Route> =
+  Route extends CraftRouteAdditionalProvidersCarrier<infer Providers>
+    ? Providers
+    : never;
 type AngularRouteBase = Omit<
   Route,
   | 'canActivate'

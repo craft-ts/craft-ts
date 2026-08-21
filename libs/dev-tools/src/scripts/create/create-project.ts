@@ -530,7 +530,7 @@ export const WelcomeRepositoryLive = Layer.succeed(WelcomeRepositoryService, {
     }),
 });
 
-export const loadWelcome = Effect.gen(function* () {
+export const loadWelcome = () => Effect.gen(function* () {
   const repository = yield* WelcomeRepositoryService;
   return yield* repository.load();
 });

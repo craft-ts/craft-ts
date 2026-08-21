@@ -43,6 +43,7 @@ module.exports = {
   'craft-ts/no-injection-token': 'error',
   'craft-ts/no-manual-route-provider-list': 'error',
   'craft-ts/no-widened-route-provider-context': 'error',
+  'craft-ts/prefer-inline-route-providers': 'error',
   'craft-ts/no-async-await': 'error',
   'craft-ts/no-throw': 'error',
   'craft-ts/require-assert-exhaustive-route-exceptions': 'warn',

@@ -4,6 +4,7 @@ import {
   mutation as craftMutation,
   query as craftQuery,
   type AsyncProcessOutput,
+  type InsertionParams,
   type MutationOutput,
   type NamedCraftPrimitiveGen,
   type QueryOutput,
@@ -51,6 +52,19 @@ type EffectInsertionResult<Insertion> = Insertion extends (
     ? Output
     : Result
   : Record<never, never>;
+
+type EffectInsertionContext<
+  Name extends string,
+  Params,
+  Value extends object | undefined,
+  Error,
+> = InsertionParams<
+  Value,
+  Params,
+  { params: unknown; loader: EffectExceptionOf<Error> },
+  Record<never, never>,
+  Name
+>;
 
 type EffectQueryConfig<Params, Value, Error, Requirements> = {
   readonly params: () => SynchronousResult<Params>;
@@ -282,7 +296,14 @@ export function queryEffect<
   Value extends object | undefined,
   Error,
   Requirements,
-  Insertion extends (...args: any[]) => any,
+  Insertion extends (
+    context: EffectInsertionContext<
+      Name,
+      Params,
+      Value,
+      Error
+    >
+  ) => any,
 >(
   name: Name,
   config: EffectQueryConfig<Params, Value, Error, Requirements>,
@@ -342,7 +363,9 @@ export function queryEffect<
   Value extends object | undefined,
   Error,
   Requirements,
-  Insertion extends (...args: any[]) => any,
+  Insertion extends (
+    context: EffectInsertionContext<Name, Params, Value, Error>
+  ) => any,
 >(
   name: Name,
   config: EffectQueryMethodConfig<
