@@ -150,8 +150,15 @@ function createNativeCraftInjector(
   parent: CraftInjector | null,
 ): CraftInjector {
   const records = new Map<object, ProviderRecord>();
+  const defaultValues = new Map<object, unknown>();
   const children: CraftInjector[] = [];
   let destroyed = false;
+  const resolveDefault = (token: object): unknown | typeof ɵNOT_FOUND => {
+    if (defaultValues.has(token)) return defaultValues.get(token);
+    const value = lookupDefaultFactory(token);
+    if (value !== ɵNOT_FOUND) defaultValues.set(token, value);
+    return value;
+  };
   const destroyCallbacks: Array<() => void> = [];
   const craftInjector: CraftInjector = {
     get<T>(token: CraftToken<T> | object, notFoundValue?: T): T {
@@ -179,14 +186,14 @@ function createNativeCraftInjector(
         try {
           return parent.get(token);
         } catch {
-          const fallback = lookupDefaultFactory(token);
+          const fallback = resolveDefault(token);
           if (fallback !== ɵNOT_FOUND) {
             return fallback as T;
           }
           throw missingProviderError(token);
         }
       }
-      const fallback = lookupDefaultFactory(token);
+      const fallback = resolveDefault(token);
       if (fallback !== ɵNOT_FOUND) {
         return fallback as T;
       }
@@ -219,7 +226,7 @@ function createNativeCraftInjector(
           return inherited;
         }
       }
-      const fallback = lookupDefaultFactory(token);
+      const fallback = resolveDefault(token);
       return fallback === ɵNOT_FOUND ? null : (fallback as T);
     },
     run<T>(fn: () => T): T {
@@ -286,7 +293,14 @@ export function ɵcreateCraftInjectorFromHost(
     destroyed?: boolean;
   };
   const children: CraftInjector[] = [];
+  const defaultValues = new Map<object, unknown>();
   let destroyed = false;
+  const resolveDefault = (token: object): unknown | typeof ɵNOT_FOUND => {
+    if (defaultValues.has(token)) return defaultValues.get(token);
+    const value = lookupDefaultFactory(token);
+    if (value !== ɵNOT_FOUND) defaultValues.set(token, value);
+    return value;
+  };
   const craftInjector: CraftInjector = {
     get<T>(token: CraftToken<T> | object, notFoundValue?: T): T {
       const hostToken = hostTokens.get(token) ?? token;
@@ -294,7 +308,7 @@ export function ɵcreateCraftInjectorFromHost(
       if (value !== ɵNOT_FOUND) {
         return value as T;
       }
-      const fallback = lookupDefaultFactory(token);
+      const fallback = resolveDefault(token);
       if (fallback !== ɵNOT_FOUND) {
         return fallback as T;
       }
@@ -309,7 +323,7 @@ export function ɵcreateCraftInjectorFromHost(
       if (value !== ɵNOT_FOUND) {
         return value as T;
       }
-      const fallback = lookupDefaultFactory(token);
+      const fallback = resolveDefault(token);
       return fallback === ɵNOT_FOUND ? null : (fallback as T);
     },
     run<T>(fn: () => T): T {

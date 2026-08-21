@@ -1,6 +1,8 @@
 export interface CraftDomAdapter {
   createElement(tag: string): Element;
   createText(value: string): Text;
+  createComment(value: string): Comment;
+  createFragment(): DocumentFragment;
   appendChild(parent: Node, child: Node): void;
   insertBefore(parent: Node, child: Node, before: Node | null): void;
   removeChild(parent: Node, child: Node): void;
@@ -19,11 +21,12 @@ export function createBrowserDomAdapter(document: Document): CraftDomAdapter {
   return {
     createElement: (tag) => document.createElement(tag),
     createText: (value) => document.createTextNode(value),
+    createComment: (value) => document.createComment(value),
+    createFragment: () => document.createDocumentFragment(),
     appendChild: (parent, child) => parent.appendChild(child),
     insertBefore: (parent, child, before) => parent.insertBefore(child, before),
     removeChild: (parent, child) => parent.removeChild(child),
-    setAttribute: (element, name, value) =>
-      element.setAttribute(name, value),
+    setAttribute: (element, name, value) => element.setAttribute(name, value),
     removeAttribute: (element, name) => element.removeAttribute(name),
     setProperty: (element, name, value) => {
       (element as unknown as Record<string, unknown>)[name] = value;

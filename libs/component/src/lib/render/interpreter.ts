@@ -50,6 +50,13 @@ import {
   type TemporalTaskHandle,
   type TemplateTraceContext,
   RealCraftTemporalRuntime,
+  CRAFT_HYDRATION_ID,
+  childCraftRenderIdentity,
+  createCraftRenderIdentity,
+  type CraftRenderIdentity,
+  CRAFT_SSR_POLICY,
+  CRAFT_MATCH,
+  type CraftSsrPolicy,
 } from '@craft-ts/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import {
@@ -132,6 +139,10 @@ import {
   findCraftTemplateLocator,
   type RuntimeLocatorCriteria,
 } from '../locator';
+import { HydrationMismatchError, type HydrationCursor } from './hydration';
+import { setNodeHydrationKey } from './hydration-metadata';
+import type { CraftSsrCoordinator } from './ssr-coordinator';
+import type { CraftServerStyleCollector } from './server-style-collector';
 
 declare const ngDevMode: boolean | undefined;
 
@@ -176,6 +187,12 @@ interface RenderContext {
   readonly directiveNames?: readonly string[];
   /** Mutable render number shared by one component and its nested views. */
   readonly traceState?: TemplateTraceState;
+  readonly mode: 'create' | 'hydrate';
+  readonly identity: CraftRenderIdentity;
+  readonly hydration?: HydrationCursor;
+  readonly emitHydrationKeys?: boolean;
+  readonly ssr?: CraftSsrCoordinator;
+  readonly serverStyles?: CraftServerStyleCollector;
 }
 
 interface TemplateTraceState {
@@ -200,6 +217,24 @@ function childContext(
   overrides: Partial<RenderContext> = {},
 ): RenderContext {
   return { ...context, ...overrides };
+}
+
+function childNodeContext(
+  context: RenderContext,
+  node: CraftNode,
+  index: number,
+): RenderContext {
+  const segments: readonly (string | number)[] =
+    node.kind === 'component'
+      ? [node.component[CRAFT_COMPONENT].name, index]
+      : node.kind === 'each'
+        ? [`each:${node.sourceName ?? index}`]
+        : node.kind === 'if'
+          ? [`if:${node.conditionName}`]
+          : [index];
+  return childContext(context, {
+    identity: childCraftRenderIdentity(context.identity, ...segments),
+  });
 }
 
 function lexicalContext(context: RenderContext): RenderContext {
@@ -429,6 +464,22 @@ function acquireStyles(
   }[],
   ownerScope: string,
 ): (() => void)[] {
+  if (context.serverStyles) {
+    return owners.flatMap((owner, index) => {
+      const css = styleValues(owner.styles);
+      if (!css.length) return [];
+      const scope = scopeIdFor(owner.definition ?? {}, owner.name);
+      const dev = typeof ngDevMode === 'undefined' || ngDevMode;
+      if (dev) validateStyleScope(scope, css.join('\n'));
+      return [
+        context.serverStyles!.acquire(
+          `craft:${ownerScope}:${scope}`,
+          scopeCss(ownerScope, css.join('\n')),
+          index,
+        ),
+      ];
+    });
+  }
   if (!context.styleRoot || !context.styles) return [];
   const registry = context.styles;
   const releases: (() => void)[] = [];
@@ -464,8 +515,7 @@ function acquireContentStyle(
     !slotName ||
     !context.ownerScope ||
     !context.contentStyles?.[slotName] ||
-    !context.styleRoot ||
-    !context.styles
+    (!context.serverStyles && (!context.styleRoot || !context.styles))
   ) {
     return { release: () => undefined };
   }
@@ -475,12 +525,14 @@ function acquireContentStyle(
     rootAttribute: 'data-craft-content',
     limitSelector: '[data-craft-root]',
   });
-  const release = context.styles.acquire(
-    context.styleRoot,
-    `craft:content:${scope}`,
-    css,
-    1000,
-  );
+  const release = context.serverStyles
+    ? context.serverStyles.acquire(`craft:content:${scope}`, css, 1000)
+    : context.styles!.acquire(
+        context.styleRoot!,
+        `craft:content:${scope}`,
+        css,
+        1000,
+      );
   return { scope, release };
 }
 
@@ -490,6 +542,17 @@ interface RenderedNode {
   lastNode(): NativeNode;
   patch(node: CraftNode): boolean;
   destroy(): void;
+}
+
+function activeSsrRoute(context: RenderContext): string | undefined {
+  const match = context.injector.get(CRAFT_MATCH, null) as
+    | (() => { readonly route?: { readonly path?: string } } | null)
+    | null;
+  try {
+    return match?.()?.route?.path;
+  } catch {
+    return undefined;
+  }
 }
 
 function createRenderEffect(
@@ -514,6 +577,20 @@ function createRenderEffect(
     } catch (error) {
       if (isCraftNotSettled(error)) {
         if (!context.pendingBoundary) {
+          if (context.ssr) {
+            const routePolicy = context.injector.get(
+              CRAFT_SSR_POLICY,
+              null,
+            ) as CraftSsrPolicy | null;
+            if (routePolicy) {
+              context.ssr.suspend(token, error.source, routePolicy.mode, {
+                route: activeSsrRoute(context),
+                timeoutMs: routePolicy.timeoutMs,
+              });
+              return;
+            }
+            context.ssr.unhandled(error.source, activeSsrRoute(context));
+          }
           throw new CraftUnhandledPendingError(error.source);
         }
         context.pendingBoundary.suspend(token, error.source);
@@ -532,6 +609,7 @@ function createRenderEffect(
       return;
     }
 
+    context.ssr?.resume(token);
     context.pendingBoundary?.resume(token);
     if (shortCircuited) {
       shortCircuited = false;
@@ -541,6 +619,7 @@ function createRenderEffect(
 
   return {
     destroy: () => {
+      context.ssr?.resume(token);
       context.pendingBoundary?.resume(token);
       if (shortCircuited) context.exceptionBoundaryResolved?.(token);
       ref.destroy();
@@ -825,10 +904,131 @@ function removeNode(renderer: CraftDomAdapter, node: NativeNode): void {
   }
 }
 
-function createComment(parent: NativeParent, value: string): Comment {
-  const ownerDocument =
-    parent instanceof Document ? parent : parent.ownerDocument;
-  return (ownerDocument ?? document).createComment(value);
+function isElementNode(node: unknown): node is Element {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    (node as { readonly nodeType?: number }).nodeType === 1
+  );
+}
+
+function mountComment(
+  parent: NativeParent,
+  value: string,
+  before: NativeNode | null,
+  context: RenderContext,
+): Comment {
+  if (context.mode === 'hydrate' && context.hydration) {
+    try {
+      return context.hydration.claimBoundary(
+        context.identity.hydrationKey,
+        value,
+      );
+    } catch (error) {
+      if (!(error instanceof HydrationMismatchError)) throw error;
+      context.hydration.recordMismatch(error);
+    }
+  }
+  const comment = context.renderer.createComment(
+    context.emitHydrationKeys
+      ? `${value}|hk:${context.identity.hydrationKey}`
+      : value,
+  );
+  insertBefore(context.renderer, parent, comment, before);
+  return comment;
+}
+
+function createElementForRender(
+  tag: string,
+  parent: NativeParent,
+  before: NativeNode | null,
+  context: RenderContext,
+): { readonly element: Element; readonly context: RenderContext } {
+  if (context.mode === 'hydrate' && context.hydration) {
+    try {
+      return {
+        element: context.hydration.claimElement(
+          context.identity.hydrationKey,
+          tag,
+        ),
+        context,
+      };
+    } catch (error) {
+      if (!(error instanceof HydrationMismatchError)) throw error;
+      context.hydration.recordMismatch(error);
+      const actual = error.actualNode;
+      const replacementBefore =
+        actual?.parentNode === parent ? actual.nextSibling : before;
+      if (actual?.parentNode) removeNode(context.renderer, actual);
+      const createContext = childContext(context, {
+        mode: 'create',
+        hydration: undefined,
+      });
+      const element = createContext.renderer.createElement(tag);
+      if (createContext.emitHydrationKeys) {
+        createContext.renderer.setAttribute(
+          element,
+          'data-craft-hk',
+          createContext.identity.hydrationKey,
+        );
+      }
+      insertBefore(createContext.renderer, parent, element, replacementBefore);
+      return { element, context: createContext };
+    }
+  }
+  const element = context.renderer.createElement(tag);
+  if (context.emitHydrationKeys) {
+    context.renderer.setAttribute(
+      element,
+      'data-craft-hk',
+      context.identity.hydrationKey,
+    );
+  }
+  insertBefore(context.renderer, parent, element, before);
+  return { element, context };
+}
+
+function createTextForRender(
+  value: string,
+  parent: NativeParent,
+  before: NativeNode | null,
+  context: RenderContext,
+  compare: boolean,
+): { readonly text: Text; readonly context: RenderContext } {
+  if (context.mode === 'hydrate' && context.hydration) {
+    try {
+      return {
+        text: context.hydration.claimText(
+          context.identity.hydrationKey,
+          compare ? value : undefined,
+        ),
+        context,
+      };
+    } catch (error) {
+      if (!(error instanceof HydrationMismatchError)) throw error;
+      context.hydration.recordMismatch(error);
+      const actual = error.actualNode;
+      const replacementBefore =
+        actual?.parentNode === parent ? actual.nextSibling : before;
+      if (actual?.parentNode) removeNode(context.renderer, actual);
+      const createContext = childContext(context, {
+        mode: 'create',
+        hydration: undefined,
+      });
+      const text = createContext.renderer.createText(value);
+      if (createContext.emitHydrationKeys) {
+        setNodeHydrationKey(text, createContext.identity.hydrationKey);
+      }
+      insertBefore(createContext.renderer, parent, text, replacementBefore);
+      return { text, context: createContext };
+    }
+  }
+  const text = context.renderer.createText(value);
+  if (context.emitHydrationKeys) {
+    setNodeHydrationKey(text, context.identity.hydrationKey);
+  }
+  insertBefore(context.renderer, parent, text, before);
+  return { text, context };
 }
 
 function patchRenderedChildren(
@@ -846,7 +1046,12 @@ function patchRenderedChildren(
     const next = nextNodes[index];
 
     if (!current.patch(next)) {
-      const replacement = mountNode(next, parent, current.firstNode(), context);
+      const replacement = mountNode(
+        next,
+        parent,
+        current.firstNode(),
+        childNodeContext(context, next, index),
+      );
       current.destroy();
       rendered[index] = replacement;
     }
@@ -857,7 +1062,14 @@ function patchRenderedChildren(
   }
 
   for (let index = rendered.length; index < nextNodes.length; index += 1) {
-    rendered.push(mountNode(nextNodes[index], parent, before, context));
+    rendered.push(
+      mountNode(
+        nextNodes[index],
+        parent,
+        before,
+        childNodeContext(context, nextNodes[index], index),
+      ),
+    );
   }
 
   return rendered;
@@ -2053,10 +2265,8 @@ function createFragment(
   children: CraftNodeChildren,
   label: string,
 ): FragmentRenderedNode {
-  const start = createComment(parent, `${label}:start`);
-  const end = createComment(parent, `${label}:end`);
-  insertBefore(context.renderer, parent, start, before);
-  insertBefore(context.renderer, parent, end, before);
+  const start = mountComment(parent, `${label}:start`, before, context);
+  const end = mountComment(parent, `${label}:end`, before, context);
   return new FragmentRenderedNode(parent, start, end, context, children);
 }
 
@@ -2161,16 +2371,19 @@ class EachRenderedNode implements RenderedNode {
       this.ordered = [];
 
       if (this.node.empty) {
+        const emptyContext = childContext(this.context, {
+          identity: childCraftRenderIdentity(this.context.identity, 'empty'),
+        });
         if (this.emptyView) {
           this.emptyView.patchChildren(
-            renderBlockChildren(this.context, 'empty', this.node.empty),
+            renderBlockChildren(emptyContext, 'empty', this.node.empty),
           );
         } else {
           this.emptyView = createFragment(
             this.parent,
             this.end,
-            this.context,
-            renderBlockChildren(this.context, 'empty', this.node.empty),
+            emptyContext,
+            renderBlockChildren(emptyContext, 'empty', this.node.empty),
             'craft-empty',
           );
         }
@@ -2205,6 +2418,12 @@ class EachRenderedNode implements RenderedNode {
         }
       } else {
         const traceState = { renderCount: 0 };
+        const entryContext = childContext(this.context, {
+          identity: childCraftRenderIdentity(
+            this.context.identity,
+            `item:${String(key)}`,
+          ),
+        });
         entry = {
           key,
           item,
@@ -2214,7 +2433,7 @@ class EachRenderedNode implements RenderedNode {
           view: createFragment(
             this.parent,
             this.end,
-            this.context,
+            entryContext,
             [],
             `craft-each:${String(key)}`,
           ),
@@ -2284,7 +2503,7 @@ class EachRenderedNode implements RenderedNode {
       entry.renderEffect?.destroy();
       entry.renderEffect = createRenderEffect(this.context, 'each-item', () =>
         entry.view.patchChildren(
-          this.renderItem(entry.traceState, entry.item, entry.index),
+          this.renderItem(entry.traceState, entry.item, entry.index, entry.key),
         ),
       );
       entry.rendered = true;
@@ -2302,10 +2521,17 @@ class EachRenderedNode implements RenderedNode {
     traceState: TemplateTraceState,
     item: unknown,
     index: number,
+    key: unknown,
   ): CraftNodeChildren {
     traceState.renderCount += 1;
     return renderBlockChildren(
-      childContext(this.context, { traceState }),
+      childContext(this.context, {
+        traceState,
+        identity: childCraftRenderIdentity(
+          this.context.identity,
+          `item:${String(key)}`,
+        ),
+      }),
       'each',
       this.node.itemTemplate,
       [
@@ -2514,7 +2740,7 @@ function detachRange(
   first: NativeNode,
   last: NativeNode,
 ): DocumentFragment {
-  const holder = (first.ownerDocument ?? document).createDocumentFragment();
+  const holder = renderer.createFragment();
   let current: NativeNode | null = first;
   const nodes: NativeNode[] = [];
   while (current) {
@@ -2574,10 +2800,13 @@ class CatchBlockRenderedNode implements RenderedNode {
     this.parent = parent;
     this.context = context;
     this.fallbackPosition = node.position;
-    this.start = createComment(parent, 'craft-catch-block:start');
-    this.end = createComment(parent, 'craft-catch-block:end');
-    insertBefore(context.renderer, parent, this.start, before);
-    insertBefore(context.renderer, parent, this.end, before);
+    this.start = mountComment(
+      parent,
+      'craft-catch-block:start',
+      before,
+      context,
+    );
+    this.end = mountComment(parent, 'craft-catch-block:end', before, context);
 
     // The fallback renders in the OUTER context: an exception thrown by a
     // fallback belongs to the next boundary up, never to this one.
@@ -2932,10 +3161,18 @@ class PendingBlockRenderedNode implements RenderedNode {
     this.parent = parent;
     this.context = context;
     this.position = node.position;
-    this.start = createComment(parent, 'craft-pending:start');
-    this.end = createComment(parent, 'craft-pending:end');
-    insertBefore(context.renderer, parent, this.start, before);
-    insertBefore(context.renderer, parent, this.end, before);
+    if (
+      context.ssr &&
+      node.ssr === 'client' &&
+      !node.handlers &&
+      !node.fallback
+    ) {
+      throw new Error(
+        'pendingBlock({ ssr: "client" }) requires an explicit fallback or shell.',
+      );
+    }
+    this.start = mountComment(parent, 'craft-pending:start', before, context);
+    this.end = mountComment(parent, 'craft-pending:end', before, context);
 
     // The fallback renders in the OUTER context: a fallback that suspends in
     // turn belongs to the next boundary up, never to this one.
@@ -3078,6 +3315,19 @@ class PendingBlockRenderedNode implements RenderedNode {
 
   private suspend(token: object, source: string): void {
     if (this.handles(source)) {
+      const routePolicy = this.context.injector.get(
+        CRAFT_SSR_POLICY,
+        null,
+      ) as CraftSsrPolicy | null;
+      this.context.ssr?.suspend(
+        token,
+        source,
+        this.node.ssr ?? routePolicy?.mode,
+        {
+          route: activeSsrRoute(this.context),
+          timeoutMs: routePolicy?.timeoutMs,
+        },
+      );
       const wasIdle = this.held.size === 0;
       this.held.set(token, source);
       if (wasIdle) this.showFallback();
@@ -3087,6 +3337,9 @@ class PendingBlockRenderedNode implements RenderedNode {
     // Not ours to handle (an `.exhaustive` boundary that does not list this
     // source): delegate outwards.
     if (!this.context.pendingBoundary) {
+      if (this.context.ssr) {
+        this.context.ssr.unhandled(source, activeSsrRoute(this.context));
+      }
       throw new CraftUnhandledPendingError(source);
     }
     this.context.pendingBoundary.suspend(token, source);
@@ -3097,6 +3350,7 @@ class PendingBlockRenderedNode implements RenderedNode {
       this.context.pendingBoundary?.resume(token);
       return;
     }
+    this.context.ssr?.resume(token);
     if (this.held.size === 0) this.hideFallback();
   }
 
@@ -3196,7 +3450,7 @@ class PendingBlockRenderedNode implements RenderedNode {
     const end = this.sourceView.lastNode();
     while (current) {
       if (current === node) return true;
-      if (current instanceof Element && current.contains(node)) return true;
+      if (isElementNode(current) && current.contains(node)) return true;
       if (current === end) break;
       current = current.nextSibling;
     }
@@ -3596,7 +3850,7 @@ class ComponentRenderedNode implements RenderedNode {
       ? new HostPropertyBindings(hostTarget, context)
       : undefined;
     const componentElement =
-      hostTarget ?? (parent instanceof Element ? parent : parent.parentElement);
+      hostTarget ?? (isElementNode(parent) ? parent : parent.parentElement);
     // Angular's runtime accepts any Injector as the R3Injector parent even
     // though the public helper narrows the type to EnvironmentInjector. Keep
     // the immediate parent here: unwrapping it through
@@ -3607,6 +3861,10 @@ class ComponentRenderedNode implements RenderedNode {
       this.environmentInjector = createEnvironmentInjector(
         [
           ...provideHostName(`component:${definition.name}`),
+          {
+            provide: CRAFT_HYDRATION_ID,
+            useValue: componentRenderContext.identity,
+          },
           ...(definition.meta.providers ?? []),
           {
             provide: ElementRef,
@@ -3901,6 +4159,10 @@ class ComponentRenderedNode implements RenderedNode {
     this.environmentInjector = createEnvironmentInjector(
       [
         ...provideHostName(`component:${definition.name}`),
+        {
+          provide: CRAFT_HYDRATION_ID,
+          useValue: componentRenderContext.identity,
+        },
         ...(definition.meta.providers ?? []),
         ...(composition.providers ?? []),
         {
@@ -4617,7 +4879,7 @@ class DeferRenderedNode implements RenderedNode {
         }
         this.startLoad();
       };
-      if (target instanceof Element) {
+      if (isElementNode(target)) {
         const tag = target.tagName.toLowerCase();
         const interactive =
           tag === 'button' ||
@@ -4655,7 +4917,7 @@ class DeferRenderedNode implements RenderedNode {
   private firstElementInView(): Element | undefined {
     let current = this.view.firstNode().nextSibling;
     while (current && current !== this.view.lastNode()) {
-      if (current.nodeType === Node.ELEMENT_NODE) {
+      if (current.nodeType === 1) {
         return current as Element;
       }
       current = current.nextSibling;
@@ -4803,14 +5065,18 @@ class HeadingRenderedNode implements RenderedNode {
   ) {
     const level = Math.min(6, Math.max(1, context.headingLevel ?? 1));
     this.tag = `h${level}`;
-    const element = context.renderer.createElement(this.tag) as Element;
-    insertBefore(context.renderer, parent, element, before);
-    this.elementView = new ElementRenderedNode(element, this.tag, context, {
-      kind: 'element',
-      tag: this.tag,
-      props: node.props,
-      children: node.children,
-    });
+    const created = createElementForRender(this.tag, parent, before, context);
+    this.elementView = new ElementRenderedNode(
+      created.element,
+      this.tag,
+      created.context,
+      {
+        kind: 'element',
+        tag: this.tag,
+        props: node.props,
+        children: node.children,
+      },
+    );
   }
 
   firstNode(): NativeNode {
@@ -4844,33 +5110,49 @@ function mountNode(
 ): RenderedNode {
   switch (node.kind) {
     case 'text': {
-      const text = context.renderer.createText(node.value) as Text;
-      insertBefore(context.renderer, parent, text, before);
-      return new TextRenderedNode(text, node.value, context.renderer);
+      const created = createTextForRender(
+        node.value,
+        parent,
+        before,
+        context,
+        true,
+      );
+      return new TextRenderedNode(
+        created.text,
+        node.value,
+        created.context.renderer,
+      );
     }
     case 'reactive-text': {
-      const text = context.renderer.createText('') as Text;
-      insertBefore(context.renderer, parent, text, before);
-      return new ReactiveTextRenderedNode(text, node.binding, context);
+      const created = createTextForRender('', parent, before, context, false);
+      return new ReactiveTextRenderedNode(
+        created.text,
+        node.binding,
+        created.context,
+      );
     }
     case 'element': {
-      const element = context.renderer.createElement(node.tag) as Element;
-      if (context.rootScope) {
-        context.renderer.setAttribute(
-          element,
+      const created = createElementForRender(node.tag, parent, before, context);
+      if (created.context.rootScope) {
+        created.context.renderer.setAttribute(
+          created.element,
           'data-craft-root',
-          context.rootScope,
+          created.context.rootScope,
         );
       }
-      if (context.contentScope) {
-        context.renderer.setAttribute(
-          element,
+      if (created.context.contentScope) {
+        created.context.renderer.setAttribute(
+          created.element,
           'data-craft-content',
-          context.contentScope,
+          created.context.contentScope,
         );
       }
-      insertBefore(context.renderer, parent, element, before);
-      return new ElementRenderedNode(element, node.tag, context, node);
+      return new ElementRenderedNode(
+        created.element,
+        node.tag,
+        created.context,
+        node,
+      );
     }
     case 'component':
       return new ComponentRenderedNode(
@@ -4889,10 +5171,8 @@ function mountNode(
     case 'directive':
       return new CraftDirectiveRenderedNode(node, parent, before, context);
     case 'each': {
-      const start = createComment(parent, 'craft-each:start');
-      const end = createComment(parent, 'craft-each:end');
-      insertBefore(context.renderer, parent, start, before);
-      insertBefore(context.renderer, parent, end, before);
+      const start = mountComment(parent, 'craft-each:start', before, context);
+      const end = mountComment(parent, 'craft-each:end', before, context);
       return new EachRenderedNode(node, parent, start, end, context);
     }
     case 'if': {
@@ -5084,6 +5364,18 @@ export interface MountedCraftTemplate<Context> {
   destroy(): void;
 }
 
+export type InterpretedRenderOptions = Readonly<{
+  renderer: CraftDomAdapter;
+  mode?: 'create' | 'hydrate';
+  identity?: CraftRenderIdentity;
+  hydration?: HydrationCursor;
+  emitHydrationKeys?: boolean;
+  styleRoot?: Document | ShadowRoot;
+  styles?: CraftStyleRegistry;
+  ssr?: CraftSsrCoordinator;
+  serverStyles?: CraftServerStyleCollector;
+}>;
+
 export function mountInterpretedComponent<Props extends object>(
   component: CraftComponent<Props>,
   host: Element,
@@ -5102,6 +5394,26 @@ export function mountInterpretedComponent<Props extends object>(
     CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
     ɵfallbackCraftStyleRegistry,
   );
+  return mountInterpretedComponentWithOptions(
+    component,
+    host,
+    craftInjector,
+    props,
+    { renderer, styleRoot, styles },
+  );
+}
+
+export function mountInterpretedComponentWithOptions<Props extends object>(
+  component: CraftComponent<Props>,
+  host: Element,
+  injector: Injector | object,
+  props: Props,
+  options: InterpretedRenderOptions,
+): MountedCraftComponent<Props> {
+  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const identity =
+    options.identity ??
+    createCraftRenderIdentity([component[CRAFT_COMPONENT].name, 0]);
   let instance: ComponentRenderedNode;
   try {
     instance = new ComponentRenderedNode(
@@ -5109,7 +5421,18 @@ export function mountInterpretedComponent<Props extends object>(
       props,
       host,
       null,
-      { renderer, injector: craftInjector, styleRoot, styles },
+      {
+        renderer: options.renderer,
+        injector: craftInjector,
+        mode: options.mode ?? 'create',
+        identity,
+        hydration: options.hydration,
+        emitHydrationKeys: options.emitHydrationKeys,
+        styleRoot: options.styleRoot,
+        styles: options.styles,
+        ssr: options.ssr,
+        serverStyles: options.serverStyles,
+      },
       host,
     );
   } catch (error) {
@@ -5155,7 +5478,17 @@ export function mountInterpretedComponentTemplate<Context>(
       {},
       host,
       null,
-      { renderer, injector: craftInjector, styleRoot, styles },
+      {
+        renderer,
+        injector: craftInjector,
+        styleRoot,
+        styles,
+        mode: 'create',
+        identity: createCraftRenderIdentity([
+          component[CRAFT_COMPONENT].name,
+          0,
+        ]),
+      },
       host,
       { value: context },
       additionalProviders,

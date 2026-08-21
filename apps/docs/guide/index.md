@@ -96,6 +96,7 @@ afternoon:
 
 ### Going further
 
+[SSR and hydration](/guide/advanced/ssr-hydration) ·
 [Program operators](/guide/advanced/program-operators) ·
 [Pattern matching](/guide/advanced/pattern-matching) ·
 [Observability](/guide/advanced/observability) ·

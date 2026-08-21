@@ -102,6 +102,7 @@ import { createCraftRouterOutletController } from './craft-router-outlet';
 import { CRAFT_ROUTE_META, getCraftRouteMeta } from './craft-route-meta';
 import { craftSignal, type CraftWritableSignal } from './host/craft-signal';
 import { withTransitionTimings } from './craft-pending';
+import { CRAFT_SSR_POLICY } from './craft-ssr';
 
 const flushChain = async () => {
   for (let i = 0; i < 20; i += 1) {
@@ -459,7 +460,6 @@ function getCanMatchGuard(route: Route | CraftCompiledRoute): CanMatchFn {
 function fakeHttpCall<T>(
   resolved: PromiseLike<T>,
 ): Generator<unknown, PromiseLike<T>, unknown> {
-
   return (function* () {
     return resolved;
   })();
@@ -479,6 +479,23 @@ describe('craftRoutes', () => {
     expect(source).not.toMatch(
       /^import\s+(?!type\b)[^;]*from ['"]@angular\/router['"]/m,
     );
+  });
+
+  it('compiles a route SSR default into its route injector providers', () => {
+    const policy = { mode: 'block' as const, timeoutMs: 2_500 };
+    const { appRoutes } = craftRoutes('app', [
+      {
+        path: 'dashboard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        ssr: policy,
+      },
+    ]);
+
+    expect(appRoutes.toRoutes()[0].providers).toContainEqual({
+      provide: CRAFT_SSR_POLICY,
+      useValue: policy,
+    });
   });
 
   it('should expose typed inject helpers for params but not route data', () => {
@@ -948,14 +965,16 @@ describe('craftRoutes', () => {
       ) => Generator<unknown, string, unknown>
     )(partialMatchRouteSnapshotStub);
 
-    const result = runInInjectionContext(injector, () =>
-      runCraftGenerator({
-        iterator: produced,
-        injector,
-        hostScope: 'function',
-        invalidYieldErrorMessage: 'invalid redirect yield',
-        multipleAppStartErrorMessage: 'multiple redirect app start',
-      }).value,
+    const result = runInInjectionContext(
+      injector,
+      () =>
+        runCraftGenerator({
+          iterator: produced,
+          injector,
+          hostScope: 'function',
+          invalidYieldErrorMessage: 'invalid redirect yield',
+          multipleAppStartErrorMessage: 'multiple redirect app start',
+        }).value,
     );
 
     expect(result).toBe('/pizzerias/admin');
@@ -2404,10 +2423,7 @@ describe('craftRoutes', () => {
         ]),
       ]);
 
-      const outlet = activateCraftRoutes(
-        wpRoutes.toRoutes(),
-        '/dashboard/9',
-      );
+      const outlet = activateCraftRoutes(wpRoutes.toRoutes(), '/dashboard/9');
       await flushChain();
 
       expect(outlet.state()).toBe('loaded');
@@ -2589,7 +2605,7 @@ describe('craftRoutes', () => {
 
 describe('AppRoutes.META_DATA', () => {
   it('should throw is an input is not directly provided', () => {
-        class UserComponent {
+    class UserComponent {
       userId = craftSignal<string>(undefined as never);
     }
 
@@ -2625,7 +2641,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should not remove matching inputs from publicProperties deps if type does not match', () => {
-        class UserComponent {
+    class UserComponent {
       userId = craftSignal<number>(undefined as never);
     }
 
@@ -2668,7 +2684,7 @@ describe('AppRoutes.META_DATA', () => {
       { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
-        class UserComponent {
+    class UserComponent {
       userId = craftSignal<string>(undefined as never);
 
       counter = craftUse(Counter());
@@ -2705,7 +2721,7 @@ describe('AppRoutes.META_DATA', () => {
       { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
-        class UserComponent {
+    class UserComponent {
       userId = craftSignal<string>(undefined as never);
 
       counter = craftUse(Counter());

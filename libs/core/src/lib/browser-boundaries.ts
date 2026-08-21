@@ -15,6 +15,8 @@ import {
 } from './correlation-id';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { Injector } from './host/craft-compat';
+import { CRAFT_PLATFORM, type CraftPlatform } from './craft-platform';
+import { getCurrentCraftInjector } from './host/craft-injector';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
 type ConsoleMetadataMethod = 'debug' | 'info' | 'log' | 'warn' | 'error';
@@ -371,11 +373,25 @@ function requireBrowserValue<Value>(
 }
 
 function getBrowserWindow() {
-  return requireBrowserValue(globalThis.window, 'window');
+  return requireBrowserValue(
+    getActivePlatform()?.window ?? globalThis.window,
+    'window',
+  );
 }
 
 function getBrowserDocument() {
-  return requireBrowserValue(globalThis.document, 'document');
+  return requireBrowserValue(
+    getActivePlatform()?.document ?? globalThis.document,
+    'document',
+  );
+}
+
+function getActivePlatform(): CraftPlatform | undefined {
+  try {
+    return getCurrentCraftInjector().get(CRAFT_PLATFORM, null) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** @internal Angular TitleStrategy writes the document title through the same boundary as `BrowserDocument.setTitle`. */
@@ -407,6 +423,8 @@ function createInMemoryStorage(): StorageLike {
 function getBrowserStorage(
   name: 'localStorage' | 'sessionStorage',
 ): StorageLike {
+  const platform = getActivePlatform();
+  if (platform) return platform[name];
   const browserWindow = getBrowserWindow() as unknown as Window &
     Record<string | symbol, unknown>;
   const candidate = browserWindow[name] as Partial<StorageLike> | undefined;
@@ -826,7 +844,9 @@ const browserCryptoService: BrowserBoundaryService<
       // boundary stays open to any view and hands it through unchanged.
     ) =>
       (
-        getBrowserCrypto().getRandomValues as (view: ArrayBufferView) => ArrayBufferView
+        getBrowserCrypto().getRandomValues as (
+          view: ArrayBufferView,
+        ) => ArrayBufferView
       )(typedArray) as TypedArray,
     digest: (algorithm, data) =>
       getBrowserCrypto().subtle.digest(algorithm, data),

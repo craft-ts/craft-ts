@@ -29,6 +29,10 @@ export type CraftCompiledRoute = {
   title?: string;
   canActivate?: unknown[];
   canMatch?: unknown[];
+  ssr?: {
+    mode: 'block' | 'fallback' | 'client';
+    timeoutMs?: number;
+  };
 };
 
 export type CraftMatch = {

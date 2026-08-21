@@ -8,6 +8,7 @@ import type {
   ExtractCraftGenExceptions,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
+  SsrMode,
 } from '@craft-ts/core';
 import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ts/core';
 import type {
@@ -956,6 +957,7 @@ export interface PendingBlockNode<
   readonly fallback: PendingFallback | undefined;
   readonly reloading: PendingFallback | undefined;
   readonly position: PendingBlockPosition;
+  readonly ssr: SsrMode | undefined;
   readonly pipe: CraftNodePipe<
     Dependencies,
     Exceptions,
@@ -1340,6 +1342,7 @@ export function pipeCraftNode(
       readonly fallback: PendingFallback | undefined;
       readonly reloading: PendingFallback | undefined;
       readonly position: PendingBlockPosition;
+      readonly ssr: SsrMode | undefined;
     };
     return withPipe({
       kind: 'pending-block',
@@ -1348,6 +1351,7 @@ export function pipeCraftNode(
       fallback: definition.fallback,
       reloading: definition.reloading,
       position: definition.position,
+      ssr: definition.ssr,
     } as PendingBlockNode);
   }
 

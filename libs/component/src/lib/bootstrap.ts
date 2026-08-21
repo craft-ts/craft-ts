@@ -1,5 +1,11 @@
 import {
   APP_INITIALIZER,
+  COMPONENT_REGISTER,
+  CRAFT_PLATFORM,
+  CRAFT_PRIMITIVE_REGISTRY,
+  CraftPrimitiveRegistry,
+  createBrowserPlatform,
+  createComponentRegister,
   createCraftInjector,
   ɵcreateEnvironmentInjector as createEnvironmentInjector,
   ɵgetCraftRootDefaultProviders as getCraftRootDefaultProviders,
@@ -34,6 +40,39 @@ function resolveHost(host: Element | undefined): Element {
   return document.querySelector('craft-root') ?? document.body;
 }
 
+export function ɵcreateCraftApplicationInjector(
+  config: BootstrapCraftOptions['config'],
+  additionalProviders: readonly unknown[] = [],
+): CraftInjector {
+  return createEnvironmentInjector(
+    [
+      ...getCraftRootDefaultProviders(),
+      {
+        provide: COMPONENT_REGISTER,
+        useValue: createComponentRegister(),
+      },
+      {
+        provide: CRAFT_PRIMITIVE_REGISTRY,
+        useValue: new CraftPrimitiveRegistry(),
+      },
+      ...config.providers,
+      ...additionalProviders,
+    ],
+    createCraftInjector([]),
+    'CraftApp',
+  );
+}
+
+export function ɵrunCraftAppInitializers(
+  injector: CraftInjector,
+): readonly unknown[] {
+  return injector
+    .get(APP_INITIALIZER, [])
+    .map((initializer) =>
+      runInInjectionContext(injector, initializer as () => unknown),
+    );
+}
+
 /**
  * Boots a Craft application: builds the root injector, runs the app-start
  * hooks, then mounts the root component.
@@ -42,17 +81,14 @@ function resolveHost(host: Element | undefined): Element {
  * create and no zone to enter — an injector and a mount is the whole of it.
  */
 export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
-  const injector = createEnvironmentInjector(
-    [...getCraftRootDefaultProviders(), ...options.config.providers],
-    createCraftInjector([]),
-    'CraftApp',
-  );
+  const platform = createBrowserPlatform(window);
+  const injector = ɵcreateCraftApplicationInjector(options.config, [
+    { provide: CRAFT_PLATFORM, useValue: platform },
+  ]);
 
   // appStart hooks run before the first render, so a service that seeds state
   // has done so by the time the root component reads it.
-  for (const initializer of injector.get(APP_INITIALIZER, [])) {
-    runInInjectionContext(injector, initializer as () => unknown);
-  }
+  ɵrunCraftAppInitializers(injector);
 
   const root = injector.get(CRAFT_ROOT_COMPONENT) as CraftComponent<any>;
   if (!root) {
@@ -61,12 +97,17 @@ export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
     );
   }
 
-  const mounted = mountCraftComponent(root, resolveHost(options.host), injector);
+  const mounted = mountCraftComponent(
+    root,
+    resolveHost(options.host),
+    injector,
+  );
 
   return {
     injector,
     destroy() {
       mounted.destroy();
+      platform.history.dispose();
       (injector as { destroy?(): void }).destroy?.();
     },
   };

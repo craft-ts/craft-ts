@@ -1,7 +1,4 @@
-import {
-  InjectionToken,
-  Injector,
-} from './craft-compat';
+import { InjectionToken, Injector } from './craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   craftToken,
@@ -113,5 +110,18 @@ describe('CraftInjector', () => {
     );
 
     expect(value).toBe('angular');
+  });
+
+  it('scopes default token factories to one root injector', () => {
+    const Value = new InjectionToken<object>('PerRootValue', {
+      providedIn: 'root',
+      factory: () => ({}),
+    });
+    const first = createCraftInjector([]);
+    const second = createCraftInjector([]);
+
+    expect(first.get(Value)).toBe(first.get(Value));
+    expect(second.get(Value)).toBe(second.get(Value));
+    expect(first.get(Value)).not.toBe(second.get(Value));
   });
 });

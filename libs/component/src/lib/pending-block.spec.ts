@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-import {
-  signal,
-} from '../../../core/src/lib/host/craft-compat';
+import { signal } from '../../../core/src/lib/host/craft-compat';
 import {
   afterEach,
   beforeEach,
@@ -18,7 +16,7 @@ import {
   settled,
   state,
   type CraftExceptionResult,
-  type CraftSettledSignal
+  type CraftSettledSignal,
 } from '@craft-ts/core';
 import {
   button,
@@ -78,13 +76,17 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
 
     expect(element.textContent).toContain('chargement');
     expect(element.textContent).not.toContain('Ada');
-    const live = element.querySelector('[aria-live="polite"][aria-busy="true"]');
+    const live = element.querySelector(
+      '[aria-live="polite"][aria-busy="true"]',
+    );
     expect(live?.getAttribute('aria-live')).toBe('polite');
     expect(live?.getAttribute('aria-busy')).toBe('true');
     await assertAccessible(element);
@@ -120,9 +122,11 @@ describe('pendingBlock', () => {
         div([span(text)]).pipe(pendingBlock({ fallback: () => p('attente') })),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toContain('attente');
 
     await vi.runAllTimersAsync();
@@ -142,7 +146,9 @@ describe('pendingBlock', () => {
         }));
         const users = yield* query('users', {
           params: function* () {
-                const _reload = yield* reload(); return _reload; },
+            const _reload = yield* reload();
+            return _reload;
+          },
           loader: async ({ params }): Promise<User[]> => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return [{ id: String(params), name: `Ada ${params}` }];
@@ -168,9 +174,11 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toContain('vide');
 
     await vi.runAllTimersAsync();
@@ -223,9 +231,11 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     await vi.runAllTimersAsync();
     await flush();
 
@@ -265,9 +275,11 @@ describe('pendingBlock', () => {
         ),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toContain('squelette utilisateurs');
 
     await vi.runAllTimersAsync();
@@ -336,6 +348,19 @@ describe('pendingBlock type-level contract', () => {
       // @ts-expect-error 'users' has no fallback in this boundary
       pendingBlock.exhaustive({ orders: () => p('…') }),
     );
+  });
+
+  it('requires an explicit shell for client-only SSR', () => {
+    const invalidBoundary = () =>
+      // @ts-expect-error client-only SSR must render a stable server shell
+      pendingBlock({ ssr: 'client' });
+    const validBoundary = pendingBlock({
+      ssr: 'client',
+      fallback: () => p('browser shell'),
+    });
+
+    expect(invalidBoundary).toBeTypeOf('function');
+    expect(validBoundary).toBeTypeOf('function');
   });
 
   it('bubbles a settled read exception up until a catchBlock clears it', () => {

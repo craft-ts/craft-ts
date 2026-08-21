@@ -168,15 +168,7 @@ export class InjectionToken<T> {
   ) {
     this.debugName = description;
     if (options?.factory) {
-      let hasValue = false;
-      let value!: T;
-      this.ɵfactory = () => {
-        if (!hasValue) {
-          value = options.factory!();
-          hasValue = true;
-        }
-        return value;
-      };
+      this.ɵfactory = options.factory;
       if (
         !options.multi &&
         (options.providedIn === 'root' || options.providedIn === undefined)
@@ -293,13 +285,10 @@ export class ApplicationInitStatus {
     this.donePromise = new Promise<void>((resolve, reject) => {
       try {
         const results = initializers.map((initializer) => run(initializer));
-        void Promise.all(results).then(
-          () => {
-            this._done = true;
-            resolve();
-          },
-          reject,
-        );
+        void Promise.all(results).then(() => {
+          this._done = true;
+          resolve();
+        }, reject);
       } catch (error) {
         reject(error);
       }
@@ -374,7 +363,8 @@ export class EventEmitter<T> {
   subscribe(next: ((value: T) => void) | { next?: (value: T) => void }): {
     unsubscribe(): void;
   } {
-    const listener = typeof next === 'function' ? next : (next.next ?? (() => undefined));
+    const listener =
+      typeof next === 'function' ? next : (next.next ?? (() => undefined));
     this.listeners.add(listener);
     return {
       unsubscribe: () => {
@@ -385,7 +375,11 @@ export class EventEmitter<T> {
 }
 
 function isInjectorToken(token: unknown): boolean {
-  return token === Injector || token === EnvironmentInjector || token === INJECTOR_TOKEN;
+  return (
+    token === Injector ||
+    token === EnvironmentInjector ||
+    token === INJECTOR_TOKEN
+  );
 }
 
 function isDestroyRefToken(token: unknown): boolean {
@@ -449,9 +443,8 @@ export function inject<T>(
     if (fromInjector) {
       return fromInjector as T;
     }
-    const attached = (
-      injector as CraftInjector & { ɵdestroyRef?: DestroyRef }
-    ).ɵdestroyRef;
+    const attached = (injector as CraftInjector & { ɵdestroyRef?: DestroyRef })
+      .ɵdestroyRef;
     if (attached) {
       return attached as T;
     }
@@ -466,7 +459,9 @@ export function inject<T>(
   return injector.get(token as object) as T;
 }
 
-export function assertInInjectionContext(_fn?: (...args: never[]) => unknown): void {
+export function assertInInjectionContext(
+  _fn?: (...args: never[]) => unknown,
+): void {
   inject(Injector);
 }
 
@@ -494,9 +489,7 @@ export function asCraftInjector(
     return injector;
   }
   return ɵcreateCraftInjectorFromHost(injector as object, (fn) =>
-    hostInjectorRunner
-      ? hostInjectorRunner(injector as object, fn)
-      : fn(),
+    hostInjectorRunner ? hostInjectorRunner(injector as object, fn) : fn(),
   );
 }
 
@@ -581,7 +574,8 @@ export function toCraftProviders(
       return {
         token,
         multi,
-        useFactory: (injector) => injector.run(() => new (type as new () => unknown)()),
+        useFactory: (injector) =>
+          injector.run(() => new (type as new () => unknown)()),
       };
     }
     const factory = provider.useFactory ?? (() => undefined);
@@ -669,10 +663,7 @@ export function linkedSignal<T>(
 ): CraftWritableSignal<T>;
 export function linkedSignal<Source, T>(options: {
   source: () => Source;
-  computation: (
-    source: Source,
-    previous?: LinkedPrevious<Source, T>,
-  ) => T;
+  computation: (source: Source, previous?: LinkedPrevious<Source, T>) => T;
   equal?: ValueEqualityFn<T>;
   debugName?: string;
   injector?: InjectorHandle;
@@ -779,7 +770,9 @@ export function isSignal(value: unknown): value is Signal<unknown> {
 export function isWritableSignal(
   value: unknown,
 ): value is WritableSignal<unknown> {
-  return isSignal(value) && typeof (value as { set?: unknown }).set === 'function';
+  return (
+    isSignal(value) && typeof (value as { set?: unknown }).set === 'function'
+  );
 }
 
 export function takeUntilDestroyed<T>(

@@ -19,6 +19,7 @@ import {
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { isCraftReplaying } from './craft-replay';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
+import { CRAFT_PLATFORM, type CraftPlatform } from './craft-platform';
 
 type CraftResourceOptions<Value, Params> = Omit<
   ResourceOptions<Value, Params>,
@@ -26,14 +27,14 @@ type CraftResourceOptions<Value, Params> = Omit<
 > & {
   loader?: (params: ResourceLoaderParams<Params>) => Value | PromiseLike<Value>;
   stream?: ResourceOptions<Value, Params>['stream'];
+  /** @internal Source name used by the server policy gate. */
+  ssrSourceName?: string;
 };
 
 export function craftResource<Value, Params>(
   options: CraftResourceOptions<Value, Params>,
 ): CraftResourceRef<Value, Params> {
-  const injector = ɵcraftInjectorFromHost(
-    options.injector ?? inject(Injector),
-  );
+  const injector = ɵcraftInjectorFromHost(options.injector ?? inject(Injector));
   const valueState = craftSignal<Value | undefined>(options.defaultValue, {
     equal: options.equal as
       | ((a: Value | undefined, b: Value | undefined) => boolean)
@@ -182,12 +183,35 @@ export function craftResource<Value, Params>(
   // keeps the resource in step with it. This used to be an Angular linkedSignal,
   // an effect reading it, and a craft watch underneath — three ways of noticing
   // the same change, needed only while two reactive systems had to agree.
-  const paramsWatch = options.params
-    ? craftWatch(() => {
-        const params = options.params!();
-        untracked(() => synchronizeParams(params));
-      })
-    : undefined;
+  const startParamsWatch = () =>
+    options.params
+      ? craftWatch(() => {
+          const params = options.params!();
+          untracked(() => synchronizeParams(params));
+        })
+      : undefined;
+  let paramsWatch: ReturnType<typeof craftWatch> | undefined;
+  const platform = injector.get(CRAFT_PLATFORM, null) as CraftPlatform | null;
+  if (
+    platform?.kind === 'server' &&
+    platform.serverResources &&
+    options.params &&
+    options.ssrSourceName
+  ) {
+    platform.serverResources.defer(options.ssrSourceName, () => {
+      if (!destroyed) paramsWatch = startParamsWatch();
+    });
+  } else if (platform?.hydrating && options.params) {
+    // The transfer registry is primed synchronously while the component tree
+    // is being created. Delaying only this first observation lets a restored
+    // query claim its params/value pair before a loader can issue a duplicate
+    // request. Subsequent param changes remain fully synchronous.
+    queueMicrotask(() => {
+      if (!destroyed) paramsWatch = startParamsWatch();
+    });
+  } else {
+    paramsWatch = startParamsWatch();
+  }
 
   // Readers are the state signals themselves. They used to be wrappers that
   // mirrored each value into an Angular signal AND re-synchronized the params on

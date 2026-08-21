@@ -30,6 +30,8 @@ export type PrimitiveResourceRuntimeContext<
    * settles as resolved.
    */
   restore?(value: unknown, id?: string): unknown;
+  status?(id?: string): string;
+  error?(id?: string): unknown;
 }>;
 
 export type PrimitiveResourceRuntimeObserver = (
@@ -42,6 +44,8 @@ type WritableResourceTarget = Readonly<{
   update(updater: (current: unknown) => unknown): unknown;
   reload?(): boolean;
   restore?(value: unknown): unknown;
+  status?: Signal<string>;
+  error?: Signal<unknown>;
 }>;
 
 type ResourceByIdTarget = Readonly<{
@@ -91,6 +95,8 @@ export function ɵobservePrimitiveResourceRuntimeContext(
       write: (value) =>
         context.restore ? context.restore(value) : context.set(value),
       reload: () => context.reload?.() ?? false,
+      ...(context.status ? { status: () => context.status!() } : {}),
+      ...(context.error ? { error: () => context.error!() } : {}),
     });
   }
 }
@@ -104,11 +110,11 @@ export function ɵcreatePrimitiveResourceRuntimeContext(
     grouped: false,
     ids: () => [],
     reload: () => target.reload?.() ?? false,
+    ...(target.status ? { status: () => target.status!() } : {}),
+    ...(target.error ? { error: () => target.error!() } : {}),
     restore: (value, id) => {
       const resolved = rootTarget(target, id);
-      return resolved.restore
-        ? resolved.restore(value)
-        : resolved.set(value);
+      return resolved.restore ? resolved.restore(value) : resolved.set(value);
     },
     get: (id) => rootTarget(target, id).state(),
     set: (value, id) => rootTarget(target, id).set(value),

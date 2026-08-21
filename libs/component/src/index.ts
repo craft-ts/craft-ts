@@ -4,6 +4,10 @@ export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
 export { bootstrapCraft, type CraftAppRef } from './lib/bootstrap';
+export * from './lib/server-render';
+export * from './lib/hydrate';
+export * from './lib/render/hydration';
+export { createStringDomAdapter } from './lib/render/string-dom';
 // Registers Craft's default pending loader and lazy-route recovery host.
 // Side-effect only: nothing needs to name them, the router resolves them
 // through CRAFT_PENDING_COMPONENT / CRAFT_ROUTE_LOAD_ERROR_COMPONENT.
