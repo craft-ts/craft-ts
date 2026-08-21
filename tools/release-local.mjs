@@ -592,7 +592,10 @@ async function main(args) {
     artifactsDirectory,
   ]);
 
-  commitAll(workspaceRoot, `chore(release): publish ${release.version}`);
+  const workspaceChanged = commitAll(
+    workspaceRoot,
+    `chore(release): publish ${release.version}`,
+  );
   const docsChanged = commitAll(
     docsRepo,
     `docs: deploy craft-ts ${release.version}`,
@@ -605,6 +608,12 @@ async function main(args) {
     effectDemoRepo,
     `chore: sync Effect examples for craft-ts ${release.version}`,
   );
+
+  process.stdout.write('\nPushing release commits before npm publication...\n');
+  if (workspaceChanged) git(workspaceRoot, ['push', 'origin', 'main']);
+  if (docsChanged) git(docsRepo, ['push', 'origin', 'main']);
+  if (demoChanged) git(demoRepo, ['push', 'origin', 'main']);
+  if (effectDemoChanged) git(effectDemoRepo, ['push', 'origin', 'main']);
 
   const plan = parseMetadata(
     run(
@@ -673,10 +682,6 @@ async function main(args) {
     if (release.prerelease === 'true') releaseArguments.push('--prerelease');
     run('gh', releaseArguments);
   }
-
-  if (docsChanged) git(docsRepo, ['push', 'origin', 'main']);
-  if (demoChanged) git(demoRepo, ['push', 'origin', 'main']);
-  if (effectDemoChanged) git(effectDemoRepo, ['push', 'origin', 'main']);
 
   rmSync(artifactsDirectory, { recursive: true, force: true });
   process.stdout.write(
