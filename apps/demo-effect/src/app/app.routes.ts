@@ -17,11 +17,14 @@ import type { Effect } from 'effect';
 import type { AppProvidedEffectServices } from './app.config';
 import { SupportTeamLive } from './shared/access-domain';
 import type { checkUserAccess, loadTeamOverview } from './shared/access-domain';
+import { InMemoryDatabaseLive } from './examples/effect/effect-database';
+import type { getData } from './examples/effect/effect-function';
 
 // Named so `ProvidedEffectServicesOf` can read back what this route actually
 // installs — inlining the array in `loadCraftComponent(...)` below would
 // leave nothing for the DI check further down to type-check against.
 const teamRouteProviders = [provideLayer(SupportTeamLive)] as const;
+const effectFunctionRouteProviders = [provideLayer(InMemoryDatabaseLive)] as const;
 
 export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
@@ -65,11 +68,20 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   },
   {
     path: 'effect-function',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/effect/effect-function')).then(
-        ({ default: component }) => component,
-      ),
+    ...loadCraftComponent(
+      ({ withRetry }) =>
+        withRetry(import('./examples/effect/effect-function')).then(
+          ({ default: component }) => component,
+        ),
+      effectFunctionRouteProviders,
     ),
+    handleExceptions: {
+      DatabaseConnectionError: craftExceptionHandler(function* ({
+        globalError,
+      }) {
+        return globalError();
+      }),
+    },
   },
 ]);
 
@@ -82,6 +94,13 @@ declare module '@craft-ts/core' {
         typeof demoEffectRoutes,
         'access',
         'UserNotFound'
+      >;
+    };
+    'effect-function': {
+      DatabaseConnectionError: CraftRouteExceptionType<
+        typeof demoEffectRoutes,
+        'effect-function',
+        'DatabaseConnectionError'
       >;
     };
   }
@@ -149,3 +168,12 @@ type _CheckTeamOverviewRequirements = EffectRequirementsCheckedDI<
   | ProvidedEffectServicesOf<typeof teamRouteProviders>
 >;
 type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;
+
+// `/effect-function` resolves Database from its own route-scoped in-memory
+// Layer. The operation itself remains a standalone Effect program, so its
+// requirement is checked against the provider installed at that route.
+type _CheckEffectFunctionRequirements = EffectRequirementsCheckedDI<
+  Effect.Services<typeof getData>,
+  AppProvidedEffectServices | ProvidedEffectServicesOf<typeof effectFunctionRouteProviders>
+>;
+type _CanRunEffectFunctionRequirements = CanRun<_CheckEffectFunctionRequirements>;

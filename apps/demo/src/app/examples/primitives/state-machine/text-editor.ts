@@ -12,6 +12,7 @@ import {
 } from '@craft-ts/component';
 import {
   craftComputed,
+  craftMethod,
   craftStateMachine,
   initStateMachine,
   on$,
@@ -103,6 +104,15 @@ const TextEditorStateMachine = craftComponent(
               ? 'step step--active'
               : 'step';
           }),
+          edit: craftMethod('edit', function* () {
+            context.edit$.emit();
+          }),
+          commit: craftMethod('commit', function* () {
+            context.commit$.emit();
+          }),
+          cancel: craftMethod('cancel', function* () {
+            context.cancel$.emit();
+          }),
           ..._context,
         };
       },
@@ -133,7 +143,7 @@ const TextEditorStateMachine = craftComponent(
               {
                 type: 'button',
                 click: function* () {
-                  machine.edit$.emit();
+                  yield* machine.edit();
                 },
               },
               'Edit',
@@ -155,7 +165,7 @@ const TextEditorStateMachine = craftComponent(
                 {
                   type: 'button',
                   click: function* () {
-                    machine.commit$.emit();
+                    yield* machine.commit();
                   },
                 },
                 'Commit',
@@ -166,7 +176,7 @@ const TextEditorStateMachine = craftComponent(
                   type: 'button',
                   class: 'secondary',
                   click: function* () {
-                    machine.cancel$.emit();
+                    yield* machine.cancel();
                   },
                 },
                 'Cancel',

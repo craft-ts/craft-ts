@@ -27,10 +27,14 @@
   ],
   "peerDependencies": {
     "effect": "^4.0.0-rc.110",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "tslib": "^2.3.0"
   },
   "peerDependenciesMeta": {
     "effect": {
+      "optional": true
+    },
+    "rxjs": {
       "optional": true
     }
   },

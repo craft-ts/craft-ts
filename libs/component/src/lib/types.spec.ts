@@ -1,4 +1,4 @@
-import { computed } from '../../../core/src/lib/host/craft-compat';
+import { ɵcomputed as computed } from '@craft-ts/core';
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import {

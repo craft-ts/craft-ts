@@ -102,14 +102,21 @@ export const { demoRoutes } = craftRoutes('demo', [
   },
 
   /* demo-route-end */ /* demo-route: pending-block-exception */
-  {
-    path: 'pending-block/exception',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/component/pending-block-exception-demo'),
-      ).then(({ default: component }) => component),
-    ),
-  },
+  craftRoute(
+    'pending-block/exception',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(
+          import('./examples/component/pending-block-exception-demo'),
+        ).then(({ default: component }) => component),
+      ),
+    },
+    {
+      INVOICE_REJECTED: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
 
   /* demo-route-end */ /* demo-route: css-vars */
   {

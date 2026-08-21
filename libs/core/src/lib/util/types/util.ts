@@ -45,6 +45,7 @@ export function selfStoppingNestedEffect(
   parentInjector: Injector,
   effectFn: (stop: () => void, onCleanup: EffectCleanupRegisterFn) => void,
 ): EffectRef {
+  // eslint-disable-next-line prefer-const -- the callback may stop before the effect ref exists.
   let ref: EffectRef | undefined;
   let stopped = false;
   const stop = () => {

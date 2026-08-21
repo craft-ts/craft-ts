@@ -147,7 +147,7 @@ function packageJson(context: TemplateContext): string {
       'eslint': '^9.0.0',
       'eslint-config-prettier': '^10.0.0',
       'eslint-plugin-playwright': '^2.0.0',
-      'typescript': '^6.0.3',
+      'typescript': '^7.0.2',
       'typescript-eslint': '^8.0.0',
       'vite': '^8.0.0',
       'vitest': '^4.0.0',
@@ -249,7 +249,7 @@ export default defineConfig({
 });
 `;
 
-const eslintConfig = `import js from '@eslint/js';
+const eslintConfig = (effect: boolean) => `import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import playwright from 'eslint-plugin-playwright';
 import tseslint from 'typescript-eslint';
@@ -269,7 +269,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...craftRules.configs.recommended.rules,
+      ...craftRules.configs.${effect ? 'effect' : 'recommended'}.rules,
       '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
     },
   },
@@ -530,15 +530,10 @@ export const WelcomeRepositoryLive = Layer.succeed(WelcomeRepositoryService, {
     }),
 });
 
-export const loadWelcome = (): Effect.Effect<
-  WelcomeResponse,
-  WelcomeApiError,
-  WelcomeRepositoryService
-> =>
-  Effect.gen(function* () {
-    const repository = yield* WelcomeRepositoryService;
-    return yield* repository.load();
-  });
+export const loadWelcome = Effect.gen(function* () {
+  const repository = yield* WelcomeRepositoryService;
+  return yield* repository.load();
+});
 `;
 
 const effectHomePageTs = `import {
@@ -765,7 +760,7 @@ function templates(context: TemplateContext): Record<string, string> {
     ...(effect ? { 'scripts/run-effect-tsgo.mjs': effectTsgoRunner } : {}),
     'vite.config.ts': viteConfig,
     'vitest.config.ts': vitestConfig,
-    'eslint.config.mjs': eslintConfig,
+    'eslint.config.mjs': eslintConfig(effect),
     'playwright.config.ts': playwrightConfig,
     'index.html': indexHtml,
     'README.md': readme(context),

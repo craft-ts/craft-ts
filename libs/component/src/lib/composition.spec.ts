@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-import {
-  signal,
-} from '../../../core/src/lib/host/craft-compat';
+import { craftSignal as signal } from '@craft-ts/core';
 import {
   beforeEach,
   describe,

@@ -254,12 +254,12 @@ const PortableServerFunctionDemo = craftComponent(
             span({ class: 'request-dot' }),
             div([
               strong(function* () {
-                return usersQuery.isLoading
+                return (yield* usersQuery.isLoading())
                   ? 'Calling portable server function…'
                   : 'Portable request ready';
               }),
               small(function* () {
-                return usersQuery.isLoading
+                return (yield* usersQuery.isLoading())
                   ? 'POST /__server-functions · middleware is running'
                   : 'Promise handler · local users.json';
               }),

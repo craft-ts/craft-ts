@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "630519dc542f182d",
+  "graphHash": "59fbf7c4139a13b3",
   "routes": [
     "",
     "access",
@@ -19,6 +19,7 @@ export const architectureCatalog = {
     "BrowserWindowService",
     "ConsoleService",
     "CookiesService",
+    "Database",
     "GlobalPersisterHandlerService",
     "HostName",
     "LocalStoragePersister",
@@ -50,7 +51,6 @@ export const architectureCatalog = {
     "accessReason",
     "copied",
     "effectFunctionQuery",
-    "greeting",
     "hasDecision",
     "hasProfile",
     "instruction",
@@ -82,6 +82,10 @@ export const architectureCatalog = {
       "AccessPolicyService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",
         "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "Database": [
+        "apps/demo-effect/src/app/examples/effect/effect-database.ts",
+        "apps/demo-effect/src/app/examples/effect/effect-database.ts"
       ],
       "SessionService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",

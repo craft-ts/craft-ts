@@ -133,7 +133,7 @@ export const AccessPolicyLive = Layer.sync(AccessPolicyService)(() => ({
 /** Business operation: the component does not resolve AccessPolicyService. */
 export function checkUserAccess(
   userId: string,
-): Effect.Effect<AccessDecision, UserNotFound, AccessPolicyService> {
+) {
   return Effect.gen(function* () {
     const policy = yield* AccessPolicyService;
     return yield* policy.decide(userId);
@@ -160,21 +160,17 @@ export const SupportTeamLive = Layer.succeed(TeamContextService, {
 });
 
 /** Mocked read of a business view requiring both global and route context. */
-export const loadTeamOverview: Effect.Effect<
-  TeamOverview,
-  never,
-  SessionService | TeamContextService
-> = Effect.gen(function* () {
-    yield* Effect.sleep('200 millis');
-    const session = yield* SessionService;
-    const team = yield* TeamContextService;
-    const members = MOCK_USERS.filter((user) => user.teamId === team.id);
+export const loadTeamOverview = Effect.gen(function* () {
+  yield* Effect.sleep('200 millis');
+  const session = yield* SessionService;
+  const team = yield* TeamContextService;
+  const members = MOCK_USERS.filter((user) => user.teamId === team.id);
 
-    return {
-      teamName: team.name,
-      viewerName: session.user.name,
-      viewerAccess:
-        session.user.role === 'admin' ? 'Administrator' : 'Member',
-      members,
-    } satisfies TeamOverview;
-  });
+  return {
+    teamName: team.name,
+    viewerName: session.user.name,
+    viewerAccess:
+      session.user.role === 'admin' ? 'Administrator' : 'Member',
+    members,
+  } satisfies TeamOverview;
+});

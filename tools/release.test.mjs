@@ -157,6 +157,26 @@ test('release checks run typechecking, lint, and architecture verification first
   }
 });
 
+test('release checks execute the documentation test suite', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+
+  assert.match(packageJson.scripts['release:preflight'], /\bnx test docs\b/);
+});
+
+test('local releases run the complete unit and E2E suites', () => {
+  const releaseLocal = readFileSync(
+    new URL('./release-local.mjs', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    releaseLocal,
+    /run\('npx', \[\s*'nx',\s*'run-many',\s*'-t',\s*'test',\s*'e2e-ci',\s*'--all'\s*\]\);/s,
+  );
+});
+
 test('releases all public CraftTS packages as one fixed group', () => {
   assert.deepEqual(
     releasePackages.map(({ name }) => name),

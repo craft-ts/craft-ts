@@ -4,7 +4,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=24.19.0 <25"
+    "node": ">=20.19.0"
   },
   "scripts": {
     "typecheck": "tsc -b tsconfig.json --pretty false",
@@ -15,14 +15,14 @@
     "logs:server": "npm run start --workspace @craft-ts/log-server",
     "logs:mcp": "npm run start --workspace @craft-ts/log-mcp",
     "craft:mcp": "npm run start --workspace @craft-ts/mcp",
-    "release:preflight": "nx run-many --targets=typecheck,lint,architecture --all --skipSync --outputStyle=stream",
+    "release:preflight": "nx run-many --targets=typecheck,lint,architecture --all --skipSync --outputStyle=stream && nx test docs",
     "release:check": "npm run release:preflight && node --test tools/release.test.mjs tools/release-local.test.mjs",
     "release:local": "node tools/release-local.mjs"
   },
   "private": true,
   "devDependencies": {
-    "@effect/tsgo": "^0.24.3",
     "@effect/platform-node": "^4.0.0-rc.110",
+    "@effect/tsgo": "^0.24.3",
     "@eslint/js": "^9.8.0",
     "@nx/devkit": "23.1.1",
     "@nx/eslint": "23.1.1",
@@ -38,8 +38,10 @@
     "@swc/helpers": "~0.5.11",
     "@types/node": "20.19.9",
     "@typescript-eslint/utils": "^8.67.0",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.1.11",
+    "angular-eslint": "^22.1.0",
     "aria-query": "^5.3.2",
     "autoprefixer": "^10.4.0",
     "effect": "^4.0.0-rc.110",
@@ -55,7 +57,6 @@
     "redis": "^6.2.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "@typescript/native": "npm:typescript@7.0.2",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.67.0",
     "verdaccio": "^6.0.5",

@@ -20,9 +20,13 @@ const filterSchema: StandardSchemaV1<FilterInput, FilterInput> = {
       if (
         typeof value === 'object' &&
         value !== null &&
-        typeof value.filter === 'string'
+        typeof (value as { readonly filter?: unknown }).filter === 'string'
       ) {
-        return { value: { filter: value.filter } };
+        return {
+          value: {
+            filter: (value as { readonly filter: string }).filter,
+          },
+        };
       }
       return { issues: [{ message: 'filter must be a string' }] };
     },

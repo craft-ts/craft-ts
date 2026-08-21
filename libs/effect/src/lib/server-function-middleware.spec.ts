@@ -1,4 +1,5 @@
 import { Context, Effect, Exit, Layer, Schema } from 'effect';
+import { createServer, portableServerFunction } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import {
   composeEffect,
@@ -75,11 +76,10 @@ describe('Effect server-function middleware adapter', () => {
           return `${value}:audited`;
         }),
     );
-    const { portableServerFunction } = await import('@craft-ts/core');
     const fn = portableServerFunction('effect.registry', inputSchema)
       .use(withAudit)
       .handler(({ input }) => Effect.succeed(input.value));
-    const server = (await import('@craft-ts/core')).createServer({
+    const server = createServer({
       functions: [fn],
       execute: executeEffect().run,
     });
@@ -97,7 +97,6 @@ describe('Effect server-function middleware adapter', () => {
           return yield* next();
         }),
     );
-    const { portableServerFunction } = await import('@craft-ts/core');
     const fn = portableServerFunction('effect.typed-input', typedInputSchema)
       .use(withAudit)
       // The handler must retain the contract schema after `.use(withAudit)`.

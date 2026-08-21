@@ -1542,6 +1542,7 @@ describe('CraftRouterOutlet (view transitions)', () => {
   it('has already swapped the displayed DOM when the view-transition callback returns', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
+    // eslint-disable-next-line prefer-const -- the provider callback closes over the controller before it is created.
     let outlet!: CraftRouterOutletController;
 
     TestBed.configureTestingModule({

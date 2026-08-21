@@ -78,7 +78,7 @@ export default [
   {
     // Vite/Vitest config files are Node tooling boundaries and intentionally
     // import the shared workspace plugin through a relative path.
-    files: ['vite.config.ts', 'vitest.config.ts'],
+    files: ['**/vite.config.ts', '**/vitest.config.ts'],
     rules: {
       '@nx/enforce-module-boundaries': 'off',
     },

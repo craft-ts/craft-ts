@@ -1,4 +1,3 @@
-import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
 import craftRules from '../dev-tools/src/eslint-rules/index.cjs';
 
@@ -44,6 +43,7 @@ export default [
   {
     files: ['**/*.spec.ts'],
     rules: {
+      '@nx/enforce-module-boundaries': 'off',
       'no-constant-condition': 'off',
       'no-empty': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',

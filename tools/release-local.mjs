@@ -513,6 +513,7 @@ async function main(args) {
   const releaseIsPrepared = releaseIsAlreadyPrepared(release.version);
   run('node', ['tools/release.mjs', 'assert-target', release.version]);
   run('npm', ['run', 'release:check']);
+  run('npx', ['nx', 'run-many', '-t', 'test', 'e2e-ci', '--all']);
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);
   run('npx', [
     'nx',

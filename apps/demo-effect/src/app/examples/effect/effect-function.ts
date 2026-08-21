@@ -3,13 +3,42 @@ import {
   craftComponent,
   div,
   heading,
+  ifBlock,
+  matchBlock,
+  pendingBlock,
   p,
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, settled, type InsertionParams } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
+import { Database } from './effect-database';
+
+/**
+ * The business operation depends on the Database capability, not on a
+ * concrete database implementation. The route supplies that implementation.
+ */
+export const getData = Effect.gen(function* () {
+  const db = yield* Database;
+  return yield* db.query('SELECT id, value FROM demo_data');
+});
+
+type DataInsertionContext = InsertionParams<
+  Effect.Success<typeof getData>,
+  true,
+  { params: unknown; loader: Effect.Error<typeof getData> },
+  Record<never, never>,
+  'effectFunctionQuery'
+>;
+
+const createDataInsertion = ({ resource }: DataInsertionContext) => ({
+  hasData: craftComputed('hasData', () => resource.hasValue()),
+  summary: craftComputed('summary', function* () {
+    const rows = yield* settled(resource);
+    return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
+  }),
+});
 
 const EffectFunctionComponent = craftComponent(
   'EffectFunctionComponent',
@@ -27,43 +56,63 @@ const EffectFunctionComponent = craftComponent(
     `,
   },
   function* () {
-    const greetingQuery = yield* queryEffect('effectFunctionQuery', {
-      params: () => true,
-      loader: () =>
-        Effect.succeed({ library: 'Effect' }).pipe(
-          Effect.map(({ library }) => ({
-            message: `${library} function → Craft component`,
-          })),
-        ),
-    }, ({ resource }) => ({
-      greeting: craftComputed('greeting', function* () {
-        return (yield* resource.value())?.message ?? '…';
-      }),
-    }));
+    const dataQuery = yield* queryEffect(
+      'effectFunctionQuery',
+      {
+        params: () => true,
+        loader: () => getData,
+      },
+      createDataInsertion,
+    );
 
-    return { greeting: greetingQuery.greeting };
+    return {
+      dataQuery,
+      hasData: dataQuery.hasData,
+      summary: dataQuery.summary,
+    };
   },
-  ({ greeting }) =>
+  ({ dataQuery, hasData, summary }) =>
     div([
-      heading('Use a function from Effect'),
+      heading('Use an Effect function with injected Database'),
       p(
         { class: 'intro' },
-        'A Craft query can execute a regular Effect program. The component below does not use a service: its loader calls functions from the Effect package and lets the Craft bridge run the result.',
+        'The component calls getData. That function resolves Database through Effect’s context, while the route provides an in-memory implementation.',
       ),
       div({ class: 'panel' }, [
-        p({ class: 'panel-title' }, 'Effect result'),
-        p({ class: 'result' }, [strong('Result: '), greeting]),
-      ]),
+        p({ class: 'panel-title' }, 'Database result'),
+        ifBlock(
+          dataQuery.isLoading,
+          () => p({ class: 'result' }, 'Connecting to the in-memory database…'),
+          () =>
+            ifBlock(
+              hasData,
+              () => p({ class: 'result' }, [strong('Rows: '), summary]),
+              () =>
+                matchBlock.exhaustive(dataQuery.exceptions.loader, '_tag', {
+                  DatabaseConnectionError: () =>
+                    p(
+                      { class: 'result' },
+                      'DatabaseConnectionError: the in-memory connection failed.',
+                    ),
+                }),
+            ),
+        ),
+      ]).pipe(
+        pendingBlock({
+          fallback: () =>
+            p({ class: 'result' }, 'Connecting to the in-memory database…'),
+        }),
+      ),
       p({ class: 'note' }, [
-        'The example imports ',
-        span({ class: 'mono' }, 'Effect.succeed'),
-        ' and ',
-        span({ class: 'mono' }, 'Effect.map'),
-        ' from ',
-        span({ class: 'mono' }, 'effect'),
-        ' in a ',
-        span({ class: 'mono' }, 'queryEffect'),
-        ' loader.',
+        'The route provides ',
+        span({ class: 'mono' }, 'InMemoryDatabaseLive'),
+        '. The loader only yields ',
+        span({ class: 'mono' }, 'getData'),
+        ', and the typed Effect failure is rendered by ',
+        span({ class: 'mono' }, 'matchBlock'),
+        ' after the ',
+        span({ class: 'mono' }, 'pendingBlock'),
+        ' has shown the connection state.',
       ]),
     ]),
 );

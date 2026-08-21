@@ -116,8 +116,8 @@ export const pendingBlockDemo = craftComponent(
       ]).pipe(
         // One boundary covers both computeds. Remove this line and
         // `craftComponent(...)` refuses to compile, naming the "users" source.
-        pendingBlock.exhaustive({
-          users: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
+        pendingBlock({
+          fallback: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
         }),
       ),
     ]),

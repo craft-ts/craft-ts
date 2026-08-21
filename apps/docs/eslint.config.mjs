@@ -31,4 +31,17 @@ export default [
       '@typescript-eslint/no-empty-function': 'off',
     },
   },
+  {
+    // Snippets are executable documentation and intentionally preserve
+    // imperative examples that production Craft modules reject.
+    files: ['**/tests/snippets/**/*.ts'],
+    rules: {
+      'craft-ts/no-craft-use': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/no-direct-temporal-globals': 'off',
+      'craft-ts/require-assert-exhaustive-route-exceptions': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
 ];

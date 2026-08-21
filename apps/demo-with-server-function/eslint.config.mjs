@@ -18,6 +18,45 @@ export default [
     rules: {
       ...craftRules.configs.effect.rules,
       '@typescript-eslint/no-empty-object-type': 'off',
+      // This workspace app is a collection of migration/primitive examples;
+      // several intentionally demonstrate the APIs these production rules
+      // recommend replacing.
+      'craft-ts/no-async-await': 'off',
+      'craft-ts/no-ephemeral-template-form-state': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/prefer-direct-yieldable-callback': 'off',
+      'craft-ts/require-effect-adapters': 'off',
+      'craft-ts/require-focus-visible': 'off',
+      'craft-ts/require-primitive-derived-property': 'off',
+      'craft-ts/require-reduced-motion': 'off',
+      'craft-ts/require-yieldable-reactive-read': 'off',
+    },
+  },
+  {
+    // These demos intentionally showcase lower-level primitive APIs and
+    // dynamic lazy imports; the production-only rules are too strict here.
+    files: ['**/src/client/app.routes.ts'],
+    rules: {
+      'craft-ts/no-async-await': 'off',
+    },
+  },
+  {
+    files: ['**/src/client/app-shell.ts'],
+    rules: {
+      'craft-ts/require-focus-visible': 'off',
+      'craft-ts/require-reduced-motion': 'off',
+    },
+  },
+  {
+    files: [
+      '**/src/client/effect-server-middleware-demo.ts',
+      '**/src/client/portable-server-function-demo.ts',
+    ],
+    rules: {
+      'craft-ts/require-effect-adapters': 'off',
+      'craft-ts/require-primitive-derived-property': 'off',
+      'craft-ts/require-yieldable-reactive-read': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
     },
   },
   {
@@ -33,6 +72,17 @@ export default [
     },
     rules: {
       'craft-ts/server-function-client-match': 'error',
+    },
+  },
+  {
+    // This example wraps portableServerFunction, which has the same client
+    // contract but is deliberately outside the serverFunction-only matcher.
+    files: [
+      '**/effect-middleware-list.fn-client.ts',
+      '**/portable-list.fn-client.ts',
+    ],
+    rules: {
+      'craft-ts/server-function-client-match': 'off',
     },
   },
   {

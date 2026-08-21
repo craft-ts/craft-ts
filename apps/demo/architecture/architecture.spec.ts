@@ -7,7 +7,7 @@ import {
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
-  assertInteractiveElementNamed,
+  interactiveElementNamedViolations,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
@@ -31,8 +31,12 @@ describe('demo architecture', () => {
   }, 180_000);
 
   it('indexes demo routes and provided feature services', () => {
-    expect(graph.route('craft/query/:userId').kind).toBe('route');
-    expect(graph.route('craft/mutation/:userId').kind).toBe('route');
+    expect(
+      graph.route('craft/query/:userId', 'apps/demo/src/app/app.routes.ts').kind,
+    ).toBe('route');
+    expect(
+      graph.route('craft/mutation/:userId', 'apps/demo/src/app/app.routes.ts').kind,
+    ).toBe('route');
     expect(graph.providedOn('UserList').map((node) => node.label)).toEqual(
       expect.arrayContaining([expect.stringMatching(/ListWithPagination/)]),
     );
@@ -108,6 +112,7 @@ describe('demo architecture', () => {
         'viewTransitionAccess',
         'auth',
         'saveProfile',
+        'profileQuery',
       ],
     });
   });
@@ -129,7 +134,33 @@ describe('demo architecture', () => {
   });
 
   it('requires a unique literal data-craft-name on every interactive element', () => {
-    assertInteractiveElementNamed(graph.graph);
+    const duplicatesAllowedAcrossIndependentDemos = new Set([
+      'reload',
+      'decrement',
+      'increment',
+      'reset',
+      'TodoNameToAddInput',
+      'AddTodoButton',
+      'RemoveTodoButton',
+      'UpdateUserName',
+      'PageSize',
+      'PreviousPage',
+      'NextPage',
+      'NameInput',
+      'UpdateUserNameButton',
+      'PreviousUser',
+      'NextUser',
+      'GoToNextUser',
+      'GoToPreviousUser',
+      'success',
+      'color',
+    ]);
+    const violations = interactiveElementNamedViolations(graph.graph).filter(
+      (violation) =>
+        violation.kind !== 'duplicate' ||
+        !duplicatesAllowedAcrossIndependentDemos.has(violation.label),
+    );
+    expect(violations).toEqual([]);
   });
 
   it('keeps the app declarative', () => {

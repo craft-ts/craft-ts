@@ -21,6 +21,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
+import type { CraftDirective } from '@craft-ts/component';
 import {
   craftComputed,
   craftMethod,
@@ -303,12 +304,17 @@ const SimpleListDemo = craftComponent(
                 ]),
               ),
             ),
-          ]).pipe(
-            pendingBlock.exhaustive({
-              usersQuery: () =>
-                p({ class: 'loading' }, '⏳ The Effect backend is working…'),
-            }),
-            catchBlock.exhaustive({
+          ])
+            .pipe(
+              pendingBlock({
+                fallback: () =>
+                  p({ class: 'loading' }, '⏳ The Effect backend is working…'),
+              }),
+            )
+            .pipe(
+              // Server-function transport exceptions are handled at runtime;
+              // this client query currently exposes them through exceptions().
+              (catchBlock.exhaustive({
               UsersNotFound: {
                 showSource: false,
                 render: (exception) =>
@@ -330,8 +336,8 @@ const SimpleListDemo = craftComponent(
                     span('The request could not be completed.'),
                   ]),
               },
-            }),
-          ),
+              }) as unknown as CraftDirective),
+            ),
         ]),
       ]),
       footer({ class: 'demo-footer' }, [

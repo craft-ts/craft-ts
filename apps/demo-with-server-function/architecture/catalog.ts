@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "209aa81c57947cbb",
+  "graphHash": "57fa500d3c69684a",
   "routes": [
     "",
     "authenticated-list",
@@ -30,6 +30,7 @@ export const architectureCatalog = {
     "SessionStoragePersister",
     "SessionStorageService",
     "StoragePersister",
+    "StorageService",
     "UserRepository",
     "api"
   ],
@@ -82,13 +83,13 @@ export const architectureCatalog = {
     "requestDetail",
     "requestTitle",
     "resultCount",
-    "runEffectMiddlewareScenario",
     "searchInput",
     "setCopied",
     "setInstruction",
-    "submitEffectMiddlewareSearch",
     "submitPortableSearch",
     "submitSearch",
+    "users",
+    "usersFilter",
     "usersQuery"
   ],
   "sources": [

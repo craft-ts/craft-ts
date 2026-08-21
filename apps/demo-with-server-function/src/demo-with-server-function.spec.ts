@@ -128,6 +128,9 @@ describe('demo with server function', () => {
         filter: 'ada',
         users: [{ id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' }],
       });
+      if (!('auditId' in response) || !('scanned' in response)) {
+        throw new Error('portable list returned an error');
+      }
       expect(typeof response.auditId).toBe('string');
       expect(response.scanned).toBeGreaterThan(0);
     } finally {

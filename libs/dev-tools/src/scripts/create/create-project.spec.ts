@@ -26,12 +26,14 @@ describe('createCraftProject', () => {
     const result = await createFixture('plain');
     const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
       scripts: Record<string, string>;
     };
 
     expect(result.mode).toBe('plain');
     expect(packageJson.dependencies['@craft-ts/core']).toBeDefined();
     expect(packageJson.dependencies.effect).toBeUndefined();
+    expect(packageJson.devDependencies?.typescript).toBe('^7.0.2');
     expect(packageJson.scripts).toMatchObject({
       lint: 'eslint .',
       architecture: expect.stringContaining('vitest'),
@@ -51,13 +53,18 @@ describe('createCraftProject', () => {
     const result = await createFixture('effect', ['codex']);
     const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
     };
 
     expect(packageJson.dependencies.effect).toBe('^4.0.0-rc.110');
     expect(packageJson.dependencies['@craft-ts/effect']).toBeDefined();
+    expect(packageJson.devDependencies?.typescript).toBe('^7.0.2');
     expect(await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8')).toContain('Layer.succeed');
     expect(await readFile(join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'), 'utf8')).toContain('Effect v4');
     expect(await readFile(join(result.directory, 'README.md'), 'utf8')).toContain('effect-check');
+    expect(await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8')).toContain(
+      'craftRules.configs.effect.rules',
+    );
   });
 });
 

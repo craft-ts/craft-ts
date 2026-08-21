@@ -43,12 +43,23 @@ export const { appRoutes } = craftRoutes('app', [
       }),
     },
   ),
-  craftRoute('simple-list', {
-    ...loadCraftComponent(async () => {
-      const { SimpleListDemo } = await import('./simple-list-demo');
-      return SimpleListDemo;
-    }),
-  }),
+  craftRoute(
+    'simple-list',
+    {
+      ...loadCraftComponent(async () => {
+        const { SimpleListDemo } = await import('./simple-list-demo');
+        return SimpleListDemo;
+      }),
+    },
+    {
+      HttpError: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      UsersNotFound: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
   craftRoute(
     'portable',
     {

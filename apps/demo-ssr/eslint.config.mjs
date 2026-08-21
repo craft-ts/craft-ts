@@ -5,6 +5,15 @@ export default [
   { ignores: ['**/architecture/catalog.ts'] },
   ...baseConfig,
   {
+    files: ['**/src/**/*.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      'craft-ts/no-explicit-effect-type': 'error',
+    },
+  },
+  {
     // These provider-context rules belong at the route/config boundary. The
     // SSR pages intentionally contain renderer-specific examples that are not
     // the subject of this app-level architecture check.

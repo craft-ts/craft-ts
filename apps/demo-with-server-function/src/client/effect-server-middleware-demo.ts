@@ -17,7 +17,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, query, state } from '@craft-ts/core';
+import { craftComputed, query, state } from '@craft-ts/core';
 import { getEffectMiddlewareUsers } from '../users/effect-middleware-list.fn-client';
 
 const EffectServerMiddlewareDemo = craftComponent(
@@ -130,22 +130,18 @@ const EffectServerMiddlewareDemo = craftComponent(
         !(yield* hasServerError())
       );
     });
-    const runScenario = craftMethod(
-      'runEffectMiddlewareScenario',
-      function* (simulateError: 'none' | 'middleware' | 'handler') {
-        yield* usersQuery.call({
-          filter: (yield* filter()).trim(),
-          simulateError,
-        });
-      },
-    );
-    const submit = craftMethod(
-      'submitEffectMiddlewareSearch',
-      function* (event?: Event) {
-        event?.preventDefault();
-        yield* runScenario('none');
-      },
-    );
+    function* runScenario(
+      simulateError: 'none' | 'middleware' | 'handler',
+    ) {
+      yield* usersQuery.call({
+        filter: (yield* filter()).trim(),
+        simulateError,
+      });
+    }
+    function* submit(event?: Event) {
+      event?.preventDefault();
+      yield* runScenario('none');
+    }
     return {
       filter,
       setFilter: filter.setEffectMiddlewareFilter,
@@ -240,7 +236,7 @@ const EffectServerMiddlewareDemo = craftComponent(
             ),
           ]),
           div({ class: 'status' }, function* () {
-            return usersQuery.isLoading
+            return (yield* usersQuery.isLoading())
               ? 'Effect middleware is running…'
               : 'Effect middleware ready';
           }),
