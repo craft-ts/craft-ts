@@ -435,12 +435,20 @@ async function askForConfirmation(
   }
 }
 
-export function npmPublishArguments(packageRoot, channel) {
-  return ['publish', packageRoot, '--tag', channel, '--access', 'public'];
+export function npmPublishArguments(packageRoot, channel, otp = '') {
+  return [
+    'publish',
+    packageRoot,
+    '--tag',
+    channel,
+    '--access',
+    'public',
+    ...(otp ? [`--otp=${otp}`] : []),
+  ];
 }
 
-function publishPackage(packageRoot, channel) {
-  run('npm', npmPublishArguments(packageRoot, channel));
+function publishPackage(packageRoot, channel, otp) {
+  run('npm', npmPublishArguments(packageRoot, channel, otp));
 }
 
 function verifyPublishedArtifacts(version, manifestPath) {
@@ -472,8 +480,12 @@ function verifyPublishedArtifacts(version, manifestPath) {
 
 async function main(args) {
   const [argument, ...flags] = args;
+  const otpFlag = flags.find((flag) => flag.startsWith('--otp='));
+  const otp = otpFlag?.slice('--otp='.length) ?? '';
   const allowedFlags = new Set(['--dry-run', '--yes']);
-  const unknownFlag = flags.find((flag) => !allowedFlags.has(flag));
+  const unknownFlag = flags.find(
+    (flag) => !allowedFlags.has(flag) && !flag.startsWith('--otp='),
+  );
   if (unknownFlag) {
     throw new Error(`Unknown release option: ${unknownFlag}`);
   }
@@ -608,7 +620,11 @@ async function main(args) {
   );
   for (const pkg of releasePackages) {
     if (plan[pkg.key] === 'publish') {
-      publishPackage(resolve(workspaceRoot, pkg.distRoot), release.channel);
+      publishPackage(
+        resolve(workspaceRoot, pkg.distRoot),
+        release.channel,
+        otp,
+      );
     }
   }
 

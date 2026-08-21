@@ -51,6 +51,15 @@ test('publishes fixed-group packages directly from their dist directories', () =
     '--access',
     'public',
   ]);
+  assert.deepEqual(npmPublishArguments('dist/libs/core', 'beta', '123456'), [
+    'publish',
+    'dist/libs/core',
+    '--tag',
+    'beta',
+    '--access',
+    'public',
+    '--otp=123456',
+  ]);
 });
 
 test('keeps internal peer dependencies on the release line', () => {
