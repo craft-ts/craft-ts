@@ -28,6 +28,10 @@ the global session Layer from `app.config.ts` and the route-scoped team Layer
 from the route's `providers`. The query returns a `TeamOverview`, not the
 services used to build it.
 
+The `/effect-function` example runs a plain `Effect.succeed(...).pipe(Effect.map(...))`
+program from a `queryEffect` loader, showing that functions imported directly from
+the `effect` package can be used with Craft too.
+
 Use `computedEffect`, `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
 between an Effect domain and a Craft primitive. `params` and `method` remain
 synchronous; only `loader` returns an Effect. The Effect ESLint rule prevents

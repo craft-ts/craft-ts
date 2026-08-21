@@ -1,10 +1,11 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "b8dd55fe13ed6b37",
+  "graphHash": "630519dc542f182d",
   "routes": [
     "",
     "access",
+    "effect-function",
     "team"
   ],
   "services": [
@@ -27,6 +28,7 @@ export const architectureCatalog = {
     "SessionStoragePersister",
     "SessionStorageService",
     "StoragePersister",
+    "StorageService",
     "TeamContextService",
     "api"
   ],
@@ -36,6 +38,7 @@ export const architectureCatalog = {
     "AnonymousComponent@800",
     "App",
     "CraftRouterOutlet",
+    "EffectFunctionComponent",
     "EffectLayerScopeComponent",
     "EffectSharedServiceComponent",
     "EffectYieldComponent",
@@ -46,7 +49,8 @@ export const architectureCatalog = {
     "accessQuery",
     "accessReason",
     "copied",
-    "exception",
+    "effectFunctionQuery",
+    "greeting",
     "hasDecision",
     "hasProfile",
     "instruction",

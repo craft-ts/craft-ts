@@ -128,7 +128,7 @@ const PixelArt = craftComponent(
           },
           title: `Cell ${currentIndex + 1}`,
           *click() {
-            yield* paintCell(currentIndex);
+            paintCell(currentIndex);
           },
         }),
     );

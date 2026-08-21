@@ -1,12 +1,14 @@
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "58498e779c7a6da6",
+  "graphHash": "630519dc542f182d",
   "routes": [
     "",
-    "layer-scope",
-    "shared-service"
+    "access",
+    "effect-function",
+    "team"
   ],
   "services": [
+    "AccessPolicyService",
     "BrowserCryptoService",
     "BrowserDocumentService",
     "BrowserHistoryService",
@@ -16,17 +18,17 @@ export const architectureCatalog = {
     "BrowserWindowService",
     "ConsoleService",
     "CookiesService",
-    "GlobalLayerService",
     "GlobalPersisterHandlerService",
-    "GreetingService",
     "HostName",
     "LocalStoragePersister",
     "LocalStorageService",
-    "RouteLayerService",
     "ServerFunctionTransport",
+    "SessionService",
     "SessionStoragePersister",
     "SessionStorageService",
     "StoragePersister",
+    "StorageService",
+    "TeamContextService",
     "api"
   ],
   "components": [
@@ -35,24 +37,33 @@ export const architectureCatalog = {
     "AnonymousComponent@800",
     "App",
     "CraftRouterOutlet",
+    "EffectFunctionComponent",
     "EffectLayerScopeComponent",
     "EffectSharedServiceComponent",
     "EffectYieldComponent",
     "craftPending"
   ],
   "primitives": [
+    "accessLabel",
+    "accessQuery",
+    "accessReason",
     "copied",
-    "globalLabel",
+    "effectFunctionQuery",
     "greeting",
-    "hasUser",
+    "hasDecision",
+    "hasProfile",
     "instruction",
-    "request",
-    "routeLabel",
+    "memberNames",
+    "profileName",
+    "profileQuery",
     "setCopied",
     "setInstruction",
-    "userExceptionLoader",
-    "userIsLoading",
-    "userName"
+    "showUnknown",
+    "teamName",
+    "teamOverviewQuery",
+    "userName",
+    "viewerAccess",
+    "viewerName"
   ],
   "sources": [
     "signalSource (signalSource)",
@@ -66,7 +77,20 @@ export const architectureCatalog = {
   "componentProviders": {},
   "providedOn": {},
   "collisions": {
-    "services": {},
+    "services": {
+      "AccessPolicyService": [
+        "apps/demo-effect/src/app/shared/access-domain.ts",
+        "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "SessionService": [
+        "apps/demo-effect/src/app/shared/access-domain.ts",
+        "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "TeamContextService": [
+        "apps/demo-effect/src/app/shared/access-domain.ts",
+        "apps/demo-effect/src/app/shared/access-domain.ts"
+      ]
+    },
     "components": {},
     "routes": {}
   },

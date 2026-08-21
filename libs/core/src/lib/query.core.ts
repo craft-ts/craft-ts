@@ -602,9 +602,26 @@ export type InsertionParams<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
-  resource: YieldableReactiveProperties<
-    CraftResourceRef<ResourceState, ResourceParams>
-  >;
+  resource: Omit<
+    YieldableReactiveProperties<
+      Omit<
+        CraftResourceRef<
+          ResourceState,
+          ResourceParams,
+          PrimitiveName,
+          Exceptions['params'] | Exceptions['loader']
+        >,
+        'settledValue'
+      >
+    >,
+    'settledValue'
+  > & {
+    readonly settledValue: CraftSettledYieldableValue<
+      NonNullable<ResourceState>,
+      PrimitiveName,
+      Exceptions['params'] | Exceptions['loader']
+    >;
+  };
   resourceParamsSrc: YieldableReactiveSignal<
     WritableSignal<ResourceParams | undefined>,
     'resourceParamsSrc'

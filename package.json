@@ -15,7 +15,8 @@
     "logs:server": "npm run start --workspace @craft-ts/log-server",
     "logs:mcp": "npm run start --workspace @craft-ts/log-mcp",
     "craft:mcp": "npm run start --workspace @craft-ts/mcp",
-    "release:check": "node --test tools/release.test.mjs tools/release-local.test.mjs",
+    "release:preflight": "nx run-many --targets=typecheck,lint,architecture --all --skipSync --outputStyle=stream",
+    "release:check": "npm run release:preflight && node --test tools/release.test.mjs tools/release-local.test.mjs",
     "release:local": "node tools/release-local.mjs"
   },
   "private": true,

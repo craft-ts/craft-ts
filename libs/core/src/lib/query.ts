@@ -905,7 +905,7 @@ export function query<
   >
 >;
 export function query<
-  Name extends string,
+  const Name extends string,
   QueryState extends object | undefined,
   QueryParams,
   QueryArgsParams,

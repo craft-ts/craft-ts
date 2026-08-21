@@ -63,6 +63,14 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
       teamRouteProviders,
     ),
   },
+  {
+    path: 'effect-function',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/effect/effect-function')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
 ]);
 
 assertExhaustiveRouteExceptions(demoEffectRoutes);
@@ -110,6 +118,16 @@ type _CheckEffectLayerScopeDI = RouteCheckedDI<
   'component: effect-layer-scope'
 >;
 type _CanRunEffectLayerScope = CanRun<_CheckEffectLayerScopeDI>;
+
+type _CheckEffectFunctionDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./examples/effect/effect-function'))['default']
+  >,
+  'CraftRouter',
+  never,
+  'component: effect-function'
+>;
+type _CanRunEffectFunction = CanRun<_CheckEffectFunctionDI>;
 
 // EffectRequirementsCheckedDI proofs — the DI check above only covers
 // `injectX`-style craft services. `checkUserAccess`/`loadTeamOverview` are

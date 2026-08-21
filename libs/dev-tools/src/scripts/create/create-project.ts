@@ -203,7 +203,11 @@ const tsconfigEffect = `{
 const viteConfig = `import { defineConfig } from 'vite';
 
 export default defineConfig({
-  server: { host: '127.0.0.1', port: 4173 },
+  server: {
+    host: '127.0.0.1',
+    port: 4173,
+    forwardConsole: true,
+  },
   build: { target: 'es2022' },
 });
 `;

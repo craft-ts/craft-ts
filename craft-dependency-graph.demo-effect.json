@@ -8,7 +8,7 @@
       "kind": "app-config",
       "label": "appConfig",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.config.ts",
-      "line": 13,
+      "line": 14,
       "details": {
         "hasGlobalError": false,
         "hasRouteLoadError": false
@@ -19,14 +19,7 @@
       "kind": "component",
       "label": "App",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts",
-      "line": 21
-    },
-    {
-      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-      "kind": "component",
-      "label": "EffectLayerScopeComponent",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
-      "line": 20
+      "line": 22
     },
     {
       "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
@@ -36,11 +29,25 @@
       "line": 20
     },
     {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:EffectFunctionComponent",
+      "kind": "component",
+      "label": "EffectFunctionComponent",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts",
+      "line": 14
+    },
+    {
       "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
       "kind": "component",
       "label": "EffectYieldComponent",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 75
+      "line": 23
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "kind": "component",
+      "label": "EffectLayerScopeComponent",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 20
     },
     {
       "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:AiContextMenu",
@@ -94,120 +101,344 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:76",
-      "kind": "primitive",
-      "label": "craftComputed:globalLabel",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
-      "line": 76,
+      "id": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.config.ts#appConfig",
+      "kind": "effect-layer",
+      "label": "appConfig",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.config.ts",
+      "line": 14,
       "details": {
-        "primitive": "craftComputed",
-        "name": "globalLabel",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-        "usage": "globalLabel"
+        "runtime": "effect",
+        "layerName": "appConfig",
+        "providedServices": [],
+        "requiredServices": [],
+        "compositions": [],
+        "resolution": "unknown"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:82",
-      "kind": "primitive",
-      "label": "craftComputed:routeLabel",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
-      "line": 82,
+      "id": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#AccessPolicyLive",
+      "kind": "effect-layer",
+      "label": "AccessPolicyLive",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 97,
       "details": {
-        "primitive": "craftComputed",
-        "name": "routeLabel",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-        "usage": "routeLabel"
+        "runtime": "effect",
+        "layerName": "AccessPolicyLive",
+        "providedServices": [
+          "AccessPolicyService"
+        ],
+        "requiredServices": [],
+        "compositions": [],
+        "resolution": "complete"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:83",
+      "id": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#SessionLive",
+      "kind": "effect-layer",
+      "label": "SessionLive",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 148,
+      "details": {
+        "runtime": "effect",
+        "layerName": "SessionLive",
+        "providedServices": [
+          "SessionService"
+        ],
+        "requiredServices": [],
+        "compositions": [],
+        "resolution": "complete"
+      }
+    },
+    {
+      "id": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#SupportTeamLive",
+      "kind": "effect-layer",
+      "label": "SupportTeamLive",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 157,
+      "details": {
+        "runtime": "effect",
+        "layerName": "SupportTeamLive",
+        "providedServices": [
+          "TeamContextService"
+        ],
+        "requiredServices": [],
+        "compositions": [],
+        "resolution": "complete"
+      }
+    },
+    {
+      "id": "effect-operation:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#checkUserAccess",
+      "kind": "effect-operation",
+      "label": "checkUserAccess",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 134,
+      "details": {
+        "runtime": "effect",
+        "operationName": "checkUserAccess",
+        "resolution": "static"
+      }
+    },
+    {
+      "id": "effect-operation:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#loadTeamOverview",
+      "kind": "effect-operation",
+      "label": "loadTeamOverview",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 163,
+      "details": {
+        "runtime": "effect",
+        "operationName": "loadTeamOverview",
+        "resolution": "static"
+      }
+    },
+    {
+      "id": "effect-service:AccessPolicyService",
+      "kind": "effect-service",
+      "label": "AccessPolicyService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 92,
+      "details": {
+        "runtime": "effect",
+        "tag": "demo-effect/AccessPolicyService",
+        "serviceName": "AccessPolicyService"
+      }
+    },
+    {
+      "id": "effect-service:SessionService",
+      "kind": "effect-service",
+      "label": "SessionService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 143,
+      "details": {
+        "runtime": "effect",
+        "tag": "demo-effect/SessionService",
+        "serviceName": "SessionService"
+      }
+    },
+    {
+      "id": "effect-service:TeamContextService",
+      "kind": "effect-service",
+      "label": "TeamContextService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 152,
+      "details": {
+        "runtime": "effect",
+        "tag": "demo-effect/TeamContextService",
+        "serviceName": "TeamContextService"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:45",
       "kind": "primitive",
-      "label": "craftComputed:greeting",
+      "label": "craftComputed:hasDecision",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
-      "line": 83,
+      "line": 45,
       "details": {
         "primitive": "craftComputed",
-        "name": "greeting",
+        "name": "hasDecision",
         "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-        "usage": "greeting"
+        "usage": "hasDecision"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:state:70",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:46",
       "kind": "primitive",
-      "label": "state:request",
+      "label": "craftComputed:showUnknown",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
-      "line": 70,
+      "line": 46,
       "details": {
-        "primitive": "state",
-        "name": "request",
+        "primitive": "craftComputed",
+        "name": "showUnknown",
         "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-        "usage": "request"
+        "usage": "showUnknown"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:181",
-      "kind": "primitive",
-      "label": "craftComputed:hasUser",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 181,
-      "details": {
-        "primitive": "craftComputed",
-        "name": "hasUser",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-        "usage": "hasUser"
-      }
-    },
-    {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:182",
-      "kind": "primitive",
-      "label": "craftComputed:userExceptionLoader",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 182,
-      "details": {
-        "primitive": "craftComputed",
-        "name": "userExceptionLoader",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-        "usage": "userExceptionLoader"
-      }
-    },
-    {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:188",
-      "kind": "primitive",
-      "label": "craftComputed:userIsLoading",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 188,
-      "details": {
-        "primitive": "craftComputed",
-        "name": "userIsLoading",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-        "usage": "userIsLoading"
-      }
-    },
-    {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:192",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:50",
       "kind": "primitive",
       "label": "craftComputed:userName",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 192,
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 50,
       "details": {
         "primitive": "craftComputed",
         "name": "userName",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
         "usage": "userName"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:state:165",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:53",
       "kind": "primitive",
-      "label": "state:request",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 165,
+      "label": "craftComputed:accessLabel",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 53,
       "details": {
-        "primitive": "state",
-        "name": "request",
+        "primitive": "craftComputed",
+        "name": "accessLabel",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+        "usage": "accessLabel"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:56",
+      "kind": "primitive",
+      "label": "craftComputed:accessReason",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 56,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "accessReason",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+        "usage": "accessReason"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "kind": "primitive",
+      "label": "queryEffect:accessQuery",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 38,
+      "details": {
+        "primitive": "queryEffect",
+        "name": "accessQuery",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+        "usage": "accessQuery",
+        "loaderRequirements": [
+          "AccessPolicyService"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:craftComputed:39",
+      "kind": "primitive",
+      "label": "craftComputed:greeting",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts",
+      "line": 39,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "greeting",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:EffectFunctionComponent",
+        "usage": "greeting"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30",
+      "kind": "primitive",
+      "label": "queryEffect:effectFunctionQuery",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts",
+      "line": 30,
+      "details": {
+        "primitive": "queryEffect",
+        "name": "effectFunctionQuery",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:EffectFunctionComponent",
+        "usage": "greetingQuery"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:50",
+      "kind": "primitive",
+      "label": "craftComputed:hasProfile",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 50,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "hasProfile",
         "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-        "usage": "request"
+        "usage": "hasProfile"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:51",
+      "kind": "primitive",
+      "label": "craftComputed:profileName",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 51,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "profileName",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
+        "usage": "profileName"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "kind": "primitive",
+      "label": "queryEffect:profileQuery",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 43,
+      "details": {
+        "primitive": "queryEffect",
+        "name": "profileQuery",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
+        "usage": "profileQuery"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:44",
+      "kind": "primitive",
+      "label": "craftComputed:teamName",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 44,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "teamName",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+        "usage": "teamName"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:47",
+      "kind": "primitive",
+      "label": "craftComputed:viewerName",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 47,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "viewerName",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+        "usage": "viewerName"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:50",
+      "kind": "primitive",
+      "label": "craftComputed:viewerAccess",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 50,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "viewerAccess",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+        "usage": "viewerAccess"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:53",
+      "kind": "primitive",
+      "label": "craftComputed:memberNames",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 53,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "memberNames",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+        "usage": "memberNames"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "kind": "primitive",
+      "label": "queryEffect:teamOverviewQuery",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 37,
+      "details": {
+        "primitive": "queryEffect",
+        "name": "teamOverviewQuery",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+        "usage": "teamOverviewQuery",
+        "loaderRequirements": [
+          "SessionService",
+          "TeamContextService"
+        ]
       }
     },
     {
@@ -261,23 +492,135 @@
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:state:70:greet",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:call",
       "kind": "property",
-      "label": "state:request.greet",
+      "label": "queryEffect:accessQuery.call",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
-      "line": 110,
+      "line": 79,
       "details": {
-        "member": "greet"
+        "member": "call"
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:state:165:run",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:hasValue",
       "kind": "property",
-      "label": "state:request.run",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 226,
+      "label": "queryEffect:accessQuery.hasValue",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 45,
       "details": {
-        "member": "run"
+        "member": "hasValue"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:isLoading",
+      "kind": "property",
+      "label": "queryEffect:accessQuery.isLoading",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 48,
+      "details": {
+        "member": "isLoading"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:value",
+      "kind": "property",
+      "label": "queryEffect:accessQuery.value",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
+      "line": 51,
+      "details": {
+        "member": "value"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30:value",
+      "kind": "property",
+      "label": "queryEffect:effectFunctionQuery.value",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts",
+      "line": 40,
+      "details": {
+        "member": "value"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:call",
+      "kind": "property",
+      "label": "queryEffect:profileQuery.call",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 78,
+      "details": {
+        "member": "call"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:exceptions",
+      "kind": "property",
+      "label": "queryEffect:profileQuery.exceptions",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 125,
+      "details": {
+        "member": "exceptions"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:hasValue",
+      "kind": "property",
+      "label": "queryEffect:profileQuery.hasValue",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 50,
+      "details": {
+        "member": "hasValue"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:status",
+      "kind": "property",
+      "label": "queryEffect:profileQuery.status",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 66,
+      "details": {
+        "member": "status"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:value",
+      "kind": "property",
+      "label": "queryEffect:profileQuery.value",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 52,
+      "details": {
+        "member": "value"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37:value",
+      "kind": "property",
+      "label": "queryEffect:teamOverviewQuery.value",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts",
+      "line": 45,
+      "details": {
+        "member": "value"
+      }
+    },
+    {
+      "id": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CanRunAccessQueryRequirements",
+      "kind": "route-check",
+      "label": "CanRun _CanRunAccessQueryRequirements",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
+      "line": 141,
+      "details": {
+        "mechanism": "CanRun",
+        "name": "_CanRunAccessQueryRequirements"
+      }
+    },
+    {
+      "id": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CanRunEffectFunction",
+      "kind": "route-check",
+      "label": "CanRun _CanRunEffectFunction",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
+      "line": 130,
+      "details": {
+        "mechanism": "CanRun",
+        "name": "_CanRunEffectFunction"
       }
     },
     {
@@ -285,7 +628,7 @@
       "kind": "route-check",
       "label": "CanRun _CanRunEffectLayerScope",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 80,
+      "line": 120,
       "details": {
         "mechanism": "CanRun",
         "name": "_CanRunEffectLayerScope"
@@ -296,7 +639,7 @@
       "kind": "route-check",
       "label": "CanRun _CanRunEffectSharedService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 70,
+      "line": 110,
       "details": {
         "mechanism": "CanRun",
         "name": "_CanRunEffectSharedService"
@@ -307,10 +650,32 @@
       "kind": "route-check",
       "label": "CanRun _CanRunEffectYield",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 60,
+      "line": 100,
       "details": {
         "mechanism": "CanRun",
         "name": "_CanRunEffectYield"
+      }
+    },
+    {
+      "id": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CanRunTeamOverviewRequirements",
+      "kind": "route-check",
+      "label": "CanRun _CanRunTeamOverviewRequirements",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
+      "line": 151,
+      "details": {
+        "mechanism": "CanRun",
+        "name": "_CanRunTeamOverviewRequirements"
+      }
+    },
+    {
+      "id": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CheckEffectFunctionDI",
+      "kind": "route-check",
+      "label": "RouteCheckedDI _CheckEffectFunctionDI",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
+      "line": 122,
+      "details": {
+        "mechanism": "RouteCheckedDI",
+        "name": "_CheckEffectFunctionDI"
       }
     },
     {
@@ -318,7 +683,7 @@
       "kind": "route-check",
       "label": "RouteCheckedDI _CheckEffectLayerScopeDI",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 72,
+      "line": 112,
       "details": {
         "mechanism": "RouteCheckedDI",
         "name": "_CheckEffectLayerScopeDI"
@@ -329,7 +694,7 @@
       "kind": "route-check",
       "label": "RouteCheckedDI _CheckEffectSharedServiceDI",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 62,
+      "line": 102,
       "details": {
         "mechanism": "RouteCheckedDI",
         "name": "_CheckEffectSharedServiceDI"
@@ -340,7 +705,7 @@
       "kind": "route-check",
       "label": "RouteCheckedDI _CheckEffectYieldDI",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 54,
+      "line": 92,
       "details": {
         "mechanism": "RouteCheckedDI",
         "name": "_CheckEffectYieldDI"
@@ -351,7 +716,7 @@
       "kind": "route-check",
       "label": "assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoEffectRoutes",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 50,
+      "line": 76,
       "details": {
         "mechanism": "assertExhaustiveRouteExceptions",
         "name": "assertExhaustiveRouteExceptions:demoEffectRoutes"
@@ -362,14 +727,21 @@
       "kind": "route-hook",
       "label": "demo-effect:.handleExceptions",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 21
+      "line": 34
+    },
+    {
+      "id": "route-hook:route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access:handleExceptions",
+      "kind": "route-hook",
+      "label": "demo-effect:access.handleExceptions",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
+      "line": 50
     },
     {
       "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:",
       "kind": "route",
       "label": "demo-effect:",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 14,
+      "line": 27,
       "details": {
         "collection": "demo-effect",
         "path": "",
@@ -380,14 +752,14 @@
       }
     },
     {
-      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:layer-scope",
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access",
       "kind": "route",
-      "label": "demo-effect:layer-scope",
+      "label": "demo-effect:access",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 38,
+      "line": 43,
       "details": {
         "collection": "demo-effect",
-        "path": "layer-scope",
+        "path": "access",
         "routesName": "demoEffectRoutes",
         "hasComponent": true,
         "hasPendingComponent": false,
@@ -395,14 +767,29 @@
       }
     },
     {
-      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:shared-service",
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:effect-function",
       "kind": "route",
-      "label": "demo-effect:shared-service",
+      "label": "demo-effect:effect-function",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
-      "line": 30,
+      "line": 66,
       "details": {
         "collection": "demo-effect",
-        "path": "shared-service",
+        "path": "effect-function",
+        "routesName": "demoEffectRoutes",
+        "hasComponent": true,
+        "hasPendingComponent": false,
+        "hasErrorComponent": false
+      }
+    },
+    {
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:team",
+      "kind": "route",
+      "label": "demo-effect:team",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts",
+      "line": 56,
+      "details": {
+        "collection": "demo-effect",
+        "path": "team",
         "routesName": "demoEffectRoutes",
         "hasComponent": true,
         "hasPendingComponent": false,
@@ -414,7 +801,7 @@
       "kind": "service",
       "label": "BrowserCryptoService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 802,
+      "line": 833,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -429,7 +816,7 @@
       "kind": "service",
       "label": "BrowserDocumentService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 835,
+      "line": 868,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -444,7 +831,7 @@
       "kind": "service",
       "label": "BrowserHistoryService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 696,
+      "line": 727,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -459,7 +846,7 @@
       "kind": "service",
       "label": "BrowserLocationService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 662,
+      "line": 693,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -474,7 +861,7 @@
       "kind": "service",
       "label": "BrowserNavigatorService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 727,
+      "line": 758,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -489,7 +876,7 @@
       "kind": "service",
       "label": "BrowserPerformanceService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 756,
+      "line": 787,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -504,7 +891,7 @@
       "kind": "service",
       "label": "BrowserWindowService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 881,
+      "line": 914,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -519,7 +906,7 @@
       "kind": "service",
       "label": "ConsoleService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 548,
+      "line": 579,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -534,7 +921,7 @@
       "kind": "service",
       "label": "CookiesService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 636,
+      "line": 667,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -549,7 +936,7 @@
       "kind": "service",
       "label": "LocalStorageService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 580,
+      "line": 611,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -564,7 +951,7 @@
       "kind": "service",
       "label": "SessionStorageService",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
-      "line": 608,
+      "line": 639,
       "details": {
         "appStart": false,
         "browserBoundary": true,
@@ -575,11 +962,26 @@
       }
     },
     {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:StorageService",
+      "kind": "service",
+      "label": "StorageService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 126,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "storageService"
+        ]
+      }
+    },
+    {
       "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts:api",
       "kind": "service",
       "label": "api",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts",
-      "line": 2859,
+      "line": 2869,
       "details": {
         "appStart": false,
         "browserBoundary": false,
@@ -594,7 +996,7 @@
       "kind": "service",
       "label": "HostName",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts",
-      "line": 4561,
+      "line": 4576,
       "details": {
         "appStart": false,
         "browserBoundary": false,
@@ -624,7 +1026,7 @@
       "kind": "service",
       "label": "ServerFunctionTransport",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/server-function-client.ts",
-      "line": 34,
+      "line": 53,
       "details": {
         "appStart": false,
         "browserBoundary": false,
@@ -680,36 +1082,36 @@
       }
     },
     {
-      "id": "service:effect:GlobalLayerService",
+      "id": "service:effect:AccessPolicyService",
       "kind": "service",
-      "label": "GlobalLayerService",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/layer-scope-services.ts",
-      "line": 3,
+      "label": "AccessPolicyService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 92,
       "details": {
         "runtime": "effect",
-        "tag": "GlobalLayerService"
+        "tag": "demo-effect/AccessPolicyService"
       }
     },
     {
-      "id": "service:effect:GreetingService",
+      "id": "service:effect:SessionService",
       "kind": "service",
-      "label": "GreetingService",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/greeting-service.ts",
-      "line": 8,
+      "label": "SessionService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 143,
       "details": {
         "runtime": "effect",
-        "tag": "GreetingService"
+        "tag": "demo-effect/SessionService"
       }
     },
     {
-      "id": "service:effect:RouteLayerService",
+      "id": "service:effect:TeamContextService",
       "kind": "service",
-      "label": "RouteLayerService",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/layer-scope-services.ts",
-      "line": 12,
+      "label": "TeamContextService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+      "line": 152,
       "details": {
         "runtime": "effect",
-        "tag": "RouteLayerService"
+        "tag": "demo-effect/TeamContextService"
       }
     },
     {
@@ -743,11 +1145,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts:50:1683",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts:51:1758",
       "kind": "template-element",
       "label": "exampleLink",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts",
-      "line": 50,
+      "line": 51,
       "details": {
         "tag": "a",
         "localName": "exampleLink",
@@ -757,11 +1159,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:105:3150",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:74:3082",
       "kind": "template-element",
       "label": "adaButton",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
-      "line": 105,
+      "line": 74,
       "details": {
         "tag": "button",
         "localName": "adaButton",
@@ -771,11 +1173,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:115:3351",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:84:3307",
       "kind": "template-element",
       "label": "graceButton",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
-      "line": 115,
+      "line": 84,
       "details": {
         "tag": "button",
         "localName": "graceButton",
@@ -785,11 +1187,11 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:125:3558",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:94:3531",
       "kind": "template-element",
       "label": "linusButton",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts",
-      "line": 125,
+      "line": 94,
       "details": {
         "tag": "button",
         "localName": "linusButton",
@@ -799,25 +1201,39 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:221:7144",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:103:3815",
       "kind": "template-element",
-      "label": "successButton",
+      "label": "databaseButton",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 221,
+      "line": 103,
       "details": {
         "tag": "button",
-        "localName": "successButton",
+        "localName": "databaseButton",
         "static": true,
         "missing": false,
         "component": "EffectYieldComponent"
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:231:7362",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:73:3125",
+      "kind": "template-element",
+      "label": "profileButton",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
+      "line": 73,
+      "details": {
+        "tag": "button",
+        "localName": "profileButton",
+        "static": true,
+        "missing": false,
+        "component": "EffectYieldComponent"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:83:3352",
       "kind": "template-element",
       "label": "notFoundButton",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 231,
+      "line": 83,
       "details": {
         "tag": "button",
         "localName": "notFoundButton",
@@ -827,28 +1243,14 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:241:7595",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:93:3582",
       "kind": "template-element",
-      "label": "unauthorizedButton",
+      "label": "expiredButton",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 241,
+      "line": 93,
       "details": {
         "tag": "button",
-        "localName": "unauthorizedButton",
-        "static": true,
-        "missing": false,
-        "component": "EffectYieldComponent"
-      }
-    },
-    {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:251:7835",
-      "kind": "template-element",
-      "label": "defectButton",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts",
-      "line": 251,
-      "details": {
-        "tag": "button",
-        "localName": "defectButton",
+        "localName": "expiredButton",
         "static": true,
         "missing": false,
         "component": "EffectYieldComponent"
@@ -942,7 +1344,7 @@
   "edges": [
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts:App",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts:50:1683",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.ts:51:1758",
       "kind": "contains",
       "evidence": "ast"
     },
@@ -953,56 +1355,18 @@
       "evidence": "ast"
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:76",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:82",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:76",
-      "kind": "uses-property",
-      "evidence": "ast",
-      "details": {
-        "reader": "globalLabel",
-        "usage": "template"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:82",
-      "kind": "uses-property",
-      "evidence": "ast",
-      "details": {
-        "reader": "routeLabel",
-        "usage": "template"
-      }
-    },
-    {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:state:70:greet",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:call",
       "kind": "calls",
       "evidence": "ast",
       "details": {
-        "path": "greet",
+        "path": "call",
         "usage": "template"
       }
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:83",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -1011,7 +1375,55 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:state:70",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:74:3082",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:84:3307",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:94:3531",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:50",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "userName",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:53",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "accessLabel",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:56",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "accessReason",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:EffectFunctionComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -1019,26 +1431,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:105:3150",
-      "kind": "contains",
-      "evidence": "ast"
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:115:3351",
-      "kind": "contains",
-      "evidence": "ast"
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:125:3558",
-      "kind": "contains",
-      "evidence": "ast"
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:83",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:EffectFunctionComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:craftComputed:39",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -1048,17 +1442,17 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:state:165:run",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:call",
       "kind": "calls",
       "evidence": "ast",
       "details": {
-        "path": "run",
+        "path": "call",
         "usage": "template"
       }
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:181",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -1067,63 +1461,106 @@
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:182",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:188",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:192",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:state:165",
-      "kind": "contains",
-      "evidence": "ast",
-      "details": {
-        "usage": "setup"
-      }
-    },
-    {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:221:7144",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:103:3815",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:231:7362",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:73:3125",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:241:7595",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:83:3352",
       "kind": "contains",
       "evidence": "ast"
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:251:7835",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:93:3582",
       "kind": "contains",
       "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:51",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "profileName",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:exceptions",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "exceptions",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:EffectYieldComponent",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:status",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "status",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:44",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "teamName",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:47",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "viewerName",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:50",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "viewerAccess",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:53",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "path": "memberNames",
+        "usage": "template"
+      }
     },
     {
       "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:AiContextMenu",
@@ -1198,22 +1635,460 @@
       "evidence": "ast"
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:state:70",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:state:70:greet",
-      "kind": "contains",
+      "from": "effect-operation:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#checkUserAccess",
+      "to": "effect-service:AccessPolicyService",
+      "kind": "requires-service",
       "evidence": "ast",
       "details": {
-        "property": "greet"
+        "runtime": "effect",
+        "selection": "whole-service"
+      },
+      "proof": {
+        "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+        "line": 138,
+        "pattern": "yield* AccessPolicyService"
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:state:165",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:state:165:run",
+      "from": "effect-operation:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#loadTeamOverview",
+      "to": "effect-service:SessionService",
+      "kind": "requires-service",
+      "evidence": "ast",
+      "details": {
+        "runtime": "effect",
+        "selection": "whole-service"
+      },
+      "proof": {
+        "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+        "line": 169,
+        "pattern": "yield* SessionService"
+      }
+    },
+    {
+      "from": "effect-operation:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#loadTeamOverview",
+      "to": "effect-service:TeamContextService",
+      "kind": "requires-service",
+      "evidence": "ast",
+      "details": {
+        "runtime": "effect",
+        "selection": "whole-service"
+      },
+      "proof": {
+        "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+        "line": 170,
+        "pattern": "yield* TeamContextService"
+      }
+    },
+    {
+      "from": "effect-service:AccessPolicyService",
+      "to": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#AccessPolicyLive",
+      "kind": "provided-by-layer",
+      "evidence": "ast",
+      "details": {
+        "runtime": "effect",
+        "service": "AccessPolicyService",
+        "resolution": "complete"
+      },
+      "proof": {
+        "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+        "line": 97,
+        "pattern": "Layer provides AccessPolicyService"
+      }
+    },
+    {
+      "from": "effect-service:SessionService",
+      "to": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#SessionLive",
+      "kind": "provided-by-layer",
+      "evidence": "ast",
+      "details": {
+        "runtime": "effect",
+        "service": "SessionService",
+        "resolution": "complete"
+      },
+      "proof": {
+        "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+        "line": 148,
+        "pattern": "Layer provides SessionService"
+      }
+    },
+    {
+      "from": "effect-service:TeamContextService",
+      "to": "effect-layer:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts#SupportTeamLive",
+      "kind": "provided-by-layer",
+      "evidence": "ast",
+      "details": {
+        "runtime": "effect",
+        "service": "TeamContextService",
+        "resolution": "complete"
+      },
+      "proof": {
+        "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/shared/access-domain.ts",
+        "line": 157,
+        "pattern": "Layer provides TeamContextService"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:45",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:hasValue",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "hasValue"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:46",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:hasValue",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "hasValue"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:46",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:isLoading",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "isLoading"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:50",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:53",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:56",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:45",
       "kind": "contains",
       "evidence": "ast",
       "details": {
-        "property": "run"
+        "usage": "setup"
       }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:46",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:50",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:53",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:craftComputed:56",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:call",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "call"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:hasValue",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "hasValue"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:isLoading",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "isLoading"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38:value",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:queryEffect:38",
+      "to": "service:effect:AccessPolicyService",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "runtime": "effect",
+        "effectRequirement": true,
+        "resourceRole": "loader"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:craftComputed:39",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:craftComputed:39",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:queryEffect:30:value",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:50",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:hasValue",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "hasValue"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:51",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:50",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:craftComputed:51",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:call",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "call"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:exceptions",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "exceptions"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:hasValue",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "hasValue"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:status",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "status"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts:queryEffect:43:value",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:44",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:47",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:50",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:53",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37:value",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:44",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:47",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:50",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:craftComputed:53",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37:value",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "value"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "service:effect:SessionService",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "runtime": "effect",
+        "effectRequirement": true,
+        "resourceRole": "loader"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:queryEffect:37",
+      "to": "service:effect:TeamContextService",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "runtime": "effect",
+        "effectRequirement": true,
+        "resourceRole": "loader"
+      }
+    },
+    {
+      "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CanRunEffectFunction",
+      "to": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CheckEffectFunctionDI",
+      "kind": "contains",
+      "evidence": "ast"
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CanRunEffectLayerScope",
@@ -1234,8 +2109,17 @@
       "evidence": "ast"
     },
     {
+      "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CheckEffectFunctionDI",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:effect-function",
+      "kind": "checks",
+      "evidence": "type",
+      "details": {
+        "target": "component"
+      }
+    },
+    {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CheckEffectLayerScopeDI",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:layer-scope",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:team",
       "kind": "checks",
       "evidence": "type",
       "details": {
@@ -1244,7 +2128,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:_CheckEffectSharedServiceDI",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:shared-service",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access",
       "kind": "checks",
       "evidence": "type",
       "details": {
@@ -1271,7 +2155,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:assertExhaustiveRouteExceptions:demoEffectRoutes",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:layer-scope",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access",
       "kind": "checks",
       "evidence": "ast",
       "details": {
@@ -1280,7 +2164,16 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:assertExhaustiveRouteExceptions:demoEffectRoutes",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:shared-service",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:effect-function",
+      "kind": "checks",
+      "evidence": "ast",
+      "details": {
+        "target": "collection"
+      }
+    },
+    {
+      "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:assertExhaustiveRouteExceptions:demoEffectRoutes",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:team",
       "kind": "checks",
       "evidence": "ast",
       "details": {
@@ -1300,16 +2193,29 @@
       "evidence": "ast"
     },
     {
-      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:layer-scope",
-      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access",
+      "to": "route-hook:route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access:handleExceptions",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:access",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
       "kind": "loads",
       "evidence": "ast"
     },
     {
-      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:shared-service",
-      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts:EffectSharedServiceComponent",
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:effect-function",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-function.ts:EffectFunctionComponent",
+      "kind": "loads",
+      "evidence": "ast"
+    },
+    {
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/app.routes.ts:demo-effect:team",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts:EffectLayerScopeComponent",
       "kind": "loads",
       "evidence": "ast"
     }
-  ]
+  ],
+  "diagnostics": []
 }

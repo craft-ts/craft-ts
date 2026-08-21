@@ -33,6 +33,7 @@ describe('architecture', () => {
 
   it('indexes the Effect demo routes and services', () => {
     expect(graph.route('access').kind).toBe('route');
+    expect(graph.route('effect-function').kind).toBe('route');
     expect(graph.route('team').kind).toBe('route');
     expect(graph.service('AccessPolicyService').kind).toBe('service');
     expect(graph.service('TeamContextService').kind).toBe('service');
@@ -101,7 +102,7 @@ describe('architecture', () => {
       ],
       // This example intentionally demonstrates a pure Effect value without
       // an injected service requirement.
-      allow: ['profileQuery'],
+      allow: ['effectFunctionQuery', 'profileQuery'],
     });
   });
 

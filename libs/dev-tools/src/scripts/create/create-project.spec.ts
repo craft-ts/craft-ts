@@ -37,6 +37,9 @@ describe('createCraftProject', () => {
       architecture: expect.stringContaining('vitest'),
       e2e: 'playwright test',
     });
+    expect(await readFile(join(result.directory, 'vite.config.ts'), 'utf8')).toContain(
+      'forwardConsole: true',
+    );
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain('craftRoutes');
     expect(await readFile(join(result.directory, 'src/app/api.ts'), 'utf8')).toContain('CraftHttpClient');
     expect(await readFile(join(result.directory, 'architecture/architecture.spec.ts'), 'utf8')).toContain('loadArchitectureGraph');

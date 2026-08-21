@@ -350,6 +350,34 @@ describe('pendingBlock type-level contract', () => {
     );
   });
 
+  it('preserves insertion resource sources through the template boundary', () => {
+    const root = craftComponent(
+      'pendingInsertionResource',
+      {},
+      function* () {
+        const users = yield* query(
+          'users',
+          {
+            params: () => true,
+            loader: async (): Promise<User[]> => [],
+          },
+          ({ resource }) => ({
+            count: craftComputed('count', function* () {
+              return (yield* settled(resource)).length;
+            }),
+          }),
+        );
+        return { users };
+      },
+      ({ users }) =>
+        div([span(users.count)]).pipe(
+          pendingBlock.exhaustive({ users: () => p('…') }),
+        ),
+    );
+
+    expect(root).toBeDefined();
+  });
+
   it('requires an explicit shell for client-only SSR', () => {
     const invalidBoundary = () =>
       // @ts-expect-error client-only SSR must render a stable server shell

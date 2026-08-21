@@ -11,12 +11,7 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import {
-  craftComputed,
-  craftSleep,
-  query,
-  settled,
-} from '@craft-ts/core';
+import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;
@@ -65,17 +60,19 @@ export const pendingBlockDemo = craftComponent(
     `,
   },
   function* () {
-    const users = yield* query('users', {
-      method: (_: undefined) => undefined,
-      // `preservePreviousValue: false` clears the value on every reload, so the
-      // boundary shows again on each click. Without it a reload keeps the
-      // previous value and does not suspend at all (stale-while-revalidate).
-      preservePreviousValue: () => false,
-      loader: function* () {
-        yield* craftSleep(900);
-        return { items: USERS };
+    const users = yield* query(
+      'users',
+      {
+        method: (_: undefined) => undefined,
+        // `preservePreviousValue: false` clears the value on every reload, so the
+        // boundary shows again on each click. Without it a reload keeps the
+        // previous value and does not suspend at all (stale-while-revalidate).
+        preservePreviousValue: () => false,
+        loader: function* () {
+          yield* craftSleep(900);
+          return { items: USERS };
+        },
       },
-    },
       ({ resource }) => ({
         teams: craftComputed('teams', function* () {
           const list = yield* settled(resource);
@@ -100,8 +97,10 @@ export const pendingBlockDemo = craftComponent(
       p(
         'The template reads an always-resolved value; the pendingBlock owns the loading state.',
       ),
-      button('reload',
-        { type: 'button',
+      button(
+        'reload',
+        {
+          type: 'button',
           class: 'pending-demo__reload',
           *click() {
             yield* users.call(undefined);

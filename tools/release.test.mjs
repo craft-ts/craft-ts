@@ -146,6 +146,17 @@ test('release PRs are limited to manifests and changelog', () => {
   ]);
 });
 
+test('release checks run typechecking, lint, and architecture verification first', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+
+  assert.match(packageJson.scripts['release:check'], /npm run release:preflight/);
+  for (const target of ['typecheck', 'lint', 'architecture']) {
+    assert.match(packageJson.scripts['release:preflight'], new RegExp(`\\b${target}\\b`));
+  }
+});
+
 test('releases all public CraftTS packages as one fixed group', () => {
   assert.deepEqual(
     releasePackages.map(({ name }) => name),
