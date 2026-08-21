@@ -855,4 +855,67 @@ describe('analyzeDependencyGraph insertions', () => {
       expect.arrayContaining(['contains->state:draft']),
     );
   });
+
+  it('connects a yielded state-machine source emission to its source node', async () => {
+    const root = await fixture({
+      'editor.ts': `
+        ${CRAFT_STUBS}
+
+        const Editor = craftComponent(
+          'Editor',
+          {},
+          function* () {
+            const machine = yield* craftStateMachine(
+              'editor',
+              function* () {
+                const change$ = yield* source$<string>('change$');
+                return { change$ };
+              },
+              function* (_context, transit) {
+                return {
+                  idle: transitionStep(function* () {
+                    yield* initStateMachine(() => transit());
+                  }),
+                };
+              },
+              function* () {
+                return { idle: {} };
+              },
+              function* ({ context }) {
+                return { change$: context.change$ };
+              },
+            );
+            return { machine };
+          },
+          ({ machine }) =>
+            button({
+              *click() {
+                yield* machine.change$.emit('next');
+              },
+            }, ['change']),
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    const writes = edgesFrom(graph, 'Editor', 'writes');
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({
+      details: {
+        operation: 'emit',
+        exposedThrough: 'state-machine',
+      },
+    });
+    expect(
+      writes.some(
+        (edge) =>
+          graph.nodes.find((node) => node.id === edge.to)?.label ===
+          'change$ (source$)',
+      ),
+    ).toBe(true);
+  });
 });

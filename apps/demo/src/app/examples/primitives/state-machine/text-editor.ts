@@ -151,7 +151,7 @@ const TextEditorStateMachine = craftComponent(
               type: 'text',
               value: machine.value,
               input: function* (event) {
-                machine.change$.emit(event.target.value);
+                yield* machine.change$.emit(event.target.value);
               },
             }),
             div({ class: 'actions' }, [

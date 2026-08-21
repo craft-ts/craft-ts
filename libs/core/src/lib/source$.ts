@@ -18,6 +18,8 @@ import {
   createNamedPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
+import { yieldableInvocation } from './yieldable';
+import { SourceBranded } from './util/util';
 
 export type SourceDependency<Name extends string> = {
   [K in Name]: ServiceDependencies<'function', {}>;
@@ -192,9 +194,11 @@ export function source$<T, Name extends string = string>(
   }
 
   const source = {
+    ...SourceBranded,
     emit: (value: T) => {
       sourceRef$.emit(value);
       sourceAsSignal.set(value);
+      return yieldableInvocation<never, void>(undefined);
     },
     subscribe: (callback: (value: T) => void) => sourceRef$.subscribe(callback),
     preserveLastValue: () => {
@@ -206,15 +210,18 @@ export function source$<T, Name extends string = string>(
       destroyRef.onDestroy(() => subscriptionWithLastLastValue.unsubscribe());
 
       return {
+        ...SourceBranded,
         emit: (value: T) => {
           sourceWithLastValueRef.emit(value);
           sourceAsSignal.set(value);
+          return yieldableInvocation<never, void>(undefined);
         },
         subscribe: (callback: (value: T) => void) => {
           sourceWithLastValueRef.subscribe(callback);
           sourceWithLastValueRef.emit(sourceAsSignal() as T);
         },
         asReadonly: () => ({
+          ...SourceBranded,
           subscribe: (callback: (value: T) => void) => {
             sourceWithLastValueRef.subscribe(callback);
             sourceWithLastValueRef.emit(sourceAsSignal() as T);
@@ -226,11 +233,12 @@ export function source$<T, Name extends string = string>(
     },
     value: sourceAsSignal.asReadonly(),
     asReadonly: () => ({
+      ...SourceBranded,
       subscribe: (callback: (value: T) => void) =>
         sourceRef$.subscribe(callback),
       value: sourceAsSignal.asReadonly(),
     }),
-  } as SourceInstance<T, Name>;
+  } as unknown as SourceInstance<T, Name>;
 
   const generator = createNamedPrimitiveGen(name, source);
 

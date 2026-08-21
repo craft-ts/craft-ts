@@ -283,6 +283,34 @@ describe('craftStateMachine typing', () => {
     expect(craftUse(machine.currentStep())).toBe('reading');
   });
 
+  it('exposes source emissions from insertions as yieldable actions', () => {
+    const machine = TestBed.runInInjectionContext(() =>
+      craftUse(
+        craftStateMachine(
+          contextFactory,
+          transitions,
+          function* (context) {
+            return {
+              reading: { formValid: context.formValid },
+              editing: { formValid: context.formValid },
+              saving: { status: context.saveStatus },
+            };
+          },
+          function* ({ context }) {
+            return { touchEvent: context.touchEvent };
+          },
+        ),
+      ),
+    );
+
+    type EmitResult = ReturnType<typeof machine.touchEvent.emit>;
+    type _EmitResult = Expect<
+      Equal<EmitResult, Generator<unknown, void, unknown>>
+    >;
+
+    expect(typeof machine.touchEvent.emit).toBe('function');
+  });
+
   it('rejects a machine whose transitions never initialise', () => {
     const uninitialised = transitionsSetup(function* (
       context: MachineContext,

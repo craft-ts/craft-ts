@@ -330,6 +330,7 @@ type RouteInfo = {
 type SourceInfo = {
   node: DependencyGraphNode;
   variableNames: Set<string>;
+  call: CallExpression;
 };
 
 type CraftHttpClientUsage = DependencyGraphHttpEndpoint;
@@ -1246,7 +1247,7 @@ function collectSources(
         line: call.getStartLineNumber(),
         details: { creator },
       });
-      builder.sources.push({ node, variableNames });
+      builder.sources.push({ node, variableNames, call });
     }
   }
 }
@@ -2425,11 +2426,20 @@ function addSourceInteractions(
         SyntaxKind.PropertyAccessExpression,
       )) {
         const text = access.getText();
-        if (!text.startsWith(`${name}.`)) continue;
+        const directSourceAccess = text.startsWith(`${name}.`);
+        const exposedMachineSourceAccess = isExposedMachineSourceAccess(
+          source,
+          access,
+          name,
+        );
+        if (!directSourceAccess && !exposedMachineSourceAccess) continue;
         const owner = ownerNodeForAst(builder, access, ownerId);
         if (text.endsWith('.emit') || text.endsWith('.set')) {
           addEdge(builder, owner.id, source.node.id, 'writes', 'ast', {
             operation: text.split('.').pop(),
+            ...(exposedMachineSourceAccess
+              ? { exposedThrough: 'state-machine' }
+              : {}),
           });
         } else if (
           text.endsWith('.subscribe') ||
@@ -2457,6 +2467,38 @@ function addSourceInteractions(
       }
     }
   }
+}
+
+/**
+ * A state-machine insertion can expose a source under an alias such as
+ * `machine.change$`. The source declaration is still the one nested in the
+ * machine context factory, so connect that exposed access back to the source
+ * node instead of leaving the graph at an anonymous machine property.
+ */
+function isExposedMachineSourceAccess(
+  source: SourceInfo,
+  access: PropertyAccessExpression,
+  sourceName: string,
+): boolean {
+  const chain = propertyAccessChain(access);
+  if (!chain || chain.length < 3 || !chain.includes(sourceName)) return false;
+  const machineCall = nearestPrimitiveFactory(source.call);
+  if (
+    !machineCall ||
+    primitiveFactoryName(machineCall) !== 'craftStateMachine'
+  ) {
+    return false;
+  }
+  const machineDeclaration = machineCall.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
+  const machineNames = new Set<string>();
+  if (machineDeclaration) {
+    addBindingNames(machineDeclaration.getNameNode(), machineNames);
+  }
+  if (!machineNames.has(chain[0] ?? '')) return false;
+  const sourceIndex = chain.indexOf(sourceName);
+  return sourceIndex > 0 && chain[sourceIndex + 1] === 'emit';
 }
 
 function primitiveNodeId(builder: GraphBuilder, call: CallExpression): string {
