@@ -22,7 +22,7 @@
     "typescript"
   ],
   "peerDependencies": {
-    "@craft-ts/core": "^0.7.0-beta.11",
+    "@craft-ts/core": "^0.7.0-beta.0",
     "effect": "^4.0.0-rc.110"
   },
   "engines": {
