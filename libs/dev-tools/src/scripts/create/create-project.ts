@@ -395,14 +395,10 @@ declare module '@craft-ts/core' {
 }
 `;
 
-const routesRuntimeTs = `// Runtime overlay kept separate so agents can select a route subset without rewriting app.routes.ts.
-export { appRoutes } from './app.routes';
-`;
-
 const appConfigTs = `import { provideCraftRootComponent } from '@craft-ts/component';
 import { craftAppConfig, provideCraftRouter } from '@craft-ts/core';
 import { App } from './app';
-import { appRoutes } from './app.routes.runtime';
+import { appRoutes } from './app.routes';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_PATHS,
@@ -615,7 +611,7 @@ import {
   provideLayer,
 } from '@craft-ts/effect';
 import { App } from './app';
-import { appRoutes } from './app.routes.runtime';
+import { appRoutes } from './app.routes';
 import {
   WelcomeRepositoryLive,
 } from './domain';
@@ -775,7 +771,6 @@ function templates(context: TemplateContext): Record<string, string> {
     'src/app/app.ts': appTs,
     'src/app/app.config.ts': effect ? effectAppConfig : plainAppConfig,
     'src/app/app.routes.ts': routesTs,
-    'src/app/app.routes.runtime.ts': routesRuntimeTs,
     ...(effect ? { 'src/app/api.ts': "export { loadWelcome } from './domain';\nexport type { WelcomeResponse } from './domain';\n" } : { 'src/app/api.ts': apiTs }),
     ...(effect ? { 'src/app/domain.ts': effectDomainTs, 'src/app/home-page.ts': effectHomePageTs } : { 'src/app/home-page.ts': plainHomePageTs }),
     'src/app/about-page.ts': aboutPageTs,

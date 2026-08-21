@@ -213,6 +213,7 @@ it('protects the baseline graph invariants', () => {
 It does **not** cover every architecture policy. Add focused assertions for:
 
 - route DI and error-screen proofs: [`assertRouteDiProofs`](./route-di-proofs);
+- route/page file boundaries: [`assertRouteComponentsInSeparateFiles`](./route-component-files);
 - folder ownership: [`assertPathBoundaries`](./path-boundaries);
 - Effect loader boundaries: [`assertPrimitiveLoaderRequirements`](./primitive-loader-requirements);
 - interactive control names: [`assertInteractiveElementNamed`](./interactive-element-names);

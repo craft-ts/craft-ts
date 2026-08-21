@@ -2,7 +2,11 @@
 
 This application uses `@craft-ts/core` without an Angular dependency. Treat
 Craft APIs as the default. Use Craft primitives, services, components,
-`CraftHttpClient`, `bootstrapCraft`, and `provideCraftRouter` in authored code.
+`CraftHttpClient`, `startCraft` (or explicit `bootstrapCraft` / `hydrateCraft`),
+and `provideCraftRouter` in authored code.
+
+For SSR, use `renderCraft` to render one isolated request. On the browser,
+`startCraft` automatically hydrates Craft SSR HTML or mounts a fresh client tree.
 
 ## Before writing Craft code
 

@@ -69,6 +69,7 @@ import {
   assertPrimitiveLoaderRequirements,
   assertQueryMutationHasServerState,
   assertPersistedPrimitiveHasUnique,
+  assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
   buildArchitectureCatalog,
   createArchitectureGraph,
@@ -322,6 +323,7 @@ rules that express your application's boundaries.
 | [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions) | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
 | [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the five baseline checks fail |
 | [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs) | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
+| [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files) | a route loads its page component from the routing file, or multiple routed page components share one component file |
 | [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries) | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
 | [`noExclusiveLink(a, b)`](/guide/testing/architecture/exclusive-links) | the only path between two branches is a leak, not a shared kernel |
 | [`assertPersistedPrimitiveHasUnique`](/guide/testing/architecture/persisted-identities) | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
@@ -493,6 +495,22 @@ A missing proof, an unarmed mapper, a pending/error screen without its own
 `provideCraftRouteLoadErrorComponent` (or `withErrorComponent` /
 `withRouteLoadError`) without an armed `RouteExceptionComponentCheckedDI` fails
 with the file:line of the hole.
+
+### `assertRouteComponentsInSeparateFiles`
+
+Route definitions describe navigation and loading; page components live in
+their own files. This assertion compares the route file with every component
+target discovered through `component`, `loadComponent` or a lazy `import()`,
+then rejects multiple routed page components that share one component file.
+
+```typescript
+it('keeps route definitions separate from page components', () => {
+  assertRouteComponentsInSeparateFiles(graph.graph);
+});
+```
+
+The rule checks the page file boundary only. It does not restrict components
+rendered inside a page, and it does not require one route collection per file.
 
 ### `assertMutationHasReactOn`
 

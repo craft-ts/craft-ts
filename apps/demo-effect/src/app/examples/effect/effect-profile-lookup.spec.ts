@@ -7,7 +7,7 @@ import { mountCraftComponent } from '@craft-ts/component';
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { installCraftEffectBridge } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import EffectYieldComponent from './effect-yield';
+import EffectYieldComponent from './effect-profile-lookup';
 
 describe('demo: profile lookup with Effect', () => {
   beforeEach(() => {
@@ -98,9 +98,7 @@ describe('demo: profile lookup with Effect', () => {
     await clickScenario('Database outage', element);
 
     await vi.waitFor(() => {
-      expect(element.textContent).toContain(
-        'View a profile (exception)',
-      );
+      expect(element.textContent).toContain('View a profile (exception)');
     });
     // A defect is not a business exception: no discriminant match is rendered.
     expect(element.textContent).not.toContain('UserNotFound');

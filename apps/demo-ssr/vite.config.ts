@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { defineConfig, type ViteDevServer } from 'vite';
 
-const PAGE_PREFIXES = ['/src/', '/@', '/node_modules/', '/assets/'];
+const PAGE_PREFIXES = ['/src/', '/@', '/node_modules/', '/assets/', '/favicon'];
 
 function ssrDemoPlugin() {
   return {
@@ -29,11 +29,7 @@ function ssrDemoPlugin() {
               return;
             }
 
-            const result = await renderer.renderPage(url, {
-              'accept-language': request.headers['accept-language'],
-              'user-agent': request.headers['user-agent'],
-              cookie: request.headers.cookie,
-            });
+            const result = await renderer.renderPage(url);
             response.statusCode = result.status;
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.setHeader('x-demo-rendered-by', 'ssr');

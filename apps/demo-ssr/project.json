@@ -2,6 +2,7 @@
   "name": "demo-ssr",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
+  "prefix": "app",
   "sourceRoot": "apps/demo-ssr/src",
   "targets": {
     "serve": {
@@ -25,11 +26,43 @@
         "command": "npx tsc -p apps/demo-ssr/tsconfig.json --noEmit --pretty false"
       }
     },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
     "test": {
       "executor": "nx:run-commands",
       "options": {
         "command": "npx vitest run --config apps/demo-ssr/vitest.config.ts"
       }
+    },
+    "architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.architecture.config.ts",
+        "cwd": "apps/demo-ssr"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/architecture/**/*.ts",
+        "{projectRoot}/tsconfig.graph.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{workspaceRoot}/libs/dev-tools/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "typecheck-architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo-ssr",
+        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/architecture/**/*.ts",
+        "{workspaceRoot}/libs/dev-tools/src/**/*.ts"
+      ],
+      "cache": true
     }
   }
 }

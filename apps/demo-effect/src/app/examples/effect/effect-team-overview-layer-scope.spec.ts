@@ -7,7 +7,7 @@ import {
   resolveEffectLevel,
 } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import EffectLayerScopeComponent from './effect-layer-scope';
+import EffectLayerScopeComponent from './effect-team-overview-layer-scope';
 import { SessionLive, SupportTeamLive } from '../../shared/access-domain';
 
 describe('demo: team overview with global and route Layers', () => {

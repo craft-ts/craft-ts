@@ -31,7 +31,6 @@ const TextEditorStateMachine = craftComponent(
       // mutations in the transition declarations below.
       function* () {
         const edit$ = yield* source$<void>('text.edit');
-        const change$ = yield* source$<string>('text.change');
         const commit$ = yield* source$<void>('text.commit');
         const cancel$ = yield* source$<void>('text.cancel');
 
@@ -42,15 +41,10 @@ const TextEditorStateMachine = craftComponent(
             value: '',
           },
           ({ patch }) => ({
-            change: on$(
-              change$,
-              (
-                value, // todo pas besoin appelable directement
-              ) =>
-                patch(() => ({
-                  value,
-                })),
-            ),
+            change: (value: string) =>
+              patch(() => ({
+                value,
+              })),
             commit: on$(commit$, () =>
               patch((current) => ({
                 committedValue: current.value,
@@ -64,7 +58,7 @@ const TextEditorStateMachine = craftComponent(
           }),
         );
 
-        return { edit$, change$, commit$, cancel$, text };
+        return { edit$, commit$, cancel$, text };
       },
 
       // A transition only declares which source enters which step.
@@ -98,6 +92,7 @@ const TextEditorStateMachine = craftComponent(
           committedValue: craftComputed('committedValue', function* () {
             return (yield* text()).committedValue;
           }),
+          change: text.change,
           readingClass: craftComputed('readingClass', function* () {
             return (yield* currentStep()) === 'reading'
               ? 'step step--active'
@@ -151,7 +146,7 @@ const TextEditorStateMachine = craftComponent(
               type: 'text',
               value: machine.value,
               input: function* (event) {
-                yield* machine.change$.emit(event.target.value);
+                yield* machine.change(event.target.value);
               },
             }),
             div({ class: 'actions' }, [

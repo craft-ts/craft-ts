@@ -45,13 +45,15 @@ A route policy may set a shorter `timeoutMs` for the sources it blocks.
 ## Hydrate the existing DOM
 
 Serve the generated `<craft-root>`, style element, and transfer script without
-changing them. The browser entry point then uses the same app config:
+changing them. The browser entry point then uses the same app config. `startCraft`
+chooses hydration when the SSR marker is present and falls back to a normal
+client mount when the page was not rendered by Craft SSR:
 
 ```ts
-import { hydrateCraft } from '@craft-ts/component';
+import { startCraft } from '@craft-ts/component';
 import { appConfig } from './app.config';
 
-const app = hydrateCraft({ config: appConfig });
+const app = startCraft({ config: appConfig });
 ```
 
 Hydration restores the snapshot before creating primitives, claims elements,
@@ -63,6 +65,9 @@ then owns the styles.
 
 Call `app.destroy()` when the application host is removed. Pass `host`,
 `snapshot`, or `onMismatch` when the defaults are not appropriate.
+
+Use `hydrateCraft` directly when the application needs to force hydration or
+pass hydration-specific options.
 
 ## Choose what SSR does with pending data
 

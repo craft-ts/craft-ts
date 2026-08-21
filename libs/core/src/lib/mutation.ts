@@ -115,6 +115,7 @@ import {
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
+  type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
 
@@ -458,7 +459,8 @@ export type ResourceLikeMutationExceptions<
             >
           | undefined
         >;
-        exceptions: Signal<{
+        /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+        exceptions: DeepYieldableReactiveValue<{
           list: (
             | InsertMetaInCraftExceptionIfExists<
                 MutationException['params'],
@@ -493,7 +495,8 @@ export type ResourceByIdLikeMutationExceptions<
   GroupIdentifier extends string,
 > = {
   hasException: Signal<boolean>;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           MutationException['params'],

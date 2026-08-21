@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc/apps/demo-ssr",
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "erasableSyntaxOnly": false
   },
   "include": ["src/**/*.ts", "vite.config.ts"]
 }

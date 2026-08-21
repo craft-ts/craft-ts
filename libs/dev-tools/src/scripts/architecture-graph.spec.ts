@@ -18,6 +18,7 @@ import {
   assertInteractiveElementNamed,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
+  assertNoAppConfigRouteCycles,
   assertPathBoundaries,
   assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
@@ -27,6 +28,7 @@ import {
   craftEffectNetworkViolations,
   createArchitectureGraph,
   dependencyCycleViolations,
+  appConfigRouteCycleViolations,
   httpEndpointUniqueViolations,
   insertSelectUniqueViolations,
   interactiveElementNamedViolations,
@@ -123,6 +125,26 @@ declare const CraftHttpClient: {
 `;
 
 describe('createArchitectureGraph', () => {
+  it('detects app-config/routes import cycles before provider inference widens', async () => {
+    const graph = await graphOf({
+      'app.config.ts': `
+        import { appRoutes } from './app.routes';
+        declare function craftAppConfig(value: unknown): unknown;
+        export const appConfig = craftAppConfig({ routingDeps: appRoutes });
+      `,
+      'app.routes.ts': `
+        import type { appConfig } from './app.config';
+        ${STUBS}
+        export const appRoutes = craftRoutes('app', [{ path: '', component: {} }]);
+      `,
+    });
+
+    expect(appConfigRouteCycleViolations(graph.graph)).toHaveLength(1);
+    expect(() => assertNoAppConfigRouteCycles(graph.graph)).toThrow(
+      'App config/routes dependency cycle',
+    );
+  });
+
   it('looks up routes, provided services, HTTP endpoints and browser boundaries', async () => {
     const root = await fixture({
       'app.ts': `

@@ -27,7 +27,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
     path: '',
     ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/effect/effect-yield')).then(
+      withRetry(import('./examples/effect/effect-profile-lookup')).then(
         ({ default: component }) => component,
       ),
     ),
@@ -43,9 +43,9 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
     path: 'access',
     ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/effect/effect-shared-service')).then(
-        ({ default: component }) => component,
-      ),
+      withRetry(
+        import('./examples/effect/effect-access-check-shared-service'),
+      ).then(({ default: component }) => component),
     ),
     handleExceptions: {
       UserNotFound: craftExceptionHandler(function* ({ globalError }) {
@@ -57,9 +57,9 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
     path: 'team',
     ...loadCraftComponent(
       ({ withRetry }) =>
-        withRetry(import('./examples/effect/effect-layer-scope')).then(
-          ({ default: component }) => component,
-        ),
+        withRetry(
+          import('./examples/effect/effect-team-overview-layer-scope'),
+        ).then(({ default: component }) => component),
       teamRouteProviders,
     ),
   },
@@ -82,7 +82,9 @@ declare module '@craft-ts/core' {
 // The cascade check reaches TS2589 in this Effect-heavy collection. Keep one
 // O(1) RouteCheckedDI proof per routed component instead.
 type _CheckEffectYieldDI = RouteCheckedDI<
-  ComponentDepsOf<(typeof import('./examples/effect/effect-yield'))['default']>,
+  ComponentDepsOf<
+    (typeof import('./examples/effect/effect-profile-lookup'))['default']
+  >,
   'CraftRouter',
   never,
   'component: effect-yield'
@@ -91,7 +93,7 @@ type _CanRunEffectYield = CanRun<_CheckEffectYieldDI>;
 
 type _CheckEffectSharedServiceDI = RouteCheckedDI<
   ComponentDepsOf<
-    (typeof import('./examples/effect/effect-shared-service'))['default']
+    (typeof import('./examples/effect/effect-access-check-shared-service'))['default']
   >,
   'CraftRouter',
   never,
@@ -101,7 +103,7 @@ type _CanRunEffectSharedService = CanRun<_CheckEffectSharedServiceDI>;
 
 type _CheckEffectLayerScopeDI = RouteCheckedDI<
   ComponentDepsOf<
-    (typeof import('./examples/effect/effect-layer-scope'))['default']
+    (typeof import('./examples/effect/effect-team-overview-layer-scope'))['default']
   >,
   'CraftRouter',
   never,
@@ -125,6 +127,7 @@ type _CanRunAccessQueryRequirements = CanRun<_CheckAccessQueryRequirements>;
 // the build, not just removing the `SupportTeamLive` import.
 type _CheckTeamOverviewRequirements = EffectRequirementsCheckedDI<
   Effect.Services<typeof loadTeamOverview>,
-  AppProvidedEffectServices | ProvidedEffectServicesOf<typeof teamRouteProviders>
+  | AppProvidedEffectServices
+  | ProvidedEffectServicesOf<typeof teamRouteProviders>
 >;
 type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;

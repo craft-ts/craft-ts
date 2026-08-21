@@ -204,7 +204,6 @@ exit 1
       join(root, 'tsconfig.json'),
       JSON.stringify({
         compilerOptions: {
-          baseUrl: root,
           module: 'preserve',
           moduleResolution: 'bundler',
           paths: {
@@ -231,7 +230,7 @@ exit 1
       log: () => undefined,
     });
 
-    expect(result.exitCode).toBe(0);
+    if (result.exitCode !== 0) throw new Error(JSON.stringify(result));
     expect(result.cases.every((item) => item.status === 'passed')).toBe(true);
   }, 120_000);
 

@@ -65,6 +65,13 @@ const RULES = [
     call: 'assertNoDependencyCycles(graph.graph)',
   },
   {
+    file: 'app-config-route-cycles.spec.ts',
+    helper: 'assertNoAppConfigRouteCycles',
+    describe: 'assertNoAppConfigRouteCycles',
+    it: 'keeps app configuration and route modules acyclic',
+    call: 'assertNoAppConfigRouteCycles(graph.graph)',
+  },
+  {
     file: 'route-di-proofs.spec.ts',
     helper: 'assertRouteDiProofs',
     describe: 'assertRouteDiProofs',

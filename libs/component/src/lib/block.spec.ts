@@ -9,7 +9,12 @@ import {
   expectTypeOf,
   it,
 } from 'vitest';
-import { abstract, craftException, craftService } from '@craft-ts/core';
+import {
+  abstract,
+  craftException,
+  craftService,
+  createDeepYieldableReactiveValue,
+} from '@craft-ts/core';
 import {
   catchBlock,
   CraftUnhandledExceptionError,
@@ -181,6 +186,36 @@ describe('template exception blocks', () => {
       destroy();
     },
   );
+
+  it('matches a property of a deeply projected exception collection', async () => {
+    const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
+    const source = signal({
+      list: [denied],
+      params: undefined,
+      loader: denied as typeof denied | undefined,
+    });
+    const exceptions = createDeepYieldableReactiveValue(
+      source,
+      'exceptions',
+      { primitive: 'query', path: 'query.exceptions' },
+    );
+    const root = craftComponent(
+      'deepExceptionMatchRoot',
+      {},
+      () => ({ exceptions }),
+      ({ exceptions }) =>
+        matchBlock.exhaustive(exceptions.loader, '_tag', {
+          DENIED: (value) => {
+            expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
+            return p('deep fallback');
+          },
+        }),
+    );
+
+    const { nativeElement: element, destroy } = await renderCraftComponent(root);
+    expect(element.textContent).toContain('deep fallback');
+    destroy();
+  });
 
   it('raises the dedicated runtime error when no boundary handles an exception', async () => {
     const denied = craftException({ _tag: 'DENIED' });

@@ -6,6 +6,7 @@ export * from './lib/bridge';
 export { bootstrapCraft, type CraftAppRef } from './lib/bootstrap';
 export * from './lib/server-render';
 export * from './lib/hydrate';
+export * from './lib/start';
 export * from './lib/render/hydration';
 export { createStringDomAdapter } from './lib/render/string-dom';
 // Registers Craft's default pending loader and lazy-route recovery host.

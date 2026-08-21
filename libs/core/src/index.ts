@@ -200,6 +200,7 @@ export {
   YIELDABLE_DEPENDENCY,
   YIELDABLE_VALUE,
   createYieldableReactiveFacade,
+  createDeepYieldableReactiveValue,
   createYieldableReactiveValue,
   deepYieldable,
   hasDeepYieldableInsertion,
@@ -216,6 +217,7 @@ export {
 export type {
   DeepYieldableInsertion,
   DeepYieldableMarker,
+  DeepYieldableReactiveValue,
   DeepYieldableReaderOf,
   DeepYieldableValue,
   NamedYieldableValue,

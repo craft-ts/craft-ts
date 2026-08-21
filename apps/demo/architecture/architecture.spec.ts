@@ -12,6 +12,7 @@ import {
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
   assertQueryMutationHasServerState,
+  assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
   noExclusiveLink,
 } from '@craft-ts/dev-tools';
@@ -71,6 +72,10 @@ describe('demo architecture', () => {
 
   it('requires a DI proof on every routed component and app-config error screen', () => {
     assertRouteDiProofs(graph.graph);
+  });
+
+  it('keeps route definitions separate from page components', () => {
+    assertRouteComponentsInSeparateFiles(graph.graph);
   });
 
   it('requires a query to react to each mutation, except pedagogical orphans', () => {

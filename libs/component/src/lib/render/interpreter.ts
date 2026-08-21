@@ -29,6 +29,7 @@ import {
   isYieldableValue,
   isYieldableMethod,
   isYieldableReactiveValue,
+  DEEP_YIELDABLE,
   provideHostName,
   rawReactiveFacade,
   rawReactiveValue,
@@ -719,7 +720,10 @@ function projectYieldableTemplateContext(
       value[YIELDABLE_VALUE] as string,
     );
 
-    if (typeof value === 'function' && Object.keys(value).length > 0) {
+    if (
+      typeof value === 'function' &&
+      (Object.keys(value).length > 0 || DEEP_YIELDABLE in value)
+    ) {
       return new Proxy(namedProjected, {
         get(_target, property) {
           return projectYieldableTemplateContext(

@@ -112,6 +112,7 @@ import {
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
+  type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
 
@@ -418,7 +419,8 @@ export type ResourceLikeAsyncProcessExceptions<
       >
     | undefined
   >;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           AsyncProcessException['params'],
@@ -453,7 +455,8 @@ export type ResourceByIdLikeAsyncProcessExceptions<
   GroupIdentifier extends string = string,
 > = {
   hasException: Signal<boolean>;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           AsyncProcessException['params'],

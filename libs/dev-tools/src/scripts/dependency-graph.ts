@@ -2208,6 +2208,28 @@ function identifierText(node: Node | undefined): string | undefined {
 function analyzeRoutes(builder: GraphBuilder): void {
   for (const routeInfos of builder.routeFiles.values()) {
     for (const route of routeInfos) {
+      for (const property of route.object.getProperties()) {
+        if (!Node.isPropertyAssignment(property)) continue;
+        if (property.getName() === 'component') {
+          const component = findComponentForExpression(
+            builder,
+            property.getInitializer(),
+          );
+          if (component) {
+            addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
+          }
+        }
+        if (property.getName() === 'loadComponent') {
+          for (const identifier of property.getDescendantsOfKind(
+            SyntaxKind.Identifier,
+          )) {
+            const component = findComponentForExpression(builder, identifier);
+            if (component) {
+              addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
+            }
+          }
+        }
+      }
       const imports = findDynamicImportSpecifiers(route.object);
       for (const specifier of imports) {
         const target = resolveImportedSource(
@@ -2216,8 +2238,15 @@ function analyzeRoutes(builder: GraphBuilder): void {
           builder.project,
         );
         if (!target) continue;
+        const exportNames = findDynamicImportExportNames(route.object, specifier);
         for (const component of builder.components.filter(
-          (candidate) => candidate.node.filePath === target.getFilePath(),
+          (candidate) =>
+            candidate.node.filePath === target.getFilePath() &&
+            (exportNames === undefined ||
+              exportNames.length === 0 ||
+              componentExportNames(candidate).some((name) =>
+                exportNames.includes(name),
+              )),
         )) {
           addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
         }
@@ -3950,6 +3979,19 @@ function findComponentForCall(
   return byName.length === 1 ? byName[0] : undefined;
 }
 
+function findComponentForExpression(
+  builder: GraphBuilder,
+  node: Node | undefined,
+): ComponentInfo | undefined {
+  const expression = unwrapExpression(node);
+  if (!expression || !Node.isIdentifier(expression)) return undefined;
+  const key = symbolKey(expression.getSymbol());
+  if (key) return builder.componentByVariableKey.get(key);
+  const byName =
+    builder.componentsByVariableName.get(expression.getText()) ?? [];
+  return byName.length === 1 ? byName[0] : undefined;
+}
+
 function findComponentBoundService(
   component: ComponentInfo,
   call: CallExpression,
@@ -4022,6 +4064,88 @@ function findDynamicImportSpecifiers(node: Node): string[] {
     .filter((call) => call.getExpression().getText() === 'import')
     .map((call) => getStringArgument(call, 0))
     .filter((value): value is string => value !== undefined);
+}
+
+function findDynamicImportExportNames(
+  node: Node,
+  specifier: string,
+): string[] | undefined {
+  const importCall = node
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find(
+      (call) =>
+        call.getExpression().getText() === 'import' &&
+        getStringArgument(call, 0) === specifier,
+    );
+  if (!importCall) return undefined;
+
+  let current: Node = importCall;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const parent = current.getParent();
+    if (!parent) return undefined;
+    if (
+      Node.isCallExpression(parent) &&
+      parent.getExpression().getText() === 'withRetry'
+    ) {
+      current = parent;
+      continue;
+    }
+    if (
+      Node.isPropertyAccessExpression(parent) &&
+      parent.getName() === 'then'
+    ) {
+      const thenCall = parent.getParent();
+      return thenCall && Node.isCallExpression(thenCall)
+        ? extractDynamicImportExportNames(thenCall)
+        : undefined;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+function extractDynamicImportExportNames(call: CallExpression): string[] | undefined {
+  const callback = call.getArguments()[0];
+  if (!callback || (!Node.isArrowFunction(callback) && !Node.isFunctionExpression(callback))) {
+    return undefined;
+  }
+  const parameter = callback.getParameters()[0];
+  const body = callback.getBody();
+  if (!parameter || !body || !Node.isExpression(body)) return undefined;
+
+  const bindingPattern = parameter.getNameNode();
+  if (Node.isObjectBindingPattern(bindingPattern) && Node.isIdentifier(body)) {
+    const binding = bindingPattern.getElements().find(
+      (element) =>
+        Node.isBindingElement(element) &&
+        element.getNameNode().getText() === body.getText(),
+    );
+    if (binding && Node.isBindingElement(binding)) {
+      return [binding.getPropertyNameNode()?.getText() ?? body.getText()];
+    }
+  }
+
+  if (Node.isPropertyAccessExpression(body)) {
+    const root = rootIdentifier(body.getExpression());
+    if (root && root.getText() === parameter.getName()) {
+      return [body.getName()];
+    }
+  }
+  return undefined;
+}
+
+function componentExportNames(component: ComponentInfo): string[] {
+  const declaration = component.call.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
+  if (!declaration) return [];
+  return [...component.call.getSourceFile().getExportedDeclarations()]
+    .filter(([, declarations]) =>
+      declarations.some(
+        (candidate) => candidate.getStart() === declaration.getStart(),
+      ),
+    )
+    .map(([name]) => name);
 }
 
 function resolveImportedSource(

@@ -7,7 +7,7 @@ import {
   resolveEffectLevel,
 } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import EffectSharedServiceComponent from './effect-shared-service';
+import EffectSharedServiceComponent from './effect-access-check-shared-service';
 import { AccessPolicyLive } from '../../shared/access-domain';
 
 describe('demo: checking access rights with a shared service', () => {

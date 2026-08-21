@@ -16,6 +16,7 @@ const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.
 const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
 const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
+const noCraftUse = require('./no-craft-use.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
@@ -72,6 +73,8 @@ const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertio
 const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
 const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
 const noInjectionToken = require('./no-injection-token.cjs');
+const noManualRouteProviderList = require('./no-manual-route-provider-list.cjs');
+const noWidenedRouteProviderContext = require('./no-widened-route-provider-context.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 
 const plugin = {
@@ -95,6 +98,7 @@ const plugin = {
     'require-yieldable-insertion-write': requireYieldableInsertionWrite,
     'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
     'no-craft-use-in-template': noCraftUseInTemplate,
+    'no-craft-use': noCraftUse,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':
@@ -155,6 +159,8 @@ const plugin = {
     'no-effect-in-params': noEffectOutsideLoaders,
     'prefer-query-method-over-state-trigger': preferQueryMethodOverStateTrigger,
     'no-injection-token': noInjectionToken,
+    'no-manual-route-provider-list': noManualRouteProviderList,
+    'no-widened-route-provider-context': noWidenedRouteProviderContext,
   },
 };
 

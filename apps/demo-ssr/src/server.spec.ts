@@ -1,37 +1,45 @@
 import { describe, expect, it } from 'vitest';
-import { renderPage, renderDeferredApi } from './server';
+import { renderDeferredApi, renderPage } from './server';
 
-describe('SSR demo renderer', () => {
-  it('renders the initial overview entirely on the server', async () => {
+describe('CraftTS SSR demo', () => {
+  it('renders a Craft root, transfer snapshot and initial route on the server', async () => {
     const result = await renderPage(new URL('http://localhost/'));
 
     expect(result.status).toBe(200);
+    expect(result.html).toContain('<craft-root data-craft-hk="SsrLabApp/0">');
     expect(result.html).toContain('Comprendre SSR par l’expérience');
-    expect(result.html).toContain('/deferred');
+    expect(result.html).toContain('__CRAFT_TRANSFER__');
   });
 
-  it('uses request data while rendering the personalized page', async () => {
-    const result = await renderPage(new URL('http://localhost/request?name=Ada'), {
-      'accept-language': 'fr-FR,fr;q=0.9',
-      'user-agent': 'DemoBrowser/1.0',
-    });
+  it('blocks the data route until the query is resolved', async () => {
+    const result = await renderPage(new URL('http://localhost/data'));
 
-    expect(result.html).toContain('Bonjour Ada !');
-    expect(result.html).toContain('fr-FR');
+    expect(result.html).toContain('1 284');
+    expect(result.html).not.toContain('Le serveur résout la query');
   });
 
-  it('returns a real 404 for unknown pages', async () => {
+  it('keeps client-only data out of the server query execution', async () => {
+    const result = await renderPage(new URL('http://localhost/client-only'));
+
+    expect(result.html).toContain('En attente de l’hydratation');
+    expect(result.html).not.toContain('visite(s)');
+  });
+
+  it('renders the fallback boundary without waiting for its client payload', async () => {
+    const result = await renderPage(new URL('http://localhost/fallback'));
+
+    expect(result.html).toContain('Le bloc différé arrive après le rendu');
+    expect(result.html).not.toContain('Le bloc différé est arrivé après le premier rendu');
+  });
+
+  it('renders unknown URLs with a server-side 404', async () => {
     const result = await renderPage(new URL('http://localhost/missing'));
 
     expect(result.status).toBe(404);
     expect(result.html).toContain('Page non trouvée');
   });
 
-  it('keeps slow deferred data outside the initial HTML', async () => {
-    const result = await renderPage(new URL('http://localhost/deferred'));
-
-    expect(result.html).toContain('En attente de l’hydratation');
-    expect(result.html).not.toContain('Le bloc différé est arrivé');
+  it('serves the deferred client payload separately', async () => {
     await expect(renderDeferredApi()).resolves.toMatchObject({
       message: expect.stringContaining('bloc différé'),
     });

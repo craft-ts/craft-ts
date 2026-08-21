@@ -73,12 +73,22 @@ const EffectSharedServiceComponent = craftComponent(
       div({ class: 'actions' }, [
         button(
           'adaButton',
-          { type: 'button', *click() { yield* accessQuery.call('user-ada'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* accessQuery.call('user-ada');
+            },
+          },
           'Ada — administrator',
         ),
         button(
           'graceButton',
-          { type: 'button', *click() { yield* accessQuery.call('user-grace'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* accessQuery.call('user-grace');
+            },
+          },
           'Grace — member',
         ),
         button(

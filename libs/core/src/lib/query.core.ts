@@ -27,6 +27,7 @@ import type {
   YieldableInvocation,
 } from './yieldable';
 import type {
+  DeepYieldableReactiveValue,
   YieldableReactiveProperties,
   YieldableReactiveSignal,
   YieldableReactiveValue,
@@ -609,7 +610,7 @@ export type InsertionParams<
     'resourceParamsSrc'
   >;
   hasException: YieldableReactiveValue<boolean, 'hasException'>;
-  exceptions: YieldableReactiveValue<
+  exceptions: DeepYieldableReactiveValue<
     {
       list: (
         | InsertMetaInCraftExceptionIfExists<
@@ -693,7 +694,7 @@ export type InsertionByIdParams<
     'resourceParamsSrc'
   >;
   hasException: YieldableReactiveValue<boolean, 'hasException'>;
-  exceptions: YieldableReactiveValue<
+  exceptions: DeepYieldableReactiveValue<
     {
       list: (
         | InsertMetaInCraftExceptionIfExists<

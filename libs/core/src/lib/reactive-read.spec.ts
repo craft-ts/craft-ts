@@ -5,10 +5,12 @@ import {
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { craftComputed } from './craft-computed';
+import { craftException } from './craft-exception';
 import { craftUse } from './craft-use';
 import { insertStatePipe } from './insert-typed-pipes';
 import {
   deepYieldable,
+  createDeepYieldableReactiveValue,
   insertDeepYieldable,
   provideReactiveReadObserver,
   type ReactiveReadEdge,
@@ -152,6 +154,48 @@ describe('yieldable reactive reads', () => {
     expect(reads).toBe(0);
     expect(craftUse(user.id())).toBe(7);
     expect(reads).toBe(1);
+  });
+
+  it('projects resource exception buckets as deep reactive readers', () => {
+    const loaderException = craftException(
+      { _tag: 'PROFILE_NOT_FOUND' },
+      { userId: 'user-404' },
+    );
+    const paramsException = craftException(
+      { _tag: 'INVALID_PROFILE_ID' },
+      { reason: 'missing' },
+    );
+    const source = signal<{
+      list: (typeof paramsException | typeof loaderException)[];
+      params: typeof paramsException | undefined;
+      loader: typeof loaderException | undefined;
+    }>({
+      list: [paramsException, loaderException],
+      params: paramsException,
+      loader: loaderException,
+    });
+    const exceptions = TestBed.runInInjectionContext(() =>
+      createDeepYieldableReactiveValue(source, 'exceptions', {
+        primitive: 'query',
+        path: 'profileQuery.exceptions',
+      }),
+    );
+
+    expect(craftUse(exceptions.loader())).toBe(loaderException);
+    expect(craftUse(exceptions.params())).toBe(paramsException);
+    expect(craftUse(exceptions.list())).toEqual([
+      paramsException,
+      loaderException,
+    ]);
+
+    source.set({
+      list: [],
+      params: undefined,
+      loader: undefined,
+    });
+    expect(craftUse(exceptions.loader())).toBeUndefined();
+    expect(craftUse(exceptions.params())).toBeUndefined();
+    expect(craftUse(exceptions.list())).toEqual([]);
   });
 
   it('rejects unknown yields with the craftComputed-specific error', () => {

@@ -1,6 +1,6 @@
 ---
 name: craft-ts
-description: Write and review framework-independent @craft-ts/core applications. Use when creating or evolving a CraftTS project, adding state, query, mutation, queryParams, asyncProcess, craftService, craftComponent, craftRoutes, forms, API boundaries, or coding-agent setup.
+description: Write and review framework-independent @craft-ts/core applications, including CSR and SSR. Use when creating or evolving a CraftTS project, adding state, query, mutation, queryParams, asyncProcess, craftService, craftComponent, craftRoutes, forms, SSR rendering or hydration, API boundaries, or coding-agent setup.
 ---
 
 # CraftTS
@@ -30,7 +30,14 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
 - One insertion per primitive; compose with `craftPipe`.
 - `craftService` + generated `X()` helpers. No new `inject()` / `@Injectable`.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split on `TS2589`.
-- Use `bootstrapCraft` and `provideCraftRouter` for a browser app; do not
-  bootstrap Angular.
+- Use `startCraft` and `provideCraftRouter` for a browser app that may receive
+  SSR HTML. It hydrates a host marked by Craft SSR and mounts a fresh client
+  tree otherwise. Use `bootstrapCraft` when a fresh client mount is explicitly
+  required, and `hydrateCraft` when hydration must be forced or customized.
+- Use `renderCraft` for one isolated SSR request. Create a new render per
+  request; never reuse its injector, platform, primitive registry, or history.
+- Keep SSR data behavior explicit with `pendingBlock({ ssr: 'block' | 'fallback' | 'client' })`
+  or a route-level `ssr` policy. Do not let a suspended source reach SSR
+  without a policy.
 - Run existing architecture tests. Do not add an architecture rule for the feature.
 - Confirm symbols against the installed `node_modules/@craft-ts/core`.

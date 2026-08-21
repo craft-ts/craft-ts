@@ -73,9 +73,18 @@ const EffectLayerScopeComponent = craftComponent(
         p({ class: 'panel-title' }, 'Active team'),
         ifBlock(teamOverviewQuery.isLoading, () => p('Loading team overview…')),
         p({ class: 'row' }, [strong('Team: '), teamOverviewQuery.teamName]),
-        p({ class: 'row' }, [strong('Signed-in user: '), teamOverviewQuery.viewerName]),
-        p({ class: 'row' }, [strong('Access level: '), teamOverviewQuery.viewerAccess]),
-        p({ class: 'row' }, [strong('Visible members: '), teamOverviewQuery.memberNames]),
+        p({ class: 'row' }, [
+          strong('Signed-in user: '),
+          teamOverviewQuery.viewerName,
+        ]),
+        p({ class: 'row' }, [
+          strong('Access level: '),
+          teamOverviewQuery.viewerAccess,
+        ]),
+        p({ class: 'row' }, [
+          strong('Visible members: '),
+          teamOverviewQuery.memberNames,
+        ]),
       ]),
       p({ class: 'note' }, [
         'The query loads ',

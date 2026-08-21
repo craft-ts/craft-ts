@@ -144,6 +144,15 @@ export type DeepYieldableReaderOf<Reader> = Reader &
     readonly [DEEP_YIELDABLE]: true;
   };
 
+/**
+ * A reactive reader whose object-valued result can be projected property by
+ * property (`reader.profile.name`) while keeping every projection yieldable.
+ */
+export type DeepYieldableReactiveValue<
+  Value,
+  Name extends string = string,
+> = DeepYieldableReaderOf<YieldableReactiveValue<Value, Name>>;
+
 /** Structural companion to the runtime symbol, usable across project references. */
 export type DeepYieldableMarker = {
   readonly __craftDeepYieldable: true;
@@ -636,10 +645,30 @@ export function createYieldableReactiveFacade<Shape>(
   ) as YieldableReactiveProperties<Shape>;
 }
 
+/**
+ * Creates the deep reader used by resource collections such as
+ * `query.exceptions`. Unlike `deepYieldable`, this starts from the raw signal
+ * so the primitive can opt one reactive property into deep projection without
+ * making the whole primitive deeply yieldable.
+ */
+export function createDeepYieldableReactiveValue<
+  Value,
+  const Name extends string,
+>(
+  source: Signal<Value>,
+  name: Name,
+  identity: Omit<ReactiveReadIdentity, 'name'> = {},
+): DeepYieldableReactiveValue<Value, Name> {
+  return deepYieldable(
+    createYieldableReactiveValue(source, name, identity),
+  ) as DeepYieldableReactiveValue<Value, Name>;
+}
+
 function createFacade(
   value: unknown,
   identity: ReactiveReadIdentity,
   path: string,
+  deep = false,
 ): unknown {
   if (typeof value !== 'object' && typeof value !== 'function') return value;
   if (value === null) return value;
@@ -653,7 +682,7 @@ function createFacade(
   ) {
     return value;
   }
-  if (isYieldableReactiveValue(value)) return value;
+  if (isDeepYieldable(value) || isYieldableReactiveValue(value)) return value;
 
   const cacheKey = `${identity.primitive ?? ''}|${identity.computed ?? ''}|${path}`;
   const cachedByPath = facadeCache.get(value as object);
@@ -671,58 +700,65 @@ function createFacade(
         path,
       },
     );
-    facade = new Proxy(reader, {
-      get(_target, property) {
-        if (property === YIELDABLE_VALUE || property === RAW_REACTIVE_VALUE) {
-          return Reflect.get(reader, property);
-        }
-        if (!Reflect.has(value, property) && Reflect.has(reader, property)) {
-          return createFacade(
-            Reflect.get(reader, property),
-            identity,
-            `${path}.${String(property)}`,
-          );
-        }
-        const child = Reflect.get(value, property);
-        if (
-          (property === 'select' || property === 'selectOrCreate') &&
-          typeof child === 'function'
-        ) {
-          return (...args: unknown[]) =>
-            createFacade(
-              Reflect.apply(child, value, args),
-              identity,
-              `${path}.${String(property)}.${String(args[0] ?? 'selected')}`,
+    facade = deep
+      ? deepYieldable(reader)
+      : new Proxy(reader, {
+          get(_target, property) {
+            if (
+              property === YIELDABLE_VALUE ||
+              property === RAW_REACTIVE_VALUE
+            ) {
+              return Reflect.get(reader, property);
+            }
+            if (!Reflect.has(value, property) && Reflect.has(reader, property)) {
+              return createFacade(
+                Reflect.get(reader, property),
+                identity,
+                `${path}.${String(property)}`,
+              );
+            }
+            const child = Reflect.get(value, property);
+            if (
+              (property === 'select' || property === 'selectOrCreate') &&
+              typeof child === 'function'
+            ) {
+              return (...args: unknown[]) =>
+                createFacade(
+                  Reflect.apply(child, value, args),
+                  identity,
+                  `${path}.${String(property)}.${String(args[0] ?? 'selected')}`,
+                );
+            }
+            return createFacade(
+              child,
+              {
+                ...identity,
+                insertion:
+                  identity.insertion ??
+                  (typeof property === 'string' ? property : undefined),
+              },
+              `${path}.${String(property)}`,
             );
-        }
-        return createFacade(
-          child,
-          {
-            ...identity,
-            insertion:
-              identity.insertion ??
-              (typeof property === 'string' ? property : undefined),
           },
-          `${path}.${String(property)}`,
-        );
-      },
-      ownKeys: (target) => [
-        ...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(value)]),
-      ],
-      getOwnPropertyDescriptor(_target, property) {
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(
-          reader,
-          property,
-        );
-        if (targetDescriptor) return targetDescriptor;
-        const descriptor = Reflect.getOwnPropertyDescriptor(value, property);
-        return descriptor ? { ...descriptor, configurable: true } : undefined;
-      },
-      has: (_target, property) =>
-        property === YIELDABLE_VALUE ||
-        property === RAW_REACTIVE_VALUE ||
-        Reflect.has(value, property),
-    });
+          ownKeys: (target) => [
+            ...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(value)]),
+          ],
+          getOwnPropertyDescriptor(_target, property) {
+            const targetDescriptor = Reflect.getOwnPropertyDescriptor(
+              reader,
+              property,
+            );
+            if (targetDescriptor) return targetDescriptor;
+            const descriptor = Reflect.getOwnPropertyDescriptor(value, property);
+            return descriptor
+              ? { ...descriptor, configurable: true }
+              : undefined;
+          },
+          has: (_target, property) =>
+            property === YIELDABLE_VALUE ||
+            property === RAW_REACTIVE_VALUE ||
+            Reflect.has(value, property),
+      });
   } else {
     facade = new Proxy(value as object, {
       get(target, property, receiver) {
@@ -766,6 +802,7 @@ function createFacade(
               (typeof property === 'string' ? property : undefined),
           },
           `${path}.${String(property)}`,
+          property === 'exceptions',
         );
       },
     });
@@ -775,4 +812,11 @@ function createFacade(
   nextCache.set(cacheKey, facade);
   if (!cachedByPath) facadeCache.set(value as object, nextCache);
   return facade;
+}
+
+function isDeepYieldable(value: unknown): value is DeepYieldableMarker {
+  return (
+    (typeof value === 'object' && value !== null) ||
+    typeof value === 'function'
+  ) && '__craftDeepYieldable' in (value as object);
 }

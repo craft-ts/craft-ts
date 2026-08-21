@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { relative } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import type {
   DependencyGraph,
   DependencyGraphEdge,
@@ -1050,6 +1051,107 @@ export function assertRouteDiProofs(graph: DependencyGraph): void {
   );
 }
 
+export type RouteComponentFileViolation = {
+  kind: 'route-and-component-same-file' | 'components-share-file';
+  route: string;
+  component: string;
+  components: readonly string[];
+  routeFile: string;
+  componentFile: string;
+};
+
+export function routeComponentFileViolations(
+  graph: DependencyGraph,
+): RouteComponentFileViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const routedComponents = graph.edges.flatMap((edge) => {
+    if (edge.kind !== 'loads') return [];
+    const route = nodesById.get(edge.from);
+    const component = nodesById.get(edge.to);
+    if (
+      !route ||
+      route.kind !== 'route' ||
+      !component ||
+      component.kind !== 'component' ||
+      !route.filePath ||
+      !component.filePath
+    ) {
+      return [];
+    }
+    return [
+      {
+        componentId: component.id,
+        route: String(route.details?.['path'] ?? route.label),
+        component: component.label,
+        routeFile: relativeGraphPath(graph, route.filePath) ?? route.filePath,
+        componentFile:
+          relativeGraphPath(graph, component.filePath) ?? component.filePath,
+      },
+    ];
+  });
+
+  const routeAndComponentViolations = routedComponents
+    .filter((candidate) => candidate.routeFile === candidate.componentFile)
+    .map(
+      (candidate): RouteComponentFileViolation => ({
+        kind: 'route-and-component-same-file',
+        route: candidate.route,
+        component: candidate.component,
+        components: [candidate.component],
+        routeFile: candidate.routeFile,
+        componentFile: candidate.componentFile,
+      }),
+    );
+
+  const componentsByFile = new Map<string, typeof routedComponents>();
+  for (const candidate of routedComponents) {
+    const candidates = componentsByFile.get(candidate.componentFile) ?? [];
+    candidates.push(candidate);
+    componentsByFile.set(candidate.componentFile, candidates);
+  }
+
+  const sharedFileViolations: RouteComponentFileViolation[] = [];
+  for (const candidates of componentsByFile.values()) {
+    const uniqueComponents = [
+      ...new Map(candidates.map((candidate) => [candidate.componentId, candidate])).values(),
+    ];
+    if (uniqueComponents.length < 2) continue;
+    const first = uniqueComponents[0];
+    if (!first) continue;
+    sharedFileViolations.push({
+      kind: 'components-share-file',
+      route: uniqueComponents
+        .map((candidate) => candidate.route)
+        .join(', '),
+      component: uniqueComponents
+        .map((candidate) => candidate.component)
+        .join(', '),
+      components: uniqueComponents.map((candidate) => candidate.component),
+      routeFile: first.routeFile,
+      componentFile: first.componentFile,
+    });
+  }
+
+  return [...routeAndComponentViolations, ...sharedFileViolations];
+}
+
+export function assertRouteComponentsInSeparateFiles(
+  graph: DependencyGraph,
+): void {
+  const violations = routeComponentFileViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          violation.kind === 'components-share-file'
+            ? `Routes ${JSON.stringify(violation.route)} load multiple page components (${JSON.stringify(violation.component)}) from the same component file ${violation.componentFile}. Each routed page component must have its own file.`
+            : `Route ${JSON.stringify(violation.route)} loads component ${JSON.stringify(violation.component)} from the same file ${violation.routeFile}. Route definitions and page components must be in separate files.`,
+      )
+      .join('\n'),
+  );
+}
+
 export type HttpEndpointUniqueViolation = {
   id: string;
   label: string;
@@ -1206,6 +1308,101 @@ export function assertNoDependencyCycles(graph: DependencyGraph): void {
       .map((cycle) => `Dependency cycle: ${cycle.labels.join(' -> ')}.`)
       .join('\n'),
   );
+}
+
+export type AppConfigRouteCycle = {
+  appConfigFile: string;
+  routeFile: string;
+  routeLabels: readonly string[];
+};
+
+/**
+ * App configuration owns route registration. A route module may expose route
+ * metadata to the config, but the two modules must not import each other: the
+ * cycle makes the inferred provider context unstable and invites manual DI
+ * fallbacks.
+ */
+export function appConfigRouteCycleViolations(
+  graph: DependencyGraph,
+): AppConfigRouteCycle[] {
+  const appConfigs = uniqueByFile(
+    graph.nodes.filter((node) => node.kind === 'app-config'),
+  );
+  const routesByFile = new Map<string, DependencyGraphNode[]>();
+  for (const node of graph.nodes) {
+    if (node.kind !== 'route' || !node.filePath) continue;
+    const routes = routesByFile.get(node.filePath) ?? [];
+    routes.push(node);
+    routesByFile.set(node.filePath, routes);
+  }
+
+  const violations: AppConfigRouteCycle[] = [];
+  for (const appConfig of appConfigs) {
+    if (!appConfig.filePath) continue;
+    for (const [routeFile, routeNodes] of routesByFile) {
+      if (
+        !importsFile(appConfig.filePath, routeFile) ||
+        !importsFile(routeFile, appConfig.filePath)
+      ) {
+        continue;
+      }
+      violations.push({
+        appConfigFile: appConfig.filePath,
+        routeFile,
+        routeLabels: routeNodes.map(routePath),
+      });
+    }
+  }
+  return violations;
+}
+
+export function assertNoAppConfigRouteCycles(graph: DependencyGraph): void {
+  const violations = appConfigRouteCycleViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `App config/routes dependency cycle: ${relativeGraphPath(graph, violation.appConfigFile)} -> ${relativeGraphPath(graph, violation.routeFile)} -> ${relativeGraphPath(graph, violation.appConfigFile)}. Remove the cycle so RouteCheckedDI can infer the application provider context; do not replace it with a manual provider list.`,
+      )
+      .join('\n'),
+  );
+}
+
+function uniqueByFile(nodes: readonly DependencyGraphNode[]): DependencyGraphNode[] {
+  const seen = new Set<string>();
+  return nodes.filter((node) => {
+    if (!node.filePath || seen.has(node.filePath)) return false;
+    seen.add(node.filePath);
+    return true;
+  });
+}
+
+function importsFile(fromFile: string, targetFile: string): boolean {
+  if (!existsSync(fromFile)) return false;
+  const source = readFileSync(fromFile, 'utf8');
+  const specifiers = source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g);
+  for (const match of specifiers) {
+    const specifier = match[1];
+    if (!specifier?.startsWith('.')) continue;
+    if (resolveImport(fromFile, specifier) === targetFile) return true;
+  }
+  return false;
+}
+
+function resolveImport(fromFile: string, specifier: string): string | undefined {
+  const base = resolve(dirname(fromFile), specifier);
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.mts`,
+    `${base}.js`,
+    `${base}.mjs`,
+    `${base}/index.ts`,
+    `${base}/index.tsx`,
+  ];
+  return candidates.find(existsSync);
 }
 
 export type PathBoundaryConstraint = {

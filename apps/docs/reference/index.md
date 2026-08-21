@@ -116,6 +116,7 @@ already receive those methods as arguments — see
 | Symbol                                                     | What it does                                                          | Page                                               |
 | ---------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------- |
 | `renderCraft`, `renderToString`                            | Renders an isolated request to HTML, CSS, and a transfer snapshot     | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `startCraft`                                               | Hydrates an SSR host or mounts a fresh client application automatically | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM        | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `pendingBlock({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                        | [SSR and hydration](/guide/advanced/ssr-hydration) |

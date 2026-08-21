@@ -27,6 +27,7 @@ import {
   pendingBlock,
   provideCraftRootComponent,
   renderCraft,
+  startCraft,
   span,
   ul,
   type CraftComponent,
@@ -138,6 +139,36 @@ describe('Craft SSR and hydration', () => {
     expect(loads).toBe(1);
     expect(hydrated.mismatches).toEqual([]);
     hydrated.destroy();
+  });
+
+  it('automatically hydrates an SSR host and bootstraps a plain host', async () => {
+    const app = craftComponent(
+      'AutoStartApp',
+      {},
+      function* () {
+        return {};
+      },
+      () => p('ready'),
+    );
+    const config = configFor(app);
+    const rendered = await renderCraft({ config });
+
+    document.body.innerHTML = rendered.html;
+    const ssrHost = document.querySelector('craft-root')!;
+    const hydrated = startCraft({ config });
+
+    expect(hydrated).toHaveProperty('mismatches');
+    expect(ssrHost.textContent).toBe('ready');
+    hydrated.destroy();
+
+    document.body.replaceChildren();
+    const plainHost = document.createElement('craft-root');
+    document.body.append(plainHost);
+    const bootstrapped = startCraft({ config, host: plainHost });
+
+    expect(plainHost.textContent).toBe('ready');
+    expect(bootstrapped).not.toHaveProperty('mismatches');
+    bootstrapped.destroy();
   });
 
   it('renders a fallback without waiting and rejects an undeclared server policy', async () => {

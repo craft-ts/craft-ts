@@ -18,11 +18,7 @@ import { queryEffect } from '@craft-ts/effect';
 import {
   loadUserProfile,
   type ProfileScenario,
-  type Unauthorized,
-  type UserNotFound,
 } from '../../shared/access-domain';
-
-type EffectException = UserNotFound | Unauthorized;
 
 const EffectYieldComponent = craftComponent(
   'EffectYieldComponent',
@@ -50,13 +46,10 @@ const EffectYieldComponent = craftComponent(
         method: (scenario: ProfileScenario) => scenario,
         loader: ({ params }) => loadUserProfile(params),
       },
-      ({ resource, exceptions }) => ({
+      ({ resource }) => ({
         hasProfile: craftComputed('hasProfile', () => resource.hasValue()),
         profileName: craftComputed('profileName', function* () {
           return (yield* resource.value())?.name ?? '…';
-        }),
-        exception: craftComputed('exception', function* () {
-          return (yield* exceptions()).loader;
         }),
       }),
     );
@@ -79,12 +72,22 @@ const EffectYieldComponent = craftComponent(
       div({ class: 'actions' }, [
         button(
           'profileButton',
-          { type: 'button', *click() { yield* profileQuery.call('success'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* profileQuery.call('success');
+            },
+          },
           'Profile available',
         ),
         button(
           'notFoundButton',
-          { type: 'button', *click() { yield* profileQuery.call('not-found'); } },
+          {
+            type: 'button',
+            *click() {
+              yield* profileQuery.call('not-found');
+            },
+          },
           'Profile not found',
         ),
         button(
@@ -119,26 +122,22 @@ const EffectYieldComponent = craftComponent(
               profileQuery.profileName,
             ]),
           () =>
-            matchBlock.exhaustive(
-              profileQuery.exception as unknown as () => EffectException,
-              '_tag',
-              {
-                UserNotFound: () =>
-                  p({ class: 'outcome' }, [
-                    strong('Profile not found: '),
-                    'no profile matches the request. ',
-                    span({ class: 'mono' }, 'UserNotFound'),
-                    ' is the business error propagated by Effect.',
-                  ]),
-                Unauthorized: () =>
-                  p({ class: 'outcome' }, [
-                    strong('Access denied: '),
-                    'the session has expired. ',
-                    span({ class: 'mono' }, 'Unauthorized'),
-                    ' is the business error propagated by Effect.',
-                  ]),
-              },
-            ),
+            matchBlock.exhaustive(profileQuery.exceptions.loader, '_tag', {
+              UserNotFound: () =>
+                p({ class: 'outcome' }, [
+                  strong('Profile not found: '),
+                  'no profile matches the request. ',
+                  span({ class: 'mono' }, 'UserNotFound'),
+                  ' is the business error propagated by Effect.',
+                ]),
+              Unauthorized: () =>
+                p({ class: 'outcome' }, [
+                  strong('Access denied: '),
+                  'the session has expired. ',
+                  span({ class: 'mono' }, 'Unauthorized'),
+                  ' is the business error propagated by Effect.',
+                ]),
+            }),
         ),
       ]),
       div({ class: 'note' }, [
