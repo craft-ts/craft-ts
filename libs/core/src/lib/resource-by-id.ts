@@ -110,8 +110,10 @@ type ResourceByIdConfig<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-> = Omit<ResourceOptions<State, ResourceParams>, 'params'> &
-  (
+> = Omit<ResourceOptions<State, ResourceParams>, 'params'> & {
+  /** @internal Shared source name used by the server policy gate. */
+  ssrSourceName?: string;
+} & (
     | {
         fromResourceById?: never;
         params: () => ResourceParams;
@@ -157,7 +159,8 @@ export function resourceById<
   >,
 ): ResourceByIdRef<GroupIdentifier, State, ResourceParams> {
   const injector = inject(Injector);
-  const { identifier, params, loader, stream, equalParams } = config;
+  const { identifier, params, loader, stream, equalParams, ssrSourceName } =
+    config;
   const fromResourceById =
     'fromResourceById' in config ? config.fromResourceById : undefined;
 
@@ -238,6 +241,7 @@ export function resourceById<
           loader,
           params: paramsWithEqualRule as () => ResourceParams,
           stream,
+          ssrSourceName,
         },
       });
 
@@ -395,10 +399,7 @@ export function resourceById<
         if (options?.defaultValue !== undefined && !existing.hasValue()) {
           existing.set(options.defaultValue);
         }
-        return existing as CraftResourceRef<
-          State,
-          ResourceParams
-        >;
+        return existing as CraftResourceRef<State, ResourceParams>;
       }
       const filteredGlobalParamsByGroup = linkedSignal({
         source: () =>
@@ -501,7 +502,7 @@ const RESOURCE_INSTANCE_TOKEN = new InjectionToken<
 );
 
 interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
-  resourceOptions: ResourceOptions<T, R>;
+  resourceOptions: ResourceOptions<T, R> & { ssrSourceName?: string };
   group: GroupIdentifier;
 }
 

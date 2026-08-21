@@ -38,7 +38,11 @@ import {
 } from './craft-generator-runtime';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
-import { CRAFT_ROUTE_META, type CraftRouteMeta, type CraftRouteStepFactory } from './craft-route-meta';
+import {
+  CRAFT_ROUTE_META,
+  type CraftRouteMeta,
+  type CraftRouteStepFactory,
+} from './craft-route-meta';
 import { CRAFT_VIEW_TRANSITION } from './craft-view-transition';
 import type { ViewTransitionPayloadDef } from './craft-view-transition';
 import type {
@@ -74,6 +78,7 @@ import type {
 } from './host/craft-router-runtime';
 import { CRAFT_MATCH, type CraftUrlTree } from './craft-router-tokens';
 import { craftComputed } from './host/craft-signal';
+import { CRAFT_SSR_POLICY, type CraftSsrPolicy } from './craft-ssr';
 
 type MaybeAsync<T> = T | Promise<T> | Observable<T>;
 type AngularRouteBase = Omit<
@@ -1132,6 +1137,7 @@ type CraftRouteSharedFields<
       providers?: Providers;
       providersFn?: (helpers: any) => Providers;
       data?: RouteData;
+      ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
       redirectTo?: string | RouteRedirectToFactory<any>;
       paramsProvider?: [PathParamNames<Path>] extends [never]
@@ -1149,6 +1155,7 @@ type AnyCraftRouteSharedFields = Simplify<
       providers?: AngularRouteProviders;
       providersFn?: (helpers: any) => AngularRouteProviders;
       data?: Data;
+      ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
       redirectTo?: string | RouteRedirectToFactory<any>;
       paramsProvider?: (
@@ -1166,6 +1173,7 @@ type AnyCraftRouteHelperDefinition = {
   canMatch?: CraftRouteCanMatchGuard;
   resolve?: CraftRouteResolve;
   withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
+  ssr?: CraftSsrPolicy;
 };
 
 type CraftRouteDefinitionInput<Def extends object> =
@@ -2408,11 +2416,7 @@ function toCraftRouteStepFactory(
   return function* (route, state) {
     const result = factory(route, state);
     if (isGenerator(result)) {
-      return yield* settlePublicGuardValue(
-        routePath,
-        guardName,
-        yield* result,
-      );
+      return yield* settlePublicGuardValue(routePath, guardName, yield* result);
     }
     return yield* settlePublicGuardValue(routePath, guardName, result);
   };
@@ -2812,9 +2816,7 @@ export function craftRoutes<
   ): CraftCompiledRoute {
     // A local accumulator, not the route contract: it is built up here and
     // only ever handed out as a fresh readonly array below.
-    const autoProviders: unknown[] = [
-      provideHostName('route:' + route.path),
-    ];
+    const autoProviders: unknown[] = [provideHostName('route:' + route.path)];
 
     for (const paramName of extractRouteParamNames(route.path)) {
       const serviceName = toRouteParamServiceName(
@@ -2988,6 +2990,9 @@ export function craftRoutes<
       ? providersFn(buildRouteProviderHelpers(route))
       : [];
     const resolvedRouteProviders = [
+      ...(route.ssr
+        ? [{ provide: CRAFT_SSR_POLICY, useValue: route.ssr }]
+        : []),
       ...(routeProviders ?? []),
       ...factoryProviders,
     ];

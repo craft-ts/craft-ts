@@ -36,6 +36,8 @@ export type CraftPrimitiveEntry = Readonly<{
   hostTags: readonly string[];
   read(): unknown;
   write(value: unknown): void;
+  status?(): string;
+  error?(): unknown;
   /**
    * Re-runs the primitive's loader, when it has one. A resource the snapshot
    * does not cover is reloaded rather than left showing data that belongs to
@@ -50,12 +52,16 @@ export type CraftPrimitiveSnapshot = Readonly<Record<string, unknown>>;
 export class CraftPrimitiveRegistry {
   private readonly entries = new Map<string, CraftPrimitiveEntry>();
   private readonly occurrences = new Map<string, number>();
+  private readonly primedValues = new Map<string, unknown>();
   /** Public primitive ref → address, so a caller can name what it holds. */
   private readonly addresses = new WeakMap<object, string>();
 
   /** Associates the ref an application holds with its registered address. */
   link(ref: unknown, address: string): void {
-    if (ref !== null && (typeof ref === 'object' || typeof ref === 'function')) {
+    if (
+      ref !== null &&
+      (typeof ref === 'object' || typeof ref === 'function')
+    ) {
       this.addresses.set(ref as object, address);
     }
   }
@@ -65,7 +71,8 @@ export class CraftPrimitiveRegistry {
    * feature names a primitive declared outside the host it is scoped to.
    */
   addressOf(ref: unknown): string | undefined {
-    return ref !== null && (typeof ref === 'object' || typeof ref === 'function')
+    return ref !== null &&
+      (typeof ref === 'object' || typeof ref === 'function')
       ? this.addresses.get(ref as object)
       : undefined;
   }
@@ -78,7 +85,10 @@ export class CraftPrimitiveRegistry {
    * `…#2` can therefore never be restored into a different primitive that
    * happened to take the freed slot — it simply finds nothing.
    */
-  register(base: string, entry: Omit<CraftPrimitiveEntry, 'address'>): {
+  register(
+    base: string,
+    entry: Omit<CraftPrimitiveEntry, 'address'>,
+  ): {
     readonly address: string;
     readonly release: () => void;
   } {
@@ -87,6 +97,10 @@ export class CraftPrimitiveRegistry {
     const address = `${base}#${occurrence}`;
     const registered: CraftPrimitiveEntry = { ...entry, address };
     this.entries.set(address, registered);
+    if (this.primedValues.has(address)) {
+      registered.write(this.primedValues.get(address));
+      this.primedValues.delete(address);
+    }
 
     return {
       address,
@@ -121,7 +135,9 @@ export class CraftPrimitiveRegistry {
    * read (a suspended resource, a computation in error) contributes nothing
    * rather than failing the whole capture.
    */
-  capture(entries: readonly CraftPrimitiveEntry[] = this.list()): CraftPrimitiveSnapshot {
+  capture(
+    entries: readonly CraftPrimitiveEntry[] = this.list(),
+  ): CraftPrimitiveSnapshot {
     const snapshot: Record<string, unknown> = {};
     for (const entry of entries) {
       try {
@@ -141,6 +157,21 @@ export class CraftPrimitiveRegistry {
   restore(snapshot: CraftPrimitiveSnapshot): void {
     for (const [address, value] of Object.entries(snapshot)) {
       this.entries.get(address)?.write(value);
+    }
+  }
+
+  /**
+   * Restores current entries and remembers future ones. Used by hydration,
+   * where primitives are constructed during the first component render.
+   */
+  prime(snapshot: CraftPrimitiveSnapshot): void {
+    for (const [address, value] of Object.entries(snapshot)) {
+      const entry = this.entries.get(address);
+      if (entry) {
+        entry.write(value);
+      } else {
+        this.primedValues.set(address, value);
+      }
     }
   }
 }
@@ -166,6 +197,8 @@ type RegisterOptions = Readonly<{
   read(): unknown;
   write(value: unknown): void;
   reload?(): boolean;
+  status?(): string;
+  error?(): unknown;
   /** Resolved from the ambient injection context when omitted. */
   injector?: Injector;
 }>;
@@ -194,9 +227,10 @@ export function ɵregisterCraftPrimitive(
     }
   };
 
-  const registry = resolve(CRAFT_PRIMITIVE_REGISTRY, null as never) as
-    | CraftPrimitiveRegistry
-    | null;
+  const registry = resolve(
+    CRAFT_PRIMITIVE_REGISTRY,
+    null as never,
+  ) as CraftPrimitiveRegistry | null;
   if (!registry) return { link: () => undefined };
 
   const hostTags = resolve(
@@ -213,6 +247,8 @@ export function ɵregisterCraftPrimitive(
       read: options.read,
       write: options.write,
       ...(options.reload ? { reload: options.reload } : {}),
+      ...(options.status ? { status: options.status } : {}),
+      ...(options.error ? { error: options.error } : {}),
     },
   );
 

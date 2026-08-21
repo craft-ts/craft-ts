@@ -9,10 +9,7 @@ import {
 } from './host/craft-compat';
 import { DOCUMENT } from './host/craft-compat';
 import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
-import {
-  isCraftException,
-  type AnyCraftException,
-} from './craft-exception';
+import { isCraftException, type AnyCraftException } from './craft-exception';
 import {
   evaluateCraftGuardSync,
   runCraftRouteChainAsync,
@@ -35,7 +32,11 @@ import {
   isCraftRouteLoadError,
   setActiveCraftRouteLoadError,
 } from './craft-route-load-error';
-import { getCraftRouteMeta, type CraftRouteMeta, type CraftRouteStepFactory } from './craft-route-meta';
+import {
+  getCraftRouteMeta,
+  type CraftRouteMeta,
+  type CraftRouteStepFactory,
+} from './craft-route-meta';
 import {
   CRAFT_START_VIEW_TRANSITION,
   CRAFT_VIEW_TRANSITION,
@@ -74,6 +75,8 @@ import {
   CRAFT_ROUTER,
   type CraftRouterNavigationApi,
 } from './craft-router-tokens';
+import { CRAFT_SSR_RUNTIME } from './craft-ssr';
+import { CRAFT_PLATFORM } from './craft-platform';
 
 const ROUTE_PROP_SKIP = new Set(['craftComponent', 'craftPendingComponent']);
 
@@ -193,7 +196,9 @@ export class CraftRouterOutletController {
     set(value: CraftViewTransitionInput): void;
   };
   private readonly a11yNavigationFocus = inject(CRAFT_A11Y_NAVIGATION_FOCUS);
-  private readonly document = inject(DOCUMENT);
+  private readonly platform = inject(CRAFT_PLATFORM, { optional: true });
+  private readonly document = this.platform?.document ?? inject(DOCUMENT);
+  private readonly ssrRuntime = inject(CRAFT_SSR_RUNTIME, { optional: true });
   private a11yHasCompletedInitialActivation = false;
 
   readonly displayedComponent: CraftWritableSignal<Type<unknown> | null> =
@@ -346,7 +351,12 @@ export class CraftRouterOutletController {
     );
     this._meta = meta ?? null;
     this.clearExceptionSinks(meta);
-    void this.finishActivation(activated, meta ?? null);
+    const activation = this.finishActivation(activated, meta ?? null);
+    if (this.ssrRuntime) {
+      this.ssrRuntime.track(`route:${activated.route.path}`, activation);
+    } else {
+      void activation;
+    }
   }
 
   private async finishActivation(
@@ -386,10 +396,7 @@ export class CraftRouterOutletController {
               cause: error,
               attempt: 1,
             });
-        setActiveCraftRouteLoadError(
-          exception,
-          this.rootInjector,
-        );
+        setActiveCraftRouteLoadError(exception, this.rootInjector);
         this.publishGlobalError(exception);
         void this.showErrorComponent(
           this._meta?.errorComponent ?? this.defaultErrorComponent,
@@ -412,14 +419,14 @@ export class CraftRouterOutletController {
       return;
     }
 
-    this.runChain(meta, component, 'enter');
+    await this.runChain(meta, component, 'enter');
   }
 
   private runChain(
     meta: CraftRouteMeta,
     component: Type<unknown> | null,
     phase: 'enter' | 'active',
-  ): void {
+  ): Promise<void> {
     const navId = ++this._navId;
     const injector = this._activeRouteInjector ?? this.rootInjector;
     const routeSnapshot = matchToSnapshot(this._match!);
@@ -473,7 +480,7 @@ export class CraftRouterOutletController {
       },
     );
 
-    this.chainRunner(
+    return this.chainRunner(
       {
         match: meta.match?.(routeSnapshot as never, stateSnapshot as never),
         guard: meta.guard?.(routeSnapshot as never, stateSnapshot as never),
@@ -613,13 +620,14 @@ export class CraftRouterOutletController {
       const target =
         this.document.getElementById('main') ??
         this.document.querySelector('main');
-      if (!(target instanceof HTMLElement)) {
+      if (!target || target.nodeType !== 1) {
         return;
       }
-      if (!target.hasAttribute('tabindex')) {
-        target.tabIndex = -1;
+      const element = target as HTMLElement;
+      if (!element.hasAttribute('tabindex')) {
+        element.tabIndex = -1;
       }
-      target.focus();
+      element.focus();
     });
   }
 

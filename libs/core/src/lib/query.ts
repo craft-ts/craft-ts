@@ -1729,6 +1729,7 @@ function createQueryRef<
         unknown
       >({
         ...queryConfig,
+        ssrSourceName: name,
         params: resourceParamsSrc,
         loader: wrappedLoader,
         stream: wrappedStream,
@@ -1738,18 +1739,20 @@ function createQueryRef<
     : !queryConfig.preservePreviousValue || queryConfig.preservePreviousValue()
       ? preservedResource<QueryState, QueryParams>({
           ...queryConfig,
+          ssrSourceName: name,
           params: nonGroupedParams,
           equal: nonGroupedEqual,
           loader: wrappedLoader,
           stream: wrappedStream,
-        } as ResourceOptions<any, any>)
+        } as ResourceOptions<any, any> & { ssrSourceName: string })
       : craftResource<QueryState, QueryParams>({
           ...queryConfig,
+          ssrSourceName: name,
           params: nonGroupedParams,
           equal: nonGroupedEqual,
           loader: wrappedLoader,
           stream: wrappedStream,
-        } as ResourceOptions<any, any>);
+        } as ResourceOptions<any, any> & { ssrSourceName: string });
 
   if (configuredSchemas.loader) {
     const target = resourceTarget as any;

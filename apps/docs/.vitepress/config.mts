@@ -311,6 +311,7 @@ const guideSidebar = [
     text: 'Going further',
     collapsed: true,
     items: [
+      { text: 'SSR and hydration', link: '/guide/advanced/ssr-hydration' },
       { text: 'Effect integration', link: '/guide/advanced/effect' },
       { text: 'Program operators', link: '/guide/advanced/program-operators' },
       { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },

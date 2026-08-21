@@ -1,5 +1,6 @@
 import { CRAFT_DIRECTIVE, type CraftDirective } from './types';
 import type { CraftNodeChildren } from './render/vnode';
+import type { SsrMode } from '@craft-ts/core';
 
 export const PENDING_BLOCK_DIRECTIVE = Symbol('craft-pending-block-directive');
 
@@ -83,6 +84,7 @@ export type PendingBlockDirective<
     readonly fallback: PendingFallback | undefined;
     readonly reloading: PendingFallback | undefined;
     readonly position: PendingBlockPosition;
+    readonly ssr: SsrMode | undefined;
     /** Phantom carrier — the fallback's own nodes, never read at runtime. */
     readonly fallbackChildren?: FallbackChildren;
   };
@@ -126,6 +128,7 @@ function createPendingBlockDirective<
   fallback: PendingFallback | undefined,
   reloading: PendingFallback | undefined,
   position: PendingBlockPosition,
+  ssr: SsrMode | undefined,
 ): PendingBlockDirective<Handlers> {
   const directive = (() =>
     undefined) as unknown as PendingBlockDirective<Handlers>;
@@ -140,18 +143,16 @@ function createPendingBlockDirective<
     enumerable: false,
   });
   Object.defineProperty(directive, PENDING_BLOCK_DIRECTIVE, {
-    value: { handlers, fallback, reloading, position },
+    value: { handlers, fallback, reloading, position, ssr },
     enumerable: false,
   });
 
   return directive;
 }
 
-export interface PendingBlockOptions<
+type PendingBlockBaseOptions<
   Fallback extends PendingFallback = PendingFallback,
-> {
-  /** Rendered while the subtree below has an async source with no value yet. */
-  readonly fallback?: Fallback;
+> = Readonly<{
   /**
    * Rendered next to the still-visible subtree while a source that already has
    * a value is refetching. A refetch does not suspend — the stale value stays
@@ -160,7 +161,27 @@ export interface PendingBlockOptions<
   readonly reloading?: Fallback;
   /** Where the fallback goes relative to the (hidden) subtree. Defaults to `'before'`. */
   readonly position?: PendingBlockPosition;
-}
+}>;
+
+/**
+ * A client-only SSR boundary must name the shell that replaces the skipped
+ * subtree. Other modes may omit it when an exhaustive handler or an outer
+ * boundary owns the pending UI.
+ */
+export type PendingBlockOptions<
+  Fallback extends PendingFallback = PendingFallback,
+> = PendingBlockBaseOptions<Fallback> &
+  (
+    | Readonly<{
+        readonly ssr: 'client';
+        readonly fallback: Fallback;
+      }>
+    | Readonly<{
+        readonly ssr?: Exclude<SsrMode, 'client'>;
+        /** Rendered while the subtree has an async source with no value yet. */
+        readonly fallback?: Fallback;
+      }>
+  );
 
 interface PendingBlockFactory {
   /**
@@ -208,7 +229,9 @@ interface PendingBlockFactory {
     options?: Omit<PendingBlockOptions, 'fallback' | 'reloading'>,
   ): PendingBlockDirective<
     Handlers,
-    PendingBlockHandlerChildren<Handlers[keyof Handlers]> extends CraftNodeChildren
+    PendingBlockHandlerChildren<
+      Handlers[keyof Handlers]
+    > extends CraftNodeChildren
       ? PendingBlockHandlerChildren<Handlers[keyof Handlers]>
       : CraftNodeChildren
   >;
@@ -221,6 +244,7 @@ export const pendingBlock: PendingBlockFactory = Object.assign(
       options.fallback,
       options.reloading,
       options.position ?? 'before',
+      options.ssr,
     ),
   {
     exhaustive: (
@@ -232,6 +256,7 @@ export const pendingBlock: PendingBlockFactory = Object.assign(
         undefined,
         undefined,
         options.position ?? 'before',
+        options.ssr,
       ),
   },
 ) as PendingBlockFactory;
@@ -240,7 +265,6 @@ export function isPendingBlockDirective(
   value: unknown,
 ): value is PendingBlockDirective<PendingBlockHandlers | undefined> {
   return (
-    typeof value === 'function' &&
-    PENDING_BLOCK_DIRECTIVE in (value as object)
+    typeof value === 'function' && PENDING_BLOCK_DIRECTIVE in (value as object)
   );
 }

@@ -74,6 +74,7 @@ import {
   type CraftRouterEvent,
   type CraftUrlTree,
 } from './craft-router-tokens';
+import { CRAFT_PLATFORM, type CraftPlatform } from './craft-platform';
 
 export {
   createBrowserHistory,
@@ -674,7 +675,7 @@ function matchToRouterStateSnapshot(match: CraftMatch): RouterStateSnapshot {
     params: match.params,
     queryParams: match.queryParams,
     fragment: match.hash ? match.hash.replace(/^#/, '') || null : null,
-    data: ((route.data ?? match.data) ?? {}) as Data,
+    data: (route.data ?? match.data ?? {}) as Data,
     outlet: 'primary',
     title: typeof route.title === 'string' ? route.title : undefined,
     paramMap: emptyParamMap(),
@@ -713,10 +714,7 @@ function commitCraftMatch(
   titleStrategy: CraftTitleStrategy,
 ): void {
   match.set(resolved);
-  if (
-    resolved &&
-    serializeLocation(resolved) !== serializeLocation(location)
-  ) {
+  if (resolved && serializeLocation(resolved) !== serializeLocation(location)) {
     history.replace(serializeLocation(resolved), history.getState());
   }
   if (resolved) {
@@ -818,7 +816,12 @@ function provideCraftRouterRuntime(
     {
       provide: CRAFT_HISTORY,
       useFactory: () => {
-        const history = createBrowserHistory(window);
+        const platform = inject(Injector).get(
+          CRAFT_PLATFORM,
+          null,
+        ) as CraftPlatform | null;
+        const history =
+          platform?.history ?? createBrowserHistory(globalThis.window);
         inject(DestroyRef).onDestroy(() => history.dispose());
         return history;
       },
