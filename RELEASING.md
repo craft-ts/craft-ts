@@ -92,7 +92,7 @@ By default, the workspaces must be siblings:
 
 ```text
 craft-ts/
-craft-ts.github.io/
+craft/
 craft-ts-demo/
 craft-ts-demo-effect/
 ```

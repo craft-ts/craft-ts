@@ -458,7 +458,7 @@ async function main(args) {
   const dryRun = flags.includes('--dry-run');
   const assumeYes = flags.includes('--yes');
   const docsRepo = resolve(
-    process.env.CRAFT_DOCS_REPO ?? join(workspaceRoot, '../craft-ts.github.io'),
+    process.env.CRAFT_DOCS_REPO ?? join(workspaceRoot, '../craft'),
   );
   const demoRepo = resolve(
     process.env.CRAFT_DEMO_REPO ?? join(workspaceRoot, '../craft-ts-demo'),
