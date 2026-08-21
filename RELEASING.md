@@ -2,7 +2,9 @@
 
 `@craft-ts/core`, `@craft-ts/component`, `@craft-ts/effect`,
 `@craft-ts/dev-tools`, and `@craft-ts/mcp` share one version and one Git tag.
-For now, releases are run locally from the three sibling Git workspaces.
+For now, releases are run locally from the four Git workspaces: this repository,
+the documentation repository, the main demo repository, and the frontend Effect
+demo repository.
 
 ## One local command
 
@@ -58,9 +60,10 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 
 ## What the command does
 
-Before changing files, the command checks that all three workspaces are clean,
+Before changing files, the command checks that all four workspaces are clean,
 on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
-the release tooling, and builds all five packages and the documentation.
+the release tooling, builds all five packages, builds the frontend Effect demo,
+and builds the documentation.
 
 After showing the resolved version, it asks for confirmation and:
 
@@ -69,15 +72,19 @@ After showing the resolved version, it asks for confirmation and:
 3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`;
 4. pins the three CraftTS packages used by the demo (`core`, `component`, and
    `dev-tools`) to the exact release version;
-5. removes and ignores the demo `package-lock.json`;
-6. replaces the published documentation with the VitePress build;
-7. commits the three workspaces;
-8. publishes all five packages to npm;
-9. pushes `main`, creates and pushes `v<version>`, and creates the GitHub Release;
-10. pushes the documentation and StackBlitz demo repositories.
+5. mirrors `apps/demo-effect/src` into `craft-ts-demo-effect`;
+6. pins `@craft-ts/core`, `@craft-ts/component`, and `@craft-ts/effect` to the
+   release version, and sets `effect` to the workspace-compatible version range
+   in the frontend Effect demo;
+7. removes and ignores the `package-lock.json` files in both demos;
+8. replaces the published documentation with the VitePress build;
+9. commits the four workspaces;
+10. publishes all five packages to npm;
+11. pushes `main`, creates and pushes `v<version>`, and creates the GitHub Release;
+12. pushes the documentation and both StackBlitz demo repositories.
 
-The demo does not run `npm install` or `npm run build`; StackBlitz performs those
-steps when the project opens.
+The demos do not run `npm install` or `npm run build`; StackBlitz performs those
+steps when each project opens.
 
 ## Required local setup
 
@@ -87,9 +94,11 @@ By default, the workspaces must be siblings:
 craft-ts/
 craft-ts.github.io/
 craft-ts-demo/
+craft-ts-demo-effect/
 ```
 
-Custom paths can be supplied with `CRAFT_DOCS_REPO` and `CRAFT_DEMO_REPO`.
+Custom paths can be supplied with `CRAFT_DOCS_REPO`, `CRAFT_DEMO_REPO`, and
+`CRAFT_EFFECT_DEMO_REPO`.
 Before the first release, authenticate once:
 
 ```bash
@@ -99,16 +108,17 @@ gh auth login
 
 The npm account must be allowed to publish `@craft-ts/core`,
 `@craft-ts/component`, `@craft-ts/effect`, `@craft-ts/dev-tools`, and
-`@craft-ts/mcp`. The GitHub account must be allowed to push all three
+`@craft-ts/mcp`. The GitHub account must be allowed to push all four
 repositories and create releases.
 
 ## Safe preview
 
 Run all preflight checks and builds without modifying, publishing, committing,
-or pushing anything:
+or pushing anything. For the first `@craft-ts/*` publication, use the exact
+version because the new packages do not have npm history yet:
 
 ```bash
-npm run release:local -- minor --dry-run
+npm run release:local -- 0.7.0-beta.11 --dry-run
 ```
 
 For a non-interactive real release, add `--yes` to skip the confirmation prompt.
@@ -124,7 +134,7 @@ npm view @craft-ts/mcp dist-tags --json
 gh release view v0.6.0 --repo craft-ts/craft-ts
 ```
 
-Then open the published documentation and one StackBlitz example. If a failure
-happens after local commits were created, inspect the three workspaces before
+Then open the published documentation and both StackBlitz examples. If a failure
+happens after local commits were created, inspect the four workspaces before
 retrying; do not calculate another bump until every push and npm publication for
 the resolved version has completed.

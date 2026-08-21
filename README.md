@@ -243,7 +243,8 @@ When documenting a public API:
 `@craft-ts/core`, `@craft-ts/component`, `@craft-ts/effect`,
 `@craft-ts/dev-tools`, and `@craft-ts/mcp` are released together with one local
 command. It versions and builds the packages, publishes npm, deploys the built
-documentation, and synchronizes the complete demo used by StackBlitz:
+documentation, and synchronizes the main StackBlitz demo plus the dedicated
+frontend EffectTS demo:
 
 ```bash
 npm run release:local -- patch

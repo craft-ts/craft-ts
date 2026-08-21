@@ -18,6 +18,7 @@ import {
   releasePeerDependencyRange,
   syncBuiltDocumentation,
   syncDemoWorkspace,
+  syncEffectDemoWorkspace,
 } from './release-local.mjs';
 
 function write(path, contents) {
@@ -216,6 +217,71 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
     }
     assert.equal(manifest.scripts.lint, 'eslint . --fix');
     assert.equal(manifest.scripts['lint:check'], 'eslint .');
+    assert.equal(
+      readFileSync(join(target, '.gitignore'), 'utf8')
+        .split('\n')
+        .filter((line) => line === '/package-lock.json').length,
+      1,
+    );
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('mirrors the frontend Effect demo and pins CraftTS plus Effect dependencies', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-effect-demo-sync-'));
+  const source = join(temporaryRoot, 'source');
+  const target = join(temporaryRoot, 'target');
+
+  try {
+    write(join(source, 'src/app/app.ts'), 'export const effectDemo = true;\n');
+    write(join(target, 'src/app/old.ts'), 'obsolete\n');
+    write(join(target, '.gitignore'), 'dist\n');
+    write(join(target, 'package-lock.json'), '{}\n');
+    write(
+      join(target, 'package.json'),
+      JSON.stringify({
+        name: 'craft-ts-demo-effect',
+        dependencies: {
+          '@craft-ng/core': '^0.6.0',
+          '@craft-ng/effect': '^0.6.0',
+          effect: '^4.0.0-rc.100',
+        },
+        devDependencies: {
+          '@craft-ng/dev-tools': '^0.6.0',
+        },
+      }),
+    );
+
+    syncEffectDemoWorkspace(source, target, '0.7.0-beta.11');
+
+    assert.equal(
+      readFileSync(join(target, 'src/app/app.ts'), 'utf8'),
+      'export const effectDemo = true;\n',
+    );
+    assert.equal(existsSync(join(target, 'src/app/old.ts')), false);
+    assert.equal(existsSync(join(target, 'package-lock.json')), false);
+
+    const manifest = JSON.parse(
+      readFileSync(join(target, 'package.json'), 'utf8'),
+    );
+    assert.equal(
+      manifest.dependencies['@craft-ts/core'],
+      '0.7.0-beta.11',
+    );
+    assert.equal(
+      manifest.dependencies['@craft-ts/component'],
+      '0.7.0-beta.11',
+    );
+    assert.equal(
+      manifest.dependencies['@craft-ts/effect'],
+      '0.7.0-beta.11',
+    );
+    assert.equal(manifest.dependencies.effect, '^4.0.0-rc.110');
+    assert.equal(
+      manifest.devDependencies['@craft-ts/dev-tools'],
+      '0.7.0-beta.11',
+    );
     assert.equal(
       readFileSync(join(target, '.gitignore'), 'utf8')
         .split('\n')

@@ -172,6 +172,61 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   targetManifest.dependencies['@craft-ts/dev-tools'] = version;
   writeJson(targetManifestPath, targetManifest);
 
+  removeDemoPackageLock(targetDemoRoot);
+}
+
+export function syncEffectDemoWorkspace(
+  sourceDemoRoot,
+  targetDemoRoot,
+  version,
+) {
+  const targetManifestPath = join(targetDemoRoot, 'package.json');
+  const targetManifest = readJson(targetManifestPath);
+  if (targetManifest.name !== 'craft-ts-demo-effect') {
+    throw new Error(
+      `${targetDemoRoot} is not the craft-ts-demo-effect workspace (received ${targetManifest.name ?? 'no package name'}).`,
+    );
+  }
+
+  const source = join(sourceDemoRoot, 'src');
+  const target = join(targetDemoRoot, 'src');
+  if (!existsSync(source)) {
+    throw new Error(`Missing Effect demo source directory: ${source}`);
+  }
+  rmSync(target, { recursive: true, force: true });
+  cpSync(source, target, { recursive: true });
+
+  const workspaceManifest = readJson(join(workspaceRoot, 'package.json'));
+  const effectVersion =
+    workspaceManifest.dependencies?.effect ??
+    workspaceManifest.devDependencies?.effect;
+  if (!effectVersion) {
+    throw new Error('Missing workspace Effect dependency: effect');
+  }
+
+  targetManifest.dependencies ??= {};
+  targetManifest.devDependencies ??= {};
+  for (const legacyPackage of [
+    '@craft-ng/core',
+    '@craft-ng/component',
+    '@craft-ng/effect',
+    '@craft-ng/dev-tools',
+  ]) {
+    delete targetManifest.dependencies[legacyPackage];
+    delete targetManifest.devDependencies[legacyPackage];
+  }
+  targetManifest.dependencies['@craft-ts/core'] = version;
+  targetManifest.dependencies['@craft-ts/component'] = version;
+  targetManifest.dependencies['@craft-ts/effect'] = version;
+  targetManifest.dependencies.effect = effectVersion;
+  delete targetManifest.dependencies['@craft-ts/dev-tools'];
+  targetManifest.devDependencies['@craft-ts/dev-tools'] = version;
+  writeJson(targetManifestPath, targetManifest);
+
+  removeDemoPackageLock(targetDemoRoot);
+}
+
+function removeDemoPackageLock(targetDemoRoot) {
   rmSync(join(targetDemoRoot, 'package-lock.json'), { force: true });
 
   const gitignorePath = join(targetDemoRoot, '.gitignore');
@@ -333,7 +388,12 @@ function commitAll(path, message) {
   return true;
 }
 
-async function askForConfirmation(version, docsRepo, demoRepo) {
+async function askForConfirmation(
+  version,
+  docsRepo,
+  demoRepo,
+  effectDemoRepo,
+) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error('Use --yes when running release:local non-interactively.');
   }
@@ -343,7 +403,7 @@ async function askForConfirmation(version, docsRepo, demoRepo) {
     output: process.stdout,
   });
   const answer = await prompt.question(
-    `\nPublish ${version}, push ${workspaceRoot}, ${docsRepo}, and ${demoRepo}? [y/N] `,
+    `\nPublish ${version}, push ${workspaceRoot}, ${docsRepo}, ${demoRepo}, and ${effectDemoRepo}? [y/N] `,
   );
   prompt.close();
   const value = answer.trim().toLowerCase();
@@ -403,10 +463,15 @@ async function main(args) {
   const demoRepo = resolve(
     process.env.CRAFT_DEMO_REPO ?? join(workspaceRoot, '../craft-ts-demo'),
   );
+  const effectDemoRepo = resolve(
+    process.env.CRAFT_EFFECT_DEMO_REPO ??
+      join(workspaceRoot, '../craft-ts-demo-effect'),
+  );
 
   assertGitWorkspace(workspaceRoot, 'main', 'craft-ts');
   assertGitWorkspace(docsRepo, 'main', 'documentation');
   assertGitWorkspace(demoRepo, 'main', 'StackBlitz demo');
+  assertGitWorkspace(effectDemoRepo, 'main', 'Effect StackBlitz demo');
 
   run('npm', ['ci']);
   const release = resolveRelease(argument);
@@ -421,10 +486,11 @@ async function main(args) {
     '-p',
     ...releasePackages.map(({ project }) => project),
   ]);
+  run('npx', ['nx', 'build', 'demo-effect']);
   run('npx', ['nx', 'build', 'docs']);
 
   process.stdout.write(
-    `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n`,
+    `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n- Effect StackBlitz: ${effectDemoRepo}\n`,
   );
   if (dryRun) {
     process.stdout.write('\nDry run complete. No files were changed.\n');
@@ -434,7 +500,12 @@ async function main(args) {
   run('npm', ['whoami']);
   run('gh', ['auth', 'status']);
   if (!assumeYes) {
-    await askForConfirmation(release.version, docsRepo, demoRepo);
+    await askForConfirmation(
+      release.version,
+      docsRepo,
+      demoRepo,
+      effectDemoRepo,
+    );
   }
 
   run('npx', ['nx', 'release', 'version', release.version]);
@@ -447,6 +518,7 @@ async function main(args) {
     '-p',
     ...releasePackages.map(({ project }) => project),
   ]);
+  run('npx', ['nx', 'build', 'demo-effect']);
   run('npx', ['nx', 'build', 'docs']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
   run('node', ['tools/release.mjs', 'assert-changes']);
@@ -454,6 +526,11 @@ async function main(args) {
   syncDemoWorkspace(
     join(workspaceRoot, 'apps/demo'),
     demoRepo,
+    release.version,
+  );
+  syncEffectDemoWorkspace(
+    join(workspaceRoot, 'apps/demo-effect'),
+    effectDemoRepo,
     release.version,
   );
   syncBuiltDocumentation(
@@ -477,6 +554,10 @@ async function main(args) {
   const demoChanged = commitAll(
     demoRepo,
     `chore: sync examples for craft-ts ${release.version}`,
+  );
+  const effectDemoChanged = commitAll(
+    effectDemoRepo,
+    `chore: sync Effect examples for craft-ts ${release.version}`,
   );
 
   const plan = parseMetadata(
@@ -535,6 +616,7 @@ async function main(args) {
 
   if (docsChanged) git(docsRepo, ['push', 'origin', 'main']);
   if (demoChanged) git(demoRepo, ['push', 'origin', 'main']);
+  if (effectDemoChanged) git(effectDemoRepo, ['push', 'origin', 'main']);
 
   rmSync(artifactsDirectory, { recursive: true, force: true });
   process.stdout.write(
