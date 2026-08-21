@@ -286,13 +286,20 @@ function changedFiles(base, head) {
   return [...new Set([...unstaged, ...staged])].sort();
 }
 
-function assertChangedFiles(base, head) {
+function assertChangedFiles(base, head, allowSubset = false) {
   const actual = changedFiles(base, head);
-  assertFileNames(actual);
+  assertFileNames(actual, allowSubset);
 }
 
-function assertFileNames(actual) {
+function assertFileNames(actual, allowSubset = false) {
   actual = [...new Set(actual)].sort();
+  const unexpected = actual.filter((path) => !releaseTrackedFiles.includes(path));
+  if (unexpected.length > 0) {
+    throw new Error(
+      `Release changes contain unexpected files: ${unexpected.join(', ')}.`,
+    );
+  }
+  if (allowSubset) return;
   if (JSON.stringify(actual) !== JSON.stringify(releaseTrackedFiles)) {
     throw new Error(
       `Release changes must be exactly ${releaseTrackedFiles.join(', ')}; received ${actual.join(', ') || 'none'}.`,
@@ -415,7 +422,7 @@ function main([command, ...args]) {
       assertManifests(args[0]);
       break;
     case 'assert-changes':
-      assertChangedFiles(args[0], args[1]);
+      assertChangedFiles(args[0], args[1], args.includes('--allow-subset'));
       break;
     case 'assert-file-list':
       assertFileList(args[0]);

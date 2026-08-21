@@ -17,7 +17,11 @@ import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
-import { parseReleaseVersion, releasePackages } from './release.mjs';
+import {
+  extractChangelogEntry,
+  parseReleaseVersion,
+  releasePackages,
+} from './release.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const workspaceRoot = resolve(dirname(scriptPath), '..');
@@ -375,6 +379,22 @@ function resolveRelease(argument) {
   return parseMetadata(output);
 }
 
+function releaseIsAlreadyPrepared(version) {
+  try {
+    for (const pkg of releasePackages) {
+      const manifest = readJson(join(workspaceRoot, pkg.sourceManifest));
+      if (manifest.version !== version) return false;
+    }
+    extractChangelogEntry(
+      readFileSync(join(workspaceRoot, 'CHANGELOG.md'), 'utf8'),
+      version,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function hasChanges(path) {
   return Boolean(
     git(path, ['status', '--porcelain'], { capture: true }).trim(),
@@ -386,6 +406,10 @@ function commitAll(path, message) {
   git(path, ['add', '--all']);
   git(path, ['commit', '--message', message]);
   return true;
+}
+
+function gitTagExists(path, tag) {
+  return Boolean(git(path, ['tag', '--list', tag], { capture: true }).trim());
 }
 
 async function askForConfirmation(
@@ -475,6 +499,7 @@ async function main(args) {
 
   run('npm', ['ci']);
   const release = resolveRelease(argument);
+  const releaseIsPrepared = releaseIsAlreadyPrepared(release.version);
   run('node', ['tools/release.mjs', 'assert-target', release.version]);
   run('npm', ['run', 'release:check']);
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);
@@ -508,8 +533,14 @@ async function main(args) {
     );
   }
 
-  run('npx', ['nx', 'release', 'version', release.version]);
-  run('npx', ['nx', 'release', 'changelog', release.version]);
+  if (releaseIsPrepared) {
+    process.stdout.write(
+      `\n${release.version} is already present in package manifests and CHANGELOG.md; reusing it for the first npm publication of the new scope.\n`,
+    );
+  } else {
+    run('npx', ['nx', 'release', 'version', release.version]);
+    run('npx', ['nx', 'release', 'changelog', release.version]);
+  }
   run('npx', [
     'nx',
     'run-many',
@@ -521,7 +552,11 @@ async function main(args) {
   run('npx', ['nx', 'build', 'demo-effect']);
   run('npx', ['nx', 'build', 'docs']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
-  run('node', ['tools/release.mjs', 'assert-changes']);
+  run('node', [
+    'tools/release.mjs',
+    'assert-changes',
+    ...(releaseIsPrepared ? ['--allow-subset'] : []),
+  ]);
 
   syncDemoWorkspace(
     join(workspaceRoot, 'apps/demo'),
@@ -583,14 +618,22 @@ async function main(args) {
     join(artifactsDirectory, 'manifest.json'),
   );
 
-  git(workspaceRoot, [
-    'tag',
-    '--annotate',
-    release.tag,
-    '--message',
-    release.tag,
-  ]);
-  git(workspaceRoot, ['push', '--atomic', 'origin', 'main', release.tag]);
+  const existingReleaseTag = gitTagExists(workspaceRoot, release.tag);
+  if (existingReleaseTag) {
+    process.stdout.write(
+      `\nReusing existing Git tag ${release.tag}; it already belongs to the previous-scope release.\n`,
+    );
+    git(workspaceRoot, ['push', 'origin', 'main']);
+  } else {
+    git(workspaceRoot, [
+      'tag',
+      '--annotate',
+      release.tag,
+      '--message',
+      release.tag,
+    ]);
+    git(workspaceRoot, ['push', '--atomic', 'origin', 'main', release.tag]);
+  }
 
   const notesPath = join(artifactsDirectory, 'release-notes.md');
   run('node', [
@@ -599,20 +642,22 @@ async function main(args) {
     release.version,
     notesPath,
   ]);
-  const releaseArguments = [
-    'release',
-    'create',
-    release.tag,
-    '--repo',
-    'craft-ts/craft-ts',
-    '--verify-tag',
-    '--title',
-    release.tag,
-    '--notes-file',
-    notesPath,
-  ];
-  if (release.prerelease === 'true') releaseArguments.push('--prerelease');
-  run('gh', releaseArguments);
+  if (!existingReleaseTag) {
+    const releaseArguments = [
+      'release',
+      'create',
+      release.tag,
+      '--repo',
+      'craft-ts/craft-ts',
+      '--verify-tag',
+      '--title',
+      release.tag,
+      '--notes-file',
+      notesPath,
+    ];
+    if (release.prerelease === 'true') releaseArguments.push('--prerelease');
+    run('gh', releaseArguments);
+  }
 
   if (docsChanged) git(docsRepo, ['push', 'origin', 'main']);
   if (demoChanged) git(demoRepo, ['push', 'origin', 'main']);
