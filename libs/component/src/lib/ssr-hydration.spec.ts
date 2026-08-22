@@ -3,6 +3,7 @@ import {
   CraftSsrTimeoutError,
   CraftUnhandledSsrResolutionError,
   CRAFT_SSR_POLICY,
+  CRAFT_ROUTER,
   craftComputed,
   craftRoutes,
   provideCraftRouter,
@@ -401,6 +402,69 @@ describe('Craft SSR and hydration', () => {
         value: 'lazy route ready',
       }),
     );
+  });
+
+  it('keeps SSR DOM and hydration markers until an initial lazy route loads', async () => {
+    const page = craftComponent(
+      'HydratedLazyPage',
+      {},
+      () => ({}),
+      () => p({ class: 'hydrated-lazy-page' }, 'hydrated lazy route'),
+    );
+    const nextPage = craftComponent(
+      'HydratedNextPage',
+      {},
+      () => ({}),
+      () => p({ class: 'hydrated-next-page' }, 'next lazy route'),
+    );
+    const createConfig = () => {
+      const { hydrationLazyRoutes } = craftRoutes('hydration-lazy', [
+        {
+          path: 'lazy',
+          ...loadCraftComponent(async () => {
+            await new Promise<void>((resolve) => setTimeout(resolve, 10));
+            return page;
+          }),
+        },
+        {
+          path: 'next',
+          ...loadCraftComponent(async () => {
+            await new Promise<void>((resolve) => setTimeout(resolve, 10));
+            return nextPage;
+          }),
+        },
+      ]);
+      return {
+        providers: [
+          provideCraftRootComponent(CraftRouterOutlet),
+          ...provideCraftRouter(hydrationLazyRoutes.toRoutes()),
+        ],
+      };
+    };
+
+    const rendered = await renderCraft({
+      config: createConfig(),
+      url: '/lazy',
+    });
+    window.history.replaceState({}, '', '/lazy');
+    document.body.innerHTML = rendered.html;
+    const host = document.querySelector('craft-root')!;
+    const serverPage = host.querySelector('.hydrated-lazy-page');
+
+    const hydrated = hydrateCraft({ config: createConfig(), host });
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+
+    expect(host.querySelector('.hydrated-lazy-page')).toBe(serverPage);
+    expect(host.textContent).toContain('hydrated lazy route');
+    expect(hydrated.mismatches).toEqual([]);
+
+    const router = hydrated.injector.get(CRAFT_ROUTER);
+    await router.navigateByUrl('/next');
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+
+    expect(host.querySelector('.hydrated-next-page')).not.toBeNull();
+    expect(host.textContent).toContain('next lazy route');
+    hydrated.destroy();
   });
 
   it('names the active route when its async source has no SSR policy', async () => {

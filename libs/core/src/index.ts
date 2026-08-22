@@ -88,6 +88,7 @@ export * from './lib/util/entities-util';
 export * from './lib/craft-method';
 export * from './lib/craft-computed';
 export * from './lib/craft-primitive-registry';
+export * from './lib/craft-runtime-mode';
 export * from './lib/craft-replay';
 export * from './lib/craft-state-machine';
 export * from './lib/craft-machine-history';
@@ -97,6 +98,7 @@ export {
 } from './lib/craft-state-machine-runtime';
 export * from './lib/craft-effect';
 export * from './lib/craft-service';
+export * from './lib/dev-tools';
 export {
   craftToken,
   createCraftInjector,
@@ -241,6 +243,7 @@ export * from './lib/template-trace';
 export * from './lib/craft-router-trace';
 export * from './lib/craft-http-trace';
 export * from './lib/craft-platform';
+export * from './lib/craft-hydration';
 export * from './lib/craft-render-identity';
 export * from './lib/craft-transfer-snapshot';
 export * from './lib/craft-ssr';

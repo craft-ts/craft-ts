@@ -2,6 +2,15 @@ import { renderCraft } from '@craft-ts/component';
 import { createSsrAppConfig } from './app/app.config';
 
 export type RenderResult = Readonly<{ status: number; html: string }>;
+export type RenderAssets = Readonly<{
+  scriptSrc: string;
+  styleHref: string;
+}>;
+
+const DEVELOPMENT_ASSETS: RenderAssets = {
+  scriptSrc: '/src/main.ts',
+  styleHref: '/src/styles.css',
+};
 
 const KNOWN_PATHS = new Set([
   '/',
@@ -12,7 +21,10 @@ const KNOWN_PATHS = new Set([
   '/client-only',
 ]);
 
-export async function renderPage(url: URL): Promise<RenderResult> {
+export async function renderPage(
+  url: URL,
+  assets: RenderAssets = DEVELOPMENT_ASSETS,
+): Promise<RenderResult> {
   const rendered = await renderCraft({
     config: createSsrAppConfig(),
     url: `${url.pathname}${url.search}${url.hash}`,
@@ -21,7 +33,7 @@ export async function renderPage(url: URL): Promise<RenderResult> {
 
   return {
     status: KNOWN_PATHS.has(normalizedPath) ? 200 : 404,
-    html: documentShell(rendered.html),
+    html: documentShell(rendered.html, assets),
   };
 }
 
@@ -36,7 +48,7 @@ export async function renderDeferredApi(): Promise<{
   };
 }
 
-function documentShell(body: string): string {
+function documentShell(body: string, assets: RenderAssets): string {
   return `<!doctype html>
 <html lang="fr">
   <head>
@@ -44,11 +56,11 @@ function documentShell(body: string): string {
     <title>SSR lab · CraftTS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Démonstration SSR et hydratation avec CraftTS." />
-    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="${assets.styleHref}" />
   </head>
   <body>
     ${body}
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="${assets.scriptSrc}"></script>
   </body>
 </html>`;
 }

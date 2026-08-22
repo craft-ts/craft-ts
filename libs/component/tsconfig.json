@@ -14,13 +14,6 @@
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false
   },
-  "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": true,
-    "strictInputAccessModifiers": true,
-    "typeCheckHostBindings": true,
-    "strictTemplates": true
-  },
   "files": [],
   "include": [],
   "references": [

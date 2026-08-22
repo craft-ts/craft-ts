@@ -898,7 +898,14 @@ function insertBefore(
   node: NativeNode,
   before: NativeNode | null,
 ): void {
-  renderer.insertBefore(parent, node, before);
+  // A route replacement can resolve after its previous view was torn down.
+  // Ignore a stale anchor and append instead of forwarding an invalid DOM
+  // reference to insertBefore.
+  renderer.insertBefore(
+    parent,
+    node,
+    before && before.parentNode === parent ? before : null,
+  );
 }
 
 function removeNode(renderer: CraftDomAdapter, node: NativeNode): void {

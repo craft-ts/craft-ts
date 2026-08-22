@@ -21,6 +21,15 @@ required and must not be introduced just to solve a Craft problem.
    - `migrate-to-craft-ts` — run `craft-migrate`, then finish diagnostics
    - `craft-ts-effect-v4` — use Effect v4 services, Layers and `queryEffect`
 
+For a project created by `craft create`, keep the generated development
+surface enabled. Run `npm run logs:server` for the local JSONL ingestion
+server and `npm run registry:mcp` for the browser page MCP bridge; the
+generated `.mcp.json` also registers the Craft guidance and log-reader MCP
+servers. Use Craft `Console.*` for entries that must be searchable through
+`npm run logs:mcp`; raw `console.*` calls stay in the browser or server
+process console. These facilities are development-only and must not be added
+to a production provider graph.
+
 If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt and the `AGENTS.md` snippet in this package (`content/agents.md`).
 
 ## Hard rules
@@ -40,4 +49,7 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   or a route-level `ssr` policy. Do not let a suspended source reach SSR
   without a policy.
 - Run existing architecture tests. Do not add an architecture rule for the feature.
+- Keep `npm run typecheck` in the project CI; for generated projects this is
+  already wired into `.github/workflows/ci.yml` alongside the architecture
+  and build checks.
 - Confirm symbols against the installed `node_modules/@craft-ts/core`.

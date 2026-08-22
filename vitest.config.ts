@@ -18,10 +18,6 @@ export default defineConfig({
         'libs/component/src/index.ts',
       ),
       '@craft-ts/effect': path.join(workspaceRoot, 'libs/effect/src/index.ts'),
-      '@craft-ts/angular': path.join(
-        workspaceRoot,
-        'libs/angular/src/index.ts',
-      ),
       'test-type': path.join(workspaceRoot, 'libs/test-type/src/index.ts'),
     },
   },

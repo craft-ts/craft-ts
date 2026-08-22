@@ -3,7 +3,7 @@ import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { runArchitectureMigration } from '../architecture/migrate-architecture.js';
 
-export const CRAFT_TS_STARTER_VERSION = '^0.7.0-beta.11';
+export const CRAFT_TS_STARTER_VERSION = '^0.7.0-beta.13';
 export const EFFECT_V4_VERSION = '^4.0.0-rc.110';
 
 export type CreateAgent = 'codex' | 'cursor' | 'claude-code' | 'cloud-code';
@@ -46,6 +46,11 @@ bootstrapCraft.
    do not introduce Angular decorators or inject().
 4. Run the focused test, then npm run lint, npm run typecheck,
    npm run architecture, and npm run e2e when the browser flow changed.
+5. Keep the generated development surface enabled: 'npm run logs:server'
+   stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
+   to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
+   Do not replace 'Console.*' with raw 'console.*' when an entry must be
+   searchable through the log MCP server.
 
 ## Architecture tests
 
@@ -110,13 +115,16 @@ function packageJson(context: TemplateContext): string {
     type: 'module',
     engines: { node: '>=20.19.0' },
     scripts: {
-      dev: 'vite --host 127.0.0.1',
+      dev: 'node scripts/dev.mjs',
       build: 'vite build',
       lint: 'eslint .',
-      typecheck: 'tsc -p tsconfig.app.json --noEmit',
+      typecheck: 'node scripts/typecheck.mjs',
       'typecheck-spec': 'tsc -p tsconfig.spec.json --noEmit',
       test: 'vitest run --config vitest.config.ts',
       e2e: 'playwright test',
+      'logs:server': 'craft-ts-log-server',
+      'logs:mcp': 'craft-ts-log-mcp',
+      'registry:mcp': 'craft-ts-registry-mcp',
       ...(effect
         ? {
             'effect-check':
@@ -135,6 +143,9 @@ function packageJson(context: TemplateContext): string {
     devDependencies: {
       '@craft-ts/dev-tools': CRAFT_TS_STARTER_VERSION,
       '@craft-ts/mcp': CRAFT_TS_STARTER_VERSION,
+      '@craft-ts/function-registry-mcp': CRAFT_TS_STARTER_VERSION,
+      '@craft-ts/log-mcp': CRAFT_TS_STARTER_VERSION,
+      '@craft-ts/log-server': CRAFT_TS_STARTER_VERSION,
       '@playwright/test': '^1.52.0',
       '@types/node': '^22.0.0',
       ...(effect
@@ -200,15 +211,92 @@ const tsconfigEffect = `{
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }\n`;
 
-const viteConfig = `import { defineConfig } from 'vite';
+const viteConfig = `import { readFileSync } from 'node:fs';
+import { defineConfig, type ViteDevServer } from 'vite';
+
+const typecheckStatusPath = new URL('./.craft/typecheck-status.json', import.meta.url);
+
+function readTypecheckStatus(): { status: 'running' | 'passed' | 'failed' } {
+  try {
+    const value = JSON.parse(readFileSync(typecheckStatusPath, 'utf8')) as { status?: string };
+    if (value.status === 'running' || value.status === 'passed' || value.status === 'failed') {
+      return { status: value.status };
+    }
+  } catch {
+    // The type-check process may not have written its first status yet.
+  }
+  return { status: 'running' };
+}
+
+function craftTypecheckStatusPlugin() {
+  return {
+    name: 'craft-typecheck-status',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use('/__craft/typecheck', (_request, response) => {
+        response.statusCode = 200;
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('cache-control', 'no-store');
+        response.end(JSON.stringify(readTypecheckStatus()));
+      });
+    },
+  };
+}
 
 export default defineConfig({
+  plugins: [craftTypecheckStatusPlugin()],
   server: {
     host: '127.0.0.1',
     port: 4173,
     forwardConsole: true,
   },
   build: { target: 'es2022' },
+});
+`;
+
+const typecheckScript = `import { mkdirSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+
+const projectRoot = resolve(import.meta.dirname, '..');
+const statusPath = resolve(projectRoot, '.craft/typecheck-status.json');
+const nonBlocking = process.argv.includes('--non-blocking');
+
+function writeStatus(status) {
+  mkdirSync(dirname(statusPath), { recursive: true });
+  writeFileSync(statusPath, JSON.stringify({ status, updatedAt: new Date().toISOString() }) + '\\n');
+}
+
+writeStatus('running');
+const result = spawnSync(resolve(projectRoot, 'node_modules/.bin/tsc'), [
+  '-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false',
+], { cwd: projectRoot, stdio: 'inherit' });
+writeStatus(result.status === 0 ? 'passed' : 'failed');
+process.exitCode = result.status === 0 || nonBlocking ? 0 : result.status ?? 1;
+`;
+
+const devScript = `import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
+
+const projectRoot = resolve(import.meta.dirname, '..');
+const processes = [
+  spawn(process.execPath, [resolve(projectRoot, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1'], {
+    cwd: projectRoot,
+    stdio: 'inherit',
+  }),
+  spawn(process.execPath, [resolve(projectRoot, 'scripts/typecheck.mjs'), '--non-blocking'], {
+    cwd: projectRoot,
+    stdio: 'inherit',
+  }),
+];
+
+const stop = () => {
+  for (const child of processes) child.kill('SIGTERM');
+};
+process.once('SIGINT', stop);
+process.once('SIGTERM', stop);
+processes[0].once('exit', (code) => {
+  stop();
+  process.exitCode = code ?? 1;
 });
 `;
 
@@ -321,13 +409,52 @@ nav { display: flex; gap: 1rem; padding: 1rem 1.25rem; background: white; border
 .muted { color: #5c677d; }
 .error { color: #b42318; }
 button:focus-visible, a:focus-visible { outline: 3px solid #7aa2ff; outline-offset: 3px; }
+.craft-typecheck-indicator { position: fixed; top: .75rem; right: .75rem; z-index: 9999; padding: .4rem .6rem; border: 1px solid #bfdbfe; border-radius: .45rem; color: #1e3a8a; background: #eff6ff; box-shadow: 0 4px 12px #1e3a8a1f; font-size: .75rem; font-weight: 600; }
+.craft-typecheck-indicator[data-status='failed'] { border-color: #fecaca; color: #991b1b; background: #fef2f2; }
 `;
 
 const mainTs = `import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app/app.config';
+import { startCraftTypecheckIndicator } from './dev-typecheck-indicator';
 import './styles.css';
 
+startCraftTypecheckIndicator();
 bootstrapCraft({ config: appConfig });
+`;
+
+const typecheckIndicatorTs = `/// <reference types="vite/client" />
+
+export function startCraftTypecheckIndicator(): void {
+  if (!import.meta.env.DEV) return;
+  const indicator = document.createElement('div');
+  const message = document.createElement('span');
+  indicator.className = 'craft-typecheck-indicator';
+  indicator.setAttribute('role', 'status');
+  indicator.setAttribute('aria-live', 'polite');
+  message.textContent = 'Type checking in progress…';
+  indicator.append(message);
+  document.body.append(indicator);
+
+  const poll = async (): Promise<void> => {
+    try {
+      const response = await fetch('/__craft/typecheck', { cache: 'no-store' });
+      const payload = (await response.json()) as { status?: 'running' | 'passed' | 'failed' };
+      if (payload.status === 'passed') {
+        indicator.remove();
+        return;
+      }
+      if (payload.status === 'failed') {
+        indicator.dataset['status'] = 'failed';
+        message.textContent = 'Type checking failed — app is still running';
+        return;
+      }
+    } catch {
+      // Keep polling while Vite is starting.
+    }
+    window.setTimeout(() => void poll(), 250);
+  };
+  void poll();
+}
 `;
 
 const appTs = `import {
@@ -400,13 +527,20 @@ declare module '@craft-ts/core' {
 `;
 
 const appConfigTs = `import { provideCraftRootComponent } from '@craft-ts/component';
-import { craftAppConfig, provideCraftRouter } from '@craft-ts/core';
+import {
+  craftAppConfig,
+  provideCraftDevTools,
+  provideCraftRouter,
+} from '@craft-ts/core';
 import { App } from './app';
 import { appRoutes } from './app.routes';
+
+const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_PATHS,
   providers: [
+    ...developmentProviders,
     provideCraftRootComponent(App),
     provideCraftRouter(appRoutes.toRoutes()),
   ],
@@ -603,6 +737,7 @@ const effectAppConfig = `import { provideCraftRootComponent } from '@craft-ts/co
 import {
   craftAppConfig,
   provideAppInitializer,
+  provideCraftDevTools,
   provideCraftRouter,
 } from '@craft-ts/core';
 import {
@@ -616,10 +751,12 @@ import {
 } from './domain';
 
 const effectProviders = [provideLayer(WelcomeRepositoryLive)] as const;
+const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_PATHS,
   providers: [
+    ...developmentProviders,
     provideCraftRootComponent(App),
     provideCraftRouter(appRoutes.toRoutes()),
     ...effectProviders,
@@ -706,9 +843,104 @@ export default defineConfig({
 });
 `;
 
+const mcpConfig = `{
+  "mcpServers": {
+    "craft-ts": { "command": "npx", "args": ["craft-ts-mcp"] },
+    "craft-ts-logs": { "command": "npx", "args": ["craft-ts-log-mcp"] },
+    "craft-ts-registry": { "command": "npx", "args": ["craft-ts-registry-mcp"] }
+  }
+}
+`;
+
+function githubWorkflow(effect: boolean): string {
+  return `name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run typecheck-spec
+${effect ? '      - run: npm run effect-check\n' : ''}      - run: npm test
+      - run: npm run architecture
+      - run: npm run typecheck-architecture
+      - run: npm run build
+`;
+}
+
 function readme(context: TemplateContext): string {
   const effect = context.mode === 'effect';
-  return `# ${context.projectName}\n\nA framework-independent CraftTS starter generated by craft create.\n\nThis project includes:\n\n- a routed Craft component page;\n- a typed CraftHttpClient API boundary${effect ? ' behind an Effect v4 repository service and Layer' : ''};\n- flat-config ESLint with Craft rules;\n- unit tests, graph-wide architecture tests and a Playwright E2E flow.\n\n## Start\n\nnpm install\nnpm run dev\n\n## Verify\n\nnpm run lint\nnpm run typecheck\nnpm run typecheck-spec\n${effect ? 'npm run effect-check\n' : ''}npm test\nnpm run architecture\nnpm run e2e\nnpm run build\n\n### Architecture tests\n\narchitecture/ is the dependency-graph contract. It runs without booting the\nbrowser and catches duplicate HTTP ownership, dependency cycles, declarative\ngraph violations, unnamed interactive elements and missing route DI proofs.\nRun it after structural changes. Add a rule only for a recurring product\ninvariant that the baseline helpers do not cover; do not add one test per\nfeature.\n\nThe generated catalog is refreshed by architecture/load-graph.ts; do not edit\narchitecture/catalog.ts by hand.\n`;
+  return [
+    `# ${context.projectName}`,
+    '',
+    'A framework-independent CraftTS starter generated by craft create.',
+    '',
+    'This project includes:',
+    '',
+    '- a routed Craft component page;',
+    `- a typed CraftHttpClient API boundary${effect ? ' behind an Effect v4 repository service and Layer' : ''};`,
+    '- development logs forwarded from Craft Console.* to a local JSONL server;',
+    '- MCP configuration for Craft guidance, logs and the browser page surface;',
+    '- flat-config ESLint with Craft rules;',
+    '- unit tests, graph-wide architecture tests and a Playwright E2E flow.',
+    '',
+    '## Start',
+    '',
+    'npm install',
+    'npm run logs:server',
+    'npm run registry:mcp',
+    'npm run dev',
+    '',
+    'The browser type-check runs beside Vite. Its status is visible in the page;',
+    'the same command writes the status used by CI. Raw console.* calls are not',
+    'forwarded to the log MCP server: use Craft Console.* for searchable entries.',
+    '',
+    '## MCP',
+    '',
+    'The generated .mcp.json registers the Craft documentation server, the local',
+    'log reader and the browser registry/page server. Start logs:server and',
+    'registry:mcp when using the corresponding MCP tools.',
+    '',
+    '## Verify',
+    '',
+    'npm run lint',
+    'npm run typecheck',
+    'npm run typecheck-spec',
+    ...(effect ? ['npm run effect-check'] : []),
+    'npm test',
+    'npm run architecture',
+    'npm run typecheck-architecture',
+    'npm run e2e',
+    'npm run build',
+    '',
+    '### Architecture tests',
+    '',
+    'architecture/ is the dependency-graph contract. It runs without booting the',
+    'browser and catches duplicate HTTP ownership, dependency cycles, declarative',
+    'graph violations, unnamed interactive elements and missing route DI proofs.',
+    'Run it after structural changes. Add a rule only for a recurring product',
+    'invariant that the baseline helpers do not cover; do not add one test per',
+    'feature.',
+    '',
+    'The generated catalog is refreshed by architecture/load-graph.ts; do not edit',
+    'architecture/catalog.ts by hand.',
+    '',
+  ].join('\n');
 }
 
 function agentFiles(
@@ -758,13 +990,18 @@ function templates(context: TemplateContext): Record<string, string> {
     'tsconfig.spec.json': tsconfigSpec,
     ...(effect ? { 'tsconfig.effect.json': tsconfigEffect } : {}),
     ...(effect ? { 'scripts/run-effect-tsgo.mjs': effectTsgoRunner } : {}),
+    'scripts/typecheck.mjs': typecheckScript,
+    'scripts/dev.mjs': devScript,
     'vite.config.ts': viteConfig,
     'vitest.config.ts': vitestConfig,
     'eslint.config.mjs': eslintConfig(effect),
     'playwright.config.ts': playwrightConfig,
     'index.html': indexHtml,
+    '.mcp.json': mcpConfig,
+    '.github/workflows/ci.yml': githubWorkflow(effect),
     'README.md': readme(context),
     'src/main.ts': mainTs,
+    'src/dev-typecheck-indicator.ts': typecheckIndicatorTs,
     'src/styles.css': styles,
     'src/types.d.ts': '/// <reference types="vite/client" />\n',
     'src/app/app.ts': appTs,

@@ -14,12 +14,19 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": [
-        "{workspaceRoot}/dist/apps/demo-with-server-function"
-      ],
+      "outputs": ["{workspaceRoot}/dist/apps/demo-with-server-function"],
       "options": {
         "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts"
-      }
+      },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts --mode development"
+        }
+      },
+      "defaultConfiguration": "production"
     },
     "typecheck": {
       "executor": "nx:run-commands",
@@ -44,9 +51,7 @@
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": [
-          "apps/demo-with-server-function/**/*.ts"
-        ]
+        "lintFilePatterns": ["apps/demo-with-server-function/**/*.ts"]
       }
     },
     "test": {

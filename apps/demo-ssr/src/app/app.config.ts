@@ -1,11 +1,18 @@
 import { provideCraftRootComponent } from '@craft-ts/component';
-import { craftAppConfig, provideCraftRouter } from '@craft-ts/core';
+import {
+  craftAppConfig,
+  provideCraftDevTools,
+  provideCraftRouter,
+} from '@craft-ts/core';
 import { App } from './app';
 import { ssrRoutes } from './app.routes';
+
+const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 const ssrAppConfigDefinition = {
   routingDeps: ssrRoutes.META_PATHS,
   providers: [
+    ...developmentProviders,
     provideCraftRootComponent(App),
     provideCraftRouter(ssrRoutes.toRoutes()),
   ],

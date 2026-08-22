@@ -38,9 +38,28 @@ describe('createCraftProject', () => {
       lint: 'eslint .',
       architecture: expect.stringContaining('vitest'),
       e2e: 'playwright test',
+      typecheck: 'node scripts/typecheck.mjs',
+      'logs:server': 'craft-ts-log-server',
+      'logs:mcp': 'craft-ts-log-mcp',
+      'registry:mcp': 'craft-ts-registry-mcp',
     });
+    expect(packageJson.devDependencies['@craft-ts/log-server']).toBeDefined();
+    expect(packageJson.devDependencies['@craft-ts/log-mcp']).toBeDefined();
+    expect(packageJson.devDependencies['@craft-ts/function-registry-mcp']).toBeDefined();
     expect(await readFile(join(result.directory, 'vite.config.ts'), 'utf8')).toContain(
       'forwardConsole: true',
+    );
+    expect(await readFile(join(result.directory, 'src/app/app.config.ts'), 'utf8')).toContain(
+      'provideCraftDevTools',
+    );
+    expect(await readFile(join(result.directory, '.mcp.json'), 'utf8')).toContain(
+      'craft-ts-logs',
+    );
+    expect(await readFile(join(result.directory, '.github/workflows/ci.yml'), 'utf8')).toContain(
+      'npm run typecheck',
+    );
+    expect(await readFile(join(result.directory, 'scripts/typecheck.mjs'), 'utf8')).toContain(
+      'typecheck-status.json',
     );
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain('craftRoutes');
     expect(await readFile(join(result.directory, 'src/app/api.ts'), 'utf8')).toContain('CraftHttpClient');
@@ -65,6 +84,9 @@ describe('createCraftProject', () => {
     expect(await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8')).toContain('Layer.succeed');
     expect(await readFile(join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'), 'utf8')).toContain('Effect v4');
     expect(await readFile(join(result.directory, 'README.md'), 'utf8')).toContain('effect-check');
+    expect(await readFile(join(result.directory, '.github/workflows/ci.yml'), 'utf8')).toContain(
+      'npm run effect-check',
+    );
     expect(await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8')).toContain(
       'craftRules.configs.effect.rules',
     );

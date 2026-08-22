@@ -26,8 +26,10 @@ npx craft create my-app --effect=none --agents=none
 ```
 
 The starter includes a routed page, a typed API call, flat-config ESLint, unit
-tests, a graph-wide `architecture/` suite, Playwright E2E tests, and README
-commands for every quality gate. `codex`, `cursor`, `claude-code`, and the
+tests, a graph-wide `architecture/` suite, Playwright E2E tests, development
+logs forwarded to a local JSONL server, `.mcp.json` for Craft/log/page MCP
+servers, a browser type-check indicator, and a GitHub Actions workflow with an
+explicit `npm run typecheck` gate. `codex`, `cursor`, `claude-code`, and the
 `cloud-code`/`gemini` aliases install the corresponding project instructions.
 
 ## Project configuration

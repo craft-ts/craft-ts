@@ -56,6 +56,10 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
+    },
+    "./dev-tools": {
+      "types": "./src/lib/dev-tools.d.ts",
+      "default": "./src/lib/dev-tools.js"
     }
   }
 }

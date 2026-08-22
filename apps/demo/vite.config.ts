@@ -4,6 +4,7 @@ import { defineConfig, type ViteDevServer } from 'vite';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { craftTextLoaderPlugin } from '../../tools/vite-text-loader-plugin.mjs';
+import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const typecheckStatusPath = path.resolve(
@@ -45,10 +46,7 @@ export default defineConfig({
   root,
   cacheDir: '../../node_modules/.vite/apps/demo',
   publicDir: 'public',
-  plugins: [
-    craftTextLoaderPlugin(),
-    demoTypecheckStatusPlugin(),
-  ],
+  plugins: [craftTextLoaderPlugin(), demoTypecheckStatusPlugin()],
   server: {
     port: 4200,
     forwardConsole: true,
@@ -60,6 +58,9 @@ export default defineConfig({
     mainFields: ['module', 'browser', 'jsnext:main', 'jsnext'],
     tsconfigPaths: true,
   },
+  build: craftProductionBuildOptions(
+    path.resolve(root, '../../dist/apps/demo'),
+  ),
   esbuild: {
     tsconfigRaw: {
       compilerOptions: {

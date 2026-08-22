@@ -12,7 +12,7 @@
       "options": {
         "outputPath": "dist/libs/effect",
         "main": "libs/effect/src/index.ts",
-        "tsConfig": "libs/effect/tsconfig.lib.json",
+        "tsConfig": "libs/effect/tsconfig.lib.prod.json",
         "assets": ["libs/effect/LICENSE"]
       }
     },

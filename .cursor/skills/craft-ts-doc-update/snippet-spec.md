@@ -1,7 +1,7 @@
 # Snippet spec template
 
 Harness helper: `apps/docs/tests/snippets/snippet-harness.ts` (`useSnippetHarness`).
-Angular JIT: `apps/docs/vitest.config.mts` already has `setupFiles: ['./tests/snippets/angular-test-bed.ts']`.
+Snippet tests use the Craft testing harness from `apps/docs/tests/snippets/snippet-harness.ts`.
 
 Relative import to the harness: one `../` per directory under `tests/snippets/` (not counting the file name).
 
@@ -12,11 +12,10 @@ Relative import to the harness: one `../` per directory under `tests/snippets/` 
 
 ```ts
 // @vitest-environment jsdom
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from '@craft-ts/core';
 import { setupCraftComponentLogicTest } from '@craft-ts/component';
 import { craftUse } from '@craft-ts/core';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { initDocsAngularTestBed } from '../../../angular-test-bed';
 
 // #region usercard
 import {
@@ -50,10 +49,6 @@ const UserCard = craftComponent(
     ]),
 );
 // #endregion usercard
-
-beforeAll(() => {
-  initDocsAngularTestBed();
-});
 
 beforeEach(() => {
   TestBed.resetTestingModule();

@@ -62,9 +62,7 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": [
-        "{workspaceRoot}/dist/apps/demo"
-      ],
+      "outputs": ["{workspaceRoot}/dist/apps/demo"],
       "options": {
         "command": "npx vite build --config apps/demo/vite.config.ts"
       },

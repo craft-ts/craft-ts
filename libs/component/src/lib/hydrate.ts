@@ -1,4 +1,5 @@
 import {
+  CRAFT_HYDRATION_RUNTIME,
   CRAFT_PLATFORM,
   CRAFT_PRIMITIVE_REGISTRY,
   createBrowserDomAdapter,
@@ -51,9 +52,15 @@ export function hydrateCraft(
     options.host ?? document.querySelector('craft-root') ?? document.body;
   const win = host.ownerDocument.defaultView ?? window;
   const platform = createBrowserPlatform(win, { hydrating: true });
-  const injector = ɵcreateCraftApplicationInjector(options.config, [
-    { provide: CRAFT_PLATFORM, useValue: platform },
-  ]);
+  const hydrationRuntime = createHydrationRuntime();
+  const injector = ɵcreateCraftApplicationInjector(
+    options.config,
+    [
+      { provide: CRAFT_PLATFORM, useValue: platform },
+      { provide: CRAFT_HYDRATION_RUNTIME, useValue: hydrationRuntime },
+    ],
+    options.mode,
+  );
   const mismatches: HydrationMismatchError[] = [];
   let mounted: MountedCraftComponent<object>;
   try {
@@ -103,15 +110,24 @@ export function hydrateCraft(
         styles,
       },
     );
-    cursor.finish();
-    (platform as { hydrating: boolean }).hydrating = false;
-    if (options.removeTransferScript !== false) {
-      host.ownerDocument.getElementById(CRAFT_TRANSFER_SCRIPT_ID)?.remove();
-    }
-    for (const style of host.ownerDocument.querySelectorAll(
-      'style[data-craft-ssr]',
-    )) {
-      style.remove();
+    const finishHydration = () => {
+      cursor.finish();
+      (platform as { hydrating: boolean }).hydrating = false;
+      if (options.removeTransferScript !== false) {
+        host.ownerDocument.getElementById(CRAFT_TRANSFER_SCRIPT_ID)?.remove();
+      }
+      for (const style of host.ownerDocument.querySelectorAll(
+        'style[data-craft-ssr]',
+      )) {
+        style.remove();
+      }
+    };
+    if (hydrationRuntime.hasPending()) {
+      void hydrationRuntime.whenSettled().then(() => {
+        queueMicrotask(finishHydration);
+      });
+    } else {
+      finishHydration();
     }
   } catch (error) {
     platform.history.dispose();
@@ -126,6 +142,33 @@ export function hydrateCraft(
       mounted.destroy();
       platform.history.dispose();
       (injector as { destroy?(): void }).destroy?.();
+    },
+  };
+}
+
+function createHydrationRuntime() {
+  let pending = 0;
+  let waiters: (() => void)[] = [];
+
+  const settle = () => {
+    pending -= 1;
+    if (pending !== 0) return;
+    const current = waiters;
+    waiters = [];
+    current.forEach((resolve) => resolve());
+  };
+
+  return {
+    track(_source: string, work: PromiseLike<unknown>) {
+      pending += 1;
+      Promise.resolve(work).then(settle, settle);
+    },
+    hasPending() {
+      return pending > 0;
+    },
+    whenSettled() {
+      if (pending === 0) return Promise.resolve();
+      return new Promise<void>((resolve) => waiters.push(resolve));
     },
   };
 }

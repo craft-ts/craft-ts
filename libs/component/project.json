@@ -8,16 +8,12 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libs/component",
         "main": "libs/component/src/index.ts",
-        "tsConfig": "libs/component/tsconfig.lib.json",
-        "assets": [
-          "libs/component/LICENSE"
-        ]
+        "tsConfig": "libs/component/tsconfig.lib.prod.json",
+        "assets": ["libs/component/LICENSE"]
       }
     },
     "nx-release-publish": {

@@ -2,6 +2,7 @@ import { provideCraftRootComponent } from '@craft-ts/component';
 import {
   craftAppConfig,
   provideAppInitializer,
+  provideCraftDevTools,
   type AppProvidedDependencyValuesOf,
   type CanRun,
 } from '@craft-ts/core';
@@ -17,9 +18,12 @@ import {
   TaskRepositoryLive,
 } from './task-domain';
 
+const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
+
 export const appConfig = craftAppConfig({
   routingDeps: [],
   providers: [
+    ...developmentProviders,
     provideCraftRootComponent(QuickstartTaskPage),
     provideLayer(TaskRepositoryLive),
     provideAppInitializer(() => {

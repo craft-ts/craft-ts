@@ -7,6 +7,7 @@ import {
   createServerPlatform,
   serializeCraftTransferSnapshot,
   type CraftInjector,
+  type CraftRuntimeMode,
   type CraftTransferSnapshot,
 } from '@craft-ts/core';
 import {
@@ -34,6 +35,7 @@ export type RenderCraftOptions = Readonly<{
   signal?: AbortSignal;
   includeStyles?: boolean;
   includeSnapshotScript?: boolean;
+  mode?: CraftRuntimeMode;
 }>;
 
 export type RenderCraftResult = Readonly<{
@@ -56,10 +58,14 @@ export async function renderCraft(
   const coordinator = new CraftSsrCoordinator((source, mode) =>
     platform.serverResources?.decide(source, mode),
   );
-  const injector = ɵcreateCraftApplicationInjector(options.config, [
-    { provide: CRAFT_PLATFORM, useValue: platform },
-    { provide: CRAFT_SSR_RUNTIME, useValue: coordinator },
-  ]);
+  const injector = ɵcreateCraftApplicationInjector(
+    options.config,
+    [
+      { provide: CRAFT_PLATFORM, useValue: platform },
+      { provide: CRAFT_SSR_RUNTIME, useValue: coordinator },
+    ],
+    options.mode,
+  );
   let mounted: MountedCraftComponent<object> | undefined;
   try {
     await Promise.all(ɵrunCraftAppInitializers(injector));
@@ -123,6 +129,7 @@ export type RenderToStringOptions<Component extends CraftComponent<any>> =
     url?: string;
     timeoutMs?: number;
     signal?: AbortSignal;
+    mode?: CraftRuntimeMode;
   }>;
 
 /** Low-level component convenience API built on the same per-request runtime. */
@@ -141,6 +148,7 @@ export async function renderToString<Component extends CraftComponent<any>>(
     url: options.url,
     timeoutMs: options.timeoutMs,
     signal: options.signal,
+    mode: options.mode,
   });
   return result.html;
 }

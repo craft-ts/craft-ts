@@ -8,10 +8,8 @@ import {
   type Provider,
 } from './host/craft-compat';
 import type { CraftRoutePhase } from './craft-route-exceptions';
-import {
-  CRAFT_ROUTER,
-  type CraftRouterEvent,
-} from './craft-router-tokens';
+import { isCraftDevelopment } from './craft-runtime-mode';
+import { CRAFT_ROUTER, type CraftRouterEvent } from './craft-router-tokens';
 
 export type CraftRouterTraceStage =
   | 'match'
@@ -48,9 +46,7 @@ type CraftRouterEvents = {
   subscribe(fn: (event: CraftRouterEvent) => void): { unsubscribe(): void };
 };
 
-function craftRouterEvents(
-  router: object,
-): CraftRouterEvents | undefined {
+function craftRouterEvents(router: object): CraftRouterEvents | undefined {
   const events = (router as { events?: CraftRouterEvents }).events;
   return events && typeof events.subscribe === 'function' ? events : undefined;
 }
@@ -66,6 +62,9 @@ export function provideCraftRouterTrace(
     },
     provideAppInitializer(() => {
       const injector = inject(Injector);
+      if (!isCraftDevelopment(injector)) {
+        return;
+      }
       const router = inject(CRAFT_ROUTER, { optional: true });
       const events = router ? craftRouterEvents(router) : undefined;
 
@@ -96,6 +95,9 @@ export function executeCraftRouterTrace<Value>(
   context: CraftRouterTraceContext,
   next: () => Value,
 ): Value {
+  if (!isCraftDevelopment(injector)) {
+    return next();
+  }
   const wrappers = injector.get(CRAFT_ROUTER_TRACE, []);
   if (wrappers.length === 0) {
     return next();

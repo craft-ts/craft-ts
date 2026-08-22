@@ -77,6 +77,7 @@ import {
 } from './craft-router-tokens';
 import { CRAFT_SSR_RUNTIME } from './craft-ssr';
 import { CRAFT_PLATFORM } from './craft-platform';
+import { CRAFT_HYDRATION_RUNTIME } from './craft-hydration';
 
 const ROUTE_PROP_SKIP = new Set(['craftComponent', 'craftPendingComponent']);
 
@@ -197,6 +198,9 @@ export class CraftRouterOutletController {
   };
   private readonly a11yNavigationFocus = inject(CRAFT_A11Y_NAVIGATION_FOCUS);
   private readonly platform = inject(CRAFT_PLATFORM, { optional: true });
+  private readonly hydrationRuntime = inject(CRAFT_HYDRATION_RUNTIME, {
+    optional: true,
+  });
   private readonly document = this.platform?.document ?? inject(DOCUMENT);
   private readonly ssrRuntime = inject(CRAFT_SSR_RUNTIME, { optional: true });
   private a11yHasCompletedInitialActivation = false;
@@ -354,6 +358,8 @@ export class CraftRouterOutletController {
     const activation = this.finishActivation(activated, meta ?? null);
     if (this.ssrRuntime) {
       this.ssrRuntime.track(`route:${activated.route.path}`, activation);
+    } else if (this.platform?.hydrating && this.hydrationRuntime) {
+      this.hydrationRuntime.track(`route:${activated.route.path}`, activation);
     } else {
       void activation;
     }

@@ -3,6 +3,7 @@ import { defineConfig, type ViteDevServer } from 'vite';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { craftTextLoaderPlugin } from '../../tools/vite-text-loader-plugin.mjs';
+import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,8 +36,7 @@ export default defineConfig({
     tsconfigPaths: true,
     mainFields: ['module', 'browser', 'jsnext:main', 'jsnext'],
   },
-  build: {
-    outDir: path.resolve(root, '../../dist/apps/demo-with-server-function'),
-    emptyOutDir: true,
-  },
+  build: craftProductionBuildOptions(
+    path.resolve(root, '../../dist/apps/demo-with-server-function'),
+  ),
 });

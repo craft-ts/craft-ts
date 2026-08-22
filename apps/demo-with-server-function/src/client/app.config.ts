@@ -3,6 +3,7 @@ import {
   craftAppConfig,
   provideAppInitializer,
   provideCraftRouter,
+  provideCraftDevTools,
   provideDefaultServerFunctionTransport,
 } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
@@ -11,9 +12,12 @@ import { appRoutes } from './app.routes';
 import { provideClaimedUserId } from '../shared/claimed-user-id';
 import { clientAuthenticatedUser, ClientCurrentUserLive } from './authenticated-user';
 
+const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
+
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_PATHS,
   providers: [
+    ...developmentProviders,
     provideCraftRootComponent(AppShell),
     provideCraftRouter(appRoutes.toRoutes()),
     provideDefaultServerFunctionTransport(),

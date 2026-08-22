@@ -12,7 +12,6 @@
   "exclude": [
     "**/*.spec.ts",
     "**/*.fixture.ts",
-    "vitest.scratch.setup.ts",
     "test-setup.ts",
     "jest.config.ts",
     "**/*.test.ts",

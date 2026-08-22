@@ -1,14 +1,11 @@
-import {
-  inject,
-  InjectionToken,
-  Injector,
-} from './host/craft-compat';
+import { inject, InjectionToken, Injector } from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   executeTemplateTrace,
   provideTemplateTrace,
   type TemplateTraceContext,
 } from './template-trace';
+import { provideCraftProduction } from './craft-runtime-mode';
 
 describe('template trace', () => {
   const context: TemplateTraceContext = {
@@ -93,5 +90,23 @@ describe('template trace', () => {
         throw failure;
       }),
     ).toThrow(failure);
+  });
+
+  it('skips trace wrappers in production mode', () => {
+    const events: string[] = [];
+    const injector = Injector.create({
+      providers: [
+        provideCraftProduction(),
+        provideTemplateTrace((_trace, next) => {
+          events.push('trace');
+          return next();
+        }),
+      ],
+    });
+
+    expect(executeTemplateTrace(injector, context, () => ['rendered'])).toEqual(
+      ['rendered'],
+    );
+    expect(events).toEqual([]);
   });
 });

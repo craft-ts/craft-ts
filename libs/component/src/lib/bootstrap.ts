@@ -3,6 +3,7 @@ import {
   COMPONENT_REGISTER,
   CRAFT_PLATFORM,
   CRAFT_PRIMITIVE_REGISTRY,
+  CRAFT_RUNTIME_MODE,
   CraftPrimitiveRegistry,
   createBrowserPlatform,
   createComponentRegister,
@@ -12,6 +13,7 @@ import {
   ɵinject as inject,
   ɵrunInInjectionContext as runInInjectionContext,
   type CraftInjector,
+  type CraftRuntimeMode,
 } from '@craft-ts/core';
 import { mountCraftComponent } from './bridge';
 import { CRAFT_ROOT_COMPONENT } from './craft-host-tokens';
@@ -28,6 +30,8 @@ export type BootstrapCraftOptions = {
    * `document.body` when there is none.
    */
   readonly host?: Element;
+  /** Runtime mode for optional diagnostics and development tooling. */
+  readonly mode?: CraftRuntimeMode;
 };
 
 export type CraftAppRef = {
@@ -43,10 +47,12 @@ function resolveHost(host: Element | undefined): Element {
 export function ɵcreateCraftApplicationInjector(
   config: BootstrapCraftOptions['config'],
   additionalProviders: readonly unknown[] = [],
+  mode: CraftRuntimeMode = 'production',
 ): CraftInjector {
   return createEnvironmentInjector(
     [
       ...getCraftRootDefaultProviders(),
+      { provide: CRAFT_RUNTIME_MODE, useValue: mode },
       {
         provide: COMPONENT_REGISTER,
         useValue: createComponentRegister(),
@@ -82,9 +88,11 @@ export function ɵrunCraftAppInitializers(
  */
 export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
   const platform = createBrowserPlatform(window);
-  const injector = ɵcreateCraftApplicationInjector(options.config, [
-    { provide: CRAFT_PLATFORM, useValue: platform },
-  ]);
+  const injector = ɵcreateCraftApplicationInjector(
+    options.config,
+    [{ provide: CRAFT_PLATFORM, useValue: platform }],
+    options.mode,
+  );
 
   // appStart hooks run before the first render, so a service that seeds state
   // has done so by the time the root component reads it.

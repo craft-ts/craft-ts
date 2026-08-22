@@ -4,6 +4,7 @@ import {
   type Injector,
   type Provider,
 } from './host/craft-compat';
+import { isCraftDevelopment } from './craft-runtime-mode';
 
 /** Metadata attached to one effective Craft template render. */
 export type TemplateTraceContext = Readonly<{
@@ -63,6 +64,9 @@ export function executeTemplateTrace<Children>(
   context: TemplateTraceContext,
   next: () => Children,
 ): Children {
+  if (!isCraftDevelopment(injector)) {
+    return next();
+  }
   const wrappers = injector.get(CRAFT_TEMPLATE_TRACE, []);
   if (wrappers.length === 0) {
     return next();

@@ -4,6 +4,7 @@ import {
   runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
+import { isCraftDevelopment } from './craft-runtime-mode';
 
 export type CraftHttpTraceContext = Readonly<{
   method: string;
@@ -40,6 +41,9 @@ export function executeCraftHttpTrace<Value>(
   context: CraftHttpTraceContext,
   next: () => Promise<Value>,
 ): Promise<Value> {
+  if (!isCraftDevelopment(injector)) {
+    return next();
+  }
   const wrappers = injector.get(CRAFT_HTTP_TRACE, []);
   if (wrappers.length === 0) {
     return next();

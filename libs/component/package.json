@@ -31,6 +31,10 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
+    },
+    "./testing": {
+      "types": "./testing/public-api.d.ts",
+      "default": "./testing/public-api.js"
     }
   }
 }

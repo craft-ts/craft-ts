@@ -3,6 +3,7 @@ import {
   craftAppConfig,
   provideAppInitializer,
   provideCraftRouter,
+  provideCraftDevTools,
   type AppProvidedDependencyValuesOf,
 } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
@@ -11,9 +12,12 @@ import { App } from './app';
 import { demoEffectRoutes } from './app.routes';
 import { AccessPolicyLive, SessionLive } from './shared/access-domain';
 
+const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
+
 export const appConfig = craftAppConfig({
   routingDeps: demoEffectRoutes.META_PATHS,
   providers: [
+    ...developmentProviders,
     provideCraftRootComponent(App),
     provideCraftRouter(demoEffectRoutes.toRoutes()),
     // These are mocked application capabilities used by the business Effects.

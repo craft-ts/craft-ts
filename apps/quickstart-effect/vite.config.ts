@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,8 +17,7 @@ export default defineConfig({
     port: 4202,
     fs: { allow: [path.resolve(root, '../..')] },
   },
-  build: {
-    outDir: path.resolve(root, '../../dist/apps/quickstart-effect'),
-    emptyOutDir: true,
-  },
+  build: craftProductionBuildOptions(
+    path.resolve(root, '../../dist/apps/quickstart-effect'),
+  ),
 });

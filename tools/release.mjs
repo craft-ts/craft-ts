@@ -42,6 +42,27 @@ export const releasePackages = [
     sourceManifest: 'packages/mcp/package.json',
     distRoot: 'packages/mcp',
   },
+  {
+    key: 'log_server',
+    name: '@craft-ts/log-server',
+    project: 'log-server',
+    sourceManifest: 'apps/log-server/package.json',
+    distRoot: 'apps/log-server',
+  },
+  {
+    key: 'log_mcp',
+    name: '@craft-ts/log-mcp',
+    project: 'log-mcp',
+    sourceManifest: 'packages/log-mcp/package.json',
+    distRoot: 'packages/log-mcp',
+  },
+  {
+    key: 'function_registry_mcp',
+    name: '@craft-ts/function-registry-mcp',
+    project: 'function-registry-mcp',
+    sourceManifest: 'packages/function-registry-mcp/package.json',
+    distRoot: 'packages/function-registry-mcp',
+  },
 ];
 
 export const releaseTrackedFiles = [

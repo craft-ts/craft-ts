@@ -176,6 +176,30 @@ parallèle du serveur Vite. Pendant son exécution, un indicateur discret
 Si le contrôle échoue, un grand overlay signale l’erreur mais le serveur reste
 accessible pour continuer l’investigation.
 
+### Production mode
+
+Les points d’entrée `bootstrapCraft` et `startCraft` sélectionnent explicitement
+le mode d’exécution :
+
+```ts
+bootstrapCraft({
+  config: appConfig,
+  mode: import.meta.env.DEV ? 'development' : 'production',
+});
+```
+
+En mode `production`, les traces Craft et la collecte de snapshots de debug sont
+ignorées. Les fonctionnalités nécessaires au rendu, au SSR et à l’hydratation
+restent actives. Les bridges MCP, le forwarding de logs et les outils de debug
+doivent être ajoutés uniquement dans des providers conditionnés par
+`import.meta.env.DEV`.
+
+Pour vérifier les bundles déployables :
+
+```bash
+npm run production:check
+```
+
 Start the documentation site at `http://localhost:5173`:
 
 ```bash

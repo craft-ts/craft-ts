@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 import { defineConfig, type ViteDevServer } from 'vite';
+import * as path from 'node:path';
+import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
 
 const PAGE_PREFIXES = ['/src/', '/@', '/node_modules/', '/assets/', '/favicon'];
 
@@ -9,7 +11,10 @@ function ssrDemoPlugin() {
     configureServer(server: ViteDevServer) {
       server.middlewares.use((request, response, next) => {
         const requestUrl = request.url ?? '/';
-        const url = new URL(requestUrl, `http://${request.headers.host ?? 'localhost'}`);
+        const url = new URL(
+          requestUrl,
+          `http://${request.headers.host ?? 'localhost'}`,
+        );
 
         if (PAGE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
           next();
@@ -23,7 +28,10 @@ function ssrDemoPlugin() {
             if (url.pathname === '/api/deferred') {
               const payload = await renderer.renderDeferredApi();
               response.statusCode = 200;
-              response.setHeader('content-type', 'application/json; charset=utf-8');
+              response.setHeader(
+                'content-type',
+                'application/json; charset=utf-8',
+              );
               response.setHeader('cache-control', 'no-store');
               response.end(JSON.stringify(payload));
               return;
@@ -57,4 +65,8 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  build: craftProductionBuildOptions(
+    path.resolve(import.meta.dirname, '../../dist/apps/demo-ssr'),
+    { manifest: true },
+  ),
 });

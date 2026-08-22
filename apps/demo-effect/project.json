@@ -8,9 +8,7 @@
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build-local-types"
-      ],
+      "dependsOn": ["build-local-types"],
       "options": {
         "cwd": "apps/demo-effect",
         "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
@@ -27,9 +25,7 @@
     },
     "effect-check": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build-local-types"
-      ],
+      "dependsOn": ["build-local-types"],
       "options": {
         "command": "node tools/run-effect-tsgo.mjs diagnostics --project apps/demo-effect/tsconfig.effect.json --format text --severity error,warning,message"
       },
@@ -68,9 +64,7 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": [
-        "{workspaceRoot}/dist/apps/demo-effect"
-      ],
+      "outputs": ["{workspaceRoot}/dist/apps/demo-effect"],
       "options": {
         "command": "npx vite build --config apps/demo-effect/vite.config.ts"
       },
@@ -87,9 +81,7 @@
     "serve": {
       "continuous": true,
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build-local-types"
-      ],
+      "dependsOn": ["build-local-types"],
       "options": {
         "command": "npx vite --config apps/demo-effect/vite.config.ts",
         "forwardAllArgs": true

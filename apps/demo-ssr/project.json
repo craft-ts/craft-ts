@@ -17,7 +17,23 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/apps/demo-ssr"],
       "options": {
-        "command": "npx vite build --config apps/demo-ssr/vite.config.ts"
+        "command": "npx vite build --config apps/demo-ssr/vite.config.ts && npx vite build --config apps/demo-ssr/vite.ssr.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/demo-ssr/vite.config.ts --mode production && npx vite build --config apps/demo-ssr/vite.ssr.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/demo-ssr/vite.config.ts --mode development && npx vite build --config apps/demo-ssr/vite.ssr.config.ts --mode development"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "start-production": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node dist/apps/demo-ssr/server/server.js"
       }
     },
     "typecheck": {

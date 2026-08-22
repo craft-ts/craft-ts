@@ -137,11 +137,14 @@ test('extracts exactly one changelog entry', () => {
 test('release PRs are limited to manifests and changelog', () => {
   assert.deepEqual(releaseTrackedFiles, [
     'CHANGELOG.md',
+    'apps/log-server/package.json',
     'libs/component/package.json',
     'libs/core/package.json',
     'libs/dev-tools/package.json',
     'libs/effect/package.json',
     'package-lock.json',
+    'packages/function-registry-mcp/package.json',
+    'packages/log-mcp/package.json',
     'packages/mcp/package.json',
   ]);
 });
@@ -186,6 +189,9 @@ test('releases all public CraftTS packages as one fixed group', () => {
       '@craft-ts/effect',
       '@craft-ts/dev-tools',
       '@craft-ts/mcp',
+      '@craft-ts/log-server',
+      '@craft-ts/log-mcp',
+      '@craft-ts/function-registry-mcp',
     ],
   );
 });

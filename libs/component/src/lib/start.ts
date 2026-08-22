@@ -31,6 +31,7 @@ export function startCraft(options: StartCraftOptions): StartedCraftAppRef {
   const bootstrapOptions: BootstrapCraftOptions = {
     config: options.config,
     host,
+    mode: options.mode,
   };
   return bootstrapCraft(bootstrapOptions);
 }

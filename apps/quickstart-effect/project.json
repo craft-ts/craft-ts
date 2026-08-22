@@ -66,6 +66,14 @@
       "options": {
         "command": "npx vite build --config apps/quickstart-effect/vite.config.ts"
       },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/quickstart-effect/vite.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/quickstart-effect/vite.config.ts --mode development"
+        }
+      },
       "defaultConfiguration": "production"
     },
     "serve": {

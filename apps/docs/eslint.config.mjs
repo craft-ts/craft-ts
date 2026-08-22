@@ -8,7 +8,6 @@ export default [
     ignores: ['**/.vitepress/cache/**', '**/.vitepress/dist/**'],
   },
   ...baseConfig,
-  ...nx.configs['flat/angular'],
   {
     files: ['**/tests/snippets/**/*.spec.ts'],
     languageOptions: {

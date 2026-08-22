@@ -1,7 +1,7 @@
 {
   "name": "@craft-ts/log-mcp",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.7.0-beta.13",
+  "description": "MCP reader for CraftTS local JSONL logs",
   "type": "module",
   "bin": {
     "craft-ts-log-mcp": "dist/main.js"
@@ -19,5 +19,8 @@
     "@types/node": "20.19.9",
     "typescript": "6.0.3",
     "vitest": "^4.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
