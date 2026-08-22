@@ -22,6 +22,7 @@ export const { ssrRoutes } = craftRoutes('ssr', [
       withRetry(import('./pages/overview-page')).then(
         ({ OverviewPage }) => OverviewPage,
       ),
+    ssr: { mode: 'block' },
   },
   {
     path: 'static',

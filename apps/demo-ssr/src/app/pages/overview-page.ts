@@ -6,17 +6,32 @@ import {
   li,
   p,
   section,
+  span,
   ul,
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
+import { craftComputed, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 import { Pipeline } from './pipeline';
+import { getPublicProducts } from '../../../../demo-with-server-function/src/products/public-products.fn-client';
 
 export const OverviewPage = craftComponent(
   'SsrOverviewPage',
   {},
-  () => ({}),
-  () =>
+  function* () {
+    const products = yield* query('serverFunctionProducts', {
+      params: () => true,
+      loader: () => getPublicProducts({}),
+    });
+    const resolvedProducts = craftComputed(
+      'resolvedServerFunctionProducts',
+      function* () {
+        return yield* settled(products);
+      },
+    );
+    return { resolvedProducts };
+  },
+  ({ resolvedProducts }) =>
     page(
       'Rendu côté serveur · démonstration',
       'Comprendre SSR par l’expérience',
@@ -49,6 +64,22 @@ export const OverviewPage = craftComponent(
             { class: 'button', craftRouterLink: { to: 'data' } },
             'Voir la query bloquante',
           ).pipe(CraftRouterLink),
+        ]),
+        article({ class: 'card' }, [
+          span({ class: 'badge' }, 'server function'),
+          h2('Même façade, deux transports'),
+          p(
+            'Cette liste appelle la façade produit partagée avec la démo server functions. En SSR, application.invoke est utilisé directement ; après hydratation, le snapshot évite un second appel.',
+          ),
+          ul([
+            function* () {
+              return `Produits rendus : ${(yield* resolvedProducts()).length}`;
+            },
+            function* () {
+              const first = (yield* resolvedProducts())[0];
+              return `Premier produit : ${first?.name ?? 'aucun'}`;
+            },
+          ]),
         ]),
       ]),
     ),

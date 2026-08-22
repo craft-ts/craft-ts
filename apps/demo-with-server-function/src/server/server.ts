@@ -1,10 +1,14 @@
-import { createServer } from '@craft-ts/core';
+import { createServer, type Server } from '@craft-ts/core';
 import { executeEffect } from '@craft-ts/effect';
 import * as NodeHttpServer from '@effect/platform-node/NodeHttpServer';
 import { Effect, Exit, Layer, Scope } from 'effect';
 import * as HttpServerRequest from 'effect/unstable/http/HttpServerRequest';
 import * as HttpServerResponse from 'effect/unstable/http/HttpServerResponse';
-import { createServer as createHttpServer } from 'node:http';
+import {
+  createServer as createHttpServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http';
 import {
   demoAuthenticatedUser,
   CurrentUser,
@@ -15,7 +19,7 @@ import { listUsers } from '../users/list.fn-serveur';
 import { portableListUsers } from '../users/portable-list.fn-serveur';
 import { effectMiddlewareListUsers } from '../users/effect-middleware-list.fn-serveur';
 import { listPublicProducts } from '../products/public-products.fn-serveur';
-import { createDemoDatabase } from './database';
+import { createDemoDatabase, UserRepository } from './database';
 
 export function createDemoApplication(
   authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
@@ -25,7 +29,23 @@ export function createDemoApplication(
     database.layer,
     Layer.succeed(CurrentUser)(authenticatedUser),
   );
-  const application = createServer({
+  return {
+    application: createApplication(runtimeLayer),
+    close: database.close,
+  };
+}
+
+/**
+ * Builds the server-function registry from a request-scoped runtime layer.
+ *
+ * Keeping this separate from the demo database makes the same registry usable
+ * by the HTTP adapter and by SSR's in-memory transport. The layer must be
+ * created for each request when it contains request data such as CurrentUser.
+ */
+export function createApplication(
+  runtimeLayer: Layer.Layer<CurrentUser | UserRepository, unknown, never>,
+): Server {
+  return createServer({
     functions: [
       listPublicProducts,
       listUsers,
@@ -35,7 +55,6 @@ export function createDemoApplication(
     ],
     execute: executeEffect(runtimeLayer).run,
   });
-  return { application, close: database.close };
 }
 
 /**
@@ -66,6 +85,39 @@ export function createDemoNodeHandler(
       Effect.runSync(Scope.close(scope, Exit.void));
     },
   };
+}
+
+/**
+ * Runs one Node request through a request-scoped registry and releases the
+ * Effect scope once Node has finished writing the response.
+ */
+export async function handleDemoNodeRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+): Promise<void> {
+  const demo = createDemoNodeHandler(authenticatedUser);
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const close = () => {
+      if (settled) return;
+      settled = true;
+      response.off('finish', close);
+      response.off('close', close);
+      demo.close();
+      resolve();
+    };
+
+    response.once('finish', close);
+    response.once('close', close);
+    try {
+      demo.handler(request, response);
+    } catch (error) {
+      close();
+      reject(error);
+    }
+  });
 }
 
 export async function listenDemoServer(

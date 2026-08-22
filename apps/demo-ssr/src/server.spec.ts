@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderDeferredApi, renderPage } from './server';
 
 describe('CraftTS SSR demo', () => {
@@ -9,6 +9,19 @@ describe('CraftTS SSR demo', () => {
     expect(result.html).toContain('<craft-root data-craft-hk="SsrLabApp/0">');
     expect(result.html).toContain('Comprendre SSR par l’expérience');
     expect(result.html).toContain('__CRAFT_TRANSFER__');
+  });
+
+  it('uses the server-function registry in memory during SSR', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    try {
+      const result = await renderPage(new URL('http://localhost/'));
+
+      expect(result.html).toContain('Même façade, deux transports');
+      expect(result.html).toContain('Produits rendus : 3');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it('blocks the data route until the query is resolved', async () => {

@@ -1,4 +1,14 @@
 import { renderCraft } from '@craft-ts/component';
+import type { Server } from '@craft-ts/core';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import {
+  createDemoApplication,
+  handleDemoNodeRequest,
+} from '../../demo-with-server-function/src/server/server';
+import {
+  demoAuthenticatedUser,
+  type AuthenticatedUser,
+} from '../../demo-with-server-function/src/server/authentication';
 import { createSsrAppConfig } from './app/app.config';
 
 export type RenderResult = Readonly<{ status: number; html: string }>;
@@ -24,17 +34,57 @@ const KNOWN_PATHS = new Set([
 export async function renderPage(
   url: URL,
   assets: RenderAssets = DEVELOPMENT_ASSETS,
+  application?: Pick<Server, 'invoke'>,
 ): Promise<RenderResult> {
-  const rendered = await renderCraft({
-    config: createSsrAppConfig(),
-    url: `${url.pathname}${url.search}${url.hash}`,
-  });
-  const normalizedPath = url.pathname.replace(/\/$/, '') || '/';
+  const ownedDemo = application ? undefined : createDemoApplication();
+  const activeApplication = application ?? ownedDemo?.application;
+  if (!activeApplication) {
+    throw new Error('SSR render did not receive a server-function application.');
+  }
 
-  return {
-    status: KNOWN_PATHS.has(normalizedPath) ? 200 : 404,
-    html: documentShell(rendered.html, assets),
-  };
+  try {
+    const rendered = await renderCraft({
+      config: createSsrAppConfig(activeApplication),
+      url: `${url.pathname}${url.search}${url.hash}`,
+    });
+    const normalizedPath = url.pathname.replace(/\/$/, '') || '/';
+
+    return {
+      status: KNOWN_PATHS.has(normalizedPath) ? 200 : 404,
+      html: documentShell(rendered.html, assets),
+    };
+  } finally {
+    ownedDemo?.close();
+  }
+}
+
+/** Handles the internal server-function protocol on the same Node process. */
+export function handleServerFunctionRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+): Promise<void> {
+  return handleDemoNodeRequest(request, response, authenticatedUser);
+}
+
+/**
+ * Resolves the demo session at the request boundary. A real application would
+ * replace this with its authentication/session adapter; the important part is
+ * that the resulting value is passed to a new runtime layer per request.
+ */
+export function authenticatedUserFromRequest(
+  request: IncomingMessage,
+): AuthenticatedUser {
+  const idHeader = request.headers['x-demo-user-id'];
+  const id = typeof idHeader === 'string' && idHeader.length > 0
+    ? idHeader
+    : demoAuthenticatedUser.id;
+  // The role is resolved from the server-side session record, never from a
+  // client-provided header. The header only selects a fixture identity for
+  // this demo's request-boundary tests.
+  const role = id === demoAuthenticatedUser.id ? demoAuthenticatedUser.role : 'member';
+
+  return { ...demoAuthenticatedUser, id, role };
 }
 
 export async function renderDeferredApi(): Promise<{

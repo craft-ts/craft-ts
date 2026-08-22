@@ -25,6 +25,21 @@ function ssrDemoPlugin() {
           try {
             const renderer = await server.ssrLoadModule('/src/server.ts');
 
+            if (url.pathname === '/__server-functions') {
+              if (request.method !== 'POST') {
+                response.statusCode = 405;
+                response.setHeader('allow', 'POST');
+                response.end();
+                return;
+              }
+              await renderer.handleServerFunctionRequest(
+                request,
+                response,
+                renderer.authenticatedUserFromRequest(request),
+              );
+              return;
+            }
+
             if (url.pathname === '/api/deferred') {
               const payload = await renderer.renderDeferredApi();
               response.statusCode = 200;

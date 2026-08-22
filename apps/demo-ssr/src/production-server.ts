@@ -2,7 +2,14 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, join, normalize, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renderDeferredApi, renderPage, type RenderAssets } from './server';
+import {
+  authenticatedUserFromRequest,
+  handleServerFunctionRequest,
+  renderDeferredApi,
+  renderPage,
+  type RenderAssets,
+} from './server';
+import { createDemoApplication } from '../../demo-with-server-function/src/server/server';
 
 type ViteManifestEntry = Readonly<{
   file: string;
@@ -48,6 +55,21 @@ async function handleRequest(
 ): Promise<void> {
   const requestUrl = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
 
+  if (requestUrl.pathname === '/__server-functions') {
+    if (request.method !== 'POST') {
+      response.statusCode = 405;
+      response.setHeader('allow', 'POST');
+      response.end();
+      return;
+    }
+    await handleServerFunctionRequest(
+      request,
+      response,
+      authenticatedUserFromRequest(request),
+    );
+    return;
+  }
+
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.statusCode = 405;
     response.setHeader('allow', 'GET, HEAD');
@@ -67,10 +89,15 @@ async function handleRequest(
     return;
   }
 
-  const result = await renderPage(requestUrl, assets);
-  send(response, result.status, 'text/html; charset=utf-8', result.html, {
-    'x-demo-rendered-by': 'ssr',
-  });
+  const demo = createDemoApplication(authenticatedUserFromRequest(request));
+  try {
+    const result = await renderPage(requestUrl, assets, demo.application);
+    send(response, result.status, 'text/html; charset=utf-8', result.html, {
+      'x-demo-rendered-by': 'ssr',
+    });
+  } finally {
+    demo.close();
+  }
 }
 
 async function serveStaticFile(

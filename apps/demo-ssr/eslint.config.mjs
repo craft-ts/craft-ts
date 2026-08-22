@@ -43,4 +43,19 @@ export default [
       '@nx/enforce-module-boundaries': 'off',
     },
   },
+  {
+    // The SSR entry deliberately consumes the server-function demo's shared
+    // facade and server registry to prove that one Node process can serve both
+    // concerns. These are explicit integration boundaries, not application
+    // code dependencies.
+    files: [
+      '**/src/server.ts',
+      '**/src/production-server.ts',
+      '**/src/app/pages/overview-page.ts',
+      '**/vite.ssr.config.ts',
+    ],
+    rules: {
+      '@nx/enforce-module-boundaries': 'off',
+    },
+  },
 ];
