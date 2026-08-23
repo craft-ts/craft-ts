@@ -15,6 +15,7 @@ export { createStringDomAdapter } from './lib/render/string-dom';
 import './lib/craft-defaults';
 export * from './lib/component';
 export * from './lib/css-vars';
+export * from './lib/security';
 export type {
   CssVarContract,
   CssVarsOf,

@@ -139,7 +139,14 @@ The rules cover, among other things:
 - yieldable reads, writes, methods, and resource triggers;
 - transport access through `CraftHttpClient`;
 - typed route loading, dependency proofs, and exception handling;
-- pure computed values, browser boundaries, and accessibility contracts.
+- pure computed values, browser boundaries, and accessibility contracts;
+- the security preset, included in `recommended` and `effect`: unchecked DOM
+  URLs, raw HTML, dynamic code, implicit SSR transfer, server functions
+  without limits or a public error catalogue, forwarded headers, and
+  authentication material in browser storage.
+
+Apply the preset alone — on a library or a tooling folder that does not take
+`recommended` — with `craftRules.configs.security`.
 
 Run `eslint --fix` after changing generated dependency aliases or route
 metadata. Keep the generated aliases and proofs in the source file so the

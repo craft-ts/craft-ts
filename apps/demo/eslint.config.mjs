@@ -11,6 +11,19 @@ export default [
   playwright.configs['flat/recommended'],
   ...baseConfig,
   {
+    // Le préréglage sécurité couvre TOUT le code source, serveur compris :
+    // c'est là que vivent les registres de server functions, les adapters et
+    // la lecture des en-têtes.
+    files: ['**/src/**/*.ts'],
+    ignores: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      ...craftRules.configs.security.rules,
+    },
+  },
+  {
     ignores: ['**/architecture/catalog.ts'],
   },
   {

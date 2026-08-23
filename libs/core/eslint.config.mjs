@@ -4,6 +4,19 @@ import craftRules from '../dev-tools/src/eslint-rules/index.cjs';
 export default [
   ...baseConfig,
   {
+    // Les libs implémentent les garde-fous : elles s'y soumettent aussi, à
+    // l'exception documentée près (exemptions `craft-security-ignore` et
+    // `eslint-disable` justifiés dans les fichiers concernés).
+    files: ['**/src/**/*.ts'],
+    ignores: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      ...craftRules.configs.security.rules,
+    },
+  },
+  {
     files: ['**/*.json'],
     rules: {
       '@nx/dependency-checks': [

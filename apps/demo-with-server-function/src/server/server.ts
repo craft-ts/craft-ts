@@ -1,9 +1,12 @@
-import { createServer, type Server } from '@craft-ts/core';
+import {
+  createCsrfMiddleware,
+  createHttpServer as createHttpApplication,
+  createSecurityMiddleware,
+  createServer,
+  type Server,
+} from '@craft-ts/core';
 import { executeEffect } from '@craft-ts/effect';
-import * as NodeHttpServer from '@effect/platform-node/NodeHttpServer';
-import { Effect, Exit, Layer, Scope } from 'effect';
-import * as HttpServerRequest from 'effect/unstable/http/HttpServerRequest';
-import * as HttpServerResponse from 'effect/unstable/http/HttpServerResponse';
+import { Layer } from 'effect';
 import {
   createServer as createHttpServer,
   type IncomingMessage,
@@ -54,70 +57,87 @@ export function createApplication(
       effectMiddlewareListUsers,
     ],
     execute: executeEffect(runtimeLayer).run,
+    runtimeOptions: {
+      maxBodyBytes: 1_048_576,
+      maxOutputBytes: 1_048_576,
+      timeoutMs: 15_000,
+    },
+    // Catalogue public : un tag absent de cette table repart en erreur
+    // interne générique, donc une exception ne peut pas emporter ses
+    // propriétés jusqu'au navigateur.
+    publicErrors: {
+      UsersNotFound: { code: 'USERS_NOT_FOUND', status: 404 },
+      AuthenticatedUsersNotFound: {
+        code: 'AUTHENTICATED_USERS_NOT_FOUND',
+        status: 404,
+      },
+      DemoMiddlewareFailure: {
+        code: 'DEMO_MIDDLEWARE_FAILURE',
+        status: 422,
+      },
+      DemoHandlerFailure: {
+        code: 'DEMO_HANDLER_FAILURE',
+        status: 422,
+      },
+      // Ces deux échecs portent leurs données à plat : seules les propriétés
+      // nommées ici sortent, le message interne reste côté serveur.
+      AuthenticatedUserMismatch: {
+        code: 'AUTHENTICATED_USER_MISMATCH',
+        status: 403,
+        fields: ['requestedUserId', 'authenticatedUserId'],
+      },
+      AdminRequired: {
+        code: 'ADMIN_REQUIRED',
+        status: 403,
+        fields: ['role'],
+      },
+    },
   });
 }
 
 /**
- * Adapt the Web Response returned by the Craft server-function registry to
- * Node's request/response pair with Effect's official Node HTTP adapter.
+ * Keeps the server-function registry on the Web Request/Response boundary.
+ * Platform adapters only translate the request at the edge.
  */
-export function createDemoNodeHandler(
+/**
+ * Hôtes servis par la démo. Vide en local : l'URL d'écoute est éphémère.
+ * En déploiement, la liste ferme la porte à un `Host` forgé.
+ */
+const trustedHosts = (process.env.TRUSTED_HOSTS ?? '')
+  .split(',')
+  .map((host) => host.trim())
+  .filter(Boolean);
+
+export function createDemoWebHandler(
   authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
 ) {
   const demo = createDemoApplication(authenticatedUser);
-  const scope = Effect.runSync(Scope.make('parallel'));
-  const httpApp = Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const webRequest = yield* HttpServerRequest.toWeb(request);
-    const webResponse = yield* Effect.tryPromise(() =>
-      demo.application.handle(webRequest),
-    );
-    return HttpServerResponse.fromWeb(webResponse);
+  const application = createHttpApplication({
+    middleware: [createCsrfMiddleware(), createSecurityMiddleware()],
+    maxBodyBytes: 1_048_576,
+    timeoutMs: 15_000,
+    ...(trustedHosts.length > 0 ? { trustedHosts } : {}),
+    handler: (request) => demo.application.handle(request),
   });
-  const handler = Effect.runSync(
-    NodeHttpServer.makeHandler(httpApp, { scope }),
-  );
 
   return {
-    handler,
-    close: () => {
-      demo.close();
-      Effect.runSync(Scope.close(scope, Exit.void));
-    },
+    application,
+    close: demo.close,
   };
 }
 
-/**
- * Runs one Node request through a request-scoped registry and releases the
- * Effect scope once Node has finished writing the response.
- */
 export async function handleDemoNodeRequest(
   request: IncomingMessage,
   response: ServerResponse,
   authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
 ): Promise<void> {
-  const demo = createDemoNodeHandler(authenticatedUser);
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-    const close = () => {
-      if (settled) return;
-      settled = true;
-      response.off('finish', close);
-      response.off('close', close);
-      demo.close();
-      resolve();
-    };
-
-    response.once('finish', close);
-    response.once('close', close);
-    try {
-      demo.handler(request, response);
-    } catch (error) {
-      close();
-      reject(error);
-    }
-  });
+  const demo = createDemoWebHandler(authenticatedUser);
+  try {
+    const webResponse = await demo.application.handle(toWebRequest(request));
+    await writeWebResponse(webResponse, response, request.method === 'HEAD');
+  } finally {
+    demo.close();
+  }
 }
 
 export async function listenDemoServer(
@@ -126,8 +146,19 @@ export async function listenDemoServer(
   readonly url: string;
   readonly close: () => Promise<void>;
 }> {
-  const demo = createDemoNodeHandler(authenticatedUser);
-  const http = createHttpServer(demo.handler);
+  const demo = createDemoWebHandler(authenticatedUser);
+  const http = createHttpServer((request, response) => {
+    void demo.application
+      .handle(toWebRequest(request))
+      .then((webResponse) =>
+        writeWebResponse(webResponse, response, request.method === 'HEAD'),
+      )
+      .catch((error: unknown) => {
+        if (!response.headersSent) response.statusCode = 500;
+        response.end('Internal Server Error');
+        console.error(error);
+      });
+  });
   await new Promise<void>((resolve) => {
     http.listen(0, '127.0.0.1', resolve);
   });
@@ -146,4 +177,44 @@ export async function listenDemoServer(
       });
     },
   };
+}
+
+function toWebRequest(request: IncomingMessage): Request {
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (value !== undefined) {
+      headers.set(name, Array.isArray(value) ? value.join(', ') : value);
+    }
+  }
+  const method = request.method ?? 'GET';
+  const hasBody = method !== 'GET' && method !== 'HEAD';
+  return new Request(
+    `http://${request.headers.host ?? 'localhost'}${request.url ?? '/'}`,
+    {
+      method,
+      headers,
+      ...(hasBody
+        ? {
+            body: request as unknown as BodyInit,
+            duplex: 'half',
+          }
+        : {}),
+    } as RequestInit,
+  );
+}
+
+async function writeWebResponse(
+  webResponse: Response,
+  response: ServerResponse,
+  head: boolean,
+): Promise<void> {
+  response.statusCode = webResponse.status;
+  for (const [name, value] of webResponse.headers) {
+    response.setHeader(name, value);
+  }
+  if (head || webResponse.body === null) {
+    response.end();
+    return;
+  }
+  response.end(Buffer.from(await webResponse.arrayBuffer()));
 }

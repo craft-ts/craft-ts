@@ -15,9 +15,14 @@ export class CraftSsrCoordinator implements CraftSsrRuntime {
   private readonly decideResource:
     | ((source: string, mode: SsrMode) => void)
     | undefined;
+  private readonly defaultTimeoutMs: number | undefined;
 
-  constructor(decideResource?: (source: string, mode: SsrMode) => void) {
+  constructor(
+    decideResource?: (source: string, mode: SsrMode) => void,
+    defaultTimeoutMs?: number,
+  ) {
     this.decideResource = decideResource;
+    this.defaultTimeoutMs = defaultTimeoutMs;
   }
 
   suspend(
@@ -31,7 +36,7 @@ export class CraftSsrCoordinator implements CraftSsrRuntime {
     }
     this.decideResource?.(source, mode);
     if (mode !== 'block') return;
-    const timeoutMs = options.timeoutMs;
+    const timeoutMs = options.timeoutMs ?? this.defaultTimeoutMs;
     const timer =
       timeoutMs !== undefined
         ? setTimeout(() => {
@@ -85,6 +90,15 @@ export class CraftSsrCoordinator implements CraftSsrRuntime {
     ];
   }
 
+  /** Releases source timers and waiters when the request is aborted. */
+  dispose(): void {
+    for (const entry of this.pending.values()) {
+      if (entry.timer) clearTimeout(entry.timer);
+    }
+    this.pending.clear();
+    this.listeners.clear();
+  }
+
   private throwFailure(): void {
     if (this.failure === undefined) return;
     const failure = this.failure;
@@ -100,6 +114,7 @@ export class CraftSsrCoordinator implements CraftSsrRuntime {
       };
       const aborted = () => {
         cleanup();
+        this.dispose();
         reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
       };
       const timer = setTimeout(() => {

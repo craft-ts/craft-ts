@@ -20,6 +20,7 @@ import {
   createModeFromFlag,
   parseCreateAgents,
 } from '../scripts/create/create-project.js';
+import { runSecurityCheck } from '../scripts/security-check.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -46,6 +47,27 @@ async function main(argv: string[]): Promise<number> {
       child.on('exit', (code) => resolve(code ?? 1));
       child.on('error', () => resolve(1));
     });
+  }
+  if (argv[0] === 'security' && argv[1] === 'check') {
+    const rootIndex = argv.indexOf('--root');
+    const rootDir = rootIndex >= 0 ? argv[rootIndex + 1] : process.cwd();
+    const result = runSecurityCheck({ rootDir, strict: argv.includes('--strict') });
+    for (const diagnostic of result.diagnostics) {
+      const line = `${diagnostic.file}:${diagnostic.line} ${diagnostic.code}: ${diagnostic.message}`;
+      if (diagnostic.severity === 'error') console.error(line);
+      else console.warn(`warning ${line}`);
+    }
+    const errors = result.diagnostics.filter(
+      (diagnostic) => diagnostic.severity === 'error',
+    ).length;
+    if (result.passed) {
+      console.log(
+        `Craft security check passed${result.diagnostics.length > 0 ? ` (${result.diagnostics.length} warning(s))` : ''}.`,
+      );
+    } else {
+      console.error(`Craft security check failed with ${errors} error(s).`);
+    }
+    return result.passed ? 0 : 1;
   }
   if (argv[0] !== 'route' || !['add', 'split', 'verify'].includes(argv[1] ?? '')) {
     printHelp();
@@ -337,6 +359,7 @@ function printHelp(): void {
   console.log(`Usage:
   craft create [directory] [options]
   craft graph [options]
+  craft security check [--strict] [--root <dir>]
   craft route add [path] [options]
   craft route split --parent <file#collection> --prefix <path> --target <file>
   craft route verify [options]

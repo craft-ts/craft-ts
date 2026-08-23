@@ -20,7 +20,9 @@ export type CraftStyleRegistry = {
   acquire(root: StyleRoot, key: string, css: string, order: number): () => void;
 };
 
-export function createCraftStyleRegistry(): CraftStyleRegistry {
+export function createCraftStyleRegistry(
+  options: Readonly<{ nonce?: string }> = {},
+): CraftStyleRegistry {
   const roots = new WeakMap<StyleRoot, Map<string, StyleEntry>>();
 
   function acquire(
@@ -50,6 +52,7 @@ export function createCraftStyleRegistry(): CraftStyleRegistry {
       const document = root instanceof Document ? root : root.ownerDocument;
       const element = document!.createElement('style');
       element.setAttribute('data-craft-sheet', key);
+      if (options.nonce) element.setAttribute('nonce', options.nonce);
       element.textContent = css;
       if (root instanceof Document) {
         (root.head ?? root.documentElement).appendChild(element);

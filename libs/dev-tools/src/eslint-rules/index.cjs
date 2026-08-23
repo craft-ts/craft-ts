@@ -78,7 +78,16 @@ const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-st
 const noInjectionToken = require('./no-injection-token.cjs');
 const noManualRouteProviderList = require('./no-manual-route-provider-list.cjs');
 const noWidenedRouteProviderContext = require('./no-widened-route-provider-context.cjs');
+const requireRouteSecurityPolicy = require('./require-route-security-policy.cjs');
+const requireServerFunctionTimeout = require('./require-server-function-timeout.cjs');
+const noAuthTokenInLocalStorage = require('./no-auth-token-in-local-storage.cjs');
+const noRawUserUrl = require('./no-raw-user-url.cjs');
+const noUnsafeTransferState = require('./no-unsafe-transfer-state.cjs');
+const noUnsafeHtml = require('./no-unsafe-html.cjs');
+const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
+const requirePublicErrorMapping = require('./require-public-error-mapping.cjs');
 const recommendedRules = require('./recommended-config.cjs');
+const securityRules = require('./security-config.cjs');
 
 const plugin = {
   rules: {
@@ -167,6 +176,14 @@ const plugin = {
     'no-injection-token': noInjectionToken,
     'no-manual-route-provider-list': noManualRouteProviderList,
     'no-widened-route-provider-context': noWidenedRouteProviderContext,
+    'require-route-security-policy': requireRouteSecurityPolicy,
+    'require-server-function-timeout': requireServerFunctionTimeout,
+    'no-auth-token-in-local-storage': noAuthTokenInLocalStorage,
+    'no-raw-user-url': noRawUserUrl,
+    'no-unsafe-transfer-state': noUnsafeTransferState,
+    'no-unsafe-html': noUnsafeHtml,
+    'no-trust-forwarded-headers': noTrustForwardedHeaders,
+    'require-public-error-mapping': requirePublicErrorMapping,
   },
 };
 
@@ -196,12 +213,13 @@ const a11yRuleSeverity = {
 plugin.configs = {
   recommended: {
     plugins: { 'craft-ts': plugin },
-    rules: recommendedRules,
+    rules: { ...recommendedRules, ...securityRules },
   },
   effect: {
     plugins: { 'craft-ts': plugin },
     rules: {
       ...recommendedRules,
+      ...securityRules,
       'craft-ts/require-effect-adapters': 'error',
       'craft-ts/no-effect-outside-loaders': 'error',
       'craft-ts/no-explicit-effect-type': 'error',
@@ -211,6 +229,12 @@ plugin.configs = {
   a11y: {
     plugins: { 'craft-ts': plugin },
     rules: a11yRuleSeverity,
+  },
+  // Conservé pour activer le préréglage seul, sur un projet qui ne prend pas
+  // `recommended` (une lib partagée, un dossier d'outillage).
+  security: {
+    plugins: { 'craft-ts': plugin },
+    rules: securityRules,
   },
 };
 

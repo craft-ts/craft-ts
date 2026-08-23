@@ -1,13 +1,8 @@
 #!/usr/bin/env node
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
-
-const roots = process.argv.slice(2).map((root) => resolve(root));
-
-if (roots.length === 0) {
-  throw new Error('Usage: node tools/production-smoke.mjs <dist-directory>...');
-}
 
 const forbiddenInDemo = [
   'startFunctionRegistryBridge',
@@ -15,9 +10,16 @@ const forbiddenInDemo = [
   'http://127.0.0.1:4319/logs',
 ];
 
-for (const root of roots) {
+export function inspectProductionOutput(root) {
   if (!existsSync(root)) {
     throw new Error(`Production output does not exist: ${root}`);
+  }
+
+  const indexFile = join(root, 'index.html');
+  if (!existsSync(indexFile)) {
+    throw new Error(
+      `Production output has no browser entry point: ${indexFile}`,
+    );
   }
 
   const files = listFiles(root);
@@ -47,9 +49,23 @@ for (const root of roots) {
     }
   }
 
-  console.log(
-    `${root}: ${javascript.length} JavaScript file(s), no source maps`,
-  );
+  return { javascript, sourceMaps };
+}
+
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  const roots = process.argv.slice(2).map((root) => resolve(root));
+  if (roots.length === 0) {
+    throw new Error(
+      'Usage: node tools/production-smoke.mjs <dist-directory>...',
+    );
+  }
+
+  for (const root of roots) {
+    const { javascript } = inspectProductionOutput(root);
+    console.log(
+      `${root}: ${javascript.length} JavaScript file(s), index.html present, no source maps`,
+    );
+  }
 }
 
 function listFiles(directory) {

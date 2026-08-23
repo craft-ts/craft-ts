@@ -555,6 +555,7 @@ function compileOverride(source: string): RuntimeOverride {
   let candidate: unknown;
   try {
     // Development-only dynamic code path. The caller explicitly controls source.
+    // craft-security-ignore CRAFT_SECURITY_DYNAMIC_CODE
     candidate = new Function(`"use strict"; return (${source});`)();
   } catch (error) {
     throw new Error(
@@ -577,6 +578,7 @@ function compileResourceUpdater(
   let candidate: unknown;
   try {
     // Development-only dynamic code path. The caller explicitly controls source.
+    // craft-security-ignore CRAFT_SECURITY_DYNAMIC_CODE
     candidate = new Function(`"use strict"; return (${source});`)();
   } catch (error) {
     throw new Error(

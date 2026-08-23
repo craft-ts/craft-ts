@@ -9,6 +9,12 @@ describe('CraftTS SSR demo', () => {
     expect(result.html).toContain('<craft-root data-craft-hk="SsrLabApp/0">');
     expect(result.html).toContain('Comprendre SSR par l’expérience');
     expect(result.html).toContain('__CRAFT_TRANSFER__');
+    expect(result.html).toContain(
+      '<link rel="canonical" href="http://localhost:4300/" />',
+    );
+    expect(result.html).toContain(
+      '<meta name="robots" content="index,follow" />',
+    );
   });
 
   it('uses the server-function registry in memory during SSR', async () => {
@@ -42,7 +48,9 @@ describe('CraftTS SSR demo', () => {
     const result = await renderPage(new URL('http://localhost/fallback'));
 
     expect(result.html).toContain('Le bloc différé arrive après le rendu');
-    expect(result.html).not.toContain('Le bloc différé est arrivé après le premier rendu');
+    expect(result.html).not.toContain(
+      'Le bloc différé est arrivé après le premier rendu',
+    );
   });
 
   it('renders unknown URLs with a server-side 404', async () => {
@@ -50,6 +58,9 @@ describe('CraftTS SSR demo', () => {
 
     expect(result.status).toBe(404);
     expect(result.html).toContain('Page non trouvée');
+    expect(result.html).toContain(
+      '<meta name="robots" content="noindex,nofollow" />',
+    );
   });
 
   it('serves the deferred client payload separately', async () => {

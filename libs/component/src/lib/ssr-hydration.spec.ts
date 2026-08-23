@@ -72,8 +72,19 @@ describe('Craft SSR and hydration', () => {
     );
     const config = configFor(counter);
 
-    const first = await renderCraft({ config, props: { initial: 42 } });
-    const second = await renderCraft({ config, props: { initial: 42 } });
+    // Le transfert est fermé par défaut : ces rendus déclarent la politique
+    // de migration, qui transfère tout ce qui est sérialisable.
+    const legacyTransfer = { transfer: { mode: 'legacy' } } as const;
+    const first = await renderCraft({
+      config,
+      props: { initial: 42 },
+      securityPolicy: legacyTransfer,
+    });
+    const second = await renderCraft({
+      config,
+      props: { initial: 42 },
+      securityPolicy: legacyTransfer,
+    });
 
     expect(first.html).toBe(second.html);
     expect(first.rootHtml).toContain(
@@ -117,7 +128,10 @@ describe('Craft SSR and hydration', () => {
         ),
     );
     const config = configFor(app);
-    const rendered = await renderCraft({ config });
+    const rendered = await renderCraft({
+      config,
+      securityPolicy: { transfer: { mode: 'legacy' } },
+    });
 
     expect(rendered.rootHtml).toContain('Ada');
     expect(rendered.rootHtml).not.toContain('loading');
@@ -390,7 +404,11 @@ describe('Craft SSR and hydration', () => {
       ],
     };
 
-    const rendered = await renderCraft({ config, url: '/lazy' });
+    const rendered = await renderCraft({
+      config,
+      url: '/lazy',
+      securityPolicy: { transfer: { mode: 'legacy' } },
+    });
 
     expect(rendered.rootHtml).toContain('lazy route ready');
     expect(rendered.rootHtml).toContain('class="lazy-page"');
@@ -611,8 +629,16 @@ describe('Craft SSR and hydration', () => {
     const config = configFor(app);
 
     const [one, two] = await Promise.all([
-      renderCraft({ config, props: { initial: 1 } }),
-      renderCraft({ config, props: { initial: 2 } }),
+      renderCraft({
+        config,
+        props: { initial: 1 },
+        securityPolicy: { transfer: { mode: 'legacy' } },
+      }),
+      renderCraft({
+        config,
+        props: { initial: 2 },
+        securityPolicy: { transfer: { mode: 'legacy' } },
+      }),
     ]);
 
     expect(one.rootHtml).toContain('>1<');

@@ -124,7 +124,7 @@
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "demo:build",
-        "staticFilePath": "dist/apps/demo/browser",
+        "staticFilePath": "dist/apps/demo",
         "spa": true
       }
     }

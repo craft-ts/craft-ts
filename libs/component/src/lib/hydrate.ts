@@ -2,6 +2,9 @@ import {
   CRAFT_HYDRATION_RUNTIME,
   CRAFT_PLATFORM,
   CRAFT_PRIMITIVE_REGISTRY,
+  CRAFT_SECURITY_POLICY,
+  CraftCspNonce,
+  createCraftSecurityPolicy,
   createBrowserDomAdapter,
   createBrowserPlatform,
   createCraftRenderIdentity,
@@ -17,7 +20,7 @@ import {
 import { CRAFT_ROOT_COMPONENT } from './craft-host-tokens';
 import {
   CRAFT_STYLE_REGISTRY,
-  ɵfallbackCraftStyleRegistry,
+  createCraftStyleRegistry,
   type CraftStyleRegistry,
 } from './render/style-registry';
 import {
@@ -70,6 +73,7 @@ export function hydrateCraft(
       primeCraftTransferSnapshot(
         injector.get(CRAFT_PRIMITIVE_REGISTRY),
         snapshot,
+        injector.get(CRAFT_SECURITY_POLICY, createCraftSecurityPolicy()).transfer,
       );
     }
     ɵrunCraftAppInitializers(injector);
@@ -93,7 +97,9 @@ export function hydrateCraft(
         : host.ownerDocument;
     const styles = injector.get(
       CRAFT_STYLE_REGISTRY,
-      ɵfallbackCraftStyleRegistry,
+      createCraftStyleRegistry({
+        nonce: injector.get(CraftCspNonce, null) ?? undefined,
+      }),
     ) as CraftStyleRegistry;
     mounted = mountInterpretedComponentWithOptions(
       root,

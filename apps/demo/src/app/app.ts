@@ -19,6 +19,7 @@ import {
   craftComputed,
   craftMethod,
   CraftRouterLink,
+  CraftRouter,
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
   state,
@@ -143,6 +144,9 @@ export const App = craftComponent(
     `,
   },
   function* () {
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+      navigate,
+    }));
     const navOpen = yield* state(
       'navOpen',
       false,
@@ -172,12 +176,13 @@ export const App = craftComponent(
       navOpen,
       toggleNav,
       closeNav: navOpen.close,
+      router,
     };
   },
-  ({ clearCache, navOpen, toggleNav, closeNav }) =>
+  ({ clearCache, navOpen, toggleNav, closeNav, router }) =>
     div([
         skipLink('main', 'Skip to content'),
-        div({ class: 'demo-banner' }, [
+        div({ class: 'demo-banner', click: closeNav }, [
           div({ class: 'demo-banner__main' }, [
             strong('Beta demo'),
             span(' — the API and documentation may still evolve.'),
@@ -243,7 +248,11 @@ export const App = craftComponent(
                             a(
                               'navLink',
                               {
-                                click: closeNav,
+                                *click(event: MouseEvent) {
+                                  event.preventDefault();
+                                  yield* closeNav();
+                                  void router.navigate((yield* entry())[1]);
+                                },
                                 craftRouterLink: function* () {
                                   return (yield* entry())[1];
                                 },

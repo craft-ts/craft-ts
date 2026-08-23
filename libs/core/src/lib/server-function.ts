@@ -87,6 +87,10 @@ export type ServerFunctionHandlerContext<
   >;
   readonly required: ServerFunctionRequired;
   readonly pipes: Pipes;
+  /** Aborts when the HTTP client disconnects or the invocation times out. */
+  readonly signal: AbortSignal;
+  /** Stable correlation id; never contains request payload data. */
+  readonly requestId?: string;
 };
 
 export type ServerFunctionHandler<
@@ -143,6 +147,8 @@ export function requiresClientContext(
 
 export type ServerFunctionRuntime = {
   readonly resolve?: <Value>(token: ServerFunctionToken<Value>) => Value;
+  readonly signal?: AbortSignal;
+  readonly requestId?: string;
 };
 
 /**
@@ -371,13 +377,15 @@ function createDefinition<
         }
         return runtime.resolve(token);
       };
-      const call = (context: Record<string, unknown>): Output =>
+const call = (context: Record<string, unknown>): Output =>
         handler({
           input: input as never,
           context: context as never,
           clientContext: (clientContext ?? {}) as never,
           required,
           pipes,
+          signal: runtime?.signal ?? NEVER_ABORT_SIGNAL,
+          ...(runtime?.requestId ? { requestId: runtime.requestId } : {}),
         });
 
       if (middlewares.length === 0) return call({});
@@ -391,6 +399,8 @@ function createDefinition<
     },
   };
 }
+
+const NEVER_ABORT_SIGNAL = new AbortController().signal;
 
 /**
  * Ce que l'appelant doit fournir : le schéma du contrat et ceux des middleware,

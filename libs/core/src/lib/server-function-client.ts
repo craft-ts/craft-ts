@@ -28,10 +28,7 @@ import {
   type CraftServiceProvider,
 } from './craft-service';
 import { craftUse } from './craft-use';
-import {
-  craftException,
-  type CraftExceptionResult,
-} from './craft-exception';
+import { craftException, type CraftExceptionResult } from './craft-exception';
 
 export type ServerFunctionRequest = {
   readonly id: string;
@@ -50,6 +47,17 @@ export type ServerFunctionTransport = (
   request: ServerFunctionRequest,
 ) => unknown | Promise<unknown>;
 
+export type ServerFunctionEndpoint =
+  | string
+  | URL
+  | ((serverFunctionId: string) => string | URL);
+
+export type ServerFunctionFetchTransportOptions = Readonly<{
+  endpoint: ServerFunctionEndpoint;
+  fetch?: typeof globalThis.fetch;
+  headers?: Readonly<Record<string, string>>;
+}>;
+
 const serverFunctionTransportService = craftService(
   { name: 'ServerFunctionTransport', providedIn: 'abstract' },
   abstract<ServerFunctionTransport>(),
@@ -59,8 +67,7 @@ export const ServerFunctionTransport: () => Generator<
   unknown,
   ServerFunctionTransport,
   unknown
-> =
-  serverFunctionTransportService.ServerFunctionTransport;
+> = serverFunctionTransportService.ServerFunctionTransport;
 
 export function provideServerFunctionTransport(
   transport: ServerFunctionTransport,
@@ -72,6 +79,23 @@ export function provideServerFunctionTransport(
 
 export function provideDefaultServerFunctionTransport() {
   return provideServerFunctionTransport(defaultServerFunctionTransport);
+}
+
+/**
+ * Creates a transport for an embedded endpoint, Worker route or Lambda
+ * Function URL. The protocol and typed server-function contract stay the
+ * same; only the endpoint resolution changes.
+ */
+export function createServerFunctionFetchTransport(
+  options: ServerFunctionFetchTransportOptions,
+): ServerFunctionTransport {
+  return (request) => {
+    const endpoint =
+      typeof options.endpoint === 'function'
+        ? options.endpoint(request.id)
+        : options.endpoint;
+    return fetchServerFunctionRequest(request, endpoint, options);
+  };
 }
 
 export type ServerFunctionHttpError = CraftExceptionResult<
@@ -101,18 +125,19 @@ export type ServerFunctionContractClient<
  */
 export type ServerFunctionClientFailure<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-> = ServerFunctionError<Definition> extends infer Failure
-  ? Failure extends { readonly _tag: string }
-    ? CraftExceptionResult<
-        {
-          _tag: Failure['_tag'];
-          scope: 'ServerFunction';
-          identifier: Definition['contract']['id'];
-        },
-        Failure
-      >
-    : never
-  : never;
+> =
+  ServerFunctionError<Definition> extends infer Failure
+    ? Failure extends { readonly _tag: string }
+      ? CraftExceptionResult<
+          {
+            _tag: Failure['_tag'];
+            scope: 'ServerFunction';
+            identifier: Definition['contract']['id'];
+          },
+          Failure
+        >
+      : never
+    : never;
 
 export type ServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
@@ -120,9 +145,7 @@ export type ServerFunctionClient<
     | ServerFunctionSuccess<Definition>
     | ServerFunctionClientFailure<Definition>
     | ServerFunctionHttpError,
-> = (
-  input: ServerFunctionInput<Definition>,
-) => Promise<ClientOutput>;
+> = (input: ServerFunctionInput<Definition>) => Promise<ClientOutput>;
 
 export type ServerFunctionClientError<
   Definition extends ServerFunctionDefinition<any, any, any>,
@@ -153,7 +176,8 @@ declare const CLIENT_CONTEXT_ATTACHMENTS: unique symbol;
  */
 export interface ServerFunctionClientContextAttachments<
   Context,
-  Attachments extends readonly ServerFunctionClientAttachment[] = readonly ServerFunctionClientAttachment[],
+  Attachments extends
+    readonly ServerFunctionClientAttachment[] = readonly ServerFunctionClientAttachment[],
 > {
   readonly [CLIENT_CONTEXT_ATTACHMENTS]: true;
   readonly attachments: Attachments;
@@ -232,9 +256,7 @@ export function createServerFunctionClient<
 
 export function createServerFunctionClient<
   Contract extends ServerFunctionContract<any, any, any>,
->(
-  contract: Contract,
-): ServerFunctionContractClient<Contract>;
+>(contract: Contract): ServerFunctionContractClient<Contract>;
 export function createServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any>,
   ClientOutput = ServerFunctionSuccess<Definition>,
@@ -286,7 +308,6 @@ function captureInjector(): Injector {
   }
 }
 
-
 type ServerFunctionDefinitionContract<
   Definition extends ServerFunctionDefinition,
 > = Definition['contract'];
@@ -294,7 +315,16 @@ type ServerFunctionDefinitionContract<
 async function defaultServerFunctionTransport(
   request: ServerFunctionRequest,
 ): Promise<unknown> {
-  if (typeof fetch !== 'function') {
+  return fetchServerFunctionRequest(request, '/__server-functions');
+}
+
+async function fetchServerFunctionRequest(
+  request: ServerFunctionRequest,
+  endpoint: string | URL,
+  options: Pick<ServerFunctionFetchTransportOptions, 'fetch' | 'headers'> = {},
+): Promise<unknown> {
+  const fetcher = options.fetch ?? globalThis.fetch;
+  if (typeof fetcher !== 'function') {
     return craftException(
       {
         _tag: 'HttpError',
@@ -309,9 +339,15 @@ async function defaultServerFunctionTransport(
       },
     );
   }
-  const response = await fetch('/__server-functions', {
+  const response = await fetcher(endpoint, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      // En-tête non « simple » : il force un préflight CORS, donc un site
+      // tiers ne peut pas rejouer l'appel avec les cookies de l'utilisateur.
+      'x-craft-protocol': '1',
+      ...options.headers,
+    },
     body: JSON.stringify(request),
   });
   const body = await response.json().catch(() => undefined);

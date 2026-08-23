@@ -35,7 +35,7 @@ export default defineConfig({
     name: 'craft-ts-component',
     globals: true,
     environment: 'jsdom',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'security/**/*.spec.ts'],
     exclude: [],
     reporters: ['default'],
   },

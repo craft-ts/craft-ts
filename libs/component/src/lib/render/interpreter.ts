@@ -56,6 +56,8 @@ import {
   createCraftRenderIdentity,
   type CraftRenderIdentity,
   CRAFT_SSR_POLICY,
+  CRAFT_SECURITY_POLICY,
+  CraftCspNonce,
   CRAFT_MATCH,
   type CraftSsrPolicy,
 } from '@craft-ts/core';
@@ -131,8 +133,19 @@ import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
   CRAFT_STYLE_REGISTRY,
   CraftStyleRegistry,
-  ɵfallbackCraftStyleRegistry,
+  createCraftStyleRegistry,
 } from './style-registry';
+import {
+  isCraftMultiUrlAttribute,
+  isCraftResourceUrlAttribute,
+  isCraftSafeHtml,
+  isCraftUnsafeHtml,
+  isCraftUrlAttribute,
+  safeResourceUrl,
+  safeUrl,
+  safeUrlList,
+  CraftDomSecurityError,
+} from '../security';
 import { scopeCss, scopeIdFor, validateStyleScope } from './style-scope';
 import {
   CRAFT_LOCATOR_CONTENT_NAMES,
@@ -1319,6 +1332,7 @@ const PROPERTY_NAMES = new Set([
   'multiple',
   'selected',
   'value',
+  'innerHTML',
 ]);
 
 function eventNameFor(key: string, value: unknown): string | undefined {
@@ -1486,6 +1500,11 @@ function setStyleValue(
   context: RenderContext,
 ): void {
   value = resolveTemplateValue(value, context);
+  ɵassertSafeStyleValue(
+    value,
+    context.injector.get(CRAFT_SECURITY_POLICY, null)?.dom
+      .allowedResourceOrigins ?? [],
+  );
   const style = (element as Element & { readonly style: CSSStyleDeclaration })
     .style;
   if (value === null || value === undefined || value === false) {
@@ -1521,6 +1540,11 @@ function applyStyles(
   }
 
   if (typeof next === 'string') {
+    ɵassertSafeStyleValue(
+      next,
+      context.injector.get(CRAFT_SECURITY_POLICY, null)?.dom
+        .allowedResourceOrigins ?? [],
+    );
     renderer.setAttribute(element, 'style', next);
   } else if (typeof next === 'object' && next !== null) {
     for (const [key, value] of Object.entries(next)) {
@@ -1562,6 +1586,42 @@ function applyAttribute(
   context: RenderContext,
 ): void {
   value = resolveTemplateValue(value, context);
+  const normalizedKey = key.toLowerCase();
+  if (value === null || value === undefined) {
+    if (normalizedKey === 'srcdoc' || normalizedKey.startsWith('on')) {
+      renderer.removeAttribute(element, key);
+      return;
+    }
+    if (key === 'innerHTML') {
+      renderer.setProperty(element, key, '');
+      return;
+    }
+  }
+  if (normalizedKey === 'srcdoc') {
+    throw new CraftDomSecurityError(
+      'CRAFT_DOM_SRCDOC_BLOCKED',
+      'srcdoc is not supported by the secure renderer.',
+    );
+  }
+  if (normalizedKey.startsWith('on')) {
+    throw new CraftDomSecurityError(
+      'CRAFT_DOM_EVENT_ATTRIBUTE_BLOCKED',
+      `Inline event attribute "${key}" is not allowed.`,
+    );
+  }
+  if (isCraftUrlAttribute(normalizedKey) && value !== null && value !== undefined) {
+    const policy = context.injector.get(CRAFT_SECURITY_POLICY, null);
+    const urlOptions = {
+      allowedOrigins: policy?.dom.allowedResourceOrigins ?? [],
+      allowedSchemes: policy?.dom.allowedUrlSchemes ?? undefined,
+    };
+    const resource = isCraftResourceUrlAttribute(normalizedKey);
+    value = isCraftMultiUrlAttribute(normalizedKey)
+      ? safeUrlList(value, resource, urlOptions)
+      : resource
+        ? safeResourceUrl(value, urlOptions)
+        : safeUrl(value, urlOptions);
+  }
   if (key.startsWith('data-craft-')) {
     const dev = typeof ngDevMode === 'undefined' || ngDevMode;
     if (dev) {
@@ -1574,6 +1634,20 @@ function applyAttribute(
     renderer.setProperty(element, key, value ?? '');
     if (value === null || value === undefined || value === false) {
       renderer.removeAttribute(element, 'for');
+    }
+    return;
+  }
+  if (key === 'innerHTML') {
+    const security = context.injector.get(CRAFT_SECURITY_POLICY, null);
+    if (isCraftSafeHtml(value)) {
+      renderer.setProperty(element, key, value.value);
+    } else if (isCraftUnsafeHtml(value) && security?.dom.allowUnsafeHtml) {
+      renderer.setProperty(element, key, value.value);
+    } else {
+      throw new CraftDomSecurityError(
+        'CRAFT_DOM_RAW_HTML_BLOCKED',
+        'Use sanitizedHtml(...) or an explicit, audited unsafeHtml(...) policy.',
+      );
     }
     return;
   }
@@ -1593,6 +1667,38 @@ function applyAttribute(
     renderer.removeAttribute(element, key);
   } else {
     renderer.setAttribute(element, key, value === true ? '' : String(value));
+  }
+}
+
+/** Exporté pour la suite de non-régression sécurité. */
+export function ɵassertSafeStyleValue(
+  value: unknown,
+  resourceOrigins: readonly string[] = [],
+): void {
+  if (value === null || value === undefined || value === false) return;
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    throw new CraftDomSecurityError(
+      'CRAFT_DOM_STYLE_INVALID',
+      'Style values must be strings or numbers.',
+    );
+  }
+  const text = String(value);
+  if (
+    /expression\s*\(|behaviou?r\s*:|-moz-binding|@import|<\s*\/style/i.test(
+      text,
+    )
+  ) {
+    throw new CraftDomSecurityError(
+      'CRAFT_DOM_STYLE_BLOCKED',
+      'Potentially executable CSS is not allowed.',
+    );
+  }
+  // Chaque url() passe par le même garde-fou que les attributs d'URL, ce qui
+  // écarte les schémas exécutables comme les chargements protocol-relative.
+  for (const match of text.matchAll(/url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi)) {
+    const url = (match[1] ?? match[2] ?? match[3] ?? '').trim();
+    if (url === '') continue;
+    safeResourceUrl(url, { allowedOrigins: resourceOrigins });
   }
 }
 
@@ -5403,7 +5509,9 @@ export function mountInterpretedComponent<Props extends object>(
       : (host.ownerDocument ?? document);
   const styles = craftInjector.get(
     CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
-    ɵfallbackCraftStyleRegistry,
+    createCraftStyleRegistry({
+      nonce: craftInjector.get(CraftCspNonce, null) ?? undefined,
+    }),
   );
   return mountInterpretedComponentWithOptions(
     component,
@@ -5480,7 +5588,9 @@ export function mountInterpretedComponentTemplate<Context>(
       : (host.ownerDocument ?? document);
   const styles = craftInjector.get(
     CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
-    ɵfallbackCraftStyleRegistry,
+    createCraftStyleRegistry({
+      nonce: craftInjector.get(CraftCspNonce, null) ?? undefined,
+    }),
   );
   let instance: ComponentRenderedNode;
   try {

@@ -18,5 +18,6 @@ export * from './scripts/components/migration-diagnostic.js';
 export * from './scripts/architecture/migrate-architecture.js';
 export * from './scripts/dependency-graph.js';
 export * from './scripts/architecture-graph.js';
+export * from './scripts/security-check.js';
 export * from './scripts/create/create-project.js';
 export * from './template-migration.js';

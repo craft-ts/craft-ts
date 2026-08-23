@@ -11,6 +11,61 @@ Permettre de déployer l'application démo et les applications CraftTS en produc
 - des tests effectués sur le véritable artefact de production ;
 - une observabilité et une exploitation minimales.
 
+## État d'implémentation — 22 août 2026
+
+La première tranche P0 est livrée dans le dépôt :
+
+- le serveur statique de `demo` sert `dist/apps/demo`, le répertoire produit
+  réellement par Vite ;
+- `npm run build:demo:production` fournit un point d'entrée explicite ;
+- le smoke test des artefacts vérifie désormais la présence de `index.html` et
+  l'absence de source maps ;
+- le serveur SSR de production accepte `HOST` et `PORT`, expose `/health` et
+  `/ready`, applique les headers HTTP de sécurité de base et gère `SIGTERM`/
+  `SIGINT` avec un délai d'arrêt configurable ;
+- `apps/demo-ssr/Dockerfile` fournit une image multi-stage et
+  `docker-compose.production.yml` fournit le lancement local reproductible ;
+- `npm run production:check` construit les applications, inspecte les
+  artefacts puis exécute un smoke test HTTP sur le bundle SSR produit.
+- `@craft-ts/core` expose maintenant un runtime HTTP portable avec contexte par
+  requête, matching méthode + chemin (`:param` et `*`), erreurs JSON, limites
+  de body, timeout, request ID, logs structurés, CORS et CSRF ;
+- le SSR utilise ce registre pour `/health`, `/ready` et `/api/*`, et produit
+  les métadonnées `title`, `description`, canonical, robots et Open Graph par
+  route ;
+- le transport client `createServerFunctionFetchTransport` permet de résoudre
+  un identifiant de server-function vers une URL distante, notamment une
+  Function URL, sans modifier le protocole `{ id, input, context }`.
+- `createCraftLambdaFetch` adapte un événement Lambda Function URL vers la
+  même application Web et le client Playwright peut lancer les E2E de `demo`
+  sur l'artefact statique avec `npm run e2e:demo:production`.
+- `createCraftWorkerFetch` expose la même application portable sous la forme
+  `fetch(request, env, ctx)` ; le runtime HTTP fournit aussi des métriques
+  en mémoire et un rate limiting à store remplaçable.
+- le SSR applique un rate limiting configurable aux routes API et un cache
+  immutable aux assets hashés, tandis que le HTML SSR reste `no-store`.
+- `.github/workflows/production-readiness.yml` exécute `npm ci` puis
+  `npm run production:check` sur les pull requests et les pushes vers `main`.
+- la navigation du menu de `demo` ferme désormais le panneau après avoir
+  annulé la navigation native, ce qui garantit la navigation client sur le
+  bundle de production ; le scénario E2E correspondant passe en dev et sur
+  le serveur statique produit.
+
+Le build Docker n'a pas été exécuté localement car le daemon Docker n'était
+pas démarré dans l'environnement de développement. La configuration Compose
+est valide (`docker compose ... config`). Les phases Lambda/Worker réelles, les
+layers Effect remplaçables pour chaque plateforme, une authentification/session
+réelle, le rate limiting distribué, les métriques/erreurs externes, les E2E Playwright
+contre tous les runtimes et la CI de déploiement restent à réaliser selon
+l'ordre proposé ci-dessous. Les tests ciblés du runtime HTTP, du transport
+server-function, de l'adapter Lambda, du SSR et du serveur de fonctions passent.
+La commande agrégée `npm run production:check` passe également pour les cinq
+applications de production et le smoke HTTP SSR.
+Le scénario E2E de navigation client passe sur l'artefact statique ; la suite
+Chromium complète reste partiellement rouge (12 réussis, 10 échoués, 1 ignoré)
+et doit être séparée entre scénarios compatibles production et scénarios
+spécifiques au bridge de développement, au viewport ou aux fixtures de test.
+
 ## Décisions d'architecture
 
 ### Alchemy
@@ -73,6 +128,9 @@ Les adapters de plateforme sont séparés :
 - `NodeHttpServer` pour le serveur TCP Node ;
 - `fetch(request, env, ctx)` pour Cloudflare ;
 - `HttpServerRequest`/`HttpServerResponse` pour Lambda Alchemy.
+
+Le cœur expose `createCraftWorkerFetch` et `createCraftLambdaFetch` comme
+adapters minces ; ils ne contiennent ni routing métier ni accès aux bindings.
 
 Le serveur actuel combine HTTP Node, routing, SSR, manifest et assets. Ces responsabilités doivent être séparées afin que `production-server.ts` ne soit plus importé par un Worker ou une Lambda.
 
@@ -226,21 +284,25 @@ Les exceptions doivent être explicites et testées route par route.
 
 **Critère de sortie :** `listPublicProducts` puis `listUsers` peuvent être exécutées sans importer `production-server.ts`, `node:http` ou `node:fs` depuis leur module métier.
 
-### Phase 3 ter — Server-functions Lambda indépendantes — P1
+### Phase 3 ter — Server-functions Lambda indépendantes — P1 — amorcée
 
-- Ajouter un helper `createCraftLambdaFetch(definition, layer)`.
+- Ajouter un helper `createCraftLambdaFetch(application)` autour de
+  l'application HTTP portable.
 - Construire une Lambda avec `createServer({ functions: [definition] })`.
 - Convertir `HttpServerRequest` en `Request` Web et `Response` Web en réponse Lambda.
 - Déployer une première fonction sans dépendance Node, par exemple `demo.products.list`.
 - Ajouter un transport client qui mappe `serverFunctionId → Function URL`.
 - Garder le protocole CraftTS `{ id, input, context, protocolVersion }` pour préserver les contrats existants.
-- Ajouter auth, CORS, rate limiting, timeout et taille maximale de body au niveau de la Lambda.
+- L'adapter Lambda, le transport par endpoint, le timeout, la taille maximale
+  de body et les tests de contrat locaux sont en place ; il reste à ajouter
+  auth, rate limiting, le déploiement Alchemy et le smoke test d'une vraie
+  Function URL.
 - Ajouter `alchemy dev`, un smoke test HTTP réel et un test de contrat partagé.
 - Ajouter ensuite les layers Lambda nécessaires à `listUsers`.
 
 **Critère de sortie :** le même `createServerFunctionClient` fonctionne contre le runtime local et une Function URL Lambda sans changer le contrat de la server-function.
 
-### Phase 4 — Registre de routes API — P1
+### Phase 4 — Registre de routes API — P1 — livré localement
 
 - Créer un package runtime partagé pour les routes serveur.
 - Implémenter le matching méthode + chemin.
@@ -249,6 +311,9 @@ Les exceptions doivent être explicites et testées route par route.
 - Ajouter une convention d'erreurs : code HTTP, code stable, message public et détails loggés.
 - Documenter les routes de la démo.
 - Ne pas confondre le registre HTTP API avec le registre CraftTS des server-functions ; fournir un adapter entre les deux lorsque l'exposition HTTP est souhaitée.
+- Le runtime portable, le matching, les erreurs JSON, les headers de cache,
+  les métriques et le middleware de rate limiting sont implémentés dans
+  `@craft-ts/core`.
 
 ### Phase 5 — SEO et métadonnées SSR — P1
 
@@ -257,7 +322,7 @@ Les exceptions doivent être explicites et testées route par route.
 - Tester le HTML rendu directement depuis le serveur.
 - Ajouter sitemap, robots.txt et favicon correctement servis.
 
-### Phase 6 — Exploitation et observabilité — P1
+### Phase 6 — Exploitation et observabilité — P1 — partiellement livré
 
 - Remplacer `console.error` par des logs structurés JSON.
 - Ajouter request ID et corrélation des logs.
@@ -268,7 +333,11 @@ Les exceptions doivent être explicites et testées route par route.
 - Ajouter limites de concurrence, body size et timeout de requête.
 - Ajouter arrêt gracieux et gestion des connexions persistantes.
 
-### Phase 7 — Vérification du véritable artefact — P1
+Le runtime fournit déjà les logs JSON, request ID, métriques mémoire, timeout,
+body size, rate limiting et cache contrôlé. Il reste l'export métriques,
+l'observabilité externe, la compression et un store de rate limiting partagé.
+
+### Phase 7 — Vérification du véritable artefact — P1 — partiellement livré
 
 - Modifier Playwright pour accepter `BASE_URL` sans démarrer Vite par défaut.
 - Ajouter une configuration E2E `production` : build, démarrage du serveur produit, tests, arrêt.
@@ -276,6 +345,10 @@ Les exceptions doivent être explicites et testées route par route.
 - Tester une server-function embarquée, une server-function Worker et une server-function Lambda.
 - Ajouter un smoke test Docker dans la CI.
 - Conserver les E2E rapides sur serveur de développement séparément.
+
+Le build, les smoke tests HTTP et l'E2E de navigation client ciblé tournent déjà
+sur l'artefact statique ou SSR ; la suite complète doit encore être partitionnée
+entre tests compatibles production et tests dépendants du bridge de développement.
 
 ### Phase 8 — Compatibilité contractualisée — P2
 
@@ -338,8 +411,8 @@ Pour la première version, Alchemy doit créer :
 ```ts
 import * as AWS from 'alchemy/AWS';
 import * as Effect from 'effect/Effect';
-import { createCraftLambdaFetch } from '@craft-ts/core/lambda';
-import { listPublicProducts } from './public-products.fn-serveur';
+import { createCraftLambdaFetch, createHttpServer } from '@craft-ts/core';
+import { publicProductsRoutes } from './public-products.routes';
 
 export default class ListProductsLambda extends AWS.Lambda.Function<ListProductsLambda>()(
   'ListProducts',
@@ -348,8 +421,9 @@ export default class ListProductsLambda extends AWS.Lambda.Function<ListProducts
     url: true,
   },
   Effect.gen(function* () {
+    const application = createHttpServer({ routes: publicProductsRoutes });
     return {
-      fetch: createCraftLambdaFetch(listPublicProducts),
+      fetch: createCraftLambdaFetch(application),
     };
   }),
 ) {}
@@ -403,6 +477,10 @@ merge main
 ```
 
 Le déploiement doit être reproductible à partir du commit et ne jamais dépendre d'un serveur Vite de développement.
+
+Le workflow GitHub Actions `production-readiness` couvre déjà le build, le
+contrôle des artefacts et le smoke HTTP. Il reste à y ajouter les navigateurs
+Playwright, le smoke Docker et les étapes de déploiement staging/Alchemy.
 
 ## Ordre recommandé
 

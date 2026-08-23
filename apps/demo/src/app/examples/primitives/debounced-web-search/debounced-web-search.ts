@@ -10,6 +10,7 @@ import {
   img,
   input,
   p,
+  safeUrl,
   section,
   small,
   span,
@@ -306,7 +307,9 @@ const DebouncedWebSearch = craftComponent(
                   a('book',
                     {
                       href: function* () {
-                        return (yield* book()).url;
+                        // URL fournie par une API tierce : elle passe par le
+                        // garde-fou avant d'atterrir dans le DOM.
+                        return safeUrl((yield* book()).url);
                       },
                       target: '_blank',
                       rel: 'noreferrer',

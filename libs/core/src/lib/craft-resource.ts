@@ -192,6 +192,13 @@ export function craftResource<Value, Params>(
       : undefined;
   let paramsWatch: ReturnType<typeof craftWatch> | undefined;
   const platform = injector.get(CRAFT_PLATFORM, null) as CraftPlatform | null;
+  const abortForRequest = () => abortController?.abort(platform?.requestSignal?.reason);
+  if (platform?.requestSignal) {
+    platform.requestSignal.addEventListener('abort', abortForRequest, {
+      once: true,
+    });
+    if (platform.requestSignal.aborted) abortForRequest();
+  }
   if (
     platform?.kind === 'server' &&
     platform.serverResources &&
@@ -241,6 +248,7 @@ export function craftResource<Value, Params>(
       statusState.set('idle');
     });
     paramsWatch?.destroy();
+    platform?.requestSignal?.removeEventListener('abort', abortForRequest);
   };
   const publish = (next: Value | undefined, status: ResourceStatus): void => {
     abortController?.abort();

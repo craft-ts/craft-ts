@@ -38,6 +38,8 @@ export type CraftPrimitiveEntry = Readonly<{
   write(value: unknown): void;
   status?(): string;
   error?(): unknown;
+  /** Explicit opt-out from SSR transfer for secrets and private history. */
+  transfer?: boolean;
   /**
    * Re-runs the primitive's loader, when it has one. A resource the snapshot
    * does not cover is reloaded rather than left showing data that belongs to
@@ -199,6 +201,7 @@ type RegisterOptions = Readonly<{
   reload?(): boolean;
   status?(): string;
   error?(): unknown;
+  transfer?: boolean;
   /** Resolved from the ambient injection context when omitted. */
   injector?: Injector;
 }>;
@@ -249,6 +252,9 @@ export function ɵregisterCraftPrimitive(
       ...(options.reload ? { reload: options.reload } : {}),
       ...(options.status ? { status: options.status } : {}),
       ...(options.error ? { error: options.error } : {}),
+      // Aucun défaut ici : le transfert d'une primitive est une décision de
+      // la politique de sécurité de l'application, pas du framework.
+      ...(options.transfer === undefined ? {} : { transfer: options.transfer }),
     },
   );
 

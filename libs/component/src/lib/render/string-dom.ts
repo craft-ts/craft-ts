@@ -1,5 +1,10 @@
 import type { CraftDomAdapter } from '@craft-ts/core';
 import { hydrationKeyOf } from './hydration-metadata';
+import {
+  assertCraftAttributeName as assertAttributeName,
+  assertCraftTagName as assertTagName,
+  CraftDomSecurityError,
+} from '../security';
 
 abstract class StringNode {
   abstract readonly nodeType: number;
@@ -143,6 +148,25 @@ class StringComment extends StringNode {
   }
 }
 
+/** Markup already approved by the security layer, emitted as-is. */
+class StringRawHtml extends StringNode {
+  readonly nodeType = 3;
+  html: string;
+
+  constructor(ownerDocument: StringDocument, html: string) {
+    super(ownerDocument);
+    this.html = html;
+  }
+
+  get textContent(): string {
+    return this.html;
+  }
+
+  set textContent(value: string | null) {
+    this.html = value ?? '';
+  }
+}
+
 class StringDocumentFragment extends StringParentNode {
   override readonly nodeType: number = 11;
 }
@@ -162,7 +186,7 @@ class StringElement extends StringParentNode {
 
   constructor(ownerDocument: StringDocument, tag: string) {
     super(ownerDocument);
-    this.localName = tag.toLowerCase();
+    this.localName = assertTagName(tag).toLowerCase();
     this.tagName = this.localName.toUpperCase();
     this.style = createStyleDeclaration((css) => {
       if (css) this.attributes.set('style', css);
@@ -171,7 +195,18 @@ class StringElement extends StringParentNode {
   }
 
   setAttribute(name: string, value: string): void {
-    this.attributes.set(name, String(value));
+    this.attributes.set(assertAttributeName(name), String(value));
+  }
+
+  /**
+   * Replaces the children with pre-approved markup. Only the interpreter's
+   * audited HTML path reaches this, and the value is emitted verbatim, so it
+   * must already have gone through sanitizedHtml or an explicit exception.
+   */
+  ɵsetTrustedHtml(html: string): void {
+    for (const child of this.childNodes) child.parentNode = null;
+    this.childNodes.length = 0;
+    this.appendChild(new StringRawHtml(this.ownerDocument, html));
   }
 
   getAttribute(name: string): string | null {
@@ -321,6 +356,19 @@ function setStringProperty(
   name: string,
   value: unknown,
 ): void {
+  if (name === '__proto__' || name === 'constructor') {
+    throw new CraftDomSecurityError(
+      'CRAFT_DOM_PROPERTY_BLOCKED',
+      `"${name}" cannot be set as a DOM property.`,
+    );
+  }
+  // Raw markup has no attribute equivalent: without this branch the server
+  // would emit an escaped `innerHTML="…"` attribute and the content would only
+  // appear once the browser hydrated, diverging from the server output.
+  if (name === 'innerHTML') {
+    element.ɵsetTrustedHtml(value === null || value === undefined ? '' : String(value));
+    return;
+  }
   Reflect.set(element, name, value);
   const attribute = name === 'htmlFor' ? 'for' : name;
   if (typeof value === 'boolean') {
@@ -403,6 +451,9 @@ const VOID_ELEMENTS = new Set([
 ]);
 
 function serializeNode(node: StringNode): string {
+  if (node instanceof StringRawHtml) {
+    return node.html;
+  }
   if (node instanceof StringText) {
     const text = escapeText(node.nodeValue);
     const key = hydrationKeyOf(node);
@@ -417,10 +468,12 @@ function serializeNode(node: StringNode): string {
     const attributes = [...node.attributes]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([name, value]) =>
-        value === '' ? ` ${name}` : ` ${name}="${escapeAttribute(value)}"`,
+        value === ''
+          ? ` ${assertAttributeName(name)}`
+          : ` ${assertAttributeName(name)}="${escapeAttribute(value)}"`,
       )
       .join('');
-    const open = `<${node.localName}${attributes}>`;
+    const open = `<${assertTagName(node.localName)}${attributes}>`;
     if (VOID_ELEMENTS.has(node.localName)) return open;
     return `${open}${node.childNodes.map(serializeNode).join('')}</${node.localName}>`;
   }
@@ -438,7 +491,7 @@ function escapeText(value: string): string {
 }
 
 function escapeAttribute(value: string): string {
-  return escapeText(value).replaceAll('"', '&quot;');
+  return escapeText(value).replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
 function escapeComment(value: string): string {
