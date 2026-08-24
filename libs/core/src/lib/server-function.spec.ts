@@ -12,6 +12,7 @@ import {
   type StandardSchemaV1,
 } from '@craft-ts/core';
 import { InjectionToken } from './host/craft-compat';
+import { Data, Effect } from 'effect';
 
 type TestSchema<Input, Output> = StandardSchemaV1<Input, Output>;
 
@@ -35,7 +36,7 @@ describe('server functions', () => {
   it('keeps a server-only function local to its implementation', async () => {
     const add = serverFunction('math.add', numberSchema((value) => value)).handler(
       ({ input }) => input + 1,
-    );
+    ).exposeErrors({});
     const server = createServer({ functions: [add] });
 
     await expect(server.invoke('math.add', 2)).resolves.toBe(3);
@@ -53,7 +54,8 @@ describe('server functions', () => {
     });
     const implementation = serverFunction(contract)
       .pipe(requireServerPermission('users:read'))
-      .handler(({ input, required }) => `${required(CurrentUser).id}:${input}`);
+      .handler(({ input, required }) => `${required(CurrentUser).id}:${input}`)
+      .exposeErrors({});
     const requests: ServerFunctionRequest[] = [];
     TestBed.configureTestingModule({
       providers: [
@@ -88,7 +90,8 @@ describe('server functions', () => {
       { exposure: 'client' },
     )
       .pipe(requireServerPermission('users:write'))
-      .handler(({ input }) => input);
+      .handler(({ input }) => input)
+      .exposeErrors({});
 
     const denying = createServer({
       functions: [implementation],
@@ -108,13 +111,25 @@ describe('server functions', () => {
   it('rejects duplicate ids in the server registry', () => {
     const one = serverFunction('same.id', numberSchema((value) => value)).handler(
       ({ input }) => input,
-    );
+    ).exposeErrors({});
     const two = serverFunction('same.id', numberSchema((value) => value)).handler(
       ({ input }) => input,
-    );
+    ).exposeErrors({});
 
     expect(() => createServer({ functions: [one, two] })).toThrow(
       'Duplicate server function id "same.id"',
+    );
+  });
+
+  it('requires an explicit error exposure policy before registration', () => {
+    const unexposed = serverFunction('missing.exposure', numberSchema((value) => value))
+      .handler(({ input }) => input);
+
+    expect(() => {
+      // @ts-expect-error server functions must call .exposeErrors(...) first
+      createServer({ functions: [unexposed] });
+    }).toThrow(
+      'Server function "missing.exposure" must call .exposeErrors(...) before it can be registered.',
     );
   });
 
@@ -128,5 +143,58 @@ describe('server functions', () => {
     createServerFunctionClient<typeof implementation>(craftUnique('typed.id'));
     // @ts-expect-error client keys must match the server definition id
     createServerFunctionClient<typeof implementation>(craftUnique('other.id'));
+  });
+
+  it('keeps the original error for direct invocation and projects it over HTTP', async () => {
+    class PrivateFailure extends Data.TaggedError('PrivateFailure')<{
+      readonly secret: string;
+    }> {}
+
+    const implementation = serverFunction(
+      'users.private-failure',
+      numberSchema((value) => value),
+      { exposure: 'client' },
+    )
+      .handler(() => Effect.fail(new PrivateFailure({ secret: 'do-not-leak' })))
+      .exposeErrors({
+        PrivateFailure: (errorPayload) => ({
+          code: 'PRIVATE_FAILURE',
+          status: 422,
+          payload: { safe: errorPayload.secret === 'do-not-leak' },
+        }),
+      });
+    const incomplete = serverFunction(
+      'users.incomplete-failure',
+      numberSchema((value) => value),
+    ).handler(() => Effect.fail(new PrivateFailure({ secret: 'hidden' })));
+    // @ts-expect-error every tagged Effect failure needs an HTTP projection
+    incomplete.exposeErrors({});
+    const server = createServer({
+      functions: [implementation],
+      execute: (program) =>
+        Effect.runPromise(program as Effect.Effect<unknown, unknown, never>),
+    });
+
+    await expect(server.invoke('users.private-failure', 1)).rejects.toMatchObject({
+      _tag: 'PrivateFailure',
+      secret: 'do-not-leak',
+    });
+
+    const response = await server.handle(
+      new Request('https://craft.test/__server-functions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'users.private-failure', input: 1 }),
+      }),
+    );
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        _tag: 'PrivateFailure',
+        code: 'PRIVATE_FAILURE',
+        message: 'The request could not be completed.',
+        safe: true,
+      },
+    });
   });
 });

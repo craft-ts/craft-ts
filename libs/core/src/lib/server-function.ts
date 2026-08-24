@@ -28,6 +28,7 @@ import type {
 } from './middleware-schema-shared';
 import type { AnyServerLayer } from './server-layer';
 import type { CraftSchema } from './schema-validation';
+import type { CraftExceptionResult } from './craft-exception';
 import type * as Effect from 'effect/Effect';
 import { provideCraftRequestContexts } from './craft-request-context';
 
@@ -104,6 +105,64 @@ export type ServerFunctionHandler<
   context: ServerFunctionHandlerContext<Contract, Pipes, Middlewares, Schemas>,
 ) => Output;
 
+/** Payload returned by an HTTP error exposure callback. */
+export type ServerFunctionPublicError = Readonly<{
+  readonly code: string;
+  readonly status?: number;
+  readonly message?: string;
+  /** Properties explicitly allowed to cross the HTTP boundary. */
+  readonly payload?: Readonly<Record<string, unknown>>;
+}>;
+
+type EffectErrorOf<Output> = Output extends Effect.Effect<
+  infer _Success,
+  infer Error,
+  infer _Requirements
+>
+  ? Error
+  : never;
+
+type TaggedErrorOf<Error> = Extract<Error, { readonly _tag: string }>;
+
+/**
+ * The callback sees the business payload, not the transport metadata.
+ * Craft exceptions already have a nested `payload`; tagged Effect errors use
+ * their own properties as the payload.
+ */
+export type ServerFunctionErrorPayload<Error> = Error extends CraftExceptionResult<
+  any,
+  infer Payload
+>
+  ? unknown extends Payload
+    ? Error extends { readonly _tag: string }
+      ? Omit<Error, '_tag'>
+      : Payload
+    : Payload
+  : Error extends { readonly _tag: string }
+    ? Omit<Error, '_tag'>
+    : never;
+
+export type ServerFunctionErrorExposure<Error> = [
+  TaggedErrorOf<Error>,
+] extends [never]
+  ? Record<never, never>
+  : {
+      readonly [Tag in TaggedErrorOf<Error>['_tag']]: (
+        errorPayload: ServerFunctionErrorPayload<
+          Extract<TaggedErrorOf<Error>, { readonly _tag: Tag }>
+        >,
+      ) => ServerFunctionPublicError;
+    };
+
+type ServerFunctionErrorExposureOf<Output> = ServerFunctionErrorExposure<
+  EffectErrorOf<Output>
+>;
+
+/** Compile-time marker added only after `.exposeErrors(...)` was called. */
+export const SERVER_FUNCTION_ERRORS_EXPOSED = Symbol(
+  'craft.server-function.errors-exposed',
+);
+
 export type ServerFunctionDefinition<
   Contract extends ServerFunctionContract<
     any,
@@ -132,11 +191,49 @@ export type ServerFunctionDefinition<
   /** Idem pour le contexte client attendu du navigateur. */
   readonly clientContextSchemas: readonly CraftSchema[];
   readonly handler: ServerFunctionHandler<Contract, Pipes, Output, Middlewares>;
+  readonly errorExposure?: ServerFunctionErrorExposureOf<Output>;
+  exposeErrors(
+    exposure: ServerFunctionErrorExposureOf<Output>,
+  ): ServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
   readonly invoke: (
     input: unknown,
     runtime?: ServerFunctionRuntime,
     clientContext?: Record<string, unknown>,
   ) => Output | Promise<Output>;
+};
+
+/** A definition that explicitly chose its HTTP error exposure policy. */
+export type ExposedServerFunctionDefinition<
+  Contract extends ServerFunctionContract<any, any, any> = ServerFunctionContract,
+  Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
+  Output = unknown,
+  Middlewares extends
+    readonly AnyCraftMiddleware[] = readonly AnyCraftMiddleware[],
+> = Omit<
+  ServerFunctionDefinition<Contract, Pipes, Output, Middlewares>,
+  'errorExposure' | 'exposeErrors'
+> & {
+  readonly errorExposure: ServerFunctionErrorExposureOf<Output>;
+  exposeErrors(
+    exposure: ServerFunctionErrorExposureOf<Output>,
+  ): ExposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
+  readonly [SERVER_FUNCTION_ERRORS_EXPOSED]: true;
+};
+
+/** Definition returned by `.handler(...)`, before the exposure policy exists. */
+export type UnexposedServerFunctionDefinition<
+  Contract extends ServerFunctionContract<any, any, any> = ServerFunctionContract,
+  Pipes extends readonly ServerFunctionPipe[] = readonly ServerFunctionPipe[],
+  Output = unknown,
+  Middlewares extends
+    readonly AnyCraftMiddleware[] = readonly AnyCraftMiddleware[],
+> = Omit<
+  ServerFunctionDefinition<Contract, Pipes, Output, Middlewares>,
+  'exposeErrors'
+> & {
+  exposeErrors(
+    exposure: ServerFunctionErrorExposureOf<Output>,
+  ): ExposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
 };
 
 /** Vrai dès que la fonction attend un contexte du navigateur. */
@@ -205,7 +302,7 @@ export type ServerFunctionBuilder<
       Middlewares,
       Schemas
     >,
-  ) => ServerFunctionDefinition<
+  ) => UnexposedServerFunctionDefinition<
     Contract,
     Pipes,
     ComposedOutput<Middlewares, Output>,
@@ -357,7 +454,8 @@ function createDefinition<
   pipes: Pipes,
   middlewares: Middlewares,
   handler: ServerFunctionHandler<Contract, Pipes, Output, Middlewares>,
-): ServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
+  errorExposure?: ServerFunctionErrorExposureOf<Output>,
+): UnexposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
   const clientContextSchemas = collectMiddlewareClientContextSchemas(
     contract.clientContext as CraftSchema | undefined,
     middlewares,
@@ -370,6 +468,13 @@ function createDefinition<
     inputSchemas: collectMiddlewareSchemas(contract.input, middlewares),
     clientContextSchemas,
     handler,
+    ...(errorExposure === undefined ? {} : { errorExposure }),
+    exposeErrors(exposure) {
+      return {
+        ...createDefinition(contract, pipes, middlewares, handler, exposure),
+        [SERVER_FUNCTION_ERRORS_EXPOSED]: true,
+      } as ExposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
+    },
     invoke(input, runtime, clientContext) {
       const required: ServerFunctionRequired = (token) => {
         if (!runtime?.resolve) {

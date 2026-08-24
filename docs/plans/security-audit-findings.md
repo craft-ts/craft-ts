@@ -54,7 +54,7 @@ puis journal des corrections apportées.
 | H5 | Session résolue avant les gardes, hors du `try` | `createIdentityMiddleware` dans le pipeline, après les gardes d'entrée | 2 tests |
 | H6 | Attributs d'URL incomplets, `safeResourceUrl` sans effet | `xlink:href`, `srcset`, `ping`, `data`, `manifest`… ; origines de ressources sur allowlist ; protocol-relative refusé ; `mailto:`/`tel:` acceptés | 3 tests |
 | M1 | Aucune limite de charge | `maxConcurrentRequests` → 503 + `Retry-After` | test de délestage |
-| M2 | Échec tagué sérialisé en entier | `publicErrors` strict : tag + payload déclaré + `fields` nommés, sinon 500 | démo migrée, 1 test |
+| M2 | Échec tagué sérialisé en entier | `exposeErrors` strict par server function : tag + projection de payload déclarée, sinon 500 | démo migrée, 1 test |
 | M3 | `requestId` client non validé | Validation du format dans `server.ts` | — |
 | M4 | Rate limit à clé constante | `key` obligatoire | typage + démo |
 | M5 | Réponses sans en-têtes de sécurité | `no-store`, `nosniff`, `Vary: Origin` | 1 test |
@@ -284,7 +284,7 @@ sont appelés **avant** la chaîne de middleware et **en dehors** du `try/catch`
 | # | Point | Fichier |
 | --- | --- | --- |
 | M1 | Le timeout d'invocation gagne une course mais n'interrompt rien : le handler continue à consommer des ressources. Aucune limite de concurrence côté SSR ni server functions (annoncée « à documenter », jamais documentée). | `server.ts`, `server-render.ts` |
-| M2 | Sans mapping `publicErrors`, la failure taguée est sérialisée **intégralement** (`Response.json({ error: failure })`), propriétés comprises. `publicErrors: {}` satisfait le lint et le `security check` tout en n'offrant rien — c'est exactement le cas de la demo. | `server.ts:305` |
+| M2 | Sans projection `exposeErrors`, la failure taguée doit rester interne ; chaque server function doit déclarer explicitement le payload autorisé à franchir HTTP. | `server.ts` |
 | M3 | `requestId` lu depuis `x-request-id` sans validation dans `server.ts` (validé dans `http-server.ts` seulement) → corrélation de logs forgeable par le client. | `server.ts:236` |
 | M4 | Rate limit : clé par défaut constante (`'anonymous'`) → un seul client épuise le quota de tous. Store mémoire non partagé entre instances, purge seulement au-delà de 1024 entrées. Rendre `key` obligatoire. | `http-server.ts:251` |
 | M5 | Réponses server functions sans `cache-control: no-store`, `x-content-type-options: nosniff`, ni `Vary: Origin` (risque de cache poisoning sur les réponses CORS). | `server.ts`, `http-server.ts` |
@@ -339,8 +339,8 @@ point de départ : ils devraient être des tests rouges du dépôt.
 ### O4. Les demos ne sont pas migrées
 
 `renderCraft` est appelé sans `securityPolicy` dans `apps/demo-ssr/src/server.ts:54`,
-aucune app ne fournit `provideCraftSecurityPolicy`, `createDemoWebHandler`
-n'installe pas `createCsrfMiddleware`, et `publicErrors: {}` est vide. Le
+aucune app ne fournit `provideCraftSecurityPolicy`, et `createDemoWebHandler`
+n'installe pas `createCsrfMiddleware`. Le
 critère « les demos utilisent uniquement les APIs sécurisées » n'est pas atteint,
 alors que ce sont elles qui servent de modèle aux applications générées.
 

@@ -102,16 +102,28 @@ createServer({
   functions,
   runtimeOptions: { timeoutMs: 15_000, maxBodyBytes: 1_048_576 },
   security: { allowedOrigins: ['https://app.example.com'] },
-  publicErrors: {
-    UsersNotFound: { code: 'USERS_NOT_FOUND', status: 404 },
-    AdminRequired: { code: 'ADMIN_REQUIRED', status: 403, fields: ['role'] },
-  },
 });
 ```
 
-Dès que `publicErrors` existe, un tag absent du catalogue repart en erreur
-interne. Un tag présent expose son `_tag`, le payload de `craftException`, et
-uniquement les propriétés nommées dans `fields`.
+Chaque server function doit déclarer explicitement sa politique d’erreurs HTTP
+après son handler. Même une fonction qui ne publie aucune erreur doit appeler
+`.exposeErrors({})` :
+
+```ts
+const listUsers = serverFunction(/* ... */)
+  .handler(/* ... */)
+  .exposeErrors({
+    UsersNotFound: (errorPayload) => ({
+      code: 'USERS_NOT_FOUND',
+      status: 404,
+      payload: { filter: errorPayload.filter },
+    }),
+  });
+```
+
+Le callback contrôle explicitement les propriétés qui franchissent la frontière
+HTTP ; une erreur taguée absente de cette projection reste interne. La
+résolution directe et le SSR conservent l'erreur métier originale.
 
 ## Serveur HTTP et adapters
 
@@ -187,7 +199,6 @@ seul, sur une lib ou un dossier d'outillage qui ne prend pas `recommended`.
 | `no-unsafe-html` | `innerHTML`/`outerHTML`/`srcdoc`, `insertAdjacentHTML`, `eval`, `document.write`, `unsafeHtml` sans exception |
 | `no-unsafe-transfer-state` | `renderCraft` ou `captureCraftTransferSnapshot` sans politique |
 | `require-server-function-timeout` | registre de server functions sans `timeoutMs`/`maxBodyBytes` |
-| `require-public-error-mapping` | catalogue `publicErrors` absent ou vide |
 | `require-route-security-policy` | route sans politique `ssr` **dans un fichier qui en déclare déjà** (option `mode: 'required' \| 'auto' \| 'off'`) |
 | `no-trust-forwarded-headers` | `x-forwarded-*` lu hors du module de frontière proxy (option `allowIn`) |
 | `no-auth-token-in-local-storage` | jeton d'authentification persisté dans le navigateur |

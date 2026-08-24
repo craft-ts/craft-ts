@@ -51,7 +51,8 @@ describe('yieldable Effect middleware adapter', () => {
       exposure: 'server',
     })
       .use(audit)
-      .handler(({ input }) => Effect.succeed(`${input.value}:ok`));
+      .handler(({ input }) => Effect.succeed(`${input.value}:ok`))
+      .exposeErrors({});
     const server = createServer({ functions: [fn], execute: executeEffect().run });
 
     await expect(server.invoke('effect.registry', { value: 'Ada' })).resolves.toBe(

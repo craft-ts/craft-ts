@@ -88,6 +88,12 @@ export const { appRoutes } = craftRoutes('app', [
       HttpError: craftExceptionHandler(function* ({ globalError }) {
         return globalError();
       }),
+      DemoMiddlewareFailure: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+      DemoHandlerFailure: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
     },
   ),
 ]);

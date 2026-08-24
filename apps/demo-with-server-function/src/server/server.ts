@@ -62,41 +62,6 @@ export function createApplication(
       maxOutputBytes: 1_048_576,
       timeoutMs: 15_000,
     },
-    // Catalogue public : un tag absent de cette table repart en erreur
-    // interne générique, donc une exception ne peut pas emporter ses
-    // propriétés jusqu'au navigateur.
-    publicErrors: {
-      UsersNotFound: {
-        code: 'USERS_NOT_FOUND',
-        status: 404,
-        fields: ['status', 'message', 'filter'],
-      },
-      AuthenticatedUsersNotFound: {
-        code: 'AUTHENTICATED_USERS_NOT_FOUND',
-        status: 404,
-        fields: ['status', 'message', 'filter'],
-      },
-      DemoMiddlewareFailure: {
-        code: 'DEMO_MIDDLEWARE_FAILURE',
-        status: 422,
-      },
-      DemoHandlerFailure: {
-        code: 'DEMO_HANDLER_FAILURE',
-        status: 422,
-      },
-      // Ces deux échecs portent leurs données à plat : seules les propriétés
-      // nommées ici sortent, le message interne reste côté serveur.
-      AuthenticatedUserMismatch: {
-        code: 'AUTHENTICATED_USER_MISMATCH',
-        status: 403,
-        fields: ['requestedUserId', 'authenticatedUserId'],
-      },
-      AdminRequired: {
-        code: 'ADMIN_REQUIRED',
-        status: 403,
-        fields: ['role'],
-      },
-    },
   });
 }
 

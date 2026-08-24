@@ -48,4 +48,4 @@ export const listPublicProducts = serverFunction(
   'demo.products.list',
   publicProductsInputSchema,
   { exposure: 'client', output: publicProductsOutputSchema },
-).handler(() => Effect.succeed(PUBLIC_PRODUCTS));
+).handler(() => Effect.succeed(PUBLIC_PRODUCTS)).exposeErrors({});

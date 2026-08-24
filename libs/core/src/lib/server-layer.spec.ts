@@ -47,7 +47,7 @@ describe('server layers composed with .pipe(...)', () => {
     const fn = portableServerFunction('layer.empty', textSchema).handler(
       async ({ input, context }) =>
         `${input.value}:${Object.keys(context).length}`,
-    );
+    ).exposeErrors({});
     const server = createServer({ functions: [fn], execute: (p) => p });
 
     await expect(server.invoke('layer.empty', { value: 'ada' })).resolves.toBe(
@@ -89,7 +89,8 @@ describe('server layers composed with .pipe(...)', () => {
         type _Audit = Expect<Equal<typeof context.auditId, string>>;
         type _Upper = Expect<Equal<typeof context.upper, string>>;
         return `${context.label}|${context.upper}`;
-      });
+      })
+      .exposeErrors({});
 
     const server = createServer({ functions: [fn], execute: (p) => p });
 
@@ -107,7 +108,8 @@ describe('server layers composed with .pipe(...)', () => {
     const adapter = { run: vi.fn((program: unknown) => program) };
     const fn = portableServerFunction('layer.opaque', textSchema)
       .pipe(mapContext(({ input }) => ({ echo: input.value })))
-      .handler(async ({ context }) => context.echo);
+      .handler(async ({ context }) => context.echo)
+      .exposeErrors({});
     const server = createServer({ functions: [fn], execute: adapter.run });
 
     await expect(server.invoke('layer.opaque', { value: 'ada' })).resolves.toBe(
@@ -141,7 +143,8 @@ describe('server layers composed with .pipe(...)', () => {
         ({ context }): Task<string> => ({
           run: async () => `${String(context.traced)}:${context.score}`,
         }),
-      );
+      )
+      .exposeErrors({});
 
     const server = createServer({
       functions: [fn],
@@ -171,7 +174,8 @@ describe('server layers composed with .pipe(...)', () => {
       .pipe(withObserver)
       .handler(async () => {
         throw failure;
-      });
+      })
+      .exposeErrors({});
     const server = createServer({ functions: [fn], execute: (p) => p });
 
     await expect(
@@ -196,7 +200,8 @@ describe('server layers composed with .pipe(...)', () => {
     });
     const fn = portableServerFunction('layer.short-circuit', textSchema)
       .pipe(withOuter, withGuard)
-      .handler(handler);
+      .handler(handler)
+      .exposeErrors({});
     const server = createServer({ functions: [fn], execute: (p) => p });
 
     await expect(
@@ -210,7 +215,8 @@ describe('server layers composed with .pipe(...)', () => {
     const fn = portableServerFunction('layer.scalar', textSchema)
       // Un appelant JavaScript n'a pas le typage pour l'en empêcher.
       .pipe(mapContext(({ input }) => input.value as never))
-      .handler(async () => 'unreachable');
+      .handler(async () => 'unreachable')
+      .exposeErrors({});
     const server = createServer({ functions: [fn], execute: (p) => p });
 
     await expect(
@@ -229,7 +235,8 @@ describe('server layers composed with .pipe(...)', () => {
         ),
         mapContext(({ context }) => ({ proof: `checked=${context.checked}` })),
       )
-      .handler(async ({ context, pipes }) => `${context.proof}:${pipes.length}`);
+      .handler(async ({ context, pipes }) => `${context.proof}:${pipes.length}`)
+      .exposeErrors({});
 
     const granted = createServer({
       functions: [fn],
@@ -255,7 +262,8 @@ describe('server layers composed with .pipe(...)', () => {
       .pipe(serverLayer('layer.mixed-first', async ({ next }) =>
         next({ context: { first: 1 } }),
       ))
-      .handler(async ({ context }) => context.first);
+      .handler(async ({ context }) => context.first)
+      .exposeErrors({});
     const server = createServer({ functions: [fn], execute: (p) => p });
 
     await expect(server.invoke('layer.mixed', { value: 'ada' })).resolves.toBe(1);

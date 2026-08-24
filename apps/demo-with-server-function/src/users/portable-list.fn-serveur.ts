@@ -86,4 +86,5 @@ export const portableListUsers = portableServerFunction(
           .includes(context.normalizedFilter),
       ),
     };
-  });
+  })
+  .exposeErrors({});

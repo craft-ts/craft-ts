@@ -173,7 +173,9 @@ describe('demo with server function', () => {
       expect(middlewareFailure).toMatchObject({
         _tag: 'DemoMiddlewareFailure',
         payload: {
-          DemoMiddlewareFailure: { layer: 'effectAudit' },
+          _tag: 'DemoMiddlewareFailure',
+          code: 'DEMO_MIDDLEWARE_FAILURE',
+          message: 'The request could not be completed.',
         },
       });
       expect(isCraftException(middlewareFailure)).toBe(true);
@@ -184,7 +186,9 @@ describe('demo with server function', () => {
       expect(handlerFailure).toMatchObject({
         _tag: 'DemoHandlerFailure',
         payload: {
-          DemoHandlerFailure: { operation: 'UserRepository.list' },
+          _tag: 'DemoHandlerFailure',
+          code: 'DEMO_HANDLER_FAILURE',
+          message: 'The request could not be completed.',
         },
       });
       expect(isCraftException(handlerFailure)).toBe(true);

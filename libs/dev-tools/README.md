@@ -142,7 +142,7 @@ The rules cover, among other things:
 - pure computed values, browser boundaries, and accessibility contracts;
 - the security preset, included in `recommended` and `effect`: unchecked DOM
   URLs, raw HTML, dynamic code, implicit SSR transfer, server functions
-  without limits or a public error catalogue, forwarded headers, and
+  without limits or explicit per-function error exposure, forwarded headers, and
   authentication material in browser storage.
 
 Apply the preset alone — on a library or a tooling folder that does not take

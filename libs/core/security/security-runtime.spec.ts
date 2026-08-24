@@ -65,7 +65,7 @@ describe('core security runtime', () => {
   it('limits server-function bodies and hides unexpected errors', async () => {
     const fn = serverFunction('security.echo', anySchema).handler(() => {
       throw new Error('private database details');
-    });
+    }).exposeErrors({});
     const server = createServer({
       functions: [fn],
       runtimeOptions: { maxBodyBytes: 128, timeoutMs: 50 },
@@ -90,7 +90,7 @@ describe('core security runtime', () => {
     const fn = serverFunction('security.delete', anySchema).handler(() => {
       called = true;
       return 'deleted';
-    });
+    }).exposeErrors({});
     const server = createServer({ functions: [fn] });
 
     // Requête « simple » d'un formulaire tiers : pas de préflight CORS.
@@ -122,7 +122,7 @@ describe('core security runtime', () => {
   });
 
   it('does not let an unknown function id be distinguished', async () => {
-    const fn = serverFunction('security.known', anySchema).handler(() => 'ok');
+    const fn = serverFunction('security.known', anySchema).handler(() => 'ok').exposeErrors({});
     const server = createServer({ functions: [fn] });
     const unknown = await server.handle(jsonRequest({ id: 'security.unknown', input: null }));
     expect(unknown.status).toBe(400);
@@ -132,7 +132,7 @@ describe('core security runtime', () => {
   });
 
   it('refuses a chunked body larger than the limit without buffering it', async () => {
-    const fn = serverFunction('security.echo', anySchema).handler(() => 'ok');
+    const fn = serverFunction('security.echo', anySchema).handler(() => 'ok').exposeErrors({});
     const server = createServer({
       functions: [fn],
       runtimeOptions: { maxBodyBytes: 1_024 },
@@ -159,16 +159,15 @@ describe('core security runtime', () => {
     expect(produced).toBeLessThan(10);
   });
 
-  it('keeps tagged failures private when a public catalogue is declared', async () => {
+  it('keeps tagged failures private when no public exposure is declared', async () => {
     const failing = serverFunction('security.tagged', anySchema).handler(() => {
       throw Object.assign(new Error('boom'), {
         _tag: 'InternalRepositoryError',
         connectionString: 'postgres://user:password@db/internal',
       });
-    });
+    }).exposeErrors({});
     const server = createServer({
       functions: [failing],
-      publicErrors: { KnownDomainError: { code: 'KNOWN', status: 422 } },
     });
     const response = await server.handle(
       jsonRequest({ id: 'security.tagged', input: null }),

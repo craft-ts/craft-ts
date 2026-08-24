@@ -1,6 +1,9 @@
 import type { ServerFunctionContract } from './server-function-contract';
 import {
   requiresClientContext,
+  type ServerFunctionErrorPayload,
+  type ServerFunctionPublicError,
+  type ExposedServerFunctionDefinition,
   type ServerFunctionDefinition,
   type ServerFunctionRuntime,
 } from './server-function';
@@ -22,12 +25,6 @@ export type ServerFunctionServerOptions = {
     context: { readonly id: string },
   ) => boolean | Promise<boolean>;
   readonly runtimeOptions?: ServerFunctionRuntimeOptions;
-  /**
-   * Catalogue des échecs métier exposables. Dès qu'il est fourni, un tag
-   * absent du catalogue est traité comme une erreur interne : c'est ce qui
-   * empêche une exception de voyager avec toutes ses propriétés.
-   */
-  readonly publicErrors?: Readonly<Record<string, PublicServerFunctionError>>;
   readonly security?: ServerFunctionSecurityOptions;
 };
 
@@ -45,22 +42,6 @@ export type ServerFunctionSecurityOptions = Readonly<{
    * servir qu'à un endpoint sans cookie ni en-tête d'autorisation implicite.
    */
   readonly mode?: 'strict' | 'off';
-}>;
-
-/**
- * Description d'un échec exposable.
- *
- * Le tag et le payload de `craftException` restent dans la réponse — ils sont
- * écrits par le développeur, et le client les retype en exception — mais les
- * autres propriétés de l'erreur (message d'origine, `cause`, champs internes)
- * ne sortent pas du serveur sans être nommées dans `fields`.
- */
-export type PublicServerFunctionError = Readonly<{
-  readonly code: string;
-  readonly status?: number;
-  readonly message?: string;
-  /** Propriétés supplémentaires autorisées à voyager. */
-  readonly fields?: readonly string[];
 }>;
 
 export type ServerFunctionRequestContext = Readonly<{
@@ -170,7 +151,7 @@ export class ServerFunctionNotFoundError extends Error {
 }
 
 export type Server = {
-  readonly functions: readonly ServerFunctionDefinition<any, any, any>[];
+  readonly functions: readonly ExposedServerFunctionDefinition<any, any, any>[];
   readonly invoke: (
     id: string,
     input: unknown,
@@ -183,11 +164,19 @@ export type Server = {
 
 export function createServer(
   options: ServerFunctionServerOptions & {
-    readonly functions: readonly ServerFunctionDefinition<any, any, any>[];
+    readonly functions: readonly ExposedServerFunctionDefinition<any, any, any>[];
   },
 ): Server {
-  const byId = new Map<string, ServerFunctionDefinition<any, any, any>>();
+  const byId = new Map<
+    string,
+    ExposedServerFunctionDefinition<any, any, any>
+  >();
   for (const definition of options.functions) {
+    if (definition.errorExposure === undefined) {
+      throw new Error(
+        `Server function "${definition.contract.id}" must call .exposeErrors(...) before it can be registered.`,
+      );
+    }
     if (byId.has(definition.contract.id)) {
       throw new Error(
         `Duplicate server function id "${definition.contract.id}" in server registry.`,
@@ -346,36 +335,34 @@ export function createServer(
         }
         const failure = toServerFunctionFailure(error);
         if (failure) {
-          const mapping = options.publicErrors?.[failure._tag];
-          if (mapping) {
-            const exposed: Record<string, unknown> = {
-              _tag: failure._tag,
-              code: mapping.code,
-              message: mapping.message ?? 'The request could not be completed.',
-            };
-            // Forme canonique d'une exception Craft : le payload déclaré et
-            // son alias nommé d'après le tag.
-            for (const field of ['payload', failure._tag]) {
-              if (field in failure) {
-                exposed[field] = (failure as Record<string, unknown>)[field];
-              }
+          const definition = byId.get(body['id'] as string);
+          const errorExposure = definition?.errorExposure as
+            | Readonly<
+                Record<
+                  string,
+                  (payload: unknown) => ServerFunctionPublicError
+                >
+              >
+            | undefined;
+          const handler = errorExposure?.[failure._tag];
+          if (handler) {
+            try {
+              const mapped = handler(serverFunctionErrorPayload(failure));
+              const exposed: Record<string, unknown> = {
+                _tag: failure._tag,
+                code: mapped.code,
+                message:
+                  mapped.message ?? 'The request could not be completed.',
+                ...(mapped.payload ?? {}),
+              };
+              return secureJson(
+                { error: exposed },
+                mapped.status ?? serverFunctionFailureStatus(failure),
+              );
+            } catch {
+              // A faulty public projection must not expose implementation
+              // details from the projection itself.
             }
-            for (const field of mapping.fields ?? []) {
-              if (field in failure) {
-                exposed[field] = (failure as Record<string, unknown>)[field];
-              }
-            }
-            return secureJson({ error: exposed }, mapping.status ?? 422);
-          }
-          // Sans catalogue, on conserve la compatibilité historique : l'échec
-          // tagué est le protocole public de l'application. Dès qu'un
-          // catalogue existe, un tag absent est une fuite potentielle et
-          // repart en erreur interne.
-          if (!options.publicErrors) {
-            return secureJson(
-              { error: failure },
-              serverFunctionFailureStatus(failure),
-            );
           }
         }
         return secureJson(
@@ -725,6 +712,16 @@ function serverFunctionFailureStatus(failure: ServerFunctionFailure): number {
     status <= 599
     ? status
     : 422;
+}
+
+function serverFunctionErrorPayload(
+  failure: ServerFunctionFailure,
+): ServerFunctionErrorPayload<ServerFunctionFailure> {
+  if ('payload' in failure) {
+    return failure['payload'] as ServerFunctionErrorPayload<ServerFunctionFailure>;
+  }
+  const { _tag: _ignoredTag, ...payload } = failure;
+  return payload as ServerFunctionErrorPayload<ServerFunctionFailure>;
 }
 
 async function parseServerFunctionOutput(

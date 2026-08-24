@@ -130,7 +130,10 @@ export const getAuthenticatedUsers = serverFunction(
       input.filter; // validated by the server function schema
       // …
     }),
-  );
+  )
+  .exposeErrors({
+    // Cette fonction expose ses erreurs métier explicitement quand elle en a.
+  });
 ```
 
 Three things are inferred, with no manual declaration:

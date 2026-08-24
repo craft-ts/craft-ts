@@ -40,4 +40,14 @@ export const effectMiddlewareListUsers = serverFunction(
       const users = yield* UserRepository;
       return yield* users.list(input.filter);
     }),
-  );
+  )
+    .exposeErrors({
+      DemoMiddlewareFailure: (_errorPayload) => ({
+        code: 'DEMO_MIDDLEWARE_FAILURE',
+        status: 422,
+      }),
+      DemoHandlerFailure: (_errorPayload) => ({
+        code: 'DEMO_HANDLER_FAILURE',
+        status: 422,
+      }),
+    });

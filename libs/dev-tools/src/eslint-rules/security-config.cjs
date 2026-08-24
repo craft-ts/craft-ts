@@ -11,5 +11,4 @@ module.exports = {
   'craft-ts/no-unsafe-transfer-state': 'error',
   'craft-ts/no-unsafe-html': 'error',
   'craft-ts/no-trust-forwarded-headers': 'error',
-  'craft-ts/require-public-error-mapping': 'error',
 };

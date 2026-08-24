@@ -219,7 +219,6 @@ Ajouter dans `libs/dev-tools` des règles ESLint et d’architecture :
 - `no-unsafe-transfer-state` ;
 - `no-unsafe-html` ;
 - `no-trust-forwarded-headers` ;
-- `require-public-error-mapping`.
 
 Ajouter une commande :
 

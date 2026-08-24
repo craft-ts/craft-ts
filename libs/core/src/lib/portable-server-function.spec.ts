@@ -20,7 +20,7 @@ describe('portable server-function programs', () => {
   it('keeps the opaque program until the adapter executes it', async () => {
     const fn = portableServerFunction('portable.promise', textSchema, {
       exposure: 'client',
-    }).handler(async ({ input }) => `${input.value}:ok`);
+    }).handler(async ({ input }) => `${input.value}:ok`).exposeErrors({});
     const server = createServer({
       functions: [fn],
       execute: (program) => program,

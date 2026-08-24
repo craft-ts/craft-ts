@@ -32,7 +32,8 @@ const users = serverFunction('users.list', inputSchema)
       const user = yield* matchingUser;
       return yield* UserRepository.listForUser(user.id);
     }),
-  );
+  )
+  .exposeErrors({});
 ```
 
 ## `.use(...)`
@@ -51,7 +52,8 @@ const audited = craftMiddleware('demo.audit').server(() =>
 
 serverFunction('users.list', inputSchema)
   .use(audited)
-  .handler(({ context }) => Effect.succeed(context.auditId));
+  .handler(({ context }) => Effect.succeed(context.auditId))
+  .exposeErrors({});
 ```
 
 Les dépendances déclarées avec `.pipe(...)` sont des dépendances de graphe ;

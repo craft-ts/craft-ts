@@ -11,12 +11,16 @@ function serverFunctionsPlugin() {
   return {
     name: 'demo-server-functions',
     async configureServer(server: ViteDevServer) {
-      const { createDemoNodeHandler } = await server.ssrLoadModule(
+      const { handleDemoNodeRequest } = await server.ssrLoadModule(
         '/src/server/server.ts',
       );
-      const demo = createDemoNodeHandler();
-      server.middlewares.use('/__server-functions', demo.handler);
-      server.httpServer?.once('close', demo.close);
+      server.middlewares.use('/__server-functions', (request, response) => {
+        void handleDemoNodeRequest(request, response).catch((error: unknown) => {
+          if (!response.headersSent) response.statusCode = 500;
+          response.end('Internal Server Error');
+          console.error(error);
+        });
+      });
     },
   };
 }

@@ -78,7 +78,8 @@ function makeServer(
         trace.push(`handler:${user.id}`);
         return `${context.auditId}/${user.id}`;
       }),
-    ),
+    )
+    .exposeErrors({}),
 ) {
   const layer = Layer.mergeAll(
     Layer.succeed(Trace)(trace),

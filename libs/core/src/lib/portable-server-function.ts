@@ -29,10 +29,13 @@ import type {
   OverwriteContext,
 } from './middleware-schema-shared';
 import type { CraftSchema } from './schema-validation';
-import type {
-  ServerFunctionDefinition,
-  ServerFunctionHandlerContext,
-  ServerFunctionRequired,
+import {
+  SERVER_FUNCTION_ERRORS_EXPOSED,
+  type ExposedServerFunctionDefinition,
+  type UnexposedServerFunctionDefinition,
+  type ServerFunctionDefinition,
+  type ServerFunctionHandlerContext,
+  type ServerFunctionRequired,
 } from './server-function';
 
 /**
@@ -227,7 +230,7 @@ export type PortableServerFunctionBuilder<
       Schemas,
       Context
     >,
-  ) => ServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
+  ) => UnexposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
 };
 
 export function portableServerFunction<
@@ -400,7 +403,13 @@ function createPortableDefinition<
   middlewares: Middlewares,
   steps: readonly PortableStep[],
   handler: PortableServerFunctionHandler<Contract, Pipes, Output, Middlewares>,
-): ServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
+  errorExposure?: ServerFunctionDefinition<
+    Contract,
+    Pipes,
+    Output,
+    Middlewares
+  >['errorExposure'],
+): UnexposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
   const chain = expandSteps(steps);
   return {
     kind: 'server-function',
@@ -415,6 +424,20 @@ function createPortableDefinition<
       middlewares,
     ),
     handler: handler as never,
+    ...(errorExposure === undefined ? {} : { errorExposure }),
+    exposeErrors(exposure) {
+      return {
+        ...createPortableDefinition(
+          contract,
+          pipes,
+          middlewares,
+          steps,
+          handler,
+          exposure,
+        ),
+        [SERVER_FUNCTION_ERRORS_EXPOSED]: true,
+      } as ExposedServerFunctionDefinition<Contract, Pipes, Output, Middlewares>;
+    },
     invoke(input, runtime, clientContext) {
       const resolve: ServerFunctionRequired = (token) => {
         if (!runtime?.resolve) {

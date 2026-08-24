@@ -29,7 +29,7 @@ async function lint(
 describe('craft-ts security rules', () => {
   it('ships inside the recommended and effect presets', () => {
     const securityRules = Object.keys(plugin.configs.security.rules);
-    expect(securityRules).toHaveLength(8);
+    expect(securityRules).toHaveLength(7);
     for (const rule of securityRules) {
       // Ces garde-fous portent sur des vecteurs d'attaque : ils ne sont pas
       // laissés à l'adhésion de chaque projet.
@@ -151,32 +151,6 @@ describe('craft-ts security rules', () => {
              runtimeOptions: { timeoutMs: 15000, maxBodyBytes: 1048576 },
            });`,
           'require-server-function-timeout',
-        ),
-      ).toEqual([]);
-    });
-  });
-
-  describe('require-public-error-mapping', () => {
-    it('reports a missing or empty catalogue', async () => {
-      expect(
-        await lint(`createServer({ functions: [fn] });`, 'require-public-error-mapping'),
-      ).toHaveLength(1);
-      expect(
-        await lint(
-          `createServer({ functions: [fn], publicErrors: {} });`,
-          'require-public-error-mapping',
-        ),
-      ).toHaveLength(1);
-    });
-
-    it('accepts a described catalogue', async () => {
-      expect(
-        await lint(
-          `createServer({
-             functions: [fn],
-             publicErrors: { UsersNotFound: { code: 'USERS_NOT_FOUND', status: 404 } },
-           });`,
-          'require-public-error-mapping',
         ),
       ).toEqual([]);
     });

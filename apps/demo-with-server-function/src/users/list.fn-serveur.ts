@@ -37,4 +37,14 @@ export const listUsers = serverFunction(
     }
     return result;
   }),
-);
+).exposeErrors({
+  UsersNotFound: (errorPayload) => ({
+    code: 'USERS_NOT_FOUND',
+    status: 404,
+    payload: {
+      status: errorPayload.status,
+      message: errorPayload.message,
+      filter: errorPayload.filter,
+    },
+  }),
+});

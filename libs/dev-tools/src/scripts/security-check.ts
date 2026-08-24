@@ -286,9 +286,6 @@ function checkServerOptions(
     if (!/timeoutMs/.test(fragment) || !/maxBodyBytes/.test(fragment)) {
       push(diagnostics, rootDir, file, text, start, 'CRAFT_SECURITY_SERVER_LIMITS_MISSING', 'Server functions require timeoutMs and maxBodyBytes limits.');
     }
-    if (!/publicErrors/.test(fragment) || /publicErrors\s*:\s*\{\s*\}/.test(fragment)) {
-      push(diagnostics, rootDir, file, text, start, 'CRAFT_SECURITY_PUBLIC_ERRORS_MISSING', 'Server functions require a non-empty public error catalogue.');
-    }
   }
 }
 

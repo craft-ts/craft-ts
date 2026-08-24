@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { craftException, craftMiddleware } from '@craft-ts/core';
+import { craftException } from '@craft-ts/core';
 import { effectServerMiddleware } from '@craft-ts/effect';
 import { CurrentUser } from '../server/authentication';
 
