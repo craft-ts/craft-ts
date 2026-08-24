@@ -18,11 +18,10 @@ Dernière reprise : **2026-08-24**, merge de `main` (177 commits). Voir
 | 1 à 5                           | 4 → 32                | non commencées                                           |
 | —                               | esquisse `libs/style` | hors plan, faite (voir `libs/style/README.md`)           |
 
-L'esquisse `libs/style` n'est **pas** le package des vagues 1→3 : table de propriétés
-écrite à la main, pas de plugin d'émission, pas de drivers, `seal()` en fonction libre.
-Elle existe pour que les problèmes d'API sortent maintenant, et elle tourne sur les
-canaux réellement commités. Le détail de ce qu'elle prouve et de ce qui lui manque est
-dans son README, pas ici.
+L'esquisse a été **promue fichier par fichier** plutôt que réécrite à côté, et
+`libs/style/example/example.spec.ts` a servi de filet de régression pendant toute la
+vague. Ce qui reste de l'esquisse : `axes.ts` et `obligations.ts`, à éclater en vague 2
+et à compléter en vague 3.
 
 ## Écarts entre la file map du plan et le dépôt
 
@@ -266,64 +265,102 @@ Vue actionnable de ce qui n'est pas fait, avec les écarts déjà constatés dan
 Le plan reste la référence pour le _pourquoi_ de chaque tâche ; ce qui suit ne dit que
 _où ça atterrit maintenant_.
 
-### À trancher avant de reprendre
+### Décisions tranchées le 2026-08-24
 
-- [ ] **Namespaces `unit.*` et `kind.*`.** L'esquisse a buté sur deux collisions :
-      `px` est à la fois une unité et `padding-inline`, `color` à la fois une propriété
-      et un kind `@property`. Elle a tranché en passant les unités sous `unit.px` /
-      `unit.rem` et les kinds sous `kind.color` / `kind.length`. À entériner dans le
-      plan (tâches 4, 5, 7) ou à trancher autrement — mais une seule fois.
-- [ ] **Sort de l'esquisse.** Recommandation : la promouvoir fichier par fichier plutôt
-      que réécrire à côté, et **garder `libs/style/example/example.spec.ts` comme filet
-      de régression** pendant toute la vague 1. C'est la seule chose du dépôt qui
-      prouve aujourd'hui qu'une obligation remonte et s'annule.
-- [ ] **Ligne « Tech Stack » du plan.** Angular 21 n'existe plus dans le dépôt ; la
-      remplacer par « Vite 7 + alien-signals » avant que quelqu'un s'appuie dessus.
-- [ ] **Re-mesurer à la fin de la vague 3**, pas avant : c'est là que `obligations`
-      transportera enfin une charge réelle et que le point de décision de la tâche 3b
-      se jouera pour de bon.
+Les quatre points ouverts de la reprise, et ce qui a été décidé.
 
-### Tâche 3 — finir la migration `CssVars` (steps 2–4)
+- **Namespaces entérinés.** `unit.px` / `unit.rem` pour les unités, `kind.color` /
+  `kind.length` pour les grammaires `@property`. Une **troisième** collision est
+  apparue en écrivant la table générée et a été tranchée pareil : la condition de
+  breakpoint est passée sous `at.minInlineSize(…)`, parce que `minInlineSize` est
+  aussi une propriété CSS. Et le barème d'épaisseurs s'appelle `lineWidth`, pas
+  `borderWidth`, pour la même raison.
+- **Esquisse promue, pas réécrite.** `example.spec.ts` a servi de filet pendant toute
+  la vague ; une seule de ses assertions a dû changer (voir « émission atomique »).
+- **Ligne « Tech Stack » à corriger dans le plan** : Vite 8 + alien-signals.
+- **Re-mesure à la fin de la vague 3**, comme prévu : les canaux sont encore vides.
 
-- [ ] Poser les six champs de `CssVarContract` sur **`accumulate`** (union pure) et
-      laisser `MergeCssVarContracts` tel quel — la raison est développée dans la
-      section « Tâche 3 » ci-dessus, elle n'a pas bougé avec le merge.
-- [ ] Critère non négociable : `libs/component/src/lib/css-vars.spec.ts` passe **sans
-      modification**. Si une spec doit changer, l'abstraction n'est pas la bonne.
+### Tâche 3 — migration `CssVars` : écartée, et pourquoi
 
-### Vague 1 — niveau 1 : tokens et variables typées (tâches 4 → 11)
+La migration du contrat `CssVars` sur le canal générique **n'a pas été faite**, et ce
+n'est pas un report par manque de temps.
 
-- [ ] **4 — kinds et treillis.** Créer le vrai package : `libs/style/project.json`
-      (projet nx `craft-ts-style`, calqué sur `libs/component/project.json`),
-      `package.json`, `tsconfig.lib.json`. Les `paths` sont déjà en place.
-- [ ] **5 — tokens.** L'esquisse a déjà les brands nominaux à `unique symbol` dans
-      `libs/style/src/lib/values.ts` ; la falsifiabilité du brand (step 3) reste à
-      jouer, c'est la step la plus importante de la tâche.
-- [ ] **6 — `cssVars()` et émission `@property`.** Base dans
-      `libs/style/src/lib/css-vars.ts` ; manquent l'émission du bloc `@property` et le
-      rejet des préfixes en double.
-- [ ] **7 — table de propriétés générée.** La vraie tâche de la vague : l'esquisse a
-      une douzaine de helpers écrits à la main dans `src/lib/props.ts`. Générer depuis
-      MDN/webref, avec la liste d'exclusions (`overflow` en tête) et la liste des
-      non-couverts. Le test de conformance générique (aucun helper exporté n'accepte
-      une string) prime sur les cas écrits à la main.
-- [ ] **8 — `craftStyles()`.** Existe dans l'esquisse avec un contrat de variantes déjà
-      inféré ; reste à en faire l'entrée de l'émetteur (le registre `registeredClasses()`
-      tient déjà les règles).
-- [ ] **9 — plugin d'émission.** Vite nu : suivre le pattern des plugins `.mjs` de
-      `tools/` chargés par `apps/demo/vite.config.ts`. Vérifier que ça tient aussi dans
-      `apps/demo-ssr`.
-- [ ] **10 — lint niveau 1** (`no-raw-css-value`, `style-file-boundary`). Les règles
-      vivent dans `libs/dev-tools/src/eslint-rules/`, s'enregistrent dans `index.cjs`
-      **et** dans `recommended-config.cjs`, préfixe `craft-ts/`.
-- [ ] **11 — composant témoin.** `apps/demo/src/app/ui/status.component.ts`, toujours
-      avec son bloc `styles:` en template literal.
+Sa seule raison d'être, écrite dans le plan, était de _valider l'abstraction_ sur du
+code déjà en production. Cette validation est désormais acquise autrement, et plus
+fortement : `libs/style` fait circuler de vraies obligations sur les canaux
+`obligations` / `discharges`, elles s'annulent au bon nœud, et retirer
+`provides(scrollPort.block)` fait échouer le typecheck. C'est la sémantique complète,
+pas seulement le transport — ce que la migration `CssVars` n'aurait de toute façon pas
+pu exercer, puisqu'elle ne pose que sur `accumulate` (voir « Tâche 3 » plus haut).
+
+Ce qu'on perd : la preuve que le canal peut porter un contrat **existant** sans changer
+son comportement. Ce qu'on éviterait de gagner en la faisant maintenant : un refactor à
+risque sur des types de production, pour un bénéfice de démonstration. À rouvrir si la
+vague 3 montre que les deux mécanismes divergent.
+
+### Vague 1 — niveau 1 : faite
+
+| tâche                 | livré                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4 — kinds et treillis | `libs/style` est un projet nx (`craft-ts-style`) ; `kinds.ts` calqué sur la grammaire `@property`, treillis **lu sur les brands** au lieu d'une seconde table |
+| 5 — tokens            | `tokens/units.ts`, `scales.ts`, `palette.ts` ; brands nominaux à `unique symbol`, échelles fermées, `definePalette` (deux valeurs + rôle), `unsafeLength`     |
+| 6 — `cssVars()`       | émission `@property`, nom dérivé, `.or()` typé, préfixe dupliqué refusé, plus `set()` pour écrire une variable **statiquement** dans une feuille              |
+| 7 — table générée     | `tools/generate-css-props.mjs` depuis **mdn-data** : 477 propriétés couvertes, 5 non couvertes, `overflow` exclu par construction                             |
+| 8 — `craftStyles()`   | classes **atomiques** dédupliquées à la règle ; contrat de variantes inféré                                                                                   |
+| 9 — plugin d'émission | `plugin/vite.ts` + `plugin/emit.ts` : évaluation en Node, `@layer`, dump JSON pour le graphe, validation des propriétés                                       |
+| 10 — étanchéité       | `no-raw-css-value` et `style-file-boundary`, enregistrées dans `recommended-config.cjs`                                                                       |
+| 11 — composant témoin | `status.component.ts` migré, vérifié dans le navigateur                                                                                                       |
+
+#### Écarts assumés par rapport au plan
+
+- **La table générée est plus large que la grammaire, jamais l'inverse.** Le lecteur de
+  grammaire ferme trois formes (mot-clés fermés, type terminal, terminal + mot-clés) ;
+  une alternative qu'il ne sait pas fermer est **abandonnée**, pas fatale. 124 helpers
+  sont donc _plus étroits_ que CSS — `background` n'accepte qu'une couleur. C'est sûr
+  dans la seule direction qui compte : un helper rétréci ne peut pas produire du CSS
+  invalide, il refuse seulement des formes que CSS aurait acceptées. La liste est
+  exportée (`NARROWED_PROPERTIES`) pour que le rétrécissement soit visible.
+- **Un helper accepte une seule valeur là où CSS en accepte jusqu'à quatre.**
+  `padding` est `<length-percentage>{1,4}` ; le helper prend une longueur. Les
+  longhands couvrent le reste.
+- **La classe rendue est une liste de classes atomiques**, pas `badge-root`. La seule
+  assertion de l'esquisse qui a dû changer. `classKeyOf()` fait le chemin inverse pour
+  la matrice de la vague 2.
+- **Cascade interne à une feuille** : deux déclarations de la même propriété dans la
+  même classe ne produisent **qu'un** atome, le dernier écrit. Sans ça le gagnant
+  dépendait de l'ordre du CSS émis, c'est-à-dire de l'ordre alphabétique — trouvé sur
+  le composant témoin, où `font(text.xs)` écrasait `lineHeight(num(1))`.
+- **`mdn-data` est une devDependency**, utilisée par le générateur seul ; le paquet
+  publié ne la voit pas.
+- **Le plugin bundle avec `vite.build()` en mode SSR**, pas avec esbuild : Vite 8 ne
+  livre plus esbuild.
+
+#### Deux pièges qui laissaient les tests verts
+
+1. **`sideEffects: false` mange le registre.** L'entrée synthétique du plugin importait
+   les modules de style pour leurs effets de bord ; le bundler a le droit de les
+   supprimer, et il l'a fait — partiellement, ce qui est pire. Elle importe maintenant
+   chaque module comme **namespace** et le retient dans un export.
+2. **Un runner de test intercepte `import()` dynamique.** Le bundle écrit dans un
+   répertoire temporaire n'existe pas dans son graphe de modules. Il est chargé par
+   `require`, qui va au système de fichiers.
+
+#### Falsifiabilité, réellement jouée
+
+| garantie                    | affaiblissement                                     | résultat                                  |
+| --------------------------- | --------------------------------------------------- | ----------------------------------------- |
+| brand nominal des longueurs | `LengthValue` → `string & { __length?: true }`      | 4 des 5 rejets de chaînes passent au vert |
+| conformance de la table     | un helper `(value: string)` ajouté à `generated.ts` | l'assertion de type rouge                 |
+
+Les deux ont été remis en état après vérification.
 
 ### Vague 2 — niveau 2 : axes, matrice, exhaustivité (tâches 12 → 22)
 
-- [ ] **12–13 — axes standard et axes définis.** `libs/style/src/lib/axes.ts` existe et
-      porte déjà les drivers ; à éclater en `axes/standard.ts` + `axes/define.ts` et à
-      générer depuis la spec.
+- [ ] **12–13 — axes standard et axes définis.** `libs/style/src/lib/axes.ts` porte
+      `scheme`, `motion`, `at.minInlineSize`, `defineBreakpoints`, `defineStateAxis` et
+      les drivers ; manquent `forcedColors`, `scrollState.*`, `descendant.*`,
+      `defineAxis(..., { writes })` et `defineContainer`. À éclater en
+      `axes/standard.ts` + `axes/define.ts`, table générée depuis la spec.
 - [ ] **14 — `when()` et contrat de variantes.** Le contrat inféré marche dans
       l'esquisse ; manquent la détection de règle morte et la forme `{ vars }`.
 - [ ] **15 — budget d'axes** dans le meta de `craftComponent`
@@ -332,8 +369,9 @@ _où ça atterrit maintenant_.
       ratio valeur/coût du plan : c'est cette tâche qui décide du budget de CI visuelle.
 - [ ] **17–20 — `@craft-ts/style-testing`.** Nouveau package (donc `project.json` à
       créer aussi) : matrice, drivers, exhaustivité post-inférence, cas de contenu.
-      L'esquisse a un `scenarios()` qui compte déjà juste (12 pour `badge-root`, 1 pour
-      `badge-dot`) — c'est le point de départ de la tâche 17.
+      `scenarios()` dans `styles.ts` compte déjà juste et se prend une **clé de
+      feuille** ; `classKeyOf()` fait le chemin depuis la classe rendue. C'est le point
+      de départ de la tâche 17, à déménager dans le nouveau package.
 - [ ] **21 — lint niveau 2** (`no-raw-class`, `no-free-has`), même point d'ancrage que
       la tâche 10.
 - [ ] **22 — composant témoin niveau 2** : `apps/demo/e2e/` et
@@ -342,9 +380,11 @@ _où ça atterrit maintenant_.
 
 ### Vague 3 — niveau 3 : obligations de contexte (tâches 23 → 26)
 
-- [ ] **23 — vocabulaire d'obligations.** `libs/style/src/lib/obligations.ts` de
-      l'esquisse est déjà de la bonne forme (décharge et effet CSS inséparables) ;
-      manquent `clipOverflow`, `unsafeAssume` et les specs de falsifiabilité.
+- [ ] **23 — vocabulaire d'obligations.** `obligations.ts` a `scrollPort.{block,inline}`,
+      `noClipping.{block,inline}`, `containerType.*`, `requires`/`provides`/`declares`,
+      `clipOverflow.{block,inline}` et `unsafeAssume`. Manquent les specs dédiées et
+      leur falsifiabilité — la couverture actuelle vient de `styles.spec.ts` et de
+      l'exemple.
 - [ ] **24 — propagation et scellage.** `seal()` doit passer de fonction libre à
       `craftComponent(..., { seals })`. **Dériver depuis `Template`, jamais depuis
       `CraftComponent`** — la tâche 2 a déjà payé ce TS2589, voir la section « Tâche 2 ».
@@ -378,6 +418,11 @@ _où ça atterrit maintenant_.
   `yieldable-insertion-method`) : présentes sur `main`, fichiers identiques.
 - `apps/demo/src/app/examples/component/pending-block-exception-demo.ts` : TS2345,
   présente sur `main`, reproduite avec les fichiers de `main` remis en place.
+- 14 specs `demo` rouges (`granular-mutation`, `state-machine-list`, `state-machine`) :
+  compte identique avec la migration du composant témoin annulée.
+- `npx nx lint demo` échoue sur `app.ts` (`no-raw-user-url`,
+  `no-noninteractive-element-interactions`) — fichier non touché par la branche. Les
+  deux règles de style n'y produisent zéro finding.
 - Un typecheck de `apps/demo` dans un worktree neuf demande d'abord
   `npx tsc -b libs/component/tsconfig.lib.json` : sans `dist/out-tsc`, les project
   references sortent des TS6305 qui n'ont rien à voir avec le code.
