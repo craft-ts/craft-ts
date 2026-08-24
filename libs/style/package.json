@@ -1,0 +1,40 @@
+{
+  "name": "@craft-ts/style",
+  "version": "0.7.0-beta.13",
+  "description": "Typed design tokens, CSS custom properties and build-time style emission for CraftTS",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://craft-ts.github.io/craft/",
+  "bugs": {
+    "url": "https://github.com/craft-ts/craft-ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/craft-ts/craft-ts.git"
+  },
+  "peerDependencies": {
+    "@craft-ts/core": "^0.7.0-beta.0",
+    "tslib": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./vite": {
+      "types": "./src/plugin/vite.d.ts",
+      "default": "./src/plugin/vite.js"
+    }
+  }
+}

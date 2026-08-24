@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "node"],
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -13,5 +13,5 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "example/**/*.ts"]
+  "include": ["src/**/*.ts", "example/**/*.ts", "../../tools/*.d.mts"]
 }

@@ -7,7 +7,8 @@
  * l'API du typechecker : les types vérifient, les valeurs émettent.
  */
 import {
-  align,
+  alignItems,
+  at,
   bg,
   color,
   craftStyles,
@@ -19,7 +20,6 @@ import {
   fontWeight,
   gap,
   kind,
-  minInlineSize,
   palette,
   px,
   py,
@@ -33,8 +33,8 @@ import {
 } from '../src';
 
 export const bp = defineBreakpoints({
-  sm: minInlineSize(unit.rem(40)),
-  md: minInlineSize(unit.rem(64)),
+  sm: at.minInlineSize(unit.rem(40)),
+  md: at.minInlineSize(unit.rem(64)),
 });
 
 /** L'axe d'état rend `data-tone='danger'` — donc quelque chose de pilotable. */
@@ -58,13 +58,13 @@ export const v = cssVars('badge', {
 export const badge = craftStyles('badge', {
   root: [
     display.inlineFlex,
-    align.center,
+    alignItems.center,
     gap(space(2)),
     px(space(3)),
     py(space(1)),
     radius(radii.full),
     font(text.sm),
-    fontWeight.medium,
+    fontWeight.bold,
     bg(v.bg),
     color(v.ink),
 
@@ -79,12 +79,11 @@ export const badge = craftStyles('badge', {
     ]),
 
     when(tone.danger, [bg(palette.accent.danger), color(palette.surface.page)]),
-    when(tone.success, [bg(palette.accent.success), color(palette.surface.page)]),
+    when(tone.success, [
+      bg(palette.accent.success),
+      color(palette.surface.page),
+    ]),
   ],
 
-  dot: [
-    display.block,
-    radius(radii.full),
-    bg(v.ink),
-  ],
+  dot: [display.block, radius(radii.full), bg(v.ink)],
 });

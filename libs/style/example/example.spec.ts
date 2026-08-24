@@ -11,6 +11,7 @@ import type { ChannelsOf } from '@craft-ts/core';
 import { div, span } from '@craft-ts/component';
 import {
   assign,
+  classKeyOf,
   bg,
   color,
   p,
@@ -38,8 +39,8 @@ describe('niveau 1 — aucune valeur n’est une chaîne', () => {
     p(`${4}px`);
     // @ts-expect-error une couleur n'est pas un mot-clé CSS
     bg('red');
-    // @ts-expect-error l'échelle est fermée : 5 n'est pas un pas
-    p(space(5));
+    // @ts-expect-error l'échelle est fermée : 7 n'est pas un pas
+    p(space(7));
     // @ts-expect-error une couleur là où une longueur est attendue
     p(palette.text.strong);
 
@@ -147,7 +148,11 @@ describe('niveau 3 — les obligations remontent l’arbre', () => {
   });
 
   it('émet le CSS et la décharge dans le même objet', () => {
-    expect(shell.main).toBe('appShell-main');
+    // La classe rendue est une liste de classes **atomiques** : la dédup est au
+    // niveau de la règle, donc la sortie grossit avec le vocabulaire et pas
+    // avec le nombre de composants. Le nom de feuille reste retrouvable.
+    expect(classKeyOf(shell.main)).toBe('appShell-main');
+    expect(shell.main.split(' ')).toHaveLength(4);
     // Le couplage est le point : `min-block-size: 0` sans `overflow-block` ne
     // sert à rien, et l'inverse produit un port qui ne rétrécit jamais.
     expect(scrollPort.block.effect.map((rule) => rule.property)).toEqual([

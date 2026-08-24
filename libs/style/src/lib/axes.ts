@@ -10,13 +10,17 @@
  * qu'un axe absent : la matrice énumérerait des scénarios inatteignables et
  * rendrait des captures identiques, donc une fausse couverture.
  */
-import type { LengthValue } from './values';
+import type { LengthValue } from './tokens/units';
 
 export type Driver =
   | { readonly kind: 'none' }
   | { readonly kind: 'emulateMedia'; readonly colorScheme: 'dark' | 'light' }
   | { readonly kind: 'resize'; readonly minInlineSize: string }
-  | { readonly kind: 'setAttribute'; readonly name: string; readonly value: string }
+  | {
+      readonly kind: 'setAttribute';
+      readonly name: string;
+      readonly value: string;
+    }
   | { readonly kind: 'scrollToEnd' };
 
 export interface AxisPoint<Axis extends string, Point extends string> {
@@ -36,12 +40,10 @@ const point = <Axis extends string, Point extends string>(
 
 /** `base` est implicite sur tout axe : c'est l'absence de condition. */
 export const scheme = {
-  dark: point(
-    'scheme',
-    'dark',
-    '@media (prefers-color-scheme: dark)',
-    { kind: 'emulateMedia', colorScheme: 'dark' },
-  ),
+  dark: point('scheme', 'dark', '@media (prefers-color-scheme: dark)', {
+    kind: 'emulateMedia',
+    colorScheme: 'dark',
+  }),
 } as const;
 
 export const motion = {
@@ -54,14 +56,24 @@ export const motion = {
 } as const;
 
 /**
- * Prend des **conditions construites**, jamais des chaînes : `minInlineSize(rem(40))`
- * et pas `'(min-width: 40rem)'`.
+ * Breakpoints take **built conditions**, never strings: `at.minInlineSize(unit.rem(40))`
+ * and not `'(min-width: 40rem)'`.
+ *
+ * They live under `at` because `minInlineSize` is also a CSS property in the
+ * generated table. Same collision as `px` the unit versus `px` the padding
+ * helper, settled the same way.
  */
-export const minInlineSize = (value: LengthValue) => ({ minInlineSize: value });
+export const at = {
+  minInlineSize: (value: LengthValue) => ({ minInlineSize: value }),
+} as const;
 
 export function defineBreakpoints<
-  const Points extends Readonly<Record<string, { readonly minInlineSize: LengthValue }>>,
->(points: Points): { readonly [K in keyof Points & string]: AxisPoint<'viewport', K> } {
+  const Points extends Readonly<
+    Record<string, { readonly minInlineSize: LengthValue }>
+  >,
+>(
+  points: Points,
+): { readonly [K in keyof Points & string]: AxisPoint<'viewport', K> } {
   return Object.fromEntries(
     Object.entries(points).map(([name, { minInlineSize: size }]) => [
       name,

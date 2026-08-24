@@ -1,127 +1,120 @@
 /**
- * Les variables CSS, typées par la grammaire de `@property`.
+ * CSS custom properties, typed by the `@property` grammar.
  *
- * Le kind n'est pas une invention : c'est exactement ce que CSS sait
- * enregistrer (`<color>`, `<length>`, `<length-percentage>`…). Inventer un kind
- * que `@property` ne connaît pas ferait sauter la garantie runtime — la valeur
- * ne serait plus validée par le navigateur.
- *
- * Statique → classe au build. Dynamique → variable CSS typée. Aucune classe
- * n'est calculée au runtime : une valeur qui dépend d'un signal passe par
- * `assign(v.x, …)`, jamais par une chaîne de classes concaténée.
+ * Static → a class at build time. Dynamic → a typed custom property. No class
+ * is ever computed at runtime: a value that depends on a signal goes through
+ * `assign(v.x, …)`, never through a concatenated class string. That split is
+ * what keeps the visual matrix finite — a variable is not an axis.
  */
-import type { ColorValue, LengthValue } from './values';
+import type { AnyKind, CssVarRole, CssVarSpec, ValueOf } from './kinds';
 
 export interface CssVarDeclaration {
   readonly name: `--${string}`;
   readonly syntax: string;
   readonly inherits: boolean;
   readonly initialValue: string;
+  readonly role: CssVarRole;
 }
 
+declare const VAR_VALUE: unique symbol;
+
 /**
- * Un jeton de variable **porte la marque de son kind**. C'est ce qui fait que
- * `bg(v.ink)` marche sans conversion, et que `p(v.ink)` ne compile pas : le
- * jeton d'une variable `<color>` est une `ColorValue`, pas un fourre-tout.
+ * A variable token **carries its kind's brand**: the token of a `<color>`
+ * variable is a `ColorValue`, so `color(v.ink)` needs no conversion and
+ * `p(v.ink)` does not compile. It is not a generic bag of strings.
  */
-export type ColorVar = ColorValue & {
+export type CssVarToken<Value> = Value & {
   readonly declaration: CssVarDeclaration;
-  /** Le fallback est typé contre le même kind : `.or(space(4))` ne compile pas. */
-  or(fallback: ColorValue): ColorValue;
+  /** Inference site for `assign`; nothing reads it at runtime. */
+  readonly [VAR_VALUE]?: Value;
+  /** The fallback is typed against the same kind: `.or(space(4))` will not compile. */
+  or(fallback: Value): Value;
 };
 
-export type LengthVar = LengthValue & {
-  readonly declaration: CssVarDeclaration;
-  or(fallback: LengthValue): LengthValue;
+export type AnySpec = CssVarSpec<string, any>;
+
+export type CssVarTokens<Specs extends Readonly<Record<string, AnySpec>>> = {
+  readonly [Key in keyof Specs]: CssVarToken<Specs[Key]['initial']>;
 };
 
-export interface ColorVarSpec {
-  readonly kind: 'color';
-  readonly initial: ColorValue;
-}
-export interface LengthVarSpec {
-  readonly kind: 'length';
-  readonly initial: LengthValue;
-}
+const declared = new Map<string, CssVarDeclaration>();
+const prefixes = new Set<string>();
+
+/** Every custom property declared so far — the emitter's `@property` input. */
+export const registeredVars = (): readonly CssVarDeclaration[] => [
+  ...declared.values(),
+];
+
+/** Test-only: the registry is module state, and a spec must be able to reset it. */
+export const resetCssVarRegistry = (): void => {
+  declared.clear();
+  prefixes.clear();
+};
 
 /**
- * Les kinds sont sous un namespace : `color` au premier niveau serait en
- * collision avec la propriété `color`, et `kind.color` dit mieux ce que c'est —
- * une grammaire `@property`, pas une déclaration.
- */
-export const kind = {
-  color: (initial: ColorValue): ColorVarSpec => ({ kind: 'color', initial }),
-  length: (initial: LengthValue): LengthVarSpec => ({ kind: 'length', initial }),
-} as const;
-
-type VarSpec = ColorVarSpec | LengthVarSpec;
-type VarOf<Spec> = Spec extends ColorVarSpec
-  ? ColorVar
-  : Spec extends LengthVarSpec
-    ? LengthVar
-    : never;
-
-export type CssVarTokens<Specs extends Readonly<Record<string, VarSpec>>> = {
-  readonly [Key in keyof Specs]: VarOf<Specs[Key]>;
-};
-
-const SYNTAX = { color: '<color>', length: '<length>' } as const;
-
-/**
- * `inherits: false` par défaut : ça borne l'invalidation quand la variable est
- * réécrite au runtime, au lieu de faire recalculer tout le sous-arbre.
+ * The name `--{prefix}-{key}` is **derived**, never retyped — which is what
+ * makes a mismatch between the declared name and the read name impossible.
  *
- * Le nom `--{prefix}-{key}` est **dérivé**, jamais retapé — c'est ce qui rend
- * impossible le décalage entre le nom déclaré et le nom lu.
+ * Two sheets sharing a prefix is an error rather than a merge: silently
+ * merging would let one component's `--card-bg` be redefined by another's,
+ * which is exactly the class of bug this package exists to remove.
  */
-export function cssVars<const Specs extends Readonly<Record<string, VarSpec>>>(
+export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
   prefix: string,
   specs: Specs,
 ): CssVarTokens<Specs> {
+  if (prefixes.has(prefix)) {
+    throw new Error(
+      `cssVars: prefix '${prefix}' is already declared. Two sheets sharing a prefix would redefine each other's variables; pick a prefix per sheet.`,
+    );
+  }
+  prefixes.add(prefix);
+
   const tokens = Object.entries(specs).map(([key, spec]) => {
     const name = `--${prefix}-${key}` as `--${string}`;
     const declaration: CssVarDeclaration = {
       name,
-      syntax: SYNTAX[spec.kind],
-      inherits: false,
-      initialValue: spec.initial.css,
+      syntax: spec.syntax,
+      inherits: spec.inherits,
+      initialValue: String(
+        (spec.initial as { readonly css?: unknown }).css ?? spec.initial,
+      ),
+      role: spec.role,
     };
-    const base = {
-      ...spec.initial,
+    declared.set(name, declaration);
+
+    const token = {
+      ...(spec.initial as object),
       css: `var(${name})`,
       declaration,
       or: (fallback: { readonly css: string }) => ({
-        ...spec.initial,
+        ...(spec.initial as object),
         css: `var(${name}, ${fallback.css})`,
       }),
     };
-    return [key, base] as const;
+    return [key, token] as const;
   });
 
   return Object.fromEntries(tokens) as unknown as CssVarTokens<Specs>;
 }
 
-/** Le bloc `@property` correspondant, pour l'émetteur. */
+/** The `@property` block for one declaration, for the emitter. */
 export const propertyRule = (declaration: CssVarDeclaration): string =>
-  `@property ${declaration.name} { syntax: '${declaration.syntax}'; inherits: ${declaration.inherits}; initial-value: ${declaration.initialValue}; }`;
+  `@property ${declaration.name} { syntax: "${declaration.syntax}"; inherits: ${declaration.inherits}; initial-value: ${declaration.initialValue}; }`;
 
 /**
- * L'unique passerelle vers le dynamique. Retourne un style inline typé, à
- * brancher sur `style:` — donc lisible par le renderer existant sans rien
- * changer, et invisible pour la matrice de scénarios (une variable n'est pas
- * un axe).
+ * The single gateway to the dynamic side. Returns an inline style object, to be
+ * bound to `style:` — readable by the existing renderer with no change, and
+ * invisible to the visual matrix, because a variable is not an axis.
  */
-export function assign(
-  token: ColorVar,
-  value: ColorValue,
-): Readonly<Record<string, string>>;
-export function assign(
-  token: LengthVar,
-  value: LengthValue,
-): Readonly<Record<string, string>>;
-export function assign(
-  token: { readonly declaration: CssVarDeclaration },
-  value: { readonly css: string },
+export function assign<Value>(
+  token: {
+    readonly [VAR_VALUE]?: Value;
+    readonly declaration: CssVarDeclaration;
+  },
+  value: Value & { readonly css: string },
 ): Readonly<Record<string, string>> {
   return { [token.declaration.name]: value.css };
 }
+
+export type { CssVarRole, ValueOf, AnyKind };
