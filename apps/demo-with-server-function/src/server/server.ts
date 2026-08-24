@@ -66,10 +66,15 @@ export function createApplication(
     // interne générique, donc une exception ne peut pas emporter ses
     // propriétés jusqu'au navigateur.
     publicErrors: {
-      UsersNotFound: { code: 'USERS_NOT_FOUND', status: 404 },
+      UsersNotFound: {
+        code: 'USERS_NOT_FOUND',
+        status: 404,
+        fields: ['status', 'message', 'filter'],
+      },
       AuthenticatedUsersNotFound: {
         code: 'AUTHENTICATED_USERS_NOT_FOUND',
         status: 404,
+        fields: ['status', 'message', 'filter'],
       },
       DemoMiddlewareFailure: {
         code: 'DEMO_MIDDLEWARE_FAILURE',

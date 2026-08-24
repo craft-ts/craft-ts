@@ -75,7 +75,7 @@ export const portableListUsers = portableServerFunction(
     flatMapContext(() => loadUserDirectory()),
   )
   .handler(async ({ context }) => {
-    console.log(`portable request label=${context.label}`);
+    console.log(`portable request label=${context.label}`); // todoR interdir appel à console.log ?
     return {
       auditId: context.auditId,
       filter: context.normalizedFilter,

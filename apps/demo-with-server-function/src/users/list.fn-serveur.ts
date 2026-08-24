@@ -1,6 +1,12 @@
-import { craftException, serverFunction } from '@craft-ts/core';
-import { Effect, Schema } from 'effect';
+import { serverFunction } from '@craft-ts/core';
+import { Data, Effect, Schema } from 'effect';
 import { UserRepository, UserSchema } from '../server/database';
+
+export class UsersNotFound extends Data.TaggedError('UsersNotFound')<{
+  readonly status: 404;
+  readonly message: string;
+  readonly filter: string;
+}> {}
 
 const listUsersInputSchema = Schema.toStandardSchemaV1(
   Schema.Struct({
@@ -23,16 +29,11 @@ export const listUsers = serverFunction(
     const users = yield* UserRepository;
     const result = yield* users.list(input.filter);
     if (result.length === 0) {
-      return yield* Effect.fail(
-        craftException(
-          { _tag: 'UsersNotFound' },
-          {
-            status: 404,
-            message: `No users matched the filter "${input.filter}".`,
-            filter: input.filter,
-          },
-        ),
-      );
+      return yield* new UsersNotFound({
+        status: 404,
+        message: `No users matched the filter "${input.filter}".`,
+        filter: input.filter,
+      });
     }
     return result;
   }),

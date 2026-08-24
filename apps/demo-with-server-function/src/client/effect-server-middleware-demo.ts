@@ -109,6 +109,7 @@ const EffectServerMiddlewareDemo = craftComponent(
       usersQuery.hasValue(),
     );
     const serverErrorText = craftComputed(
+      // todo interdire ? JSON.stringify ? et pourquoi aps eereur eslint remonté ici ?
       'effectMiddlewareServerErrorText',
       function* () {
         const error = yield* usersQuery.serverError();
@@ -130,9 +131,7 @@ const EffectServerMiddlewareDemo = craftComponent(
         !(yield* hasServerError())
       );
     });
-    function* runScenario(
-      simulateError: 'none' | 'middleware' | 'handler',
-    ) {
+    function* runScenario(simulateError: 'none' | 'middleware' | 'handler') {
       yield* usersQuery.call({
         filter: (yield* filter()).trim(),
         simulateError,

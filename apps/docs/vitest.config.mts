@@ -25,6 +25,11 @@ export default defineConfig(() => ({
         workspaceRoot,
         'libs/effect/src/index.ts',
       ),
+      '@craft-ts/deploy-alchemy': path.join(
+        workspaceRoot,
+        'libs/deploy-alchemy/src/index.ts',
+      ),
+      '@craft-ts/deploy': path.join(workspaceRoot, 'libs/deploy/src/index.ts'),
       '@craft-ts/dev-tools/testing': path.join(
         workspaceRoot,
         'libs/dev-tools/src/testing.ts',

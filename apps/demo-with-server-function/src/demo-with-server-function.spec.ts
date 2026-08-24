@@ -92,7 +92,9 @@ describe('demo with server function', () => {
       await expect(response.json()).resolves.toMatchObject({
         error: {
           _tag: 'UsersNotFound',
-          payload: { status: 404, filter: 'does-not-exist' },
+          status: 404,
+          message: 'No users matched the filter "does-not-exist".',
+          filter: 'does-not-exist',
         },
       });
 
@@ -104,7 +106,9 @@ describe('demo with server function', () => {
         scope: 'ServerFunction',
         identifier: 'demo.users.list',
         payload: {
-          payload: { status: 404, filter: 'does-not-exist' },
+          status: 404,
+          message: 'No users matched the filter "does-not-exist".',
+          filter: 'does-not-exist',
         },
       });
       expect(isCraftException(result)).toBe(true);
@@ -310,7 +314,9 @@ describe('demo with server function', () => {
       await expect(response.json()).resolves.toMatchObject({
         error: {
           _tag: 'AuthenticatedUsersNotFound',
-          payload: { status: 404 },
+          status: 404,
+          message: 'No users matched the filter "does-not-exist".',
+          filter: 'does-not-exist',
         },
       });
 
@@ -320,7 +326,9 @@ describe('demo with server function', () => {
       expect(result).toMatchObject({
         _tag: 'AuthenticatedUsersNotFound',
         payload: {
-          payload: { status: 404 },
+          status: 404,
+          message: 'No users matched the filter "does-not-exist".',
+          filter: 'does-not-exist',
         },
       });
       expect(isCraftException(result)).toBe(true);

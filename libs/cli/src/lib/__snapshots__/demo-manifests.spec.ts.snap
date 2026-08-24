@@ -1,0 +1,117 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`workspace demonstrators > resolves the SPA demo to a stable manifest 1`] = `
+"{
+  "artifact": {
+    "configFiles": [],
+    "publicDir": "dist/apps/demo",
+    "sourceMaps": "forbidden"
+  },
+  "client": {
+    "build": "npm run build:demo:production",
+    "outDir": "dist/apps/demo"
+  },
+  "env": [],
+  "environment": "production",
+  "name": "demo",
+  "platform": "github-pages",
+  "protocolVersion": "1",
+  "runtime": "static",
+  "static": {
+    "fallback": "index.html",
+    "mode": "spa",
+    "routes": [],
+    "serverRoutes": []
+  }
+}"
+`;
+
+exports[`workspace demonstrators > resolves the SSR demo to a stable manifest 1`] = `
+"{
+  "artifact": {
+    "configFiles": [
+      "apps/demo-ssr/Dockerfile",
+      "docker-compose.production.yml"
+    ],
+    "publicDir": "dist/apps/demo-ssr",
+    "serverEntry": "dist/apps/demo-ssr/server/server.js",
+    "sourceMaps": "forbidden",
+    "start": "node dist/apps/demo-ssr/server/server.js"
+  },
+  "client": {
+    "build": "nx run demo-ssr:build:production",
+    "outDir": "dist/apps/demo-ssr"
+  },
+  "env": [
+    {
+      "description": "Interface the server binds to.",
+      "name": "HOST",
+      "required": false
+    },
+    {
+      "description": "TCP port the server listens on.",
+      "name": "PORT",
+      "required": false
+    },
+    {
+      "description": "Delay granted to in-flight requests on SIGTERM.",
+      "name": "GRACEFUL_SHUTDOWN_TIMEOUT_MS",
+      "required": false
+    },
+    {
+      "description": "Requests allowed per window on API routes.",
+      "name": "RATE_LIMIT_MAX",
+      "required": false
+    },
+    {
+      "description": "Length of the rate limiting window.",
+      "name": "RATE_LIMIT_WINDOW_MS",
+      "required": false
+    },
+    {
+      "description": "Treat requests as HTTPS behind a trusted proxy.",
+      "name": "FORCE_HTTPS",
+      "required": false
+    },
+    {
+      "description": "Comma-separated list of allowed origins.",
+      "name": "CORS_ORIGINS",
+      "required": false
+    },
+    {
+      "description": "Comma-separated list of accepted Host headers.",
+      "name": "TRUSTED_HOSTS",
+      "required": false
+    },
+    {
+      "description": "Origin used to build canonical and Open Graph URLs.",
+      "name": "PUBLIC_ORIGIN",
+      "required": false
+    }
+  ],
+  "environment": "production",
+  "functions": {
+    "basePath": "/api",
+    "entry": "apps/demo-with-server-function/src/server/server.ts",
+    "ids": [
+      "demo.products.list",
+      "demo.users.list",
+      "demo.users.authenticated-list",
+      "demo.users.portable-list",
+      "demo.users.effect-middleware-list"
+    ]
+  },
+  "name": "demo-ssr",
+  "platform": "docker",
+  "protocolVersion": "1",
+  "runtime": "node",
+  "server": {
+    "build": "nx run demo-ssr:build:production",
+    "entry": "dist/apps/demo-ssr/server/server.js",
+    "healthPath": "/health",
+    "readyPath": "/ready",
+    "source": "apps/demo-ssr/src/production-server.ts",
+    "start": "node dist/apps/demo-ssr/server/server.js"
+  }
+}"
+`;

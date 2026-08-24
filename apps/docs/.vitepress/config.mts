@@ -308,6 +308,17 @@ const guideSidebar = [
     ],
   },
   {
+    text: 'Deployment',
+    collapsed: true,
+    items: [
+      { text: 'Overview', link: '/guide/deployment/' },
+      { text: 'Manifest reference', link: '/guide/deployment/manifest' },
+      { text: 'Diagnostics', link: '/guide/deployment/diagnostics' },
+      { text: 'Providers', link: '/guide/deployment/providers' },
+      { text: 'Alchemy provider', link: '/guide/deployment/alchemy' },
+    ],
+  },
+  {
     text: 'Going further',
     collapsed: true,
     items: [

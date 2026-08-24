@@ -113,14 +113,14 @@ already receive those methods as arguments — see
 
 ## Server rendering
 
-| Symbol                                                     | What it does                                                          | Page                                               |
-| ---------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------- |
-| `renderCraft`, `renderToString`                            | Renders an isolated request to HTML, CSS, and a transfer snapshot     | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| Symbol                                                     | What it does                                                            | Page                                               |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `renderCraft`, `renderToString`                            | Renders an isolated request to HTML, CSS, and a transfer snapshot       | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `startCraft`                                               | Hydrates an SSR host or mounts a fresh client application automatically | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM        | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `pendingBlock({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                        | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `CraftUnhandledSsrResolutionError`, `CraftSsrTimeoutError` | Reports missing policies and timed-out blocking sources               | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM          | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `pendingBlock({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                          | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `CraftUnhandledSsrResolutionError`, `CraftSsrTimeoutError` | Reports missing policies and timed-out blocking sources                 | [SSR and hydration](/guide/advanced/ssr-hydration) |
 
 ## Exceptions
 
@@ -178,3 +178,19 @@ already receive those methods as arguments — see
 | `npx nx architecture <app>`        | Runs the app's architecture Vitest suite               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | Live page MCP `page`               | Drive the open `ng serve` tab (dev only)               | [Live page MCP](/guide/ai/dev-page)                                                                       |
 | Template migrator                  | Migrates templates to craft components                 | [Template migrator](/guide/components/template-migrator)                                                  |
+
+## Deployment
+
+| Symbol / command                                                                                     | What it does                                                   | Page                                             |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------ |
+| `defineCraftDeployment`                                                                              | Declares the deployment of an application in `craft.deploy.ts` | [Manifest reference](/guide/deployment/manifest) |
+| `checkCraftDeployment`, `checkCraftDeploymentArtifact`                                               | Runs the manifest, module graph and artefact checks            | [Diagnostics](/guide/deployment/diagnostics)     |
+| `resolveCraftDeploymentManifest`, `serializeCraftDeploymentManifest`, `parseCraftDeploymentManifest` | Resolves, writes and reads the provider-neutral artefact form  | [Manifest reference](/guide/deployment/manifest) |
+| `CraftDeploymentProvider`, `CRAFT_DEPLOYMENT_PROVIDERS`                                              | The provider contract and the capability matrix                | [Providers](/guide/deployment/providers)         |
+| `npx craft-ts check`                                                                                 | Validates a deployment before building                         | [Deployment overview](/guide/deployment/)        |
+| `npx craft-ts manifest`                                                                              | Writes `dist/<app>/craft-deployment-manifest.json`             | [Deployment overview](/guide/deployment/)        |
+| `npx craft-ts deploy preview`                                                                        | Shows what a provider would change, without changing it        | [Alchemy provider](/guide/deployment/alchemy)    |
+| `npx craft-ts deploy`                                                                                | Applies that plan once `--yes` approves it                     | [Alchemy provider](/guide/deployment/alchemy)    |
+| `createCraftDeploymentProvider`                                                                      | The single factory a provider package exports                  | [Providers](/guide/deployment/providers)         |
+| `createAlchemyDeploymentProvider`, `planAlchemyDeployment`                                           | The Alchemy provider and its Cloudflare/AWS planning           | [Alchemy provider](/guide/deployment/alchemy)    |
+| `npx craft-ts providers`                                                                             | Prints the provider capability matrix                          | [Providers](/guide/deployment/providers)         |

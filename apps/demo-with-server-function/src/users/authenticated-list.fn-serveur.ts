@@ -1,5 +1,5 @@
-import { craftException, serverFunction } from '@craft-ts/core';
-import { Effect, Schema } from 'effect';
+import { serverFunction } from '@craft-ts/core';
+import { Data, Effect, Schema } from 'effect';
 import { UserRepository } from '../server/database';
 import { authenticatedListHandshake } from '../shared/claimed-user-id';
 import { matchingUser } from './admin-access.mw-serveur';
@@ -7,6 +7,14 @@ import { auditedRequest } from './request-audit.mw-serveur';
 import { UserSchema } from './user-schema';
 
 export { AuthenticatedUserMismatch } from './admin-access.mw-serveur';
+
+export class AuthenticatedUsersNotFound extends Data.TaggedError(
+  'AuthenticatedUsersNotFound',
+)<{
+  readonly status: 404;
+  readonly message: string;
+  readonly filter: string;
+}> {}
 
 const authenticatedListUsersInputSchema = Schema.toStandardSchemaV1(
   Schema.Struct({ filter: Schema.String }),
@@ -42,16 +50,11 @@ export const getAuthenticatedUsers = serverFunction(
       );
       const result = yield* users.list(input.filter);
       if (result.length === 0) {
-        return yield* Effect.fail(
-          craftException(
-            { _tag: 'AuthenticatedUsersNotFound' },
-            {
-              status: 404,
-              message: `No users matched the filter "${input.filter}".`,
-              filter: input.filter,
-            },
-          ),
-        );
+        return yield* new AuthenticatedUsersNotFound({
+          status: 404,
+          message: `No users matched the filter "${input.filter}".`,
+          filter: input.filter,
+        });
       }
       return result;
     }),

@@ -17,6 +17,15 @@
     },
     {
       "path": "./libs/effect"
+    },
+    {
+      "path": "./libs/deploy"
+    },
+    {
+      "path": "./libs/cli"
+    },
+    {
+      "path": "./libs/deploy-alchemy"
     }
   ]
 }

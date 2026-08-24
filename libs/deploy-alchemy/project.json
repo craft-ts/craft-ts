@@ -1,0 +1,36 @@
+{
+  "name": "craft-ts-deploy-alchemy",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/deploy-alchemy/src",
+  "prefix": "craft",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/deploy-alchemy",
+        "main": "libs/deploy-alchemy/src/index.ts",
+        "tsConfig": "libs/deploy-alchemy/tsconfig.lib.json",
+        "assets": [
+          "libs/deploy-alchemy/LICENSE",
+          "libs/deploy-alchemy/README.md"
+        ]
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/deploy-alchemy/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    }
+  }
+}

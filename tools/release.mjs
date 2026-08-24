@@ -36,6 +36,27 @@ export const releasePackages = [
     distRoot: 'dist/libs/dev-tools',
   },
   {
+    key: 'deploy',
+    name: '@craft-ts/deploy',
+    project: 'craft-ts-deploy',
+    sourceManifest: 'libs/deploy/package.json',
+    distRoot: 'dist/libs/deploy',
+  },
+  {
+    key: 'cli',
+    name: '@craft-ts/cli',
+    project: 'craft-ts-cli',
+    sourceManifest: 'libs/cli/package.json',
+    distRoot: 'dist/libs/cli',
+  },
+  {
+    key: 'deploy_alchemy',
+    name: '@craft-ts/deploy-alchemy',
+    project: 'craft-ts-deploy-alchemy',
+    sourceManifest: 'libs/deploy-alchemy/package.json',
+    distRoot: 'dist/libs/deploy-alchemy',
+  },
+  {
     key: 'mcp',
     name: '@craft-ts/mcp',
     project: 'mcp',

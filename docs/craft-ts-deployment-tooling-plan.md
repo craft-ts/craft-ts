@@ -25,6 +25,54 @@ Ce plan complète
 le premier décrit l'outillage CraftTS réutilisable, le second décrit la mise
 en production d'une application concrète.
 
+## État d'implémentation — 24 août 2026
+
+Les phases 0, 1 et 3 sont livrées. La phase 2 (`init`, `build`, `deploy init`,
+templates) reste à faire.
+
+Livré :
+
+- `@craft-ts/deploy` (`libs/deploy`) : `defineCraftDeployment`, le contrat
+  `CraftDeploymentManifest` discriminé par le runtime, la résolution des
+  défauts, la sérialisation déterministe, la validation, le scan du graphe de
+  modules, la vérification d'artefact, la matrice de capacités des providers et
+  le contrat `CraftDeploymentProvider` (avec plan de preview et chargement de
+  module) ;
+- `@craft-ts/cli` (`libs/cli`), binaire `craft-ts` : `check`, `manifest`,
+  `providers`, `deploy preview` et `deploy` ;
+- `@craft-ts/deploy-alchemy` (`libs/deploy-alchemy`) : provider Alchemy
+  optionnel, presets Cloudflare et AWS, contrôle des credentials et du state,
+  preview sans mutation via un port de runtime, application confirmée par
+  `--yes` ;
+- les manifestes des démonstrateurs `apps/demo-ssr/craft.deploy.ts` (runtime
+  `node`, plateforme `docker`) et `apps/demo/craft.deploy.ts` (runtime `static`,
+  mode `spa`) ;
+- `npm run deploy:check` et `npm run deploy:manifest`, branchés dans
+  `npm run production:check`, qui produisent
+  `dist/<app>/craft-deployment-manifest.json` et vérifient le véritable
+  artefact ;
+- la cible `nx run craft-ts-deploy:typecheck-manifests`, ajoutée à
+  `release:preflight`, qui type-vérifie tous les `apps/*/craft.deploy.ts` ;
+- la documentation `apps/docs/guide/deployment/` (vocabulaire, référence du
+  manifest, diagnostics, providers, provider Alchemy), vérifiée par
+  `apps/docs/tests/deployment-docs.spec.ts` contre le catalogue de codes, la
+  matrice réelle et les credentials réellement lus ;
+- les trois packages sont dans le groupe de release npm : `nx.json` →
+  `release.projects` et `tools/release.mjs` → `releasePackages`.
+
+Non livré, et volontairement :
+
+- aucun déploiement réel n'a été exécuté depuis ce dépôt : il n'y a ni compte
+  Cloudflare ou AWS ni credentials, donc l'adaptateur sur l'API Alchemy
+  (`ALCHEMY_RESOURCE_EXPORTS`) n'a jamais tourné contre un compte vivant. Toute
+  la logique en amont — presets, plan, credentials, refus, confirmation — est
+  couverte par un port de runtime enregistreur ;
+- le smoke HTTP réel après déploiement et la démonstration « SPA puis
+  server-function déployées » de la phase 3 attendent donc ce premier
+  déploiement ;
+- les autres providers de la matrice (Vercel, Netlify, Firebase, GitHub Pages,
+  Docker) restent documentés, pas implémentés.
+
 ## Décision d'architecture
 
 Ne pas ajouter Alchemy comme dépendance de `@craft-ts/core`.
@@ -58,12 +106,15 @@ développement ou de CI, jamais des dépendances du bundle runtime.
 Projet existant :
 
 ```bash
-npx craft check --runtime worker --platform cloudflare
-npx craft build --runtime worker --platform cloudflare
-npx craft deploy init --provider alchemy --platform cloudflare
-npx craft deploy preview
-npx craft deploy
+npx craft-ts check --runtime worker --platform cloudflare
+npx craft-ts build --runtime worker --platform cloudflare
+npx craft-ts deploy init --provider alchemy --platform cloudflare
+npx craft-ts deploy preview
+npx craft-ts deploy
 ```
+
+Aujourd'hui, `check`, `manifest`, `providers`, `deploy preview` et `deploy`
+existent ; `build` et `deploy init` appartiennent à la phase 2.
 
 Projet neuf :
 
@@ -456,7 +507,55 @@ Le tooling est prêt pour une première release quand :
   correction attendue ;
 - la CI générée vérifie le véritable artefact de production.
 
-## Points à décider avant implémentation
+## Décisions prises
+
+Les points ci-dessous étaient ouverts avant implémentation ; ils sont tranchés
+et ne doivent pas être rejoués sans raison.
+
+- **Nom de la CLI** : binaire `craft-ts`, package `@craft-ts/cli`. Le binaire
+  `craft` est déjà pris par `@craft-ts/dev-tools` (`route`, `graph`,
+  `security check`, `create`) et deux packages ne peuvent pas déclarer le même
+  binaire.
+- **Emplacement du manifest** : `craft.deploy.ts` à la racine de l'application,
+  avec repli sur `.mts`, `.mjs`, `.js` et `.json`. Les chemins qu'il contient
+  sont relatifs au répertoire d'exécution de la commande (`--root`, par défaut
+  le répertoire courant), donc à la racine du monorepo.
+- **Forme des champs** : `runtime`, `platform` et `static.mode` sont des unions
+  de littéraux ; le runtime discrimine la section obligatoire au typage
+  (`static` + `client`, `server`, `worker`, `lambda`). Le `provider` n'est pas
+  un champ du manifest : il est passé à la commande.
+- **Champ `source`** ajouté aux sections `server`, `worker` et `lambda` : le
+  module qui produit `entry`. Sans lui, aucune analyse statique n'est possible
+  avant le premier build, ce qui vide `craft check` de son intérêt.
+- **Prerender SSG** : `static.routes` est la liste exhaustive des chemins
+  littéraux ; une route non réductible à un document unique est refusée et doit
+  passer par `static.serverRoutes`. Un document est reconnu comme
+  `<route>.html` ou `<route>/index.html`.
+- **Couplage Nx** : aucun. La CLI ne connaît que des chemins et des commandes ;
+  les cibles Nx restent déclarées comme des chaînes dans le manifest.
+- **Provider initial** : Alchemy, en package séparé. Docker et la publication
+  statique restent vérifiés par `check`, pas déployés.
+- **`preview` renvoie un plan** au lieu de ne rien renvoyer, et `check` renvoie
+  des diagnostics au lieu de lever : le plan est la surface d'approbation de
+  `craft-ts deploy`, et les diagnostics du provider doivent rejoindre ceux de
+  `craft-ts check`.
+- **Les capacités sont vérifiées sur le provider chargé**, pas sur la matrice
+  documentée, pour qu'un projet puisse déployer avec un provider que CraftTS ne
+  fournit pas.
+- **`craft-ts deploy` exige `--yes`** après avoir affiché le plan ; sans lui il
+  s'arrête sur `CRAFT_DEPLOY_DEPLOY_NOT_CONFIRMED`.
+- **Alchemy passe par un port de runtime** (`AlchemyRuntime`) : c'est ce qui
+  rend « une preview ne mute rien » démontrable en test, et ce qui concentre
+  l'API Alchemy dans une seule table, `ALCHEMY_RESOURCE_EXPORTS`.
+- **Politique source maps** : `forbidden` par défaut, `external` ou `allowed`
+  sur choix explicite de l'application.
+- **Versionnement du manifest** : `protocolVersion` littéral (`'1'`), refusé
+  s'il diffère plutôt que réinterprété.
+- **Documentation** : sous `apps/docs/guide/deployment/`, et vérifiée par un
+  test qui compare la page des diagnostics au catalogue de codes et la page des
+  providers à la matrice exportée.
+
+## Points à décider avant implémentation (tranchés)
 
 - nom final de la CLI : `craft`, `craft-ts` ou `@craft-ts/cli` ;
 - emplacement du manifest : `craft.deploy.ts`, `craft.config.ts` ou section de
