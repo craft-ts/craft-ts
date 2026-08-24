@@ -19,6 +19,8 @@ module.exports = {
   'craft-ts/provide-host-name-match-component': 'warn',
   'craft-ts/prefer-craft-http-transport': 'error',
   'craft-ts/no-craft-service-component-same-file': 'warn',
+  'craft-ts/no-raw-css-value': 'error',
+  'craft-ts/style-file-boundary': 'error',
   'craft-ts/no-imperative-craft-resource-trigger': 'error',
   'craft-ts/no-transition-actions': 'error',
   'craft-ts/require-craft-resource-trigger-yield': 'error',

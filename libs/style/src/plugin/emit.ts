@@ -79,6 +79,9 @@ export function validateAtoms(
 ): void {
   const known = knownProperties();
   for (const atom of atoms) {
+    // A custom property is declared by `cssVars`, which already registered its
+    // `@property` block; the table has nothing to say about it.
+    if (atom.property.startsWith('--')) continue;
     if (!known.has(atom.property)) {
       throw new UnknownCssError(atom.property, source);
     }

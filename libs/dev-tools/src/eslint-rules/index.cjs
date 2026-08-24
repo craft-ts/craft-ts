@@ -8,6 +8,8 @@ const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
 const noCraftServiceComponentSameFile = require('./no-craft-service-component-same-file.cjs');
+const noRawCssValue = require('./no-raw-css-value.cjs');
+const styleFileBoundary = require('./style-file-boundary.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
 const requirePrimitiveGeneratorUnwrap = require('./require-primitive-generator-unwrap.cjs');
@@ -101,6 +103,8 @@ const plugin = {
     'provide-host-name-match-component': provideHostNameMatchComponent,
     'prefer-craft-http-transport': preferCraftHttpTransport,
     'no-craft-service-component-same-file': noCraftServiceComponentSameFile,
+    'no-raw-css-value': noRawCssValue,
+    'style-file-boundary': styleFileBoundary,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
     'require-primitive-generator-unwrap': requirePrimitiveGeneratorUnwrap,

@@ -108,6 +108,27 @@ describe('the emitted classes are atomic', () => {
   });
 });
 
+describe('inside a class, the last declaration is the one that applies', () => {
+  it('drops the earlier atom for the same property instead of keeping both', () => {
+    const sheet = craftStyles('typo', {
+      badge: [p(space(2)), p(space(4))],
+    });
+
+    // Keeping both would leave the winner to stylesheet order — alphabetical
+    // here — so a sheet's own cascade would depend on how the emitter sorted.
+    expect(sheet.badge.split(' ')).toHaveLength(1);
+    expect(sheet.badge).toContain('1rem');
+  });
+
+  it('keeps the same property under a different condition', () => {
+    const sheet = craftStyles('scoped', {
+      badge: [p(space(2)), when(bp.md, [p(space(4))])],
+    });
+
+    expect(sheet.badge.split(' ')).toHaveLength(2);
+  });
+});
+
 describe('an obligation rides the sheet', () => {
   it('records what a class requires without emitting anything for it', () => {
     craftStyles('sticky', {

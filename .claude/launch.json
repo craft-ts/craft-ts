@@ -14,6 +14,18 @@
       "port": 4200
     },
     {
+      "name": "demo-typed-style",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "/Users/romaingeffrault/Documents/projects/prive/ng-craft.worktrees/typed-style-system/node_modules/vite/bin/vite.js",
+        "--config",
+        "/Users/romaingeffrault/Documents/projects/prive/ng-craft.worktrees/typed-style-system/apps/demo/vite.config.ts",
+        "--port",
+        "4300"
+      ],
+      "port": 4300
+    },
+    {
       "name": "demo-effect",
       "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
       "runtimeArgs": [
@@ -46,17 +58,6 @@
         "apps/docs"
       ],
       "port": 5173,
-      "autoPort": true
-    },
-    {
-      "name": "docs-restructure",
-      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
-      "runtimeArgs": [
-        "node_modules/vitepress/bin/vitepress.js",
-        "dev",
-        "/Users/romaingeffrault/Documents/projects/prive/craft-ts/.claude/worktrees/docs-restructure/apps/docs"
-      ],
-      "port": 5174,
       "autoPort": true
     }
   ]

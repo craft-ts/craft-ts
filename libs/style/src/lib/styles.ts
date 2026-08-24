@@ -331,11 +331,24 @@ export function craftStyles<const Sheet extends StyleSheet>(
     };
     walk(items, [], walked);
 
-    const className = walked.rules.map((rule) => rule.className).join(' ');
+    // Within one class, a later declaration replaces an earlier one for the
+    // same property under the same conditions. Keeping both would leave the
+    // winner to stylesheet order — which is alphabetical here, so `font(text.xs)`
+    // followed by `lineHeight(num(1))` would silently resolve the wrong way.
+    // Cascade order inside a sheet must be the order that was written.
+    const kept = new Map<string, AtomicRule>();
+    for (const rule of walked.rules) {
+      const scope = rule.conditions
+        .map((point) => `${point.axis}:${point.point}`)
+        .join('|');
+      kept.set(`${scope}|${rule.property}`, rule);
+    }
+    const rules = [...kept.values()];
+    const className = rules.map((rule) => rule.className).join(' ');
     classes.set(classKey, {
       key: classKey,
       className,
-      rules: walked.rules,
+      rules,
       axes: Object.fromEntries(
         [...walked.axes].map(([axis, points]) => [axis, [...points].sort()]),
       ),

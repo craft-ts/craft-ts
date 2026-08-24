@@ -103,6 +103,32 @@ export const propertyRule = (declaration: CssVarDeclaration): string =>
   `@property ${declaration.name} { syntax: "${declaration.syntax}"; inherits: ${declaration.inherits}; initial-value: ${declaration.initialValue}; }`;
 
 /**
+ * Writes a variable **statically**, as part of a sheet.
+ *
+ * This is how an axis paints: `when(tone.danger, [set(v.bg, palette.accent.danger)])`
+ * emits one atomic rule that assigns the custom property, and the base rule
+ * that reads it never changes. The alternative — a class per tone per property —
+ * multiplies the atoms by the number of tones for no gain.
+ */
+export function set<Value>(
+  token: {
+    readonly [VAR_VALUE]?: Value;
+    readonly declaration: CssVarDeclaration;
+  },
+  value: Value & { readonly css: string; readonly unproven?: string },
+): {
+  readonly property: string;
+  readonly value: string;
+  readonly unproven: string;
+} {
+  return {
+    property: token.declaration.name,
+    value: value.css,
+    unproven: value.unproven ?? '',
+  };
+}
+
+/**
  * The single gateway to the dynamic side. Returns an inline style object, to be
  * bound to `style:` — readable by the existing renderer with no change, and
  * invisible to the visual matrix, because a variable is not an axis.

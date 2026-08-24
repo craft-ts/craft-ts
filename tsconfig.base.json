@@ -19,6 +19,7 @@
       "@craft-ts/core/dev-tools": ["./libs/core/src/lib/dev-tools.ts"],
       "@craft-ts/component": ["./libs/component/src/index.ts"],
       "@craft-ts/style": ["./libs/style/src/index.ts"],
+      "@craft-ts/style/vite": ["./libs/style/src/plugin/vite.ts"],
       "@craft-ts/component/testing": ["./libs/component/testing/public-api.ts"],
       "test-type": ["./libs/test-type/src/index.ts"],
       "@craft-ts/dev-tools": ["./libs/dev-tools/src/index.ts"],
