@@ -473,7 +473,8 @@ type PipedNode<
         | CraftNodeChildrenPendingSources<FallbackChildren>,
         // A pending boundary is not an exception boundary: settled exceptions
         // pass straight through it.
-        SettledExceptions | CraftNodeChildrenSettledExceptions<FallbackChildren>,
+        | SettledExceptions
+        | CraftNodeChildrenSettledExceptions<FallbackChildren>,
         // A pending boundary answers nothing and breaks nothing: whatever the
         // source demanded, the fallback's own demands join it.
         MergeChannelUnion<Channels | CraftNodeRawChannelsOf<FallbackChildren>>

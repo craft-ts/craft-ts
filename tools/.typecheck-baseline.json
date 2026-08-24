@@ -1,11 +1,12 @@
 {
   "apps/demo/tsconfig.app.json": {
     "project": "apps/demo/tsconfig.app.json",
-    "runs": 3,
-    "ms": 8014,
-    "instantiations": 5503264,
-    "types": 503416,
-    "memoryKb": 1128381,
-    "recordedAt": "2026-08-16T09:15:54.740Z"
+    "runs": 5,
+    "ms": 4536,
+    "instantiations": 9376248,
+    "types": 899265,
+    "memoryKb": 1148574,
+    "recordedAt": "2026-08-24T16:20:00.000Z",
+    "note": "Post-Angular codebase, channels reverted to main (no CraftChannelsCarrier on the vnode). Re-measured after merging main into feat/typed-style-system."
   }
 }

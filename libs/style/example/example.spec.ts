@@ -5,7 +5,6 @@
  * garantie correspondante n'existait pas, ce qui est exactement le rôle d'un
  * `@ts-expect-error` (il rougit quand la ligne se met à compiler).
  */
-import '@angular/compiler';
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import type { ChannelsOf } from '@craft-ts/core';

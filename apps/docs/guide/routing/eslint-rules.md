@@ -174,9 +174,14 @@ application logic, even when it is used only for a DOM property:
 
 ```ts
 // Incorrect: the template derives the disabled state.
-button({ disabled: function* () {
-  return !(yield* machine.canGoBack());
-} }, 'Back');
+button(
+  {
+    disabled: function* () {
+      return !(yield* machine.canGoBack());
+    },
+  },
+  'Back',
+);
 
 // Correct: derive it in the logic factory and bind the result.
 const backDisabled = craftComputed('backDisabled', function* () {
@@ -195,15 +200,13 @@ insertion. This keeps the dependency visible and lets pending/exception
 boundaries name the actual source:
 
 ```ts
-const users = yield* query(
-  'users',
-  config,
-  ({ resource }) => ({
+const users =
+  yield *
+  query('users', config, ({ resource }) => ({
     total: craftComputed('total', function* () {
       return (yield* settled(resource)).length;
     }),
-  }),
-);
+  }));
 ```
 
 Do not create `craftComputed('total', ...)` beside the query when the
