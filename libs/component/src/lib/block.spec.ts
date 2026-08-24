@@ -1,48 +1,31 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Injector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { craftSignal as signal } from '@craft-ts/core';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import {
-  beforeAll,
   beforeEach,
   describe,
   expect,
   expectTypeOf,
   it,
 } from 'vitest';
-import { abstract, craftException, craftService } from '@craft-ng/core';
+import {
+  abstract,
+  craftException,
+  craftService,
+  createDeepYieldableReactiveValue,
+} from '@craft-ts/core';
 import {
   catchBlock,
   CraftUnhandledExceptionError,
   craftComponent,
   craftDirective,
   matchBlock,
-  mountCraftComponent,
   p,
   resolveCatchBlockHandler,
   section,
   withProviders,
 } from '../index';
 import type { CraftNodeChildrenExceptions } from './render/vnode';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import { renderCraftComponent } from './testing';
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -52,12 +35,11 @@ function host(): HTMLElement {
 
 describe('template exception blocks', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
-  it('allows a handler to explicitly choose source visibility', () => {
-    const denied = craftException({ code: 'DENIED' });
+  it('allows a handler to explicitly choose source visibility', async () => {
+    const denied = craftException({ _tag: 'DENIED' });
     const fallback = p('fallback');
 
     expect(
@@ -82,11 +64,11 @@ describe('template exception blocks', () => {
     ).toMatchObject({ children: fallback, showSource: true });
   });
 
-  it('catches a component exception and removes the fallback when the source recovers', () => {
+  it('catches a component exception and removes the fallback when the source recovers', async () => {
     const state = signal<'ready' | 'denied'>('ready');
-    const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+    const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
     const { BlockData, provideBlockData } = craftService(
-      { name: 'blockData', scope: 'abstract' },
+      { name: 'blockData', providedIn: 'abstract' },
       abstract<string | typeof denied>(),
     );
     const source = craftComponent(
@@ -146,32 +128,28 @@ describe('template exception blocks', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toContain('source');
 
     state.set('denied');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('fallback');
     expect(element.textContent).toContain('before fallback');
 
     state.set('ready');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('source');
     expect(element.textContent).not.toContain('fallback');
     expect(element.textContent).not.toContain('before fallback');
-    mounted.destroy();
+    destroy();
   });
 
   it.each(['before', 'after'] as const)(
     'renders a matchBlock fallback (%s)',
-    (position) => {
-      const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+    async (position) => {
+      const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
       const exception = signal<typeof denied | undefined>(undefined);
       const root = craftComponent(
         `matchRoot${position}`,
@@ -180,7 +158,7 @@ describe('template exception blocks', () => {
         ({ exception }) =>
           section([
             p('source'),
-            matchBlock.exhaustive(exception, 'code', {
+            matchBlock.exhaustive(exception, '_tag', {
               DENIED: (value) => {
                 expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
                 return p(
@@ -190,31 +168,57 @@ describe('template exception blocks', () => {
             }),
           ]),
       );
-      const element = host();
-      const mounted = mountCraftComponent(
+      const { nativeElement: element, flush, destroy } = await renderCraftComponent(
         root,
-        element,
-        TestBed.inject(Injector),
       );
-      TestBed.tick();
       expect(element.textContent).toBe('source');
 
       exception.set(denied);
-      TestBed.tick();
+      await flush();
       expect(element.textContent).toContain('source');
       expect(element.textContent).toContain('fallback');
 
       exception.set(undefined);
-      TestBed.tick();
+      await flush();
       expect(element.textContent).toBe('source');
-      mounted.destroy();
+      destroy();
     },
   );
 
-  it('raises the dedicated runtime error when no boundary handles an exception', () => {
-    const denied = craftException({ code: 'DENIED' });
+  it('matches a property of a deeply projected exception collection', async () => {
+    const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
+    const source = signal({
+      list: [denied],
+      params: undefined,
+      loader: denied as typeof denied | undefined,
+    });
+    const exceptions = createDeepYieldableReactiveValue(
+      source,
+      'exceptions',
+      { primitive: 'query', path: 'query.exceptions' },
+    );
+    const root = craftComponent(
+      'deepExceptionMatchRoot',
+      {},
+      () => ({ exceptions }),
+      ({ exceptions }) =>
+        matchBlock.exhaustive(exceptions.loader, '_tag', {
+          DENIED: (value) => {
+            expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
+            return p('deep fallback');
+          },
+        }),
+    );
+
+    const { nativeElement: element, destroy } = await renderCraftComponent(root);
+    expect(element.textContent).toContain('deep fallback');
+    destroy();
+  });
+
+  it('raises the dedicated runtime error when no boundary handles an exception', async () => {
+    const denied = craftException({ _tag: 'DENIED' });
     const { UnhandledData, provideUnhandledData } = craftService(
-      { name: 'unhandledData', scope: 'abstract' },
+      { name: 'unhandledData', providedIn: 'abstract' },
       abstract<string | typeof denied>(),
     );
     const unhandledProvider = craftDirective(
@@ -233,11 +237,33 @@ describe('template exception blocks', () => {
       () => p('never'),
     ).pipe(unhandledProvider);
 
-    let mounted: ReturnType<typeof mountCraftComponent> | undefined;
-    expect(() => {
-      mounted = mountCraftComponent(source, host(), TestBed.inject(Injector));
-      TestBed.tick();
-    }).toThrow(CraftUnhandledExceptionError);
-    mounted?.destroy();
+    await expect(renderCraftComponent(source)).rejects.toThrow(
+      CraftUnhandledExceptionError,
+    );
+  });
+
+  it('matches a reactive scalar literal union directly', async () => {
+    const step = signal<'reading' | 'editing'>('reading');
+    const root = craftComponent(
+      'scalarMatchRoot',
+      {},
+      () => ({ step }),
+      ({ step }) =>
+        matchBlock.exhaustive(step, {
+          reading: () => p('reading'),
+          editing: () => p('editing'),
+        }),
+    );
+
+    const { nativeElement: element, flush, destroy } =
+      await renderCraftComponent(root);
+
+    expect(element.textContent).toBe('reading');
+
+    step.set('editing');
+    await flush();
+
+    expect(element.textContent).toBe('editing');
+    destroy();
   });
 });

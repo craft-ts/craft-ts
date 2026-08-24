@@ -1,7 +1,7 @@
 import {
   assertCssVarsSatisfied,
   loadCraftComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
@@ -13,17 +13,13 @@ import {
   type CraftRouteExceptionType,
   type RouteCheckedDI,
   type ViewTransitionPayloadDef,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
 
-// SOURCE DE VÉRITÉ DES ROUTES DE LA DÉMO.
-// À FAIRE : ajouter ou modifier les routes dans ce fichier et conserver les
-// marqueurs `demo-route` / `demo-route-end` autour de chaque route.
-// À NE PAS FAIRE : créer un fichier `app.routes.source.ts` ou laisser l'outil
-// de lancement réécrire ce fichier. Le sélecteur génère uniquement
-// `app.routes.runtime.ts` à partir de cette collection.
+// SOURCE OF TRUTH FOR THE DEMO ROUTES.
+// All demo routes are served and checked by default.
 export const { demoRoutes } = craftRoutes('demo', [
   /* demo-route: query */
   {
@@ -106,14 +102,21 @@ export const { demoRoutes } = craftRoutes('demo', [
   },
 
   /* demo-route-end */ /* demo-route: pending-block-exception */
-  {
-    path: 'pending-block/exception',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/component/pending-block-exception-demo'),
-      ).then(({ default: component }) => component),
-    ),
-  },
+  craftRoute(
+    'pending-block/exception',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(
+          import('./examples/component/pending-block-exception-demo'),
+        ).then(({ default: component }) => component),
+      ),
+    },
+    {
+      INVOICE_REJECTED: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
 
   /* demo-route-end */ /* demo-route: css-vars */
   {
@@ -319,6 +322,36 @@ export const { demoRoutes } = craftRoutes('demo', [
       ),
   },
 
+  /* demo-route-end */ /* demo-route: state-machine-list */
+  {
+    path: 'state-machine-list',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine-list/task-board'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: state-machine */
+  {
+    path: 'state-machine',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine/profile-editor'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: state-machine-text */
+  {
+    path: 'state-machine-text',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine/text-editor'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: login-form */
   {
     path: 'login-form',
@@ -481,6 +514,9 @@ type DemoRoutePath =
   | 'craft/full-demo'
   | 'craft/lazy-layout/:teamId/users/:userId'
   | 'login-form'
+  | 'state-machine'
+  | 'state-machine-text'
+  | 'state-machine-list'
   | 'craft-service/counter'
   | 'craft-service/register-for'
   | 'craft-service/user-detail'
@@ -500,7 +536,7 @@ type DemoRoutePaths = readonly {
     : { path: Path };
 }[DemoRoutePath][];
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
     Demo: DemoRoutePaths;
   }
@@ -510,7 +546,7 @@ assertExhaustiveRouteExceptions(demoRoutes);
 assertCssVarsSatisfied(demoRoutes);
 
 /* demo-check: guard-registry */
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftGlobalExceptionRegistry {
     'guard-demo': {
       USER_DISABLED: CraftRouteExceptionType<
@@ -779,6 +815,33 @@ type _CanRunLazyLayout = CanRun<
     (typeof import('./examples/craft/lazy-layout/lazy-layout'))['default'],
     'teamId' | 'someParentRouteData',
     'path: "craft/lazy-layout/:teamId"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: state-machine-list */
+type _CanRunStateMachineList = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine-list/task-board'))['default'],
+    never,
+    'path: "state-machine-list"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: state-machine */
+type _CanRunStateMachine = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine/profile-editor'))['default'],
+    never,
+    'path: "state-machine"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: state-machine-text */
+type _CanRunStateMachineText = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine/text-editor'))['default'],
+    never,
+    'path: "state-machine-text"'
   >
 >;
 /* demo-check-end */

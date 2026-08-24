@@ -7,9 +7,11 @@ import {
 } from 'ws';
 import type {
   HelloOk,
+  PageMethod,
   PageSurface,
   RegistryBrokerMethod,
   RegistryClient,
+  RegistryMethod,
   RegistryRequest,
   RegistryResponse,
   RegistrySnapshot,
@@ -248,7 +250,7 @@ export class RegistryBridgeBroker {
 
   #forward(
     client: ClientConnection,
-    method: RegistryBrokerMethod,
+    method: RegistryMethod | PageMethod,
     forwardedParams: Readonly<Record<string, unknown>> | undefined,
     timeoutMs: number,
   ): Promise<unknown> {

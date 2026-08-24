@@ -5,10 +5,10 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-3
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ts/core';
 
 const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
+  { name: 'Counter', providedIn: 'global' },
   function* () {
     const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
@@ -19,7 +19,7 @@ const { Counter } = craftService(
 );
 
 const { CounterConsumer } = craftService(
-  { name: 'CounterConsumer', scope: 'global' },
+  { name: 'CounterConsumer', providedIn: 'global' },
   function* () {
     const counter = yield* Counter();
     yield* counter.increment();

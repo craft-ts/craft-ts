@@ -1,10 +1,10 @@
-import { computed } from '@angular/core';
+import { ɵcomputed as computed } from '@craft-ts/core';
 import type {
   PrimitiveMethodRuntimeContext,
   PrimitiveMethodRuntimeKind,
   PrimitiveResourceRuntimeContext,
   StateMethodRuntimeContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { createFunctionRegistry } from './function-registry';
 
 describe('function registry', () => {

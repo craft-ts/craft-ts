@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Type-stress generator for craft-ng.
+ * Type-stress generator for craft-ts.
  *
  * Usage:
  *   npx tsx tools/generate-type-stress.mts [options]
@@ -112,7 +112,7 @@ function genLeafHttpService(meta: ServiceMeta, exceptions: number): string {
   CraftHttpClient,
   craftService,
   type ExtractDeps,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 interface ${meta.name}Item { id: number; label: string; }
 
@@ -148,7 +148,7 @@ function genDependentService(
     .map((u) => `  yield* ${u.yieldable}(undefined, ({ count }) => ({ count }));`)
     .join('\n');
 
-  return `import { craftService, type ExtractDeps } from '@craft-ng/core';
+  return `import { craftService, type ExtractDeps } from '@craft-ts/core';
 ${imports}
 
 export const {
@@ -166,7 +166,7 @@ export type ${meta.name}Deps = ExtractDeps<typeof ${meta.injectable}>['${meta.de
 
 /** Simple service — no HTTP, no deps */
 function genSimpleService(meta: ServiceMeta): string {
-  return `import { craftService, type ExtractDeps } from '@craft-ng/core';
+  return `import { craftService, type ExtractDeps } from '@craft-ts/core';
 
 export const {
   ${meta.injectable},
@@ -214,7 +214,7 @@ import {
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ${imports}
 
 @Component({
@@ -261,7 +261,7 @@ function genFeatureRoutes(featureIdx: number, components: string[]): string {
 
   const routeVarName = `feature${featureIdx}Routes`;
 
-  return `import { craftRoutes } from '@craft-ng/core';
+  return `import { craftRoutes } from '@craft-ts/core';
 ${imports}
 
 export const { ${routeVarName} } = craftRoutes('feature${featureIdx}', [
@@ -287,13 +287,13 @@ function genAppRoutes(features: number): string {
   },`,
   ).join('\n');
 
-  return `import { craftRoutes } from '@craft-ng/core';
+  return `import { craftRoutes } from '@craft-ts/core';
 
 export const { stressRoutes } = craftRoutes('stress', [
 ${routes}
 ]);
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
     Stress: typeof stressRoutes.META_PATHS;
   }
@@ -313,7 +313,7 @@ import {
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 @Component({
   selector: 'app-stress-root',

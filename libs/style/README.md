@@ -1,4 +1,4 @@
-# `@craft-ng/style` — esquisse
+# `@craft-ts/style` — esquisse
 
 Assez de code pour voir la tête que ça a, et pour que les problèmes d'API sortent
 maintenant plutôt qu'à la vague 3. **Ce n'est pas le package**, c'est un exemple qui

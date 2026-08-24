@@ -1,4 +1,4 @@
-import { Signal } from '@angular/core';
+import { Signal } from '../host/craft-compat';
 import { FilterSource, RemoveIndexSignature } from './util.type';
 
 export type ExtractSignalPropsAndMethods<

@@ -12,9 +12,47 @@
     },
     "test": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        "compile-learn-effect-examples",
+        "typecheck-learn-effect-snippets"
+      ],
       "options": {
         "command": "vitest run --config apps/docs/vitest.config.mts"
       }
+    },
+    "compile-learn-effect-examples": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/compile-learn-effect-examples.mjs"
+      },
+      "inputs": [
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/learn-effect/**/*.md",
+        "{workspaceRoot}/tools/compile-learn-effect-examples.mjs"
+      ]
+    },
+    "typecheck-learn-effect-snippets": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs/tsconfig.learn-effect.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.learn-effect.json",
+        "{projectRoot}/tests/snippets/learn-effect/**/*.ts"
+      ]
+    },
+    "typecheck-architecture-docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs/tsconfig.architecture-docs.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.architecture-docs.json",
+        "{projectRoot}/tests/snippets/guide/testing/architecture/**/*.ts"
+      ]
     },
     "build": {
       "executor": "nx:run-commands",

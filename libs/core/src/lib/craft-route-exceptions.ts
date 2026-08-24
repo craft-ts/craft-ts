@@ -5,8 +5,14 @@ import {
   type Signal,
   type Type,
   type WritableSignal,
-} from '@angular/core';
-import type { Router, UrlTree } from '@angular/router';
+} from './host/craft-compat';
+import {
+  CraftRouter,
+  type CraftRouterUrlTreeInput,
+  type CraftRouterYieldRequest,
+  type CraftUrlTree,
+  type NavigableRoutePath,
+} from './craft-router';
 import type { AnyCraftException, CraftException } from './craft-exception';
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import type { ComponentExceptionsOf } from './branded-component/branded-component';
@@ -15,13 +21,7 @@ import type {
   CraftRouteTargetInput,
 } from './craft-route-target';
 import {
-  CraftRouter,
-  type CraftRouterUrlTreeInput,
-  type CraftRouterYieldRequest,
-  type NavigableRoutePath,
-} from './craft-router';
-import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   // These marker symbols are imported type-only so the generated
   // `CraftGlobalError` helper's inferred type is nameable in this
   // module's `.d.ts` (otherwise TS4023 — same recipe as `craft-router.ts`).
@@ -87,7 +87,7 @@ export type CraftPendingComponentInput =
  * - `noop` — render the target anyway, with resolve data left `undefined`.
  */
 export type CraftExceptionOutcome =
-  | { readonly kind: 'redirect'; readonly target: UrlTree | string }
+  | { readonly kind: 'redirect'; readonly target: CraftUrlTree | string }
   | {
       readonly kind: 'render';
       readonly component: CraftExceptionComponentDescriptor;
@@ -115,10 +115,10 @@ export type CraftExceptionHandlerContext<Exception extends AnyCraftException> =
       : unknown;
     /** `'enter'` for the initial activation, `'active'` for a reactive re-check. */
     readonly phase: CraftRoutePhase;
-    readonly router: Router;
-    readonly createUrlTree: Router['createUrlTree'];
-    readonly navigate: Router['navigate'];
-    readonly navigateByUrl: Router['navigateByUrl'];
+    readonly router: CraftRouter;
+    readonly createUrlTree: CraftRouter['createUrlTree'];
+    readonly navigate: CraftRouter['navigate'];
+    readonly navigateByUrl: CraftRouter['navigateByUrl'];
     redirectTo<Input extends CraftRouterUrlTreeInput<NavigableRoutePath>>(
       input: Input,
     ): Generator<
@@ -126,7 +126,9 @@ export type CraftExceptionHandlerContext<Exception extends AnyCraftException> =
       CraftExceptionOutcomeOf<'redirect'>,
       unknown
     >;
-    redirectUrl(target: UrlTree | string): CraftExceptionOutcomeOf<'redirect'>;
+    redirectUrl(
+      target: CraftUrlTree | string,
+    ): CraftExceptionOutcomeOf<'redirect'>;
     renderComponent(
       component: CraftExceptionComponentDescriptor,
     ): CraftExceptionOutcomeOf<'render'>;
@@ -180,7 +182,7 @@ export function craftExceptionHandler<
 
 /** The pure outcome constructors, merged into the handler context by the driver. */
 export const craftExceptionOutcomeApi = {
-  redirectUrl: (target: UrlTree | string) =>
+  redirectUrl: (target: CraftUrlTree | string) =>
     ({
       kind: 'redirect',
       target,
@@ -210,14 +212,14 @@ export const craftExceptionOutcomeApi = {
 // ---------------------------------------------------------------------------
 
 type CraftExceptionCodes<Exception> = Exception extends {
-  code: infer Code extends string;
+  _tag: infer Code extends string;
 }
   ? Code
   : never;
 
 type CraftExceptionForCode<Exception, Code extends string> = Extract<
   Exception,
-  { code: Code }
+  { _tag: Code }
 >;
 
 /** `Yielded` of a generator-returning route field (canActivate/canMatch/resolve). */
@@ -233,7 +235,7 @@ type RouteFieldExceptions<Field> = ExtractCraftGenExceptions<
 >;
 
 type ComponentRouteException<Code extends string> = CraftException<{
-  code: Code;
+  _tag: Code;
   scope: undefined;
 }>;
 
@@ -412,7 +414,7 @@ export function assertExhaustiveRouteExceptions<RoutesApp>(
  * that call `globalError()`), keyed by route path:
  *
  * ```ts
- * declare module '@craft-ng/core' {
+ * declare module '@craft-ts/core' {
  *   interface CraftGlobalExceptionRegistry {
  *     'user/:userId': {
  *       USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'user/:userId', 'USER_DISABLED'>;
@@ -440,7 +442,7 @@ export type CraftRouteExceptionType<
   ? Routes extends readonly unknown[]
     ? Extract<
         RouteExceptionUnion<Extract<Routes[number], { path: Path }>>,
-        { code: Code }
+        { _tag: Code }
       >
     : never
   : never;
@@ -490,7 +492,7 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
  */
 const craftGlobalErrorService = toCraftService({
   name: 'CraftGlobalError',
-  scope: 'global',
+  providedIn: 'global',
   inject: (): Signal<CraftGlobalHandledException> =>
     inject(
       CRAFT_GLOBAL_ERROR,

@@ -1,4 +1,0 @@
-interface:
-  display_name: "NG Craft Logs MCP"
-  short_description: "Diagnose the demo from its captured Console.* logs"
-  default_prompt: "Use $ng-craft-logs-mcp to investigate the demo application from the logs captured by the local log server."

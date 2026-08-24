@@ -1,4 +1,4 @@
-import { Signal, WritableSignal } from '@angular/core';
+import { Signal, WritableSignal } from './host/craft-compat';
 import { CraftResourceStatus } from './util/craft-resource-status';
 import {
   CustomReloadOnSpecificMutationStatus,
@@ -27,6 +27,7 @@ import type {
   YieldableInvocation,
 } from './yieldable';
 import type {
+  DeepYieldableReactiveValue,
   YieldableReactiveProperties,
   YieldableReactiveSignal,
   YieldableReactiveValue,
@@ -601,15 +602,32 @@ export type InsertionParams<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
-  resource: YieldableReactiveProperties<
-    CraftResourceRef<ResourceState, ResourceParams>
-  >;
+  resource: Omit<
+    YieldableReactiveProperties<
+      Omit<
+        CraftResourceRef<
+          ResourceState,
+          ResourceParams,
+          PrimitiveName,
+          Exceptions['params'] | Exceptions['loader']
+        >,
+        'settledValue'
+      >
+    >,
+    'settledValue'
+  > & {
+    readonly settledValue: CraftSettledYieldableValue<
+      NonNullable<ResourceState>,
+      PrimitiveName,
+      Exceptions['params'] | Exceptions['loader']
+    >;
+  };
   resourceParamsSrc: YieldableReactiveSignal<
     WritableSignal<ResourceParams | undefined>,
     'resourceParamsSrc'
   >;
   hasException: YieldableReactiveValue<boolean, 'hasException'>;
-  exceptions: YieldableReactiveValue<
+  exceptions: DeepYieldableReactiveValue<
     {
       list: (
         | InsertMetaInCraftExceptionIfExists<
@@ -693,7 +711,7 @@ export type InsertionByIdParams<
     'resourceParamsSrc'
   >;
   hasException: YieldableReactiveValue<boolean, 'hasException'>;
-  exceptions: YieldableReactiveValue<
+  exceptions: DeepYieldableReactiveValue<
     {
       list: (
         | InsertMetaInCraftExceptionIfExists<

@@ -1,5 +1,5 @@
-const CORE_MODULE = '@craft-ng/core';
-const COMPONENT_MODULE = '@craft-ng/component';
+const CORE_MODULE = '@craft-ts/core';
+const COMPONENT_MODULE = '@craft-ts/component';
 
 module.exports = {
   meta: {

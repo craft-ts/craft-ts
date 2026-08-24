@@ -1,6 +1,8 @@
-import { computed } from '@angular/core';
+import {
+  computed,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { source$ } from './source$';
-import { TestBed } from '@angular/core/testing';
 
 describe('source$', () => {
   beforeEach(() => {
@@ -25,8 +27,8 @@ describe('source$', () => {
 
       expect(result).toBe('Hello World');
 
-      mySource.emit('Hello Ng-Craft');
-      expect(result).toBe('Hello Ng-Craft');
+      mySource.emit('Hello CraftTS');
+      expect(result).toBe('Hello CraftTS');
     });
   });
 
@@ -39,8 +41,8 @@ describe('source$', () => {
       let result: undefined | string = undefined;
       mySource.subscribe((v) => (result = v));
 
-      mySource.emit('Hello Ng-Craft v2');
-      expect(result).toBe('Hello Ng-Craft v2');
+      mySource.emit('Hello CraftTS v2');
+      expect(result).toBe('Hello CraftTS v2');
     });
   });
 
@@ -54,8 +56,8 @@ describe('source$', () => {
       mySource.preserveLastValue().subscribe((v) => (result = v));
       expect(result).toBe('Hello World');
 
-      mySource.emit('Hello Ng-Craft v2');
-      expect(result).toBe('Hello Ng-Craft v2');
+      mySource.emit('Hello CraftTS v2');
+      expect(result).toBe('Hello CraftTS v2');
     });
   });
 });

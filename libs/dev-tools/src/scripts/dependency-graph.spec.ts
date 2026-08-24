@@ -49,6 +49,10 @@ declare function insertStoragePersister(...args: unknown[]): unknown;
 declare function insertReactOnMutation(...args: unknown[]): unknown;
 declare function insertQueryPipe(...args: unknown[]): unknown;
 declare function insertSelect(...args: unknown[]): unknown;
+declare function craftStateMachine(...args: unknown[]): unknown;
+declare function transitionStep(...args: unknown[]): unknown;
+declare function initStateMachine(...args: unknown[]): unknown;
+declare function source$(...args: unknown[]): unknown;
 declare function craftEffect(...args: unknown[]): unknown;
 declare function craftComputed(...args: unknown[]): unknown;
 declare function craftMethod(...args: unknown[]): unknown;
@@ -138,7 +142,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
         ${CRAFT_STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'function' },
+          { name: 'Counter', providedIn: 'function' },
           function* () {
             const count = yield* state('count', 0, ({ state, update }) => ({
               doubled: craftComputed('doubled', function* () {
@@ -174,7 +178,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
         ${CRAFT_STUBS}
 
         const { Search } = craftService(
-          { name: 'Search', scope: 'function' },
+          { name: 'Search', providedIn: 'function' },
           function* () {
             const results = yield* query('results', () => Promise.resolve([]), ({ resource }) => ({
               isLoading: craftComputed('isLoading', function* () {
@@ -223,7 +227,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
         ${CRAFT_STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'function' },
+          { name: 'Counter', providedIn: 'function' },
           function* () {
             const count = yield* state('count', 0, ({ state, update }) => ({
               doubled: craftComputed('doubled', function* () {
@@ -312,12 +316,12 @@ describe('analyzeDependencyGraph architecture facts', () => {
         ${CRAFT_STUBS}
 
         const { LocalStore } = craftService(
-          { name: 'LocalStore', scope: 'global', browserBoundary: true },
+          { name: 'LocalStore', providedIn: 'global', browserBoundary: true },
           () => ({}),
         );
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -344,12 +348,12 @@ describe('analyzeDependencyGraph architecture facts', () => {
         declare function craftRoute(...args: unknown[]): unknown;
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           () => ({}),
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           () => ({}),
         );
 
@@ -386,7 +390,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         };
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             const users = yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -425,7 +429,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -437,7 +441,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         );
 
         const { Profile } = craftService(
-          { name: 'Profile', scope: 'global' },
+          { name: 'Profile', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -476,7 +480,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         const identity = { key: 'user', storeName: 'app' };
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -509,7 +513,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         };
 
         export const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             const users = yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -524,7 +528,7 @@ describe('analyzeDependencyGraph architecture facts', () => {
         import { UsersApi } from './users-api';
 
         export const { UserList, provideUserList } = craftService(
-          { name: 'UserList', scope: 'toProvide' },
+          { name: 'UserList', providedIn: 'toProvide' },
           function* () {
             yield* UsersApi();
             const list = yield* query(
@@ -596,7 +600,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const updateUserName = yield* mutation('updateUserName', {});
             const user = yield* query(
@@ -626,7 +630,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const save = yield* mutation('updateUserName', {});
             const user = yield* query(
@@ -656,7 +660,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -702,7 +706,7 @@ describe('analyzeDependencyGraph insertions', () => {
         };
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const poll = craftEffect('poll', function* () {
               yield* CraftHttpClient.get(({ response }) => ({
@@ -732,7 +736,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const poll = craftEffect('poll', function* () {
@@ -760,7 +764,7 @@ describe('analyzeDependencyGraph insertions', () => {
         ${CRAFT_STUBS}
 
         const { Grid } = craftService(
-          { name: 'Grid', scope: 'global' },
+          { name: 'Grid', providedIn: 'global' },
           function* () {
             const cells = yield* state(
               'cells',
@@ -785,5 +789,133 @@ describe('analyzeDependencyGraph insertions', () => {
         'contains->insertSelect:cell',
       ]),
     );
+  });
+
+  it('hosts the primitives a craftStateMachine declares', async () => {
+    const root = await fixture({
+      'editor.ts': `
+        ${CRAFT_STUBS}
+
+        const Editor = craftComponent(
+          'Editor',
+          {},
+          function* () {
+            const machine = yield* craftStateMachine(
+              'editor',
+              function* () {
+                const draft = yield* state('draft', '');
+                const save = yield* mutation('save', {});
+                return { draft, save };
+              },
+              function* (context, transit) {
+                return {
+                  reading: transitionStep(function* () {
+                    yield* initStateMachine(() => transit());
+                  }),
+                };
+              },
+              function* () {
+                return { reading: {} };
+              },
+              function* ({ currentStep }) {
+                return {
+                  isReading: craftComputed('isReading', () => currentStep()),
+                };
+              },
+            );
+            return { machine };
+          },
+          () => div([]),
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(nodeByLabel(graph, 'craftStateMachine:editor')).toHaveLength(1);
+
+    // The component owns the machine…
+    expect(edgeLabels(graph, 'Editor', 'contains')).toEqual(
+      expect.arrayContaining(['contains->craftStateMachine:editor']),
+    );
+
+    // …and the machine owns what it declares, instead of the primitives
+    // flattening into the component around it.
+    expect(edgeLabels(graph, 'craftStateMachine:editor', 'contains')).toEqual(
+      expect.arrayContaining([
+        'contains->state:draft',
+        'contains->mutation:save',
+        'contains->craftComputed:isReading',
+      ]),
+    );
+    expect(edgeLabels(graph, 'Editor', 'contains')).not.toEqual(
+      expect.arrayContaining(['contains->state:draft']),
+    );
+  });
+
+  it('connects a yielded state-machine source emission to its source node', async () => {
+    const root = await fixture({
+      'editor.ts': `
+        ${CRAFT_STUBS}
+
+        const Editor = craftComponent(
+          'Editor',
+          {},
+          function* () {
+            const machine = yield* craftStateMachine(
+              'editor',
+              function* () {
+                const change$ = yield* source$<string>('change$');
+                return { change$ };
+              },
+              function* (_context, transit) {
+                return {
+                  idle: transitionStep(function* () {
+                    yield* initStateMachine(() => transit());
+                  }),
+                };
+              },
+              function* () {
+                return { idle: {} };
+              },
+              function* ({ context }) {
+                return { change$: context.change$ };
+              },
+            );
+            return { machine };
+          },
+          ({ machine }) =>
+            button({
+              *click() {
+                yield* machine.change$.emit('next');
+              },
+            }, ['change']),
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    const writes = edgesFrom(graph, 'Editor', 'writes');
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({
+      details: {
+        operation: 'emit',
+        exposedThrough: 'state-machine',
+      },
+    });
+    expect(
+      writes.some(
+        (edge) =>
+          graph.nodes.find((node) => node.id === edge.to)?.label ===
+          'change$ (source$)',
+      ),
+    ).toBe(true);
   });
 });

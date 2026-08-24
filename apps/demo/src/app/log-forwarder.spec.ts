@@ -1,4 +1,4 @@
-import type { ConsoleServiceApi } from '@craft-ng/core';
+import type { ConsoleServiceApi } from '@craft-ts/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createLogForwarder,

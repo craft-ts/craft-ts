@@ -58,7 +58,7 @@ describe('craft route commands', () => {
     await write(
       root,
       'apps/demo/src/app/users/users.routes.ts',
-      "import { craftRoutes } from '@craft-ng/core';\nexport const { usersRoutes } = craftRoutes('users', []);\n",
+      "import { craftRoutes } from '@craft-ts/core';\nexport const { usersRoutes } = craftRoutes('users', []);\n",
     );
 
     expect(listRouteCollections(root, 'apps/demo')).toEqual([
@@ -219,7 +219,7 @@ printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ templa
       root,
       'apps/demo/src/craft.d.ts',
       `
-        declare module '@craft-ng/core' {
+        declare module '@craft-ts/core' {
           export declare function craftRoutes(...args: any[]): any;
           export declare function craftRoute(...args: any[]): any;
           export declare function assertExhaustiveRouteExceptions(...args: any[]): void;
@@ -381,7 +381,7 @@ exit 0
         export const readUser = () => injectAppIdParams();
       `,
       'src/app/app.routes.ts': `
-        import { assertExhaustiveRouteExceptions, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
+        import { assertExhaustiveRouteExceptions, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ts/core';
         import type { Router } from '@angular/router';
         export const { appRoutes, injectAppIdParams } = craftRoutes('app', [
           craftRoute('home', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
@@ -432,7 +432,7 @@ exit 0
 
   it('diagnoses a split that captures a local declaration without mutating files', async () => {
     const source = `
-      import { craftRoute, craftRoutes } from '@craft-ng/core';
+      import { craftRoute, craftRoutes } from '@craft-ts/core';
       const localGuard = function* () {};
       export const { appRoutes } = craftRoutes('app', [
         craftRoute('users', { canActivate: localGuard }),
@@ -503,7 +503,7 @@ async function fixture(files: Record<string, string>): Promise<string> {
     root,
     'src/craft.d.ts',
     `
-    declare module '@craft-ng/core' {
+    declare module '@craft-ts/core' {
       export declare function craftRoutes(...args: any[]): any;
       export declare function craftRoute(...args: any[]): any;
       export declare function assertExhaustiveRouteExceptions(...args: any[]): void;
@@ -536,7 +536,7 @@ async function write(
 
 function rootRoutes(): string {
   return `
-    import { assertExhaustiveRouteExceptions, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
+    import { assertExhaustiveRouteExceptions, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ts/core';
     import type { Router } from '@angular/router';
     export const { appRoutes } = craftRoutes('app', []);
     assertExhaustiveRouteExceptions(appRoutes);

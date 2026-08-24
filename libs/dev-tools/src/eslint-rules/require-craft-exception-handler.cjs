@@ -108,20 +108,20 @@ function wrapHandler(node, source) {
 function ensureImport(text) {
   if (
     /\bcraftExceptionHandler\b/.test(
-      text.match(/import[\s\S]*?from\s+['"]@craft-ng\/core['"]/g)?.join('\n') ??
+      text.match(/import[\s\S]*?from\s+['"]@craft-ts\/core['"]/g)?.join('\n') ??
         '',
     )
   ) {
     return text;
   }
-  const pattern = /import\s*\{([\s\S]*?)\}\s*from\s*(['"]@craft-ng\/core['"])/;
+  const pattern = /import\s*\{([\s\S]*?)\}\s*from\s*(['"]@craft-ts\/core['"])/;
   if (pattern.test(text)) {
     return text.replace(pattern, (_all, names, source) => {
       const separator = names.includes('\n') ? '\n  ' : ' ';
       return `import {${names.trimEnd()},${separator}craftExceptionHandler\n} from ${source}`;
     });
   }
-  return `import { craftExceptionHandler } from '@craft-ng/core';\n${text}`;
+  return `import { craftExceptionHandler } from '@craft-ts/core';\n${text}`;
 }
 
 function walk(node, visit) {

@@ -23,7 +23,7 @@ describe('require-primitive-derived-property', () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { computed } from '@angular/core';
-        import { craftComponent, query } from '@craft-ng/core';
+        import { craftComponent, query } from '@craft-ts/core';
 
         const Demo = craftComponent('Demo', {}, function* () {
           const userQuery = yield* query('userQuery', {});
@@ -41,7 +41,7 @@ describe('require-primitive-derived-property', () => {
   it('reports craftComputed as well', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComponent, craftComputed, query } from '@craft-ng/core';
+        import { craftComponent, craftComputed, query } from '@craft-ts/core';
 
         const Demo = craftComponent('Demo', {}, function* () {
           const userQuery = yield* query('userQuery', {});
@@ -54,13 +54,57 @@ describe('require-primitive-derived-property', () => {
     expect(messages).toHaveLength(1);
   });
 
+  it('reports a computed that only depends on a queryEffect in the same component', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComponent, craftComputed } from '@craft-ts/core';
+        import { queryEffect } from '@craft-ts/effect';
+
+        const Demo = craftComponent('Demo', {}, function* () {
+          const layerScopeQuery = yield* queryEffect('layerScopeQuery', {
+            params: () => 'route',
+            loader: () => loadLayerScope,
+          });
+          const result = craftComputed('result', function* () {
+            return yield* layerScopeQuery.value();
+          });
+          return { layerScopeQuery, result };
+        }, () => null);
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'result' only depends on the 'layerScopeQuery' primitive in the same Craft entity. Define it in that primitive's insertion instead of creating a separate computed.",
+    ]);
+  });
+
+  it('reports generator craftComputed values derived from one primitive', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComponent, craftComputed, query } from '@craft-ts/core';
+
+        const Demo = craftComponent('Demo', {}, function* () {
+          const userQuery = yield* query('userQuery', {});
+          const total = craftComputed('total', function* () {
+            return (yield* userQuery.value())?.length ?? 0;
+          });
+          return { userQuery, total };
+        }, () => null);
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'total' only depends on the 'userQuery' primitive in the same Craft entity. Define it in that primitive's insertion instead of creating a separate computed.",
+    ]);
+  });
+
   it('also reports values derived in a craft service', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { computed } from '@angular/core';
-        import { craftService, query } from '@craft-ng/core';
+        import { craftService, query } from '@craft-ts/core';
 
-        const { UserService } = craftService({ name: 'UserService', scope: 'global' }, function* () {
+        const { UserService } = craftService({ name: 'UserService', providedIn: 'global' }, function* () {
           const userQuery = yield* query('userQuery', {});
           const total = computed(() => userQuery.value()?.length ?? 0);
           return { userQuery, total };
@@ -75,7 +119,7 @@ describe('require-primitive-derived-property', () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { computed } from '@angular/core';
-        import { craftComponent, query, state } from '@craft-ng/core';
+        import { craftComponent, query, state } from '@craft-ts/core';
 
         const Demo = craftComponent('Demo', {}, function* () {
           const userQuery = yield* query('userQuery', {});
@@ -93,7 +137,7 @@ describe('require-primitive-derived-property', () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { computed } from '@angular/core';
-        import { craftComponent, query } from '@craft-ng/core';
+        import { craftComponent, query } from '@craft-ts/core';
 
         const queryOutside = query('queryOutside', {});
         const outside = computed(() => queryOutside.value());
@@ -116,7 +160,7 @@ describe('require-primitive-derived-property', () => {
       {
         'src/app/demo.ts': `
           import { computed } from '@angular/core';
-          import { craftComponent, query } from '@craft-ng/core';
+          import { craftComponent, query } from '@craft-ts/core';
 
           const Demo = craftComponent('Demo', {}, function* () {
             const userQuery = yield* query('userQuery', {});
@@ -139,7 +183,7 @@ describe('require-primitive-derived-property', () => {
     const { output, messages } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { craftComponent, craftComputed, insertStoragePersister, query } from '@craft-ng/core';
+          import { craftComponent, craftComputed, insertStoragePersister, query } from '@craft-ts/core';
 
           const Demo = craftComponent('Demo', {}, function* () {
             const userQuery = yield* query('userQuery', {}, insertStoragePersister(craftUnique({
@@ -155,7 +199,7 @@ describe('require-primitive-derived-property', () => {
 
     expect(messages).toEqual([]);
     expect(output).toContain(
-      "import { craftComponent, craftComputed, insertStoragePersister, query, insertQueryPipe } from '@craft-ng/core';",
+      "import { craftComponent, craftComputed, insertStoragePersister, query, insertQueryPipe } from '@craft-ts/core';",
     );
     expect(output).toContain(
       "insertQueryPipe(insertStoragePersister(craftUnique({\n              key: 'user',\n            })), ({ state }) => ({ total: computed(() => state()?.length ?? 0) }))",

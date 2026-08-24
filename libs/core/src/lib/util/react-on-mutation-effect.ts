@@ -3,11 +3,11 @@ import {
   Injector,
   effect,
   untracked,
-  linkedSignal,
   Signal,
   inject,
   computed,
-} from '@angular/core';
+} from '../host/craft-compat';
+import { craftLinkedSignal as linkedSignal } from '../host/craft-linked-signal';
 import {
   ResourceLikeMutationRef,
   ResourceByIdLikeMutationRef,
@@ -190,6 +190,7 @@ export function reactOnMutationEffect<
   >({
     //@ts-expect-error I do not understand why it is not satisfies
     source: mutationResources,
+    injector: _injector,
     computation: (currentSource, previous) => {
       if (!currentSource || !Object.keys(currentSource).length) {
         return undefined;

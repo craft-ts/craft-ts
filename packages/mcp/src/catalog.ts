@@ -1,4 +1,4 @@
-export const DOCS_ORIGIN = 'https://ng-angular-stack.github.io/craft';
+export const DOCS_ORIGIN = 'https://craft-ts.github.io/craft';
 
 export type DocPage = {
   path: string;

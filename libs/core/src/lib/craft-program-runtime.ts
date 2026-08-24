@@ -3,12 +3,13 @@ import {
   DestroyRef,
   Injector,
   runInInjectionContext,
-} from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { toObservable } from './host/craft-compat';
 import { filter, take } from 'rxjs';
 import type { AnyCraftException } from './craft-exception';
-import { isCraftGenShortCircuit } from './craft-gen';
+import { CraftGenShortCircuit, isCraftGenShortCircuit } from './craft-gen';
 import {
+  GUARD_AWAIT_REQUEST_MARKER,
   isGenerator,
   isGuardAwaitRequest,
   isServiceAppStartRequest,
@@ -17,6 +18,7 @@ import {
   type RuntimeAwaitRequest,
 } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   isTemporalAwaitRequest,
@@ -35,6 +37,75 @@ import {
 // `CraftGenShortCircuit` (a composed `craftGen` producing a `craftException`)
 // settles as a structured `shortCircuit` step instead of a thrown error.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Foreign yields.
+//
+// A "foreign yield" is a value the pump cannot resolve as a craft request —
+// canonically an `Effect`, produced by `yield* someEffect`. A registered bridge
+// turns such a yield into a promise of a `ForeignYieldOutcome`; the pump then
+// suspends on the *existing* `'promise'` await path (nothing new to drive) and,
+// on resume, either feeds the success value back into the generator or
+// short-circuits with the carried craft exception.
+//
+// The bridge lives outside this file on purpose, so `libs/core` keeps no
+// dependency on `effect`: see `@craft-ts/effect`. Core only knows that
+// *something* may claim a yield it does not understand.
+// ---------------------------------------------------------------------------
+
+/** What a foreign yield settled to, once its bridge resolved it. */
+export type ForeignYieldOutcome =
+  | { kind: 'value'; value: unknown }
+  | { kind: 'exception'; exception: AnyCraftException };
+
+const FOREIGN_YIELD_OUTCOME = Symbol('foreign-yield-outcome');
+
+type TaggedForeignYieldOutcome = ForeignYieldOutcome & {
+  [FOREIGN_YIELD_OUTCOME]: true;
+};
+
+function isTaggedForeignYieldOutcome(
+  value: unknown,
+): value is TaggedForeignYieldOutcome {
+  return (
+    typeof value === 'object' && value !== null && FOREIGN_YIELD_OUTCOME in value
+  );
+}
+
+/** The context a bridge needs in order to resolve and run a foreign yield. */
+export type ForeignYieldContext = {
+  /**
+   * The injector of the program that yielded. A bridge resolves its runtime
+   * from here, which is what makes per-route runtimes and their inheritance
+   * possible at all.
+   */
+  readonly injector: Injector;
+  /** Aborted when the owning program is superseded or destroyed. */
+  readonly abortSignal?: AbortSignal;
+};
+
+/**
+ * Returns a promise for yields it recognises, `undefined` for everything else
+ * (which then falls through to the usual invalid-yield error).
+ */
+export type ForeignYieldBridge = (
+  yielded: unknown,
+  context: ForeignYieldContext,
+) => PromiseLike<ForeignYieldOutcome> | undefined;
+
+let foreignYieldBridge: ForeignYieldBridge | undefined;
+
+/** Registers the bridge; returns a disposer restoring the previous one. */
+export function setForeignYieldBridge(bridge: ForeignYieldBridge): () => void {
+  const previous = foreignYieldBridge;
+  foreignYieldBridge = bridge;
+  return () => {
+    foreignYieldBridge = previous;
+  };
+}
+
+/** @deprecated Prototype spelling, kept for the wave-0 fixtures. */
+export const ɵsetForeignYieldBridge = setForeignYieldBridge;
 
 /** A program's driver step: settled (`done`/`shortCircuit`) or suspended on an await. */
 export type CraftProgramStep =
@@ -75,7 +146,18 @@ export function pumpCraftProgramSync(
   resumeValue?: unknown,
 ): CraftProgramStep {
   try {
-    let current = iterator.next(resumeValue as never);
+    // A resumed foreign yield either carries its value back into the generator
+    // or short-circuits here, so the exception lands on the regular
+    // `shortCircuit` step rather than surfacing as a thrown error.
+    let resumeWith = resumeValue;
+    if (isTaggedForeignYieldOutcome(resumeWith)) {
+      if (resumeWith.kind === 'exception') {
+        throw new CraftGenShortCircuit(resumeWith.exception);
+      }
+      resumeWith = resumeWith.value;
+    }
+
+    let current = iterator.next(resumeWith as never);
 
     while (!current.done) {
       const yielded = current.value;
@@ -96,6 +178,26 @@ export function pumpCraftProgramSync(
           isServiceAppStartRequest(yielded)
         ) {
           throw new Error(options.appStartNotSupportedErrorMessage);
+        }
+
+        // Last chance before the invalid-yield error: a bridged foreign yield
+        // suspends through the existing `'promise'` await path.
+        const bridged = foreignYieldBridge?.(yielded, {
+          injector,
+          abortSignal: options.abortSignal,
+        });
+        if (bridged) {
+          return {
+            kind: 'await',
+            request: {
+              [GUARD_AWAIT_REQUEST_MARKER]: true,
+              kind: 'promise',
+              value: bridged.then((outcome) => ({
+                ...outcome,
+                [FOREIGN_YIELD_OUTCOME]: true as const,
+              })),
+            },
+          };
         }
 
         throw new Error(options.invalidYieldErrorMessage);
@@ -223,13 +325,13 @@ export async function executeGeneratorCompatibleFactoryAsync<
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
-  getInjector: () => Injector;
+  getInjector: () => Injector | object;
   args: Args;
   invalidYieldErrorMessage: string;
   appStartNotSupportedErrorMessage?: string;
   abortSignal?: AbortSignal;
 }): Promise<CraftProgramSettledStep> {
-  const injector = getInjector();
+  const injector = ɵcraftInjectorFromHost(getInjector());
   const options: CraftProgramPumpOptions = {
     invalidYieldErrorMessage,
     appStartNotSupportedErrorMessage,

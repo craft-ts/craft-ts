@@ -29,10 +29,10 @@ Form insertions enable modular composition of functionality:
 
 ### insertForm
 
-The primary insertion that creates an Angular Signal-Form from a primitive.
+The primary insertion that derives a typed form from a primitive.
 
 ```ts
-import { craftUse, state } from '@craft-ng/core';
+import { craftUse, state } from '@craft-ts/core';
 import {
   insertForm,
   insertFormAttributes,
@@ -40,7 +40,7 @@ import {
   insertSelectFormTree,
   cRequired,
   cEmail,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const userFormState = craftUse(
   state(
@@ -113,7 +113,7 @@ native attributes and `craft-*` CSS classes.
 In a Craft template, apply the functional directive to the concrete node:
 
 ```ts
-import { CraftFieldDirective } from '@craft-ng/core';
+import { CraftFieldDirective } from '@craft-ts/core';
 
 input({
   type: 'email',
@@ -130,24 +130,9 @@ The directive supports text inputs and textareas, numeric and temporal inputs,
 checkboxes, radio groups and selects. Validators also project native constraints
 such as `required`, `min`, `max`, `minlength` and `maxlength`.
 
-Angular templates can keep using the deprecated compatibility wrapper during
-the migration:
-
-```ts
-import { LegacyCraftFieldDirective } from '@craft-ng/core';
-
-@Component({
-  imports: [LegacyCraftFieldDirective],
-  template: ` <input type="email" [craftField]="emailField" /> `,
-})
-export class LoginComponent {
-  protected readonly emailField = this.loginForm.form.selectEmail();
-}
-```
-
-For a custom Angular control, provide `CRAFT_FIELD_VALUE_CONTROL` or
-`CRAFT_FIELD_CHECKBOX_CONTROL` on the host component and use the compatibility
-wrapper. Native Craft nodes use the functional directive directly.
+For a custom control, provide `CRAFT_FIELD_VALUE_CONTROL` or
+`CRAFT_FIELD_CHECKBOX_CONTROL` on the component root. Native Craft nodes use the
+functional directive directly.
 
 ### Render validation exceptions exhaustively
 
@@ -157,7 +142,7 @@ obligations. Every reachable code must have one handler, and an unreachable
 handler is also rejected.
 
 ```ts
-import { fieldExceptionBlock, input, p } from '@craft-ng/component';
+import { fieldExceptionBlock, input, p } from '@craft-ts/component';
 
 input({ id: 'email', type: 'email' })
   .pipe(CraftFieldDirective(loginForm.form.selectEmail()))

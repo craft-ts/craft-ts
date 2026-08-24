@@ -33,12 +33,12 @@ tasksQuery.exception(); // craftException | undefined
 ## In the template
 
 `ifBlock` / `matchBlock` are the structural conditionals (see [step
-2](/learn/02-derive#control-flow-the-angular-equivalents)). For a first pass a
+2](/learn/02-derive#control-flow)). For a first pass a
 ternary chain reads fine — just remember it makes the branch invisible to the
 [type-level assertions](/guide/testing/type-level):
 
 ```typescript
-import { craftComponent, each, li, p, ul } from '@craft-ng/component';
+import { craftComponent, each, li, p, ul } from '@craft-ts/component';
 
 export const Tasks = craftComponent(
   'Tasks',
@@ -67,7 +67,7 @@ for `matchBlock.exhaustive(...)` — the compiler then checks you covered every
 code:
 
 ```typescript
-matchBlock.exhaustive(() => tasks.exceptions().loader, 'code', {
+matchBlock.exhaustive(() => tasks.exceptions().loader, '_tag', {
   TASKS_FORBIDDEN: () => p('You do not have access to this list.'),
   TASKS_NOT_FOUND: () => p('This list no longer exists.'),
 });

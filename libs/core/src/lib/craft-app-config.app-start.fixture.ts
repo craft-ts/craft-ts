@@ -6,7 +6,7 @@ export const appStartCalls: string[] = [];
 const { AppStartCounter: AppStartCounterInternal } = craftService(
   {
     name: 'AppStartCounter',
-    scope: 'toProvide',
+    providedIn: 'toProvide',
     appStart: true,
   },
   function* () {

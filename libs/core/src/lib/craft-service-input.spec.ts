@@ -1,33 +1,16 @@
-import '@angular/compiler';
-import { InjectionToken, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  InjectionToken,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { craftService, toCraftService, type CraftServiceInput } from './craft-service';
+import { craftService, ɵtoCraftService as toCraftService, type CraftServiceInput } from './craft-service';
 import { craftUse } from './craft-use';
 import {
   provideReactiveReadObserver,
   type ReactiveReadEdge,
 } from './reactive-read';
 import { state } from './state';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craft service inputs', () => {
   beforeEach(() => TestBed.resetTestingModule());
@@ -39,7 +22,7 @@ describe('craft service inputs', () => {
     });
 
     const { ReadInput } = craftService(
-      { name: 'ReadInput', scope: 'function' },
+      { name: 'ReadInput', providedIn: 'function' },
       function* (inputs: { value: CraftServiceInput<number> }) {
         return yield* inputs.value();
       },
@@ -66,7 +49,7 @@ describe('craft service inputs', () => {
     });
 
     const { ReadSignalInput } = craftService(
-      { name: 'ReadSignalInput', scope: 'function' },
+      { name: 'ReadSignalInput', providedIn: 'function' },
       function* (inputs: { value: CraftServiceInput<number> }) {
         return yield* inputs.value();
       },
@@ -94,7 +77,7 @@ describe('craft service inputs', () => {
     const { ReadProvider, provideReadProvider } = toCraftService(
       {
         name: 'ReadProvider',
-        scope: 'toProvide',
+        providedIn: 'toProvide',
         token,
         provide: () => [],
       },

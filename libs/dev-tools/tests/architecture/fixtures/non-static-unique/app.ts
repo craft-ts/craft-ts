@@ -8,7 +8,7 @@ import {
 const identity = { key: 'user', storeName: 'shop' };
 
 export const { Users } = craftService(
-  { name: 'Users', scope: 'global' },
+  { name: 'Users', providedIn: 'global' },
   function* () {
     const cached = yield* query(
       'cached',

@@ -1,4 +1,4 @@
-import { InjectionToken, type Provider } from '@angular/core';
+import { InjectionToken, type Provider } from './host/craft-compat';
 
 /** Metadata describing a DOM event bound from a Craft template. */
 export interface CraftDomEvent {
@@ -35,6 +35,7 @@ export const CRAFT_DOM_EVENT_HOOK = new InjectionToken<
 >('CRAFT_DOM_EVENT_HOOK', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 /** Register one composable DOM event hook. */

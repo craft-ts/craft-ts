@@ -66,7 +66,7 @@ import {
   query,
   craftRoute,
   craftUntilSettled,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 // Reusable guards — each returns a success value | craftException(...)
 const roleGuard = craftGen(
@@ -75,10 +75,10 @@ const roleGuard = craftGen(
       const { user } = yield* CraftAuth(undefined, ({ user }) => ({
         user,
       }));
-      if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
+      if (!user()) return craftException({ _tag: 'NOT_AUTHENTICATED' });
       return roles.includes(user()!.role)
         ? true
-        : craftException({ code: 'FORBIDDEN_ROLE' });
+        : craftException({ _tag: 'FORBIDDEN_ROLE' });
     },
 );
 
@@ -88,7 +88,7 @@ const noPizzeriaGuard = craftGen(
       const { pizzeria } = yield* CraftAuth(undefined, ({ pizzeria }) => ({
         pizzeria,
       }));
-      return pizzeria() ? craftException({ code: 'HAS_PIZZERIA' }) : true;
+      return pizzeria() ? craftException({ _tag: 'HAS_PIZZERIA' }) : true;
     },
 );
 
@@ -101,7 +101,7 @@ const { pizzeriaDraftQuery } = query('pizzeriaDraftQuery', {
       exceptions: [
         function* ({ status }) {
           if (!(yield* status(404))) return;
-          return craftException({ code: 'PIZZERIA_DRAFT_UNAVAILABLE' });
+          return craftException({ _tag: 'PIZZERIA_DRAFT_UNAVAILABLE' });
         },
       ],
     }));
@@ -179,7 +179,7 @@ Order matters: guards run top-to-bottom and the first exception wins (fail-fast)
 ## The handler context
 
 Each route exception handler receives the typed exception and payload, the navigation phase, the
-native Angular `Router` helpers, and the five outcome constructors. See
+typed `Router` helpers, and the five outcome constructors. See
 [Centralised Exception Handling](/guide/concepts/exceptions#handler-context) for the exhaustive list
 and examples.
 
@@ -197,7 +197,7 @@ Use `redirectTo(...)` for typed internal routes:
 ```
 
 A handler returns a `CraftExceptionOutcome` via `redirectTo`, `redirectUrl`, `renderComponent`,
-`globalError`, `stay`, or `noop`. The `payload` is taken from `craftException({ code }, payload)`'s second argument
+`globalError`, `stay`, or `noop`. The `payload` is taken from `craftException({ _tag }, payload)`'s second argument
 and typed per code.
 
 ## Handlers can yield services
@@ -264,7 +264,7 @@ const authGuard = craftGen(
       const userValue = user.value();
       return userValue
         ? userValue
-        : craftException({ code: 'NOT_AUTHENTICATED' });
+        : craftException({ _tag: 'NOT_AUTHENTICATED' });
     },
 );
 
@@ -299,7 +299,7 @@ const featureFlagGuard = craftGen(
   (flag: string) =>
     function* () {
       const { flags } = yield* CraftConfig();
-      return flags[flag] ? true : craftException({ code: 'FLAG_DISABLED' });
+      return flags[flag] ? true : craftException({ _tag: 'FLAG_DISABLED' });
     },
 );
 
@@ -354,7 +354,7 @@ craftRoute(
               if (!(yield* status(400))) return;
               if (!(yield* code('PASSWORD_REQUIRED'))) return;
               return craftException({
-                code: 'PASSWORD_REQUIRED',
+                _tag: 'PASSWORD_REQUIRED',
                 scope: 'UsersFeature',
               });
             },
@@ -362,7 +362,7 @@ craftRoute(
         })),
       );
 
-      return user.active ? true : craftException({ code: 'INACTIVE_USER' });
+      return user.active ? true : craftException({ _tag: 'INACTIVE_USER' });
     },
   },
   {
@@ -420,12 +420,12 @@ const session = yield * craftUntilDefined(sessionService.current);
 
 ## Exceptions {#exceptions}
 
-Guards fail with `craftException({ code }, payload?)` — the same typed-exception primitive used by
+Guards fail with `craftException({ _tag }, payload?)` — the same typed-exception primitive used by
 `query` / `mutation`:
 
 ```ts
-craftException({ code: 'FORBIDDEN_ROLE' });
-craftException({ code: 'RATE_LIMITED' }, { retryAfter: 30 }); // payload reaches the handler
+craftException({ _tag: 'FORBIDDEN_ROLE' });
+craftException({ _tag: 'RATE_LIMITED' }, { retryAfter: 30 }); // payload reaches the handler
 ```
 
 The `code` drives both the exhaustiveness check and the handler lookup; the optional payload is

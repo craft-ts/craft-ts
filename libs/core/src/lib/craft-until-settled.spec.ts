@@ -1,6 +1,10 @@
+import {
+  Injector,
+  signal,
+  type WritableSignal,
+} from './host/craft-compat';
+import type { CraftRouter as Router } from './craft-router';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
-import { Injector, signal, type WritableSignal } from '@angular/core';
-import type { Router } from '@angular/router';
 import { craftException, type AnyCraftException } from './craft-exception';
 import {
   craftGen,
@@ -80,11 +84,11 @@ describe('craftUntilSettled (query type channels)', () => {
 
     const loadUser = craftGen(function* (userId: string) {
       if (userId === 'missing') {
-        return craftException({ code: 'USER_NOT_FOUND' }, { userId });
+        return craftException({ _tag: 'USER_NOT_FOUND' }, { userId });
       }
 
       if (userId === 'forbidden') {
-        return craftException({ code: 'USER_FORBIDDEN' }, { userId });
+        return craftException({ _tag: 'USER_FORBIDDEN' }, { userId });
       }
 
       return { id: userId, name: 'Jane' } satisfies User;
@@ -95,7 +99,7 @@ describe('craftUntilSettled (query type channels)', () => {
           params: () =>
             Math.random() > 0.5
               ? 'user-1'
-              : craftException({ code: 'MISSING_USER_ID' }),
+              : craftException({ _tag: 'MISSING_USER_ID' }),
           loader: function* ({ params }) {
             return yield* loadUser(params);
           },
@@ -110,7 +114,7 @@ describe('craftUntilSettled (query type channels)', () => {
     type Exceptions = ExtractCraftGenExceptions<GeneratorYielded<Program>>;
 
     expectTypeOf<Success>().toEqualTypeOf<User>();
-    expectTypeOf<Exceptions['code']>().toEqualTypeOf<
+    expectTypeOf<Exceptions['_tag']>().toEqualTypeOf<
       'MISSING_USER_ID' | 'USER_NOT_FOUND' | 'USER_FORBIDDEN'
     >();
     expectTypeOf<Extract<Success, AnyCraftException>>().toEqualTypeOf<never>();
@@ -152,7 +156,7 @@ describe('craftUntilSettled (HTTP await path)', () => {
     const guard = function* () {
       yield* craftUntilSettled(
         fakeHttpCall(
-          craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
+          craftException({ _tag: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
         ),
       );
       return true;
@@ -179,7 +183,7 @@ describe('craftUntilSettled (HTTP await path)', () => {
       yield* craftUntilSettled(
         fakeHttpCall(
           craftException(
-            { code: 'HttpError', scope: 'HttpClient' },
+            { _tag: 'HttpError', scope: 'HttpClient' },
             { error: {}, method: 'GET', url: '/x' },
           ),
         ),
@@ -197,14 +201,14 @@ describe('craftUntilSettled (HTTP await path)', () => {
     expect(outcome.kind).toBe('thrownError');
     expect(
       (outcome as { kind: 'thrownError'; error: AnyCraftException }).error,
-    ).toMatchObject({ code: 'HttpError', scope: 'HttpClient' });
+    ).toMatchObject({ _tag: 'HttpError', scope: 'HttpClient' });
   });
 
   it('recovers a business exception through .pipe(catchTag(...))', async () => {
     const guard = function* () {
       const access = yield* craftUntilSettled(
         fakeHttpCall(
-          craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
+          craftException({ _tag: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
         ),
       ).pipe(
         catchTag('PASSWORD_REQUIRED', function* () {
@@ -266,7 +270,7 @@ describe('craftUntilSettled (resource branch)', () => {
     iterator.next();
     hasException.set(true);
     const exception = craftException({
-      code: 'NOT_ALLOWED',
+      _tag: 'NOT_ALLOWED',
       scope: 'UsersFeature',
     });
     exceptions.set({ list: [exception] });
@@ -277,7 +281,7 @@ describe('craftUntilSettled (resource branch)', () => {
       expect.unreachable('expected a CraftGenShortCircuit to be thrown');
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
-      expect((error as CraftGenShortCircuit).exception.code).toBe(
+      expect((error as CraftGenShortCircuit).exception._tag).toBe(
         'NOT_ALLOWED',
       );
     }
@@ -311,7 +315,7 @@ describe('craftUntilSettled (resource branch)', () => {
 
     hasException.set(true);
     exceptions.set({
-      list: [craftException({ code: 'NOT_ALLOWED', scope: 'UsersFeature' })],
+      list: [craftException({ _tag: 'NOT_ALLOWED', scope: 'UsersFeature' })],
     });
     status.set('resolved');
 

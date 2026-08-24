@@ -10,8 +10,7 @@ Four pages carry most of the weight. Reading them in this order is worth an
 afternoon:
 
 1. [The mental model](/guide/concepts/mental-model) — the principles the API
-   follows, and [what craft adds to
-   Angular](/guide/concepts/vs-angular) if you want the inventory first
+   follows and the guarantees they provide
 2. [Which primitive should I use?](/guide/concepts/choose-primitive) — the
    five-way decision you make constantly
 3. [Anatomy of a primitive](/guide/concepts/primitive-anatomy) — the shape all
@@ -41,7 +40,6 @@ afternoon:
 [Service scopes](/guide/app/service-scopes) ·
 [Shaping the public API](/guide/app/expose-api) ·
 [Abstract services](/guide/app/abstract-services) ·
-[Integrating existing Angular code](/guide/app/integrate-existing) ·
 [App start](/guide/app/app-start) ·
 [Lazy services](/guide/app/lazy-services)
 
@@ -65,11 +63,12 @@ afternoon:
 
 [Components](/guide/components/) ·
 [Fine-grained reactivity](/guide/components/fine-grained-reactivity) ·
+[Progressive `each`](/guide/components/schedule-each) ·
 [Directives and `.pipe(...)`](/guide/components/directives) ·
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·
 [Encapsulated styles](/guide/components/styles) ·
-[Accessibilité](/guide/components/accessibility)
+[Accessibility](/guide/components/accessibility)
 
 ### Forms
 
@@ -97,6 +96,7 @@ afternoon:
 
 ### Going further
 
+[SSR and hydration](/guide/advanced/ssr-hydration) ·
 [Program operators](/guide/advanced/program-operators) ·
 [Pattern matching](/guide/advanced/pattern-matching) ·
 [Observability](/guide/advanced/observability) ·

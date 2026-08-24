@@ -1,4 +1,3 @@
-import { TestBed } from '@angular/core/testing';
 import { state } from '../state';
 import { mapLens, splitLens } from './field-lens';
 import { insertForm } from './insert-form';
@@ -7,10 +6,23 @@ import { insertSelectFormTree } from './insert-select-form-tree';
 import { insertSubFormField } from './insert-sub-form-field';
 import { cRequired } from './validator';
 import { craftUse } from '../craft-use';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T => {
+  const { injector } = setupCraftServiceTest();
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
 
 describe('insertSubFormField', () => {
-  it('exposes a derived sub-field that reads from the parent', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes a derived sub-field that reads from the parent', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -24,8 +36,8 @@ describe('insertSubFormField', () => {
     });
   });
 
-  it('writes back to the parent through the lens.write function', () => {
-    TestBed.runInInjectionContext(() => {
+  it('writes back to the parent through the lens.write function', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -38,17 +50,17 @@ describe('insertSubFormField', () => {
       );
 
       form.form.selectDate().set('2026-05-11');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(form())).toBe('2026-05-11 12:00');
 
       form.form.selectTime().set('09:30');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(form())).toBe('2026-05-11 09:30');
     });
   });
 
-  it('reflects external parent updates in the sub-field value', () => {
-    TestBed.runInInjectionContext(() => {
+  it('reflects external parent updates in the sub-field value', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -61,13 +73,13 @@ describe('insertSubFormField', () => {
       expect(dateForm.value()).toBe('2026-05-10');
 
       form.form.set('2027-01-01 18:00');
-      TestBed.tick();
+      flushHost();
       expect(dateForm.value()).toBe('2027-01-01');
     });
   });
 
-  it('runs validators registered via nested insertFormAttributes', () => {
-    TestBed.runInInjectionContext(() => {
+  it('runs validators registered via nested insertFormAttributes', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -86,13 +98,13 @@ describe('insertSubFormField', () => {
       expect(dateForm.invalid()).toBe(true);
 
       dateForm.set('2026-05-10');
-      TestBed.tick();
+      flushHost();
       expect(dateForm.valid()).toBe(true);
     });
   });
 
-  it('marks the parent dirty when the sub-field is edited', () => {
-    TestBed.runInInjectionContext(() => {
+  it('marks the parent dirty when the sub-field is edited', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -103,13 +115,13 @@ describe('insertSubFormField', () => {
 
       expect(craftUse(form.form.dirty())).toBe(false);
       form.form.selectDate().set('2026-05-11');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(form.form.dirty())).toBe(true);
     });
   });
 
-  it('round-trips through splitLens (read → set → read)', () => {
-    TestBed.runInInjectionContext(() => {
+  it('round-trips through splitLens (read → set → read)', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -125,14 +137,14 @@ describe('insertSubFormField', () => {
       const timeForm = form.form.selectTime();
       const initialDate = dateForm.value();
       dateForm.set(initialDate);
-      TestBed.tick();
+      flushHost();
       expect(craftUse(form())).toBe('2026-05-10 12:00');
       expect(timeForm.value()).toBe('12:00');
     });
   });
 
-  it('supports two derived sub-fields on the same parent without collision', () => {
-    TestBed.runInInjectionContext(() => {
+  it('supports two derived sub-fields on the same parent without collision', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -149,8 +161,8 @@ describe('insertSubFormField', () => {
     });
   });
 
-  it('caches the derived form so repeated calls return the same instance', () => {
-    TestBed.runInInjectionContext(() => {
+  it('caches the derived form so repeated calls return the same instance', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -165,8 +177,8 @@ describe('insertSubFormField', () => {
     });
   });
 
-  it('mapLens converts string ↔ number for nested numeric editing', () => {
-    TestBed.runInInjectionContext(() => {
+  it('mapLens converts string ↔ number for nested numeric editing', async () => {
+    await runInInjectionContext(async () => {
       const form = craftUse(
         state(
           'form',
@@ -199,7 +211,7 @@ describe('insertSubFormField', () => {
 
       expect(numberForm.value()).toBe(42);
       numberForm.set(43);
-      TestBed.tick();
+      flushHost();
       expect(craftUse(form()).ageStr).toBe('43');
     });
   });

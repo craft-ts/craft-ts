@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
@@ -10,12 +10,13 @@ import {
   img,
   input,
   p,
+  safeUrl,
   section,
   small,
   span,
   ul,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   asyncProcess,
   CraftHttpClient,
@@ -27,7 +28,7 @@ import {
   retry,
   state,
   insertStatePipe,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
 
@@ -104,7 +105,7 @@ const searchBooks = craftGen(function* (term: string) {
         if (RETRYABLE_HTTP_STATUS_CODES.includes(httpStatus)) {
           return craftException(
             {
-              code: 'TransientHttpError',
+              _tag: 'TransientHttpError',
               scope: 'OpenLibrarySearch',
             },
             { status: httpStatus },
@@ -113,7 +114,7 @@ const searchBooks = craftGen(function* (term: string) {
 
         return craftException(
           {
-            code: 'SearchHttpError',
+            _tag: 'SearchHttpError',
             scope: 'OpenLibrarySearch',
           },
           { status: httpStatus },
@@ -306,7 +307,9 @@ const DebouncedWebSearch = craftComponent(
                   a('book',
                     {
                       href: function* () {
-                        return (yield* book()).url;
+                        // URL fournie par une API tierce : elle passe par le
+                        // garde-fou avant d'atterrir dans le DOM.
+                        return safeUrl((yield* book()).url);
                       },
                       target: '_blank',
                       rel: 'noreferrer',

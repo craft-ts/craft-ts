@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-import { TestBed } from '@angular/core/testing';
-import { setupCraftComponentLogicTest } from '@craft-ng/component';
-import { craftUse } from '@craft-ng/core';
+import { TestBed } from '@craft-ts/core';
+import { setupCraftComponentLogicTest } from '@craft-ts/component';
+import { craftUse } from '@craft-ts/core';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { initDocsAngularTestBed } from '../../angular-test-bed';
 
 // #region user-card
 import {
@@ -13,8 +12,8 @@ import {
   craftComponent,
   div,
   span,
-} from '@craft-ng/component';
-import { deepYieldable } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { deepYieldable } from '@craft-ts/core';
 
 type User = { name: string };
 
@@ -39,7 +38,6 @@ const UserCard = craftComponent(
 // #endregion user-card
 
 beforeAll(() => {
-  initDocsAngularTestBed();
 });
 
 beforeEach(() => {

@@ -1,0 +1,104 @@
+graph TD
+  n0[/"appConfig"/]
+  n1["ServerFunctionDemo"]
+  n2["AiContextMenu"]
+  n3["AiSendDialog"]
+  n4["craftPending"]
+  n5["CraftRouterOutlet"]
+  n6["AnonymousComponent@800"]
+  n7["craftComputed:isAdmin"]
+  n8["craftComputed:accessDenied"]
+  n9["craftComputed:hasUsers"]
+  n10["craftComputed:isEmpty"]
+  n11["craftComputed:requestTitle"]
+  n12["craftComputed:requestDetail"]
+  n13["craftComputed:resultCount"]
+  n14["craftComputed:currentUser"]
+  n15["craftMethod:submitSearch"]
+  n16["state:searchInput"]
+  n17["state:searchTerm"]
+  n18["craftMethod:setInstruction"]
+  n19["craftMethod:setCopied"]
+  n20["state:instruction"]
+  n21["state:copied"]
+  n22["state:searchTerm.submit"]
+  n23["demo.users.authenticated-list"]
+  n24["demo.users.list"]
+  n25["demo.users.authenticated-list"]
+  n26["demo.users.list"]
+  n27["demo.users.authenticated-list"]
+  n28["demo.users.list"]
+  n29(["BrowserCryptoService"])
+  n30(["BrowserDocumentService"])
+  n31(["BrowserHistoryService"])
+  n32(["BrowserLocationService"])
+  n33(["BrowserNavigatorService"])
+  n34(["BrowserPerformanceService"])
+  n35(["BrowserWindowService"])
+  n36(["ConsoleService"])
+  n37(["CookiesService"])
+  n38(["LocalStorageService"])
+  n39(["SessionStorageService"])
+  n40(["api"])
+  n41(["HostName"])
+  n42(["GlobalPersisterHandlerService"])
+  n43(["ServerFunctionTransport"])
+  n44(["LocalStoragePersister"])
+  n45(["SessionStoragePersister"])
+  n46(["StoragePersister"])
+  n47(["CurrentUser"])
+  n48(["UserRepository"])
+  n49["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
+  n50["source$ (source$) — libs/core/src/lib/insert-select.ts"]
+  n51["signalSource (signalSource)"]
+  n52["searchForm"]
+  n53["filterInput"]
+  n54["searchButton"]
+  n55["aiContextMenu"]
+  n56["aiSendToIa"]
+  n57["aiDialogClose"]
+  n58["aiDialogInstruction"]
+  n59["aiDialogCancel"]
+  n60["aiDialogCopy"]
+  n61["\"demo.users.authenticated-list\""]
+  n62["\"demo.users.list\""]
+  n1 -->|calls| n15
+  n1 -->|contains| n7
+  n1 -->|contains| n8
+  n1 -->|contains| n9
+  n1 -->|contains| n10
+  n1 -->|contains| n11
+  n1 -->|contains| n12
+  n1 -->|contains| n13
+  n1 -->|contains| n14
+  n1 -->|contains| n15
+  n1 -->|contains| n16
+  n1 -->|contains| n17
+  n1 -->|contains| n52
+  n1 -->|contains| n53
+  n1 -->|contains| n54
+  n1 -->|uses-property| n14
+  n1 -->|uses-property| n16
+  n2 -->|contains| n55
+  n2 -->|contains| n56
+  n3 -->|contains| n18
+  n3 -->|contains| n19
+  n3 -->|contains| n20
+  n3 -->|contains| n21
+  n3 -->|contains| n57
+  n3 -->|contains| n58
+  n3 -->|contains| n59
+  n3 -->|contains| n60
+  n7 -->|depends-on| n14
+  n8 -->|depends-on| n14
+  n10 -->|depends-on| n14
+  n11 -->|depends-on| n14
+  n12 -->|depends-on| n14
+  n15 -->|calls| n22
+  n15 -->|depends-on| n7
+  n15 -->|depends-on| n16
+  n17 -->|contains| n22
+  n23 -->|contains| n25
+  n23 -->|contains| n27
+  n24 -->|contains| n26
+  n24 -->|contains| n28

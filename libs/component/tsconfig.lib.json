@@ -9,7 +9,7 @@
     "types": []
   },
   "include": ["**/*.ts"],
-  "exclude": ["**/*.spec.ts", "**/*.test.ts"],
+  "exclude": ["**/*.spec.ts", "**/*.test.ts", "vitest.config.ts"],
   "references": [
     {
       "path": "../test-type/tsconfig.lib.json"

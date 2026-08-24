@@ -100,7 +100,7 @@ insertFormSubmit(createTask, {
       const clash = submitCraftResource.exceptions()?.loader
         ?.TITLE_ALREADY_EXISTS;
       if (!clash) return undefined;
-      return craftException({ code: 'PICK_ANOTHER_TITLE' }, clash.payload);
+      return craftException({ _tag: 'PICK_ANOTHER_TITLE' }, clash.payload);
     },
   ],
 });

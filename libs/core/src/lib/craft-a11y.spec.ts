@@ -1,39 +1,21 @@
-import '@angular/compiler';
-import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { provideRouter, Router, TitleStrategy } from '@angular/router';
+  TitleStrategy,
+} from './host/craft-router-types';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { isCraftLoadingFeature } from './craft-pending';
 import {
   CRAFT_A11Y_NAVIGATION_FOCUS,
-  CraftTitleStrategy,
+  createCraftTitleStrategy,
   withA11yNavigationFocus,
 } from './craft-a11y';
+import {
+  CRAFT_MATCH,
+  CRAFT_ROUTER,
+  provideCraftRouter as provideRouter,
+} from './craft-router';
 
-@Component({
-  standalone: true,
-  template: '',
-})
 class TitleProbeComponent {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craft a11y navigation', () => {
   it('exposes withA11yNavigationFocus as a loading feature', () => {
@@ -61,10 +43,11 @@ describe('craft a11y navigation', () => {
             component: TitleProbeComponent,
           },
         ]),
-        { provide: TitleStrategy, useClass: CraftTitleStrategy },
+        { provide: TitleStrategy, useFactory: createCraftTitleStrategy },
       ],
     });
-    const router = TestBed.inject(Router);
+    TestBed.inject(CRAFT_MATCH);
+    const router = TestBed.inject(CRAFT_ROUTER);
     await router.navigateByUrl('/hello');
     expect(document.title).toBe('Hello page');
   });

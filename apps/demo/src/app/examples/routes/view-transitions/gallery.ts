@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   craftComponent,
@@ -9,11 +9,11 @@ import {
   span,
   ul,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftMethod,
   CraftRouter,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { PHOTOS } from './photos';
 
 const ViewTransitionsGalleryComponent = craftComponent(

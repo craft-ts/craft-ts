@@ -1,5 +1,6 @@
-import { CommonModule } from '@angular/common';
-import { Component, input } from '@angular/core';
+import {
+  signal as craftSignal,
+} from '../host/craft-compat';
 import { Equal, Expect } from 'test-type';
 import { describe, expectTypeOf, it } from 'vitest';
 import {
@@ -18,7 +19,7 @@ import type {
 describe('GetDeps', () => {
   it('computes missing providers from requirement-scoped service deps', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -47,7 +48,7 @@ describe('GetDeps', () => {
 
   it('removes provided keys from derived service missing providers', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
         decrement: () => 0,
@@ -106,17 +107,13 @@ describe('GetDeps', () => {
 
   it('ignores child component GenDeps when their missingProvider map is empty', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
-    @Component({
-      selector: 'lib-status',
-      template: ` Status `,
-    })
-    class StatusComponent {}
+        class StatusComponent {}
 
     class HttpClient {}
 
@@ -152,17 +149,13 @@ describe('GetDeps', () => {
 
   it('flattens child component missing providers into the parent map', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
-    @Component({
-      selector: 'lib-status',
-      template: ` Status `,
-    })
-    class StatusComponent {}
+        class StatusComponent {}
 
     class HttpClient {}
 
@@ -196,14 +189,14 @@ describe('GetDeps', () => {
 
   it('keeps transitive service missing providers flat at the top level', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
     const { CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         yield* Counter();
 
@@ -234,7 +227,7 @@ describe('GetDeps', () => {
 
   it('extracts tracked helper dependencies through ExtractDeps', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -247,7 +240,7 @@ describe('GetDeps', () => {
 
   it('merges propertiesDeps into missingProvider computation', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
@@ -286,14 +279,14 @@ describe('GetDeps', () => {
 
   it('keeps transitive missing providers from function-scoped property deps', () => {
     const { B } = craftService(
-      { name: 'B', scope: 'toProvide' },
+      { name: 'B', providedIn: 'toProvide' },
       () => ({
         read: () => 'service-b',
       }),
     );
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'function' },
+      { name: 'Counter', providedIn: 'function' },
       function* () {
         const b = yield* B();
 
@@ -322,13 +315,9 @@ describe('GetDeps', () => {
 
 describe('GetPublicComponentProperties', () => {
   it('extracts only input signals from the public component instance surface', () => {
-    @Component({
-      selector: 'lib-login-form',
-      template: ` Login Form `,
-    })
-    class LoginFormComponent {
+        class LoginFormComponent {
       readonly userId = input<string>();
-      readonly userMandatoryId = input.required<string>();
+      readonly userMandatoryId = craftSignal<string>(undefined as never);
       protected readonly protectedField = 'protected';
       private readonly privateField = 'private';
 
@@ -355,13 +344,9 @@ describe('GetPublicComponentProperties', () => {
   });
 
   it('accepts an instance type directly', () => {
-    @Component({
-      selector: 'lib-login-form',
-      template: ` Login Form `,
-    })
-    class LoginFormComponent {
+        class LoginFormComponent {
       readonly userId = input<string>();
-      readonly userMandatoryId = input.required<string>();
+      readonly userMandatoryId = craftSignal<string>(undefined as never);
     }
 
     type PublicProperties = GetPublicComponentProperties<LoginFormComponent>;
@@ -375,13 +360,9 @@ describe('GetPublicComponentProperties', () => {
   });
 
   it('strips internal InputSignal brand symbols — input properties are exposed as plain callables', () => {
-    @Component({
-      selector: 'lib-signal-component',
-      template: ``,
-    })
-    class SignalComponent {
+        class SignalComponent {
       readonly label = input<string>();
-      readonly count = input.required<number>();
+      readonly count = craftSignal<number>(undefined as never);
     }
 
     type PublicProperties = GetPublicComponentProperties<
@@ -399,11 +380,7 @@ describe('GetPublicComponentProperties', () => {
   });
 
   it('omits non-signal public members', () => {
-    @Component({
-      selector: 'lib-mixed-component',
-      template: ``,
-    })
-    class MixedComponent {
+        class MixedComponent {
       readonly value = input<boolean>();
       compute(): string {
         return 'result';

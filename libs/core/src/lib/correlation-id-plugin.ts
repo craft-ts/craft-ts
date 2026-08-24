@@ -3,9 +3,10 @@ import {
   Injector,
   provideAppInitializer,
   runInInjectionContext,
+  untracked,
   type EnvironmentProviders,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   CORRELATION_ID_SERVICE,
   createCorrelationIdService,
@@ -26,7 +27,7 @@ const correlationIdDomEventHook: CraftDomEventHook = (interaction, next) => {
   return next();
 };
 
-const POPSTATE_COUNTER_KEY = '__craftNgNavCounter';
+const POPSTATE_COUNTER_KEY = '__craftTsNavCounter';
 
 function initPopstateTracking(injector: Injector): void {
   if (typeof window === 'undefined') return;
@@ -63,11 +64,19 @@ function initPopstateTracking(injector: Injector): void {
 const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   const service = (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    scope: 'function' as const,
+    providedIn: 'function' as const,
     resolve: (injector: Injector) => injector.get(CORRELATION_ID_SERVICE, null),
   }) as ReturnType<typeof createCorrelationIdService> | null;
 
-  const startCorrelationId = service?.lastCorrelationId() ?? null;
+  // Untracked, and this is load-bearing: this wrapper runs inside EVERY craft
+  // factory execution, template bindings included, so a tracked read here
+  // subscribes every binding in the application to `lastCorrelationId`. The DOM
+  // event hook writes that signal on every interaction — so one click would
+  // invalidate every binding on the page, whatever its real dependencies.
+  // The correlation id is ambient observability metadata: it describes the
+  // computation, it is never an input to it.
+  const startCorrelationId =
+    untracked(() => service?.lastCorrelationId()) ?? null;
   const previousStartId = getCurrentStartCorrelationId();
   setCurrentStartCorrelationId(startCorrelationId);
 

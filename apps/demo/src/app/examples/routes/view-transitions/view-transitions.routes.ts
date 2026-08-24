@@ -4,6 +4,7 @@ import {
   craftExceptionHandler,
   craftGen,
   craftRoutes,
+  craftRouteTarget,
   craftService,
   query,
   craftRoute,
@@ -14,18 +15,16 @@ import {
   type ComponentDepsOf,
   type ParentRoutes,
   type RouteCheckedDI,
-} from '@craft-ng/core';
-import type { Router } from '@angular/router';
+} from '@craft-ts/core';
 import {
-  CraftPendingComponentHost,
   loadCraftComponent,
   provideCraftPendingComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import PhotoSkeleton from './photo-skeleton';
 
 // --- View Transitions demo (gallery → detail, shared-element morph) ----------
-// Two routes showcasing Angular's `withViewTransitions()` feature, mixed into
-// `provideCraftRouter` in `app.config.ts`. The gallery ('') and the detail
+// Two routes showcasing Craft's `withCraftViewTransitions()` feature, mixed
+// into `provideCraftRouter` in `app.config.ts`. The gallery ('') and the detail
 // (':photoId') share a `view-transition-name` per artwork, so the browser morphs
 // the clicked tile into the detail hero (and back).
 //
@@ -40,7 +39,7 @@ import PhotoSkeleton from './photo-skeleton';
 // UI. Cached global query, so the FIRST detail visit is slow and a revisit is
 // instant; use the 🗑️ Clear Cache button to replay the pending state.
 const { ViewTransitionAccess } = craftService(
-  { name: 'ViewTransitionAccess', scope: 'global' },
+  { name: 'ViewTransitionAccess', providedIn: 'global' },
   function* () {
     const viewTransitionAccess = yield* query('viewTransitionAccess', {
       params: () => true,
@@ -59,14 +58,10 @@ const slowDetailGuard = craftGen(function* () {
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses
   // `craftRoute()`'s `Def` inference). `handleExceptions` routes it after commit.
-  return access.allowed ? access : craftException({ code: 'DENIED' });
+  return access.allowed ? access : craftException({ _tag: 'DENIED' });
 });
 
-export const {
-  viewTransitionsRoutes,
-  injectViewTransitionsPhotoIdParams,
-  injectViewTransitionsPhotoIdViewTransition,
-} = craftRoutes('viewTransitions', [
+export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
   {
     path: '',
     ...loadCraftComponent(({ withRetry }) =>
@@ -93,10 +88,10 @@ export const {
         name: string;
         image: string | null;
       }>(),
-      pendingComponent: CraftPendingComponentHost,
+      pendingComponent: craftRouteTarget(PhotoSkeleton),
       // `resolve` is intentionally handled by CraftRouterOutlet after the URL
-      // commits. A slow Angular `canActivate` would block route activation and
-      // leave the pending component with no outlet to render into.
+      // commits: a blocking guard would activate the route only once it
+      // settled, leaving the pending component with no outlet to render into.
       resolve: function* () {
         return yield* slowDetailGuard();
       },
@@ -107,7 +102,7 @@ export const {
         return redirectUrl('/view-transitions');
       }),
     },
-  ),
+  ) as never,
   // Pin this lazy child collection to its mount path: the `loadChildren` slot of
   // the `view-transitions` route in `app.routes` only accepts a collection
   // branded for that exact path — a wrong placement is a compile error.
@@ -121,7 +116,7 @@ assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 type _CheckViewTransitionsGalleryDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./gallery'))['default']>,
   'CraftRouter',
-  Router,
+  never,
   'component: view-transitions gallery'
 >;
 type _CanRunViewTransitionsGallery = CanRun<_CheckViewTransitionsGalleryDI>;
@@ -129,7 +124,7 @@ type _CanRunViewTransitionsGallery = CanRun<_CheckViewTransitionsGalleryDI>;
 type _CheckViewTransitionsDetailDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./photo-detail'))['default']>,
   'CraftRouter',
-  Router,
+  never,
   'component: view-transitions/:photoId',
   'photoId'
 >;
@@ -139,7 +134,7 @@ type _CanRunViewTransitionsDetail = CanRun<_CheckViewTransitionsDetailDI>;
 type _CheckViewTransitionsPendingDI = RouteCheckedDI<
   ComponentDepsOf<typeof PhotoSkeleton>,
   'ViewTransitionsPhotoIdParams' | 'ViewTransitionsPhotoIdViewTransition',
-  Router,
+  never,
   'pending component: view-transitions/:photoId',
   'photoId' | 'viewTransition'
 >;

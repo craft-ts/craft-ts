@@ -1,9 +1,8 @@
 import eslint from '@eslint/js';
-import angular from 'angular-eslint';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
-import craftRules from '@craft-ng/dev-tools/eslint-rules';
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
 import { craftDemoRules } from './craft-eslint-rules.mjs';
 
 export default defineConfig([
@@ -13,7 +12,6 @@ export default defineConfig([
       eslint.configs.recommended,
       ...tseslint.configs.recommended,
       ...tseslint.configs.stylistic,
-      angular.configs.tsRecommended,
     ],
     languageOptions: {
       parserOptions: {
@@ -22,9 +20,8 @@ export default defineConfig([
       },
     },
     plugins: {
-      'craft-ng': craftRules,
+      'craft-ts': craftRules,
     },
-    processor: angular.processInlineTemplates,
     rules: {
       ...craftDemoRules,
       // Keep the standalone release config aligned with the workspace demo
@@ -47,16 +44,13 @@ export default defineConfig([
   {
     files: ['**/src/app/function-registry.ts'],
     rules: {
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/no-throw': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
     files: ['**/src/app/function-registry.spec.ts'],
     rules: {
-      'craft-ng/prefer-craft-computed': 'off',
-      'craft-ng/no-craft-computed-side-effects': 'off',
+      'craft-ts/no-craft-computed-side-effects': 'off',
     },
   },
   {
@@ -65,13 +59,12 @@ export default defineConfig([
       '**/src/app/query-params.utils.ts',
     ],
     rules: {
-      'craft-ng/no-throw': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
     files: ['**/src/app/template-trace-demo.ts'],
     rules: {
-      'craft-ng/no-angular-inject': 'off',
     },
   },
   {
@@ -80,67 +73,54 @@ export default defineConfig([
       '**/src/app/log-forwarder.ts',
     ],
     rules: {
-      'craft-ng/no-direct-temporal-globals': 'off',
+      'craft-ts/no-direct-temporal-globals': 'off',
     },
   },
   {
     files: ['**/*.html'],
     extends: [
-      angular.configs.templateRecommended,
-      angular.configs.templateAccessibility,
     ],
   },
   {
     files: ['**/*.spec.ts', '**/*.test.ts'],
     rules: {
-      'craft-ng/prefer-craft-template-blocks': 'off',
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/prefer-craft-effect': 'off',
-      'craft-ng/no-async-await': 'off',
-      'craft-ng/no-throw': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/no-async-await': 'off',
+      'craft-ts/no-throw': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {
     files: ['**/e2e/**/*.ts', '**/playwright.config.ts'],
     rules: {
-      'craft-ng/craft-method-name-match': 'off',
-      'craft-ng/craft-computed-name-match': 'off',
-      'craft-ng/craft-source-name-match': 'off',
-      'craft-ng/craft-signal-source-name-match': 'off',
-      'craft-ng/craft-component-name-match': 'off',
-      'craft-ng/craft-directive-name-match': 'off',
-      'craft-ng/no-angular-inject': 'off',
-      'craft-ng/no-angular-signal-forms': 'off',
-      'craft-ng/no-direct-temporal-globals': 'off',
-      'craft-ng/prefer-craft-template-blocks': 'off',
-      'craft-ng/no-render-writes': 'off',
-      'craft-ng/require-reactive-template-bindings': 'off',
-      'craft-ng/prefer-craft-computed': 'off',
-      'craft-ng/prefer-craft-reactivity': 'off',
-      'craft-ng/prefer-craft-http-client': 'off',
-      'craft-ng/prefer-craft-http-transport': 'off',
-      'craft-ng/prefer-craft-input-output': 'off',
-      'craft-ng/prefer-craft-state': 'off',
-      'craft-ng/prefer-craft-effect': 'off',
-      'craft-ng/no-imperative-craft-resource-trigger': 'off',
-      'craft-ng/require-craft-resource-trigger-yield': 'off',
-      'craft-ng/require-yieldable-template-method': 'off',
-      'craft-ng/require-craft-method-for-yieldable-callback': 'off',
-      'craft-ng/require-yieldable-reactive-read': 'off',
-      'craft-ng/no-ephemeral-template-form-state': 'off',
-      'craft-ng/template-element-name-unique': 'off',
-      'craft-ng/require-primitive-context': 'off',
-      'craft-ng/require-primitive-derived-property': 'off',
-      'craft-ng/no-async-await': 'off',
-      'craft-ng/no-throw': 'off',
+      'craft-ts/craft-method-name-match': 'off',
+      'craft-ts/craft-computed-name-match': 'off',
+      'craft-ts/craft-source-name-match': 'off',
+      'craft-ts/craft-signal-source-name-match': 'off',
+      'craft-ts/craft-component-name-match': 'off',
+      'craft-ts/craft-directive-name-match': 'off',
+      'craft-ts/no-direct-temporal-globals': 'off',
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/no-render-writes': 'off',
+      'craft-ts/require-reactive-template-bindings': 'off',
+      'craft-ts/prefer-craft-http-transport': 'off',
+      'craft-ts/no-imperative-craft-resource-trigger': 'off',
+      'craft-ts/require-craft-resource-trigger-yield': 'off',
+      'craft-ts/require-yieldable-template-method': 'off',
+      'craft-ts/require-craft-method-for-yieldable-callback': 'off',
+      'craft-ts/require-yieldable-reactive-read': 'off',
+      'craft-ts/no-ephemeral-template-form-state': 'off',
+      'craft-ts/template-element-name-unique': 'off',
+      'craft-ts/require-primitive-context': 'off',
+      'craft-ts/require-primitive-derived-property': 'off',
+      'craft-ts/no-async-await': 'off',
+      'craft-ts/no-throw': 'off',
     },
   },
   {
     files: ['**/*.spec.ts', '**/*.test.ts', '**/e2e/**/*.ts'],
     rules: {
-      'craft-ng/prefer-browser-boundaries': 'off',
+      'craft-ts/prefer-browser-boundaries': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },

@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './granular-mutation.css' with { loader: 'text' };
 import {
   button,
@@ -8,6 +8,7 @@ import {
   main,
   option,
   select,
+  pendingBlock,
   span,
   table,
   thead,
@@ -16,7 +17,7 @@ import {
   heading,
   tr,
   tbody,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   insertQueryPipe,
   insertStoragePersister,
@@ -27,7 +28,7 @@ import {
   mutation,
   query,
   queryParams,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -94,10 +95,15 @@ const GranularMutation = craftComponent(
         }),
       ),
     );
+    function* isUpdatePending(user: User) {
+      const pending = updateUserName.select(user.id);
+      return pending ? yield* pending.isLoading() : false;
+    }
     return {
       pagination,
       updateUserName,
       usersQuery,
+      isUpdatePending,
       updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
         yield* pagination.updatePageSize(
           Number((event.target as HTMLSelectElement).value),
@@ -105,16 +111,22 @@ const GranularMutation = craftComponent(
       }),
     };
   },
-  ({ pagination, updatePageSize, updateUserName, usersQuery }) =>
+  ({ pagination, updatePageSize, updateUserName, usersQuery, isUpdatePending }) =>
     div({ class: 'container' }, [
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
             heading({ class: 'card-title' }, [
               'User Management: ',
-              StatusComponent({
-                status: usersQuery.currentPageStatus,
-              }),
+              // `currentPageStatus` is a settled read: it suspends whenever the
+              // page on screen has no value of its own. Its own boundary keeps
+              // the suspension off the rows, which the placeholder insertion
+              // keeps showing across a page change.
+              span({}, [
+                StatusComponent({
+                  status: usersQuery.currentPageStatus,
+                }),
+              ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
             ]),
             div({ class: 'table-container' }, [
               table( { class: 'table' }, [
@@ -139,9 +151,11 @@ const GranularMutation = craftComponent(
                             { type: 'button',
                               class: 'action-btn',
                               disabled: function* () {
-                                return updateUserName
-                                  .select((yield* user()).id)
-                                  ?.isLoading();
+                                // `isLoading()` is a reactive read: without
+                                // `yield*` it returns the generator itself,
+                                // which is truthy — every button rendered
+                                // disabled before it had ever been clicked.
+                                return yield* isUpdatePending(yield* user());
                               },
                               *click() {
                                 yield* updateUserName.mutate(yield* user());

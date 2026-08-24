@@ -7,10 +7,10 @@ useSnippetHarness();
 type Task = { id: string; title: string; done: boolean };
 
 // #region search-query
-import { CraftHttpClient, craftService, query } from '@craft-ng/core';
+import { CraftHttpClient, craftService, query } from '@craft-ts/core';
 
 export const { TaskSearch } = craftService(
-  { name: 'TaskSearch', scope: 'function' },
+  { name: 'TaskSearch', providedIn: 'function' },
   function* () {
     const { searchQuery } =
       yield *

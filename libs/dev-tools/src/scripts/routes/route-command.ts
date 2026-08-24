@@ -264,23 +264,25 @@ export async function runRouteAdd(
     const componentSource =
       project.getSourceFile(componentTarget.filePath) ??
       addSourceFileFromWorkspace(project, componentTarget.filePath, fileSystem);
-    if (
-      !componentSource ||
-      !ensureGenDeps(componentSource, componentTarget.className)
-    ) {
+    if (!componentSource) {
       return failed(
         'COMPONENT_NOT_FOUND',
-        `Could not generate GenDeps_${componentTarget.className} in ${componentTarget.filePath}.`,
+        `Could not read ${componentTarget.filePath}.`,
         plan,
       );
     }
+    const hasGenDeps = ensureGenDeps(componentSource, componentTarget.className);
     const moduleSpecifier = relativeModuleSpecifier(
       targetCollection.sourceFile.getFilePath(),
       componentTarget.filePath,
     );
     targetCollection.routes.addElement(
-      `craftRoute(${quote(featureDecision.localRoutePath)}, {
-        componentDeps: {} as import(${quote(moduleSpecifier)}).GenDeps_${componentTarget.className},
+      `craftRoute(${quote(featureDecision.localRoutePath)}, {${
+        hasGenDeps
+          ? `
+        componentDeps: {} as import(${quote(moduleSpecifier)}).GenDeps_${componentTarget.className},`
+          : ''
+      }
         loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) => withRetry(import(${quote(
           moduleSpecifier,
         )})).then((m) => m.${componentTarget.className}),
@@ -793,7 +795,7 @@ function ensureFeatureCollection(
     : '';
   const sourceFile = project.createSourceFile(
     decision.targetFilePath,
-    `import { assertExhaustiveRouteExceptions, craftRoutes, type CanRun, type ParentRoutes, type ValidateCascadeRoutesFile } from '@craft-ng/core';\n` +
+    `import { assertExhaustiveRouteExceptions, craftRoutes, type CanRun, type ParentRoutes, type ValidateCascadeRoutesFile } from '@craft-ts/core';\n` +
       `import type { Router } from '@angular/router';\n\n` +
       `export const { ${routesName} } = craftRoutes(${quote(
         decision.collectionName,
@@ -989,21 +991,27 @@ async function createAngularComponent(
     return {
       diagnostic: {
         code: 'COMPONENT_NOT_FOUND',
-        message: `Angular CLI completed but ${basename(name)}.ts could not be located.`,
+        message: `Component generation completed but ${basename(name)}.ts could not be located.`,
       },
     };
   }
   const source = new Project().addSourceFileAtPath(filePath);
   const decorated = findAngularDecoratedClass(source);
-  if (decorated.skipped || !decorated.className) {
+  const exportedName =
+    decorated.className ??
+    source
+      .getVariableDeclarations()
+      .find((declaration) => declaration.isExported())
+      ?.getName();
+  if (!exportedName) {
     return {
       diagnostic: {
         code: 'COMPONENT_NOT_FOUND',
-        message: `Generated component class could not be inferred in ${filePath}.`,
+        message: `Generated component could not be inferred in ${filePath}.`,
       },
     };
   }
-  return { component: { filePath, className: decorated.className } };
+  return { component: { filePath, className: exportedName } };
 }
 
 function resolveAngularProjectName(
@@ -1036,7 +1044,16 @@ function resolveAngularProjectName(
     : undefined;
 }
 
+/**
+ * Craft SFCs infer their contract from the component itself, so a missing
+ * GenDeps alias is not an error: the route simply omits `componentDeps`.
+ */
 function ensureGenDeps(sourceFile: SourceFile, className: string): boolean {
+  // Already declared (hand-written, or branded by a previous run).
+  if (sourceFile.getTypeAlias(`GenDeps_${className}`)) return true;
+  // Only an Angular-decorated class can have one generated for it; a Craft SFC
+  // carries its contract itself, so the route just omits `componentDeps`.
+  if (!findAngularDecoratedClass(sourceFile).className) return false;
   generateAngularDependencies(sourceFile);
   return Boolean(sourceFile.getTypeAlias(`GenDeps_${className}`));
 }
@@ -1388,7 +1405,7 @@ function rewriteRelativeSpecifiers(
 function ensureImport(
   sourceFile: SourceFile,
   name: string,
-  moduleSpecifier = '@craft-ng/core',
+  moduleSpecifier = '@craft-ts/core',
 ): void {
   const declaration = sourceFile
     .getImportDeclarations()
@@ -1409,7 +1426,7 @@ function ensureImport(
 function ensureTypeImport(
   sourceFile: SourceFile,
   name: string,
-  moduleSpecifier = '@craft-ng/core',
+  moduleSpecifier = '@craft-ts/core',
 ): void {
   if (
     sourceFile

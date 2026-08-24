@@ -1,16 +1,15 @@
+import {
+  Signal,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { asyncProcess } from './async-process';
-import { Signal, signal } from '@angular/core';
 import { CraftResourceStatus } from './util/craft-resource-status';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
-import { TestBed } from '@angular/core/testing';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';
 import {
@@ -46,21 +45,6 @@ function removeMethod<T extends object>(resource: T): Omit<T, 'method'> {
   const { method: _method, ...rest } = resource as T & { method?: unknown };
   return rest as Omit<T, 'method'>;
 }
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('AsyncProcess', () => {
   beforeEach(() => {
@@ -209,20 +193,20 @@ describe('AsyncProcess', () => {
 
   it('typing: tracks generator dependencies from method, loader and insertions', () => {
     const { AsyncParams } = craftService(
-      { name: 'AsyncParams', scope: 'global' },
+      { name: 'AsyncParams', providedIn: 'global' },
       () => ({
         normalize: (userId: string): string => userId.trim(),
       }),
     );
     const { AsyncApi } = craftService(
-      { name: 'AsyncApi', scope: 'global' },
+      { name: 'AsyncApi', providedIn: 'global' },
       () => ({
         load: (userId: string): Promise<{ userId: string }> =>
           Promise.resolve({ userId }),
       }),
     );
     const { AsyncTools } = craftService(
-      { name: 'AsyncTools', scope: 'global' },
+      { name: 'AsyncTools', providedIn: 'global' },
       () => ({
         key: (): string => 'async-user',
       }),
@@ -262,7 +246,7 @@ describe('AsyncProcess', () => {
   it('should resolve generator method, loader and insertions', async () => {
     const logs: string[] = [];
     const { AsyncLoggerRuntime } = craftService(
-      { name: 'AsyncLoggerRuntime', scope: 'global' },
+      { name: 'AsyncLoggerRuntime', providedIn: 'global' },
       () => ({
         log: (message: string) => {
           logs.push(message);
@@ -270,7 +254,7 @@ describe('AsyncProcess', () => {
       }),
     );
     const { AsyncApiRuntime } = craftService(
-      { name: 'AsyncApiRuntime', scope: 'global' },
+      { name: 'AsyncApiRuntime', providedIn: 'global' },
       () => ({
         load: async (userId: string): Promise<{ userId: string }> => ({
           userId,
@@ -314,10 +298,10 @@ describe('AsyncProcess', () => {
 });
 
 describe('AsyncProcess types without identifier', () => {
-  it('should infer correctly the types of AsyncProcess', () => {
+  it('should infer correctly the types of AsyncProcess', async () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -443,13 +427,13 @@ describe('AsyncProcess types without identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -557,7 +541,7 @@ describe('AsyncProcess types without identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a method', () => {
+  it('should infer correctly the AsyncProcess bind to a method', async () => {
     TestBed.runInInjectionContext(() => {
       const _AsyncProcessOutput = craftUse(
         asyncProcess('_AsyncProcessOutput', {
@@ -594,7 +578,7 @@ describe('AsyncProcess types without identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(
         'searchSource',
@@ -658,10 +642,10 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the types of AsyncProcess', () => {
+  it('should infer correctly the types of AsyncProcess', async () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -790,13 +774,13 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
       const { AsyncProcessOutput } = craftService(
-        { name: 'AsyncProcessOutput', scope: 'function' },
+        { name: 'AsyncProcessOutput', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
@@ -902,7 +886,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a method', () => {
+  it('should infer correctly the AsyncProcess bind to a method', async () => {
     TestBed.runInInjectionContext(() => {
       const _AsyncProcessOutput = craftUse(
         asyncProcess('_AsyncProcessOutput', {
@@ -934,7 +918,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source', async () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(
         'searchSource',
@@ -980,14 +964,14 @@ describe('asyncProcess exceptions', () => {
             method: (value: string) =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID_Param' },
+                    { _tag: 'INVALID_USER_ID_Param' },
                     { reason: 'missing' as const },
                   )
                 : value,
             loader: async ({ params }) => {
               return shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID_Loader' },
+                    { _tag: 'INVALID_USER_ID_Loader' },
                     { reason: 'missing' as const },
                   )
                 : {
@@ -1009,7 +993,7 @@ describe('asyncProcess exceptions', () => {
                         list: (
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Param';
+                                _tag: 'INVALID_USER_ID_Param';
                                 scope: 'params';
                               },
                               {
@@ -1018,7 +1002,7 @@ describe('asyncProcess exceptions', () => {
                             >
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Loader';
+                                _tag: 'INVALID_USER_ID_Loader';
                                 scope: 'loader';
                               },
                               {
@@ -1029,7 +1013,7 @@ describe('asyncProcess exceptions', () => {
                         params?:
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Param';
+                                _tag: 'INVALID_USER_ID_Param';
                                 scope: 'params';
                               },
                               {
@@ -1040,7 +1024,7 @@ describe('asyncProcess exceptions', () => {
                         loader?:
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Loader';
+                                _tag: 'INVALID_USER_ID_Loader';
                                 scope: 'loader';
                               },
                               {
@@ -1075,14 +1059,14 @@ describe('asyncProcess exceptions', () => {
           method: (value: string) =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : value,
           loader: async ({ params }) => {
             return shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : { id: params };
@@ -1097,7 +1081,7 @@ describe('asyncProcess exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -1106,7 +1090,7 @@ describe('asyncProcess exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'loader';
               },
               {
@@ -1128,7 +1112,7 @@ describe('asyncProcess exceptions', () => {
           method: (value: string) =>
             shouldFailMethod()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : value,
@@ -1136,7 +1120,7 @@ describe('asyncProcess exceptions', () => {
           loader: async ({ params }) => {
             return shouldFailLoader()
               ? craftException(
-                  { code: 'API_ERROR' },
+                  { _tag: 'API_ERROR' },
                   { reason: 'missing user' as const },
                 )
               : { id: params };
@@ -1151,7 +1135,7 @@ describe('asyncProcess exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -1160,7 +1144,7 @@ describe('asyncProcess exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1174,7 +1158,7 @@ describe('asyncProcess exceptions', () => {
       expectTypeOf(craftUse(asyncProcessRef.exceptions()).params).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'INVALID_USER_ID';
+              _tag: 'INVALID_USER_ID';
               scope: 'params';
             },
             {
@@ -1190,7 +1174,7 @@ describe('asyncProcess exceptions', () => {
             string,
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1213,7 +1197,7 @@ describe('asyncProcess exceptions', () => {
           loader: async () =>
             craftException(
               {
-                code: 'API_ERROR',
+                _tag: 'API_ERROR',
               },
               { reason: 'missing' as const },
             ),
@@ -1229,7 +1213,7 @@ describe('asyncProcess exceptions', () => {
             string,
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1248,7 +1232,7 @@ describe('asyncProcess exceptions', () => {
       ).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1272,13 +1256,13 @@ describe('asyncProcess exceptions', () => {
             failed()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing' as const },
                 )
               : craftException(
                   {
-                    code: 'HTTP_ERROR',
+                    _tag: 'HTTP_ERROR',
                   },
                   { reason: 'disconnected' as const },
                 ),
@@ -1294,7 +1278,7 @@ describe('asyncProcess exceptions', () => {
             string,
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1304,7 +1288,7 @@ describe('asyncProcess exceptions', () => {
               >
             | CraftExceptionResult<
                 {
-                  code: 'HTTP_ERROR';
+                  _tag: 'HTTP_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1318,7 +1302,7 @@ describe('asyncProcess exceptions', () => {
 
       expectTypeOf(
         asyncProcessRef.select('')
-          ? craftUse(asyncProcessRef.select('')!.exceptions()).loader?.code
+          ? craftUse(asyncProcessRef.select('')!.exceptions()).loader?._tag
           : undefined,
       ).toEqualTypeOf<'API_ERROR' | 'HTTP_ERROR' | undefined>();
     });
@@ -1335,7 +1319,7 @@ describe('asyncProcess exceptions', () => {
           method: (value: string) =>
             value.length < 3
               ? craftException(
-                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { _tag: 'SEARCH_TERM_TOO_SHORT' },
                   { min: 3, received: value.length },
                 )
               : value,
@@ -1364,7 +1348,7 @@ describe('asyncProcess exceptions', () => {
           method: (value: string) => value,
           loader: async () =>
             craftException(
-              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { _tag: 'INVALID_USER_ID', scope: 'loader' },
               { from: 'loader' as const },
             ),
         }),
@@ -1388,7 +1372,7 @@ describe('asyncProcess exceptions', () => {
       const asyncProcessRef = craftUse(
         asyncProcess('asyncProcessRef', {
           method: (id: 'A' | 'B') =>
-            craftException({ code: 'INVALID_ID' }, { params: id }),
+            craftException({ _tag: 'INVALID_ID' }, { params: id }),
           identifier: (id) => id,
           loader: async ({ params }) => ({ id: params }),
         }),
@@ -1700,7 +1684,7 @@ describe('asyncProcess — providers', () => {
 
   it('typing: asyncProcess accepts BrandedServiceProvider in providers without type errors', () => {
     const { AsyncService, provideAsyncService } = craftService(
-      { name: 'AsyncService', scope: 'toProvide' },
+      { name: 'AsyncService', providedIn: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 

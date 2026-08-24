@@ -13,7 +13,7 @@ import {
   Signal,
   Type,
   untracked,
-} from '@angular/core';
+} from './host/craft-compat';
 import type { Observable } from 'rxjs';
 import {
   isGenerator,
@@ -43,6 +43,7 @@ import {
   type CRAFT_SERVICE_PROVIDER_TYPE_BRAND,
 } from './craft-service.shared';
 import {
+  COMPONENT_REGISTER,
   ComponentRegister,
   ɵfallbackComponentRegister,
 } from './component-register';
@@ -66,6 +67,12 @@ import {
   type Yieldable,
 } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
+import {
+  craftToken,
+  type CraftToken,
+  ɵregisterCraftTokenHostToken,
+} from './host/craft-injector';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -77,7 +84,7 @@ export const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol(
 );
 export const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
 const SERVICE_RUNTIME_META_GLOBAL = Symbol.for(
-  '@craft-ng/core/service-runtime-meta',
+  '@craft-ts/core/service-runtime-meta',
 );
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 const REGISTERED_SERVICES = new Map<string, ServiceReference>();
@@ -97,7 +104,7 @@ export type ServiceDependencies<
   Derived = undefined,
 > = Simplify<
   {
-    scope: Scope;
+    providedIn: Scope;
     dependencies: Simplify<Dependencies>;
   } & (Derived extends undefined ? {} : Derived)
 >;
@@ -254,7 +261,7 @@ export type BrandedServiceProvider<
 > = Provider & {
   readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
     name: Name;
-    scope: Scope;
+    providedIn: Scope;
     output: Output;
     yielded: Yielded;
   };
@@ -286,7 +293,7 @@ export type ServiceMetaData<
   {
     readonly kind: 'service-meta-data';
     readonly name: Name;
-    readonly scope: Scope;
+    readonly providedIn: Scope;
     readonly browserBoundary: BrowserBoundary;
     readonly appStart: AppStart;
     readonly inject: InjectHelper;
@@ -321,7 +328,7 @@ export type ServiceMetaData<
 type AnyServiceMetaData = {
   readonly kind: 'service-meta-data';
   readonly name: string;
-  readonly scope: ConcreteServiceScope;
+  readonly providedIn: ConcreteServiceScope;
   readonly browserBoundary: boolean;
   readonly appStart: boolean;
   readonly inject: (...args: any[]) => unknown;
@@ -495,17 +502,15 @@ type InputBindings<
 > = keyof Inputs extends never
   ? {}
   : {
-      [Key in keyof Inputs]: PublicInputValue<Inputs[Key]> |
-        AllowedProvidedElsewhere<Scope>;
+      [Key in keyof Inputs]:
+        | PublicInputValue<Inputs[Key]>
+        | AllowedProvidedElsewhere<Scope>;
     };
 
-type PublicInputValue<Value> = Value extends Yieldable<
-  [],
-  infer Resolved,
-  any
->
-  ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
-  : Value;
+type PublicInputValue<Value> =
+  Value extends Yieldable<[], infer Resolved, any>
+    ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
+    : Value;
 
 type PublicInputBindings<
   Inputs extends object,
@@ -721,7 +726,7 @@ export type ServiceTrackingMetadata<
   AppStart extends boolean = false,
 > = {
   name: Name;
-  scope: Scope;
+  providedIn: Scope;
   output: Output;
   yielded: Yielded;
   derived: Derived;
@@ -850,7 +855,7 @@ type DependencyChildren<Node> = Node extends {
   ? Dependencies
   : {};
 
-type DependencyScope<Node> = Node extends { scope: infer Scope }
+type DependencyScope<Node> = Node extends { providedIn: infer Scope }
   ? Scope
   : never;
 
@@ -884,8 +889,18 @@ type MergeDependencyNodes<Left, Right> = ServiceDependencies<
 // generator surfaces its already-built dependency map (keyed by service name) on
 // `ServiceTrackedDepsRequest`; these are folded into the host service tree so
 // dependencies used only inside loaders/effects are detected.
+// An empty dep map has to leave the union BEFORE it is formed: `{} | Map`
+// reduces to `{}` (every object type is assignable to it), which would erase
+// every sibling map — a service mixing a dependency-free primitive with a
+// dependency-carrying one would silently lose the latter.
 type TrackedDepMapOf<Request> =
-  Request extends ServiceTrackedDepsRequest<infer DepMap> ? DepMap : never;
+  Request extends ServiceTrackedDepsRequest<infer DepMap>
+    ? [DepMap] extends [never]
+      ? never
+      : [keyof DepMap] extends [never]
+        ? never
+        : DepMap
+    : never;
 
 type AppStartYieldedOf<Request> =
   Request extends ServiceAppStartRequest<infer AppStartYielded>
@@ -1071,7 +1086,7 @@ type MergeTrackedDependencyUsage<Left, Right> =
 
 type MergeTrackedDependencyNodes<Left, Right> = Simplify<
   {
-    scope: DependencyScope<Left> & DependencyScope<Right>;
+    providedIn: DependencyScope<Left> & DependencyScope<Right>;
     dependencies: MergeTrackedDependencyNodeMaps<
       DependencyChildren<Left>,
       DependencyChildren<Right>
@@ -1112,7 +1127,7 @@ type ResolveTrackedDependencyMetadata<Metadata> =
   >
     ? Simplify<
         {
-          scope: Scope;
+          providedIn: Scope;
           dependencies: BuildTrackedDependencyMap<DependencyRequests<Yielded>>;
         } & WithServiceNodeFlags<
           NormalizeWholeServiceUsage<Derived>,
@@ -1235,7 +1250,7 @@ export type ServiceYieldRequest<
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   name: string;
   readonly [SERVICE_YIELD_METADATA]?: Metadata;
-  scope: Scope;
+  providedIn: Scope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
 
@@ -2104,13 +2119,13 @@ type GlobalTokenDependencyOptions<
   Token extends DependencySourceToken<any>,
 > = {
   name: Name;
-  scope: 'global';
+  providedIn: 'global';
   token: Token;
 };
 
 type GlobalInjectedDependencyOptions<Name extends string, Output> = {
   name: Name;
-  scope: 'global';
+  providedIn: 'global';
   inject: () => Output;
 };
 
@@ -2145,7 +2160,7 @@ type ProviderCapableDependencyOptions<
     AnyDependencyProvideFactory = DependencyProvideFactory<Inputs>,
 > = {
   name: Name;
-  scope: Scope;
+  providedIn: Scope;
   token: Token;
   provide: Provide;
 };
@@ -2219,11 +2234,12 @@ type toCraftServiceTrackingMetadata<
 type ConcreteRuntimeDefinition = {
   factory: AnyFactory;
   name: string;
-  scope: ConcreteServiceScope;
+  providedIn: ConcreteServiceScope;
   browserBoundary: boolean;
   appStart: boolean;
   providers?: readonly Provider[];
   token?: InjectionToken<unknown>;
+  craftToken?: CraftToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
   hasPublicInput: boolean;
@@ -2233,7 +2249,7 @@ type ConcreteRuntimeDefinition = {
   startedAppStartServices: Set<unknown>;
 };
 
-const OMIT_INPUTS_BINDINGS = Symbol('ng-craft.omit-inputs-bindings');
+const OMIT_INPUTS_BINDINGS = Symbol('craft-ts.omit-inputs-bindings');
 type ConcreteServiceBindings =
   | Record<string, unknown>
   | typeof OMIT_INPUTS_BINDINGS;
@@ -2316,7 +2332,7 @@ export type GetMergedServiceDependencyNodeMap<
 export type ServiceBindings<Reference extends ServiceReference> = Partial<
   InputBindings<
     GetServiceInputs<Reference>,
-    Extract<GetServiceReferenceMeta<Reference>['scope'], ConcreteServiceScope>
+    Extract<GetServiceReferenceMeta<Reference>['providedIn'], ConcreteServiceScope>
   >
 >;
 
@@ -2391,10 +2407,7 @@ export function toValue<T>(value: MaybeSignal<T>): T {
 }
 
 function isServiceInputReader(value: unknown): value is ServiceInputReader {
-  return (
-    typeof value === 'function' &&
-    SERVICE_INPUT_SOURCE in value
-  );
+  return typeof value === 'function' && SERVICE_INPUT_SOURCE in value;
 }
 
 function resolveServiceInputSource(value: unknown): unknown {
@@ -2461,12 +2474,12 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * @example
  * Adapt `Router` as a global dependency
  * ```ts
- * import { Router } from '@angular/router';
- * import { toCraftService } from '@craft-ng/core';
+ * import { Router } from './host/craft-router-types';
+ * import { toCraftService } from '@craft-ts/angular';
  *
  * const { Router } = toCraftService({
  *   name: 'Router',
- *   scope: 'global',
+ *   providedIn: 'global',
  *   token: Router,
  * });
  * ```
@@ -2474,14 +2487,14 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * @example
  * Adapt an injected token through the callback form
  * ```ts
- * import { inject, InjectionToken } from '@angular/core';
- * import { toCraftService } from '@craft-ng/core';
+ * import { inject, InjectionToken } from './host/craft-compat';
+ * import { toCraftService } from '@craft-ts/angular';
  *
  * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
  *
  * const { CurrentRoute } = toCraftService({
  *   name: 'CurrentRoute',
- *   scope: 'global',
+ *   providedIn: 'global',
  *   inject: () => inject(CURRENT_ROUTE),
  * });
  * ```
@@ -2489,20 +2502,20 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * @example
  * Adapt a provider-capable dependency for explicit test coverage
  * ```ts
- * import { Router, provideRouter } from '@angular/router';
- * import { toCraftService } from '@craft-ng/core';
+ * import { Router, provideRouter } from './host/craft-router-types';
+ * import { toCraftService } from '@craft-ts/angular';
  *
  * const { provideAppRouter, AppRouterToProvide } = toCraftService({
  *   name: 'AppRouter',
- *   scope: 'manuallyProvidedAtRoot',
+ *   providedIn: 'manuallyProvidedAtRoot',
  *   token: Router,
  *   provide: () => provideRouter([]),
  * });
  * ```
  */
-export function toCraftService<const Name extends string, Output>(options: {
+export function ɵtoCraftService<const Name extends string, Output>(options: {
   name: Name;
-  scope: 'global';
+  providedIn: 'global';
   token: DependencySourceToken<Output>;
   browserBoundary: true;
 }): DependencyApi<
@@ -2512,9 +2525,9 @@ export function toCraftService<const Name extends string, Output>(options: {
   Output,
   ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
 >;
-export function toCraftService<const Name extends string, Output>(options: {
+export function ɵtoCraftService<const Name extends string, Output>(options: {
   name: Name;
-  scope: 'global';
+  providedIn: 'global';
   token: DependencySourceToken<Output>;
   browserBoundary?: false;
 }): DependencyApi<
@@ -2532,7 +2545,7 @@ export function toCraftService<const Name extends string, Output>(options: {
     false
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2540,7 +2553,7 @@ export function toCraftService<
 >(
   options: {
     name: Name;
-    scope: 'global';
+    providedIn: 'global';
     token: DependencySourceToken<Output>;
     browserBoundary: true;
   },
@@ -2566,7 +2579,7 @@ export function toCraftService<
     true
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2574,7 +2587,7 @@ export function toCraftService<
 >(
   options: {
     name: Name;
-    scope: 'global';
+    providedIn: 'global';
     token: DependencySourceToken<Output>;
     browserBoundary?: false;
   },
@@ -2600,7 +2613,7 @@ export function toCraftService<
     false
   >
 >;
-export function toCraftService<const Name extends string, Output>(
+export function ɵtoCraftService<const Name extends string, Output>(
   options: GlobalInjectedDependencyOptions<Name, Output> & {
     browserBoundary: true;
   },
@@ -2611,7 +2624,7 @@ export function toCraftService<const Name extends string, Output>(
   Output,
   ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
 >;
-export function toCraftService<const Name extends string, Output>(
+export function ɵtoCraftService<const Name extends string, Output>(
   options: GlobalInjectedDependencyOptions<Name, Output> & {
     browserBoundary?: false;
   },
@@ -2630,7 +2643,7 @@ export function toCraftService<const Name extends string, Output>(
     false
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2661,7 +2674,7 @@ export function toCraftService<
     true
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Output,
   Inputs extends object,
@@ -2692,7 +2705,7 @@ export function toCraftService<
     false
   >
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2718,7 +2731,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2744,7 +2757,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2788,7 +2801,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService<
+export function ɵtoCraftService<
   const Name extends string,
   Scope extends RealCapableScope,
   Token extends DependencySourceToken<any>,
@@ -2832,7 +2845,7 @@ export function toCraftService<
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
-export function toCraftService(
+export function ɵtoCraftService(
   options:
     | (GlobalTokenDependencyOptions<string, DependencySourceToken<unknown>> & {
         browserBoundary?: boolean;
@@ -2856,7 +2869,7 @@ export function toCraftService(
       ? craftService(
           {
             name: options.name,
-            scope: options.scope,
+            providedIn: options.providedIn,
             browserBoundary: options.browserBoundary,
           },
           (inputs: Record<string, unknown>) => {
@@ -2872,7 +2885,7 @@ export function toCraftService(
       : craftService(
           {
             name: options.name,
-            scope: options.scope,
+            providedIn: options.providedIn,
             browserBoundary: options.browserBoundary,
           },
           () => {
@@ -2942,7 +2955,7 @@ export function toCraftService(
  * - `function`: new instance on each injection
  * - `abstract`: typed contract only, with no concrete implementation
  *
- * Practical recommendations for choosing a scope:
+ * Practical recommendations for choosing a providedIn:
  *
  * - Prefer `function` for a service owned by a single component. It avoids
  *   explicit providers and makes it clear the instance is not meant to be
@@ -2961,10 +2974,10 @@ export function toCraftService(
  * @example
  * Create a global callable counter service
  * ```ts
- * import { craftService, state } from '@craft-ng/core';
+ * import { craftService, state } from '@craft-ts/core';
  *
  * const { Counter } = craftService(
- *   { name: 'Counter', scope: 'global' },
+ *   { name: 'Counter', providedIn: 'global' },
  *   () =>
  *     state(0, ({ update }) => ({
  *       increment: () => update((value) => value + 1),
@@ -2976,7 +2989,7 @@ export function toCraftService(
  * Compose another service through `yield*`
  * ```ts
  * const { Counter } = craftService(
- *   { name: 'Counter', scope: 'global' },
+ *   { name: 'Counter', providedIn: 'global' },
  *   () =>
  *     state(0, ({ update }) => ({
  *       increment: () => update((value) => value + 1),
@@ -2984,7 +2997,7 @@ export function toCraftService(
  * );
  *
  * const { CounterFacade } = craftService(
- *   { name: 'CounterFacade', scope: 'global' },
+ *   { name: 'CounterFacade', providedIn: 'global' },
  *   function* () {
  *     const counter = yield* Counter();
  *
@@ -3000,7 +3013,7 @@ export function toCraftService(
  * Expose only part of a dependency through opaque tokens
  * ```ts
  * const { Counter } = craftService(
- *   { name: 'Counter', scope: 'toProvide' },
+ *   { name: 'Counter', providedIn: 'toProvide' },
  *   () =>
  *     state(0, ({ update }) => ({
  *       increment: () => update((value) => value + 1),
@@ -3009,7 +3022,7 @@ export function toCraftService(
  * );
  *
  * const { CounterExtended } = craftService(
- *   { name: 'CounterExtended', scope: 'toProvide' },
+ *   { name: 'CounterExtended', providedIn: 'toProvide' },
  *   function* () {
  *     return yield* Counter(undefined, ({ $self, increment }) => ({
  *       $self,
@@ -3022,10 +3035,10 @@ export function toCraftService(
  * @example
  * Build a global utility around a browser boundary dependency
  * ```ts
- * import { LocalStorageService, craftService } from '@craft-ng/core';
+ * import { LocalStorageService, craftService } from '@craft-ts/core';
  *
  * const { GlobalPersisterHandlerService } = craftService(
- *   { name: 'GlobalPersisterHandlerService', scope: 'global' },
+ *   { name: 'GlobalPersisterHandlerService', providedIn: 'global' },
  *   function* () {
  *     const storage = yield* LocalStorageService(
  *       undefined,
@@ -3042,7 +3055,7 @@ export function toCraftService(
  *
  *         for (let index = 0; index < storage.length(); index++) {
  *           const keyName = storage.key(index);
- *           if (keyName?.startsWith('ng-craft-')) {
+ *           if (keyName?.startsWith('craft-ts-')) {
  *             keysToRemove.push(keyName);
  *           }
  *         }
@@ -3055,7 +3068,7 @@ export function toCraftService(
  * ```
  */
 export function craftService<Name extends string, Contract>(
-  options: { name: Name; scope: 'abstract' },
+  options: { name: Name; providedIn: 'abstract' },
   marker: AbstractMarker<Contract>,
 ): AbstractServiceApi<Name, Contract>;
 export function craftService<
@@ -3067,7 +3080,7 @@ export function craftService<
 >(
   options: {
     name: Name;
-    scope: Scope;
+    providedIn: Scope;
     requirement: Requirement;
     browserBoundary?: BrowserBoundary;
     appStart: true;
@@ -3095,7 +3108,7 @@ export function craftService<
 >(
   options: {
     name: Name;
-    scope: Scope;
+    providedIn: Scope;
     requirement: Requirement;
     browserBoundary?: BrowserBoundary;
     appStart?: false;
@@ -3121,7 +3134,7 @@ export function craftService<
 >(
   options: {
     name: Name;
-    scope: Scope;
+    providedIn: Scope;
     browserBoundary?: BrowserBoundary;
     appStart: true;
     providers?: readonly Provider[];
@@ -3146,7 +3159,7 @@ export function craftService<
 >(
   options: {
     name: Name;
-    scope: Scope;
+    providedIn: Scope;
     browserBoundary?: BrowserBoundary;
     appStart?: false;
     providers?: readonly Provider[];
@@ -3165,7 +3178,7 @@ export function craftService<
 export function craftService(
   options: {
     name: string;
-    scope: ServiceScope;
+    providedIn: ServiceScope;
     requirement?: ServiceRequirement<unknown>;
     browserBoundary?: boolean;
     appStart?: boolean;
@@ -3180,9 +3193,13 @@ export function craftService(
   const toProvideName = `${capitalizedName}ToProvide`;
   const metaDataName = toMetaDataPropertyName(options.name);
 
-  if (options.scope === 'abstract') {
+  if (options.providedIn === 'abstract') {
     assertAbstractMarker(factoryOrMarker);
     const token = new InjectionToken(`${capitalizedName}AbstractServiceToken`);
+    const nativeToken = craftToken<unknown>(
+      `${capitalizedName}AbstractServiceToken`,
+    );
+    ɵregisterCraftTokenHostToken(nativeToken, token);
     const requirement = createServiceRequirement(options.name, token);
 
     // A minimal definition so `X()` resolves the requirement token (the
@@ -3192,10 +3209,11 @@ export function craftService(
     const abstractYieldDefinition: ConcreteRuntimeDefinition = {
       factory: () => undefined,
       name: options.name,
-      scope: 'toProvide',
+      providedIn: 'toProvide',
       browserBoundary: false,
       appStart: false,
       token,
+      craftToken: nativeToken,
       requirement,
       hasPublicInput: false,
       hasProvidedInput: false,
@@ -3223,23 +3241,28 @@ export function craftService(
         const abstractRuntimeDefinition: ConcreteRuntimeDefinition = {
           factory,
           name: options.name,
-          scope: 'toProvide',
+          providedIn: 'toProvide',
           browserBoundary: false,
           appStart: false,
           token: new InjectionToken(`${capitalizedName}ServiceToken`),
+          craftToken: craftToken(`${capitalizedName}ServiceToken`),
           requirement,
           hasPublicInput: factoryUsesPublicInput(factory),
           hasProvidedInput: factoryUsesProvidedInput(factory),
           appStartHooks: new Map(),
           startedAppStartServices: new Set(),
         };
+        ɵregisterCraftTokenHostToken(
+          abstractRuntimeDefinition.craftToken!,
+          abstractRuntimeDefinition.token!,
+        );
         return createProviders(abstractRuntimeDefinition);
       },
     };
 
     abstractMetaData = createServiceMetaData({
       name: options.name,
-      scope: 'toProvide',
+      providedIn: 'toProvide',
       inject: abstractInjectHelper,
       runtimeDefinition: abstractYieldDefinition,
     });
@@ -3260,7 +3283,7 @@ export function craftService(
   const runtimeDefinition: ConcreteRuntimeDefinition = {
     factory: concreteFactory,
     name: options.name,
-    scope: options.scope,
+    providedIn: options.providedIn,
     browserBoundary: options.browserBoundary ?? false,
     appStart: options.appStart ?? false,
     providers: options.providers,
@@ -3272,21 +3295,33 @@ export function craftService(
   };
 
   const token =
-    options.scope === 'global'
+    options.providedIn === 'global'
       ? new InjectionToken(`${capitalizedName}ServiceToken`, {
           providedIn: 'root',
           factory: () =>
             createConcreteServiceInstance(runtimeDefinition, inject(Injector)),
         })
-      : options.scope === 'function'
+      : options.providedIn === 'function'
         ? undefined
         : new InjectionToken(
-            options.scope === 'manuallyProvidedAtRoot'
+            options.providedIn === 'manuallyProvidedAtRoot'
               ? `${capitalizedName}ToProvide`
               : `${capitalizedName}ServiceToken`,
           );
+  const nativeToken =
+    options.providedIn === 'function'
+      ? undefined
+      : craftToken<unknown>(
+          options.providedIn === 'manuallyProvidedAtRoot'
+            ? `${capitalizedName}ToProvide`
+            : `${capitalizedName}ServiceToken`,
+        );
 
   runtimeDefinition.token = token;
+  runtimeDefinition.craftToken = nativeToken;
+  if (token && nativeToken) {
+    ɵregisterCraftTokenHostToken(nativeToken, token);
+  }
 
   // The helper closes over metadata that is initialized immediately below.
   // eslint-disable-next-line prefer-const
@@ -3303,30 +3338,30 @@ export function craftService(
   );
 
   if (
-    options.scope === 'toProvide' ||
-    options.scope === 'manuallyProvidedAtRoot'
+    options.providedIn === 'toProvide' ||
+    options.providedIn === 'manuallyProvidedAtRoot'
   ) {
     api[provideName] = (...provided: unknown[]) =>
       createProviders(runtimeDefinition, provided);
   }
 
-  if (options.scope === 'manuallyProvidedAtRoot' && token) {
+  if (options.providedIn === 'manuallyProvidedAtRoot' && token) {
     api[toProvideName] = token;
   }
 
   serviceMetaData = createServiceMetaData({
     name: options.name,
-    scope: options.scope,
+    providedIn: options.providedIn,
     inject: injectHelper,
     provide:
-      options.scope === 'toProvide' ||
-      options.scope === 'manuallyProvidedAtRoot'
+      options.providedIn === 'toProvide' ||
+      options.providedIn === 'manuallyProvidedAtRoot'
         ? (api[provideName] as
             | ((...args: any[]) => CraftServiceProvider)
             | undefined)
         : undefined,
     token:
-      options.scope === 'manuallyProvidedAtRoot'
+      options.providedIn === 'manuallyProvidedAtRoot'
         ? (token as InjectionToken<unknown>)
         : undefined,
     runtimeDefinition,
@@ -3374,7 +3409,7 @@ function createInjectHelper(
     const injector = inject(Injector);
     const serviceValue = resolveConcreteService(definition, injector, bindings);
     return expose
-      ? resolveExposedService(serviceValue, expose, injector, definition.scope)
+      ? resolveExposedService(serviceValue, expose, injector, definition.providedIn)
       : serviceValue;
   };
 
@@ -3612,7 +3647,7 @@ function createServiceRequirement<Contract, Name extends string>(
 
 function createServiceMetaData(config: {
   name: string;
-  scope: ConcreteServiceScope;
+  providedIn: ConcreteServiceScope;
   inject: (...args: any[]) => unknown;
   provide?: (...args: any[]) => CraftServiceProvider;
   token?: InjectionToken<unknown>;
@@ -3621,7 +3656,7 @@ function createServiceMetaData(config: {
   const metaData: Record<string, unknown> = {
     kind: 'service-meta-data',
     name: config.name,
-    scope: config.scope,
+    providedIn: config.providedIn,
     browserBoundary: config.runtimeDefinition.browserBoundary,
     appStart: config.runtimeDefinition.appStart,
     inject: config.inject,
@@ -3716,7 +3751,7 @@ function createProviders(
 
   if (!concreteToken) {
     throw new Error(
-      `craftService("${definition.name}") cannot create providers for scope "${definition.scope}".`,
+      `craftService("${definition.name}") cannot create providers for scope "${definition.providedIn}".`,
     );
   }
 
@@ -3740,6 +3775,13 @@ function createProviders(
     },
   ];
 
+  if (definition.craftToken && definition.craftToken !== concreteToken) {
+    concreteProviders.push({
+      provide: definition.craftToken,
+      useExisting: concreteToken,
+    });
+  }
+
   if (definition.requirement) {
     concreteProviders.push({
       provide: definition.requirement.token,
@@ -3758,7 +3800,7 @@ function createProviders(
   Object.defineProperty(brandedProviders, CRAFT_SERVICE_PROVIDER_BRAND, {
     value: {
       name: definition.name,
-      scope: definition.scope,
+      providedIn: definition.providedIn,
       output: undefined,
       yielded: undefined,
     },
@@ -3812,10 +3854,14 @@ function adaptExternalDependencyValue<Value>(
         if (!reactiveProperties.has(property)) {
           reactiveProperties.set(
             property,
-            createYieldableReactiveValue(entry, `${dependencyName}.${String(property)}`, {
-              primitive: 'toCraftService',
-              path: `${dependencyName}.${String(property)}`,
-            }),
+            createYieldableReactiveValue(
+              entry,
+              `${dependencyName}.${String(property)}`,
+              {
+                primitive: 'toCraftService',
+                path: `${dependencyName}.${String(property)}`,
+              },
+            ),
           );
         }
         return reactiveProperties.get(property);
@@ -3840,9 +3886,9 @@ function createYieldRequest(
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     name: definition.name,
-    scope: definition.scope,
+    providedIn: definition.providedIn,
     resolve: (injector, hostScope) => {
-      assertDependencyScope(hostScope, definition.scope, definition.name);
+      assertDependencyScope(hostScope, definition.providedIn, definition.name);
       return resolveConcreteService(definition, injector, bindings);
     },
   };
@@ -3888,7 +3934,7 @@ function resolveConcreteService(
     );
   }
 
-  if (definition.scope === 'function') {
+  if (definition.providedIn === 'function') {
     return trackResolvedService(
       definition,
       injector,
@@ -3909,7 +3955,11 @@ function resolveConcreteService(
   return trackResolvedService(
     definition,
     injector,
-    markNamedReactiveProperties(injector.get(definition.token!)),
+    markNamedReactiveProperties(
+      ɵcraftInjectorFromHost(injector).get(
+        (definition.token ?? definition.craftToken) as object,
+      ),
+    ),
   );
 }
 
@@ -3924,7 +3974,7 @@ function trackResolvedService(
     definition.name,
     value,
     hostTags[hostTags.length - 1] ?? `service:${definition.name}`,
-    definition.scope,
+    definition.providedIn,
   );
   return value;
 }
@@ -3946,56 +3996,65 @@ function createConcreteServiceInstance(
     injector,
     `service:${definition.name}`,
     definition.providers ?? [],
+    {
+      instanced:
+        definition.providedIn === 'function' ||
+        definition.providedIn === 'toProvide',
+    },
   );
 
-  return runInInjectionContext(scopedInjector, () => {
-    const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
-    const bindings = omitInputs
-      ? {}
-      : (bindingsOverride ?? definition.initialBindings ?? {});
-    const inputs = createInputProxy(
-      bindings,
-      providedConfig,
-      omitInputs,
-      definition.name,
-    );
-    const wrappedFactory = injectFnWrapper()(definition.factory);
-    const result =
-      definition.factory.length > 0 ? wrappedFactory(inputs) : wrappedFactory();
+  return runInInjectionContext(scopedInjector, () =>
+    ɵcraftInjectorFromHost(scopedInjector).run(() => {
+      const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
+      const bindings = omitInputs
+        ? {}
+        : (bindingsOverride ?? definition.initialBindings ?? {});
+      const inputs = createInputProxy(
+        bindings,
+        providedConfig,
+        omitInputs,
+        definition.name,
+      );
+      const wrappedFactory = injectFnWrapper()(definition.factory);
+      const result =
+        definition.factory.length > 0
+          ? wrappedFactory(inputs)
+          : wrappedFactory();
 
-    if (!isGenerator(result)) {
-      return result;
-    }
-
-    const resolved = runCraftGenerator({
-      iterator: result,
-      injector: scopedInjector,
-      hostScope: definition.scope,
-      invalidYieldErrorMessage:
-        'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
-      multipleAppStartErrorMessage:
-        'craftService generators can only declare onAppStart(...) once.',
-      createAppStartHook: (run) => () =>
-        runAppStartCallback(run, scopedInjector, definition.scope),
-      reactiveReader: {
-        name: definition.name,
-        primitive: 'craftService',
-        path: `service:${definition.name}`,
-      },
-    });
-
-    if (resolved.appStartHook) {
-      if (!definition.appStart) {
-        throw new Error(
-          `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
-        );
+      if (!isGenerator(result)) {
+        return result;
       }
 
-      definition.appStartHooks.set(resolved.value, resolved.appStartHook);
-    }
+      const resolved = runCraftGenerator({
+        iterator: result,
+        injector: scopedInjector,
+        hostScope: definition.providedIn,
+        invalidYieldErrorMessage:
+          'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+        multipleAppStartErrorMessage:
+          'craftService generators can only declare onAppStart(...) once.',
+        createAppStartHook: (run) => () =>
+          runAppStartCallback(run, scopedInjector, definition.providedIn),
+        reactiveReader: {
+          name: definition.name,
+          primitive: 'craftService',
+          path: `service:${definition.name}`,
+        },
+      });
 
-    return resolved.value;
-  });
+      if (resolved.appStartHook) {
+        if (!definition.appStart) {
+          throw new Error(
+            `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
+          );
+        }
+
+        definition.appStartHooks.set(resolved.value, resolved.appStartHook);
+      }
+
+      return resolved.value;
+    }),
+  );
 }
 
 function runAppStartCallback(
@@ -4515,7 +4574,7 @@ export const ɵTRACK_TAGS_LIST = new InjectionToken<readonly TrackTag[]>(
 );
 
 const hostNameApi = craftService(
-  { name: 'HostName', scope: 'manuallyProvidedAtRoot' },
+  { name: 'HostName', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: string }) => inputs.$provided,
 );
 
@@ -4538,8 +4597,10 @@ export function ɵprovideHostName(name: string): Provider[] {
             skipSelf: true,
           }) ?? [];
         const id = (
-          inject(ComponentRegister, { optional: true }) ??
-          ɵfallbackComponentRegister
+          inject(
+            COMPONENT_REGISTER as unknown as InjectionToken<ComponentRegister>,
+            { optional: true },
+          ) ?? ɵfallbackComponentRegister
         ).next();
 
         return [...parentTags, `${name}#${id}`] as readonly string[];
@@ -4571,7 +4632,7 @@ export function ɵinjectTrackTags(): readonly TrackTag[] {
 
 export type ɵHostTagYield = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
-  scope: 'function';
+  providedIn: 'function';
   resolve: (
     injector: Injector,
     hostScope: ConcreteServiceScope,
@@ -4585,14 +4646,14 @@ export function* ɵHostTag(): Generator<
 > {
   return (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    scope: 'function',
+    providedIn: 'function',
     resolve: (injector) => injector.get(ɵHOST_TAG_LIST),
   }) as readonly string[];
 }
 
 export type ɵTrackTagsYield = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
-  scope: 'function';
+  providedIn: 'function';
   resolve: (
     injector: Injector,
     hostScope: ConcreteServiceScope,
@@ -4606,7 +4667,7 @@ export function* ɵTrackTags(): Generator<
 > {
   return (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    scope: 'function',
+    providedIn: 'function',
     resolve: (injector) => injector.get(ɵTRACK_TAGS_LIST),
   }) as readonly TrackTag[];
 }
@@ -4615,6 +4676,7 @@ export function ɵcreateHostTaggedInjector(
   injector: Injector,
   hostName: string,
   extraProviders: readonly Provider[] = [],
+  options: { readonly instanced?: boolean } = {},
 ): Injector {
   if (HOST_TAG_INTERNAL_SERVICE_NAMES.has(hostName)) {
     return injector;
@@ -4641,15 +4703,30 @@ export function ɵcreateHostTaggedInjector(
 
   // Insert env-only tags before the last element of nodeTags (the current component's tag)
   // to preserve semantic order: parent components → route → current component → method
+  // EXPERIMENT (option A): stamp the instance ordinal that provideHostName's
+  // factory would have produced, which this useValue would otherwise discard.
+  // A host that can exist several times at once carries which one it is, the
+  // way a component tag already does. A singleton does not: a number on a host
+  // there is exactly one of reads as noise, and would change every log line and
+  // snapshot for nothing.
+  const taggedHostName = options.instanced
+    ? `${hostName}#${(
+        injector.get(
+          COMPONENT_REGISTER as unknown as InjectionToken<ComponentRegister>,
+          null,
+        ) ?? ɵfallbackComponentRegister
+      ).next()}`
+    : hostName;
+
   const mergedTags: readonly string[] =
     nodeTags.length > 0
       ? [
           ...nodeTags.slice(0, -1),
           ...envOnlyTags,
           nodeTags[nodeTags.length - 1],
-          hostName,
+          taggedHostName,
         ]
-      : [...envOnlyTags, hostName];
+      : [...envOnlyTags, taggedHostName];
 
   const envInjector = createEnvironmentInjector(
     [
@@ -4661,7 +4738,11 @@ export function ɵcreateHostTaggedInjector(
     `HostTag(${hostName})`,
   );
 
-  parentDestroyRef?.onDestroy(() => envInjector.destroy());
+  parentDestroyRef?.onDestroy(() => {
+    if (!envInjector.destroyed) {
+      envInjector.destroy();
+    }
+  });
 
   return envInjector;
 }

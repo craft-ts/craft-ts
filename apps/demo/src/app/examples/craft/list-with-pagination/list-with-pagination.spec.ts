@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { provideRouter } from '@angular/router';
 import {
   ComponentLogicOutputOf,
   setupCraftComponentTemplateTest,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import type {
   ExtractDeps,
   GetServiceDependencies,
   ResolvedServiceOutput,
-} from '@craft-ng/core';
-import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/core';
+import { craftUse, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, setupCraftServiceTestingByRegister } from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {
   UserList,
@@ -58,12 +56,14 @@ type _ApiServiceGetDataListIsTracked = Expect<
   >
 >;
 
-type _PaginationDependsOnRouter = Expect<
+// `queryParams` reads the URL through Craft's own history, not an injected
+// router service, so `pagination` declares no router dependency at all.
+type _PaginationDeclaresNoRouterDep = Expect<
   Equal<
     'Router' extends keyof ExtractDeps<UserListOutput['pagination']>
       ? true
       : false,
-    true
+    false
   >
 >;
 
@@ -110,16 +110,29 @@ function createUserListMock(users: User[]) {
   const updatePageSize = vi.fn((pageSize: number) => {
     paginationState.pageSize = pageSize;
   });
-  const pagination = Object.assign(
-    vi.fn(() => ({ ...paginationState })),
-    { previousPage, nextPage, updatePageSize },
-  );
+  const pagination = markYieldableValue(Object.assign(
+    vi.fn(function* () {
+      return { ...paginationState };
+    }),
+    {
+      previousPage: markYieldableMethod(function* () {
+        previousPage();
+      }),
+      nextPage: markYieldableMethod(function* () {
+        nextPage();
+      }),
+      updatePageSize: markYieldableMethod(updatePageSize),
+    },
+  ), 'pagination');
   const store = {
     pagination,
     users: {
-      currentPageData: () => users,
-      currentPageStatus: () => 'resolved' as const,
-      total: () => users.length,
+      currentPageData: markYieldableValue(() => users, 'currentPageData'),
+      currentPageStatus: markYieldableValue(
+        () => 'resolved' as const,
+        'currentPageStatus',
+      ),
+      total: markYieldableValue(() => users.length, 'total'),
     },
   };
   const userList = vi.fn(() => ({
@@ -209,8 +222,10 @@ describe('list with pagination template', () => {
         .click();
       buttons.find((button) => button.textContent?.trim() === 'Next')!.click();
 
-      expect(result.previousPage).toHaveBeenCalledTimes(1);
-      expect(result.nextPage).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => {
+        expect(result.previousPage).toHaveBeenCalledTimes(1);
+        expect(result.nextPage).toHaveBeenCalledTimes(1);
+      });
     } finally {
       template.destroy();
     }
@@ -278,30 +293,36 @@ describe('list with pagination logic', () => {
       expect(getDataList).toHaveBeenCalledWith({ page: 2, pageSize: 4 }),
     );
     expect(craftUse(sut.pagination())).toEqual({ page: 2, pageSize: 4 });
-    expect(craftUse(sut.users.currentPageData())).toEqual([
-      { id: '5', name: 'Toto' },
-      { id: '6', name: 'Julien' },
-    ]);
+    await vi.waitFor(() =>
+      expect(craftUse(sut.users.currentPageData())).toEqual([
+        { id: '5', name: 'Toto' },
+        { id: '6', name: 'Julien' },
+      ]),
+    );
 
     sut.pagination.previousPage();
     await vi.waitFor(() =>
       expect(craftUse(sut.pagination())).toEqual({ page: 1, pageSize: 4 }),
     );
-    expect(craftUse(sut.users.currentPageData())).toEqual([
-      { id: '1', name: 'Romain' },
-      { id: '2', name: 'Geffrault' },
-      { id: '3', name: 'Rom1' },
-      { id: '4', name: 'Daniel' },
-    ]);
+    await vi.waitFor(() =>
+      expect(craftUse(sut.users.currentPageData())).toEqual([
+        { id: '1', name: 'Romain' },
+        { id: '2', name: 'Geffrault' },
+        { id: '3', name: 'Rom1' },
+        { id: '4', name: 'Daniel' },
+      ]),
+    );
 
     sut.pagination.updatePageSize(2);
     await vi.waitFor(() =>
       expect(getDataList).toHaveBeenCalledWith({ page: 1, pageSize: 2 }),
     );
     expect(craftUse(sut.pagination())).toEqual({ page: 1, pageSize: 2 });
-    expect(craftUse(sut.users.currentPageData())).toEqual([
-      { id: '1', name: 'Romain' },
-      { id: '2', name: 'Geffrault' },
-    ]);
+    await vi.waitFor(() =>
+      expect(craftUse(sut.users.currentPageData())).toEqual([
+        { id: '1', name: 'Romain' },
+        { id: '2', name: 'Geffrault' },
+      ]),
+    );
   });
 });

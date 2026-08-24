@@ -5,10 +5,10 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-4
-import { ConsoleService, craftService } from '@craft-ng/core';
+import { ConsoleService, craftService } from '@craft-ts/core';
 
 const { AuditTrail } = craftService(
-  { name: 'AuditTrail', scope: 'global' },
+  { name: 'AuditTrail', providedIn: 'global' },
   function* () {
     const consoleService = yield* ConsoleService(
       undefined,

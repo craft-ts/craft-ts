@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   computed,
+  batch as craftBatch,
   DestroyRef,
   inject,
   Injector,
@@ -14,7 +15,7 @@ import {
   signal,
   untracked,
   WritableSignal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { InsertionsResourcesFactory } from './query.core';
 import {
   executeGeneratorCompatibleFactory,
@@ -60,7 +61,7 @@ import {
   type CraftPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,
@@ -111,6 +112,7 @@ import {
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
+  type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
 
@@ -417,7 +419,8 @@ export type ResourceLikeAsyncProcessExceptions<
       >
     | undefined
   >;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           AsyncProcessException['params'],
@@ -452,7 +455,8 @@ export type ResourceByIdLikeAsyncProcessExceptions<
   GroupIdentifier extends string = string,
 > = {
   hasException: Signal<boolean>;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           AsyncProcessException['params'],
@@ -772,7 +776,7 @@ export function asyncProcess<
  * @example
  * Business exceptions with `craftException`
  * ```ts
- * import { asyncProcess, craftException } from '@craft-ng/core';
+ * import { asyncProcess, craftException } from '@craft-ts/core';
  *
  * const loadUser = craftUse(asyncProcess('loadUser', {
  *   method: (value: string) =>
@@ -1516,6 +1520,7 @@ function createAsyncProcessRef<
             'asyncProcess',
             resourceTarget as any,
           ),
+      name,
     ),
   );
 
@@ -1719,10 +1724,13 @@ function createAsyncProcessRef<
                       >
                     ).addById(id as GroupIdentifier & string);
                   }
-                  // Bump before the set so both writes land in the same tick and
-                  // the resource request changes on every call.
-                  methodTriggerSeq.update((n) => n + 1);
-                  AsyncProcessResourceParamsFnSignal.set(paramsResult);
+                  // These two signals form one method request. Publish them as
+                  // one batch so the resource watch cannot start the loader
+                  // once for the nonce and once again for the params.
+                  craftBatch(() => {
+                    methodTriggerSeq.update((n) => n + 1);
+                    AsyncProcessResourceParamsFnSignal.set(paramsResult);
+                  });
                   return yieldableInvocation<MethodYielded, AsyncProcessParams>(
                     paramsResult,
                   );
@@ -1993,7 +2001,9 @@ function createAsyncProcessRef<
     primitive: 'asyncProcess',
     path: name,
   });
-  return (hasDeepYieldableInsertion(insertions)
-    ? deepYieldable(publicAsyncProcess)
-    : publicAsyncProcess) as typeof asyncOutput;
+  return (
+    hasDeepYieldableInsertion(insertions)
+      ? deepYieldable(publicAsyncProcess)
+      : publicAsyncProcess
+  ) as typeof asyncOutput;
 }

@@ -8,22 +8,50 @@ import {
   Signal,
   signal,
   ValueEqualityFn,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import { SourceBranded } from './util/util';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import { injectFnWrapper } from './fn-wrapper';
+import {
+  RAW_REACTIVE_VALUE,
+  REACTIVE_VALUE_TYPE,
+  YIELDABLE_VALUE,
+  type ReactiveReadRequest,
+  type YieldableReactiveValue,
+} from './reactive-read';
 
-export type SignalSource<T> = Signal<T | undefined> & {
+type YieldableSignalSourceValue<T> = YieldableReactiveValue<
+  T | undefined,
+  string
+>;
+
+type YieldableSignalSourceMetadata<T> = Omit<
+  YieldableSignalSourceValue<T>,
+  | typeof RAW_REACTIVE_VALUE
+  | typeof REACTIVE_VALUE_TYPE
+  | typeof YIELDABLE_VALUE
+> & {
+  readonly [RAW_REACTIVE_VALUE]: YieldableSignalSourceValue<T>[typeof RAW_REACTIVE_VALUE];
+  readonly [REACTIVE_VALUE_TYPE]: T | undefined;
+  readonly [YIELDABLE_VALUE]: string;
+};
+
+type SignalSourceReader<T> = {
+  (): T | undefined;
+  (): Generator<ReactiveReadRequest<T | undefined>, T | undefined, unknown>;
+} & YieldableSignalSourceMetadata<T>;
+
+export type SignalSource<T> = SignalSourceReader<T> & {
   set: (value: T) => void;
-  preserveLastValue: Signal<T | undefined>;
+  preserveLastValue: SignalSourceReader<T>;
 } & SourceBranded;
 
 /**
  * Creates a source for event-driven communication with lazy emission semantics.
  *
- * Sources are the foundation of event-driven patterns in ng-craft, enabling:
+ * Sources are the foundation of event-driven patterns in craft-ts, enabling:
  * - Discrete event emissions (unlike continuous signals)
  * - Lazy behavior (undefined until explicitly set)
  * - Decoupled communication between components and stores
@@ -96,7 +124,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * Basic source for user actions
  * ```ts
  * const { UserStore } = craftService(
- *   { name: 'UserStore', scope: 'toProvide' },
+ *   { name: 'UserStore', providedIn: 'toProvide' },
  *   function* () {
  *     const loadUser = signalSource<string>('loadUser');
  *
@@ -129,7 +157,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * type FormData = { name: string; email: string };
  *
  * const { FormStore } = craftService(
- *   { name: 'FormStore', scope: 'toProvide' },
+ *   { name: 'FormStore', providedIn: 'toProvide' },
  *   function* () {
  *     const submitForm = signalSource<FormData>('submitForm');
  *
@@ -168,7 +196,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * Source for reload/refresh actions
  * ```ts
  * const { DataStore } = craftService(
- *   { name: 'DataStore', scope: 'toProvide' },
+ *   { name: 'DataStore', providedIn: 'toProvide' },
  *   function* () {
  *     const reload = signalSource<void>('reload');
  *
@@ -199,7 +227,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * Multiple sources for different actions
  * ```ts
  * const { TodoStore } = craftService(
- *   { name: 'TodoStore', scope: 'toProvide' },
+ *   { name: 'TodoStore', providedIn: 'toProvide' },
  *   function* () {
  *     const addTodo = signalSource<{ text: string }>('addTodo');
  *     const deleteTodo = signalSource<string>('deleteTodo');
@@ -309,7 +337,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *
  * // Component A's store
  * const { DataViewStore, provideDataViewStore } = craftService(
- *   { name: 'DataViewStore', scope: 'toProvide' },
+ *   { name: 'DataViewStore', providedIn: 'toProvide' },
  *   function* () {
  *     const { refreshAllSource } = RefreshCoordinator();
  *
@@ -359,7 +387,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * };
  *
  * const { SearchStore } = craftService(
- *   { name: 'SearchStore', scope: 'toProvide' },
+ *   { name: 'SearchStore', providedIn: 'toProvide' },
  *   function* () {
  *     const search = signalSource<SearchParams>('search');
  *
@@ -464,5 +492,5 @@ export function signalSource<T>(
       set,
     },
     SourceBranded,
-  ) as SignalSource<T>;
+  ) as unknown as SignalSource<T>;
 }

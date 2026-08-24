@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -8,16 +8,16 @@ import {
   section,
   span,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftComputed,
   craftRegisterFor,
   craftService,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { Counter, provideCounter } = craftService(
-  { name: 'Counter', scope: 'toProvide' },
+  { name: 'Counter', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((v) => v + 1),

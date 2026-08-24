@@ -1,8 +1,4 @@
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -22,21 +18,6 @@ import { craftUse } from './craft-use';
  * (`mutate` / `call` / `method`) must re-run the loader, even when the method
  * returns the same value or `undefined`, while preserving idle-until-first-call.
  */
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('method re-trigger (nonce)', () => {
   beforeEach(() => {

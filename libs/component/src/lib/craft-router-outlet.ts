@@ -1,8 +1,7 @@
 import {
   createCraftRouterOutletController,
   type CraftRouterOutletController,
-} from '@craft-ng/core';
-import { angular } from './angular';
+} from '@craft-ts/core';
 import { craftComponent } from './component';
 import type { CraftComponent } from './types';
 import type { ComponentNode } from './render/vnode';
@@ -10,7 +9,7 @@ import type { ComponentNode } from './render/vnode';
 /**
  * Functional non-blocking router outlet.
  *
- * The routing state machine lives in `@craft-ng/core`; this component owns its
+ * The routing state machine lives in `@craft-ts/core`; this component owns its
  * render lifetime and mounts the active Angular route target with the
  * route-scoped injector supplied by the controller.
  */
@@ -25,12 +24,6 @@ export const CraftRouterOutlet = craftComponent(
   ({ outlet }) => {
     const target = outlet.displayedTarget();
     if (!target) return [];
-    if (target.kind === 'angular') {
-      return angular(target.component, {
-        injector: outlet.displayedInjector(),
-      });
-    }
-
     const node = (target.component as CraftComponent<any>)(
       outlet.displayedProps() as never,
     ) as ComponentNode;

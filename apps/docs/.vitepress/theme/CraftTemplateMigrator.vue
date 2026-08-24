@@ -25,7 +25,7 @@ async function copyResult(): Promise<void> {
 <template>
   <div class="template-migrator">
     <label class="template-migrator__label" for="craft-template-source">
-      HTML ou composant Web à convertir
+      HTML or Web component to convert
     </label>
     <textarea
       id="craft-template-source"
@@ -36,21 +36,21 @@ async function copyResult(): Promise<void> {
     />
 
     <label class="template-migrator__label" for="craft-template-name">
-      Nom du composant complet (facultatif)
+      Full component name (optional)
     </label>
     <input
       id="craft-template-name"
       v-model="componentName"
       class="template-migrator__input"
-      placeholder="ex. SaveCard"
+      placeholder="e.g. SaveCard"
     />
 
     <div class="template-migrator__toolbar">
       <span v-if="result.diagnostics.length" class="template-migrator__warning">
-        {{ result.diagnostics.length }} point(s) à vérifier manuellement
+        {{ result.diagnostics.length }} point(s) to check manually
       </span>
       <button type="button" class="template-migrator__copy" @click="copyResult">
-        {{ copied ? 'Copié' : 'Copier le template' }}
+        {{ copied ? 'Copied' : 'Copy the template' }}
       </button>
     </div>
 
@@ -60,7 +60,7 @@ async function copyResult(): Promise<void> {
       rows="16"
       readonly
       spellcheck="false"
-      aria-label="Template Craft généré"
+      aria-label="Generated Craft template"
     />
 
     <ul v-if="result.diagnostics.length" class="template-migrator__diagnostics">

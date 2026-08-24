@@ -1,4 +1,6 @@
-import type { Signal } from '@angular/core';
+import {
+  type Signal,
+} from '../host/craft-compat';
 import { Expect, Equal } from 'test-type';
 import { FormFieldPath, TargetFormField } from './target-form-field';
 

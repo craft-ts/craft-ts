@@ -1,6 +1,5 @@
 import {
   assertInInjectionContext,
-  computed,
   DestroyRef,
   inject,
   Injector,
@@ -8,11 +7,21 @@ import {
   isWritableSignal,
   linkedSignal,
   runInInjectionContext,
+  type Provider,
   Signal,
-  signal,
   WritableSignal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
+
+const UNSET_ANGULAR_STATE = Symbol('unset-angular-state');
+import {
+  craftComputed,
+  craftLinkedSignal,
+  craftSignal,
+  isCraftSignal,
+  type CraftSignal,
+  type CraftWritableSignal,
+} from './host/craft-signal';
 import {
   InsertionsStateFactory,
   InsertionStateFactoryContext,
@@ -44,6 +53,7 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
+import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
@@ -51,7 +61,10 @@ import {
   type BrandReactiveProperties,
   type YieldableInsertionMethods,
 } from './yieldable';
-import type { StandardSchemaV1 } from './standard-schema';
+import type {
+  StandardSchemaV1InferInput,
+  StandardSchemaV1InferOutput,
+} from './standard-schema';
 import {
   decideSchemaValidation,
   type CraftSchema,
@@ -85,6 +98,22 @@ type AnyGeneratorFunction = (
   ...args: never[]
 ) => Generator<unknown, unknown, unknown>;
 
+const createLinkedSignalWithOptions = craftLinkedSignal as unknown as <
+  T,
+>(options: {
+  source: () => unknown;
+  computation: () => T;
+  equal?: (a: T, b: T) => boolean;
+}) => CraftWritableSignal<T>;
+
+const createCraftLinkedSignalWithOptions = linkedSignal as unknown as <
+  T,
+>(options: {
+  source: () => unknown;
+  computation: () => T;
+  equal?: (a: T, b: T) => boolean;
+}) => WritableSignal<T>;
+
 export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
     IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
@@ -108,10 +137,10 @@ type StateReader<
 > = Deep extends true
   ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
   : Insertions extends {
-  readonly [DEEP_YIELDABLE_INSERTION]: true;
-}
-  ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
-  : YieldableReactiveValue<StateType, Name>;
+        readonly [DEEP_YIELDABLE_INSERTION]: true;
+      }
+    ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+    : YieldableReactiveValue<StateType, Name>;
 
 export type StateOutput<
   StateType,
@@ -152,14 +181,14 @@ export type StateOutput<
 
 export type StateSchemaConfig<Schema extends CraftSchema> = {
   readonly $self:
-    | StandardSchemaV1.InferInput<Schema>
-    | Signal<StandardSchemaV1.InferInput<Schema>>;
+    | StandardSchemaV1InferInput<Schema>
+    | Signal<StandardSchemaV1InferInput<Schema>>;
   readonly schema: Schema;
-  readonly providers?: readonly import('@angular/core').Provider[];
+  readonly providers?: readonly Provider[];
   readonly schemaValidationPolicy?: SchemaValidationPolicy;
 };
 
-type StateConfig<State> = State | Signal<State>;
+type StateConfig<State> = State | Signal<State> | CraftSignal<State>;
 type StateGeneratorFactory<State, Yielded = never> = () => Generator<
   Yielded,
   StateConfig<State>,
@@ -171,11 +200,13 @@ type ResolvedStateType<StateInput> = StateInput extends {
   ? ResolvedStateType<V>
   : StateInput extends Signal<infer State>
     ? State
-    : StateInput extends (
-          ...args: any[]
-        ) => Generator<any, infer Output, unknown>
-      ? ResolvedStateType<Output>
-      : StateInput;
+    : StateInput extends CraftSignal<infer State>
+      ? State
+      : StateInput extends (
+            ...args: any[]
+          ) => Generator<any, infer Output, unknown>
+        ? ResolvedStateType<Output>
+        : StateInput;
 type StateConfigYielded<StateInput> = StateInput extends {
   readonly $self: infer V;
 }
@@ -244,7 +275,7 @@ function isGeneratorFunction(value: unknown): value is AnyGeneratorFunction {
 function executeStateFactory<This, Args extends unknown[], Result>(
   factory: (this: This, ...args: Args) => Result,
   thisArg: This,
-  getInjector: () => Injector,
+  getInjector: () => Injector | object,
   ...args: Args
 ): ResolveGeneratorResult<Result> {
   const injector = getInjector();
@@ -301,7 +332,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * @example
  * // Inside a craftService generator factory
  * const { Counter } = craftService(
- *   { name: 'Counter', scope: 'global' },
+ *   { name: 'Counter', providedIn: 'global' },
  *   function* () {
  *     const counter = yield* state('counter', 0);
  *     return { counter };
@@ -383,7 +414,7 @@ export function state<Name extends string, Schema extends CraftSchema>(
 ): CraftPrimitiveGen<
   NamedPrimitive<
     Name,
-    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true, false, Name>
+    StateOutput<StandardSchemaV1InferOutput<Schema>, {}, {}, true, false, Name>
   >
 >;
 export function state<Name extends string, StateInput>(
@@ -492,7 +523,31 @@ function createStateRef<StateType>(
   const resolvedStateConfig = isGeneratorFunction(rawConfig)
     ? executeStateFactory(rawConfig, undefined, getInjector)
     : rawConfig;
-  const isSignalState = isSignal(resolvedStateConfig);
+  const isSignalState =
+    isCraftSignal(resolvedStateConfig) || isSignal(resolvedStateConfig);
+  const isAngularSignalState =
+    isSignal(resolvedStateConfig) && !isCraftSignal(resolvedStateConfig);
+  const isCraftWritableState =
+    isCraftSignal(resolvedStateConfig) &&
+    typeof Reflect.get(resolvedStateConfig, 'set') === 'function';
+  const readResolvedState = () => (resolvedStateConfig as () => unknown)();
+  const wrapAngularReadonlyState = () => {
+    const override = craftSignal<StateType | typeof UNSET_ANGULAR_STATE>(
+      UNSET_ANGULAR_STATE,
+    );
+    const value = (() => {
+      const local = override();
+      return local === UNSET_ANGULAR_STATE
+        ? (readResolvedState() as StateType)
+        : (local as StateType);
+    }) as CraftWritableSignal<StateType>;
+    value.set = (next) => {
+      override.set(next);
+    };
+    value.update = (updateFn) => value.set(updateFn(value()));
+    value.asReadonly = () => value;
+    return value;
+  };
   let lastValidState: StateType | undefined;
   let latestStateException: AnyCraftException | undefined;
   let skipInitialSourceValidation = isSignalState;
@@ -542,29 +597,47 @@ function createStateRef<StateType>(
   };
 
   const initialStateValue = applySchema(
-    isSignalState
-      ? (resolvedStateConfig as Signal<unknown>)()
-      : resolvedStateConfig,
+    isSignalState ? readResolvedState() : resolvedStateConfig,
     'initial',
   );
   const stateSignal =
     !schema && isSignalState
-      ? isWritableSignal(resolvedStateConfig)
-        ? (resolvedStateConfig as WritableSignal<StateType>)
-        : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
+      ? isWritableSignal(resolvedStateConfig) || isCraftWritableState
+        ? (resolvedStateConfig as
+            | WritableSignal<StateType>
+            | CraftWritableSignal<StateType>)
+        : isAngularSignalState
+          ? wrapAngularReadonlyState()
+          : craftLinkedSignal({
+              source: readResolvedState,
+              computation: () => readResolvedState() as StateType,
+            })
       : isSignalState
-        ? linkedSignal(
-            () =>
-              applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
-            { equal: () => false },
-          )
-        : signal(initialStateValue);
+        ? isAngularSignalState
+          ? createCraftLinkedSignalWithOptions({
+              source: readResolvedState,
+              computation: () => applySchema(readResolvedState(), 'source'),
+              equal: () => false,
+            })
+          : createLinkedSignalWithOptions({
+              source: readResolvedState,
+              computation: () => applySchema(readResolvedState(), 'source'),
+              equal: () => false,
+            })
+        : craftSignal(initialStateValue);
   const readonlyStateSignal =
-    'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
-      ? stateSignal.asReadonly()
-      : (stateSignal as Signal<StateType>);
+    isAngularSignalState &&
+    !(isWritableSignal(resolvedStateConfig) || isCraftWritableState)
+      ? (stateSignal as Signal<StateType>)
+      : isCraftSignal(stateSignal)
+        ? craftComputed(() => stateSignal())
+        : 'asReadonly' in stateSignal &&
+            typeof (stateSignal as { asReadonly?: unknown }).asReadonly ===
+              'function'
+          ? (stateSignal as CraftWritableSignal<StateType>).asReadonly()
+          : (stateSignal as Signal<StateType>);
   const publicStateReader = createYieldableReactiveValue(
-    readonlyStateSignal,
+    readonlyStateSignal as Signal<StateType>,
     name,
     { primitive: 'state', path: name },
   );
@@ -602,8 +675,7 @@ function createStateRef<StateType>(
     (acc, insert) => {
       const insertionContext = {
         state: publicStateReader,
-        set: (newState: StateType) =>
-          yieldableInvocation(setState(newState)),
+        set: (newState: StateType) => yieldableInvocation(setState(newState)),
         update: (updateFn: (currentState: StateType) => StateType) =>
           yieldableInvocation(updateState(updateFn)),
         patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
@@ -670,6 +742,7 @@ function createStateRef<StateType>(
 
           if (
             typeof value === 'function' &&
+            !isCraftSignal(value) &&
             !isSignal(value) &&
             !isYieldableReactiveValue(value) &&
             !isNonYieldableInsertionMethod(value)
@@ -722,8 +795,8 @@ function createStateRef<StateType>(
     readonlyStateSignal,
     insertionsOutput.exposedInsertionsOutput,
     {
-      hasSchema: signal(schema !== undefined),
-      exceptions: computed(() => {
+      hasSchema: craftSignal(schema !== undefined),
+      exceptions: craftComputed(() => {
         // Keep the exception signal reactive when a derived source changes.
         stateSignal();
         const parse = latestStateException
@@ -731,7 +804,7 @@ function createStateRef<StateType>(
           : {};
         return { list: Object.values(parse), parse };
       }),
-      hasException: computed(() => {
+      hasException: craftComputed(() => {
         stateSignal();
         return latestStateException !== undefined;
       }),
@@ -768,6 +841,15 @@ function createStateRef<StateType>(
         }
       })();
 
+  // Addressable handle for tooling: read and write this very instance by name.
+  const registration = ɵregisterCraftPrimitive({
+    kind: 'state',
+    name,
+    read: () => stateSignal(),
+    write: (value) => setState(value as StateType),
+    ...(injector ? { injector } : {}),
+  });
+
   if (snapshotRegistry && destroyRef) {
     snapshotRegistry.triggerSnapshot$
       .pipe(takeUntilDestroyed(destroyRef))
@@ -799,6 +881,9 @@ function createStateRef<StateType>(
     primitive: 'state',
     path: name,
   });
+  // The ref the application holds is what a feature names when it has to
+  // capture a primitive declared outside its own host.
+  registration.link(publicState);
   return hasDeepYieldableInsertion(insertions)
     ? deepYieldable(publicState)
     : publicState;

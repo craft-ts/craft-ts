@@ -149,10 +149,12 @@ export type CraftGenInvoker<Args extends any[], GenFn> = (
  */
 export class CraftGenShortCircuit extends Error {
   readonly [CRAFT_GEN_SHORT_CIRCUIT] = true as const;
+  readonly exception: AnyCraftException;
 
-  constructor(readonly exception: AnyCraftException) {
-    super(`craftGen short-circuited with exception "${exception.code}".`);
+  constructor(exception: AnyCraftException) {
+    super(`craftGen short-circuited with exception "${exception._tag}".`);
     this.name = 'CraftGenShortCircuit';
+    this.exception = exception;
   }
 }
 

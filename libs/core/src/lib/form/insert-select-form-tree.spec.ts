@@ -1,5 +1,7 @@
-import { computed, inject } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  inject,
+} from '../host/craft-compat';
 import { HOST_TAG_LIST } from '../host-tag';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftService, onAppStart } from '../craft-service';
@@ -13,6 +15,19 @@ import {
 } from './insert-select-form-tree';
 import { cEmail, cMinLength, cRequired } from './validator';
 import { craftUse } from '../craft-use';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T => {
+  const { injector } = setupCraftServiceTest();
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
 
 type Credentials = {
   name: string;
@@ -34,8 +49,8 @@ type AddressBookFormValue = {
 };
 
 describe('insertSelectFormTree', () => {
-  it('composes two insertions directly and passes the first output to the second', () => {
-    TestBed.runInInjectionContext(() => {
+  it('composes two insertions directly and passes the first output to the second', async () => {
+    await runInInjectionContext(async () => {
       type LoginData = { email: string };
 
       const loginForm = craftUse(
@@ -63,8 +78,8 @@ describe('insertSelectFormTree', () => {
     });
   });
 
-  it('selects a nested object form tree and exposes nested insertions', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selects a nested object form tree and exposes nested insertions', async () => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -117,13 +132,13 @@ describe('insertSelectFormTree', () => {
           }
         ).clearPassword(),
       );
-      TestBed.tick();
+      flushHost();
       expect(craftUse(profileForm()).credentials.password).toBe('');
     });
   });
 
-  it('tags object form tree select insertions with the select name', () => {
-    TestBed.runInInjectionContext(() => {
+  it('tags object form tree select insertions with the select name', async () => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -147,8 +162,8 @@ describe('insertSelectFormTree', () => {
     });
   });
 
-  it('selects a nested array form tree and adds insertions to its items', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selects a nested array form tree and adds insertions to its items', async () => {
+    await runInInjectionContext(async () => {
       const addressBookForm = craftUse(
         state(
           'addressBookForm',
@@ -209,8 +224,8 @@ describe('insertSelectFormTree', () => {
     });
   });
 
-  it('tags array form tree select insertions with the select name and selected identifier', () => {
-    TestBed.runInInjectionContext(() => {
+  it('tags array form tree select insertions with the select name and selected identifier', async () => {
+    await runInInjectionContext(async () => {
       const addressBookForm = craftUse(
         state(
           'addressBookForm',
@@ -253,8 +268,8 @@ describe('insertSelectFormTree', () => {
     });
   });
 
-  it('exposes scalar (non-object) child fields as selectable form trees', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes scalar (non-object) child fields as selectable form trees', async () => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -284,8 +299,8 @@ describe('insertSelectFormTree', () => {
 });
 
 describe('selectFormTree', () => {
-  it('applies validators to a sibling property of a flat form via inline factory', () => {
-    TestBed.runInInjectionContext(() => {
+  it('applies validators to a sibling property of a flat form via inline factory', async () => {
+    await runInInjectionContext(async () => {
       type LoginData = { email: string; password: string };
 
       // `insertNoopTypingAnchor` anchors the sub-state type so that the
@@ -342,19 +357,19 @@ describe('selectFormTree', () => {
       expect(password?.invalid()).toBe(true);
 
       loginForm.form.email.set('not-an-email');
-      TestBed.tick();
+      flushHost();
       expect(email?.invalid()).toBe(true);
 
       loginForm.form.email.set('hello@world.com');
       loginForm.form.password.set('secret');
-      TestBed.tick();
+      flushHost();
       expect(email?.invalid()).toBe(false);
       expect(password?.invalid()).toBe(false);
     });
   });
 
-  it('selects a nested object form tree and exposes nested insertions', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selects a nested object form tree and exposes nested insertions', async () => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -395,13 +410,13 @@ describe('selectFormTree', () => {
       expect(credentials.upperName()).toBe('ROMAIN');
 
       craftUse(credentials.clearPassword());
-      TestBed.tick();
+      flushHost();
       expect(craftUse(profileForm()).credentials.password).toBe('');
     });
   });
 
-  it('selects a nested array form tree and adds insertions to its items', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selects a nested array form tree and adds insertions to its items', async () => {
+    await runInInjectionContext(async () => {
       const addressBookForm = craftUse(
         state(
           'addressBookForm',
@@ -447,8 +462,8 @@ describe('selectFormTree', () => {
     });
   });
 
-  it('tags object form tree select insertions with the property name', () => {
-    TestBed.runInInjectionContext(() => {
+  it('tags object form tree select insertions with the property name', async () => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -474,8 +489,8 @@ describe('selectFormTree', () => {
     });
   });
 
-  it('exposes scalar (non-object) child fields as selectable form trees', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes scalar (non-object) child fields as selectable form trees', async () => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -508,16 +523,16 @@ describe('selectFormTree', () => {
 });
 
 describe('insertSelectFormTree with generator insertions', () => {
-  it('should resolve generator insertion on object form tree', () => {
+  it('should resolve generator insertion on object form tree', async () => {
     const { ObjFormLogger } = craftService(
-      { name: 'ObjFormLogger', scope: 'global' },
+      { name: 'ObjFormLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return { log: (msg: string) => calls.push(msg), calls };
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const profileForm = craftUse(
         state(
           'profileForm',
@@ -539,7 +554,7 @@ describe('insertSelectFormTree with generator insertions', () => {
         ),
       );
 
-      TestBed.tick();
+      flushHost();
       const credentials = profileForm.form.selectCredentials();
       (credentials as unknown as { clearPassword: () => void }).clearPassword();
 
@@ -547,16 +562,16 @@ describe('insertSelectFormTree with generator insertions', () => {
     });
   });
 
-  it('should resolve generator insertion on array form tree items', () => {
+  it('should resolve generator insertion on array form tree items', async () => {
     const { ArrFormLogger } = craftService(
-      { name: 'ArrFormLogger', scope: 'global' },
+      { name: 'ArrFormLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return { log: (msg: string) => calls.push(msg), calls };
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const addressBookForm = craftUse(
         state(
           'addressBookForm',
@@ -583,7 +598,7 @@ describe('insertSelectFormTree with generator insertions', () => {
         ),
       );
 
-      TestBed.tick();
+      flushHost();
       const addresses = addressBookForm.form.selectAddresses();
       (
         addresses?.selectItem(0) as unknown as {
@@ -595,8 +610,8 @@ describe('insertSelectFormTree with generator insertions', () => {
     });
   });
 
-  it('should throw on onAppStart inside generator insertion on object form tree', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should throw on onAppStart inside generator insertion on object form tree', async () => {
+    await runInInjectionContext(async () => {
       craftUse(
         state(
           'profileForm',
@@ -615,8 +630,8 @@ describe('insertSelectFormTree with generator insertions', () => {
     });
   });
 
-  it('should throw on onAppStart inside generator insertion on array form tree items', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should throw on onAppStart inside generator insertion on array form tree items', async () => {
+    await runInInjectionContext(async () => {
       craftUse(
         state(
           'addressBook',

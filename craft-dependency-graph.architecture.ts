@@ -1,0 +1,619 @@
+export const architectureCatalog = {
+  "version": 1,
+  "graphHash": "7366e37b0d1ecfdb",
+  "routes": [
+    "",
+    "component-composition",
+    "content-projection",
+    "craft-service/counter",
+    "craft-service/register-for",
+    "craft-service/user-detail",
+    "craft/full-demo",
+    "craft/granular-mutation",
+    "craft/lazy-layout/:teamId",
+    "craft/list-with-pagination",
+    "craft/mutation/:userId",
+    "craft/query/:userId",
+    "css-vars",
+    "css-vars/forwarding",
+    "css-vars/inheritance",
+    "css-vars/property",
+    "css-vars/required",
+    "debounced-web-search",
+    "demo-send-context",
+    "exception-query-params",
+    "exceptions",
+    "full-demo",
+    "granular-mutation",
+    "guard-demo",
+    "list-with-pagination",
+    "login-form",
+    "mutation/:userId",
+    "pending-block",
+    "pending-block/exception",
+    "pixel-art",
+    "pixel-art-matrix",
+    "playground",
+    "query-params",
+    "query/:userId",
+    "slow-page",
+    "state-machine",
+    "state-machine-list",
+    "state-machine-text",
+    "users/:userId",
+    "view-transitions"
+  ],
+  "services": [
+    "ApiService",
+    "AppStartLog",
+    "Auth",
+    "BrowserCryptoService",
+    "BrowserDocumentService",
+    "BrowserHistoryService",
+    "BrowserLocationService",
+    "BrowserNavigatorService",
+    "BrowserPerformanceService",
+    "BrowserWindowService",
+    "ConsoleService",
+    "CookiesService",
+    "Counter",
+    "FunctionRegistryBridgeUrl",
+    "FunctionRegistryClientId",
+    "GlobalPersisterHandlerService",
+    "GranularMutation",
+    "HostName",
+    "LocalStoragePersister",
+    "LocalStorageService",
+    "LogServerUrl",
+    "OtherService",
+    "Playground",
+    "ProfilePermissions",
+    "ServerFunctionTransport",
+    "SessionStoragePersister",
+    "SessionStorageService",
+    "SlowAccess",
+    "SlowReport",
+    "StoragePersister",
+    "TodoStore",
+    "User",
+    "UserList",
+    "UserMutation",
+    "UserQuery",
+    "UsersApi",
+    "UsersApiOnError",
+    "ViewTransitionAccess",
+    "api",
+    "restrictedData",
+    "test2"
+  ],
+  "components": [
+    "AiContextMenu",
+    "AiSendDialog",
+    "AnonymousComponent@800",
+    "App",
+    "CounterChild",
+    "CraftGlobalQuery",
+    "CraftRouterOutlet",
+    "CraftServiceCounterComponent",
+    "CraftServiceUserDetailComponent",
+    "CssVarsDemo",
+    "CssVarsForwardingDemo",
+    "CssVarsInheritanceDemo",
+    "CssVarsPageNav",
+    "CssVarsPropertyDemo",
+    "CssVarsRequiredDemo",
+    "DebouncedWebSearch",
+    "DemoSendContextComponent",
+    "ExceptionQueryParamsComponent",
+    "ExceptionsComponent",
+    "ForwardingExample",
+    "FullDemo",
+    "FullDemoCraft",
+    "GlobalQuery",
+    "GranularMutation",
+    "GranularMutationCraft",
+    "GuardDemo",
+    "InheritanceExample",
+    "InheritedBadge",
+    "LazyLayoutChildComponent",
+    "LazyLayoutComponent",
+    "ListWithPagination",
+    "ListWithPaginationCraft",
+    "LoginFormComponent",
+    "MutationCraft",
+    "MutationDemoComponent",
+    "MyGlobalErrorScreen",
+    "MyRouteLoadErrorScreen",
+    "OtherComponent",
+    "PixelArt",
+    "PixelArtMatrix",
+    "PlaygroundComponent",
+    "ProfileEditorStateMachine",
+    "QpListWithPagination",
+    "RegisterForDemo",
+    "RegisteredMeter",
+    "SendContextCounterComponent",
+    "SlowPageComponent",
+    "StatusComponent",
+    "TaskBoardStateMachineList",
+    "TaskRow",
+    "TextEditorStateMachine",
+    "TokenCard",
+    "ViewTransitionsDetailComponent",
+    "ViewTransitionsGalleryComponent",
+    "ViewTransitionsSkeletonComponent",
+    "card",
+    "componentCompositionDemo",
+    "componentDemo",
+    "contentProjectionDemo",
+    "craftPending",
+    "dialog",
+    "lazyMessage",
+    "pendingBlockDemo",
+    "pendingBlockExceptionDemo",
+    "restrictedContent",
+    "toolbar",
+    "toolbarAction",
+    "userBadge",
+    "userCard"
+  ],
+  "primitives": [
+    "activeColor",
+    "add",
+    "addTodo",
+    "auth",
+    "back",
+    "backDisabled",
+    "canReadRestrictedData",
+    "cell",
+    "cells",
+    "childTotal",
+    "clearCache",
+    "committedValue",
+    "copied",
+    "counter",
+    "counterChildIds",
+    "craftComputed",
+    "currentPhoto",
+    "currentTerm",
+    "dataList",
+    "debouncedSearch",
+    "deleteTodo",
+    "dialogOpen",
+    "disabled",
+    "draft",
+    "draftEmail",
+    "draftName",
+    "editingClass",
+    "finishDisabled",
+    "forwardDisabled",
+    "goTo",
+    "grid",
+    "hasImage",
+    "hasParseException",
+    "hasPhoto",
+    "hasResults",
+    "hasSearchError",
+    "hasUser",
+    "hasValue",
+    "historyLabel",
+    "imageSrc",
+    "instruction",
+    "isAdding",
+    "isCurrentPageResolved",
+    "isDebouncing",
+    "isDoing",
+    "isDone",
+    "isTodo",
+    "isValid",
+    "issue",
+    "lastAction",
+    "lastActionLabel",
+    "lastHandledException",
+    "loginForm",
+    "message",
+    "modeQueryParams",
+    "nameInput",
+    "navOpen",
+    "navigate",
+    "navigateNext",
+    "navigatePrevious",
+    "nextId",
+    "note",
+    "open",
+    "openLibrarySearch",
+    "pagination",
+    "paintCell",
+    "paintedCount",
+    "profileEditor",
+    "profileLabel",
+    "profileQuery",
+    "profileSource",
+    "query",
+    "readOnly",
+    "readingClass",
+    "records",
+    "remove",
+    "removeTodo",
+    "reopenDisabled",
+    "restriction",
+    "resultBooks",
+    "resultCount",
+    "saveProfile",
+    "searchInput",
+    "serviceTotal",
+    "setCopied",
+    "setInstruction",
+    "showDebouncing",
+    "showEmpty",
+    "showResults",
+    "showSuccess",
+    "showToolbar",
+    "slowAccess",
+    "slowReport",
+    "startDisabled",
+    "step",
+    "stepHint",
+    "stepState",
+    "submitBlocked",
+    "submitted",
+    "summary",
+    "taskRow",
+    "teams",
+    "text",
+    "textEditor",
+    "titleInput",
+    "todos",
+    "toggleNav",
+    "toggleTodo",
+    "tooShort",
+    "total",
+    "totalPaintActions",
+    "ui",
+    "update",
+    "updateError",
+    "updatePageSize",
+    "updateUserName",
+    "updateUserNameFn",
+    "user",
+    "userExceptionLoader",
+    "userId",
+    "userIsLoading",
+    "userQuery",
+    "users",
+    "usersQuery",
+    "value",
+    "viewTransitionAccess"
+  ],
+  "sources": [
+    "cancel$ (source$)",
+    "edit$ (source$)",
+    "finish$ (source$)",
+    "reopen$ (source$)",
+    "restore$ (source$)",
+    "saveRequest$ (source$)",
+    "signalSource (signalSource)",
+    "source$ (source$)",
+    "start$ (source$)",
+    "text.cancel (source$)",
+    "text.change (source$)",
+    "text.commit (source$)",
+    "text.edit (source$)"
+  ],
+  "serverFunctionFamilies": [],
+  "httpEndpoints": [
+    {
+      "method": "GET",
+      "url": "users"
+    }
+  ],
+  "uniques": [
+    "{\"key\":\"granular\",\"storeName\":\"demo-app\"}",
+    "{\"key\":\"granular\",\"storeName\":\"demo-app-craft\"}",
+    "{\"key\":\"list-with-pagination\",\"storeName\":\"demo-app\"}",
+    "{\"key\":\"list-with-pagination\",\"storeName\":\"demo-app-craft\"}",
+    "{\"key\":\"mutation\",\"storeName\":\"demo-app\"}",
+    "{\"key\":\"mutation\",\"storeName\":\"demo-app-craft\"}",
+    "{\"key\":\"pixel-art-cells-state\",\"storeName\":\"pixel-art-cells\"}",
+    "{\"key\":\"pixel-art-ui-state\",\"storeName\":\"pixel-art-ui\"}",
+    "{\"key\":\"route-list-with-pagination\",\"storeName\":\"demo-app\"}",
+    "{\"key\":\"user-query\",\"storeName\":\"demo-app\"}",
+    "{\"key\":\"user-query\",\"storeName\":\"demo-app-craft\"}"
+  ],
+  "providers": [
+    "Counter",
+    "GranularMutation",
+    "OtherService",
+    "TodoStore",
+    "User",
+    "UserList",
+    "UserMutation"
+  ],
+  "routeProviders": {},
+  "componentProviders": {
+    "CraftServiceCounterComponent": [
+      "Counter"
+    ],
+    "CraftServiceUserDetailComponent": [
+      "User"
+    ],
+    "CounterChild": [
+      "Counter"
+    ],
+    "FullDemoCraft": [
+      "TodoStore"
+    ],
+    "GranularMutationCraft": [
+      "GranularMutation"
+    ],
+    "OtherComponent": [
+      "OtherService"
+    ],
+    "ListWithPaginationCraft": [
+      "UserList"
+    ],
+    "MutationCraft": [
+      "UserMutation"
+    ]
+  },
+  "providedOn": {
+    "Counter": [
+      {
+        "kind": "component",
+        "name": "CraftServiceCounterComponent",
+        "file": "apps/demo/src/app/examples/craft-service/craft-service-counter.ts"
+      },
+      {
+        "kind": "component",
+        "name": "CounterChild",
+        "file": "apps/demo/src/app/examples/craft-service/register-for.ts"
+      }
+    ],
+    "User": [
+      {
+        "kind": "component",
+        "name": "CraftServiceUserDetailComponent",
+        "file": "apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts"
+      }
+    ],
+    "TodoStore": [
+      {
+        "kind": "component",
+        "name": "FullDemoCraft",
+        "file": "apps/demo/src/app/examples/craft/full-demo/full-demo.ts"
+      }
+    ],
+    "GranularMutation": [
+      {
+        "kind": "component",
+        "name": "GranularMutationCraft",
+        "file": "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"
+      }
+    ],
+    "OtherService": [
+      {
+        "kind": "component",
+        "name": "OtherComponent",
+        "file": "apps/demo/src/app/examples/craft/lazy-layout/other.ts"
+      }
+    ],
+    "UserList": [
+      {
+        "kind": "component",
+        "name": "ListWithPaginationCraft",
+        "file": "apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"
+      }
+    ],
+    "UserMutation": [
+      {
+        "kind": "component",
+        "name": "MutationCraft",
+        "file": "apps/demo/src/app/examples/craft/mutation/mutation.ts"
+      }
+    ]
+  },
+  "collisions": {
+    "services": {
+      "ApiService": [
+        "apps/demo/src/app/examples/craft/granular-mutation/api.service.ts",
+        "apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts",
+        "apps/demo/src/app/examples/craft/mutation/api.service.ts",
+        "apps/demo/src/app/examples/craft/query/api.service.ts",
+        "apps/demo/src/app/examples/playground/playground.ts",
+        "apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts",
+        "apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts",
+        "apps/demo/src/app/examples/primitives/mutation/api.service.ts",
+        "apps/demo/src/app/examples/primitives/query/api.service.ts",
+        "apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"
+      ],
+      "Counter": [
+        "apps/demo/src/app/examples/craft-service/craft-service-counter.ts",
+        "apps/demo/src/app/examples/craft-service/register-for.ts"
+      ],
+      "GranularMutation": [
+        "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"
+      ]
+    },
+    "components": {
+      "GranularMutation": [
+        "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"
+      ]
+    },
+    "routes": {
+      "": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts"
+      ],
+      "component-composition": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "content-projection": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft-service/counter": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft-service/register-for": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft-service/user-detail": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft/full-demo": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft/granular-mutation": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft/lazy-layout/:teamId": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft/list-with-pagination": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft/mutation/:userId": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "craft/query/:userId": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "css-vars": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "css-vars/forwarding": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "css-vars/inheritance": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "css-vars/property": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "css-vars/required": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "debounced-web-search": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "demo-send-context": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "exception-query-params": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "exceptions": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "full-demo": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "granular-mutation": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "guard-demo": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "list-with-pagination": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "login-form": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "mutation/:userId": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "pending-block": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "pending-block/exception": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "pixel-art": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "pixel-art-matrix": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "playground": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "query-params": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "query/:userId": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "slow-page": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "state-machine": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "state-machine-list": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "state-machine-text": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "view-transitions": [
+        "apps/demo/src/app/app.routes.runtime.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ]
+    }
+  },
+  "browserBoundaryServices": [
+    "BrowserCryptoService",
+    "BrowserDocumentService",
+    "BrowserHistoryService",
+    "BrowserLocationService",
+    "BrowserNavigatorService",
+    "BrowserPerformanceService",
+    "BrowserWindowService",
+    "ConsoleService",
+    "CookiesService",
+    "LocalStorageService",
+    "SessionStorageService"
+  ],
+  "scopes": {}
+} as const;
+export type ArchitectureCatalog = typeof architectureCatalog;

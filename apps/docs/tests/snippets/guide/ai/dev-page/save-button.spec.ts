@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
-import { Injector } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { mountCraftComponent } from '@craft-ng/component';
+import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { mountCraftComponent } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
 useSnippetHarness();
 
 // #region save-button
-import { button, craftComponent } from '@craft-ng/component';
+import { button, craftComponent } from '@craft-ts/component';
 
 const SaveToolbar = craftComponent(
   'SaveToolbar',

@@ -6,14 +6,14 @@ clicks, and inspects **that** page — no second browser, no DOM reverse-enginee
 **Use it when** a Cursor agent must drive or inspect the `ng serve` tab you
 already have open.
 **Not when** you are writing Craft away from a running app — use
-[`@craft-ng/mcp`](/resources/ai-agents) for docs and skills. **Not when** you
+[`@craft-ts/mcp`](/resources/ai-agents) for docs and skills. **Not when** you
 want to mutate a primitive without the UI — use the `registry.*` tools on the
 same local MCP.
 
 ## Connect the local MCP
 
-The tool lives on `@ng-craft/function-registry-mcp`, not on the published
-`@craft-ng/mcp` docs server. From the ng-craft repo:
+The tool lives on `@craft-ts/function-registry-mcp`, not on the published
+`@craft-ts/mcp` docs server. From the craft-ts repo:
 
 ```sh
 npm run registry:mcp

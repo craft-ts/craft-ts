@@ -7,10 +7,10 @@ useSnippetHarness();
 type Task = { id: string; title: string; done: boolean };
 
 // #region create-task
-import { CraftHttpClient, craftService, mutation } from '@craft-ng/core';
+import { CraftHttpClient, craftService, mutation } from '@craft-ts/core';
 
 export const { TaskWrites } = craftService(
-  { name: 'TaskWrites', scope: 'function' },
+  { name: 'TaskWrites', providedIn: 'function' },
   function* () {
     const { createTask } =
       yield *

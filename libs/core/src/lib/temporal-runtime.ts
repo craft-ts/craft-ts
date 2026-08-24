@@ -3,7 +3,7 @@ import {
   InjectionToken,
   inject,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 
 export const TEMPORAL_AWAIT_REQUEST_MARKER = Symbol(
   'temporal-await-request-marker',
@@ -208,9 +208,12 @@ export function provideCraftTemporalRuntime(
 }
 
 export class CraftTimeoutError extends Error {
-  constructor(readonly timeoutMs: number) {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
     super(`Craft operation timed out after ${timeoutMs}ms.`);
     this.name = 'CraftTimeoutError';
+    this.timeoutMs = timeoutMs;
   }
 }
 
@@ -265,16 +268,31 @@ function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
 class TemporalTask implements TemporalTaskHandle {
   private _status: TemporalTaskStatus = 'pending';
   private readonly cancelListeners = new Set<() => void>();
+  readonly id: number;
+  private readonly dueAt: number;
+  private readonly kind: TemporalTaskKind;
+  private readonly owner: string | undefined;
+  readonly callback: () => void;
+  private readonly onCancel: () => void;
+  private readonly onComplete: () => void;
 
   constructor(
-    readonly id: number,
-    private readonly dueAt: number,
-    private readonly kind: TemporalTaskKind,
-    private readonly owner: string | undefined,
-    readonly callback: () => void,
-    private readonly onCancel: () => void,
-    private readonly onComplete: () => void,
-  ) {}
+    id: number,
+    dueAt: number,
+    kind: TemporalTaskKind,
+    owner: string | undefined,
+    callback: () => void,
+    onCancel: () => void,
+    onComplete: () => void,
+  ) {
+    this.id = id;
+    this.dueAt = dueAt;
+    this.kind = kind;
+    this.owner = owner;
+    this.callback = callback;
+    this.onCancel = onCancel;
+    this.onComplete = onComplete;
+  }
 
   cancel(): boolean {
     if (this._status === 'completed' || this._status === 'cancelled') {

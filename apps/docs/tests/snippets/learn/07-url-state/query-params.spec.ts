@@ -5,10 +5,10 @@ import { useSnippetHarness } from '../../snippet-harness';
 useSnippetHarness();
 
 // #region query-params
-import { craftService, queryParams } from '@craft-ng/core';
+import { craftService, queryParams } from '@craft-ts/core';
 
 export const { TaskFilters } = craftService(
-  { name: 'TaskFilters', scope: 'function' },
+  { name: 'TaskFilters', providedIn: 'function' },
   function* () {
     const numberCodec = {
       decode: (value: string) => parseInt(value, 10),

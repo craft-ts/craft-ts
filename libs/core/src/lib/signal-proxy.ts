@@ -1,7 +1,7 @@
 // signal-proxy.ts
 // Purpose: Signal proxy that exposes read signals per property + write helpers for the underlying source signal.
 
-import { Signal, signal, computed, isSignal } from '@angular/core';
+import { Signal, signal, computed, isSignal } from './host/craft-compat';
 import { MergeObject } from './util/types/util.type';
 
 type AnyRecord = Record<PropertyKey, unknown>;

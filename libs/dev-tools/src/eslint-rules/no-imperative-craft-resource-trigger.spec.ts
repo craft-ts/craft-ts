@@ -21,7 +21,7 @@ describe('no-imperative-craft-resource-trigger', () => {
 
   it('reports query.call, mutation.mutate, and asyncProcess.method in an effect', async () => {
     const { messages } = await lintFixture(`
-      import { asyncProcess, craftEffect, craftUse, mutation, query } from '@craft-ng/core';
+      import { asyncProcess, craftEffect, craftUse, mutation, query } from '@craft-ts/core';
 
       const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const save = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
@@ -44,7 +44,7 @@ describe('no-imperative-craft-resource-trigger', () => {
 
   it('follows a craftGen dependency called by the effect', async () => {
     const { messages } = await lintFixture(`
-      import { craftEffect, craftGen, craftUse, query } from '@craft-ng/core';
+      import { craftEffect, craftGen, craftUse, query } from '@craft-ts/core';
 
       const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const triggerUsers = craftGen(function* (value) {
@@ -64,7 +64,7 @@ describe('no-imperative-craft-resource-trigger', () => {
 
   it('does not report triggers outside an effect or unused craftGen factories', async () => {
     const { messages } = await lintFixture(`
-      import { craftGen, craftUse, query } from '@craft-ng/core';
+      import { craftGen, craftUse, query } from '@craft-ts/core';
 
       const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const triggerUsers = craftGen(function* (value) {

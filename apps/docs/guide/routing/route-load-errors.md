@@ -7,17 +7,17 @@ deploy, a flaky network, an offline user.
 **Use it when** your app is lazy-loaded and deployed more than once. Which is to
 say: use it.
 
-`withRouteLoadError(...)` handles failures that happen before Angular can mount the target route:
+`withRouteLoadError(...)` handles failures that happen before Craft can mount the target route:
 lazy `loadComponent` / `loadChildren` chunks that fail to load, rejected dynamic imports, stale
 deployments, CDN errors, or offline transitions.
 
 This is different from [`handleExceptions`](/guide/concepts/exceptions): route exceptions are business
-exceptions raised by guards, resolvers, or route code. Route load errors happen while Angular is
+exceptions raised by guards, resolvers, or route code. Route load errors happen while Craft is
 trying to fetch the JavaScript needed to activate the route.
 
 ## Register the route-load error screen
 
-Pass `withRouteLoadError(...)` to `provideCraftRouter(...)`, next to Angular router features and
+Pass `withRouteLoadError(...)` to `provideCraftRouter(...)`, next to the router features and
 other craft loading features:
 
 ```ts
@@ -25,7 +25,7 @@ import {
   provideCraftRouter,
   withRouteLoadError,
   withErrorComponent,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 provideCraftRouter(
   appRoutes.toRoutes(),
@@ -58,7 +58,7 @@ When a lazy route load fails, Craft:
 3. renders the configured route-load error component;
 4. keeps the browser URL on the original target URL.
 
-The last point matters. Internally, Angular activates a technical recovery route so there is
+The last point matters. Internally, Craft activates a technical recovery route so there is
 something safe to render, but `browserUrl` keeps the visible URL as the intended route:
 
 ```text
@@ -71,7 +71,7 @@ something safe to render, but `browserUrl` keeps the visible URL as the intended
 ```
 
 ::: info No dedicated loading UI during JavaScript fetches yet
-While Angular is fetching a lazy `loadComponent` / `loadChildren` chunk, including time spent in the
+While Craft is fetching a lazy `loadComponent` / `loadChildren` chunk, including time spent in the
 configured retry strategy, Craft does not currently display the route's `pendingComponent` or another
 dedicated loading component. The pending component starts only after the JavaScript has loaded and the
 route has been activated, while the Craft `canMatch` / `canActivate` / `resolve` chain is running.
@@ -91,7 +91,7 @@ loadChildren: ({ withRetry }) =>
   withRetry(import('./admin.routes')).then((m) => m.adminRoutes),
 ```
 
-The initial import remains statically analyzable, so Angular and Vite still rewrite it to the hashed
+The initial import remains statically analyzable, so Craft and Vite still rewrite it to the hashed
 production chunk. On a configured retry, Craft extracts the emitted chunk URL from the browser
 error and adds `__craft_route_retry` only to the failed request. A successful retry module is kept
 for the lifetime of the application and reused by later route activations.
@@ -107,12 +107,12 @@ being statically discovered.
 The component can inject both the active technical exception and the recovery API:
 
 ```ts
-import { button, craftComponent, div, h2, p } from '@craft-ng/component';
+import { button, craftComponent, div, h2, p } from '@craft-ts/component';
 import {
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
   provideHostName,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',
@@ -233,7 +233,7 @@ specific route when the failure should have local behaviour:
 import {
   provideRouteLoadErrorComponent,
   provideRouteLoadRetry,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 craftRoute('admin', {
   providers: [
@@ -258,7 +258,7 @@ The local component receives the same `injectCraftRouteLoadError()` and
 ## DI checks
 
 Route-load error components participate in the same generated DI checks as other error surfaces.
-The ESLint rule `craft-ng/require-exception-component-di-check` generates
+The ESLint rule `craft-ts/require-exception-component-di-check` generates
 `RouteExceptionComponentCheckedDI` checks for:
 
 - global `withRouteLoadError(...)` components;

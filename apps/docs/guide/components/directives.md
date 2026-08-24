@@ -20,7 +20,7 @@ import {
   type HostRequiredLogic,
   type HostTemplate,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 ```
 
 ## `InteractivePermissions`

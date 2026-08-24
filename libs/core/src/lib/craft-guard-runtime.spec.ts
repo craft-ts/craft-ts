@@ -1,13 +1,14 @@
-import '@angular/compiler';
-import { Injector } from '@angular/core';
-import { Router } from '@angular/router';
+
+import {
+  Injector,
+} from './host/craft-compat';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import { craftGen, CraftGenShortCircuit } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
 import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
-import { provideCraftRouter } from './craft-router';
+import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 
 declare module './craft-router' {
@@ -30,7 +31,7 @@ const router = {
   createUrlTree: () => ({}) as unknown,
   navigate: () => Promise.resolve(true),
   navigateByUrl: () => Promise.resolve(true),
-} as unknown as Router;
+} as unknown as typeof CRAFT_ROUTER;
 
 function* returns<T>(value: T): Generator<unknown, T, unknown> {
   return value;
@@ -52,7 +53,7 @@ function* throwsRaw(error: unknown): Generator<unknown, never, unknown> {
   throw error;
 }
 
-const ex = (code: string) => craftException({ code });
+const ex = (code: string) => craftException({ _tag: code });
 
 // This file exercises real async backoff timers. Keep it isolated from other
 // specs that use fake timers without making the retry contract synchronous.
@@ -150,7 +151,7 @@ describe('runCraftRouteChainAsync', () => {
     );
     expect(outcome).toEqual({
       kind: 'global',
-      exception: expect.objectContaining({ code: 'USER_DISABLED' }),
+      exception: expect.objectContaining({ _tag: 'USER_DISABLED' }),
     });
   });
 
@@ -197,7 +198,7 @@ describe('runCraftRouteChainAsync', () => {
 
   it('routes a rethrown craftException (e.g. HttpError) through a matching handler', async () => {
     const httpError = craftException({
-      code: 'HttpError',
+      _tag: 'HttpError',
       scope: 'HttpClient',
     });
     const outcome = await runCraftRouteChainAsync(
@@ -215,7 +216,7 @@ describe('runCraftRouteChainAsync', () => {
 
   it('surfaces a rethrown craftException with no handler as a thrown error', async () => {
     const httpError = craftException({
-      code: 'HttpError',
+      _tag: 'HttpError',
       scope: 'HttpClient',
     });
     const outcome = await runCraftRouteChainAsync(
@@ -321,13 +322,13 @@ describe('runCraftRouteChainAsync', () => {
     const activeRouter = {
       ...router,
       createUrlTree: () => target,
-    } as unknown as Router;
+    } as unknown as typeof CRAFT_ROUTER;
     const activeInjector = Injector.create({
       providers: [
         // provideCraftRouter's type admits EnvironmentProviders, but with no
         // features it only returns plain providers — safe for Injector.create.
-        ...(provideCraftRouter([]) as import('@angular/core').Provider[]),
-        { provide: Router, useValue: activeRouter },
+        ...provideCraftRouter([]),
+        { provide: CRAFT_ROUTER, useValue: activeRouter },
         { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
         { provide: FN_WRAPPER, useValue: [] },
         { provide: FN_WRAP_OBSERVER, useValue: [] },
@@ -353,7 +354,7 @@ describe('runCraftRouteChainAsync', () => {
 describe('runCraftRouteChainAsync — piped guard programs', () => {
   it('recovers a short-circuit through .pipe(catchTag(...))', async () => {
     const failing = craftGen(function* () {
-      return craftException({ code: 'USER_NOT_FOUND' });
+      return craftException({ _tag: 'USER_NOT_FOUND' });
     });
 
     const guard = failing().pipe(
@@ -380,7 +381,7 @@ describe('runCraftRouteChainAsync — piped guard programs', () => {
     let calls = 0;
     const flaky = craftGen(function* () {
       calls += 1;
-      if (calls < 3) return craftException({ code: 'FLAKY' });
+      if (calls < 3) return craftException({ _tag: 'FLAKY' });
       return { user: 'ada' };
     });
 

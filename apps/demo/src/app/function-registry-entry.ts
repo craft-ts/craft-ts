@@ -1,11 +1,10 @@
 import {
   DestroyRef,
-  inject,
-  Injector,
-  NgZone,
   provideAppInitializer,
-  runInInjectionContext,
-} from '@angular/core';
+  ɵinject as inject,
+  ɵInjector as Injector,
+  ɵrunInInjectionContext as runInInjectionContext,
+} from '@craft-ts/core';
 import {
   BrowserDocument,
   BrowserLocation,
@@ -15,21 +14,25 @@ import {
   HOST_TAG_LIST,
   injectPrimitiveMethodRuntimeContext,
   provideFnWrapper,
+  ɵinject,
   type PrimitiveMethodRuntimeContext,
   type PrimitiveResourceRuntimeContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   buildFunctionRegistryKey,
   getFunctionEntryByKey,
   registerFunctionEntry,
   registerResourceEntry,
 } from './function-registry';
-import { provideFnWrapObserver } from '@craft-ng/core';
-import { providePrimitiveResourceRuntimeObserver } from '@craft-ng/core';
+import { provideFnWrapObserver } from '@craft-ts/core';
+import { providePrimitiveResourceRuntimeObserver } from '@craft-ts/core';
 import { functionRegistry } from './function-registry';
 import {
-  FUNCTION_REGISTRY_BRIDGE_URL,
-  FUNCTION_REGISTRY_CLIENT_ID,
+  FunctionRegistryBridgeUrl,
+  FunctionRegistryClientId,
+  createFunctionRegistryClientId,
+  provideFunctionRegistryBridgeUrl,
+  provideFunctionRegistryClientId,
   startFunctionRegistryBridge,
 } from './function-registry-bridge';
 import { toCraftGotoTarget } from './page-actor';
@@ -41,8 +44,7 @@ export function ensureFunctionRegistryEntry(
   thisArg: unknown,
   runtimeContext: PrimitiveMethodRuntimeContext | undefined,
 ): string {
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const hostTags = inject(HOST_TAG_LIST);
+  const hostTags = ɵinject(HOST_TAG_LIST);
   const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
   const ancestry = hostTags.slice(0, -1);
   const key = buildFunctionRegistryKey(hostName, ancestry);
@@ -51,9 +53,7 @@ export function ensureFunctionRegistryEntry(
   }
 
   // Wrapper boundary: retain the original scoped injector for remote replay.
-  // eslint-disable-next-line craft-ng/no-angular-inject
   const destroyRef = inject(DestroyRef);
-  // eslint-disable-next-line craft-ng/no-angular-inject
   const injector = inject(Injector);
   const cleanup = registerFunctionEntry(
     hostName,
@@ -80,8 +80,7 @@ export function ensureFunctionRegistryEntry(
 export function ensureResourceRegistryEntry(
   resourceContext: PrimitiveResourceRuntimeContext,
 ): string {
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const hostTags = inject(HOST_TAG_LIST);
+  const hostTags = ɵinject(HOST_TAG_LIST);
   const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
   const ancestry = hostTags.slice(0, -1);
   const key = buildFunctionRegistryKey(hostName, ancestry);
@@ -91,7 +90,6 @@ export function ensureResourceRegistryEntry(
 
   // Primitive value boundary: expose the live primitive instance for dev-only MCP
   // reads and mutations.
-  // eslint-disable-next-line craft-ng/no-angular-inject
   const destroyRef = inject(DestroyRef);
   const cleanup = registerResourceEntry(hostName, ancestry, resourceContext);
   destroyRef.onDestroy(cleanup);
@@ -99,20 +97,33 @@ export function ensureResourceRegistryEntry(
 }
 
 export const provideMcpExperimentation = () => [
+  provideFunctionRegistryBridgeUrl(() =>
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+    globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ?? 'ws://127.0.0.1:3333',
+  ),
+  provideFunctionRegistryClientId(() =>
+    createFunctionRegistryClientId(
+      // This value is resolved while the root injector is bootstrapping.
+      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+      globalThis.sessionStorage,
+      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+      () => globalThis.crypto.randomUUID(),
+    ),
+  ),
   provideAppInitializer(() => {
     // Bootstrap boundary: the bridge lifetime follows the application injector.
-    // eslint-disable-next-line craft-ng/no-angular-inject
     const destroyRef = inject(DestroyRef);
-    // eslint-disable-next-line craft-ng/no-angular-inject
     const injector = inject(Injector);
-    // eslint-disable-next-line craft-ng/no-angular-inject
-    const zone = inject(NgZone);
+    const { url, clientId } = craftUse(function* () {
+      return {
+        url: yield* FunctionRegistryBridgeUrl(),
+        clientId: yield* FunctionRegistryClientId(),
+      };
+    });
     const stopBridge = startFunctionRegistryBridge({
       injector,
-      // eslint-disable-next-line craft-ng/no-angular-inject
-      url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
-      // eslint-disable-next-line craft-ng/no-angular-inject
-      clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
+      url,
+      clientId,
       getPageInfo: () =>
         runInInjectionContext(injector, () =>
           craftUse(function* () {
@@ -123,15 +134,13 @@ export const provideMcpExperimentation = () => [
           }),
         ),
       navigate: (url) =>
-        zone.run(() =>
-          runInInjectionContext(injector, () =>
-            craftUse(function* () {
-              const router = yield* CraftRouter();
-              return router.navigateByUrl({
-                to: toCraftGotoTarget(url),
-              } as Parameters<CraftRouter['navigateByUrl']>[0]);
-            }),
-          ),
+        runInInjectionContext(injector, () =>
+          craftUse(function* () {
+            const router = yield* CraftRouter();
+            return router.navigateByUrl({
+              to: toCraftGotoTarget(url),
+            } as Parameters<CraftRouter['navigateByUrl']>[0]);
+          }),
         ).then((matched) => {
           if (!matched) {
             throw new Error(`goto "${url}" was not matched`);

@@ -2,7 +2,7 @@
 
 Receives logs from the demo application over HTTP and appends them to a local
 JSONL file. It does nothing else — reading the logs back is the job of
-[`@ng-craft/log-mcp`](../../packages/log-mcp/README.md).
+[`@craft-ts/log-mcp`](../../packages/log-mcp/README.md).
 
 ```sh
 npm run logs:server

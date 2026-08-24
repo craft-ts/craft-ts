@@ -48,15 +48,6 @@
     }
   ],
   "targetDefaults": {
-    "@nx/angular:package": {
-      "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
-    },
-    "@nx/angular:unit-test": {
-      "cache": false,
-      "inputs": ["default", "^production"]
-    },
     "@nx/eslint:lint": {
       "cache": true,
       "inputs": [
@@ -70,19 +61,19 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
-    },
-    "@angular/build:application": {
-      "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
-    },
-    "@angular/build:unit-test": {
-      "cache": false,
-      "inputs": ["default", "^production"]
     }
   },
   "release": {
-    "projects": ["ng-craft-core", "ng-craft-component", "dev-tools", "mcp"],
+    "projects": [
+      "craft-ts-core",
+      "craft-ts-component",
+      "craft-ts-effect",
+      "dev-tools",
+      "craft-ts-deploy",
+      "craft-ts-cli",
+      "craft-ts-deploy-alchemy",
+      "mcp"
+    ],
     "projectsRelationship": "fixed",
     "releaseTag": {
       "pattern": "v{version}"
@@ -103,19 +94,6 @@
       "workspaceChangelog": true
     }
   },
-  "generators": {
-    "@nx/angular:library": {
-      "linter": "eslint",
-      "unitTestRunner": "vitest-angular"
-    },
-    "@nx/angular:component": {
-      "style": "css"
-    },
-    "@nx/angular:application": {
-      "e2eTestRunner": "none",
-      "linter": "eslint",
-      "style": "css",
-      "unitTestRunner": "vitest-angular"
-    }
-  }
+  "generators": {},
+  "analytics": false
 }

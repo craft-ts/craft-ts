@@ -1,7 +1,11 @@
-import { effect, signal, untracked } from '@angular/core';
+import { effect, signal, untracked, type Signal } from './host/craft-compat';
 import { SignalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { SourceBranded } from './util/util';
+import {
+  ɵactiveMachineScope,
+  ɵregisterMachineRecomputation,
+} from './craft-state-machine-runtime';
 
 /**
  * Creates a derived readonly source that transforms source emissions through a callback function.
@@ -53,7 +57,7 @@ import { SourceBranded } from './util/util';
  * Binding a query to a source for automatic execution
  * ```ts
  * const { UserStore } = craftService(
- *   { name: 'UserStore', scope: 'toProvide' },
+ *   { name: 'UserStore', providedIn: 'toProvide' },
  *   function* () {
  *     const userIdChange = signalSource<string>('userIdChange');
  *
@@ -83,7 +87,7 @@ import { SourceBranded } from './util/util';
  * Binding a mutation to a source
  * ```ts
  * const { FormStore } = craftService(
- *   { name: 'FormStore', scope: 'toProvide' },
+ *   { name: 'FormStore', providedIn: 'toProvide' },
  *   function* () {
  *     const submitForm = signalSource<{ name: string; email: string }>('submitForm');
  *
@@ -114,7 +118,7 @@ import { SourceBranded } from './util/util';
  * Binding an async process to a source
  * ```ts
  * const { SearchStore } = craftService(
- *   { name: 'SearchStore', scope: 'toProvide' },
+ *   { name: 'SearchStore', providedIn: 'toProvide' },
  *   function* () {
  *     const searchInput = signalSource<string>('searchInput');
  *
@@ -147,7 +151,7 @@ import { SourceBranded } from './util/util';
  * };
  *
  * const { UserFormStore } = craftService(
- *   { name: 'UserFormStore', scope: 'toProvide' },
+ *   { name: 'UserFormStore', providedIn: 'toProvide' },
  *   function* () {
  *     const formSubmit = signalSource<FormData>('formSubmit');
  *
@@ -181,7 +185,7 @@ import { SourceBranded } from './util/util';
  * Transforming data before execution
  * ```ts
  * const { ResultsStore } = craftService(
- *   { name: 'ResultsStore', scope: 'toProvide' },
+ *   { name: 'ResultsStore', providedIn: 'toProvide' },
  *   function* () {
  *     const searchParams = signalSource<{ query: string; filters: string[] }>('searchParams');
  *
@@ -215,7 +219,7 @@ import { SourceBranded } from './util/util';
  * Validation and type narrowing
  * ```ts
  * const { ValidationStore } = craftService(
- *   { name: 'ValidationStore', scope: 'toProvide' },
+ *   { name: 'ValidationStore', providedIn: 'toProvide' },
  *   function* () {
  *     const inputChange = signalSource<string>('inputChange');
  *
@@ -254,7 +258,7 @@ import { SourceBranded } from './util/util';
  * Multiple sources with different transformations
  * ```ts
  * const { SearchResultsStore } = craftService(
- *   { name: 'SearchResultsStore', scope: 'toProvide' },
+ *   { name: 'SearchResultsStore', providedIn: 'toProvide' },
  *   function* () {
  *     const quickSearch = signalSource<string>('quickSearch');
  *     const advancedSearch = signalSource<{ query: string; options: unknown }>('advancedSearch');
@@ -289,7 +293,7 @@ import { SourceBranded } from './util/util';
  * Identity transformation (pass-through)
  * ```ts
  * const { DataStore } = craftService(
- *   { name: 'DataStore', scope: 'toProvide' },
+ *   { name: 'DataStore', providedIn: 'toProvide' },
  *   function* () {
  *     const dataUpdate = signalSource<{ id: string; payload: unknown }>('dataUpdate');
  *
@@ -317,15 +321,48 @@ import { SourceBranded } from './util/util';
  * ```
  */
 export function afterRecomputation<State, SourceType>(
+  _source: SignalSource<SourceType>,
+  callback: (source: SourceType) => State,
+): ReadonlySource<State>;
+export function afterRecomputation<State, SourceType>(
   _source: ReadonlySource<SourceType>,
   callback: (source: SourceType) => State,
-): ReadonlySource<State> {
-  const initialValue = _source();
+): ReadonlySource<State>;
+/**
+ * Inside a `transitionStep(...)`, `afterRecomputation` is a machine
+ * registration: every time the watched value recomputes, the callback runs
+ * untracked with its declaring step restored, so the `transit(...)` attempts it
+ * yields target that step. Consume it with `yield*` so the callback's
+ * dependencies join the machine's dependency graph.
+ */
+export function afterRecomputation<Value, Yielded>(
+  source: Signal<Value>,
+  callback: (value: Value) => Generator<Yielded, unknown, unknown>,
+): Generator<Yielded, void, unknown>;
+export function afterRecomputation<State, SourceType>(
+  _source:
+    | SignalSource<SourceType>
+    | ReadonlySource<SourceType>
+    | Signal<SourceType>,
+  callback: (source: SourceType) => State,
+  // The machine overload resolves to a registration generator instead of a
+  // readonly source, so the implementation signature stays deliberately loose.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (ɵactiveMachineScope()) {
+    return ɵregisterMachineRecomputation(
+      _source as unknown as Signal<unknown>,
+      callback as (value: never) => unknown,
+    ) as unknown as ReadonlySource<State>;
+  }
+
+  const source = _source as ReadonlySource<SourceType>;
+  const initialValue = source();
   const derivedSource = signal<State | undefined>(
     initialValue && callback(initialValue),
   );
   const effectRef = effect(() => {
-    const sourceValue = _source();
+    const sourceValue = source();
     if (sourceValue !== undefined) {
       untracked(() => {
         const newState = callback(sourceValue);

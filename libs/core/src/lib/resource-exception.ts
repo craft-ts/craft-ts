@@ -1,4 +1,4 @@
-import { computed, Signal, signal } from '@angular/core';
+import { computed, Signal, signal } from './host/craft-compat';
 import { AnyCraftException } from './craft-exception';
 
 type ResourceExceptionScope = 'params' | 'loader';
@@ -25,7 +25,7 @@ export function enrichResourceException(
   const nextException = {
     ...exception,
     scope: meta.scope,
-    [exception.code]: exception.payload,
+    [exception._tag]: exception.payload,
   } as AnyCraftException & {
     scope: ResourceExceptionScope;
     identifier?: string;

@@ -24,7 +24,7 @@ describe('provide-host-name-match-component', () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { Component, Directive } from '@angular/core';
-        import { provideHostName } from '@craft-ng/core';
+        import { provideHostName } from '@craft-ts/core';
 
         @Component({
           standalone: true,
@@ -65,7 +65,7 @@ describe('provide-host-name-match-component', () => {
 
     const { output } = await lintFixture(fixture, { fix: true });
     expect(output).toContain(
-      "import { provideHostName } from '@craft-ng/core';",
+      "import { provideHostName } from '@craft-ts/core';",
     );
     expect(output).toContain(
       "providers: [provideHostName('component:DemoComponent')]",
@@ -76,7 +76,7 @@ describe('provide-host-name-match-component', () => {
     const fixture = {
       'src/app/demo.ts': `
         import { Component } from '@angular/core';
-        import { provideHostName } from '@craft-ng/core';
+        import { provideHostName } from '@craft-ts/core';
 
         @Component({
           standalone: true,
@@ -124,7 +124,7 @@ describe('provide-host-name-match-component', () => {
       fix: true,
     });
     expect(output).toContain(
-      "import { provideHostName } from '@craft-ng/core';",
+      "import { provideHostName } from '@craft-ts/core';",
     );
     expect(output).toContain(
       "providers: [provideHostName('directive:DemoDirective')]",
@@ -135,7 +135,7 @@ describe('provide-host-name-match-component', () => {
     const fixture = {
       'src/app/demo.ts': `
         import { Component } from '@angular/core';
-        import { provideApi } from '@craft-ng/core';
+        import { provideApi } from '@craft-ts/core';
 
         @Component({
           standalone: true,
@@ -148,7 +148,7 @@ describe('provide-host-name-match-component', () => {
 
     const { output } = await lintFixture(fixture, { fix: true });
     expect(output).toContain(
-      "import { provideApi, provideHostName } from '@craft-ng/core';",
+      "import { provideApi, provideHostName } from '@craft-ts/core';",
     );
     expect(output).toContain(
       "providers: [provideApi(), provideHostName('component:DemoComponent')],",
@@ -188,7 +188,7 @@ async function lintFixture(
       }
     `,
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function provideHostName(name: string): unknown;
         export declare function provideApi(): unknown;
       }

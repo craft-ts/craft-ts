@@ -1,4 +1,6 @@
-import { ResourceRef } from '@angular/core';
+import {
+  ResourceRef,
+} from '../../host/craft-compat';
 import { Expect, Equal } from 'test-type';
 import { BooleanOrMapperFnByPath } from './boolean-or-mapper-fn-by-path.type';
 

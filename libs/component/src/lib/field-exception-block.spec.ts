@@ -1,13 +1,5 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Injector } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import {
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -26,49 +18,29 @@ import {
   insertFormAttributes,
   insertNoopTypingAnchor,
   insertSelectFormTree,
+  setupCraftServiceTest,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   craftComponent,
   div,
   fieldExceptionBlock,
   input,
   loadCraftComponent,
-  mountCraftComponent,
   p,
 } from '../index';
+import { renderCraftComponent } from './testing';
 import type { CraftNodeChildrenFieldExceptions } from './render/vnode';
 import type { ComponentFieldExceptionsOf } from './types';
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
-function host(): HTMLElement {
-  const element = document.createElement('div');
-  document.body.append(element);
-  return element;
-}
-
 describe('fieldExceptionBlock', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
   it('carries and exhaustively removes local field validation cases', () => {
-    TestBed.runInInjectionContext(() => {
+    const { injector } = setupCraftServiceTest();
+    injector.run(() => {
       const formState = craftUse(
         state(
           'typedEmail',
@@ -126,7 +98,7 @@ describe('fieldExceptionBlock', () => {
     });
   });
 
-  it('renders partial handlers locally and forwards residual cases to its parent boundary', () => {
+  it('renders partial handlers locally and forwards residual cases to its parent boundary', async () => {
     const component = craftComponent(
       'partialFieldExceptionBoundary',
       {},
@@ -157,13 +129,9 @@ describe('fieldExceptionBlock', () => {
           }),
         ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const control = element.querySelector(
       '#partial-password',
@@ -171,11 +139,11 @@ describe('fieldExceptionBlock', () => {
     const field = element.querySelector('#password-field') as HTMLElement;
     control.value = 'abc';
     control.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).not.toContain('Parent minimum 6');
     control.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(field.textContent).not.toContain('Local required');
     expect(field.textContent).not.toContain('Parent minimum 6');
@@ -183,7 +151,7 @@ describe('fieldExceptionBlock', () => {
 
     control.value = '';
     control.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(field.textContent).toContain('Local required');
     expect(element.textContent).toContain('Parent minimum 6');
@@ -193,10 +161,10 @@ describe('fieldExceptionBlock', () => {
     expect(
       messageIds.map((id) => element.querySelector(`#${id}`)?.textContent),
     ).toEqual(expect.arrayContaining(['Local required', 'Parent minimum 6']));
-    mounted.destroy();
+    destroy();
   });
 
-  it('uses visibleExceptions by default and preserves the mounted control', () => {
+  it('uses visibleExceptions by default and preserves the mounted control', async () => {
     const component = craftComponent(
       'fieldExceptionDefaultVisibility',
       {},
@@ -218,28 +186,24 @@ describe('fieldExceptionBlock', () => {
             }),
           ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const control = element.querySelector('input') as HTMLInputElement;
     expect(element.textContent).not.toContain('Email is required.');
 
     control.value = 'valid';
     control.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    await flush();
     control.value = '';
     control.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.querySelector('input')).toBe(control);
     expect(element.textContent).not.toContain('Email is required.');
     control.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Email is required.');
     expect(control.getAttribute('aria-invalid')).toBe('true');
     const messageId = control.getAttribute('aria-describedby');
@@ -248,10 +212,10 @@ describe('fieldExceptionBlock', () => {
       'Email is required.',
     );
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('supports a touched visibility override and restores existing aria attributes', () => {
+  it('supports a touched visibility override and restores existing aria attributes', async () => {
     const component = craftComponent(
       'fieldExceptionTouchedVisibility',
       {},
@@ -278,28 +242,24 @@ describe('fieldExceptionBlock', () => {
             ),
           ),
     );
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       component,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     const control = element.querySelector('input') as HTMLInputElement;
     expect(element.textContent).not.toContain('Touched error');
     control.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('Touched error');
     expect(control.getAttribute('aria-describedby')).toContain('existing-hint');
 
-    mounted.destroy();
+    destroy();
     expect(control.getAttribute('aria-invalid')).toBe('grammar');
     expect(control.getAttribute('aria-describedby')).toBe('existing-hint');
   });
 
-  it('handles multiple fields by path at the component boundary', () => {
+  it('handles multiple fields by path at the component boundary', async () => {
     const unsafe = craftComponent(
       'fieldExceptionComponentBoundary',
       {},
@@ -373,46 +333,46 @@ describe('fieldExceptionBlock', () => {
     >().toEqualTypeOf<never>();
     loadCraftComponent(async () => safe);
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       safe,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
-    const email = element.querySelector('#email') as HTMLInputElement;
-    const password = element.querySelector('#password') as HTMLInputElement;
+    let email = element.querySelector('#email') as HTMLInputElement;
+    let password = element.querySelector('#password') as HTMLInputElement;
     email.value = 'valid@example.com';
     email.dispatchEvent(new Event('input', { bubbles: true }));
     password.value = 'long-enough';
     password.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    await flush();
+    email = element.querySelector('#email') as HTMLInputElement;
+    password = element.querySelector('#password') as HTMLInputElement;
     email.value = '';
     email.dispatchEvent(new Event('input', { bubbles: true }));
     password.value = '';
     password.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).not.toContain('Email required');
     expect(element.textContent).not.toContain('Password required');
 
+    email = element.querySelector('#email') as HTMLInputElement;
+    password = element.querySelector('#password') as HTMLInputElement;
     email.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('Email required');
     expect(element.textContent).not.toContain('Password required');
 
     password.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('Password required');
     expect(element.querySelector('#email')).toBe(email);
     expect(element.querySelector('#password')).toBe(password);
-    mounted.destroy();
+    destroy();
   });
 
-  it('carries and renders group validation cases declared by component logic without a group DOM binding', () => {
+  it('carries and renders group validation cases declared by component logic without a group DOM binding', async () => {
     function* registrationFactory() {
       const registration = yield* state(
         'registration',
@@ -433,7 +393,7 @@ describe('fieldExceptionBlock', () => {
                   validWhen: () =>
                     field.value().password === field.value().confirmation,
                   exception: () =>
-                    craftException({ code: 'passwordMismatch' }, undefined),
+                    craftException({ _tag: 'passwordMismatch' }, undefined),
                 }),
               ],
             })),
@@ -500,22 +460,18 @@ describe('fieldExceptionBlock', () => {
       ComponentFieldExceptionsOf<typeof safeInTemplate>
     >().toEqualTypeOf<never>();
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       safeInTemplate,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
 
     expect(element.textContent).not.toContain('Passwords do not match.');
     const password = element.querySelector(
       '#group-password',
     ) as HTMLInputElement;
     password.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('Passwords do not match.');
-    mounted.destroy();
+    destroy();
   });
 });

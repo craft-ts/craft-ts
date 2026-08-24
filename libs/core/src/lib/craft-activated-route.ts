@@ -1,6 +1,6 @@
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute } from './host/craft-router-types';
 import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   type SERVICE_HELPER_DEPENDENCIES,
   type ServiceYieldRequest,
   type ServiceTrackingMetadata,
@@ -35,7 +35,7 @@ type CraftActivatedRouteHelper = CraftActivatedRouteTrackedHelper & {
 // from this package boundary.
 const craftActivatedRouteService = toCraftService({
   name: 'CraftActivatedRoute',
-  scope: 'global',
+  providedIn: 'global',
   token: ActivatedRoute,
 }) as unknown as {
   CraftActivatedRoute: CraftActivatedRouteHelper;

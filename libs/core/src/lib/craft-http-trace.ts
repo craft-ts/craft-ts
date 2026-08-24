@@ -3,7 +3,8 @@ import {
   Injector,
   runInInjectionContext,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
+import { isCraftDevelopment } from './craft-runtime-mode';
 
 export type CraftHttpTraceContext = Readonly<{
   method: string;
@@ -22,6 +23,7 @@ export const CRAFT_HTTP_TRACE = new InjectionToken<
 >('CRAFT_HTTP_TRACE', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 export function provideCraftHttpTrace(
@@ -39,6 +41,9 @@ export function executeCraftHttpTrace<Value>(
   context: CraftHttpTraceContext,
   next: () => Promise<Value>,
 ): Promise<Value> {
+  if (!isCraftDevelopment(injector)) {
+    return next();
+  }
   const wrappers = injector.get(CRAFT_HTTP_TRACE, []);
   if (wrappers.length === 0) {
     return next();

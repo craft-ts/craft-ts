@@ -1,15 +1,13 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
 import { query, ResourceByIdLikeQueryRef } from './query';
 import { craftService } from './craft-service';
 import { craftPipe } from './craft-pipe';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { computed, signal } from '@angular/core';
 import { craftException, CraftExceptionResult } from './craft-exception';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';
 import {
@@ -30,27 +28,20 @@ import { craftGen } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { craftUntilSettled } from './craft-until-settled';
 import type { YieldableReactiveProperties } from './reactive-read';
+import { craftSignal } from './host/craft-signal';
+import {
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T =>
+  setupCraftServiceTest().injector.run(fn);
 
 type User = {
   id: string;
   name: string;
   email: string;
 };
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('query', () => {
   beforeEach(() => {
@@ -59,8 +50,8 @@ describe('query', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
-  it('1- should accept signal param as source', () => {
-    TestBed.runInInjectionContext(() => {
+  it('1- should accept signal param as source', async () => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => '5',
@@ -81,7 +72,7 @@ describe('query', () => {
   });
 
   it('preserves the previous value while a new query is loading by default', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const currentId = signal('first');
       const queryRef = craftUse(
         query('queryRef', {
@@ -106,7 +97,7 @@ describe('query', () => {
   });
 
   it('can clear the previous query value while loading', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const currentId = signal('first');
       const queryRef = craftUse(
         query('queryRef', {
@@ -127,7 +118,7 @@ describe('query', () => {
   });
 
   it('should return undefined with value when status is error', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'error',
@@ -154,6 +145,76 @@ describe('query', () => {
     });
   });
 
+  it('settles a synchronous loader exception without Angular resource()', async () => {
+    await runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query('queryRef', {
+          params: () => 'invalid',
+          loader: ({ params }) =>
+            craftException(
+              { _tag: 'INVALID_QUERY', scope: 'loader' },
+              { params },
+            ),
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(queryRef.status())).toBe('exception');
+      expect(craftUse(queryRef.hasException())).toBe(true);
+      expect(craftUse(queryRef.exception())?._tag).toBe('INVALID_QUERY');
+      expect(craftUse(queryRef.value())).toBeUndefined();
+    });
+  });
+
+  it('invalidates an Angular computed settledValue after a successful load', async () => {
+    await runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query('queryRef', {
+          params: () => 'ready',
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
+      const rendered = computed(() => {
+        try {
+          return craftUse(queryRef.settledValue()).id;
+        } catch {
+          return 'pending';
+        }
+      });
+
+      expect(rendered()).toBe('pending');
+      await vi.runAllTimersAsync();
+
+      expect(rendered()).toBe('ready');
+    });
+  });
+
+  it('reloads automatically when Craft signal params change', async () => {
+    await runInInjectionContext(async () => {
+      const currentId = craftSignal('first');
+      const loaded: string[] = [];
+
+      craftUse(
+        query('queryRef', {
+          params: () => currentId(),
+          loader: async ({ params }) => {
+            loaded.push(params);
+            return { id: params };
+          },
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+      expect(loaded).toEqual(['first']);
+
+      currentId.set('second');
+      await vi.runAllTimersAsync();
+
+      expect(loaded).toEqual(['first', 'second']);
+    });
+  });
+
   // Regression: a query whose `params`/`loader` are PLAIN (non-generator)
   // functions used to defer resolving its injector until those computeds first
   // ran — relying on the AMBIENT injection context at read time. A non-blocking
@@ -165,7 +226,7 @@ describe('query', () => {
     let readParamsSrc: (() => unknown) | undefined;
 
     // Construct inside an injection context (the normal case).
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -182,15 +243,15 @@ describe('query', () => {
     expect(readParamsSrc?.()).toBe('user-1');
   });
 
-  it('typing: tracks generator dependencies from params, loader and insertions', () => {
+  it('typing: tracks generator dependencies from params, loader and insertions', async () => {
     const { UserIdService } = craftService(
-      { name: 'UserIdService', scope: 'global' },
+      { name: 'UserIdService', providedIn: 'global' },
       () => ({
         read: (): string => 'user-1',
       }),
     );
     const { UserApiService } = craftService(
-      { name: 'UserApiService', scope: 'global' },
+      { name: 'UserApiService', providedIn: 'global' },
       () => ({
         get: (userId: string): Promise<User> =>
           Promise.resolve({
@@ -201,13 +262,13 @@ describe('query', () => {
       }),
     );
     const { QueryTools } = craftService(
-      { name: 'QueryTools', scope: 'global' },
+      { name: 'QueryTools', providedIn: 'global' },
       () => ({
         prefix: (): string => 'user',
       }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query(
           'queryRef',
@@ -233,13 +294,13 @@ describe('query', () => {
       type t = ExtractDeps<typeof queryRef>;
       expectTypeOf<ExtractDeps<typeof queryRef>>().toEqualTypeOf<{
         UserIdService: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
         };
         UserApiService: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -251,7 +312,7 @@ describe('query', () => {
           };
         };
         QueryTools: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -263,13 +324,13 @@ describe('query', () => {
   it('should resolve generator params, method, loader and insertions', async () => {
     const logs: string[] = [];
     const { UserIdRuntime } = craftService(
-      { name: 'UserIdRuntime', scope: 'global' },
+      { name: 'UserIdRuntime', providedIn: 'global' },
       () => ({
         read: (): string => 'user-2',
       }),
     );
     const { QueryLoggerRuntime } = craftService(
-      { name: 'QueryLoggerRuntime', scope: 'global' },
+      { name: 'QueryLoggerRuntime', providedIn: 'global' },
       () => ({
         log: (message: string) => {
           logs.push(message);
@@ -277,7 +338,7 @@ describe('query', () => {
       }),
     );
     const { UserApiRuntime } = craftService(
-      { name: 'UserApiRuntime', scope: 'global' },
+      { name: 'UserApiRuntime', providedIn: 'global' },
       () => ({
         get: async (userId: string): Promise<User> => ({
           id: userId,
@@ -287,7 +348,7 @@ describe('query', () => {
       }),
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const autoQuery = craftUse(
         query(
           'autoQuery',
@@ -337,11 +398,31 @@ describe('query', () => {
       expect(logs).toEqual(['auto:init', 'manual:user-3']);
     });
   });
+
+  it('does not load a method query with the previous params during call', async () => {
+    await runInInjectionContext(async () => {
+      const loaded: string[] = [];
+      const queryRef = craftUse(
+        query('manualQuery', {
+          method: (term: string) => term,
+          loader: async ({ params }) => {
+            loaded.push(params);
+            return { id: params };
+          },
+        }),
+      );
+
+      queryRef.call('user-3');
+      await vi.runAllTimersAsync();
+
+      expect(loaded).toEqual(['user-3']);
+    });
+  });
 });
 
 describe('query with identifier>', () => {
-  it('selectOrCreate returns an idle resource without changing select', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selectOrCreate returns an idle resource without changing select', async () => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           method: (id: string) => id,
@@ -359,8 +440,8 @@ describe('query with identifier>', () => {
     });
   });
 
-  it('Retrieve returned types of queryByIdFn', () => {
-    TestBed.runInInjectionContext(() => {
+  it('Retrieve returned types of queryByIdFn', async () => {
+    runInInjectionContext(() => {
       const queryByIdFn = craftUse(
         query('queryByIdFn', {
           params: () => '5',
@@ -401,9 +482,9 @@ describe('query with identifier>', () => {
 });
 
 describe('craftService using query', () => {
-  it('1- Should expose a query resource', () => {
+  it('1- Should expose a query resource', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query('user', {
@@ -420,7 +501,7 @@ describe('craftService using query', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
 
       expect(store.user).toBeDefined();
@@ -429,9 +510,9 @@ describe('craftService using query', () => {
 });
 
 describe('query Insertions output', () => {
-  it('should accept an Insertions output, that appear in the store', () => {
+  it('should accept an Insertions output, that appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -455,16 +536,16 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
-  it('should accept an Insertion, with the correct resource infer', () => {
+  it('should accept an Insertion, with the correct resource infer', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -503,16 +584,16 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
-  it('should accept an Insertion, with the correct resourceById infer', () => {
+  it('should accept an Insertion, with the correct resourceById infer', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -553,16 +634,16 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
-  it('should accept an insertion output, that appear in the store', () => {
+  it('should accept an insertion output, that appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -589,7 +670,7 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -597,9 +678,9 @@ describe('query Insertions output', () => {
       expect(store.user.pagination).toBeDefined();
     });
   });
-  it('should accept multiple insertions, that appear in the store', () => {
+  it('should accept multiple insertions, that appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -641,7 +722,7 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       //insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
@@ -654,9 +735,9 @@ describe('query Insertions output', () => {
       expect(store.user.someOtherInfo).toBeDefined();
     });
   });
-  it('should accept seven insertions, all outputs appear in the store', () => {
+  it('should accept seven insertions, all outputs appear in the store', async () => {
     const { QueryStore } = craftService(
-      { name: 'QueryStore', scope: 'global' },
+      { name: 'QueryStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -693,7 +774,7 @@ describe('query Insertions output', () => {
         };
       },
     );
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const store = craftUse(QueryStore());
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext2).toEqualTypeOf<number>();
@@ -721,8 +802,8 @@ describe('query exceptions', () => {
     vi.resetAllMocks();
   });
 
-  it('typing: exposes exceptions in insertions context', () => {
-    TestBed.runInInjectionContext(() => {
+  it('typing: exposes exceptions in insertions context', async () => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
 
       craftUse(
@@ -732,14 +813,14 @@ describe('query exceptions', () => {
             params: () =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID' },
+                    { _tag: 'INVALID_USER_ID' },
                     { reason: 'missing' as const },
                   )
                 : 'user-1',
             loader: async ({ params }) => {
               return shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID' },
+                    { _tag: 'INVALID_USER_ID' },
                     { reason: 'missing' as const },
                   )
                 : {
@@ -750,95 +831,93 @@ describe('query exceptions', () => {
             },
           },
           function* ({ exceptions, hasException, state, resourceParamsSrc }) {
-              const _state = yield* state();
-                      expectTypeOf(_state).toEqualTypeOf<{
-                        id: string;
-                        name: string;
-                        email: string;
-                      }>();
-              const _resourceParamsSrc = craftUse(resourceParamsSrc());
-                      expectTypeOf(_resourceParamsSrc).toEqualTypeOf<
-                        string | undefined
-                      >();
-              const _hasException = yield* hasException();
-                      expectTypeOf(_hasException).toEqualTypeOf<boolean>();
-              const _exceptions4 = yield* exceptions();
-                      expectTypeOf(_exceptions4).toEqualTypeOf<{
-                        list: (
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'params';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'loader';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                        )[];
-                        params?:
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'params';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                          | undefined;
-                        loader?:
-                          | CraftExceptionResult<
-                              {
-                                code: 'INVALID_USER_ID';
-                                scope: 'loader';
-                              },
-                              {
-                                reason: 'missing';
-                              }
-                            >
-                          | undefined;
-                      }>();
-                      expectTypeOf(exceptions).toBeFunction();
-              const _exceptions3 = yield* exceptions();
-                      expectTypeOf(_exceptions3)
-                        .toHaveProperty('list')
-                        .toBeArray();
-              const _exceptions2 = yield* exceptions();
-                      expectTypeOf(_exceptions2).toHaveProperty('params');
-              const _exceptions = yield* exceptions();
-                      expectTypeOf(_exceptions).toHaveProperty('loader');
-                      return {};
+            const _state = yield* state();
+            expectTypeOf(_state).toEqualTypeOf<{
+              id: string;
+              name: string;
+              email: string;
+            }>();
+            const _resourceParamsSrc = craftUse(resourceParamsSrc());
+            expectTypeOf(_resourceParamsSrc).toEqualTypeOf<
+              string | undefined
+            >();
+            const _hasException = yield* hasException();
+            expectTypeOf(_hasException).toEqualTypeOf<boolean>();
+            const _exceptions4 = yield* exceptions();
+            expectTypeOf(_exceptions4).toEqualTypeOf<{
+              list: (
+                | CraftExceptionResult<
+                    {
+                      _tag: 'INVALID_USER_ID';
+                      scope: 'params';
                     },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | CraftExceptionResult<
+                    {
+                      _tag: 'INVALID_USER_ID';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+              )[];
+              params?:
+                | CraftExceptionResult<
+                    {
+                      _tag: 'INVALID_USER_ID';
+                      scope: 'params';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+              loader?:
+                | CraftExceptionResult<
+                    {
+                      _tag: 'INVALID_USER_ID';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+            }>();
+            expectTypeOf(exceptions).toBeFunction();
+            const _exceptions3 = yield* exceptions();
+            expectTypeOf(_exceptions3).toHaveProperty('list').toBeArray();
+            const _exceptions2 = yield* exceptions();
+            expectTypeOf(_exceptions2).toHaveProperty('params');
+            const _exceptions = yield* exceptions();
+            expectTypeOf(_exceptions).toHaveProperty('loader');
+            return {};
+          },
         ),
       );
     });
   });
 
   it('typing: captures exception returned by params and loader ', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query('queryRef', {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : 'user-1',
           loader: async ({ params }) => {
             return shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : {
@@ -855,7 +934,7 @@ describe('query exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -864,7 +943,7 @@ describe('query exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'loader';
               },
               {
@@ -876,14 +955,14 @@ describe('query exceptions', () => {
     });
   });
   it('typing with identifier: captures exception returned by params and loader ', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query('queryRef', {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : 'user-1',
@@ -892,7 +971,7 @@ describe('query exceptions', () => {
             return shouldFail()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing user' as const },
                 )
@@ -910,7 +989,7 @@ describe('query exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -919,7 +998,7 @@ describe('query exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: 'user-1';
               },
@@ -932,7 +1011,7 @@ describe('query exceptions', () => {
       expectTypeOf(craftUse(queryRef.exceptions()).params).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'INVALID_USER_ID';
+              _tag: 'INVALID_USER_ID';
               scope: 'params';
             },
             {
@@ -947,7 +1026,7 @@ describe('query exceptions', () => {
             'user-1',
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: 'user-1';
               },
@@ -961,14 +1040,14 @@ describe('query exceptions', () => {
     });
   });
   it('typing with identifier: return a select exceptions for an identifier ', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query('queryRef', {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : ('user-1' as string),
@@ -978,14 +1057,14 @@ describe('query exceptions', () => {
               ? shouldFail()
                 ? craftException(
                     {
-                      code: 'API_ERROR',
+                      _tag: 'API_ERROR',
                       scope: 'loader',
                     },
                     { reason: 'missing1' as const },
                   )
                 : craftException(
                     {
-                      code: 'API_ERROR',
+                      _tag: 'API_ERROR',
                       scope: 'loader',
                     },
                     { reason: 'missing2' as const },
@@ -1007,7 +1086,7 @@ describe('query exceptions', () => {
             string,
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1017,7 +1096,7 @@ describe('query exceptions', () => {
               >
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1036,7 +1115,7 @@ describe('query exceptions', () => {
       ).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1046,7 +1125,7 @@ describe('query exceptions', () => {
           >
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1060,7 +1139,7 @@ describe('query exceptions', () => {
   });
 
   it('captures exception returned by params and prevents loader execution', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const loader = vi.fn(async ({ params }: { params: string }) => ({
         id: params,
@@ -1071,7 +1150,7 @@ describe('query exceptions', () => {
           params: () =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : 'user-1',
@@ -1103,13 +1182,13 @@ describe('query exceptions', () => {
   });
 
   it('captures exception returned by loader without exposing a value', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
           loader: async () =>
             craftException(
-              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { _tag: 'INVALID_USER_ID', scope: 'loader' },
               { from: 'loader' as const },
             ),
         }),
@@ -1128,12 +1207,12 @@ describe('query exceptions', () => {
       expect(craftUse(queryRef.exception())).toBe(
         craftUse(queryRef.exceptions()).list[0],
       );
-      expect(craftUse(queryRef.exception())?.code).toBe('INVALID_USER_ID');
+      expect(craftUse(queryRef.exception())?._tag).toBe('INVALID_USER_ID');
     });
   });
 
   it('captures exception returned by method and does not trigger loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const loader = vi.fn(async ({ params }: { params: string }) => ({
         id: params,
       }));
@@ -1142,7 +1221,7 @@ describe('query exceptions', () => {
           method: (value: string) =>
             value.length < 3
               ? craftException(
-                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { _tag: 'SEARCH_TERM_TOO_SHORT' },
                   { min: 3, received: value.length },
                 )
               : value,
@@ -1163,7 +1242,7 @@ describe('query exceptions', () => {
   });
 
   it.todo('captures and auto-clears computedInsertion exceptions', () => {
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query(
@@ -1176,7 +1255,7 @@ describe('query exceptions', () => {
             computedFailure: computed(() =>
               shouldFail()
                 ? craftException(
-                    { code: 'COMPUTED_FAILURE' },
+                    { _tag: 'COMPUTED_FAILURE' },
                     { from: 'computed' as const },
                   )
                 : undefined,
@@ -1198,7 +1277,7 @@ describe('query exceptions', () => {
   });
 
   it.todo('captures and auto-clears methodInsertion exceptions', () => {
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
       const queryRef = craftUse(
         query(
@@ -1211,7 +1290,7 @@ describe('query exceptions', () => {
             validateName: () =>
               shouldFail()
                 ? craftException(
-                    { code: 'PARAM_VALUE_MISMATCH' },
+                    { _tag: 'PARAM_VALUE_MISMATCH' },
                     { expected: 'x', actual: 'y' },
                   )
                 : undefined,
@@ -1234,14 +1313,14 @@ describe('query exceptions', () => {
   });
 
   it('maps loader exceptions by identifier only when identifier is provided on the exception', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = craftUse(
         query('queryRef', {
           params: () => current(),
           identifier: (id) => id,
           loader: async ({ params }) =>
-            craftException({ code: 'PARSE_FAILED' }, { params }),
+            craftException({ _tag: 'PARSE_FAILED' }, { params }),
         }),
       );
 
@@ -1270,13 +1349,13 @@ describe('query exceptions', () => {
   });
 
   it('keeps params exceptions global in parallel query', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = craftUse(
         query('queryRef', {
           params: () =>
             current()
-              ? craftException({ code: 'INVALID_ID' }, { params: current() })
+              ? craftException({ _tag: 'INVALID_ID' }, { params: current() })
               : current(),
           identifier: (id) => id,
           loader: async ({ params }) => ({ id: params }),
@@ -1293,8 +1372,8 @@ describe('query exceptions', () => {
     });
   });
 
-  it('exposes typed exception accessors from params and insertions', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes typed exception accessors from params and insertions', async () => {
+    runInInjectionContext(() => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = craftUse(
         query(
@@ -1303,7 +1382,7 @@ describe('query exceptions', () => {
             params: () =>
               current()
                 ? craftException(
-                    { code: 'PARAM_VALUE_MISMATCH' },
+                    { _tag: 'PARAM_VALUE_MISMATCH' },
                     { from: 'params' as const },
                   )
                 : current(),
@@ -1312,13 +1391,13 @@ describe('query exceptions', () => {
           () => ({
             computedFailure: computed(() =>
               craftException(
-                { code: 'COMPUTED_VALUE_MISMATCH' },
+                { _tag: 'COMPUTED_VALUE_MISMATCH' },
                 { from: 'insertion-1' as const },
               ),
             ),
             validate: () =>
               craftException(
-                { code: 'METHOD_VALUE_MISMATCH' },
+                { _tag: 'METHOD_VALUE_MISMATCH' },
                 { value: 'x' as string },
               ),
           }),
@@ -1340,7 +1419,7 @@ describe('query — providers', () => {
     vi.restoreAllMocks();
   });
 
-  it('exposes the query runtime context to insertion method wrappers', () => {
+  it('exposes the query runtime context to insertion method wrappers', async () => {
     let runtimeContext: QueryMethodRuntimeContext | undefined;
     let observedRuntimeContext: QueryMethodRuntimeContext | undefined;
     const runtimeContextWrapper = provideFnWrapper(
@@ -1351,7 +1430,7 @@ describe('query — providers', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query(
           'queryRef',
@@ -1383,10 +1462,10 @@ describe('query — providers', () => {
     });
   });
 
-  it('exposes the root query resource context to runtime observers', () => {
+  it('exposes the root query resource context to runtime observers', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           providers: [
@@ -1408,10 +1487,10 @@ describe('query — providers', () => {
     });
   });
 
-  it('exposes selected query resource instances to runtime observers', () => {
+  it('exposes selected query resource instances to runtime observers', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const queryRef = craftUse(
         query('queryRef', {
           providers: [
@@ -1445,10 +1524,10 @@ describe('query — providers', () => {
     });
   });
 
-  it('requires update rather than patch for an array query value', () => {
+  it('requires update rather than patch for an array query value', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       craftUse(
         query('user', {
           providers: [
@@ -1481,8 +1560,8 @@ describe('query — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    await TestBed.runInInjectionContext(async () => {
-      TestBed.runInInjectionContext(() =>
+    await runInInjectionContext(async () => {
+      runInInjectionContext(() =>
         craftUse(
           query('user', {
             providers: [
@@ -1497,7 +1576,6 @@ describe('query — providers', () => {
         ),
       );
 
-      expect(callLog).toEqual([]);
       await vi.runAllTimersAsync();
       expect(callLog).toContain('loader');
     });
@@ -1512,7 +1590,7 @@ describe('query — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       // Create withoutProvider first — its load should NOT call trackingWrapper
       craftUse(
         query('user', {
@@ -1524,7 +1602,7 @@ describe('query — providers', () => {
       expect(callLog).toEqual([]);
 
       // Now create withProvider — its load SHOULD call trackingWrapper
-      TestBed.runInInjectionContext(() =>
+      runInInjectionContext(() =>
         craftUse(
           query('user', {
             providers: [
@@ -1543,13 +1621,13 @@ describe('query — providers', () => {
     });
   });
 
-  it('typing: query accepts BrandedServiceProvider in providers without type errors', () => {
+  it('typing: query accepts BrandedServiceProvider in providers without type errors', async () => {
     const { QueryService, provideQueryService } = craftService(
-      { name: 'QueryService', scope: 'toProvide' },
+      { name: 'QueryService', providedIn: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const withoutProviders = craftUse(
         query('withoutProviders', {
           params: () => 'user-1',
@@ -1586,11 +1664,11 @@ describe('query — loader programs (async pump)', () => {
   });
 
   const userNotFound = craftGen(function* (userId: string) {
-    return craftException({ code: 'USER_NOT_FOUND' }, { userId });
+    return craftException({ _tag: 'USER_NOT_FOUND' }, { userId });
   });
 
   it('resolves a generator loader suspended on an craftUntilSettled promise await', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1617,7 +1695,7 @@ describe('query — loader programs (async pump)', () => {
   });
 
   it('surfaces an uncaught program short-circuit as the loader exception', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1633,7 +1711,7 @@ describe('query — loader programs (async pump)', () => {
       // No technical rethrow: the short-circuit feeds the exception channel.
       expect(craftUse(queryRef.status())).toBe('exception');
       expect(craftUse(queryRef.hasException())).toBe(true);
-      expect(craftUse(queryRef.exception())?.code).toBe('USER_NOT_FOUND');
+      expect(craftUse(queryRef.exception())?._tag).toBe('USER_NOT_FOUND');
       expect(craftUse(queryRef.exception())?.payload).toEqual({
         userId: 'user-1',
       });
@@ -1642,7 +1720,7 @@ describe('query — loader programs (async pump)', () => {
   });
 
   it('recovers through .pipe(catchTag(...)) inside a generator loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',
@@ -1668,11 +1746,11 @@ describe('query — loader programs (async pump)', () => {
     let calls = 0;
     const flakyUser = craftGen(function* (userId: string) {
       calls += 1;
-      if (calls < 3) return craftException({ code: 'FLAKY' });
+      if (calls < 3) return craftException({ _tag: 'FLAKY' });
       return { id: userId, name: 'Jane Doe', email: 'jane@doe.com' };
     });
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => 'user-1',

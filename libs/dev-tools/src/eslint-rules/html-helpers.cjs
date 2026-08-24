@@ -1,6 +1,6 @@
 'use strict';
 
-/** Named HTML helpers exported from `@craft-ng/component` hyperscript. */
+/** Named HTML helpers exported from `@craft-ts/component` hyperscript. */
 const NAMED_HTML_HELPERS = [
   'a',
   'area',

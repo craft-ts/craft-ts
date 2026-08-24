@@ -1,4 +1,3 @@
-import type { Injector, Type } from '@angular/core';
 import type {
   AnyCraftException,
   CraftChannels,
@@ -14,8 +13,9 @@ import type {
   ExtractCraftGenExceptions,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
-} from '@craft-ng/core';
-import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ng/core';
+  SsrMode,
+} from '@craft-ts/core';
+import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ts/core';
 import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
@@ -57,6 +57,20 @@ import {
   type ResidualFieldValidationCases,
   type UnhandledFieldValidationCases,
 } from '../field-exception-block';
+import type {
+  EachSchedulePolicy,
+  ScheduleEachDirective,
+} from '../each-scheduling';
+import {
+  SCHEDULE_EACH_DIRECTIVE,
+  isScheduleEachDirective,
+} from '../each-scheduling';
+
+export type CraftHostInjector = unknown;
+type HostInjector = CraftHostInjector & any;
+type CraftHostType<T> = Function & {
+  new (...args: any[]): T;
+};
 
 export declare const CRAFT_NODE_DEPS: unique symbol;
 export const CRAFT_NODE_CSS_VARS: unique symbol = Symbol('craft-node-css-vars');
@@ -337,9 +351,10 @@ export type CraftTextBinding =
 type ElementNodeExceptions<
   Children extends CraftNodeChildren,
   Exceptions extends string,
-> = string extends CraftNodeChildrenExceptions<Children>
-  ? Exceptions
-  : CraftNodeChildrenExceptions<Children>;
+> =
+  string extends CraftNodeChildrenExceptions<Children>
+    ? Exceptions
+    : CraftNodeChildrenExceptions<Children>;
 
 /**
  * The async sources an element still needs a `pendingBlock` for: the ones read
@@ -376,9 +391,7 @@ export interface ElementNodeBase<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeExceptionsCarrier<
-      ElementNodeExceptions<Children, Exceptions>
-    >,
+    CraftNodeExceptionsCarrier<ElementNodeExceptions<Children, Exceptions>>,
     CraftChannelsCarrier<ElementNodeChannels<Props, Children>>,
     CraftNodeHandledExceptionsCarrier<HandledExceptions>,
     CraftNodePendingCarrier<
@@ -424,10 +437,7 @@ export interface ElementNode<
       SettledExceptions
     >,
     CraftNodeCssVarsCarrier<CssVars> {
-  readonly [CRAFT_NODE_EXCEPTIONS]: ElementNodeExceptions<
-    Children,
-    Exceptions
-  >;
+  readonly [CRAFT_NODE_EXCEPTIONS]: ElementNodeExceptions<Children, Exceptions>;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]:
     | FieldExceptions
     | CraftNodeChildrenRawFieldExceptions<Children>;
@@ -463,13 +473,10 @@ type PipedNode<
         | CraftNodeChildrenPendingSources<FallbackChildren>,
         // A pending boundary is not an exception boundary: settled exceptions
         // pass straight through it.
-        | SettledExceptions
-        | CraftNodeChildrenSettledExceptions<FallbackChildren>,
+        SettledExceptions | CraftNodeChildrenSettledExceptions<FallbackChildren>,
         // A pending boundary answers nothing and breaks nothing: whatever the
         // source demanded, the fallback's own demands join it.
-        MergeChannelUnion<
-          Channels | CraftNodeRawChannelsOf<FallbackChildren>
-        >
+        MergeChannelUnion<Channels | CraftNodeRawChannelsOf<FallbackChildren>>
       >
     : PipedNodeWithoutPending<
         Dependencies,
@@ -597,7 +604,7 @@ export type CraftNodePipe<
   Channels extends CraftChannels = EmptyChannels,
 > = {
   <Directive extends CraftDirective>(
-    directive: Directive &
+    directive: (Directive extends ScheduleEachDirective ? never : Directive) &
       (Directive extends PendingBlockDirective<
         infer PendingHandlers extends PendingBlockHandlers | undefined,
         CraftNodeChildren
@@ -639,7 +646,6 @@ export type CraftNodePipe<
     SettledExceptions,
     Channels
   >;
-  (directive: AngularDirectiveNode): CraftNode;
   <Directive extends CraftNodeDirective<any>>(
     directive: Directive,
   ): PipedCraftNodeDirective<
@@ -651,7 +657,41 @@ export type CraftNodePipe<
     SettledExceptions,
     Channels
   >;
-  (directive: Type<unknown>): CraftNode;
+  (directive: CraftHostType<unknown>): CraftNode;
+};
+
+export type EachNodePipe<
+  Dependencies extends object = {},
+  Exceptions extends string = string,
+  FieldExceptions = never,
+  PendingSources extends string = never,
+  SettledExceptions extends string = never,
+  Item = unknown,
+  Key = unknown,
+  SourceName extends string | undefined = string | undefined,
+  ItemChildren extends CraftNodeChildren = CraftNodeChildren,
+  EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
+  Schedule extends EachSchedulePolicy | undefined =
+    | EachSchedulePolicy
+    | undefined,
+> = CraftNodePipe<
+  Dependencies,
+  Exceptions,
+  FieldExceptions,
+  PendingSources,
+  SettledExceptions
+> & {
+  <Policy extends EachSchedulePolicy>(
+    directive: ScheduleEachDirective<Policy>,
+  ): EachNode<
+    Item,
+    Key,
+    Dependencies,
+    SourceName,
+    ItemChildren,
+    EmptyChildren,
+    Policy
+  >;
 };
 
 export interface AppliedCraftNodeDirective {
@@ -736,8 +776,7 @@ export interface ComponentNode<
     >,
     CraftNodeHeadingNeedCarrier<
       RemapToChildHeadingNeed<
-        | ComponentHeadingNeedOf<Component>
-        | ContentHeadingNeedFromProps<Props>
+        ComponentHeadingNeedOf<Component> | ContentHeadingNeedFromProps<Props>
       >
     >,
     CraftNodeFieldExceptionsCarrier<
@@ -748,7 +787,7 @@ export interface ComponentNode<
   readonly component: Component;
   readonly props: Props;
   /** Optional route/feature injector used as this component's DI parent. */
-  readonly injector?: Injector;
+  readonly injector?: HostInjector;
   readonly declarationContext?: unknown;
   readonly [CRAFT_NODE_EXCEPTIONS]:
     | ComponentInitializationExceptionsOf<Component>
@@ -765,21 +804,6 @@ export interface ComponentNode<
     SettledExceptions | ContentSettledExceptionsFromProps<Props>,
     ComponentNodeChannels<Props, Channels>
   >;
-}
-
-export interface AngularDirectiveNode {
-  readonly type: Type<unknown>;
-  readonly inputs?: Readonly<Record<string, unknown>>;
-  readonly outputs?: Readonly<Record<string, (value: unknown) => unknown>>;
-}
-
-export interface AngularComponentNode {
-  readonly kind: 'angular';
-  readonly component: Type<unknown>;
-  readonly injector?: Injector;
-  readonly inputs: Readonly<Record<string, unknown>>;
-  readonly outputs: Readonly<Record<string, (value: unknown) => unknown>>;
-  readonly directives: readonly AngularDirectiveNode[];
 }
 
 export interface CatchBlockNode<
@@ -838,8 +862,9 @@ export interface FieldExceptionBlockNode<
 
 export interface MatchBlockNode<
   Dependencies extends object = {},
-  Source extends ((...args: any[]) => unknown) | object =
-    () => object | undefined,
+  Source extends ((...args: any[]) => unknown) | object = () =>
+    | object
+    | undefined,
   Children extends CraftNodeChildren = CraftNodeChildren,
   HandledExceptions extends string = string,
 > extends CraftNodeDepsCarrier<Dependencies>,
@@ -862,6 +887,9 @@ export interface EachNode<
   SourceName extends string | undefined = string | undefined,
   ItemChildren extends CraftNodeChildren = CraftNodeChildren,
   EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
+  Schedule extends EachSchedulePolicy | undefined =
+    | EachSchedulePolicy
+    | undefined,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<
       CraftNodeChildrenCssVars<ItemChildren | EmptyChildren>
@@ -895,7 +923,25 @@ export interface EachNode<
   readonly sourceName?: SourceName;
   readonly track: (item: Item, index: number) => Key;
   readonly empty?: () => EmptyChildren;
-  readonly itemTemplate: (item: InputValue<Item>, index: number) => ItemChildren;
+  readonly schedule?: Schedule;
+  readonly itemTemplate: (
+    item: InputValue<Item>,
+    index: number,
+  ) => ItemChildren;
+  readonly pipe: EachNodePipe<
+    Dependencies,
+    CraftNodeChildrenExceptions<ItemChildren | EmptyChildren>,
+    CraftNodeChildrenRawFieldExceptions<ItemChildren | EmptyChildren>,
+    | CraftNodeChildrenPendingSources<ItemChildren>
+    | CraftNodeChildrenPendingSources<EmptyChildren>,
+    CraftNodeChildrenSettledExceptions<ItemChildren | EmptyChildren>,
+    Item,
+    Key,
+    SourceName,
+    ItemChildren,
+    EmptyChildren,
+    Schedule
+  >;
 }
 
 export interface IfBlockNode<
@@ -1045,6 +1091,7 @@ export interface PendingBlockNode<
   readonly fallback: PendingFallback | undefined;
   readonly reloading: PendingFallback | undefined;
   readonly position: PendingBlockPosition;
+  readonly ssr: SsrMode | undefined;
   readonly pipe: CraftNodePipe<
     Dependencies,
     Exceptions,
@@ -1060,7 +1107,6 @@ export type CraftNode =
   | TextNode
   | ReactiveTextNode
   | ComponentNode<any, any, any, any, any, any>
-  | AngularComponentNode
   | CraftDirectiveNode<any>
   | EachNode<any, any, any, any, any, any>
   | IfBlockNode<any, any, any, any>
@@ -1151,19 +1197,12 @@ type ComponentNodeChannels<
   Channels | CraftNodeRawChannelsOf<ContentChildrenFromProps<Props>>
 >;
 
-export type ComponentHeadingNeedOf<Component> = Component extends CraftComponent<
-  any,
-  any,
-  any,
-  any,
-  any,
-  any,
-  infer Template
->
-  ? Template extends (...args: any[]) => infer Output
-    ? CraftNodeChildrenHeadingNeed<Output>
-    : never
-  : never;
+export type ComponentHeadingNeedOf<Component> =
+  Component extends CraftComponent<any, any, any, any, any, any, infer Template>
+    ? Template extends (...args: any[]) => infer Output
+      ? CraftNodeChildrenHeadingNeed<Output>
+      : never
+    : never;
 
 export interface ProjectionNode<
   Dependencies extends object = {},
@@ -1260,8 +1299,8 @@ type CraftNodeDirectSettledExceptions<Value> =
       | CraftSettledCodesOf<Value>
         | Extract<
             ExtractCraftGenExceptions<ChildBindingYielded<Value>>,
-            { readonly code: string }
-          >['code']
+            { readonly _tag: string }
+          >['_tag']
         | (Value extends CraftNodeSettledExceptionsCarrier<infer Codes>
             ? string extends Codes
               ? never
@@ -1401,80 +1440,10 @@ function withPipe(node: any): any {
       directive:
         | CraftDirective
         | CraftNodeDirective<any>
-        | AngularDirectiveNode
-        | Type<unknown>,
+        | ScheduleEachDirective
+        | CraftHostType<unknown>,
     ) => pipeCraftNode(node as CraftNode, directive)) as CraftNodePipe,
   };
-}
-
-function isAngularDirectiveNode(value: unknown): value is AngularDirectiveNode {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    typeof (value as { type?: unknown }).type === 'function'
-  );
-}
-
-type AngularDirectiveWithDefinition = Type<unknown> & {
-  readonly ɵdir?: {
-    readonly inputs?: Readonly<Record<string, unknown>>;
-  };
-};
-
-function angularDirectiveInputNames(
-  directive: Type<unknown>,
-): readonly string[] {
-  return Object.keys(
-    (directive as AngularDirectiveWithDefinition).ɵdir?.inputs ?? {},
-  );
-}
-
-function applyAngularDirective(
-  node: ElementNode,
-  directive: Type<unknown>,
-): ElementNode {
-  const inputNames = angularDirectiveInputNames(directive);
-  const inputs = Object.fromEntries(
-    inputNames
-      .filter((name) => name in node.props)
-      .map((name) => [name, node.props[name]]),
-  );
-  const props = { ...node.props };
-  inputNames.forEach((name) => delete props[name]);
-  const directives = Array.isArray(props['directives'])
-    ? props['directives']
-    : [];
-
-  return appendAngularDirective(
-    node,
-    {
-      type: directive,
-      ...(Object.keys(inputs).length ? { inputs } : {}),
-    },
-    props,
-  );
-}
-
-function appendAngularDirective(
-  node: ElementNode,
-  directive: AngularDirectiveNode,
-  props: Readonly<Record<string, unknown>> = node.props,
-): ElementNode {
-  const directives = Array.isArray(props['directives'])
-    ? props['directives']
-    : [];
-
-  return withPipe({
-    ...node,
-    props: {
-      ...props,
-      directives: [
-        ...(directives as readonly AngularDirectiveNode[]),
-        directive,
-      ],
-    },
-  });
 }
 
 export function pipeCraftNode(
@@ -1482,9 +1451,21 @@ export function pipeCraftNode(
   directive:
     | CraftDirective
     | CraftNodeDirective<any>
-    | AngularDirectiveNode
-    | Type<unknown>,
+    | ScheduleEachDirective
+    | CraftHostType<unknown>,
 ): CraftNode {
+  if (isScheduleEachDirective(directive)) {
+    if (node.kind !== 'each') {
+      throw new TypeError(
+        'scheduleEach(...) can only be piped onto an each(...) block.',
+      );
+    }
+    return withPipe({
+      ...node,
+      schedule: directive[SCHEDULE_EACH_DIRECTIVE],
+    });
+  }
+
   if (isCraftNodeDirective(directive)) {
     node = applyCraftNodeDirective(node, directive);
     if (!isCraftDirective(directive)) {
@@ -1500,10 +1481,9 @@ export function pipeCraftNode(
       });
     }
 
-    if (node.kind !== 'element') return node;
-    return isAngularDirectiveNode(directive)
-      ? appendAngularDirective(node as ElementNode, directive)
-      : applyAngularDirective(node as ElementNode, directive as Type<unknown>);
+    // Only Craft directives are applicable; anything else is a no-op now that
+    // Angular directive definitions (`ɵdir`) are gone.
+    return node;
   }
 
   const catchBlockDefinition = (
@@ -1531,6 +1511,7 @@ export function pipeCraftNode(
       readonly fallback: PendingFallback | undefined;
       readonly reloading: PendingFallback | undefined;
       readonly position: PendingBlockPosition;
+      readonly ssr: SsrMode | undefined;
     };
     return withPipe({
       kind: 'pending-block',
@@ -1539,6 +1520,7 @@ export function pipeCraftNode(
       fallback: definition.fallback,
       reloading: definition.reloading,
       position: definition.position,
+      ssr: definition.ssr,
     } as PendingBlockNode);
   }
 

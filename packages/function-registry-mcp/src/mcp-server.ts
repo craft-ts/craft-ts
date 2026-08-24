@@ -8,7 +8,7 @@ type PrimitiveValueKind = 'query' | 'asyncProcess' | 'mutation' | 'queryParams';
 
 export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
   const server = new McpServer({
-    name: 'ng-craft-function-registry',
+    name: 'craft-ts-function-registry',
     version: '0.1.0',
   });
 

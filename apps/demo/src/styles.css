@@ -5,7 +5,79 @@
 * {
   font-family: 'Chivo', Arial, Helvetica, sans-serif !important;
 }
-/* Functional component demo: these nodes are produced by @craft-ng/component,
+
+.demo-typecheck-indicator {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: min(24rem, calc(100vw - 1.5rem));
+  padding: 0.35rem 0.4rem 0.35rem 0.55rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.45rem;
+  color: #1e3a8a;
+  background: #eff6ff;
+  box-shadow: 0 4px 12px #1e3a8a1f;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.demo-typecheck-indicator::before {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  content: '';
+  animation: demo-typecheck-spin 0.8s linear infinite;
+}
+
+.demo-typecheck-indicator[data-status='failed'] {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fef2f2;
+  box-shadow: 0 4px 12px #991b1b1f;
+}
+
+.demo-typecheck-indicator[data-status='failed']::before {
+  border: 0;
+  content: '⚠';
+  animation: none;
+  font-size: 0.8rem;
+}
+
+.demo-typecheck-indicator__dismiss {
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  color: currentColor;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  place-items: center;
+}
+
+.demo-typecheck-indicator__dismiss:hover,
+.demo-typecheck-indicator__dismiss:focus-visible {
+  background: #991b1b1a;
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+@keyframes demo-typecheck-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Functional component demo: these nodes are produced by @craft-ts/component,
    so their styles live at the application boundary rather than in an Angular
    component stylesheet. */
 .component-demo-host {

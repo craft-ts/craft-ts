@@ -7,29 +7,40 @@ import {
   assertCraftComputedPure,
   assertCraftEffectNoImperativeSync,
   assertCraftEffectNoNetwork,
+  assertPrimitiveLoaderRequirements,
+  assertQueryMutationHasServerState,
+  assertCraftHandshake,
   assertCraftUnique,
+  craftHandshakeViolations,
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
   assertInteractiveElementNamed,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
+  assertNoAppConfigRouteCycles,
   assertPathBoundaries,
   assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
+  assertServerFunctionArchitecture,
   craftComputedPureViolations,
   craftEffectImperativeSyncViolations,
   craftEffectNetworkViolations,
   createArchitectureGraph,
   dependencyCycleViolations,
+  appConfigRouteCycleViolations,
   httpEndpointUniqueViolations,
   insertSelectUniqueViolations,
   interactiveElementNamedViolations,
+  type LoaderRequirementContext,
   mutationReactOnViolations,
   noExclusiveLink,
   pathBoundaryViolations,
+  primitiveLoaderRequirementViolations,
+  queryMutationServerStateViolations,
   persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
+  serverFunctionArchitectureViolations,
 } from './architecture-graph';
 
 const temporaryDirectories: string[] = [];
@@ -114,13 +125,33 @@ declare const CraftHttpClient: {
 `;
 
 describe('createArchitectureGraph', () => {
+  it('detects app-config/routes import cycles before provider inference widens', async () => {
+    const graph = await graphOf({
+      'app.config.ts': `
+        import { appRoutes } from './app.routes';
+        declare function craftAppConfig(value: unknown): unknown;
+        export const appConfig = craftAppConfig({ routingDeps: appRoutes });
+      `,
+      'app.routes.ts': `
+        import type { appConfig } from './app.config';
+        ${STUBS}
+        export const appRoutes = craftRoutes('app', [{ path: '', component: {} }]);
+      `,
+    });
+
+    expect(appConfigRouteCycleViolations(graph.graph)).toHaveLength(1);
+    expect(() => assertNoAppConfigRouteCycles(graph.graph)).toThrow(
+      'App config/routes dependency cycle',
+    );
+  });
+
   it('looks up routes, provided services, HTTP endpoints and browser boundaries', async () => {
     const root = await fixture({
       'app.ts': `
         ${STUBS}
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             const users = yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -131,7 +162,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           function* () {
             const { users } = yield* UsersApi();
             return { users };
@@ -139,7 +170,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           () => ({}),
         );
 
@@ -200,12 +231,12 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           function* () {
             yield* Auth();
             return {};
@@ -213,7 +244,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           function* () {
             yield* Auth();
             return {};
@@ -245,12 +276,12 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           () => ({}),
         );
 
         const { Cart, provideCart } = craftService(
-          { name: 'Cart', scope: 'toProvide' },
+          { name: 'Cart', providedIn: 'toProvide' },
           function* () {
             yield* User();
             return {};
@@ -280,7 +311,7 @@ describe('createArchitectureGraph', () => {
     const root = await fixture({
       'app.ts': `
         ${STUBS}
-        const { User } = craftService({ name: 'User', scope: 'global' }, () => ({}));
+        const { User } = craftService({ name: 'User', providedIn: 'global' }, () => ({}));
       `,
     });
 
@@ -298,11 +329,11 @@ describe('createArchitectureGraph', () => {
     const root = await fixture({
       'users-api.ts': `
         ${STUBS}
-        const { ApiService } = craftService({ name: 'ApiService', scope: 'global' }, () => ({}));
+        const { ApiService } = craftService({ name: 'ApiService', providedIn: 'global' }, () => ({}));
       `,
       'cart-api.ts': `
         ${STUBS}
-        const { ApiService } = craftService({ name: 'ApiService', scope: 'global' }, () => ({}));
+        const { ApiService } = craftService({ name: 'ApiService', providedIn: 'global' }, () => ({}));
       `,
     });
 
@@ -324,7 +355,7 @@ describe('createArchitectureGraph', () => {
       'app.ts': `
         ${STUBS}
         const { User, provideUser } = craftService(
-          { name: 'User', scope: 'toProvide' },
+          { name: 'User', providedIn: 'toProvide' },
           () => ({}),
         );
         export const appRoutes = craftRoutes('appRoutes', [
@@ -356,7 +387,7 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -368,7 +399,7 @@ describe('createArchitectureGraph', () => {
         );
 
         const { Profile } = craftService(
-          { name: 'Profile', scope: 'global' },
+          { name: 'Profile', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -405,7 +436,7 @@ describe('createArchitectureGraph', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -430,7 +461,7 @@ describe('createArchitectureGraph', () => {
         const identity = { key: 'user', storeName: 'app' };
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* query(
               'cached',
@@ -454,6 +485,743 @@ describe('createArchitectureGraph', () => {
   });
 });
 
+describe('server function architecture', () => {
+  it('models a client-exposed family and accepts its three boundaries', async () => {
+    const graph = await graphOf({
+      'users/list.fn-contract.ts': `
+        declare function serverFunctionContract(value: unknown): unknown;
+        export const usersListContract = serverFunctionContract({ id: 'users.list', input: {}, exposure: 'client' });
+      `,
+      'users/list.fn-serveur.ts': `
+        import { usersListContract } from './list.fn-contract';
+        declare function serverFunction(value: unknown): { handler(value: unknown): unknown };
+        export const getUsers = serverFunction(usersListContract).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        import type { getUsers as ServerGetUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient(value: unknown): unknown;
+        export const getUsers = createServerFunctionClient<ServerGetUsers>(craftUnique('users.list'));
+      `,
+    });
+
+    expect(graph.catalog.serverFunctionFamilies).toEqual(['users.list']);
+    expect(graph.serverFunctionFamily('users.list').kind).toBe(
+      'server-function-family',
+    );
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+    expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
+  });
+
+  it('accepts a client-exposed family without a separate contract file', async () => {
+    const graph = await graphOf({
+      'users/simple.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.simple', {}, { exposure: 'client' }).handler(() => ({ ok: true }));
+      `,
+      'users/simple.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './simple.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: string): unknown;
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.simple'));
+      `,
+    });
+
+    expect(graph.catalog.serverFunctionFamilies).toEqual(['users.simple']);
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+    expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
+  });
+
+  it('reports a client id or definition that does not match its server family', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.wrong'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH');
+  });
+
+  it('rejects a facade that imports the server definition from another family', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+      'users/authenticated.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const authenticatedUsers = serverFunction('users.authenticated', {}).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        import type { authenticatedUsers as ServerAuthenticatedUsers } from './authenticated.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const getUsers = createServerFunctionClient<typeof ServerAuthenticatedUsers>(craftUnique('users.authenticated'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH');
+  });
+
+  it('requires craftUnique for client identities and rejects duplicate client keys', async () => {
+    const graph = await graphOf({
+      'users/one.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const one = serverFunction('users.one', {}).handler(() => ({ ok: true }));
+      `,
+      'users/one.fn-client.ts': `
+        import type { one as ServerOne } from './one.fn-serveur';
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const oneClient = createServerFunctionClient<typeof ServerOne>('users.one');
+      `,
+      'users/two.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const two = serverFunction('users.two', {}).handler(() => ({ ok: true }));
+      `,
+      'users/two.fn-client.ts': `
+        import type { two as ServerTwo } from './two.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const twoClient = createServerFunctionClient<typeof ServerTwo>(craftUnique('users.one'));
+      `,
+      'users/three.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const three = serverFunction('users.three', {}).handler(() => ({ ok: true }));
+      `,
+      'users/three.fn-client.ts': `
+        import type { three as ServerThree } from './three.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const threeClient = createServerFunctionClient<typeof ServerThree>(craftUnique('users.one'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE');
+    expect(() => assertCraftUnique(graph.graph)).toThrow(/Duplicate craftUnique/);
+  });
+
+  it('reports missing families, server imports in clients, a client context on a server-only function, and duplicate ids', async () => {
+    const graph = await graphOf({
+      'broken.fn-contract.ts': `
+        declare function serverFunctionContract(value: unknown): unknown;
+        export const brokenContract = serverFunctionContract({ id: 'broken', input: {}, exposure: 'client' });
+      `,
+      'orphan.fn-client.ts': `
+        import { brokenServer } from './broken.fn-serveur';
+        declare function createServerFunctionClient(value: unknown): unknown;
+        export const orphan = createServerFunctionClient(brokenServer);
+      `,
+      'broken.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const brokenServer = serverFunction('broken', {}).handler(() => 1);
+      `,
+      'duplicate-one.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const one = serverFunction('duplicate', {}).handler(() => 1);
+      `,
+      'duplicate-two.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const two = serverFunction('duplicate', {}).handler(() => 2);
+      `,
+      'client-context-only.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        declare const shape: unknown;
+        export const clientContextOnly = serverFunction('client-context-only', {}, { exposure: 'server', clientContext: shape }).handler(() => 1);
+      `,
+    });
+
+    const violations = serverFunctionArchitectureViolations(graph.graph);
+    expect(violations.map((violation) => violation.code)).toEqual(
+      expect.arrayContaining([
+        'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING',
+        'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER',
+        'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE',
+        'CRAFT_SERVER_FUNCTION_DUPLICATE_ID',
+      ]),
+    );
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER/,
+    );
+  });
+
+  it('models middleware, their .use(...) edges and the server functions using them', async () => {
+    const graph = await graphOf({
+      'users/access.mw-serveur.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; input(value: unknown): any; server(value: unknown): unknown };
+        export const adminOnly = craftMiddleware('demo.admin-only').server(() => 1);
+        export const matchingUser = craftMiddleware('demo.matching-user').use(adminOnly).input({}).server(() => 1);
+      `,
+      'users/list.fn-serveur.ts': `
+        import { matchingUser } from './access.mw-serveur';
+        declare function serverFunction(...values: unknown[]): { use(value: unknown): any; handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}, { exposure: 'client' }).use(matchingUser).handler(() => 1);
+      `,
+      'users/list.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'));
+      `,
+    });
+
+    expect(
+      graph.serverFunctionMiddlewares().map((node) => node.label).sort(),
+    ).toEqual(['demo.admin-only', 'demo.matching-user']);
+
+    const edges = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'middleware-uses',
+    );
+    // matchingUser -> adminOnly, et la server function -> matchingUser
+    expect(edges).toHaveLength(2);
+    expect(
+      edges.some(
+        (edge) =>
+          edge.from.includes('#matchingUser') && edge.to.includes('#adminOnly'),
+      ),
+    ).toBe(true);
+    expect(
+      edges.some(
+        (edge) =>
+          edge.from.startsWith('server-function-part:server-function-server:') &&
+          edge.to.includes('#matchingUser'),
+      ),
+    ).toBe(true);
+
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('flags a craftMiddleware(...) defined outside a *.mw-serveur.ts file', async () => {
+    const graph = await graphOf({
+      'users/access.ts': `
+        declare function craftMiddleware(id: string): { server(value: unknown): unknown };
+        export const adminOnly = craftMiddleware('demo.admin-only').server(() => 1);
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING');
+  });
+
+  it('flags duplicate middleware ids, cycles and client runtime imports', async () => {
+    const graph = await graphOf({
+      'users/one.mw-serveur.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const first = craftMiddleware('demo.duplicate').server(() => 1);
+      `,
+      'users/two.mw-serveur.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const second = craftMiddleware('demo.duplicate').server(() => 1);
+      `,
+      'users/cycle.mw-serveur.ts': `
+        import { right } from './cycle-two.mw-serveur';
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const left = craftMiddleware('demo.left').use(right).server(() => 1);
+      `,
+      'users/cycle-two.mw-serveur.ts': `
+        import { left } from './cycle.mw-serveur';
+        declare function craftMiddleware(id: string): { use(value: unknown): any; server(value: unknown): unknown };
+        export const right = craftMiddleware('demo.right').use(left).server(() => 1);
+      `,
+      'users/leak.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const leak = serverFunction('users.leak', {}, { exposure: 'client' }).handler(() => 1);
+      `,
+      'users/leak.fn-client.ts': `
+        import { first } from './one.mw-serveur';
+        import type { leak as ServerLeak } from './leak.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const leakClient = createServerFunctionClient<typeof ServerLeak>(craftUnique('users.leak'));
+        void first;
+      `,
+    });
+
+    const codes = serverFunctionArchitectureViolations(graph.graph).map(
+      (violation) => violation.code,
+    );
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID',
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE',
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT',
+      ]),
+    );
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE/,
+    );
+  });
+
+  it('models client middleware, their .use(...) edges and the facades attaching them', async () => {
+    const graph = await graphOf({
+      'users/session.mw-client.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; provides(value: unknown): any; client(value: unknown): unknown };
+        declare const Schema: { Struct(value: unknown): unknown; String: unknown };
+        export const sessionContext = craftMiddleware('demo.session').provides(Schema.Struct({ userId: Schema.String })).client(() => 1);
+        export const workspaceContext = craftMiddleware('demo.workspace').use(sessionContext).provides(Schema.Struct({ workspaceId: Schema.String })).client(() => 1);
+      `,
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}, { exposure: 'client' }).handler(({ clientContext }: any) => clientContext.userId + clientContext.workspaceId);
+      `,
+      'users/list.fn-client.ts': `
+        import { workspaceContext } from './session.mw-client';
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list')).pipe(craftClientMiddleware(workspaceContext));
+      `,
+    });
+
+    expect(
+      graph.clientFunctionMiddlewares().map((node) => node.label).sort(),
+    ).toEqual(['demo.session', 'demo.workspace']);
+    // Un middleware client n'est pas un middleware serveur : les deux familles
+    // restent disjointes dans le graphe.
+    expect(graph.serverFunctionMiddlewares()).toEqual([]);
+
+    const uses = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'client-middleware-uses',
+    );
+    expect(uses).toHaveLength(1);
+    expect(
+      uses.some(
+        (edge) =>
+          edge.from.includes('#workspaceContext') &&
+          edge.to.includes('#sessionContext'),
+      ),
+    ).toBe(true);
+
+    const attached = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
+    );
+    expect(attached).toHaveLength(1);
+    expect(
+      attached[0]?.from.startsWith(
+        'server-function-part:server-function-client:',
+      ),
+    ).toBe(true);
+
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('accepte un middleware client déclaré à même la façade', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}, { exposure: 'client' }).handler(({ clientContext }: any) => clientContext.userId);
+      `,
+      'users/list.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function craftMiddleware(id: string): { provides(value: unknown): any; client(value: unknown): unknown };
+        declare const Schema: { Struct(value: unknown): unknown; String: unknown };
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
+
+        const sessionContext = craftMiddleware('demo.session').provides(Schema.Struct({ userId: Schema.String })).client(() => 1);
+
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list')).pipe(craftClientMiddleware(sessionContext));
+      `,
+    });
+
+    // Une façade est déjà un module navigateur : y déclarer un middleware d'un
+    // seul usage ne franchit aucune frontière.
+    expect(
+      graph.clientFunctionMiddlewares().map((node) => node.label),
+    ).toEqual(['demo.session']);
+    expect(
+      graph.graph.edges.filter(
+        (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
+      ),
+    ).toHaveLength(1);
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('flags a .client(...) middleware defined outside a *.mw-client.ts file', async () => {
+    const graph = await graphOf({
+      'users/session.ts': `
+        declare function craftMiddleware(id: string): { client(value: unknown): unknown };
+        export const sessionContext = craftMiddleware('demo.session').client(() => 1);
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain(
+      'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_NAMING_CONVENTION_MISSING',
+    );
+  });
+
+  it('flags duplicate client middleware ids, cycles and server runtime imports', async () => {
+    const graph = await graphOf({
+      'users/one.mw-client.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; client(value: unknown): unknown };
+        export const first = craftMiddleware('demo.duplicate').client(() => 1);
+      `,
+      'users/two.mw-client.ts': `
+        declare function craftMiddleware(id: string): { use(value: unknown): any; client(value: unknown): unknown };
+        export const second = craftMiddleware('demo.duplicate').client(() => 1);
+      `,
+      'users/cycle.mw-client.ts': `
+        import { right } from './cycle-two.mw-client';
+        declare function craftMiddleware(id: string): { use(value: unknown): any; client(value: unknown): unknown };
+        export const left = craftMiddleware('demo.left').use(right).client(() => 1);
+      `,
+      'users/cycle-two.mw-client.ts': `
+        import { left } from './cycle.mw-client';
+        declare function craftMiddleware(id: string): { use(value: unknown): any; client(value: unknown): unknown };
+        export const right = craftMiddleware('demo.right').use(left).client(() => 1);
+      `,
+      'users/leak.fn-serveur.ts': `
+        import { first } from './one.mw-client';
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const leak = serverFunction('users.leak', {}, { exposure: 'client' }).handler(() => first);
+      `,
+      'users/leak.fn-client.ts': `
+        import type { leak as ServerLeak } from './leak.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const leakClient = createServerFunctionClient<typeof ServerLeak>(craftUnique('users.leak'));
+      `,
+    });
+
+    const codes = serverFunctionArchitectureViolations(graph.graph).map(
+      (violation) => violation.code,
+    );
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_DUPLICATE_ID',
+        'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_CYCLE',
+        'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_IMPORTED_BY_SERVER',
+      ]),
+    );
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_CYCLE/,
+    );
+  });
+
+  it('signale, en heuristique, un contexte client que personne ne lit côté serveur', async () => {
+    const graph = await graphOf({
+      'users/session.mw-client.ts': `
+        declare function craftMiddleware(id: string): { provides(value: unknown): any; client(value: unknown): unknown };
+        declare const Schema: { Struct(value: unknown): unknown; String: unknown };
+        export const sessionContext = craftMiddleware('demo.session').provides(Schema.Struct({ userId: Schema.String })).client(() => 1);
+      `,
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}, { exposure: 'client' }).handler(({ input }: any) => input.filter);
+      `,
+      'users/list.fn-client.ts': `
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_UNUSED');
+  });
+
+  it('tient un handshake référencé des deux côtés, et lui confie l’identité', async () => {
+    const graph = await graphOf({
+      'users/list.handshake.ts': `
+        declare function craftHandshake<N extends string>(name: N, schema?: unknown): N;
+        declare const Schema: { Struct(value: unknown): unknown; String: unknown };
+        export const listUsers = craftHandshake('users.list');
+        export const sessionShape = craftHandshake('users.session', Schema.Struct({ userId: Schema.String }));
+      `,
+      'users/session.mw-serveur.ts': `
+        import { sessionShape } from './list.handshake';
+        declare function craftMiddleware(id: string): { clientContext(value: unknown): any; server(value: unknown): unknown };
+        export const claimedUser = craftMiddleware('demo.claimed-user').clientContext(sessionShape).server(({ clientContext }: any) => clientContext.userId);
+      `,
+      'users/list.fn-serveur.ts': `
+        import { listUsers } from './list.handshake';
+        import { claimedUser } from './session.mw-serveur';
+        declare function serverFunction(...values: unknown[]): { use(value: unknown): any; handler(value: unknown): unknown };
+        export const listUsersFn = serverFunction(listUsers, {}, { exposure: 'client' }).use(claimedUser).handler(() => 1);
+      `,
+      'users/list.fn-client.ts': `
+        import { listUsers, sessionShape } from './list.handshake';
+        import type { listUsersFn as ServerListUsers } from './list.fn-serveur';
+        declare function craftMiddleware(id: string): { provides(value: unknown): any; client(value: unknown): unknown };
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
+        const session = craftMiddleware('demo.session').provides(sessionShape).client(() => 1);
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers).pipe(craftClientMiddleware(session));
+      `,
+    });
+
+    expect(graph.handshakes().map((node) => node.label).sort()).toEqual([
+      'users.list',
+      'users.session',
+    ]);
+    // L'identité de la famille vient du handshake, des deux côtés.
+    expect(graph.serverFunctionFamilies().map((node) => node.label)).toEqual([
+      'users.list',
+    ]);
+    expect(craftHandshakeViolations(graph.graph)).toEqual([]);
+    // Et le facade n'a plus besoin de craftUnique : le handshake tient le rôle.
+    expect(serverFunctionArchitectureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('exige que le handshake soit attaché sur la façade de la même famille', async () => {
+    const files = (attach: string) => ({
+      'users/list.handshake.ts': `
+        declare function craftHandshake<N extends string>(name: N, schema?: unknown): N;
+        declare const Schema: { Struct(value: unknown): unknown; String: unknown };
+        export const listUsers = craftHandshake('users.list');
+        export const sessionShape = craftHandshake('users.session', Schema.Struct({ userId: Schema.String }));
+      `,
+      'users/session.mw-serveur.ts': `
+        import { sessionShape } from './list.handshake';
+        declare function craftMiddleware(id: string): { clientContext(value: unknown): any; server(value: unknown): unknown };
+        export const claimedUser = craftMiddleware('demo.claimed-user').clientContext(sessionShape).server(({ clientContext }: any) => clientContext.userId);
+      `,
+      'users/session.mw-client.ts': `
+        import { sessionShape } from './list.handshake';
+        declare function craftHandshakeMiddleware(handshake: unknown, run: unknown): unknown;
+        export const sessionContext = craftHandshakeMiddleware(sessionShape, function* () {
+          return { userId: 'u-1' };
+        });
+      `,
+      'users/list.fn-serveur.ts': `
+        import { listUsers } from './list.handshake';
+        import { claimedUser } from './session.mw-serveur';
+        declare function serverFunction(...values: unknown[]): { use(value: unknown): any; handler(value: unknown): unknown };
+        export const listUsersFn = serverFunction(listUsers, {}, { exposure: 'client' }).use(claimedUser).handler(() => 1);
+      `,
+      'users/list.fn-client.ts': `
+        import { listUsers } from './list.handshake';
+        import { sessionContext } from './session.mw-client';
+        import type { listUsersFn as ServerListUsers } from './list.fn-serveur';
+        declare function craftClientMiddleware(...values: unknown[]): unknown;
+        declare function createServerFunctionClient<T>(id: unknown): { pipe(value: unknown): unknown };
+        void sessionContext;
+        export const listUsersClient = createServerFunctionClient<typeof ServerListUsers>(listUsers).pipe(craftClientMiddleware(${attach}));
+      `,
+    });
+
+    // Attaché : la chaîne serveur reçoit ce qu'elle attend.
+    const honoured = await graphOf(files('sessionContext'));
+    expect(serverFunctionArchitectureViolations(honoured.graph)).toEqual([]);
+    expect(craftHandshakeViolations(honoured.graph)).toEqual([]);
+
+    // Le middleware existe et le handshake est bien tenu des deux côtés — mais
+    // la façade ne l'attache pas. Seule la règle par famille peut le voir.
+    const detached = await graphOf(files(''));
+    expect(craftHandshakeViolations(detached.graph)).toEqual([]);
+    expect(
+      serverFunctionArchitectureViolations(detached.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toEqual(['CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED']);
+  });
+
+  it('signale un handshake sans pendant, non statique, ou déclaré deux fois', async () => {
+    const graph = await graphOf({
+      'users/orphan.handshake.ts': `
+        declare function craftHandshake<N extends string>(name: N): N;
+        declare const dynamic: string;
+        export const serverOnly = craftHandshake('users.server-only');
+        export const clientOnly = craftHandshake('users.client-only');
+        export const unnamed = craftHandshake(dynamic as 'x');
+        export const twinA = craftHandshake('users.twin');
+      `,
+      'users/other.handshake.ts': `
+        declare function craftHandshake<N extends string>(name: N): N;
+        export const twinB = craftHandshake('users.twin');
+      `,
+      'users/orphan.fn-serveur.ts': `
+        import { serverOnly, twinA } from './orphan.handshake';
+        import { twinB } from './other.handshake';
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const orphanFn = serverFunction('users.orphan', {}, { exposure: 'client' }).handler(() => [serverOnly, twinA, twinB]);
+      `,
+      'users/orphan.fn-client.ts': `
+        import { clientOnly, twinA } from './orphan.handshake';
+        import { twinB } from './other.handshake';
+        import type { orphanFn as ServerOrphan } from './orphan.fn-serveur';
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(id: unknown): unknown;
+        export const orphanClient = createServerFunctionClient<typeof ServerOrphan>(craftUnique('users.orphan'));
+        void [clientOnly, twinA, twinB];
+      `,
+    });
+
+    const violations = craftHandshakeViolations(graph.graph);
+    expect(violations.map((violation) => violation.code).sort()).toEqual([
+      'CRAFT_HANDSHAKE_DUPLICATE_NAME',
+      'CRAFT_HANDSHAKE_MISSING_COUNTERPART',
+      'CRAFT_HANDSHAKE_MISSING_COUNTERPART',
+      'CRAFT_HANDSHAKE_NOT_STATIC',
+    ]);
+    // Le message nomme le côté manquant, dans les deux sens.
+    expect(
+      violations.find((violation) => violation.name === 'users.server-only')
+        ?.message,
+    ).toContain('has no client counterpart');
+    expect(
+      violations.find((violation) => violation.name === 'users.client-only')
+        ?.message,
+    ).toContain('has no server counterpart');
+    expect(() => assertCraftHandshake(graph.graph)).toThrow(
+      /CRAFT_HANDSHAKE_MISSING_COUNTERPART/,
+    );
+  });
+
+  it('flags a serverFunction(...) defined outside a *.fn-serveur.ts file', async () => {
+    const graph = await graphOf({
+      'users/list.service.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+    });
+
+    expect(
+      serverFunctionArchitectureViolations(graph.graph).map(
+        (violation) => violation.code,
+      ),
+    ).toContain('CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING');
+    expect(() => assertServerFunctionArchitecture(graph.graph)).toThrow(
+      /CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING/,
+    );
+  });
+});
+
+describe('resource loader requirements', () => {
+  it('requires query and mutation loaders to reach HTTP or a server function', async () => {
+    const graph = await graphOf({
+      'users/list.fn-serveur.ts': `
+        declare function serverFunction(...values: unknown[]): { handler(value: unknown): unknown };
+        export const listUsers = serverFunction('users.list', {}).handler(() => ({ ok: true }));
+      `,
+      'users/list.fn-client.ts': `
+        declare function craftUnique<T>(value: T): T;
+        declare function createServerFunctionClient<T>(value: string): unknown;
+        import type { listUsers as ServerListUsers } from './list.fn-serveur';
+        export const getUsers = createServerFunctionClient<typeof ServerListUsers>(craftUnique('users.list'));
+      `,
+      'app.ts': `
+        ${STUBS}
+        declare function createServerFunctionClient<T>(value: string): unknown;
+        import { getUsers } from './users/list.fn-client';
+        const { Data } = craftService(
+          { name: 'Data', providedIn: 'global' },
+          function* () {
+            yield* query('httpUsers', {
+              loader: function* () {
+                return yield* CraftHttpClient.get(({ response }) => ({ url: 'users', success: response() }));
+              },
+            });
+            yield* mutation('saveUsers', {
+              method: (value: string) => value,
+              loader: function* () {
+                return yield* getUsers('all');
+              },
+            });
+            yield* query('localUsers', {
+              loader: () => Promise.resolve([]),
+            });
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(
+      graph.graph.edges.filter((edge) => edge.details?.['resourceRole'] === 'loader'),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'calls', details: expect.objectContaining({ http: true }) }),
+        expect.objectContaining({ kind: 'calls', details: expect.objectContaining({ serverFunction: true }) }),
+      ]),
+    );
+    expect(queryMutationServerStateViolations(graph.graph).map((v) => v.label)).toEqual([
+      'localUsers',
+    ]);
+    expect(() => assertQueryMutationHasServerState(graph.graph)).toThrow(
+      /query localUsers loader must depend on CraftHttpClient or server function/,
+    );
+  });
+
+  it('lets an application define different requirements for Effect resources', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        declare function queryEffect(...args: unknown[]): unknown;
+        declare function mutationEffect(...args: unknown[]): unknown;
+        declare namespace Effect { interface Effect<A, E, R> {} }
+        declare namespace Context { function Service<T, Shape>(): (name: string) => new (...args: never[]) => Shape; }
+        class UserApi extends Context.Service<UserApi, {}>()('UserApi') {}
+        declare function loadAccess(): Effect.Effect<string, never, UserApi>;
+        const { Access } = craftService(
+          { name: 'Access', providedIn: 'global' },
+          function* () {
+            yield* queryEffect('accessQuery', {
+              loader: () => loadAccess(),
+            });
+            yield* mutationEffect('saveAccess', {
+              method: (value: string) => value,
+              loader: () => loadAccess(),
+            });
+            yield* queryEffect('localEffect', {
+              loader: () => Promise.resolve('local'),
+            });
+            return {};
+          },
+        );
+      `,
+    });
+    const requirements = {
+      primitives: ['queryEffect', 'mutationEffect'],
+      requirements: [
+        {
+          label: 'an Effect service',
+          matches: ({ target }: LoaderRequirementContext) =>
+            target.kind === 'service' && target.details?.['runtime'] === 'effect',
+        },
+      ],
+    } as const;
+
+    expect(primitiveLoaderRequirementViolations(graph.graph, requirements).map((v) => v.label)).toEqual([
+      'localEffect',
+    ]);
+    expect(() => assertPrimitiveLoaderRequirements(graph.graph, requirements)).toThrow(
+      /queryEffect localEffect loader must depend on an Effect service/,
+    );
+  });
+});
+
 describe('declarative architecture rules', () => {
   it('rejects the same HTTP verb+url called from two services', async () => {
     const graph = await graphOf({
@@ -461,7 +1229,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -472,7 +1240,7 @@ describe('declarative architecture rules', () => {
         );
 
         const { ProfileApi } = craftService(
-          { name: 'ProfileApi', scope: 'global', browserBoundary: true },
+          { name: 'ProfileApi', providedIn: 'global', browserBoundary: true },
           function* () {
             yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -502,7 +1270,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           function* () {
             yield* CraftHttpClient.get(({ response }) => ({
               url: 'users',
@@ -532,7 +1300,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const bump = craftMethod('bump', function* () {
               return 1;
@@ -564,7 +1332,7 @@ describe('declarative architecture rules', () => {
         const reset$ = source$<void>('reset$');
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const label = craftComputed('label', function* () {
               reset$.emit();
@@ -591,7 +1359,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const label = craftComputed('label', function* () {
@@ -618,7 +1386,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const label = craftComputed('label', function* () {
@@ -640,7 +1408,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Left } = craftService(
-          { name: 'Left', scope: 'global' },
+          { name: 'Left', providedIn: 'global' },
           function* () {
             yield* Right();
             return {};
@@ -648,7 +1416,7 @@ describe('declarative architecture rules', () => {
         );
 
         const { Right } = craftService(
-          { name: 'Right', scope: 'global' },
+          { name: 'Right', providedIn: 'global' },
           function* () {
             yield* Left();
             return {};
@@ -671,21 +1439,21 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { A } = craftService(
-          { name: 'A', scope: 'global' },
+          { name: 'A', providedIn: 'global' },
           function* () {
             yield* B();
             return {};
           },
         );
         const { B } = craftService(
-          { name: 'B', scope: 'global' },
+          { name: 'B', providedIn: 'global' },
           function* () {
             yield* C();
             return {};
           },
         );
         const { C } = craftService(
-          { name: 'C', scope: 'global' },
+          { name: 'C', providedIn: 'global' },
           function* () {
             yield* A();
             return {};
@@ -706,7 +1474,7 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Counter } = craftService(
-          { name: 'Counter', scope: 'global' },
+          { name: 'Counter', providedIn: 'global' },
           function* () {
             const left = craftComputed('left', function* () {
               return yield* right();
@@ -732,12 +1500,12 @@ describe('declarative architecture rules', () => {
         ${STUBS}
 
         const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
 
         const { Left } = craftService(
-          { name: 'Left', scope: 'global' },
+          { name: 'Left', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -745,7 +1513,7 @@ describe('declarative architecture rules', () => {
         );
 
         const { Right } = craftService(
-          { name: 'Right', scope: 'global' },
+          { name: 'Right', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -777,14 +1545,14 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
       'src/app/features/cart/cart.ts': `
         ${STUBS}
         export const { Cart } = craftService(
-          { name: 'Cart', scope: 'global' },
+          { name: 'Cart', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -793,7 +1561,7 @@ describe('assertPathBoundaries', () => {
         import { Auth } from '../../shared/auth';
         import { Cart } from '../cart/cart';
         export const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* Auth();
             yield* Cart();
@@ -805,7 +1573,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { Auth } from '../shared/auth';
         export const { Widget } = craftService(
-          { name: 'Widget', scope: 'global' },
+          { name: 'Widget', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -815,7 +1583,7 @@ describe('assertPathBoundaries', () => {
       'src/app/data/users-api.ts': `
         ${STUBS}
         export const { UsersApi } = craftService(
-          { name: 'UsersApi', scope: 'global', browserBoundary: true },
+          { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
           () => ({}),
         );
       `,
@@ -823,7 +1591,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { UsersApi } from '../data/users-api';
         export const { LeakyWidget } = craftService(
-          { name: 'LeakyWidget', scope: 'global' },
+          { name: 'LeakyWidget', providedIn: 'global' },
           function* () {
             yield* UsersApi();
             return {};
@@ -852,14 +1620,14 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
       'src/app/features/users/profile.ts': `
         ${STUBS}
         export const { Profile } = craftService(
-          { name: 'Profile', scope: 'global' },
+          { name: 'Profile', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -868,7 +1636,7 @@ describe('assertPathBoundaries', () => {
         import { Auth } from '../../shared/auth';
         import { Profile } from './profile';
         export const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             yield* Auth();
             yield* Profile();
@@ -904,7 +1672,7 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -912,7 +1680,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { Auth } from '../shared/auth';
         export const { Widget } = craftService(
-          { name: 'Widget', scope: 'global' },
+          { name: 'Widget', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -954,7 +1722,7 @@ describe('assertPathBoundaries', () => {
         ${STUBS}
         import { Auth } from '../shared/auth';
         export const { Widget } = craftService(
-          { name: 'Widget', scope: 'global' },
+          { name: 'Widget', providedIn: 'global' },
           function* () {
             yield* Auth();
             return {};
@@ -964,7 +1732,7 @@ describe('assertPathBoundaries', () => {
       'src/app/shared/auth.ts': `
         ${STUBS}
         export const { Auth } = craftService(
-          { name: 'Auth', scope: 'global' },
+          { name: 'Auth', providedIn: 'global' },
           () => ({}),
         );
       `,
@@ -982,7 +1750,7 @@ describe('assertPathBoundaries', () => {
       'src/app/features/users/users.ts': `
         ${STUBS}
         export const { Users, provideUsers } = craftService(
-          { name: 'Users', scope: 'toProvide' },
+          { name: 'Users', providedIn: 'toProvide' },
           () => ({}),
         );
       `,
@@ -1441,7 +2209,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const user = yield* query('user', {});
@@ -1468,7 +2236,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const logout = yield* mutation('logout', {});
@@ -1500,7 +2268,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const leaked = yield* query(
               'leaked',
@@ -1527,7 +2295,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Users } = craftService(
-          { name: 'Users', scope: 'global' },
+          { name: 'Users', providedIn: 'global' },
           function* () {
             const cached = yield* query(
               'cached',
@@ -1550,7 +2318,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Grid } = craftService(
-          { name: 'Grid', scope: 'global' },
+          { name: 'Grid', providedIn: 'global' },
           function* () {
             const cells = yield* state(
               'cells',
@@ -1576,7 +2344,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Grid } = craftService(
-          { name: 'Grid', scope: 'global' },
+          { name: 'Grid', providedIn: 'global' },
           function* () {
             const left = yield* state('left', [], insertSelect('cell', () => ({})));
             const right = yield* state('right', [], insertSelect('cell', () => ({})));
@@ -1596,7 +2364,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const poll = craftEffect('poll', function* () {
               yield* CraftHttpClient.get(({ response }) => ({
@@ -1626,7 +2394,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const poll = craftEffect('poll', function* () {
@@ -1654,7 +2422,7 @@ describe('insertion architecture rules', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const poll = craftEffect('poll', function* () {
@@ -1678,7 +2446,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const selectedId = yield* state('selectedId', '1');
             const result = yield* state('result', null);
@@ -1707,7 +2475,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const selectedId = yield* state('selectedId', '1');
             const usersQuery = yield* query('usersQuery', {});
@@ -1733,7 +2501,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         const reset$ = source$<void>('reset$');
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const sync = craftEffect('sync', function* () {
@@ -1756,7 +2524,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const save = yield* mutation('save', {});
             const sync = craftEffect('sync', function* () {
@@ -1779,7 +2547,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const validate = yield* asyncProcess('validate', {});
             const sync = craftEffect('sync', function* () {
@@ -1802,7 +2570,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const count = yield* state('count', 0);
             const log = craftEffect('log', function* () {
@@ -1824,7 +2592,7 @@ describe('assertCraftEffectNoImperativeSync', () => {
         ${STUBS}
 
         const { Sync } = craftService(
-          { name: 'Sync', scope: 'global' },
+          { name: 'Sync', providedIn: 'global' },
           function* () {
             const usersQuery = yield* query('usersQuery', {});
             const log = craftEffect('log', function* () {
@@ -1964,4 +2732,3 @@ describe('assertInteractiveElementNamed', () => {
     );
   });
 });
-

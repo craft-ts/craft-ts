@@ -5,15 +5,20 @@ import {
   type Provider,
   type Signal,
   signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { craftException, type AnyCraftException } from './craft-exception';
-import type { StandardSchemaV1 } from './standard-schema';
+import type {
+  StandardSchemaV1,
+  StandardSchemaV1InferInput,
+  StandardSchemaV1InferOutput,
+  StandardSchemaV1Issue,
+} from './standard-schema';
 
 export type CraftSchema = StandardSchemaV1<any, any>;
 export type SchemaInput<Schema extends CraftSchema> =
-  StandardSchemaV1.InferInput<Schema>;
+  StandardSchemaV1InferInput<Schema>;
 export type SchemaOutput<Schema extends CraftSchema> =
-  StandardSchemaV1.InferOutput<Schema>;
+  StandardSchemaV1InferOutput<Schema>;
 
 export type SchemaValidationStage =
   | 'method'
@@ -70,7 +75,7 @@ export function provideCraftSchemaValidationPolicy(
 }
 
 export type SchemaValidationExceptionPayload = {
-  issues: readonly StandardSchemaV1.Issue[];
+  issues: readonly StandardSchemaV1Issue[];
   value: unknown;
   primitive: SchemaValidationContext['primitive'];
   name: string;
@@ -80,7 +85,7 @@ export type SchemaValidationExceptionPayload = {
 };
 
 export type SchemaValidationException = AnyCraftException & {
-  code: 'SCHEMA_VALIDATION_ERROR';
+  _tag: 'SCHEMA_VALIDATION_ERROR';
   scope: 'parse';
   payload: SchemaValidationExceptionPayload;
 };
@@ -108,7 +113,7 @@ export function createSchemaValidationException({
   primitive: SchemaValidationContext['primitive'];
 }): SchemaValidationException {
   return craftException(
-    { code: 'SCHEMA_VALIDATION_ERROR', scope: 'parse' },
+    { _tag: 'SCHEMA_VALIDATION_ERROR', scope: 'parse' },
     {
       issues,
       value,
@@ -178,7 +183,9 @@ export function decideSchemaValidation(
   result: SchemaParseResult<unknown>,
   context: Omit<SchemaValidationContext, 'exception'>,
   policy: SchemaValidationPolicy,
-): { accepted: true; value: unknown } | { accepted: false; exception: SchemaValidationException } {
+):
+  | { accepted: true; value: unknown }
+  | { accepted: false; exception: SchemaValidationException } {
   if (result.ok) {
     return { accepted: true, value: result.value };
   }
@@ -228,7 +235,9 @@ export function createSchemaValidationRuntime({
     stage: SchemaValidationStage,
     operation: SchemaValidationOperation,
     identifier?: string,
-  ): { accepted: true; value: Output } | { accepted: false; exception: AnyCraftException } => {
+  ):
+    | { accepted: true; value: Output }
+    | { accepted: false; exception: AnyCraftException } => {
     const parsed = parseSchema<Output>(schema, value, {
       primitive,
       name,
@@ -246,7 +255,11 @@ export function createSchemaValidationRuntime({
       { primitive, name, stage, operation, identifier },
       policy,
     );
-    setException(stage, decision.accepted ? undefined : decision.exception, identifier);
+    setException(
+      stage,
+      decision.accepted ? undefined : decision.exception,
+      identifier,
+    );
     return decision as
       | { accepted: true; value: Output }
       | { accepted: false; exception: AnyCraftException };
@@ -257,7 +270,10 @@ export function createSchemaValidationRuntime({
     stage: SchemaValidationStage,
     operation: SchemaValidationOperation,
     identifier?: string,
-  ): Promise<{ accepted: true; value: Output } | { accepted: false; exception: AnyCraftException }> => {
+  ): Promise<
+    | { accepted: true; value: Output }
+    | { accepted: false; exception: AnyCraftException }
+  > => {
     const parsed = await parseSchema<Output>(schema, value, {
       primitive,
       name,
@@ -270,7 +286,11 @@ export function createSchemaValidationRuntime({
       { primitive, name, stage, operation, identifier },
       policy,
     );
-    setException(stage, decision.accepted ? undefined : decision.exception, identifier);
+    setException(
+      stage,
+      decision.accepted ? undefined : decision.exception,
+      identifier,
+    );
     return decision as
       | { accepted: true; value: Output }
       | { accepted: false; exception: AnyCraftException };

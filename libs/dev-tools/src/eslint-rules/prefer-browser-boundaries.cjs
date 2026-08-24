@@ -19,7 +19,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Disallow direct browser globals when an @craft-ng browser boundary exists.',
+        'Disallow direct browser globals when an @craft-ts browser boundary exists.',
     },
     schema: [],
   },
@@ -35,7 +35,7 @@ module.exports = {
 
       context.report({
         node,
-        message: `Use the @craft-ng browser boundary ${preferredBoundary} instead of direct ${actualName} access.`,
+        message: `Use the @craft-ts browser boundary ${preferredBoundary} instead of direct ${actualName} access.`,
       });
     }
 

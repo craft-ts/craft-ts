@@ -1,4 +1,6 @@
-import { signal } from '@angular/core';
+import {
+  signal,
+} from './host/craft-compat';
 import { createSignalProxy } from './signal-proxy';
 
 describe('SignalProxy', () => {

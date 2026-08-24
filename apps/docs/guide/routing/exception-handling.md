@@ -68,7 +68,7 @@ const { profileQuery } = query('profileQuery', {
         function* ({ status, code }) {
           if (!(yield* status(403))) return;
           if (!(yield* code('USER_DISABLED'))) return;
-          return craftException({ code: 'USER_DISABLED' });
+          return craftException({ _tag: 'USER_DISABLED' });
         },
       ],
     }));
@@ -82,11 +82,11 @@ craftRoute(
     componentDeps: {} as import('./user-detail').GenDeps_UserDetail,
     canMatch: function* () {
       const ff = yield* FeatureFlags();
-      return ff.userPageEnabled ? true : craftException({ code: 'FEATURE_OFF' });
+      return ff.userPageEnabled ? true : craftException({ _tag: 'FEATURE_OFF' });
     },
     canActivate: function* () {
       const user = yield* Auth();
-      return user.value() ?? craftException({ code: 'NOT_AUTHENTICATED' });
+      return user.value() ?? craftException({ _tag: 'NOT_AUTHENTICATED' });
     },
     resolve: craftResolve(function* () {
       return yield* craftUntilSettled(profileQuery);
@@ -124,7 +124,7 @@ Every handler receives a `CraftExceptionHandlerContext` typed for its exception 
 | `exception`       | The complete typed `craftException`, including `code`, `scope`, and `payload`.               |
 | `payload`         | The typed payload passed as the second argument of `craftException(...)`.                    |
 | `phase`           | `'enter'` during initial activation, `'active'` during a live guard re-check.                |
-| `router`          | The native Angular `Router` instance.                                                        |
+| `router`          | The active `Router` instance.                                                                |
 | `createUrlTree`   | Bound `Router.createUrlTree`, useful for building a redirect with query params or fragments. |
 | `navigate`        | Bound `Router.navigate`. Imperative; prefer returning `yield* redirectTo(...)`.              |
 | `navigateByUrl`   | Bound `Router.navigateByUrl`. Imperative; prefer a redirect outcome.                         |
@@ -151,7 +151,7 @@ Each handler receives a context and returns an outcome constructor:
 | `stay()`                      | Cancel the navigation; restore the previous URL (stay on the triggering page).                           |
 | `noop()`                      | Render the target anyway, with `resolve` data left `undefined`.                                          |
 
-The context also carries the typed `exception`, its `payload`, the Angular-native `redirect`
+The context also carries the typed `exception`, its `payload`, the native `redirect`
 helpers (`createUrlTree` / `navigate` / `navigateByUrl`), and the navigation `phase` (see below). A
 handler may be a **generator** that `yield*`s craft services before its outcome.
 
@@ -176,7 +176,7 @@ Use `redirectTo(...)` for registered application routes and `redirectUrl(...)` f
 }
 ```
 
-Here `payload` is inferred from `craftException({ code: 'RATE_LIMITED' }, { retryAfter: 30 })`.
+Here `payload` is inferred from `craftException({ _tag: 'RATE_LIMITED' }, { retryAfter: 30 })`.
 
 ### Initial entry versus live guard
 

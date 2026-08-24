@@ -6,7 +6,9 @@ import type {
   InsertionsStateFactory,
   ResourceExceptionConstraints,
 } from './query.core';
+import type { CraftMachineInsertionContext } from './craft-state-machine';
 import { DEEP_YIELDABLE_INSERTION } from './reactive-read';
+import type { YieldableInsertionMethods } from './yieldable';
 
 type QueryPipeFactory<
   GroupIdentifier,
@@ -38,8 +40,7 @@ function createTypedInsertionPipe(...members: AnyInsertionFactory[]) {
   if (
     members.some(
       (member) =>
-        typeof member === 'function' &&
-        DEEP_YIELDABLE_INSERTION in member,
+        typeof member === 'function' && DEEP_YIELDABLE_INSERTION in member,
     )
   ) {
     Object.defineProperty(pipe, DEEP_YIELDABLE_INSERTION, { value: true });
@@ -313,6 +314,415 @@ export function insertStatePipe<
   | Insertion7Yielded
 >;
 export function insertStatePipe(...members: any[]): any {
+  return createTypedInsertionPipe(...members);
+}
+
+type StateMachinePipeContext<
+  Context,
+  Steps extends string,
+  StepContexts,
+  PreviousInsertions,
+> = CraftMachineInsertionContext<Context, Steps, StepContexts> & {
+  readonly insertions: keyof PreviousInsertions extends string
+    ? YieldableInsertionMethods<PreviousInsertions>
+    : never;
+};
+
+type StateMachinePipeFactory<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertions,
+  PreviousInsertions = {},
+  Yielded = never,
+> = (
+  context: StateMachinePipeContext<
+    Context,
+    Steps,
+    StepContexts,
+    PreviousInsertions
+  >,
+) => Insertions | Generator<Yielded, Insertions, unknown>;
+
+type StateMachinePipeReturn<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertions,
+  Yielded,
+> = (
+  context: CraftMachineInsertionContext<Context, Steps, StepContexts>,
+) => Generator<Yielded, Insertions, unknown>;
+
+/**
+ * Composes several `craftStateMachine` insertions without requiring an
+ * explicit context. Each member sees the outputs of the members before it
+ * through `insertions`, just like the typed pipes for the other primitives.
+ */
+export function insertStateMachinePipe<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertion1,
+  Insertion2,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+>(
+  insertion1: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
+  >,
+): StateMachinePipeReturn<
+  Context,
+  Steps,
+  StepContexts,
+  Insertion1 & Insertion2,
+  Insertion1Yielded | Insertion2Yielded
+>;
+export function insertStateMachinePipe<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+>(
+  insertion1: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
+  >,
+  insertion3: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion3,
+    Insertion1 & Insertion2,
+    Insertion3Yielded
+  >,
+): StateMachinePipeReturn<
+  Context,
+  Steps,
+  StepContexts,
+  Insertion1 & Insertion2 & Insertion3,
+  Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+>;
+export function insertStateMachinePipe<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+>(
+  insertion1: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
+  >,
+  insertion3: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion3,
+    Insertion1 & Insertion2,
+    Insertion3Yielded
+  >,
+  insertion4: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion4,
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
+  >,
+): StateMachinePipeReturn<
+  Context,
+  Steps,
+  StepContexts,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4,
+  Insertion1Yielded | Insertion2Yielded | Insertion3Yielded | Insertion4Yielded
+>;
+export function insertStateMachinePipe<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+>(
+  insertion1: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
+  >,
+  insertion3: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion3,
+    Insertion1 & Insertion2,
+    Insertion3Yielded
+  >,
+  insertion4: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion4,
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
+  >,
+  insertion5: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion5,
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
+  >,
+): StateMachinePipeReturn<
+  Context,
+  Steps,
+  StepContexts,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+  | Insertion1Yielded
+  | Insertion2Yielded
+  | Insertion3Yielded
+  | Insertion4Yielded
+  | Insertion5Yielded
+>;
+export function insertStateMachinePipe<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+>(
+  insertion1: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
+  >,
+  insertion3: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion3,
+    Insertion1 & Insertion2,
+    Insertion3Yielded
+  >,
+  insertion4: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion4,
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
+  >,
+  insertion5: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion5,
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
+  >,
+  insertion6: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion6,
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
+  >,
+): StateMachinePipeReturn<
+  Context,
+  Steps,
+  StepContexts,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+  | Insertion1Yielded
+  | Insertion2Yielded
+  | Insertion3Yielded
+  | Insertion4Yielded
+  | Insertion5Yielded
+  | Insertion6Yielded
+>;
+export function insertStateMachinePipe<
+  Context,
+  Steps extends string,
+  StepContexts,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
+>(
+  insertion1: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
+  >,
+  insertion3: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion3,
+    Insertion1 & Insertion2,
+    Insertion3Yielded
+  >,
+  insertion4: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion4,
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
+  >,
+  insertion5: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion5,
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
+  >,
+  insertion6: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion6,
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
+  >,
+  insertion7: StateMachinePipeFactory<
+    Context,
+    Steps,
+    StepContexts,
+    Insertion7,
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+    Insertion7Yielded
+  >,
+): StateMachinePipeReturn<
+  Context,
+  Steps,
+  StepContexts,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7,
+  | Insertion1Yielded
+  | Insertion2Yielded
+  | Insertion3Yielded
+  | Insertion4Yielded
+  | Insertion5Yielded
+  | Insertion6Yielded
+  | Insertion7Yielded
+>;
+export function insertStateMachinePipe(...members: any[]): any {
   return createTypedInsertionPipe(...members);
 }
 

@@ -1,10 +1,14 @@
-import { signal, untracked, type Signal } from '@angular/core';
+import {
+  craftSignal as signal,
+  craftUntracked as untracked,
+  type Signal,
+} from '@craft-ts/core';
 import type {
   PrimitiveMethodRuntimeContext,
   PrimitiveMethodRuntimeKind,
   PrimitiveResourceRuntimeContext,
   PrimitiveResourceRuntimeKind,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const RUNTIME_OPERATIONS = ['get', 'set', 'update', 'patch'] as const;
 
@@ -551,6 +555,7 @@ function compileOverride(source: string): RuntimeOverride {
   let candidate: unknown;
   try {
     // Development-only dynamic code path. The caller explicitly controls source.
+    // craft-security-ignore CRAFT_SECURITY_DYNAMIC_CODE
     candidate = new Function(`"use strict"; return (${source});`)();
   } catch (error) {
     throw new Error(
@@ -573,6 +578,7 @@ function compileResourceUpdater(
   let candidate: unknown;
   try {
     // Development-only dynamic code path. The caller explicitly controls source.
+    // craft-security-ignore CRAFT_SECURITY_DYNAMIC_CODE
     candidate = new Function(`"use strict"; return (${source});`)();
   } catch (error) {
     throw new Error(

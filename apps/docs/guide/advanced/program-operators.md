@@ -11,8 +11,8 @@ call, recover from one specific exception code and carry on.
 ## Import
 
 ```typescript
-import { catchTag, retry } from '@craft-ng/core';
-import type { CraftProgramOperator, CraftRetryPolicy } from '@craft-ng/core';
+import { catchTag, retry } from '@craft-ts/core';
+import type { CraftProgramOperator, CraftRetryPolicy } from '@craft-ts/core';
 ```
 
 ## What it does
@@ -63,7 +63,7 @@ const loadSlowReport = craftGen(function* () {
   const reportRef = yield* SlowReport();
   const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
-    ? craftException({ code: 'REPORT_EMPTY' })
+    ? craftException({ _tag: 'REPORT_EMPTY' })
     : report;
 });
 
@@ -93,7 +93,7 @@ catchTag('HTTP_TIMEOUT', function* (exception) {
   const flags = yield* FeatureFlags();
   return flags.offlineMode()
     ? cachedFallback
-    : craftException({ code: 'SERVICE_UNAVAILABLE' });
+    : craftException({ _tag: 'SERVICE_UNAVAILABLE' });
 });
 ```
 
@@ -150,7 +150,7 @@ loadUser(userId).pipe(
 ::: tip Where the check happens
 The exception union is only known once the operator is applied to a program, so exhaustiveness is
 verified at the `.pipe` call site — not when `catchTag.exhaustive({...})` is built. The handler
-parameter is typed `AnyCraftException & { code }` (payload `unknown`): narrow the payload yourself
+parameter is typed `AnyCraftException & { _tag }` (payload `unknown`): narrow the payload yourself
 if you need it.
 :::
 
@@ -210,7 +210,7 @@ channel —
 ```typescript
 queryRef.status(); // 'exception'
 queryRef.hasException(); // true
-queryRef.exception()?.code; // e.g. 'USER_NOT_FOUND'
+queryRef.exception()?._tag; // e.g. 'USER_NOT_FOUND'
 queryRef.exception()?.payload; // the exception payload
 ```
 
@@ -223,7 +223,7 @@ An operator is just a function from one program generator to another. Type yours
 `CraftProgramOperator`:
 
 ```typescript
-import type { CraftProgramOperator } from '@craft-ng/core';
+import type { CraftProgramOperator } from '@craft-ts/core';
 
 // Measures the program duration; passes everything else through unchanged.
 const timed =

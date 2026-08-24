@@ -3,7 +3,7 @@ import { craftComputed, craftService, source$ } from '../craft-runtime';
 const reset$ = source$<void>('reset$');
 
 export const { Counter } = craftService(
-  { name: 'Counter', scope: 'global' },
+  { name: 'Counter', providedIn: 'global' },
   function* () {
     const label = craftComputed('label', function* () {
       reset$.emit();

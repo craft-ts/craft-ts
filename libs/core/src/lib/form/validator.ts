@@ -1,4 +1,4 @@
-import { computed, effect, Signal, signal, untracked } from '@angular/core';
+import { computed, effect, Signal, signal, untracked } from '../host/craft-compat';
 import {
   AnyCraftException,
   CRAFT_EXCEPTION_SYMBOL,
@@ -115,7 +115,7 @@ type ValidatorException<
   Payload = undefined,
 > = CraftExceptionResult<
   {
-    code: Code;
+    _tag: Code;
   },
   Payload
 >;
@@ -394,14 +394,14 @@ function brandException<
 >(
   name: Name,
   type: Type,
-  code: Code,
+  _tag: Code,
   payload: Payload,
 ): AnyCraftException & ValidatorUtilBrand<Name, Type, {}> {
   return {
-    code,
+    _tag,
     [CRAFT_EXCEPTION_SYMBOL]: true,
     payload,
-    [code]: payload,
+    [_tag]: payload,
     __brand: name,
     type,
   } as AnyCraftException & ValidatorUtilBrand<Name, Type, {}>;
@@ -947,7 +947,7 @@ function createCustomAsyncValidator<
         validateAsyncCraftResource: currentResource,
         omitExceptions: ((codes: readonly string[]) =>
           exceptions.filter(
-            (e) => !codes.includes(e.code as string),
+            (e) => !codes.includes(e._tag as string),
           )) as AsyncValidatorContext<
           TValue,
           TResourceRef,

@@ -1,4 +1,4 @@
-import type { Signal } from '@angular/core';
+import type { Signal } from './host/craft-compat';
 import {
   isCraftException,
   type AnyCraftException,
@@ -139,7 +139,7 @@ function* craftUntilSettledHttp(
   });
 
   if (isCraftException(resolved)) {
-    if (resolved.code === 'HttpError' && resolved.scope === 'HttpClient') {
+    if (resolved._tag === 'HttpError' && resolved.scope === 'HttpClient') {
       // Generic network/transport failure — rethrow so it surfaces as a
       // navigation error rather than a resolvable business case.
       throw resolved;

@@ -11,9 +11,8 @@ import type {
   NamedYieldableValue,
   Yieldable,
   YieldableMethod,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type {
-  AngularComponentNode,
   ComponentNode,
   CraftDirectiveNode,
   CraftNodeChildren,
@@ -187,8 +186,6 @@ type VisitChildren<
                 Registry,
                 Seen
               >
-            : Children extends AngularComponentNode
-              ? TemplateContractError<'Angular component nodes are external to the Craft template contract and must be tested separately.'>
               : true;
 
 type VisitComponent<
@@ -893,8 +890,6 @@ type VisitRenderedState<
                     Seen,
                     [...Depth, unknown]
                   >
-                : Children extends AngularComponentNode
-                  ? false
                   : ValueUsesState<Children, StateName> extends true
                     ? VisibilityMatches<Current, Expected>
                     : false;

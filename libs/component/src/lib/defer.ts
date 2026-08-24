@@ -2,7 +2,7 @@ import type { CraftComponent, PropsOf } from './types';
 import type {
   ComponentDepsOf,
   CraftLazyLoadHelpers,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildren,

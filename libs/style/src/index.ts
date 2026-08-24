@@ -1,5 +1,5 @@
 /**
- * ESQUISSE de `@craft-ng/style` — assez pour voir la tête que ça a, pas plus.
+ * ESQUISSE de `@craft-ts/style` — assez pour voir la tête que ça a, pas plus.
  *
  * Ce qui est réel : les brands nominaux, l'inférence du contrat de variantes,
  * le branchement sur les canaux de contrat du core, le produit cartésien.

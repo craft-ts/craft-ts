@@ -1,10 +1,7 @@
-import '@angular/compiler';
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -24,21 +21,6 @@ import {
   onAppStart,
 } from './craft-service';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craftMethod', () => {
   beforeEach(() => {
@@ -136,7 +118,7 @@ describe('craftMethod', () => {
 
   it('should compose craftService dependencies through X()', () => {
     const { CounterWorker } = craftService(
-      { name: 'CounterWorker', scope: 'function' },
+      { name: 'CounterWorker', providedIn: 'function' },
       () => ({
         increment: (value: number, step: number) => value + step,
       }),
@@ -214,7 +196,7 @@ describe('craftMethod', () => {
 
   it('should expose craftMethod dependencies through ExtractDeps', () => {
     const { CounterWorker } = craftService(
-      { name: 'CounterWorker', scope: 'function' },
+      { name: 'CounterWorker', providedIn: 'function' },
       () => ({
         increment: (value: number, step: number) => value + step,
       }),
@@ -318,7 +300,7 @@ describe('craftMethod — object config with providers', () => {
 
   it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
     const { MethodWorker, provideMethodWorker } = craftService(
-      { name: 'MethodWorker', scope: 'toProvide' },
+      { name: 'MethodWorker', providedIn: 'toProvide' },
       () => ({ compute: (x: number) => x * 2 }),
     );
 

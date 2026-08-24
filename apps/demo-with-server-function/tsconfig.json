@@ -1,0 +1,78 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "preserve",
+    "target": "es2022",
+    "types": ["node", "vitest/globals"],
+    "strict": true,
+    "noEmit": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "diagnosticsName": true,
+        "overrides": [
+          {
+            "include": ["src/**/*.ts"],
+            "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "floatingEffect": "error",
+                "missingEffectContext": "error",
+                "missingEffectError": "error",
+                "missingLayerContext": "error",
+                "missingReturnYieldStar": "error",
+                "missingStarInYieldEffectGen": "error",
+                "outdatedApi": "error",
+                "unsafeEffectTypeAssertion": "error",
+                "asyncFunction": "warning",
+                "newPromise": "warning",
+                "nodeBuiltinImport": "warning",
+                "preferSchemaOverJson": "warning"
+              }
+            }
+          },
+          {
+            "include": ["src/server/server.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "asyncFunction": "off",
+                "newPromise": "off",
+                "nodeBuiltinImport": "off"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "paths": {
+      "@craft-ts/component": ["../../libs/component/src/index.ts"],
+      "@craft-ts/core": ["../../libs/core/src/index.ts"],
+      "@craft-ts/effect": ["../../libs/effect/src/index.ts"],
+      "@craft-ts/dev-tools/architecture-graph": [
+        "../../libs/dev-tools/src/scripts/architecture-graph.ts"
+      ],
+      "@craft-ts/dev-tools/dependency-graph": [
+        "../../libs/dev-tools/src/scripts/dependency-graph.ts"
+      ]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../libs/effect"
+    },
+    {
+      "path": "../../libs/core"
+    },
+    {
+      "path": "../../libs/component"
+    },
+    {
+      "path": "../../libs/dev-tools"
+    },
+    {
+      "path": "./tsconfig.architecture.json"
+    }
+  ]
+}

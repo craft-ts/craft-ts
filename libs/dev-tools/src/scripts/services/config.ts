@@ -43,7 +43,7 @@ export function loadCraftDevToolsConfig(
   execute(
     module.exports,
     (specifier: string) =>
-      specifier === '@craft-ng/dev-tools'
+      specifier === '@craft-ts/dev-tools'
         ? { defineAngularBrandConfig, defineCraftDevToolsConfig }
         : localRequire(specifier),
     module,

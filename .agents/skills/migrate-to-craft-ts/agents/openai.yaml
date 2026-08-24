@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migrate to NG Craft"
+  short_description: "Run and finish Angular-to-Craft migrations"
+  default_prompt: "Use $migrate-to-craft-ts to migrate this Angular project to CraftTS and finish the manual migration work."

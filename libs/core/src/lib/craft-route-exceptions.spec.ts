@@ -1,10 +1,7 @@
-import '@angular/compiler';
-import { inject } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  inject,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -29,25 +26,10 @@ import type { AnyCraftException } from './craft-exception';
 import { craftUse } from './craft-use';
 import type { ComponentExceptionsCarrier } from './branded-component/branded-component';
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
 // --- Type-level fixtures: a route whose three steps advertise codes A, B, C ---
 
 type Ex<Code extends string> = CraftException<
-  { code: Code; scope: undefined },
+  { _tag: Code; scope: undefined },
   { detail: string }
 >;
 
@@ -106,7 +88,7 @@ function handle<Handlers>(
 describe('craft-route-exceptions (types)', () => {
   it('includes residual component exceptions in the route union', () => {
     expectTypeOf<
-      FakeComponentUnion['code']
+      FakeComponentUnion['_tag']
     >().toEqualTypeOf<'COMPONENT_FAILED'>();
   });
 
@@ -179,7 +161,7 @@ describe('craft-route-exceptions (types)', () => {
     const handler: CraftExceptionHandler<Ex<'A'>> = craftExceptionHandler(
       function* ({ exception, payload, phase, renderComponent }) {
         // exception.code is narrowed to 'A'; payload to { detail: string }
-        const code: 'A' = exception.code;
+        const code: 'A' = exception._tag;
         const detail: string = payload.detail;
         const seenEnter: boolean = phase === 'enter';
         void code;
@@ -222,7 +204,7 @@ describe('craft-route-exceptions (runtime)', () => {
 
     expect(sink()).toBeNull();
 
-    const exception = craftException({ code: 'USER_DISABLED' });
+    const exception = craftException({ _tag: 'USER_DISABLED' });
     sink.set(exception);
 
     // The typed reader observes whatever the outlet wrote into the sink.

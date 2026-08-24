@@ -1,14 +1,14 @@
 # Routing setup
 
-Six steps turn Angular's routes into routes the compiler checks: a missing
-provider, a misspelled input or a route pointing at nothing becomes a build
-error instead of a blank screen. Architecture tests then keep those proofs
-from quietly disappearing.
+Six steps turn plain route definitions into routes the compiler checks: a
+missing provider, a misspelled input or a route pointing at nothing becomes a
+build error instead of a blank screen. Architecture tests then keep those
+proofs from quietly disappearing.
 
 **Do this once per app**, then let [the CLI](/guide/routing/automation) write
 new routes for you.
 
-This guide assumes you are integrating type-safe DI/routes into an Angular app that consumes `@craft-ng/core`.
+This guide assumes an app that consumes `@craft-ts/core`.
 
 ::: tip Prefer the guided version
 [Learn step 9](/learn/09-routing) walks through the same setup on a single
@@ -20,8 +20,8 @@ route, with the reasoning attached.
 Install the runtime package and the dev tooling in your app:
 
 ```bash
-npm install @craft-ng/core
-npm install -D @craft-ng/dev-tools
+npm install @craft-ts/core
+npm install -D @craft-ts/dev-tools
 ```
 
 ## 1. Add a cascade DI check to every routes file
@@ -48,7 +48,7 @@ Typical errors look like:
 
 ## 2. Define routes with `craftRoute` and collect them with `craftRoutes`
 
-Do not export a plain Angular `Routes` array directly. Define each typed route with
+Do not export a plain untyped routes array directly. Define each typed route with
 `craftRoute(...)`, collect them with `craftRoutes(...)`, and declare `componentDeps` on each route
 component.
 
@@ -58,7 +58,7 @@ update both the import and every call site.
 :::
 
 ```ts
-import { craftRoute, craftRoutes } from '@craft-ng/core';
+import { craftRoute, craftRoutes } from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
   craftRoute('', {
@@ -86,7 +86,7 @@ npx craft route add /users/:userId --component src/app/users/user-detail.ts#User
 npx craft route add /users/:userId --create-component users/user-detail
 ```
 
-By default it detects the Angular project and `craftRoutes` collections, creates one lazy routes file
+By default it detects the project and `craftRoutes` collections, creates one lazy routes file
 per feature, adds `componentDeps`, `withRetry`, `.withParent`, the parent mount assertion and the
 same-file DI check, then runs ESLint and TypeScript diagnostics. Use `--dry-run` to inspect the plan,
 `--yes` for non-interactive scripts and `--json` for machine-readable output.
@@ -112,30 +112,30 @@ paths without mutating files, so business logic is never guessed.
 Then wire the crafted routes into your application config:
 
 ```ts
-import { craftAppConfig } from '@craft-ng/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { craftAppConfig, provideCraftRouter } from '@craft-ts/core';
 import { appRoutes } from './app.routes';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_DATA,
-  providers: [provideRouter(appRoutes.toRoutes(), withComponentInputBinding())],
+  providers: [provideCraftRouter(appRoutes.toRoutes())],
 });
 ```
 
 Notes:
 
-- `appRoutes.toRoutes()` gives Angular the real runtime routes.
+- `appRoutes.toRoutes()` gives the router the real runtime routes.
 - `appRoutes.META_DATA` gives `craftAppConfig(...)` the compile-time route dependency graph.
-- For **non-blocking navigation** (immediate URL commit, pending UI, centralised exception
-  handling), render `CraftRouterOutlet()` from `@craft-ng/component` inside a
-  Craft component tree instead of `<router-outlet>`, and use
-  `provideCraftRouter(...)` instead of `provideRouter(...)` — it accepts Angular router features
-  **and** craft loading features (`withErrorComponent`, `withRouteLoadError`,
-  `withTransitionTimings`, …) in one call,
-  e.g. `provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding(), withErrorComponent({ component: MyGlobalErrorScreen, componentDeps }))`.
+- Route params are bound to component inputs by name; there is nothing to opt into.
+- `provideCraftRouter(...)` also takes the craft loading features
+  (`withErrorComponent`, `withRouteLoadError`, `withTransitionTimings`, …) in
+  the same call, e.g.
+  `provideCraftRouter(appRoutes.toRoutes(), withErrorComponent({ component: MyGlobalErrorScreen }))`.
+- Render `CraftRouterOutlet()` from `@craft-ts/component` inside your Craft
+  component tree: the URL commits immediately and the outlet drives the
+  pending UI and centralised exception handling.
   (The features also work standalone via `provideCraftLoading(...)`.)
   `withRouteLoadError(...)` must stay in `provideCraftRouter(...)` because it also registers an
-  Angular navigation error handler and an internal recovery route. See
+  a navigation error handler and an internal recovery route. See
   [Non-blocking navigation & pending UI](/guide/routing/pending-ui) and
   [Route Load Errors](/guide/routing/route-load-errors).
 - For lazy routes, `loadChildren` should return the named route tree exported by the child collection, for example `childRoutes.childRoutes`.
@@ -147,14 +147,14 @@ The cascade check has a per-file budget, and past it TypeScript reports
 into lazy child collections, each with its own check — see
 **[Scaling routes](/guide/routing/scaling)**.
 
-## 3. Run the Angular brand codemod through the published script
+## 3. Generate dependency metadata
 
 Add a script in your app:
 
 ```json
 {
   "scripts": {
-    "craft:brand": "craft-brand --root src/app"
+    "craft:brand": "craft-brand --root src"
   }
 }
 ```
@@ -170,8 +170,7 @@ This is the step that creates the initial `GenDeps_*` aliases in your component 
 ```ts
 export type GenDeps_TestComponent = GetDeps<{
   deps: {
-    CommonModule: CommonModule;
-    Counter: GetServiceDependencies<typeof Counter>;
+    TaskList: GetServiceDependencies<typeof TaskList>;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<TestComponent>;
@@ -180,8 +179,8 @@ export type GenDeps_TestComponent = GetDeps<{
 
 Adjust `--root` to your real source root:
 
-- `src/app` for a standard Angular app
-- `projects/my-app/src/app` for a workspace app
+- `src` for an application
+- `projects/my-app/src` for a workspace app
 - `libs/my-feature/src` for a library
 
 If you use a project-level `craft-brand.config.ts`, you can extend the script:
@@ -189,7 +188,7 @@ If you use a project-level `craft-brand.config.ts`, you can extend the script:
 ```json
 {
   "scripts": {
-    "craft:brand": "craft-brand --root src/app --config ./craft-brand.config.ts"
+    "craft:brand": "craft-brand --root src --config ./craft-brand.config.ts"
   }
 }
 ```
@@ -218,8 +217,8 @@ Typical triggers:
 Recommended workflow:
 
 - first generation or bulk refactor: `npm run craft:brand`
-- one file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`
-- one file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`
+- one file without `GenDeps_*`: run the dependency generator for the relevant source root
+- one file with `GenDeps_*`: run `eslint --fix` for the file
 - CLI alternative for one file: `eslint --fix src/app/feature/my-component.ts`
 
 Important limits:

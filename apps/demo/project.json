@@ -8,9 +8,10 @@
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
       "options": {
         "cwd": "apps/demo",
-        "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
+        "command": "node ../../tools/demo-typecheck.mjs"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
@@ -21,6 +22,13 @@
         "!{projectRoot}/src/**/*.test.ts"
       ],
       "cache": true
+    },
+    "build-local-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json --pretty false"
+      },
+      "cache": false
     },
     "typecheck-spec": {
       "executor": "nx:run-commands",
@@ -53,43 +61,17 @@
       "cache": true
     },
     "build": {
-      "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/demo"],
       "options": {
-        "outputPath": "dist/apps/demo",
-        "browser": "apps/demo/src/main.ts",
-        "loader": {
-          ".css": "text"
-        },
-        "tsConfig": "apps/demo/tsconfig.app.json",
-        "assets": [
-          {
-            "glob": "**/*",
-            "input": "apps/demo/public"
-          }
-        ],
-        "styles": ["apps/demo/src/styles.css"]
+        "command": "npx vite build --config apps/demo/vite.config.ts"
       },
       "configurations": {
         "production": {
-          "budgets": [
-            {
-              "type": "initial",
-              "maximumWarning": "500kb",
-              "maximumError": "1mb"
-            },
-            {
-              "type": "anyComponentStyle",
-              "maximumWarning": "4kb",
-              "maximumError": "8kb"
-            }
-          ],
-          "outputHashing": "all"
+          "command": "npx vite build --config apps/demo/vite.config.ts --mode production"
         },
         "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          "command": "npx vite build --config apps/demo/vite.config.ts --mode development"
         }
       },
       "defaultConfiguration": "production"
@@ -97,40 +79,29 @@
     "serve": {
       "continuous": true,
       "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
       "options": {
-        "command": "node tools/serve-demo.mjs --configuration development"
-      },
-      "configurations": {
-        "production": {
-          "command": "node tools/serve-demo.mjs --configuration production"
-        },
-        "development": {
-          "command": "node tools/serve-demo.mjs --configuration development"
-        }
-      },
-      "defaultConfiguration": "development"
-    },
-    "serve-angular": {
-      "continuous": true,
-      "executor": "@angular/build:dev-server",
-      "options": {},
-      "configurations": {
-        "production": {
-          "buildTarget": "demo:build:production"
-        },
-        "development": {
-          "buildTarget": "demo:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "commands": [
+          {
+            "command": "npx vite --config apps/demo/vite.config.ts",
+            "forwardAllArgs": true
+          },
+          {
+            "command": "node tools/demo-typecheck.mjs --non-blocking",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": true
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint"
     },
     "test": {
-      "executor": "@angular/build:unit-test",
+      "executor": "nx:run-commands",
       "options": {
-        "tsConfig": "apps/demo/tsconfig.spec.json"
+        "command": "node tools/run-lib-vitest.mjs apps/demo/vitest.config.ts",
+        "forwardAllArgs": true
       }
     },
     "architecture": {
@@ -153,7 +124,7 @@
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "demo:build",
-        "staticFilePath": "dist/apps/demo/browser",
+        "staticFilePath": "dist/apps/demo",
         "spa": true
       }
     }

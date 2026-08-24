@@ -5,10 +5,10 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-1
-import { craftService } from '@craft-ng/core';
+import { craftService } from '@craft-ts/core';
 
 const { UsersApi } = craftService(
-  { name: 'UsersApi', scope: 'global' },
+  { name: 'UsersApi', providedIn: 'global' },
   () => ({
     updateUser: (user: { id: string; name: string }) => Promise.resolve(user),
     getUsers: () => Promise.resolve([]),
@@ -16,7 +16,7 @@ const { UsersApi } = craftService(
 );
 
 const { UserUpdater } = craftService(
-  { name: 'UserUpdater', scope: 'global' },
+  { name: 'UserUpdater', providedIn: 'global' },
   function* () {
     const updateUser = yield* UsersApi.updateUser();
 

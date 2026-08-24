@@ -10,7 +10,7 @@
 - les dépendances des resolvers générateurs remontent dans `META_DATA` / `APP_CONFIG_META_DATA`
 - une route expose `injectMyRouteResolverData()` et les clés résolues satisfont aussi les inputs du composant
 
-Pour les `query()` craft-ng, le choix retenu est strict :
+Pour les `query()` craft-ts, le choix retenu est strict :
 
 - un resolver ne pourra pas retourner une `query()` brute
 - il devra retourner `resolveQuery(queryRef, handlers)`
@@ -18,7 +18,7 @@ Pour les `query()` craft-ng, le choix retenu est strict :
 
 ## API publique
 
-Dans [`/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-routes.ts`](/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-routes.ts), retirer `resolve` de `AngularRouteBase` et le réintroduire au format craft :
+Dans [`/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-routes.ts`](/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-routes.ts), retirer `resolve` de `AngularRouteBase` et le réintroduire au format craft :
 
 - `resolve?: Record<string, CraftRouteResolver>`
 - `CraftRouteResolver` accepte une fonction ou une génératrice
@@ -52,7 +52,7 @@ Conserver la séparation choisie précédemment :
 - pour les inputs composant, `resolve` et `data` sont tous deux pris en compte
 - en cas de collision, `resolve` gagne sur `data`
 
-Exporter aussi `resolveQuery` depuis [`/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/index.ts`](/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/index.ts).
+Exporter aussi `resolveQuery` depuis [`/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/index.ts`](/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/index.ts).
 
 ## Implémentation
 
@@ -135,7 +135,7 @@ Pattern factorisé :
 
 ## Tests
 
-Dans [`/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-routes.spec.ts`](/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-routes.spec.ts) :
+Dans [`/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-routes.spec.ts`](/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-routes.spec.ts) :
 
 - typage :
   - `resolve` accepte fonction sync, génératrice, `Promise`, `Observable`, `resolveQuery(...)`
@@ -163,7 +163,7 @@ Dans [`/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/li
   - `injectMyRouteResolverData()` n’expose que les clés résolues et reste réactif
   - `injectMyRouteData()` sur une route mixte n’expose que les clés statiques
 
-Dans [`/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-app-config.spec.ts`](/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-app-config.spec.ts) :
+Dans [`/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-app-config.spec.ts`](/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-app-config.spec.ts) :
 
 - un resolver générateur enrichit `APP_CONFIG_META_DATA.missingProvider`
 - idem quand le resolver retourne `resolveQuery(query(...), ...)`

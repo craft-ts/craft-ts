@@ -1,7 +1,7 @@
 import { craftService, CraftHttpClient } from '../craft-runtime';
 
 export const { UsersApi } = craftService(
-  { name: 'UsersApi', scope: 'global', browserBoundary: true },
+  { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
   function* () {
     yield* CraftHttpClient.get(({ response }) => ({
       url: 'users',
@@ -12,7 +12,7 @@ export const { UsersApi } = craftService(
 );
 
 export const { ProfileApi } = craftService(
-  { name: 'ProfileApi', scope: 'global', browserBoundary: true },
+  { name: 'ProfileApi', providedIn: 'global', browserBoundary: true },
   function* () {
     yield* CraftHttpClient.get(({ response }) => ({
       url: 'users',

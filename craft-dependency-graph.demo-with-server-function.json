@@ -1,0 +1,1165 @@
+{
+  "version": 1,
+  "rootDir": "/Users/romaingeffrault/Documents/projects/prive/ng-craft",
+  "tsConfigFilePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/tsconfig.graph.json",
+  "nodes": [
+    {
+      "id": "app-config:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/app.config.ts:appConfig",
+      "kind": "app-config",
+      "label": "appConfig",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/app.config.ts",
+      "line": 11,
+      "details": {
+        "hasGlobalError": false,
+        "hasRouteLoadError": false
+      }
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "kind": "component",
+      "label": "ServerFunctionDemo",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 30
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:AiContextMenu",
+      "kind": "component",
+      "label": "AiContextMenu",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts",
+      "line": 10
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "kind": "component",
+      "label": "AiSendDialog",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 75,
+      "details": {
+        "temporal": true,
+        "temporalOperations": [
+          {
+            "operation": "cancel",
+            "line": 252
+          },
+          {
+            "operation": "schedule",
+            "line": 253
+          }
+        ]
+      }
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/craft-defaults.ts:craftPending",
+      "kind": "component",
+      "label": "craftPending",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/craft-defaults.ts",
+      "line": 22
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/craft-router-outlet.ts:CraftRouterOutlet",
+      "kind": "component",
+      "label": "CraftRouterOutlet",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/craft-router-outlet.ts",
+      "line": 20
+    },
+    {
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/testing.ts:AnonymousComponent@800",
+      "kind": "component",
+      "label": "AnonymousComponent@800",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/testing.ts",
+      "line": 800,
+      "details": {
+        "anonymous": true
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:101",
+      "kind": "primitive",
+      "label": "craftComputed:isAdmin",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 101,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "isAdmin",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "isAdmin"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:120",
+      "kind": "primitive",
+      "label": "craftComputed:accessDenied",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 120,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "accessDenied",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "accessDenied"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:123",
+      "kind": "primitive",
+      "label": "craftComputed:hasUsers",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 123,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "hasUsers",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "hasUsers"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:124",
+      "kind": "primitive",
+      "label": "craftComputed:isEmpty",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 124,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "isEmpty",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "isEmpty"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:133",
+      "kind": "primitive",
+      "label": "craftComputed:requestTitle",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 133,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "requestTitle",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "requestTitle"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:142",
+      "kind": "primitive",
+      "label": "craftComputed:requestDetail",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 142,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "requestDetail",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "requestDetail"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:151",
+      "kind": "primitive",
+      "label": "craftComputed:resultCount",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 151,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "resultCount",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "resultCount"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "primitive",
+      "label": "craftComputed:currentUser",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 98,
+      "details": {
+        "primitive": "craftComputed",
+        "name": "currentUser",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "currentUser"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftMethod:157",
+      "kind": "primitive",
+      "label": "craftMethod:submitSearch",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 157,
+      "details": {
+        "primitive": "craftMethod",
+        "name": "submitSearch",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "submitSearch"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:88",
+      "kind": "primitive",
+      "label": "state:searchInput",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 88,
+      "details": {
+        "primitive": "state",
+        "name": "searchInput",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "searchInput"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:91",
+      "kind": "primitive",
+      "label": "state:searchTerm",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 91,
+      "details": {
+        "primitive": "state",
+        "name": "searchTerm",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "usage": "searchTerm"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:craftMethod:219",
+      "kind": "primitive",
+      "label": "craftMethod:setInstruction",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 219,
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setInstruction",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+        "usage": "setInstruction"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:craftMethod:225",
+      "kind": "primitive",
+      "label": "craftMethod:setCopied",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 225,
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setCopied",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+        "usage": "setCopied"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:state:212",
+      "kind": "primitive",
+      "label": "state:instruction",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 212,
+      "details": {
+        "primitive": "state",
+        "name": "instruction",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:state:215",
+      "kind": "primitive",
+      "label": "state:copied",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 215,
+      "details": {
+        "primitive": "state",
+        "name": "copied",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog"
+      }
+    },
+    {
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:91:submit",
+      "kind": "property",
+      "label": "state:searchTerm.submit",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 160,
+      "details": {
+        "member": "submit"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list",
+      "kind": "server-function-family",
+      "label": "demo.users.authenticated-list",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-client.ts",
+      "line": 1,
+      "details": {
+        "family": "apps/demo-with-server-function/src/users/authenticated-list",
+        "serverFunctionId": "demo.users.authenticated-list"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list",
+      "kind": "server-function-family",
+      "label": "demo.users.list",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-client.ts",
+      "line": 1,
+      "details": {
+        "family": "apps/demo-with-server-function/src/users/list",
+        "serverFunctionId": "demo.users.list"
+      }
+    },
+    {
+      "id": "server-function-part:server-function-client:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-client.ts",
+      "kind": "server-function-client",
+      "label": "demo.users.authenticated-list",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-client.ts",
+      "line": 1,
+      "details": {
+        "family": "apps/demo-with-server-function/src/users/authenticated-list",
+        "serverFunctionId": "demo.users.authenticated-list",
+        "contractFamily": "apps/demo-with-server-function/src/users/authenticated-list",
+        "clientDefinitionFile": "apps/demo-with-server-function/src/users/authenticated-list.fn-serveur.ts",
+        "usesCraftUnique": true,
+        "clientIdentityStatic": true
+      }
+    },
+    {
+      "id": "server-function-part:server-function-client:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-client.ts",
+      "kind": "server-function-client",
+      "label": "demo.users.list",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-client.ts",
+      "line": 1,
+      "details": {
+        "family": "apps/demo-with-server-function/src/users/list",
+        "serverFunctionId": "demo.users.list",
+        "contractFamily": "apps/demo-with-server-function/src/users/list",
+        "clientDefinitionFile": "apps/demo-with-server-function/src/users/list.fn-serveur.ts",
+        "usesCraftUnique": true,
+        "clientIdentityStatic": true
+      }
+    },
+    {
+      "id": "server-function-part:server-function-server:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-serveur.ts",
+      "kind": "server-function-server",
+      "label": "demo.users.authenticated-list",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-serveur.ts",
+      "line": 1,
+      "details": {
+        "family": "apps/demo-with-server-function/src/users/authenticated-list",
+        "serverFunctionId": "demo.users.authenticated-list",
+        "exposure": "client",
+        "usesClientDI": false
+      }
+    },
+    {
+      "id": "server-function-part:server-function-server:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-serveur.ts",
+      "kind": "server-function-server",
+      "label": "demo.users.list",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-serveur.ts",
+      "line": 1,
+      "details": {
+        "family": "apps/demo-with-server-function/src/users/list",
+        "serverFunctionId": "demo.users.list",
+        "exposure": "client",
+        "usesClientDI": false
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserCryptoService",
+      "kind": "service",
+      "label": "BrowserCryptoService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 802,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserCryptoService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserDocumentService",
+      "kind": "service",
+      "label": "BrowserDocumentService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 835,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserDocumentService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserHistoryService",
+      "kind": "service",
+      "label": "BrowserHistoryService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 696,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserHistoryService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserLocationService",
+      "kind": "service",
+      "label": "BrowserLocationService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 662,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserLocationService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserNavigatorService",
+      "kind": "service",
+      "label": "BrowserNavigatorService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 727,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserNavigatorService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserPerformanceService",
+      "kind": "service",
+      "label": "BrowserPerformanceService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 756,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserPerformanceService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:BrowserWindowService",
+      "kind": "service",
+      "label": "BrowserWindowService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 881,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "browserWindowService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:ConsoleService",
+      "kind": "service",
+      "label": "ConsoleService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 548,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "consoleService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:CookiesService",
+      "kind": "service",
+      "label": "CookiesService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 636,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "cookiesService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:LocalStorageService",
+      "kind": "service",
+      "label": "LocalStorageService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 580,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "localStorageService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts:SessionStorageService",
+      "kind": "service",
+      "label": "SessionStorageService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/browser-boundaries.ts",
+      "line": 608,
+      "details": {
+        "appStart": false,
+        "browserBoundary": true,
+        "outputProperties": [],
+        "helpers": [
+          "sessionStorageService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts:api",
+      "kind": "service",
+      "label": "api",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts",
+      "line": 2859,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "api"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts:HostName",
+      "kind": "service",
+      "label": "HostName",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/craft-service.ts",
+      "line": 4561,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "hostNameApi"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/global-persister-handler.service.ts:GlobalPersisterHandlerService",
+      "kind": "service",
+      "label": "GlobalPersisterHandlerService",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/global-persister-handler.service.ts",
+      "line": 49,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "globalPersisterHandlerService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/server-function-client.ts:ServerFunctionTransport",
+      "kind": "service",
+      "label": "ServerFunctionTransport",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/server-function-client.ts",
+      "line": 34,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "serverFunctionTransportService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/storage-persister.service.ts:LocalStoragePersister",
+      "kind": "service",
+      "label": "LocalStoragePersister",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/storage-persister.service.ts",
+      "line": 45,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "localStoragePersisterService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/storage-persister.service.ts:SessionStoragePersister",
+      "kind": "service",
+      "label": "SessionStoragePersister",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/storage-persister.service.ts",
+      "line": 60,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "sessionStoragePersisterService"
+        ]
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/storage-persister.service.ts:StoragePersister",
+      "kind": "service",
+      "label": "StoragePersister",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/storage-persister.service.ts",
+      "line": 31,
+      "details": {
+        "appStart": false,
+        "browserBoundary": false,
+        "outputProperties": [],
+        "helpers": [
+          "storagePersisterService"
+        ]
+      }
+    },
+    {
+      "id": "service:effect:CurrentUser",
+      "kind": "service",
+      "label": "CurrentUser",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/shared/authenticated-user.ts",
+      "line": 12,
+      "details": {
+        "runtime": "effect",
+        "tag": "demo/CurrentUser"
+      }
+    },
+    {
+      "id": "service:effect:UserRepository",
+      "kind": "service",
+      "label": "UserRepository",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/server/database.ts",
+      "line": 9,
+      "details": {
+        "runtime": "effect",
+        "tag": "demo/UserRepository"
+      }
+    },
+    {
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/from-event-to-source$.ts:source$:246",
+      "kind": "source",
+      "label": "source$ (source$)",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/from-event-to-source$.ts",
+      "line": 246,
+      "details": {
+        "creator": "source$"
+      }
+    },
+    {
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/insert-select.ts:source$:587",
+      "kind": "source",
+      "label": "source$ (source$)",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/insert-select.ts",
+      "line": 587,
+      "details": {
+        "creator": "source$"
+      }
+    },
+    {
+      "id": "source:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/source-from-event.ts:signalSource:377",
+      "kind": "source",
+      "label": "signalSource (signalSource)",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/core/src/lib/source-from-event.ts",
+      "line": 377,
+      "details": {
+        "creator": "signalSource"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:217:11768",
+      "kind": "template-element",
+      "label": "searchForm",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 217,
+      "details": {
+        "tag": "form",
+        "localName": "searchForm",
+        "static": true,
+        "missing": false,
+        "component": "ServerFunctionDemo"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:220:11951",
+      "kind": "template-element",
+      "label": "filterInput",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 220,
+      "details": {
+        "tag": "input",
+        "localName": "filterInput",
+        "static": true,
+        "missing": false,
+        "component": "ServerFunctionDemo"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:230:12316",
+      "kind": "template-element",
+      "label": "searchButton",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts",
+      "line": 230,
+      "details": {
+        "tag": "button",
+        "localName": "searchButton",
+        "static": true,
+        "missing": false,
+        "component": "ServerFunctionDemo"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:69:1798",
+      "kind": "template-element",
+      "label": "aiContextMenu",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts",
+      "line": 69,
+      "details": {
+        "tag": "div",
+        "localName": "aiContextMenu",
+        "static": true,
+        "missing": false,
+        "component": "AiContextMenu"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:80:2161",
+      "kind": "template-element",
+      "label": "aiSendToIa",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts",
+      "line": 80,
+      "details": {
+        "tag": "button",
+        "localName": "aiSendToIa",
+        "static": true,
+        "missing": false,
+        "component": "AiContextMenu"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:292:7668",
+      "kind": "template-element",
+      "label": "aiDialogClose",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 292,
+      "details": {
+        "tag": "button",
+        "localName": "aiDialogClose",
+        "static": true,
+        "missing": false,
+        "component": "AiSendDialog"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:330:8785",
+      "kind": "template-element",
+      "label": "aiDialogInstruction",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 330,
+      "details": {
+        "tag": "textarea",
+        "localName": "aiDialogInstruction",
+        "static": true,
+        "missing": false,
+        "component": "AiSendDialog"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:354:9662",
+      "kind": "template-element",
+      "label": "aiDialogCancel",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 354,
+      "details": {
+        "tag": "button",
+        "localName": "aiDialogCancel",
+        "static": true,
+        "missing": false,
+        "component": "AiSendDialog"
+      }
+    },
+    {
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:363:9900",
+      "kind": "template-element",
+      "label": "aiDialogCopy",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts",
+      "line": 363,
+      "details": {
+        "tag": "button",
+        "localName": "aiDialogCopy",
+        "static": true,
+        "missing": false,
+        "component": "AiSendDialog"
+      }
+    },
+    {
+      "id": "unique:2e4e78746bd9b71a",
+      "kind": "unique",
+      "label": "\"demo.users.authenticated-list\"",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-client.ts",
+      "line": 11,
+      "details": {
+        "static": true,
+        "canonical": "\"demo.users.authenticated-list\"",
+        "callSites": [
+          {
+            "filePath": "apps/demo-with-server-function/src/users/authenticated-list.fn-client.ts",
+            "line": 11
+          }
+        ]
+      }
+    },
+    {
+      "id": "unique:9148f2f9d19d26c2",
+      "kind": "unique",
+      "label": "\"demo.users.list\"",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-client.ts",
+      "line": 8,
+      "details": {
+        "static": true,
+        "canonical": "\"demo.users.list\"",
+        "callSites": [
+          {
+            "filePath": "apps/demo-with-server-function/src/users/list.fn-client.ts",
+            "line": 8
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftMethod:157",
+      "kind": "calls",
+      "evidence": "ast",
+      "details": {
+        "reader": "submitSearch",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:101",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:120",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:123",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:124",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:133",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:142",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:151",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftMethod:157",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:88",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:91",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:217:11768",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:220:11951",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:230:12316",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentUser",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:88",
+      "kind": "uses-property",
+      "evidence": "ast",
+      "details": {
+        "reader": "searchInput",
+        "usage": "template"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:AiContextMenu",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:69:1798",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:AiContextMenu",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-context-menu.ts:80:2161",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:craftMethod:219",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:craftMethod:225",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:state:212",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:state:215",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "usage": "setup"
+      }
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:292:7668",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:330:8785",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:354:9662",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/libs/component/src/lib/ai/ai-send-dialog.ts:363:9900",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:101",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentUser"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:120",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentUser"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:124",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentUser"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:133",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentUser"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:142",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:98",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentUser"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftMethod:157",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:91:submit",
+      "kind": "calls",
+      "evidence": "ast",
+      "details": {
+        "path": "submit"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftMethod:157",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftComputed:101",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "isAdmin"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:craftMethod:157",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:88",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "searchInput"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:91",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/client/server-function-demo.ts:state:91:submit",
+      "kind": "contains",
+      "evidence": "ast",
+      "details": {
+        "property": "submit"
+      }
+    },
+    {
+      "from": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list",
+      "to": "server-function-part:server-function-client:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-client.ts",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list",
+      "to": "server-function-part:server-function-server:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/authenticated-list.fn-serveur.ts",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list",
+      "to": "server-function-part:server-function-client:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-client.ts",
+      "kind": "contains",
+      "evidence": "ast"
+    },
+    {
+      "from": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list",
+      "to": "server-function-part:server-function-server:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo-with-server-function/src/users/list.fn-serveur.ts",
+      "kind": "contains",
+      "evidence": "ast"
+    }
+  ]
+}

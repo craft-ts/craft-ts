@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -10,8 +10,8 @@ import {
   span,
   ul,
   heading,
-} from '@craft-ng/component';
-import { craftComputed, craftSleep, query, settled } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;
@@ -60,45 +60,47 @@ export const pendingBlockDemo = craftComponent(
     `,
   },
   function* () {
-    const users = yield* query('users', {
-      method: (_: undefined) => undefined,
-      // `preservePreviousValue: false` clears the value on every reload, so the
-      // boundary shows again on each click. Without it a reload keeps the
-      // previous value and does not suspend at all (stale-while-revalidate).
-      preservePreviousValue: () => false,
-      loader: function* () {
-        yield* craftSleep(900);
-        return { items: USERS };
+    const users = yield* query(
+      'users',
+      {
+        method: (_: undefined) => undefined,
+        // `preservePreviousValue: false` clears the value on every reload, so the
+        // boundary shows again on each click. Without it a reload keeps the
+        // previous value and does not suspend at all (stale-while-revalidate).
+        preservePreviousValue: () => false,
+        loader: function* () {
+          yield* craftSleep(900);
+          return { items: USERS };
+        },
       },
-    });
+      ({ resource }) => ({
+        teams: craftComputed('teams', function* () {
+          const list = yield* settled(resource);
+          return [...new Set(list.items.map((user) => user.team))]
+            .sort()
+            .join(' · ');
+        }),
+        total: craftComputed('total', function* () {
+          const list = yield* settled(resource);
+          return `${list.items.length} people`;
+        }),
+      }),
+    );
 
     yield* users.call(undefined); // trigger first call
 
-    // The computed consumes the resolved value: inside the callback `list` is
-    // an `{ items }`, never `undefined`. In exchange the computed is tagged as
-    // depending on the async source "users".
-    const teams = craftComputed('teams', function* () {
-      const list = yield* settled(users);
-      return [...new Set(list.items.map((user) => user.team))]
-        .sort()
-        .join(' · ');
-    });
-
-    const total = craftComputed('total', function* () {
-      const list = yield* settled(users);
-      return `${list.items.length} people`;
-    });
-
-    return { users, teams, total };
+    return { users };
   },
-  ({ teams, total, users }) =>
+  ({ users }) =>
     section({ class: 'pending-demo' }, [
       heading('settledValue + pendingBlock'),
       p(
         'The template reads an always-resolved value; the pendingBlock owns the loading state.',
       ),
-      button('reload',
-        { type: 'button',
+      button(
+        'reload',
+        {
+          type: 'button',
           class: 'pending-demo__reload',
           *click() {
             yield* users.call(undefined);
@@ -108,14 +110,14 @@ export const pendingBlockDemo = craftComponent(
       ),
       div([
         ul({ class: 'pending-demo__list' }, [
-          li(['Teams: ', span(teams)]),
-          li({ class: 'pending-demo__count' }, total),
+          li(['Teams: ', span(users.teams)]),
+          li({ class: 'pending-demo__count' }, users.total),
         ]),
       ]).pipe(
         // One boundary covers both computeds. Remove this line and
         // `craftComponent(...)` refuses to compile, naming the "users" source.
-        pendingBlock.exhaustive({
-          users: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
+        pendingBlock({
+          fallback: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
         }),
       ),
     ]),

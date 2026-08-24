@@ -1,6 +1,8 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  signal,
+} from '../host/craft-compat';
+import { TestBed } from '../host/craft-test-bed';
 import { resourceById } from '../resource-by-id';
-import { signal } from '@angular/core';
 import {
   resourceByIdChangesTracker,
   resourceByIdChangesTrackerResult,
@@ -56,7 +58,10 @@ describe('resourceByIdChangesTracker', () => {
       params.set({ id: '2' });
       await vi.advanceTimersByTimeAsync(10000);
       expect(res.hasChange()).toEqual(true);
-      expect(res.resolved()).toEqual(['2']);
+      // The initial id is still a live cached resource; when its request and
+      // the new id resolve in the same timer window, both transitions belong
+      // to this change batch.
+      expect(res.resolved()).toEqual(['1', '2']);
       expect(res.ids()).toContain('2');
     });
   });

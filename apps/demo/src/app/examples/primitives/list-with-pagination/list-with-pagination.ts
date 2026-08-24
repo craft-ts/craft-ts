@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
@@ -7,6 +7,7 @@ import {
   each,
   ifBlock,
   option,
+  pendingBlock,
   select,
   span,
   heading,
@@ -14,7 +15,7 @@ import {
   tr,
   table,
   tbody,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   insertStoragePersister,
   craftUnique,
@@ -24,7 +25,7 @@ import {
   query,
   queryParams,
   craftComputed,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -91,12 +92,20 @@ const ListWithPagination = craftComponent(
     return { pagination, usersQuery, updatePageSize };
   },
   ({ pagination, usersQuery, updatePageSize }) => {
+    // `currentPageStatus` is a settled read: it suspends whenever the page on
+    // screen has no value of its own — on the first load, and again on every
+    // page change. The badge and the table each get their OWN boundary, so a
+    // page change suspends the badge alone while the table keeps showing the
+    // previous page's rows, which is the whole point of the placeholder
+    // insertion. One boundary around both would hide them.
     return div([
       heading([
         'User Management: ',
-        StatusComponent({
-          status: usersQuery.currentPageStatus,
-        }),
+        span({}, [
+          StatusComponent({
+            status: usersQuery.currentPageStatus,
+          }),
+        ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
       ]),
       table(
         { class: 'table' },
@@ -127,7 +136,10 @@ const ListWithPagination = craftComponent(
               ]),
           ),
         ),
-      ),
+      // Only reached on the very first load: once a page has been shown, the
+      // placeholder keeps `currentPageData` non-empty, so the empty slot (and
+      // the settled read inside it) never runs again.
+      ).pipe(pendingBlock({ fallback: () => div('⏳ Loading users…') })),
       div({ class: 'pagination' }, [
         select(
           'PageSize',
@@ -150,7 +162,11 @@ const ListWithPagination = craftComponent(
             ),
           ),
         ),
-        button('PreviousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
+        button(
+          'PreviousPage',
+          { type: 'button', class: 'btn', click: pagination.previousPage },
+          'Previous',
+        ),
         span(
           'CurrentPage',
           { class: 'current-page' },
@@ -158,7 +174,11 @@ const ListWithPagination = craftComponent(
             return (yield* pagination()).page;
           },
         ),
-        button('NextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
+        button(
+          'NextPage',
+          { type: 'button', class: 'btn', click: pagination.nextPage },
+          'Next',
+        ),
       ]),
     ]);
   },

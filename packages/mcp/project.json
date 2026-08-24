@@ -9,13 +9,13 @@
       "executor": "nx:run-commands",
       "outputs": ["{projectRoot}/dist", "{projectRoot}/content/docs-index.json"],
       "options": {
-        "command": "npm run build --workspace @craft-ng/mcp"
+        "command": "npm run build --workspace @craft-ts/mcp"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm test --workspace @craft-ng/mcp"
+        "command": "npm test --workspace @craft-ts/mcp"
       }
     },
     "nx-release-publish": {

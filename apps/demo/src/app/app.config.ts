@@ -1,12 +1,8 @@
-import { provideBrowserGlobalErrorListeners } from '@angular/core';
-import { withComponentInputBinding } from '@angular/router';
 import {
-  CraftGlobalErrorComponentHost,
-  CraftRouteLoadErrorComponentHost,
   provideCraftGlobalErrorComponent,
   provideCraftRootComponent,
   provideCraftRouteLoadErrorComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   Console,
   craftAppConfig,
@@ -17,8 +13,10 @@ import {
   provideGlobalPersisterHandlerService,
   provideLocalStoragePersister,
   provideSessionStoragePersister,
+  provideStorageService,
   provideStoragePersister,
   LocalStoragePersister,
+  SessionStorageService,
   provideFnWrapper,
   provideTakeAppSnapshot,
   withCraftViewTransitions,
@@ -32,15 +30,29 @@ import {
   type ComponentDepsOf,
   type RouteExceptionComponentCheckedDI,
   craftException,
-} from '@craft-ng/core';
+  craftRouteTarget,
+} from '@craft-ts/core';
 import { App } from './app';
 import { demoRoutes } from './app.routes.runtime';
 import { provideMcpExperimentation } from './function-registry-entry';
-import { provideLogForwarding } from './log-forwarder';
+import { provideLogForwarding, provideLogServerUrl } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { AppStartLog } from './run-on-app-start/run-on-app-start';
 import { provideDemoTracing } from './template-trace-demo';
+
+const developmentProviders = import.meta.env.DEV
+  ? [
+      // The log server, tracing, snapshots and MCP bridge are deliberately
+      // absent from the production graph.
+      provideLogServerUrl(() => 'http://127.0.0.1:4319/logs'),
+      provideLogForwarding(),
+      provideDemoTracing(),
+      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+      provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+      provideMcpExperimentation(),
+    ]
+  : [];
 
 export const appConfig = craftAppConfig({
   appStart: {
@@ -50,27 +62,22 @@ export const appConfig = craftAppConfig({
   // the slim path registry and avoids re-expanding every component graph.
   routingDeps: demoRoutes.META_PATHS,
   providers: [
-    provideBrowserGlobalErrorListeners(),
-    // Overrides the craft ConsoleService: every Console.* call keeps printing
-    // in the browser and is also shipped to the local log server, where the
-    // logs MCP server can read it back.
-    provideLogForwarding(),
-    provideDemoTracing(),
+    ...developmentProviders,
     provideGlobalPersisterHandlerService(),
     provideLocalStoragePersister(),
     provideSessionStoragePersister(),
     provideStoragePersister(function* () {
       return yield* LocalStoragePersister();
     }),
+    provideStorageService(function* () {
+      return yield* SessionStorageService();
+    }),
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
     provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),
-    // Routing + non-blocking outlet config in one provider: Angular router
-    // features and craft loading features (global error component, pending
-    // thresholds) are mixed freely and split apart internally.
+    // Routing + non-blocking outlet config in one provider.
     provideCraftRouter(
       demoRoutes.toRoutes(),
-      withComponentInputBinding(),
       // Outlet-driven View Transitions: unlike Angular's withViewTransitions()
       // (which brackets only the synchronous URL commit), the CraftRouterOutlet
       // drives document.startViewTransition() around its OWN swaps, so the
@@ -79,10 +86,10 @@ export const appConfig = craftAppConfig({
       withCraftViewTransitions(),
       withA11yNavigationFocus(),
       withErrorComponent({
-        component: CraftGlobalErrorComponentHost,
+        component: craftRouteTarget(MyGlobalErrorScreen),
       }),
       withRouteLoadError({
-        component: CraftRouteLoadErrorComponentHost,
+        component: craftRouteTarget(MyRouteLoadErrorScreen),
         retry: {
           attempts: 2,
           delayMs: 250,
@@ -106,16 +113,12 @@ export const appConfig = craftAppConfig({
             throw error;
           }
           yield* Console.error(error);
-          return craftException({ code: 'UNEXPECTED_ERROR' }, { error: error });
+          return craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: error });
         }
       },
     ),
     provideCorrelationIdTracking(),
     //provideSendContextToAi(),
-    // App snapshot
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-    provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
-    provideMcpExperimentation(),
   ],
 });
 

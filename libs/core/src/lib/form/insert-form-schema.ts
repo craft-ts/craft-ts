@@ -1,4 +1,4 @@
-import { computed, Signal } from '@angular/core';
+import { computed, inject, Injector, type Signal } from '../host/craft-compat';
 import {
   createSchemaValidationException,
   parseSchema,
@@ -6,8 +6,9 @@ import {
   type SchemaInput,
   type SchemaValidationException,
 } from '../schema-validation';
-import type { StandardSchemaV1 } from '../standard-schema';
+import type { StandardSchemaV1PathSegment } from '../standard-schema';
 import { rawReactiveValue } from '../reactive-read';
+import { craftLinkedSignal } from '../host/craft-linked-signal';
 import type {
   InsertionFormFactoryContext,
   InsertionsFormFactory,
@@ -24,7 +25,7 @@ export type FormSchemaInsertionOutputs = {
 };
 
 function normalizeIssuePath(
-  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment> | undefined,
+  path: ReadonlyArray<PropertyKey | StandardSchemaV1PathSegment> | undefined,
 ): ReadonlyArray<string | number> {
   if (!path) return [];
 
@@ -87,12 +88,13 @@ export function insertFormSchema<Schema extends CraftSchema>(
   return (
     context: InsertionFormFactoryContext<SchemaInput<Schema>, {}, unknown>,
   ) => {
+    const stateValue = craftLinkedSignal({
+      source: () => rawReactiveValue(context.state)(),
+      computation: (value) => value,
+      injector: inject(Injector),
+    });
     const errors = computed(() =>
-      createSchemaErrorEntries(
-        schema,
-        rawReactiveValue(context.state)(),
-        context,
-      ),
+      createSchemaErrorEntries(schema, stateValue(), context),
     ) as CraftFieldSchemaErrorSource;
 
     context.field.ɵregisterSchemaErrorSource(errors);

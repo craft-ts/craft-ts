@@ -1,17 +1,16 @@
-import { Signal, WritableSignal, signal } from '@angular/core';
+import {
+  Signal,
+  signal,
+  WritableSignal,
+} from './host/craft-compat';
 import { CraftResourceStatus } from './util/craft-resource-status';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
-import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
 import { mutation, MutationOutput } from './mutation';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';
 import {
@@ -34,6 +33,13 @@ import type {
   YieldableReactiveSignal,
   YieldableReactiveValue,
 } from './reactive-read';
+import {
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T =>
+  setupCraftServiceTest().injector.run(fn);
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -49,21 +55,6 @@ function removeMutate<T extends object>(resource: T): Omit<T, 'mutate'> {
   return rest as Omit<T, 'mutate'>;
 }
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
 describe('mutation', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -72,7 +63,7 @@ describe('mutation', () => {
     vi.resetAllMocks();
   });
   it('should enable to define a mutation that can be call with the method', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationInstance = craftUse(
         mutation('mutationInstance', {
           method: ({
@@ -111,7 +102,7 @@ describe('mutation', () => {
   });
 
   it('should enable to define async method bind to a source', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const searchSource = signalSource<{
         searchChange: string;
         timeToWait: number;
@@ -164,7 +155,7 @@ describe('mutation', () => {
   });
 
   it('preserves the previous value while a new mutation is loading when configured', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (value: string) => value,
@@ -190,7 +181,7 @@ describe('mutation', () => {
   });
 
   it('should return undefined with value when status is error', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationInstance = craftUse(
         mutation('mutationInstance', {
           method: (shouldFail: boolean) => shouldFail,
@@ -216,28 +207,28 @@ describe('mutation', () => {
     });
   });
 
-  it('typing: tracks generator dependencies from method, loader and insertions', () => {
+  it('typing: tracks generator dependencies from method, loader and insertions', async () => {
     const { MutationParams } = craftService(
-      { name: 'MutationParams', scope: 'global' },
+      { name: 'MutationParams', providedIn: 'global' },
       () => ({
         mapUserId: (userId: string): string => userId.trim(),
       }),
     );
     const { MutationApi } = craftService(
-      { name: 'MutationApi', scope: 'global' },
+      { name: 'MutationApi', providedIn: 'global' },
       () => ({
         save: (userId: string): Promise<{ userId: string }> =>
           Promise.resolve({ userId }),
       }),
     );
     const { MutationTools } = craftService(
-      { name: 'MutationTools', scope: 'global' },
+      { name: 'MutationTools', providedIn: 'global' },
       () => ({
         label: (): string => 'save-user',
       }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const mutationRef = craftUse(
         mutation(
           'mutationRef',
@@ -271,7 +262,7 @@ describe('mutation', () => {
   it('should resolve generator method, loader and insertions', async () => {
     const logs: string[] = [];
     const { MutationLoggerRuntime } = craftService(
-      { name: 'MutationLoggerRuntime', scope: 'global' },
+      { name: 'MutationLoggerRuntime', providedIn: 'global' },
       () => ({
         log: (message: string) => {
           logs.push(message);
@@ -279,7 +270,7 @@ describe('mutation', () => {
       }),
     );
     const { MutationApiRuntime } = craftService(
-      { name: 'MutationApiRuntime', scope: 'global' },
+      { name: 'MutationApiRuntime', providedIn: 'global' },
       () => ({
         save: async (userId: string): Promise<{ userId: string }> => ({
           userId,
@@ -287,7 +278,7 @@ describe('mutation', () => {
       }),
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationRef = craftUse(
         mutation(
           'mutationRef',
@@ -323,10 +314,10 @@ describe('mutation', () => {
 });
 
 describe('mutation types without identifier', () => {
-  it('should infer correctly the types of mutation', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the types of mutation', async () => {
+    runInInjectionContext(() => {
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -460,13 +451,13 @@ describe('mutation types without identifier', () => {
     });
   });
 
-  it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', async () => {
+    runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -579,8 +570,8 @@ describe('mutation types without identifier', () => {
     });
   });
 
-  it('should infer correctly the mutation bind to a method', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the mutation bind to a method', async () => {
+    runInInjectionContext(() => {
       const _mutationsOutput = craftUse(
         mutation('_mutationsOutput', {
           method: (searchChange: string) => {
@@ -611,8 +602,8 @@ describe('mutation types without identifier', () => {
     });
   });
 
-  it('exposes mutate for an imperative method whose argument is unknown', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes mutate for an imperative method whose argument is unknown', async () => {
+    runInInjectionContext(() => {
       const mutationRef = craftUse(
         mutation('unknownArgMutation', {
           method: (value: unknown) => value,
@@ -625,8 +616,8 @@ describe('mutation types without identifier', () => {
     });
   });
 
-  it('should infer correctly the mutation bind to a source', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the mutation bind to a source', async () => {
+    runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(
         'searchSource',
       );
@@ -668,8 +659,8 @@ describe('mutation types without identifier', () => {
 });
 
 describe('mutation types with identifier', () => {
-  it('selectOrCreate returns an idle resource without changing select', () => {
-    TestBed.runInInjectionContext(() => {
+  it('selectOrCreate returns an idle resource without changing select', async () => {
+    runInInjectionContext(() => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (id: string) => id,
@@ -687,10 +678,10 @@ describe('mutation types with identifier', () => {
     });
   });
 
-  it('should infer correctly the types of mutation', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the types of mutation', async () => {
+    runInInjectionContext(() => {
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -825,13 +816,13 @@ describe('mutation types with identifier', () => {
     });
   });
 
-  it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', async () => {
+    runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
       const { Mutations } = craftService(
-        { name: 'Mutations', scope: 'function' },
+        { name: 'Mutations', providedIn: 'function' },
         () => {
           const searchChange = craftUse(
             mutation('searchChange', {
@@ -936,8 +927,8 @@ describe('mutation types with identifier', () => {
     });
   });
 
-  it('should infer correctly the mutation bind to a method', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the mutation bind to a method', async () => {
+    runInInjectionContext(() => {
       const _mutationsOutput = craftUse(
         mutation('_mutationsOutput', {
           method: (searchChange: string) => {
@@ -968,8 +959,8 @@ describe('mutation types with identifier', () => {
     });
   });
 
-  it('should infer correctly the mutation bind to a source', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should infer correctly the mutation bind to a source', async () => {
+    runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(
         'searchSource',
       );
@@ -1003,8 +994,8 @@ describe('mutation exceptions', () => {
     vi.resetAllMocks();
   });
 
-  it('typing: exposes exceptions in insertions context', () => {
-    TestBed.runInInjectionContext(() => {
+  it('typing: exposes exceptions in insertions context', async () => {
+    runInInjectionContext(() => {
       const shouldFail = signal(true);
 
       craftUse(
@@ -1014,14 +1005,14 @@ describe('mutation exceptions', () => {
             method: (value: string) =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID_Param' },
+                    { _tag: 'INVALID_USER_ID_Param' },
                     { reason: 'missing' as const },
                   )
                 : value,
             loader: async ({ params }) => {
               return shouldFail()
                 ? craftException(
-                    { code: 'INVALID_USER_ID_Loader' },
+                    { _tag: 'INVALID_USER_ID_Loader' },
                     { reason: 'missing' as const },
                   )
                 : {
@@ -1043,7 +1034,7 @@ describe('mutation exceptions', () => {
                         list: (
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Param';
+                                _tag: 'INVALID_USER_ID_Param';
                                 scope: 'params';
                               },
                               {
@@ -1052,7 +1043,7 @@ describe('mutation exceptions', () => {
                             >
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Loader';
+                                _tag: 'INVALID_USER_ID_Loader';
                                 scope: 'loader';
                               },
                               {
@@ -1063,7 +1054,7 @@ describe('mutation exceptions', () => {
                         params?:
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Param';
+                                _tag: 'INVALID_USER_ID_Param';
                                 scope: 'params';
                               },
                               {
@@ -1074,7 +1065,7 @@ describe('mutation exceptions', () => {
                         loader?:
                           | CraftExceptionResult<
                               {
-                                code: 'INVALID_USER_ID_Loader';
+                                _tag: 'INVALID_USER_ID_Loader';
                                 scope: 'loader';
                               },
                               {
@@ -1102,21 +1093,21 @@ describe('mutation exceptions', () => {
   });
 
   it('typing: captures exception returned by method and loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (value: string) =>
             shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : value,
           loader: async ({ params }) => {
             return shouldFail()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : {
@@ -1133,7 +1124,7 @@ describe('mutation exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -1142,7 +1133,7 @@ describe('mutation exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'loader';
               },
               {
@@ -1155,7 +1146,7 @@ describe('mutation exceptions', () => {
   });
 
   it('typing with identifier: captures exception returned by method and loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const shouldFailMethod = signal(true);
       const shouldFailLoader = signal(true);
 
@@ -1164,7 +1155,7 @@ describe('mutation exceptions', () => {
           method: (value: string) =>
             shouldFailMethod()
               ? craftException(
-                  { code: 'INVALID_USER_ID' },
+                  { _tag: 'INVALID_USER_ID' },
                   { reason: 'missing' as const },
                 )
               : value,
@@ -1173,7 +1164,7 @@ describe('mutation exceptions', () => {
             return shouldFailLoader()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing user' as const },
                 )
@@ -1191,7 +1182,7 @@ describe('mutation exceptions', () => {
         (
           | CraftExceptionResult<
               {
-                code: 'INVALID_USER_ID';
+                _tag: 'INVALID_USER_ID';
                 scope: 'params';
               },
               {
@@ -1200,7 +1191,7 @@ describe('mutation exceptions', () => {
             >
           | CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1214,7 +1205,7 @@ describe('mutation exceptions', () => {
       expectTypeOf(craftUse(mutationRef.exceptions()).params).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'INVALID_USER_ID';
+              _tag: 'INVALID_USER_ID';
               scope: 'params';
             },
             {
@@ -1230,7 +1221,7 @@ describe('mutation exceptions', () => {
             string,
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1245,7 +1236,7 @@ describe('mutation exceptions', () => {
   });
 
   it('typing with identifier: return a select exceptions for an identifier', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (value: string) => value,
@@ -1253,7 +1244,7 @@ describe('mutation exceptions', () => {
           loader: async () =>
             craftException(
               {
-                code: 'API_ERROR',
+                _tag: 'API_ERROR',
               },
               { reason: 'missing' as const },
             ),
@@ -1269,7 +1260,7 @@ describe('mutation exceptions', () => {
             string,
             CraftExceptionResult<
               {
-                code: 'API_ERROR';
+                _tag: 'API_ERROR';
                 scope: 'loader';
                 identifier: string;
               },
@@ -1288,7 +1279,7 @@ describe('mutation exceptions', () => {
       ).toEqualTypeOf<
         | CraftExceptionResult<
             {
-              code: 'API_ERROR';
+              _tag: 'API_ERROR';
               scope: 'loader';
               identifier: string;
             },
@@ -1302,7 +1293,7 @@ describe('mutation exceptions', () => {
   });
 
   it('typing with identifier: return a select exceptions for an identifier', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const failed = signal(true);
       const mutationRef = craftUse(
         mutation('mutationRef', {
@@ -1312,13 +1303,13 @@ describe('mutation exceptions', () => {
             failed()
               ? craftException(
                   {
-                    code: 'API_ERROR',
+                    _tag: 'API_ERROR',
                   },
                   { reason: 'missing' as const },
                 )
               : craftException(
                   {
-                    code: 'HTTP_ERROR',
+                    _tag: 'HTTP_ERROR',
                   },
                   { reason: 'disconnected' as const },
                 ),
@@ -1334,7 +1325,7 @@ describe('mutation exceptions', () => {
             string,
             | CraftExceptionResult<
                 {
-                  code: 'API_ERROR';
+                  _tag: 'API_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1344,7 +1335,7 @@ describe('mutation exceptions', () => {
               >
             | CraftExceptionResult<
                 {
-                  code: 'HTTP_ERROR';
+                  _tag: 'HTTP_ERROR';
                   scope: 'loader';
                   identifier: string;
                 },
@@ -1358,14 +1349,14 @@ describe('mutation exceptions', () => {
 
       expectTypeOf(
         mutationRef.select('')
-          ? craftUse(mutationRef.select('')!.exceptions()).loader?.code
+          ? craftUse(mutationRef.select('')!.exceptions()).loader?._tag
           : undefined,
       ).toEqualTypeOf<'API_ERROR' | 'HTTP_ERROR' | undefined>();
     });
   });
 
   it('captures exception returned by method and does not trigger loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const loader = vi.fn(async ({ params }: { params: string }) => ({
         id: params,
       }));
@@ -1375,7 +1366,7 @@ describe('mutation exceptions', () => {
           method: (value: string) =>
             value.length < 3
               ? craftException(
-                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { _tag: 'SEARCH_TERM_TOO_SHORT' },
                   { min: 3, received: value.length },
                 )
               : value,
@@ -1399,13 +1390,13 @@ describe('mutation exceptions', () => {
   });
 
   it('captures exception returned by loader without exposing a value', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (value: string) => value,
           loader: async () =>
             craftException(
-              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { _tag: 'INVALID_USER_ID', scope: 'loader' },
               { from: 'loader' as const },
             ),
         }),
@@ -1425,11 +1416,11 @@ describe('mutation exceptions', () => {
   });
 
   it('keeps method exceptions global in parallel mutation', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (id: 'A' | 'B') =>
-            craftException({ code: 'INVALID_ID' }, { params: id }),
+            craftException({ _tag: 'INVALID_ID' }, { params: id }),
           identifier: (id) => id,
           loader: async ({ params }) => ({ id: params }),
         }),
@@ -1454,7 +1445,7 @@ describe('mutation — providers', () => {
     vi.restoreAllMocks();
   });
 
-  it('exposes the mutation runtime context to insertion method wrappers', () => {
+  it('exposes the mutation runtime context to insertion method wrappers', async () => {
     let runtimeContext: MutationMethodRuntimeContext | undefined;
     let observedRuntimeContext: MutationMethodRuntimeContext | undefined;
     const runtimeContextWrapper = provideFnWrapper(
@@ -1465,7 +1456,7 @@ describe('mutation — providers', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const mutationRef = craftUse(
         mutation(
           'mutationRef',
@@ -1498,10 +1489,10 @@ describe('mutation — providers', () => {
     });
   });
 
-  it('exposes the mutation resource context to runtime observers', () => {
+  it('exposes the mutation resource context to runtime observers', async () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
-    TestBed.runInInjectionContext(() => {
+    runInInjectionContext(() => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           providers: [
@@ -1532,7 +1523,7 @@ describe('mutation — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           providers: [
@@ -1564,7 +1555,7 @@ describe('mutation — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const withProvider = craftUse(
         mutation('withProvider', {
           providers: [
@@ -1598,13 +1589,15 @@ describe('mutation — providers', () => {
     });
   });
 
-  it('typing: mutation accepts BrandedServiceProvider in providers without type errors', () => {
+  it('typing: mutation accepts BrandedServiceProvider in providers without type errors', async () => {
     const { MethodService, provideMethodService } = craftService(
-      { name: 'MethodService', scope: 'toProvide' },
+      { name: 'MethodService', providedIn: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    setupCraftServiceTest(MethodService, {}, {
+      providers: [provideMethodService()],
+    }).injector.run(() => {
       const withoutProviders = craftUse(
         mutation('withoutProviders', {
           params: function* () {
@@ -1631,8 +1624,8 @@ describe('mutation — providers', () => {
     });
   });
 
-  it('should accepts this', () => {
-    TestBed.runInInjectionContext(() => {
+  it('should accepts this', async () => {
+    runInInjectionContext(() => {
       const registerPizzeriaOwner = craftUse(
         mutation('registerPizzeriaOwner', {
           method: ({
@@ -1657,8 +1650,8 @@ describe('mutation — providers', () => {
     });
   });
 
-  it('typing: loader generator can return null or primitive sync values', () => {
-    TestBed.runInInjectionContext(() => {
+  it('typing: loader generator can return null or primitive sync values', async () => {
+    runInInjectionContext(() => {
       const withNull = craftUse(
         mutation('withNull', {
           method: (id: string) => id,

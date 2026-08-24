@@ -1,10 +1,8 @@
-import '@angular/compiler';
-import { Injector, runInInjectionContext } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  Injector,
+  runInInjectionContext,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CORRELATION_ID_SERVICE,
@@ -139,25 +137,7 @@ describe('CorrelationId', () => {
 });
 
 describe('injectCorrelationIdService', () => {
-  beforeAll(() => {
-    try {
-      TestBed.initTestEnvironment(
-        BrowserTestingModule,
-        platformBrowserTesting(),
-      );
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        !error.message.includes(
-          'Cannot set base providers because it has already been called',
-        )
-      ) {
-        throw error;
-      }
-    }
-  });
-
-  beforeEach(() => {
+    beforeEach(() => {
     TestBed.resetTestingModule();
   });
 

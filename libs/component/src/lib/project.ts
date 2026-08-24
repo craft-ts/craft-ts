@@ -3,7 +3,7 @@ import type {
   CraftNodeChildrenDependencies,
   ProjectionNode,
 } from './render/vnode';
-import { isGeneratorFunction, isYieldableValue } from '@craft-ng/core';
+import { isGeneratorFunction, isYieldableValue } from '@craft-ts/core';
 import { currentCraftRenderContext } from './render/vnode';
 import {
   CONTENT_DECLARATION_CONTEXT,

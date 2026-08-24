@@ -1,4 +1,4 @@
-import type { ResourceStatus } from '@angular/core';
+import type { ResourceStatus } from '../host/craft-compat';
 
 /**
  * The status a craft primitive (`query` / `mutation` / `asyncProcess`) exposes

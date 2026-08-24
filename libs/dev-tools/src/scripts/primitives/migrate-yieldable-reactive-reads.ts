@@ -458,7 +458,7 @@ function ensureCraftUseImport(sourceFile: SourceFile): void {
   const insideCore = filePath.startsWith(`${workspace}/libs/core/src/lib/`);
   const moduleSpecifier = insideCore
     ? localCraftUseSpecifier(filePath, workspace)
-    : '@craft-ng/core';
+    : '@craft-ts/core';
   const existing = sourceFile
     .getImportDeclarations()
     .find((declaration) => declaration.getModuleSpecifierValue() === moduleSpecifier);

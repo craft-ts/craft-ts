@@ -1,10 +1,8 @@
-import '@angular/compiler';
-import { computed, type Signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  computed,
+  type Signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { asyncProcess } from './async-process';
 import { craftUse } from './craft-use';
 import { craftPipe } from './craft-pipe';
@@ -51,21 +49,6 @@ type ProfileRuntimeInsertions = {
   ) => YieldableInvocation<never, User['profile']>;
   kind: () => string | undefined;
 };
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('insertSelectResource types', () => {
   beforeEach(() => vi.useFakeTimers());

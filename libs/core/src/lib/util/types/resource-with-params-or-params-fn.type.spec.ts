@@ -1,6 +1,9 @@
+import {
+  ResourceStreamItem,
+  signal,
+} from '../../host/craft-compat';
 import { ResourceWithParamsOrParamsFn } from './resource-with-params-or-params-fn.type';
 import { Expect, Equal } from 'test-type';
-import { ResourceStreamItem, signal } from '@angular/core';
 import { Prettify } from '../util.type';
 
 function test<ResourceState, Params, ParamsArgs>(

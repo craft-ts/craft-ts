@@ -10,7 +10,7 @@ import {
   craftComponent,
   input,
   renderContent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const StyledCard = craftComponent(
   'StyledCard',

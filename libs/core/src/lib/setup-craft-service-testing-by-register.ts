@@ -1,9 +1,12 @@
 import {
-  type InputSignal,
-  type InputSignalWithTransform,
-  type Type,
-} from '@angular/core';
-import { type ComponentFixture, TestBed } from '@angular/core/testing';
+  createEnvironmentInjector,
+  type EnvironmentInjector,
+  Injector,
+  runInInjectionContext,
+  type Signal,
+  type WritableSignal,
+  ɵINJECTOR_SCOPE,
+} from './host/craft-compat';
 import {
   createExposedServiceValue,
   getRegisteredAppStartServices,
@@ -33,12 +36,13 @@ import type {
   ConcreteServiceScope,
   DependencyNodeScope,
   DependencyTreeChildren,
-  FlattenDependencyTree,
   MergeObjectUnion,
   RequirementScope,
   RootExposureKey,
   Simplify,
 } from './craft-service.shared';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
+import type { CraftInjector } from './host/craft-injector';
 
 type RegisterRealEntry = 'real';
 type RegisterNotReachedEntry = 'notReached';
@@ -85,11 +89,8 @@ type DependencyOutputRecordFromTracking<Tracking> =
     any
   >
     ? {
-        [Key in Name]: Output extends import('@angular/core').WritableSignal<
-          infer Value
-        >
-          ? import('@angular/core').Signal<Value> &
-              Omit<Output, 'set' | 'update' | 'asReadonly'>
+        [Key in Name]: Output extends WritableSignal<infer Value>
+          ? Signal<Value> & Omit<Output, 'set' | 'update' | 'asReadonly'>
           : Output;
       }
     : never;
@@ -117,7 +118,7 @@ type RootServiceName<Target extends ServiceReference> = Extract<
 >;
 
 type RootServiceScope<Target extends ServiceReference> = Extract<
-  GetServiceReferenceMeta<Target>['scope'],
+  GetServiceReferenceMeta<Target>['providedIn'],
   ConcreteServiceScope
 >;
 
@@ -456,239 +457,6 @@ type AssertValidRegister<
 type SetupTestingRegister<Target extends ServiceReference> =
   RegisterShapeForTarget<Target>;
 
-type ComponentDepsMap<Input> = Input extends { deps: infer Deps extends object }
-  ? Deps
-  : {};
-
-type ComponentPropertiesDepsMap<Input> = Input extends {
-  propertiesDeps: infer PropertiesDeps extends object;
-}
-  ? PropertiesDeps
-  : {};
-
-type ComponentPublicPropertiesMap<Input> = Input extends {
-  publicProperties: infer PublicProperties extends object;
-}
-  ? PublicProperties
-  : {};
-
-type ComponentInputValue<Value> =
-  Value extends InputSignalWithTransform<any, infer WriteT>
-    ? WriteT
-    : Value extends InputSignal<infer ReadT>
-      ? ReadT
-      : Value;
-
-type ComponentTestingInputs<ComponentDeps extends object> = Partial<{
-  [Name in Extract<
-    keyof ComponentPublicPropertiesMap<ComponentDeps>,
-    string
-  >]: ComponentInputValue<ComponentPublicPropertiesMap<ComponentDeps>[Name]>;
-}>;
-
-type IsComponentGenDepsDependency<Dependency> = Dependency extends {
-  deps: infer _Deps extends object;
-  provided: infer _Provided extends object;
-}
-  ? true
-  : false;
-
-type IsTrackedDependencyNode<Dependency> = Dependency extends {
-  scope: infer _Scope;
-  dependencies: infer _Dependencies extends object;
-}
-  ? true
-  : false;
-
-type DependencyMapValue<Dependency> = Dependency extends object
-  ? Dependency[Extract<keyof Dependency, string>]
-  : never;
-
-type ContainsNestedTestingDependencyEntries<Dependency> = [
-  Extract<
-    DependencyMapValue<Dependency>,
-    | {
-        scope: unknown;
-        dependencies: object;
-      }
-    | {
-        deps: object;
-        provided: object;
-      }
-  >,
-] extends [never]
-  ? false
-  : true;
-
-type ComponentTestingDependencyTreeFromEntry<Name extends string, Dependency> =
-  IsTrackedDependencyNode<Dependency> extends true
-    ? { [Key in Name]: Dependency }
-    : IsComponentGenDepsDependency<Dependency> extends true
-      ? ComponentTestingDependencyTree<Extract<Dependency, object>>
-      : Dependency extends object
-        ? ContainsNestedTestingDependencyEntries<Dependency> extends true
-          ? ComponentTestingDependencyTreeFromDepsMap<Dependency>
-          : {}
-        : {};
-
-type ComponentTestingDependencyTreeFromDepsMap<Deps extends object> = Simplify<
-  MergeObjectUnion<
-    {
-      [Name in Extract<
-        keyof Deps,
-        string
-      >]: ComponentTestingDependencyTreeFromEntry<Name, Deps[Name]>;
-    }[Extract<keyof Deps, string>]
-  >
->;
-
-type ComponentTestingDependencyTreeFromPropertiesDeps<
-  ComponentDeps extends object,
-> = Simplify<
-  MergeObjectUnion<
-    {
-      [PropertyName in Extract<
-        keyof ComponentPropertiesDepsMap<ComponentDeps>,
-        string
-      >]: ComponentPropertiesDepsMap<ComponentDeps>[PropertyName] extends object
-        ? ComponentTestingDependencyTreeFromDepsMap<
-            ComponentPropertiesDepsMap<ComponentDeps>[PropertyName]
-          >
-        : {};
-    }[Extract<keyof ComponentPropertiesDepsMap<ComponentDeps>, string>]
-  >
->;
-
-type ComponentTestingDependencyTree<ComponentDeps extends object> = Simplify<
-  ComponentTestingDependencyTreeFromDepsMap<ComponentDepsMap<ComponentDeps>> &
-    ComponentTestingDependencyTreeFromPropertiesDeps<ComponentDeps>
->;
-
-type ComponentRegisterNodeMap<ComponentDeps extends object> =
-  FlattenDependencyTree<ComponentTestingDependencyTree<ComponentDeps>>;
-
-type ComponentMockImplementationForNode<Node> = Simplify<
-  [keyof DependencyNodeDerivedPropertiesUsed<Node>] extends [never]
-    ? Record<string, unknown>
-    : MockImplementation<unknown> &
-        RequiredUsedMockImplementation<
-          DependencyNodeDerivedPropertiesUsed<Node>
-        >
->;
-
-type ComponentRegisterEntryForNode<Name extends string, Node> =
-  | OpenRegisterEntryForNode<Name, Node>
-  | ComponentMockImplementationForNode<Node>
-  | RegisterNotReachedEntry;
-
-type ComponentRegisterShape<ComponentDeps extends object> = Simplify<{
-  [Name in Extract<
-    keyof ComponentRegisterNodeMap<ComponentDeps>,
-    string
-  >]: ComponentRegisterEntryForNode<
-    Name,
-    ComponentRegisterNodeMap<ComponentDeps>[Name]
-  >;
-}>;
-
-type ComponentRegisterNames<ComponentDeps extends object> = Extract<
-  keyof ComponentRegisterShape<ComponentDeps>,
-  string
->;
-
-type ReachableComponentRegisterNames<
-  ComponentDeps extends object,
-  Register extends object,
-> = ReachableNamesForTree<
-  ComponentTestingDependencyTree<ComponentDeps>,
-  Register
->;
-
-type RealReachableComponentAppStartNames<
-  ComponentDeps extends object,
-  Register extends object,
-> = RealReachableAppStartNames<
-  Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>,
-  ComponentRegisterNodeMap<ComponentDeps>,
-  Register
->;
-
-type ReachableComponentNotReachedNames<
-  ComponentDeps extends object,
-  Register extends object,
-> = Extract<
-  {
-    [Name in Extract<
-      ReachableComponentRegisterNames<ComponentDeps, Register>,
-      string
-    >]: Name extends keyof Register
-      ? RegisterEntryKind<Register[Name]> extends 'notReached'
-        ? Name
-        : never
-      : Name;
-  }[Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>],
-  string
->;
-
-type UnreachableComponentNonNotReachedNames<
-  ComponentDeps extends object,
-  Register extends object,
-> = Extract<
-  {
-    [Name in Exclude<
-      ComponentRegisterNames<ComponentDeps>,
-      Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>
-    >]: Name extends keyof Register
-      ? RegisterEntryKind<Register[Name]> extends 'notReached'
-        ? never
-        : Name
-      : never;
-  }[Exclude<
-    ComponentRegisterNames<ComponentDeps>,
-    Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>
-  >],
-  string
->;
-
-type ExtraComponentRegisterKeys<
-  ComponentDeps extends object,
-  Register extends object,
-> = Exclude<
-  Extract<keyof Register, string>,
-  ComponentRegisterNames<ComponentDeps>
->;
-
-type AssertValidComponentRegister<
-  ComponentDeps extends object,
-  Register extends object,
-> = [ExtraComponentRegisterKeys<ComponentDeps, Register>] extends [never]
-  ? [ReachableComponentNotReachedNames<ComponentDeps, Register>] extends [never]
-    ? [
-        UnreachableComponentNonNotReachedNames<ComponentDeps, Register>,
-      ] extends [never]
-      ? {}
-      : {
-          ERROR_register_entries_must_be_notReached: UnreachableComponentNonNotReachedNames<
-            ComponentDeps,
-            Register
-          >;
-        }
-    : {
-        ERROR_register_entries_cannot_be_notReached: ReachableComponentNotReachedNames<
-          ComponentDeps,
-          Register
-        >;
-      }
-  : {
-      ERROR_invalid_register_keys: ExtraComponentRegisterKeys<
-        ComponentDeps,
-        Register
-      >;
-    };
-
-type SetupComponentTestingRegister<ComponentDeps extends object> =
-  ComponentRegisterShape<ComponentDeps>;
-
 type BoundaryOnlyToProvideRegisterShape<NodeMap extends object> = Simplify<
   Partial<{
     [Name in Extract<keyof NodeMap, string> as DependencyNodeRequiresProvider<
@@ -702,9 +470,6 @@ type BoundaryOnlyToProvideRegisterShape<NodeMap extends object> = Simplify<
 type ServiceBoundaryOnlyToProvideRegisterShape<
   Target extends ServiceReference,
 > = BoundaryOnlyToProvideRegisterShape<RegisterNodeMap<Target>>;
-
-type ComponentBoundaryOnlyToProvideRegisterShape<ComponentDeps extends object> =
-  BoundaryOnlyToProvideRegisterShape<ComponentRegisterNodeMap<ComponentDeps>>;
 
 type ServiceBoundaryOnlyBoundaryRegisterShape<Target extends ServiceReference> =
   Simplify<
@@ -721,25 +486,6 @@ type ServiceBoundaryOnlyBoundaryRegisterShape<Target extends ServiceReference> =
         : never]:
         | RegisterRealEntry
         | MockImplementationForNode<Target, Name, RegisterNodeMap<Target>[Name]>
-        | RegisterNotReachedEntry;
-    }>
-  >;
-
-type ComponentBoundaryOnlyBoundaryRegisterShape<ComponentDeps extends object> =
-  Simplify<
-    Partial<{
-      [Name in Extract<
-        keyof ComponentRegisterNodeMap<ComponentDeps>,
-        string
-      > as DependencyNodeBrowserBoundary<
-        ComponentRegisterNodeMap<ComponentDeps>[Name]
-      > extends true
-        ? Name
-        : never]:
-        | RegisterRealEntry
-        | ComponentMockImplementationForNode<
-            ComponentRegisterNodeMap<ComponentDeps>[Name]
-          >
         | RegisterNotReachedEntry;
     }>
   >;
@@ -823,17 +569,6 @@ type ServiceBoundaryOnlyReachableNames<
   RootServiceName<Target>
 >;
 
-type ComponentBoundaryOnlyReachableNames<
-  ComponentDeps extends object,
-  BoundaryRegister extends object,
-  ToProvideRegister extends object,
-> = BoundaryOnlyReachableNamesForTree<
-  ComponentTestingDependencyTree<ComponentDeps>,
-  BoundaryRegister,
-  ToProvideRegister,
-  never
->;
-
 type BoundaryOnlyReachableBoundaryNames<
   ReachableNames extends string,
   NodeMap extends object,
@@ -866,23 +601,6 @@ type ServiceBoundaryOnlyReachableBoundaryNames<
   >,
   RegisterNodeMap<Target>,
   RootServiceName<Target>
->;
-
-type ComponentBoundaryOnlyReachableBoundaryNames<
-  ComponentDeps extends object,
-  BoundaryRegister extends object,
-  ToProvideRegister extends object,
-> = BoundaryOnlyReachableBoundaryNames<
-  Extract<
-    ComponentBoundaryOnlyReachableNames<
-      ComponentDeps,
-      BoundaryRegister,
-      ToProvideRegister
-    >,
-    string
-  >,
-  ComponentRegisterNodeMap<ComponentDeps>,
-  never
 >;
 
 type BoundaryOnlyProviderNameNeedsProvider<
@@ -940,24 +658,6 @@ type ServiceBoundaryOnlyRequiredProviderNames<
   RootServiceName<Target>
 >;
 
-type ComponentBoundaryOnlyRequiredProviderNames<
-  ComponentDeps extends object,
-  BoundaryRegister extends object,
-  ToProvideRegister extends object,
-> = BoundaryOnlyRequiredProviderNames<
-  Extract<
-    ComponentBoundaryOnlyReachableNames<
-      ComponentDeps,
-      BoundaryRegister,
-      ToProvideRegister
-    >,
-    string
-  >,
-  ComponentRegisterNodeMap<ComponentDeps>,
-  BoundaryRegister,
-  never
->;
-
 type BoundaryOnlyRealReachableAppStartNames<
   ReachableNames extends string,
   NodeMap extends object,
@@ -998,24 +698,6 @@ type ServiceBoundaryOnlyRealReachableAppStartNames<
   RegisterNodeMap<Target>,
   BoundaryRegister,
   RootServiceName<Target>
->;
-
-type ComponentBoundaryOnlyRealReachableAppStartNames<
-  ComponentDeps extends object,
-  BoundaryRegister extends object,
-  ToProvideRegister extends object,
-> = BoundaryOnlyRealReachableAppStartNames<
-  Extract<
-    ComponentBoundaryOnlyReachableNames<
-      ComponentDeps,
-      BoundaryRegister,
-      ToProvideRegister
-    >,
-    string
-  >,
-  ComponentRegisterNodeMap<ComponentDeps>,
-  BoundaryRegister,
-  never
 >;
 
 type BoundaryOnlyReachableNotReachedBoundaryNames<
@@ -1180,29 +862,6 @@ type ServiceTestingByRegisterOptionsParameter<
       },
     ];
 
-type BaseComponentTestingByRegisterOptions<ComponentDeps extends object> = {
-  providers?: CraftServiceProvider[];
-  imports?: unknown[];
-  inputs?: ComponentTestingInputs<ComponentDeps>;
-  detectChanges?: boolean;
-  appStart?: Record<string, AppStartDecision>;
-};
-
-type ComponentTestingByRegisterOptionsParameter<
-  ComponentDeps extends object,
-  Register extends object,
-> = [RealReachableComponentAppStartNames<ComponentDeps, Register>] extends [
-  never,
-]
-  ? [options?: BaseComponentTestingByRegisterOptions<ComponentDeps>]
-  : [
-      options: BaseComponentTestingByRegisterOptions<ComponentDeps> & {
-        appStart: AppStartDecisionRecord<
-          RealReachableComponentAppStartNames<ComponentDeps, Register>
-        >;
-      },
-    ];
-
 type BoundaryOnlyToProvideConfig<
   ToProvideRegister extends object,
   ToProvideShape extends object,
@@ -1292,46 +951,6 @@ type ServiceBoundaryOnlyTestingConfig<
     BoundaryOnlyAppStartConfig<
       ServiceBoundaryOnlyRealReachableAppStartNames<
         Target,
-        BoundaryRegister,
-        ToProvideRegister
-      >
-    >
->;
-
-type BaseComponentBoundaryOnlyTestingOptions<ComponentDeps extends object> = {
-  providers?: CraftServiceProvider[];
-  imports?: unknown[];
-  inputs?: ComponentTestingInputs<ComponentDeps>;
-  detectChanges?: boolean;
-};
-
-type ComponentBoundaryOnlyTestingConfig<
-  ComponentDeps extends object,
-  ToProvideRegister extends object,
-  BoundaryRegister extends object,
-> = Simplify<
-  BaseComponentBoundaryOnlyTestingOptions<ComponentDeps> &
-    BoundaryOnlyToProvideConfig<
-      ToProvideRegister,
-      ComponentBoundaryOnlyToProvideRegisterShape<ComponentDeps>,
-      ComponentBoundaryOnlyRequiredProviderNames<
-        ComponentDeps,
-        BoundaryRegister,
-        ToProvideRegister
-      >
-    > &
-    BoundaryOnlyBoundaryConfig<
-      BoundaryRegister,
-      ComponentBoundaryOnlyBoundaryRegisterShape<ComponentDeps>,
-      ComponentBoundaryOnlyReachableBoundaryNames<
-        ComponentDeps,
-        BoundaryRegister,
-        ToProvideRegister
-      >
-    > &
-    BoundaryOnlyAppStartConfig<
-      ComponentBoundaryOnlyRealReachableAppStartNames<
-        ComponentDeps,
         BoundaryRegister,
         ToProvideRegister
       >
@@ -1511,8 +1130,8 @@ function assertBoundaryOnlyRegisterEntries(
 
     if (
       entry === 'real' &&
-      (metaData.scope === 'toProvide' ||
-        metaData.scope === 'manuallyProvidedAtRoot') &&
+      (metaData.providedIn === 'toProvide' ||
+        metaData.providedIn === 'manuallyProvidedAtRoot') &&
       !toProvideRegister[name]
     ) {
       throw new Error(
@@ -1579,10 +1198,31 @@ function createRegisterTestingContext(
   };
 }
 
+function createTestingInjector(providers: CraftServiceProvider[]) {
+  const environmentInjector = createEnvironmentInjector(
+    [
+      { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+      ...providers,
+    ],
+    Injector.NULL as EnvironmentInjector,
+    'CraftServiceTestingByRegister',
+  );
+  const injector = ɵcraftInjectorFromHost(environmentInjector);
+
+  return {
+    environmentInjector,
+    injector,
+    run<T>(fn: () => T): T {
+      return injector.run(() => runInInjectionContext(environmentInjector, fn));
+    },
+  };
+}
+
 async function runConfiguredAppStartHooks(
   register: Record<string, RuntimeRegisterEntry>,
   appStart: Record<string, AppStartDecision> | undefined,
   helperName: string,
+  testingInjector: ReturnType<typeof createTestingInjector>,
 ) {
   const appStartReferences = new Map(
     getRegisteredAppStartServices().map((reference) => {
@@ -1607,7 +1247,7 @@ async function runConfiguredAppStartHooks(
     return;
   }
 
-  await TestBed.runInInjectionContext(async () => {
+  await testingInjector.run(async () => {
     for (const [name, decision] of Object.entries(appStart)) {
       if (decision !== 'run' && decision !== 'ignore') {
         throw new Error(
@@ -1739,6 +1379,7 @@ async function setupCraftServiceTestingByRegisterImpl<
 ): Promise<{
   sut: ResolvedServiceOutput<Target, Bindings>;
   mocks: CreateRegisterMocks<Register>;
+  injector: CraftInjector;
 }> {
   const internalMetaData = getServiceMetaData(target);
   const runtimeRegister = register as Record<string, RuntimeRegisterEntry>;
@@ -1747,30 +1388,29 @@ async function setupCraftServiceTestingByRegisterImpl<
     options?.providers,
     {
       name: internalMetaData.name,
-      scope: internalMetaData.scope,
+      scope: internalMetaData.providedIn,
     },
   );
 
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    providers,
-  });
-
-  const result = TestBed.runInInjectionContext(() => ({
+  const testingInjector = createTestingInjector(providers);
+  const result = testingInjector.run(() => ({
     sut:
       options?.bindings === undefined
         ? internalMetaData.inject()
         : internalMetaData.inject(options.bindings),
     mocks,
+    injector: testingInjector.injector,
   })) as {
     sut: ResolvedServiceOutput<Target, Bindings>;
     mocks: CreateRegisterMocks<Register>;
+    injector: CraftInjector;
   };
 
   await runConfiguredAppStartHooks(
     runtimeRegister,
     options?.appStart,
     'setupCraftServiceTestingByRegister',
+    testingInjector,
   );
 
   return result;
@@ -1795,6 +1435,7 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
 ): Promise<{
   sut: ResolvedServiceOutput<Target, Bindings>;
   mocks: CreateRegisterMocks<BoundaryRegister>;
+  injector: CraftInjector;
 }> {
   const internalMetaData = getServiceMetaData(target);
   const runtimeRegister = createBoundaryOnlyRuntimeRegister(
@@ -1809,7 +1450,7 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
     },
     {
       name: internalMetaData.name,
-      scope: internalMetaData.scope,
+      scope: internalMetaData.providedIn,
     },
   );
   const { providers, mocks } = createRegisterTestingContext(
@@ -1817,166 +1458,38 @@ async function setupCraftServiceTestingByRegisterBoundaryOnly<
     config.providers,
     {
       name: internalMetaData.name,
-      scope: internalMetaData.scope,
+      scope: internalMetaData.providedIn,
     },
   );
 
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    providers,
-  });
-
-  const result = TestBed.runInInjectionContext(() => ({
+  const testingInjector = createTestingInjector(providers);
+  const result = testingInjector.run(() => ({
     sut:
       config.bindings === undefined
         ? internalMetaData.inject()
         : internalMetaData.inject(config.bindings),
     mocks,
+    injector: testingInjector.injector,
   })) as {
     sut: ResolvedServiceOutput<Target, Bindings>;
     mocks: CreateRegisterMocks<BoundaryRegister>;
+    injector: CraftInjector;
   };
 
   await runConfiguredAppStartHooks(
     runtimeRegister,
     config.appStart,
     'setupCraftServiceTestingByRegister.boundaryOnly',
+    testingInjector,
   );
 
   return result;
-}
-
-async function setupCraftComponentTestingByRegisterImpl<
-  ComponentInstance,
-  ComponentDeps extends object,
-  const Register extends SetupComponentTestingRegister<ComponentDeps>,
->(
-  componentType: Type<ComponentInstance>,
-  _componentDeps: ComponentDeps,
-  register: Register & AssertValidComponentRegister<ComponentDeps, Register>,
-  ...[options]: ComponentTestingByRegisterOptionsParameter<
-    ComponentDeps,
-    Register
-  >
-): Promise<{
-  fixture: ComponentFixture<ComponentInstance>;
-  component: ComponentInstance;
-  nativeElement: HTMLElement;
-  mocks: CreateRegisterMocks<Register>;
-}> {
-  const runtimeRegister = register as Record<string, RuntimeRegisterEntry>;
-  const { providers, mocks } = createRegisterTestingContext(
-    runtimeRegister,
-    options?.providers,
-  );
-
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    imports: [componentType, ...(options?.imports ?? [])],
-    providers,
-  });
-
-  await runConfiguredAppStartHooks(
-    runtimeRegister,
-    options?.appStart,
-    'setupCraftComponentTestingByRegister',
-  );
-
-  const fixture = TestBed.createComponent(componentType);
-
-  for (const [name, value] of Object.entries(options?.inputs ?? {})) {
-    fixture.componentRef.setInput(name, value);
-  }
-
-  if (options?.detectChanges ?? true) {
-    fixture.detectChanges();
-  }
-
-  return {
-    fixture,
-    component: fixture.componentInstance,
-    nativeElement: fixture.nativeElement as HTMLElement,
-    mocks: mocks as CreateRegisterMocks<Register>,
-  };
-}
-
-async function setupCraftComponentTestingByRegisterBoundaryOnly<
-  ComponentInstance,
-  ComponentDeps extends object,
-  const ToProvideRegister extends object = {},
-  const BoundaryRegister extends object = {},
->(
-  componentType: Type<ComponentInstance>,
-  _componentDeps: ComponentDeps,
-  config: ComponentBoundaryOnlyTestingConfig<
-    ComponentDeps,
-    ToProvideRegister,
-    BoundaryRegister
-  > & {
-    toProvideRegister?: ToProvideRegister;
-    boundaryRegister?: BoundaryRegister;
-  },
-): Promise<{
-  fixture: ComponentFixture<ComponentInstance>;
-  component: ComponentInstance;
-  nativeElement: HTMLElement;
-  mocks: CreateRegisterMocks<BoundaryRegister>;
-}> {
-  const runtimeRegister = createBoundaryOnlyRuntimeRegister({
-    toProvideRegister: config.toProvideRegister as
-      | Record<string, RuntimeRegisterEntry>
-      | undefined,
-    boundaryRegister: config.boundaryRegister as
-      | Record<string, RuntimeRegisterEntry>
-      | undefined,
-    appStart: config.appStart,
-  });
-  const { providers, mocks } = createRegisterTestingContext(
-    runtimeRegister,
-    config.providers,
-  );
-
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    imports: [componentType, ...(config.imports ?? [])],
-    providers,
-  });
-
-  await runConfiguredAppStartHooks(
-    runtimeRegister,
-    config.appStart,
-    'setupCraftComponentTestingByRegister.boundaryOnly',
-  );
-
-  const fixture = TestBed.createComponent(componentType);
-
-  for (const [name, value] of Object.entries(config.inputs ?? {})) {
-    fixture.componentRef.setInput(name, value);
-  }
-
-  if (config.detectChanges ?? true) {
-    fixture.detectChanges();
-  }
-
-  return {
-    fixture,
-    component: fixture.componentInstance,
-    nativeElement: fixture.nativeElement as HTMLElement,
-    mocks: mocks as CreateRegisterMocks<BoundaryRegister>,
-  };
 }
 
 export const setupCraftServiceTestingByRegister = Object.assign(
   setupCraftServiceTestingByRegisterImpl,
   {
     boundaryOnly: setupCraftServiceTestingByRegisterBoundaryOnly,
-  },
-);
-
-export const setupCraftComponentTestingByRegister = Object.assign(
-  setupCraftComponentTestingByRegisterImpl,
-  {
-    boundaryOnly: setupCraftComponentTestingByRegisterBoundaryOnly,
   },
 );
 

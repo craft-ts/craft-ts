@@ -2,7 +2,7 @@ import { craftService } from './craft-service';
 import type { Equal, Expect } from 'test-type';
 
 const todoStore = craftService(
-  { name: 'TodoStore', scope: 'toProvide' },
+  { name: 'TodoStore', providedIn: 'toProvide' },
   () => ({ todos: [] as string[] }),
 );
 

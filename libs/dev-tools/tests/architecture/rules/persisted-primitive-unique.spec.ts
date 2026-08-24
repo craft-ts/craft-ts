@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertPersistedPrimitiveHasUnique } from '@craft-ng/dev-tools';
+import { assertPersistedPrimitiveHasUnique } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('assertPersistedPrimitiveHasUnique', () => {

@@ -5,10 +5,10 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-2
-import { craftService, GlobalPersisterHandlerService } from '@craft-ng/core';
+import { craftService, GlobalPersisterHandlerService } from '@craft-ts/core';
 
 const { LogoutHandler } = craftService(
-  { name: 'LogoutHandler', scope: 'toProvide' },
+  { name: 'LogoutHandler', providedIn: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
 

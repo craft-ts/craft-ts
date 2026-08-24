@@ -111,15 +111,15 @@ not return template children. Use `catchBlock.exhaustive` or
 `matchBlock.exhaustive` when the exception should produce DOM.
 
 ```ts
-import { abstract, craftException, craftService } from '@craft-ng/core';
+import { abstract, craftException, craftService } from '@craft-ts/core';
 import {
   catchTag,
   craftComponent,
   p,
   withProviders,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
-const noAccess = craftException({ code: 'NO_ACCESS' });
+const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
   { name: 'restrictedData', scope: 'abstract' },
   abstract<string | typeof noAccess>(),
@@ -189,7 +189,7 @@ const SafeComponent = MyRestrictedCraftComponent.pipe(
   ]),
   catchTag.exhaustive({
     NO_ACCESS: function* (exception) {
-      yield* ToastService.show(() => `Access denied: ${exception.code}`);
+      yield* ToastService.show(() => `Access denied: ${exception._tag}`);
     },
   }),
 );
@@ -247,7 +247,7 @@ children while the source is empty and switches reactively to the matching
 handler when an exception appears.
 
 ```ts
-matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
+matchBlock.exhaustive(() => userQuery.exceptions().loader, '_tag', {
   UserNotFoundException: () => p('User not found'),
   UserConsentMissingException: () => p('Consent is required'),
 });
@@ -256,11 +256,10 @@ matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
 ## What Craft handles directly
 
 Craft supports compositions that are not native properties of a standard
-Angular component or directive:
+the host component or directive:
 
 - a Craft directive can declare `meta.styles` and contribute to the stylesheet
-  of the component using it; Angular associates styles with a component, not
-  with an `@Directive`;
+  of the component using it; Craft keeps the association with the component;
 - directive styles remain encapsulated with `@scope`, without rewriting
   selectors or adding a wrapper;
 - multiple directives can compose their logic, template, host classes, and
@@ -268,9 +267,8 @@ Angular component or directive:
 - styles are deduplicated and reference-counted across instances, then removed
   when the last instance is destroyed.
 
-With standard Angular, this usually requires moving styles into a component,
-manually adding classes to the host, or managing stylesheet injection and
-cleanup yourself. Craft keeps those responsibilities in the directive runtime.
+The directive runtime owns stylesheet injection, scoping, and cleanup, so those
+responsibilities do not leak into application code.
 
 ## Choosing the right level
 
@@ -299,8 +297,8 @@ In practice:
 
 - `:scope` targets the root itself;
 - `.title` targets `Card` descendants;
-- when a child Craft component or Angular component is encountered, its host
-  becomes a boundary: parent rules can reach the host, but not its internal
+- when a child Craft component is encountered, its root becomes a boundary:
+  parent rules can reach the root, but not its internal
   DOM;
 - ordinary elements do not become boundaries and do not receive an additional
   token;

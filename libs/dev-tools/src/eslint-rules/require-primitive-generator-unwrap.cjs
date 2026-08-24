@@ -238,7 +238,7 @@ function createCraftUseImportFix(fixer, sourceCode) {
   for (const statement of program.body) {
     if (
       statement.type === 'ImportDeclaration' &&
-      statement.source.value === '@craft-ng/core'
+      statement.source.value === '@craft-ts/core'
     ) {
       const alreadyImported = statement.specifiers.some(
         (specifier) =>
@@ -257,7 +257,7 @@ function createCraftUseImportFix(fixer, sourceCode) {
   if (!craftImport) {
     return fixer.insertTextBefore(
       program.body[0] ?? program,
-      "import { craftUse } from '@craft-ng/core';\n",
+      "import { craftUse } from '@craft-ts/core';\n",
     );
   }
 

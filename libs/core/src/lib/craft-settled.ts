@@ -1,4 +1,4 @@
-import { computed, type Signal } from '@angular/core';
+import { computed, type Signal } from './host/craft-compat';
 import {
   CraftGenShortCircuit,
   type CraftGenExceptionMarker,
@@ -102,21 +102,33 @@ export type CraftSettledYieldableValue<
 
 /** The async source names a value depends on (`never` when it depends on none). */
 export type CraftSettledSourcesOf<Value> =
-  Value extends CraftSettledBrand<infer Source, any>
-    ? string extends Source
-      ? never
-      : Source
+  Value extends {
+    readonly [CRAFT_SETTLED_BRAND]: {
+      readonly source: infer Source;
+    };
+  }
+    ? Source extends string
+      ? string extends Source
+        ? never
+        : Source
+      : never
     : never;
 
 /** The `craftException`s a settled read may surface. */
 export type CraftSettledExceptionsOf<Value> =
-  Value extends CraftSettledBrand<any, infer Exceptions> ? Exceptions : never;
+  Value extends {
+    readonly [CRAFT_SETTLED_BRAND]: {
+      readonly exceptions: infer Exceptions;
+    };
+  }
+    ? Exceptions
+    : never;
 
 /** The exception codes a settled read may surface. */
 export type CraftSettledCodesOf<Value> = Extract<
   CraftSettledExceptionsOf<Value>,
-  { readonly code: string }
->['code'];
+  { readonly _tag: string }
+>['_tag'];
 
 /**
  * Type-level marker surfaced by a {@link settled} call's `Yielded`, carrying the

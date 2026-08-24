@@ -3,7 +3,7 @@
 Every documented export, with the page that covers it. Use <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>F</kbd>.
 
 For an explanation rather than a lookup, start from the [Guide](/guide/).
-Coding agents: [llms.txt](https://ng-angular-stack.github.io/craft/llms.txt) and
+Coding agents: [llms.txt](https://craft-ts.github.io/craft/llms.txt) and
 [coding agents](/resources/ai-agents).
 
 ## Primitives
@@ -26,31 +26,32 @@ wrappers, WebMCP tools, and other advanced patterns. Everyday insertions
 already receive those methods as arguments — see
 [Anatomy of a primitive](/guide/concepts/primitive-anatomy#injectable-runtime-context).
 
-| Symbol                                       | What it does                                                                 | Page                                                                                         |
-| -------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `injectStateMethodRuntimeContext`            | `state` writes inside an insertion method                                    | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
-| `injectQueryMethodRuntimeContext`            | `query` writes inside an insertion method                                    | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
-| `injectMutationMethodRuntimeContext`         | `mutation` writes inside an insertion method                                 | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
-| `injectQueryParamsMethodRuntimeContext`      | `queryParams` writes inside an insertion method                              | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
-| `injectAsyncProcessMethodRuntimeContext`     | `asyncProcess` writes inside an insertion method                             | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
-| `injectPrimitiveMethodRuntimeContext`        | Same context, untyped `kind`                                                 | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
-| `providePrimitiveResourceRuntimeObserver`    | Observes `query` / `mutation` / `asyncProcess` / `queryParams` values        | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context)                      |
+| Symbol                                    | What it does                                                          | Page                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `injectStateMethodRuntimeContext`         | `state` writes inside an insertion method                             | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
+| `injectQueryMethodRuntimeContext`         | `query` writes inside an insertion method                             | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
+| `injectMutationMethodRuntimeContext`      | `mutation` writes inside an insertion method                          | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
+| `injectQueryParamsMethodRuntimeContext`   | `queryParams` writes inside an insertion method                       | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
+| `injectAsyncProcessMethodRuntimeContext`  | `asyncProcess` writes inside an insertion method                      | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
+| `injectPrimitiveMethodRuntimeContext`     | Same context, untyped `kind`                                          | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
+| `providePrimitiveResourceRuntimeObserver` | Observes `query` / `mutation` / `asyncProcess` / `queryParams` values | [Anatomy](/guide/concepts/primitive-anatomy#injectable-runtime-context) |
 
 ## Composition
 
-| Symbol                   | What it does                               | Page                                                     |
-| ------------------------ | ------------------------------------------ | -------------------------------------------------------- |
-| `craftPipe`              | Composes several insertions into one       | [Insertions](/guide/concepts/insertions)                 |
-| `craftYieldRecord`       | Resolves a record of primitive generators  | [craftService](/guide/app/craft-service)                 |
-| `insertStatePipe`        | Composes several `state` insertions        | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
-| `insertQueryPipe`        | Composes several `query` insertions        | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
-| `insertMutationPipe`     | Composes several `mutation` insertions     | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
-| `insertQueryParamsPipe`  | Composes several `queryParams` insertions  | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
-| `insertAsyncProcessPipe` | Composes several `asyncProcess` insertions | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
-| `craftGen`               | A standalone tracked generator             | [Generators](/guide/concepts/generators)                 |
-| `craftMatch`             | Exhaustive pattern matching                | [Pattern matching](/guide/advanced/pattern-matching)     |
-| `.pipe(...)`             | Program operators on a craft generator     | [Program operators](/guide/advanced/program-operators)   |
-| `catchTag`, `retry`      | Operators for `.pipe(...)`                 | [Program operators](/guide/advanced/program-operators)   |
+| Symbol                   | What it does                                    | Page                                                     |
+| ------------------------ | ----------------------------------------------- | -------------------------------------------------------- |
+| `craftPipe`              | Composes several insertions into one            | [Insertions](/guide/concepts/insertions)                 |
+| `craftYieldRecord`       | Resolves a record of primitive generators       | [craftService](/guide/app/craft-service)                 |
+| `insertStatePipe`        | Composes several `state` insertions             | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertQueryPipe`        | Composes several `query` insertions             | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertMutationPipe`     | Composes several `mutation` insertions          | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertQueryParamsPipe`  | Composes several `queryParams` insertions       | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertAsyncProcessPipe` | Composes several `asyncProcess` insertions      | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertStateMachinePipe` | Composes several `craftStateMachine` insertions | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `craftGen`               | A standalone tracked generator                  | [Generators](/guide/concepts/generators)                 |
+| `craftMatch`             | Exhaustive pattern matching                     | [Pattern matching](/guide/advanced/pattern-matching)     |
+| `.pipe(...)`             | Program operators on a craft generator          | [Program operators](/guide/advanced/program-operators)   |
+| `catchTag`, `retry`      | Operators for `.pipe(...)`                      | [Program operators](/guide/advanced/program-operators)   |
 
 ## Insertions
 
@@ -82,7 +83,6 @@ already receive those methods as arguments — see
 | Symbol                      | What it does                               | Page                                              |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------- |
 | `craftService`              | Declares a named, scoped service           | [craftService](/guide/app/craft-service)          |
-| `toCraftService`            | Adapts an existing Angular dependency      | [Integrating](/guide/app/integrate-existing)      |
 | `abstract`                  | Declares a contract with no implementation | [Abstract services](/guide/app/abstract-services) |
 | `X.OmitInputs`              | Opts out of a service's input bindings     | [Public API](/guide/app/expose-api)               |
 | `onAppStart`                | Startup callback owned by a service        | [App start](/guide/app/app-start)                 |
@@ -96,20 +96,31 @@ already receive those methods as arguments — see
 
 ## Routing
 
-| Symbol                                                              | What it does                                    | Page                                                  |
-| ------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
-| `craftRoute`, `craftRoutes`                                         | Declares typed routes and collections           | [Setup](/guide/routing/setup)                         |
-| `ValidateCascadeRoutesFile`, `CanRun`                               | Compile-time DI check for a routes file         | [Setup](/guide/routing/setup)                         |
-| `RouteCheckedDI`                                                    | Per-route `O(1)` variant of the check           | [Scaling routes](/guide/routing/scaling)              |
-| `.withParent`, `ParentRoutes`, `assertChildRouteMounts`             | Pins a child collection to its mount            | [Scaling routes](/guide/routing/scaling)              |
-| `withRetry`                                                         | Retryable lazy `loadComponent` / `loadChildren` | [Setup](/guide/routing/setup)                         |
-| `provideCraftRouter`, `provideCraftLoading`                         | Router with craft loading features              | [Pending UI](/guide/routing/pending-ui)               |
-| `withA11yNavigationFocus`, `CraftTitleStrategy`                     | Focus after nav; route `title` → document       | [Accessibility](/guide/components/accessibility)      |
-| `heading`, `headingSection`, `headingRoot`, `skipLink`, `liveRegion`, `fieldControl`, `disclosureControl`, `buttonControl`, `clickFocus` | Relative outline, skip link, live regions, accessible control props, focus | [Accessibility](/guide/components/accessibility) |
-| `withErrorComponent`, `withRouteLoadError`, `withTransitionTimings` | Router features                                 | [Route load errors](/guide/routing/route-load-errors) |
-| `CraftRouterOutlet`                                                 | Non-blocking outlet                             | [Pending UI](/guide/routing/pending-ui)               |
-| `craftRouterLink`                                                   | Type-safe navigation target                     | [Setup](/guide/routing/setup)                         |
-| `assertExhaustiveRouteExceptions`                                   | Exhaustiveness proof for route exceptions       | [Exceptions](/guide/concepts/exceptions)              |
+| Symbol                                                                                                                                   | What it does                                                               | Page                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `craftRoute`, `craftRoutes`                                                                                                              | Declares typed routes and collections                                      | [Setup](/guide/routing/setup)                         |
+| `ValidateCascadeRoutesFile`, `CanRun`                                                                                                    | Compile-time DI check for a routes file                                    | [Setup](/guide/routing/setup)                         |
+| `RouteCheckedDI`                                                                                                                         | Per-route `O(1)` variant of the check                                      | [Scaling routes](/guide/routing/scaling)              |
+| `.withParent`, `ParentRoutes`, `assertChildRouteMounts`                                                                                  | Pins a child collection to its mount                                       | [Scaling routes](/guide/routing/scaling)              |
+| `withRetry`                                                                                                                              | Retryable lazy `loadComponent` / `loadChildren`                            | [Setup](/guide/routing/setup)                         |
+| `provideCraftRouter`, `provideCraftLoading`                                                                                              | Router with craft loading features                                         | [Pending UI](/guide/routing/pending-ui)               |
+| `withA11yNavigationFocus`, `CraftTitleStrategy`                                                                                          | Focus after nav; route `title` → document                                  | [Accessibility](/guide/components/accessibility)      |
+| `heading`, `headingSection`, `headingRoot`, `skipLink`, `liveRegion`, `fieldControl`, `disclosureControl`, `buttonControl`, `clickFocus` | Relative outline, skip link, live regions, accessible control props, focus | [Accessibility](/guide/components/accessibility)      |
+| `withErrorComponent`, `withRouteLoadError`, `withTransitionTimings`                                                                      | Router features                                                            | [Route load errors](/guide/routing/route-load-errors) |
+| `CraftRouterOutlet`                                                                                                                      | Non-blocking outlet                                                        | [Pending UI](/guide/routing/pending-ui)               |
+| `craftRouterLink`                                                                                                                        | Type-safe navigation target                                                | [Setup](/guide/routing/setup)                         |
+| `assertExhaustiveRouteExceptions`                                                                                                        | Exhaustiveness proof for route exceptions                                  | [Exceptions](/guide/concepts/exceptions)              |
+
+## Server rendering
+
+| Symbol                                                     | What it does                                                            | Page                                               |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `renderCraft`, `renderToString`                            | Renders an isolated request to HTML, CSS, and a transfer snapshot       | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `startCraft`                                               | Hydrates an SSR host or mounts a fresh client application automatically | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM          | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `pendingBlock({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                          | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `CraftUnhandledSsrResolutionError`, `CraftSsrTimeoutError` | Reports missing policies and timed-out blocking sources                 | [SSR and hydration](/guide/advanced/ssr-hydration) |
 
 ## Exceptions
 
@@ -135,36 +146,57 @@ already receive those methods as arguments — see
 
 ## HTTP and boundaries
 
-| Symbol            | What it does                               | Page                                                    |
-| ----------------- | ------------------------------------------ | ------------------------------------------------------- |
-| `CraftHttpClient` | Tracked HTTP client with typed exceptions  | [query](/guide/state/server-state)                      |
-| `browserBoundary` | Marks a service as a browser boundary      | [Browser boundaries](/guide/testing/browser-boundaries) |
+| Symbol                                                                 | What it does                                              | Page                                                    |
+| ---------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
+| `CraftHttpClient`                                                      | Tracked HTTP client with typed exceptions                 | [query](/guide/state/server-state)                      |
+| `browserBoundary`                                                      | Marks a service as a browser boundary                     | [Browser boundaries](/guide/testing/browser-boundaries) |
 | `BrowserDocument`, `BrowserDocument.setLang`, `BrowserDocument.setDir` | Reads and updates document title, language, and direction | [Browser boundaries](/guide/testing/browser-boundaries) |
-| `Console`         | Yieldable console, overridable for tracing | [Observability](/guide/advanced/observability)          |
+| `Console`                                                              | Yieldable console, overridable for tracing                | [Observability](/guide/advanced/observability)          |
 
 ## Testing
 
-| Symbol                                                                                                                                                                         | What it does                                                      | Page                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------- |
-| `setupCraftServiceTestingByRegister`                                                                                                                                           | Sets up a service from a full register                            | [Testing services](/guide/testing/services)             |
-| `setupCraftComponentTestingByRegister`                                                                                                                                         | Same, for a component + its `GenDeps_*`                           | [Testing components](/guide/testing/components)         |
-| `boundaryOnly`                                                                                                                                                                 | Keeps the graph real, mocks boundaries                            | [Browser boundaries](/guide/testing/browser-boundaries) |
-| `mockHttpRequestForRoute`                                                                                                                                                      | Mocks endpoints for a route                                       | [Browser boundaries](/guide/testing/browser-boundaries) |
-| `ComponentTemplateOf`, `ComponentLogicOutputOf`, `SetupTestComponentTemplate`                                                                                                  | Resolves component logic and validates a template at compile time | [Type-level tests](/guide/testing/type-level)           |
-| `TemplateHasElement`, `TemplateRendersNamedElementWhen`, `TemplateNamedElementRendersStateWhen`, `TemplateNamedElementDelegatesToContext`, `TemplateRenderAvailableActionWhen` | Proves what a template renders and uses                           | [Type-level tests](/guide/testing/type-level)           |
-| `Expect`, `Equal`                                                                                                                                                              | Turns a type-level result into a compile-time assertion           | [Type-level tests](/guide/testing/type-level)           |
-| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries`, `assertMutationHasReactOn`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, `assertCraftEffectNoImperativeSync`, `assertInteractiveElementNamed` | Typed lookups and declarative architecture helpers | [Architecture rules](/guide/testing/architecture) |
+| Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | What it does                                                      | Page                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| `setupCraftServiceTestingByRegister`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Sets up a service from a full register                            | [Testing services](/guide/testing/services)             |
+| `boundaryOnly`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Keeps the graph real, mocks boundaries                            | [Browser boundaries](/guide/testing/browser-boundaries) |
+| `mockHttpRequestForRoute`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Mocks endpoints for a route                                       | [Browser boundaries](/guide/testing/browser-boundaries) |
+| `ComponentTemplateOf`, `ComponentLogicOutputOf`, `SetupTestComponentTemplate`                                                                                                                                                                                                                                                                                                                                                                                                                                   | Resolves component logic and validates a template at compile time | [Type-level tests](/guide/testing/type-level)           |
+| `TemplateHasElement`, `TemplateRendersNamedElementWhen`, `TemplateNamedElementRendersStateWhen`, `TemplateNamedElementDelegatesToContext`, `TemplateRenderAvailableActionWhen`                                                                                                                                                                                                                                                                                                                                  | Proves what a template renders and uses                           | [Type-level tests](/guide/testing/type-level)           |
+| `Expect`, `Equal`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Turns a type-level result into a compile-time assertion           | [Type-level tests](/guide/testing/type-level)           |
+| `createArchitectureGraph`, `noExclusiveLink`, `assertCraftUnique`, `assertHttpEndpointUnique`, `assertCraftComputedPure`, `assertNoDependencyCycles`, `assertDeclarativeArchitecture`, `assertRouteDiProofs`, `assertPathBoundaries`, `assertMutationHasReactOn`, `assertPrimitiveLoaderRequirements`, `assertQueryMutationHasServerState`, `assertPersistedPrimitiveHasUnique`, `assertInsertSelectUnique`, `assertCraftEffectNoNetwork`, `assertCraftEffectNoImperativeSync`, `assertInteractiveElementNamed` | Typed lookups and declarative architecture helpers                | [Architecture rules](/guide/testing/architecture)       |
 
 ## Tooling
 
-| Command / rule                     | What it does                                | Page                                                                     |
-| ---------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
-| `npx craft route add`              | Scaffolds a typed route                     | [Automation](/guide/routing/automation)                                  |
-| `npx craft route split`            | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)                                 |
-| `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional) |
-| `craft-brand --root src/app`       | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/angular-brand-config)                      |
-| `@craft-ng/dev-tools/eslint-rules` | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) · [Accessibilité](/guide/components/accessibility) |
-| `npx craft-graph`                  | Writes the static Craft graph               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
-| `npx nx architecture <app>`        | Runs the app's architecture Vitest suite    | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
-| Live page MCP `page`               | Drive the open `ng serve` tab (dev only)    | [Live page MCP](/guide/ai/dev-page)                                      |
-| Template migrator                  | Migrates templates to craft components      | [Template migrator](/guide/components/template-migrator)                 |
+| Command / rule                     | What it does                                           | Page                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `npx craft route add`              | Scaffolds a typed route                                | [Automation](/guide/routing/automation)                                                                   |
+| `npx craft route split`            | Splits a flat collection                               | [Scaling routes](/guide/routing/scaling)                                                                  |
+| `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional)                                   |
+| `craft-brand --root src`           | Generates and refreshes `GenDeps_*`                    | [Brand config](/guide/routing/setup#generated-dependencies)                                               |
+| `@craft-ts/dev-tools/eslint-rules` | The ESLint rule set                                    | [ESLint rules](/guide/routing/eslint-rules) · [Accessibility](/guide/components/accessibility)            |
+| `npx craft-graph`                  | Writes the static Craft graph                          | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
+| `npx nx architecture <app>`        | Runs the app's architecture Vitest suite               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
+| Live page MCP `page`               | Drive the open `ng serve` tab (dev only)               | [Live page MCP](/guide/ai/dev-page)                                                                       |
+| Template migrator                  | Migrates templates to craft components                 | [Template migrator](/guide/components/template-migrator)                                                  |
+
+## Deployment
+
+::: warning Experimental
+The deployment tooling is not settled: these symbols and commands can still
+change between minor versions. See the
+[deployment guide](/guide/deployment/) for what exists today.
+:::
+
+| Symbol / command                                                                                     | What it does                                                   | Page                                             |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------ |
+| `defineCraftDeployment`                                                                              | Declares the deployment of an application in `craft.deploy.ts` | [Manifest reference](/guide/deployment/manifest) |
+| `checkCraftDeployment`, `checkCraftDeploymentArtifact`                                               | Runs the manifest, module graph and artefact checks            | [Diagnostics](/guide/deployment/diagnostics)     |
+| `resolveCraftDeploymentManifest`, `serializeCraftDeploymentManifest`, `parseCraftDeploymentManifest` | Resolves, writes and reads the provider-neutral artefact form  | [Manifest reference](/guide/deployment/manifest) |
+| `CraftDeploymentProvider`, `CRAFT_DEPLOYMENT_PROVIDERS`                                              | The provider contract and the capability matrix                | [Providers](/guide/deployment/providers)         |
+| `npx craft-ts check`                                                                                 | Validates a deployment before building                         | [Deployment overview](/guide/deployment/)        |
+| `npx craft-ts manifest`                                                                              | Writes `dist/<app>/craft-deployment-manifest.json`             | [Deployment overview](/guide/deployment/)        |
+| `npx craft-ts deploy preview`                                                                        | Shows what a provider would change, without changing it        | [Alchemy provider](/guide/deployment/alchemy)    |
+| `npx craft-ts deploy`                                                                                | Applies that plan once `--yes` approves it                     | [Alchemy provider](/guide/deployment/alchemy)    |
+| `createCraftDeploymentProvider`                                                                      | The single factory a provider package exports                  | [Providers](/guide/deployment/providers)         |
+| `createAlchemyDeploymentProvider`, `planAlchemyDeployment`                                           | The Alchemy provider and its Cloudflare/AWS planning           | [Alchemy provider](/guide/deployment/alchemy)    |
+| `npx craft-ts providers`                                                                             | Prints the provider capability matrix                          | [Providers](/guide/deployment/providers)         |

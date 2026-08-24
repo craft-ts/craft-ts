@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-1
-import { abstract, craftService } from '@craft-ng/core';
+import { abstract, craftService } from '@craft-ts/core';
 
 type CounterContract = {
   (): number;

@@ -1,4 +1,6 @@
-import { computed } from '@angular/core';
+import {
+  computed,
+} from './host/craft-compat';
 import { stackedSource } from './stacked-source';
 
 describe('stackedSource', () => {
@@ -24,8 +26,8 @@ describe('stackedSource', () => {
 
     expect(myListener()).toEqual(['Hello World 1', 'Hello World 2']);
 
-    mySource.set('Hello Ng-Craft');
-    expect(myListener()).toEqual(['Hello Ng-Craft']);
+    mySource.set('Hello CraftTS');
+    expect(myListener()).toEqual(['Hello CraftTS']);
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
@@ -36,8 +38,8 @@ describe('stackedSource', () => {
     const myListener = computed(() => mySource());
     expect(myListener()).toBe(undefined);
 
-    mySource.set('Hello Ng-Craft v2');
-    expect(myListener()).toEqual(['Hello Ng-Craft v2']);
+    mySource.set('Hello CraftTS v2');
+    expect(myListener()).toEqual(['Hello CraftTS v2']);
   });
 
   it('A listener at n that get all the values, and a listener at n+1 that not get the first value but all others', () => {
@@ -54,22 +56,22 @@ describe('stackedSource', () => {
 
     const myListener2 = computed(() => mySource());
 
-    mySource.set('Hello Ng-Craft');
-    expect(myListener()).toEqual(['Hello Ng-Craft']);
-    expect(myListener2()).toEqual(['Hello Ng-Craft']);
+    mySource.set('Hello CraftTS');
+    expect(myListener()).toEqual(['Hello CraftTS']);
+    expect(myListener2()).toEqual(['Hello CraftTS']);
 
-    mySource.set('Hello Ng-Craft v1');
-    mySource.set('Hello Ng-Craft v2');
-    mySource.set('Hello Ng-Craft v3');
+    mySource.set('Hello CraftTS v1');
+    mySource.set('Hello CraftTS v2');
+    mySource.set('Hello CraftTS v3');
     expect(myListener()).toEqual([
-      'Hello Ng-Craft v1',
-      'Hello Ng-Craft v2',
-      'Hello Ng-Craft v3',
+      'Hello CraftTS v1',
+      'Hello CraftTS v2',
+      'Hello CraftTS v3',
     ]);
     expect(myListener2()).toEqual([
-      'Hello Ng-Craft v1',
-      'Hello Ng-Craft v2',
-      'Hello Ng-Craft v3',
+      'Hello CraftTS v1',
+      'Hello CraftTS v2',
+      'Hello CraftTS v3',
     ]);
   });
 });

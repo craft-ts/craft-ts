@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  batch,
   computed,
   DestroyRef,
   inject,
@@ -15,8 +16,8 @@ import {
   signal,
   untracked,
   WritableSignal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -114,6 +115,7 @@ import {
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveProperties,
+  type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
 
@@ -457,7 +459,8 @@ export type ResourceLikeMutationExceptions<
             >
           | undefined
         >;
-        exceptions: Signal<{
+        /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+        exceptions: DeepYieldableReactiveValue<{
           list: (
             | InsertMetaInCraftExceptionIfExists<
                 MutationException['params'],
@@ -492,7 +495,8 @@ export type ResourceByIdLikeMutationExceptions<
   GroupIdentifier extends string,
 > = {
   hasException: Signal<boolean>;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           MutationException['params'],
@@ -1158,7 +1162,7 @@ export function mutation<
  * @example
  * Business exceptions with `craftException`
  * ```ts
- * import { craftException, mutation } from '@craft-ng/core';
+ * import { craftException, mutation } from '@craft-ts/core';
  *
  * const updateUser = craftUse(mutation('updateUser', {
  *   method: (value: string) =>
@@ -1820,6 +1824,7 @@ function createMutationRef<
             'mutation',
             resourceTarget as any,
           ),
+      name,
     ),
   );
 
@@ -2012,13 +2017,18 @@ function createMutationRef<
               if (methodParamsException()) {
                 methodParamsException.set(undefined);
               }
-              // Bump before the set so both writes land in the same tick and the
-              // resource request changes on every call.
-              methodTriggerSeq.update((n) => n + 1);
-              // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
-              mutationResourceParamsFnSignal.set(
-                paramsResult as MutationParams,
-              );
+              // The nonce and the params it tags are ONE request. Published
+              // separately they are two: the resource would see the new nonce
+              // while the params signal still holds the previous call's value
+              // (`undefined` on the first one) and run the loader on it before
+              // running it again on the real params.
+              batch(() => {
+                methodTriggerSeq.update((n) => n + 1);
+                // set before calling addById below, which reads the params
+                mutationResourceParamsFnSignal.set(
+                  paramsResult as MutationParams,
+                );
+              });
               if (isUsingIdentifier) {
                 const id = mutationConfig.identifier?.(paramsResult as any);
                 (
@@ -2286,7 +2296,9 @@ function createMutationRef<
     primitive: 'mutation',
     path: name,
   });
-  return (hasDeepYieldableInsertion(insertions)
-    ? deepYieldable(publicMutation)
-    : publicMutation) as typeof output;
+  return (
+    hasDeepYieldableInsertion(insertions)
+      ? deepYieldable(publicMutation)
+      : publicMutation
+  ) as typeof output;
 }

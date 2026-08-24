@@ -1,9 +1,4 @@
-import {
-  Injector,
-  InjectionToken,
-  runInInjectionContext,
-  type Provider,
-} from '@angular/core';
+import { Injector, InjectionToken, type Provider } from './host/craft-compat';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -17,6 +12,7 @@ import {
   ɵwithActiveReactiveReader,
   type ReactiveReadIdentity,
 } from './reactive-read';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',
@@ -34,7 +30,7 @@ export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
 
 export type ServiceYieldContext = Readonly<{
   name: string;
-  scope: ConcreteServiceScope;
+  providedIn: ConcreteServiceScope;
   hostScope: ConcreteServiceScope;
   injector: Injector;
   resolve(): unknown;
@@ -50,6 +46,7 @@ export const SERVICE_YIELD_WRAPPER = new InjectionToken<
 >('SERVICE_YIELD_WRAPPER', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 /** Registers a wrapper around every Craft service yield below the provider. */
@@ -87,7 +84,7 @@ export type GeneratorCompatibleFactory<
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   name: string;
-  scope: ConcreteServiceScope;
+  providedIn: ConcreteServiceScope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
 
@@ -158,7 +155,7 @@ export function isGuardAwaitRequest(
 
 type RunCraftGeneratorOptions = {
   iterator: Generator<unknown, unknown, unknown>;
-  injector: Injector;
+  injector: Injector | object;
   hostScope: ConcreteServiceScope;
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
@@ -173,7 +170,7 @@ type RunCraftGeneratorOptions = {
 
 export function runCraftGenerator({
   iterator,
-  injector,
+  injector: injectorInput,
   hostScope,
   invalidYieldErrorMessage,
   multipleAppStartErrorMessage,
@@ -185,6 +182,7 @@ export function runCraftGenerator({
   value: unknown;
   appStartHook?: () => AppStartResult;
 } {
+  const injector = ɵcraftInjectorFromHost(injectorInput);
   let appStartHook: (() => AppStartResult) | undefined;
   let current = iterator.next();
 
@@ -291,23 +289,22 @@ export function executeGeneratorCompatibleFactory<
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
-  getInjector: () => Injector;
+  getInjector: () => Injector | object;
   args: Args;
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
   onAppStartNotSupportedErrorMessage?: string;
 }): ResolveGeneratorResult<Result> {
   const injector = getInjector();
-  const wrappedFactory = runInInjectionContext(injector, () =>
-    injectFnWrapper()(factory),
-  );
+  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const wrappedFactory = craftInjector.run(() => injectFnWrapper()(factory));
   const result = wrappedFactory.apply(thisArg, args);
 
   if (!isGenerator(result)) {
     return result as ResolveGeneratorResult<Result>;
   }
 
-  return runInInjectionContext(injector, () => {
+  return craftInjector.run(() => {
     return runCraftGenerator({
       iterator: result,
       injector,
@@ -368,7 +365,7 @@ function resolveServiceYield(
   const wrappers = injector.get(SERVICE_YIELD_WRAPPER, []);
   const context: ServiceYieldContext = {
     name: request.name,
-    scope: request.scope,
+    providedIn: request.providedIn,
     hostScope,
     injector,
     resolve: () => request.resolve(injector, hostScope),

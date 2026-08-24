@@ -1,4 +1,4 @@
-import { inject, InjectionToken, type Type } from '@angular/core';
+import { inject, InjectionToken, type Type } from './host/craft-compat';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   RealCraftTemporalRuntime,

@@ -12,7 +12,6 @@ import {
   type ProjectConfiguration,
   type Tree,
 } from '@nx/devkit';
-import { wrapAngularDevkitSchematic } from '@nx/devkit/ngcli-adapter.js';
 import { Project } from 'ts-morph';
 import { findAngularDecoratedClass } from '../../scripts/angular-brand-codemod.js';
 import {
@@ -437,56 +436,41 @@ async function generateComponent(
   project: ProjectConfiguration,
   target: ComponentCreationTarget,
 ): Promise<string> {
-  const before = new Set(listTreeFiles(tree));
   const sourceRoot = project.sourceRoot ?? join(project.root, 'src');
   const componentBase = join(sourceRoot, 'app');
   const requestedPath = resolveComponentPath(project, componentBase, target);
-  if (tree.exists('nx.json')) {
-    const { componentGenerator } = await import('@nx/angular/generators');
-    await componentGenerator(tree, {
-      path: requestedPath,
-      inlineStyle: true,
-      inlineTemplate: true,
-      skipTests: true,
-      skipFormat: true,
-    });
-  } else {
-    const angularComponent = wrapAngularDevkitSchematic(
-      '@schematics/angular',
-      'component',
-    );
-    await angularComponent(tree, {
-      name: target.name,
-      path: dirname(requestedPath),
-      project: projectName,
-      flat: true,
-      inlineStyle: true,
-      inlineTemplate: true,
-      skipTests: true,
-    });
-  }
+  const filePath = requestedPath.endsWith('.ts')
+    ? requestedPath
+    : `${requestedPath}.ts`;
+  const exportName = toComponentExportName(target.name);
 
-  const candidates = listTreeFiles(tree).filter(
-    (filePath) =>
-      !before.has(filePath) &&
-      filePath.endsWith('.ts') &&
-      !filePath.endsWith('.spec.ts') &&
-      tree.read(filePath, 'utf8')?.includes('@Component'),
+  // Scaffolds a Craft SFC. This used to delegate to Angular's component
+  // schematic and then read the class name back off the @Component decorator.
+  tree.write(
+    filePath,
+    `import { craftComponent } from '@craft-ts/component';
+import { p } from '@craft-ts/component';
+
+export const ${exportName} = craftComponent(
+  '${target.name}',
+  {},
+  () => ({}),
+  () => p('${target.name} works'),
+);
+
+export default ${exportName};
+`,
   );
-  if (candidates.length !== 1) {
-    throw new Error(
-      `Expected one generated Angular component, found ${candidates.length}.`,
-    );
-  }
-  const filePath = candidates[0];
-  const text = tree.read(filePath, 'utf8');
-  if (!text) throw new Error(`Generated component is empty: ${filePath}`);
-  const sourceFile = new Project().createSourceFile(filePath, text);
-  const decorated = findAngularDecoratedClass(sourceFile);
-  if (decorated.skipped || !decorated.className) {
-    throw new Error(`Could not infer the component class in ${filePath}.`);
-  }
-  return `${filePath}#${decorated.className}`;
+
+  return `${filePath}#${exportName}`;
+}
+
+function toComponentExportName(name: string): string {
+  return name
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join('');
 }
 
 function resolveComponentPath(

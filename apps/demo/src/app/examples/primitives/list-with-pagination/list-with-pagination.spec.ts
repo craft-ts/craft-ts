@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { provideRouter } from '@angular/router';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateRendersNamedElementWhen,
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
-} from '@craft-ng/component';
-import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
-import { craftUse } from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import type { ExtractDeps, GetServiceDependencies } from '@craft-ts/core';
+import { craftUse, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter } from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPagination from './list-with-pagination';
 import { ApiService, type User } from './api.service';
@@ -139,14 +137,30 @@ function createTemplateContext(users: User[]) {
     paginationState.pageSize = pageSize;
     paginationState.page = 1;
   });
-  const pagination = Object.assign(
-    vi.fn(() => ({ ...paginationState })),
-    { previousPage, nextPage, updatePageSize },
-  );
+  const pagination = markYieldableValue(Object.assign(
+    vi.fn(function* () {
+      return { ...paginationState };
+    }),
+    {
+      previousPage: markYieldableMethod(function* () {
+        previousPage();
+      }),
+      nextPage: markYieldableMethod(function* () {
+        nextPage();
+      }),
+      updatePageSize: markYieldableMethod(updatePageSize),
+    },
+  ), 'pagination');
   const usersQuery = {
-    currentPageData: vi.fn(() => users),
-    currentPageStatus: vi.fn(() => 'resolved' as const),
-    isCurrentPageResolved: vi.fn(() => true),
+    currentPageData: markYieldableValue(vi.fn(() => users), 'currentPageData'),
+    currentPageStatus: markYieldableValue(
+      vi.fn(() => 'resolved' as const),
+      'currentPageStatus',
+    ),
+    isCurrentPageResolved: markYieldableValue(
+      vi.fn(() => true),
+      'isCurrentPageResolved',
+    ),
   };
   const updatePageSizeFromEvent = vi.fn((event: Event) => {
     updatePageSize(Number((event.target as HTMLSelectElement).value));
@@ -230,8 +244,10 @@ describe('primitive list with pagination template', () => {
         .click();
       buttons.find((button) => button.textContent?.trim() === 'Next')!.click();
 
-      expect(result.previousPage).toHaveBeenCalledTimes(1);
-      expect(result.nextPage).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => {
+        expect(result.previousPage).toHaveBeenCalledTimes(1);
+        expect(result.nextPage).toHaveBeenCalledTimes(1);
+      });
     } finally {
       template.destroy();
     }
@@ -262,7 +278,6 @@ describe('primitive list with pagination logic', () => {
       ListWithPagination,
       {
         register: {
-          Router: 'real',
           ApiService: { getDataList },
           StoragePersister: storage,
         },
@@ -309,10 +324,12 @@ describe('primitive list with pagination logic', () => {
         page: 2,
         pageSize: 4,
       });
-      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
-        { id: '5', name: 'Toto' },
-        { id: '6', name: 'Julien' },
-      ]);
+      await vi.waitFor(() =>
+        expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+          { id: '5', name: 'Toto' },
+          { id: '6', name: 'Julien' },
+        ]),
+      );
 
       context.pagination.previousPage();
       await vi.waitFor(() =>
@@ -321,12 +338,14 @@ describe('primitive list with pagination logic', () => {
           pageSize: 4,
         }),
       );
-      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
-        { id: '1', name: 'Romain' },
-        { id: '2', name: 'Geffrault' },
-        { id: '3', name: 'Rom1' },
-        { id: '4', name: 'Daniel' },
-      ]);
+      await vi.waitFor(() =>
+        expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+          { id: '1', name: 'Romain' },
+          { id: '2', name: 'Geffrault' },
+          { id: '3', name: 'Rom1' },
+          { id: '4', name: 'Daniel' },
+        ]),
+      );
 
       context.pagination.updatePageSize(2);
       await vi.waitFor(() =>
@@ -336,10 +355,12 @@ describe('primitive list with pagination logic', () => {
         page: 1,
         pageSize: 2,
       });
-      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
-        { id: '1', name: 'Romain' },
-        { id: '2', name: 'Geffrault' },
-      ]);
+      await vi.waitFor(() =>
+        expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+          { id: '1', name: 'Romain' },
+          { id: '2', name: 'Geffrault' },
+        ]),
+      );
     } finally {
       destroy();
     }

@@ -1,0 +1,267 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import {
+  assertCraftComputedPure,
+  assertCraftEffectNoImperativeSync,
+  assertCraftEffectNoNetwork,
+  assertCraftHandshake,
+  assertCraftUnique,
+  assertDeclarativeArchitecture,
+  assertHttpEndpointUnique,
+  assertInsertSelectUnique,
+  assertInteractiveElementNamed,
+  assertMutationHasReactOn,
+  assertNoDependencyCycles,
+  assertPersistedPrimitiveHasUnique,
+  assertPrimitiveLoaderRequirements,
+  assertRouteDiProofs,
+  assertServerFunctionArchitecture,
+  sensitiveOutputProtectionViolations,
+} from '@craft-ts/dev-tools/architecture-graph';
+import { loadArchitectureGraph } from './load-graph';
+
+/**
+ * The graph is loaded once for the whole suite. Keep all graph assertions in
+ * this file so Vitest does not rebuild the TypeScript graph in every worker.
+ */
+describe('architecture', () => {
+  let graph: ReturnType<typeof loadArchitectureGraph>;
+
+  beforeAll(() => {
+    graph = loadArchitectureGraph();
+  }, 180_000);
+
+  it('loads the architecture graph', () => {
+    expect(graph.graph.version).toBe(1);
+  });
+
+  it('indexes server-function families and their client identities', () => {
+    expect(graph.serverFunctionFamilies().map((node) => node.label)).toEqual([
+      'demo.products.list',
+      'demo.users.authenticated-list',
+      'demo.users.effect-middleware-list',
+      'demo.users.list',
+      'demo.users.portable-list',
+    ]);
+    // Deux façons de nommer une famille, toutes deux vérifiées : `craftUnique`
+    // pour la chaîne répétée des deux côtés, `craftHandshake` pour l'identité
+    // partagée déclarée une seule fois.
+    expect(graph.unique('"demo.users.list"').kind).toBe('unique');
+    expect(
+      graph
+        .handshakes()
+        .find((node) => node.label === 'demo.users.authenticated-list')?.kind,
+    ).toBe('handshake');
+  });
+
+  it('links a server function to its Effect service requirement with proof', () => {
+    const service = graph
+      .nodes('effect-service')
+      .find((node) => node.label === 'UserRepository');
+    expect(service).toBeDefined();
+    const serverPart = graph.graph.nodes.find(
+      (node) =>
+        node.kind === 'server-function-server' &&
+        node.details?.['serverFunctionId'] === 'demo.users.list',
+    );
+    expect(serverPart).toBeDefined();
+    const requirement = graph.graph.edges.find(
+      (edge) => edge.from === serverPart?.id && edge.to === service?.id,
+    );
+    expect(requirement).toMatchObject({
+      kind: 'requires-service',
+      proof: { pattern: 'yield* UserRepository' },
+    });
+  });
+
+  it('tracks annotated data to the exposed server-function response', () => {
+    const email = graph
+      .nodes('data-classification')
+      .find((node) => node.label === 'UserEmail [personal-data]');
+    const output = graph
+      .nodes('external-output')
+      .find((node) => node.details?.serverFunctionId === 'demo.users.list');
+    expect(email).toBeDefined();
+    expect(output).toBeDefined();
+    const exposure = graph
+      .edges('exposes-data')
+      .find((edge) => edge.from === email?.id && edge.to === output?.id);
+    expect(exposure).toMatchObject({
+      details: { classification: 'personal-data', resolution: 'static' },
+      proof: { pattern: expect.stringContaining('server function output') },
+    });
+  });
+
+  it('applies repository-declared middleware capabilities to sensitive outputs', () => {
+    const violations = sensitiveOutputProtectionViolations(graph.graph, {
+      categories: ['personal-data'],
+    });
+    expect(violations).toHaveLength(1);
+    expect(violations[0]?.outputId).toContain('list.fn-serveur.ts');
+    expect(violations[0]?.classification).toBe('personal-data');
+  });
+
+  it('models the server-function middleware chain', () => {
+    expect(
+      graph
+        .serverFunctionMiddlewares()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual([
+      'demo.admin-only',
+      'demo.effect-audit',
+      'demo.matching-user',
+      'demo.portable-audit',
+      'demo.request-audit',
+    ]);
+
+    // matchingUser -> adminOnly, et la server function -> ses deux middleware.
+    const uses = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'middleware-uses',
+    );
+    expect(uses).toHaveLength(5);
+  });
+
+  it('distingue la composition par .pipe(...) de celle par .use(...)', () => {
+    const layer = graph
+      .serverFunctionMiddlewares()
+      .find((node) => node.label === 'demo.portable-audit');
+    expect(layer?.details?.['composition']).toBe('pipe');
+
+    const composed = graph.graph.edges.filter(
+      (edge) =>
+        edge.details?.['boundary'] === 'middleware-uses' &&
+        edge.to === layer?.id,
+    );
+    // L'exemple portable est toujours relié à sa couche, mais plus via `.use`.
+    expect(composed).toHaveLength(1);
+    expect(composed[0]?.details?.['composition']).toBe('pipe');
+    expect(
+      graph.graph.edges.some(
+        (edge) =>
+          edge.details?.['boundary'] === 'middleware-uses' &&
+          edge.details?.['composition'] === 'use' &&
+          edge.from.includes('portable-list.fn-serveur.ts'),
+      ),
+    ).toBe(false);
+
+    // Les exemples Effect, eux, composent toujours avec `.use(...)`.
+    const effectAudit = graph
+      .serverFunctionMiddlewares()
+      .find((node) => node.label === 'demo.effect-audit');
+    expect(effectAudit?.details?.['composition']).toBe('use');
+  });
+
+  it('models the client middleware chain and where it is attached', () => {
+    expect(
+      graph
+        .clientFunctionMiddlewares()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual([
+      'demo.claimed-user',
+      'demo.request-context',
+      'demo.requested-by',
+    ]);
+
+    // requestContext -> requestedByContext.
+    expect(
+      graph.graph.edges.filter(
+        (edge) => edge.details?.['boundary'] === 'client-middleware-uses',
+      ),
+    ).toHaveLength(1);
+    // Et la façade client qui les attache via .pipe(craftClientMiddleware(...)).
+    const attached = graph.graph.edges.filter(
+      (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
+    );
+    expect(attached).toHaveLength(2);
+    expect(
+      attached[0]?.from.startsWith(
+        'server-function-part:server-function-client:',
+      ),
+    ).toBe(true);
+  });
+
+  it('requires craftUnique identities to appear once', () => {
+    assertCraftUnique(graph.graph);
+  });
+
+  it('honore chaque handshake des deux côtés de la frontière', () => {
+    expect(
+      graph
+        .handshakes()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual([
+      'demo.claimed-user',
+      'demo.request-locale',
+      'demo.requested-by',
+      'demo.users.authenticated-list',
+    ]);
+    assertCraftHandshake(graph.graph);
+  });
+
+  it('owns each HTTP endpoint once', () => {
+    assertHttpEndpointUnique(graph.graph);
+  });
+
+  it('keeps craftComputed free of methods and source$ writes', () => {
+    assertCraftComputedPure(graph.graph);
+  });
+
+  it('forbids depends-on cycles', () => {
+    assertNoDependencyCycles(graph.graph);
+  });
+
+  it('requires a DI proof on every routed component and app-config error screen', () => {
+    assertRouteDiProofs(graph.graph);
+  });
+
+  it('requires a query to react to each mutation', () => {
+    assertMutationHasReactOn(graph.graph);
+  });
+
+  it('requires Effect resource loaders to declare an Effect service boundary', () => {
+    assertPrimitiveLoaderRequirements(graph.graph, {
+      primitives: ['queryEffect', 'mutationEffect'],
+      requirements: [
+        {
+          label: 'an Effect service',
+          matches: ({ target }) =>
+            target.kind === 'service' &&
+            target.details?.['runtime'] === 'effect',
+        },
+      ],
+      // This query is a local DI-state bridge; usersQuery is the server-state
+      // query and must satisfy the Effect service requirement.
+      allow: ['currentUserQuery'],
+    });
+  });
+
+  it('requires craftUnique on every persisted primitive', () => {
+    assertPersistedPrimitiveHasUnique(graph.graph);
+  });
+
+  it('keeps insertSelect keys unique on each host', () => {
+    assertInsertSelectUnique(graph.graph);
+  });
+
+  it('keeps craftEffect off HTTP and mutations', () => {
+    assertCraftEffectNoNetwork(graph.graph);
+  });
+
+  it('keeps craftEffect from pushing into state, sources, queries or mutations', () => {
+    assertCraftEffectNoImperativeSync(graph.graph);
+  });
+
+  it('requires a unique literal data-craft-name on every interactive element', () => {
+    assertInteractiveElementNamed(graph.graph);
+  });
+
+  it('keeps the server-function demo declarative', () => {
+    assertDeclarativeArchitecture(graph.graph);
+  });
+
+  it('keeps client and server files in valid server-function families', () => {
+    assertServerFunctionArchitecture(graph.graph);
+  });
+});

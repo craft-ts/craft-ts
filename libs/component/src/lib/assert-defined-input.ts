@@ -4,14 +4,14 @@ import {
   isCraftGenShortCircuit,
   type CatchTagExhaustiveCodesCheck,
   type CraftExceptionResult,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { CraftInputExceptionsCarrier, Input } from './types';
 
 export const CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE =
   'CraftUndefinedPropertyException' as const;
 
 export type CraftUndefinedPropertyException = CraftExceptionResult<
-  { readonly code: typeof CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE },
+  { readonly _tag: typeof CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE },
   { readonly property?: string }
 >;
 
@@ -45,7 +45,7 @@ export function craftUndefinedPropertyException(
     property === undefined ? {} : { property };
 
   return craftException(
-    { code: CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE },
+    { _tag: CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE },
     payload,
   );
 }
@@ -108,7 +108,7 @@ export const catchInput = {
           }
 
           if (
-            error.exception.code !==
+            error.exception._tag !==
             CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE
           ) {
             throw error;

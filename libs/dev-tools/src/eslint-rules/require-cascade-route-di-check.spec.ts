@@ -21,7 +21,7 @@ afterEach(async () => {
 describe('require-cascade-route-di-check', () => {
   it('accepts a collection paired with ValidateCascadeRoutesFile and CanRun', async () => {
     const { messages } = await lint(`
-      import { craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
+      import { craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ts/core';
       import type { Router } from '@angular/router';
       export const { demoRoutes } = craftRoutes('demo', []);
       type _CheckDemoDI = ValidateCascadeRoutesFile<never, Router, typeof demoRoutes>;
@@ -32,7 +32,7 @@ describe('require-cascade-route-di-check', () => {
 
   it('reports a collection when CanRun does not consume its cascade check', async () => {
     const { messages } = await lint(`
-      import { craftRoutes, type ValidateCascadeRoutesFile } from '@craft-ng/core';
+      import { craftRoutes, type ValidateCascadeRoutesFile } from '@craft-ts/core';
       import type { Router } from '@angular/router';
       export const { demoRoutes } = craftRoutes('demo', []);
       type _CheckDemoDI = ValidateCascadeRoutesFile<never, Router, typeof demoRoutes>;
@@ -43,7 +43,7 @@ describe('require-cascade-route-di-check', () => {
 
   it('auto-fixes a missing check with the conservative app context', async () => {
     const { output } = await lint(
-      `import { craftRoutes } from '@craft-ng/core';\nexport const { demoRoutes } = craftRoutes('demo', []);\n`,
+      `import { craftRoutes } from '@craft-ts/core';\nexport const { demoRoutes } = craftRoutes('demo', []);\n`,
       true,
     );
     expect(output).toContain(
@@ -54,7 +54,7 @@ describe('require-cascade-route-di-check', () => {
 
   it('checks every collection independently', async () => {
     const { messages } = await lint(`
-      import { craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
+      import { craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ts/core';
       import type { Router } from '@angular/router';
       export const { aRoutes } = craftRoutes('a', []);
       export const { bRoutes: renamed } = craftRoutes('b', []);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertMutationHasReactOn } from '@craft-ng/dev-tools';
+import { assertMutationHasReactOn } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('assertMutationHasReactOn', () => {

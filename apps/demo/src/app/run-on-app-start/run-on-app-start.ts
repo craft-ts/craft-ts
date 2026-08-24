@@ -1,9 +1,9 @@
-import { Console, craftService, onAppStart } from '@craft-ng/core';
+import { Console, craftService, onAppStart } from '@craft-ts/core';
 
 export const { AppStartLog, APP_START_LOG_META_DATA } = craftService(
   {
     name: 'AppStartLog',
-    scope: 'toProvide',
+    providedIn: 'toProvide',
     appStart: true,
   },
   function* () {
@@ -14,7 +14,7 @@ export const { AppStartLog, APP_START_LOG_META_DATA } = craftService(
   },
 );
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftAppStartRegistry {
     AppStartLog: typeof AppStartLog;
   }

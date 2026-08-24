@@ -1,5 +1,7 @@
-import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import {
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asyncProcess } from './async-process';
 import { craftUnique } from './craft-unique';
@@ -76,7 +78,7 @@ describe('insertStoragePersister', () => {
   it('restores a cached query value at runtime when waitForParams is disabled', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resource-myTestQuery',
+        'craft-ts-myTestStore-resource-myTestQuery',
         JSON.stringify({
           queryValue: { data: 'cached' },
           timestamp: Date.now(),
@@ -137,7 +139,7 @@ describe('insertStoragePersister', () => {
         .mocked(localStorage.setItem)
         .mock.calls.filter(
           ([key]) =>
-            key === 'ng-craft-myTestStore-resourceById-myTestQueryById',
+            key === 'craft-ts-myTestStore-resourceById-myTestQueryById',
         );
       expect(byIdCalls.length).toBeGreaterThan(0);
 
@@ -199,11 +201,11 @@ describe('insertStoragePersister', () => {
       expect(craftUse(myMutationById.select('m-2')?.value())).toEqual({ data: 'm-2' });
 
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        'ng-craft-myTestStore-resource-myMutation',
+        'craft-ts-myTestStore-resource-myMutation',
         expect.any(String),
       );
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        'ng-craft-myTestStore-resourceById-myMutationById',
+        'craft-ts-myTestStore-resourceById-myMutationById',
         expect.any(String),
       );
     });
@@ -262,11 +264,11 @@ describe('insertStoragePersister', () => {
       });
 
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        'ng-craft-myTestStore-resource-myAsyncProcess',
+        'craft-ts-myTestStore-resource-myAsyncProcess',
         expect.any(String),
       );
       expect(localStorage.setItem).toHaveBeenCalledWith(
-        'ng-craft-myTestStore-resourceById-myAsyncProcessById',
+        'craft-ts-myTestStore-resourceById-myAsyncProcessById',
         expect.any(String),
       );
     });
@@ -277,7 +279,7 @@ describe('insertStoragePersister', () => {
   it('staleTime: restores fresh cached query value without triggering reload', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resource-myStaleQuery',
+        'craft-ts-myTestStore-resource-myStaleQuery',
         JSON.stringify({
           queryValue: { data: 'cached' },
           timestamp: Date.now() - 2000, // 2s old — fresh
@@ -314,7 +316,7 @@ describe('insertStoragePersister', () => {
   it('staleTime: restores stale cached query value AND triggers background reload (SWR)', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resource-mySWRQuery',
+        'craft-ts-myTestStore-resource-mySWRQuery',
         JSON.stringify({
           queryValue: { data: 'cached' },
           timestamp: Date.now() - 6000, // 6s old — stale
@@ -356,7 +358,7 @@ describe('insertStoragePersister', () => {
   it('staleTime: restores stale queryById value AND triggers reload per resource', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resourceById-myStaleQueryById',
+        'craft-ts-myTestStore-resourceById-myStaleQueryById',
         JSON.stringify({
           queryParams: undefined,
           queryByIdValue: {
@@ -406,7 +408,7 @@ describe('insertStoragePersister', () => {
   it('staleTime: fresh queryById value restored without reload', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resourceById-myFreshQueryById',
+        'craft-ts-myTestStore-resourceById-myFreshQueryById',
         JSON.stringify({
           queryParams: undefined,
           queryByIdValue: {
@@ -453,7 +455,7 @@ describe('insertStoragePersister', () => {
   it('validate: discards cached value and loads fresh when validate returns false', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resource-myValidatedQuery',
+        'craft-ts-myTestStore-resource-myValidatedQuery',
         JSON.stringify({
           queryValue: { data: 'outdated-shape' },
           timestamp: Date.now(),
@@ -486,7 +488,7 @@ describe('insertStoragePersister', () => {
       // Cache discarded — should be loading fresh
       expect(craftUse(myQuery.status())).not.toBe('local');
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-myTestStore-resource-myValidatedQuery',
+        'craft-ts-myTestStore-resource-myValidatedQuery',
       );
 
       await vi.runAllTimersAsync();
@@ -501,7 +503,7 @@ describe('insertStoragePersister', () => {
   it('validate: restores cached value when validate returns true', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resource-myValidatedQuery2',
+        'craft-ts-myTestStore-resource-myValidatedQuery2',
         JSON.stringify({
           queryValue: { data: 'cached', version: 1 },
           timestamp: Date.now(),
@@ -537,7 +539,7 @@ describe('insertStoragePersister', () => {
   it('validate: queryById discards resource value and loads fresh when validate fails', async () => {
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resourceById-myValidatedQueryById',
+        'craft-ts-myTestStore-resourceById-myValidatedQueryById',
         JSON.stringify({
           queryParams: undefined,
           queryByIdValue: {
@@ -611,7 +613,7 @@ describe('insertStoragePersister', () => {
       const stateCalls = vi
         .mocked(localStorage.setItem)
         .mock.calls.filter(
-          ([key]) => key === 'ng-craft-myTestStore-resource-myState',
+          ([key]) => key === 'craft-ts-myTestStore-resource-myState',
         );
       expect(stateCalls.length).toBeGreaterThan(0);
 
@@ -621,7 +623,7 @@ describe('insertStoragePersister', () => {
 
     await TestBed.runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-myTestStore-resource-myStateRestored',
+        'craft-ts-myTestStore-resource-myStateRestored',
         JSON.stringify({
           queryValue: 7,
           timestamp: Date.now(),

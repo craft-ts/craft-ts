@@ -1,8 +1,8 @@
-import { TestBed } from '@angular/core/testing';
 import { insertReactOnMutation } from './insert-react-on-mutation';
 import { mutation } from './mutation';
 import { query } from './query';
 import { craftUse } from './craft-use';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('insertReactOnMutation', () => {
   beforeEach(() => {
@@ -11,8 +11,12 @@ describe('insertReactOnMutation', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
+  const runCraft = <T>(fn: () => T | Promise<T>) => {
+    const { injector } = setupCraftServiceTest();
+    return injector.run(fn);
+  };
   it('a query can use insertReactOnMutation', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runCraft(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (payload: { name: string }) => payload,
@@ -48,7 +52,7 @@ describe('insertReactOnMutation', () => {
   });
 
   it('a query with identifier can use insertReactOnMutation', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runCraft(async () => {
       const mutationRef = craftUse(
         mutation('mutationRef', {
           method: (payload: { name: string; id: string }) => payload,

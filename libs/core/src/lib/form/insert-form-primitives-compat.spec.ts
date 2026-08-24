@@ -1,9 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { provideRouter } from '@angular/router';
+import { TestBed } from '../host/craft-test-bed';
+import { provideCraftRouter } from '../craft-router';
 import { craftService } from '../craft-service';
 import { query } from '../query';
 import { queryParams } from '../query-params';
@@ -17,26 +13,11 @@ type User = {
   email: string;
 };
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
 describe('insertForm compatibility with queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     TestBed.configureTestingModule({
-      providers: [provideRouter([])],
+      providers: [...provideCraftRouter([])],
     }).compileComponents();
   });
 
@@ -155,7 +136,7 @@ describe('insertForm compatibility with query', () => {
   });
 
   it('infers the field tree type from the resource state (not unknown)', () => {
-    craftService({ name: 'UserStoreTyping', scope: 'global' }, function* () {
+    craftService({ name: 'UserStoreTyping', providedIn: 'global' }, function* () {
       return {
         user: yield* query(
           'user',
@@ -180,7 +161,7 @@ describe('insertForm compatibility with query', () => {
 
   it('exposes a working form at runtime over the resolved resource state', async () => {
     const { UserStore } = craftService(
-      { name: 'UserStore', scope: 'global' },
+      { name: 'UserStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(

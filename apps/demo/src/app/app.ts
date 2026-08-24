@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   button,
@@ -12,20 +12,22 @@ import {
   skipLink,
   span,
   strong,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   BrowserLocation,
   BrowserWindow,
+  craftComputed,
   craftMethod,
   CraftRouterLink,
+  CraftRouter,
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
   state,
-} from '@craft-ng/core';
-import { demoEnabledRoutePaths } from './app.routes.runtime';
+} from '@craft-ts/core';
+import { demoEnabledRoutePaths } from './app.routes';
 
-const DOCS_URL = 'https://ng-angular-stack.github.io/craft/';
-const FEEDBACK_URL = 'https://github.com/ng-angular-stack/ng-craft/discussions';
+const DOCS_URL = 'https://craft-ts.github.io/craft/';
+const FEEDBACK_URL = 'https://github.com/craft-ts/craft-ts/discussions';
 
 const NAV_GROUPS = [
   {
@@ -59,6 +61,9 @@ const NAV_GROUPS = [
       ['Pixel Art Matrix', { to: 'pixel-art-matrix' }],
       ['Exceptions', { to: 'exceptions' }],
       ['Login Form', { to: 'login-form' }],
+      ['State Machine', { to: 'state-machine' }],
+      ['State Machine — text editor', { to: 'state-machine-text' }],
+      ['State Machine — list', { to: 'state-machine-list' }],
       ['Exception QueryParams', { to: 'exception-query-params' }],
     ],
   },
@@ -139,10 +144,20 @@ export const App = craftComponent(
     `,
   },
   function* () {
-    const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
-      toggle: () => update((open) => !open),
-      close: () => set(false),
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+      navigate,
     }));
+    const navOpen = yield* state(
+      'navOpen',
+      false,
+      ({ set, update, state: navOpenState }) => ({
+        toggle: () => update((open) => !open),
+        close: () => set(false),
+        navToggleLabel: craftComputed('navToggleLabel', function* () {
+          return (yield* navOpenState()) ? 'Close examples' : 'Browse examples';
+        }),
+      }),
+    );
     const toggleNav = craftMethod('toggleNav', function* (event?: Event) {
       event?.stopPropagation();
       yield* navOpen.toggle();
@@ -161,12 +176,13 @@ export const App = craftComponent(
       navOpen,
       toggleNav,
       closeNav: navOpen.close,
+      router,
     };
   },
-  ({ clearCache, navOpen, toggleNav, closeNav }) =>
+  ({ clearCache, navOpen, toggleNav, closeNav, router }) =>
     div([
-        skipLink('main', 'Aller au contenu'),
-        div({ class: 'demo-banner' }, [
+        skipLink('main', 'Skip to content'),
+        div({ class: 'demo-banner', click: closeNav }, [
           div({ class: 'demo-banner__main' }, [
             strong('Beta demo'),
             span(' — the API and documentation may still evolve.'),
@@ -203,9 +219,7 @@ export const App = craftComponent(
               click: toggleNav,
               'aria-expanded': navOpen,
             },
-            function* () {
-              return (yield* navOpen()) ? 'Close examples' : 'Browse examples';
-            },
+            navOpen.navToggleLabel,
           ),
           ifBlock(
             navOpen,
@@ -214,7 +228,6 @@ export const App = craftComponent(
                 'navPanel',
                 {
                   class: 'demo-nav__panel',
-                  click: (event: MouseEvent) => event.stopPropagation(),
                 },
                 each(
                   VISIBLE_NAV_GROUPS,
@@ -235,7 +248,11 @@ export const App = craftComponent(
                             a(
                               'navLink',
                               {
-                                click: closeNav,
+                                *click(event: MouseEvent) {
+                                  event.preventDefault();
+                                  yield* closeNav();
+                                  void router.navigate((yield* entry())[1]);
+                                },
                                 craftRouterLink: function* () {
                                   return (yield* entry())[1];
                                 },

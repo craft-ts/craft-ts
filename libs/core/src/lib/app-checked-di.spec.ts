@@ -1,4 +1,3 @@
-import { Component } from '@angular/core';
 import { craftService, GetServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
@@ -11,11 +10,7 @@ function _injectDemoUserIdParams(): string {
 
 describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
-    @Component({
-      selector: 'lib-app',
-      template: ` App `,
-    })
-    class AppComponent {}
+        class AppComponent {}
 
     type GenDeps_AppComponent = GetDeps<{
       deps: {};
@@ -53,7 +48,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -94,7 +89,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -160,7 +155,7 @@ describe('AppCheckedDI', () => {
 
   it('should return combined errors', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -207,7 +202,7 @@ describe('AppCheckedDI', () => {
 
   it('should report composed lazy child paths for missing inputs and providers', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -247,7 +242,7 @@ describe('AppCheckedDI', () => {
 
   it('should treat app root providers from APP_CONFIG_META_DATA as provided in AppComponent', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -282,7 +277,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 

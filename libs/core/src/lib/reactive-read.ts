@@ -1,9 +1,18 @@
-import {
-  InjectionToken,
-  isSignal,
-  type Provider,
-  type Signal,
-} from '@angular/core';
+import { isCraftSignal, type CraftSignal as Signal } from './host/craft-signal';
+import { craftToken } from './host/craft-injector';
+import type { SourceBranded } from './util/util';
+
+function isCallableSignal(value: unknown): boolean {
+  if (typeof value !== 'function') {
+    return false;
+  }
+  const symbols = Object.getOwnPropertySymbols(value);
+  return (
+    symbols.some((symbol) => symbol.description === 'SIGNAL') ||
+    'set' in value ||
+    'update' in value
+  );
+}
 
 /** Runtime/type brand carried by named reactive values exposed to templates. */
 export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
@@ -11,7 +20,7 @@ export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
 /** Internal marker used by the synchronous Craft generator driver. */
 export const REACTIVE_READ_REQUEST = Symbol('craft-reactive-read-request');
 
-/** Internal escape hatch used by Craft itself to retain the raw Angular signal. */
+/** Internal escape hatch used by Craft itself to retain the raw host signal. */
 export const RAW_REACTIVE_VALUE = Symbol('craft-raw-reactive-value');
 const RAW_REACTIVE_ACTION = Symbol('craft-raw-reactive-action');
 
@@ -37,10 +46,7 @@ export type ReactiveDependencyMap = Readonly<{
   readonly path: string;
 }>;
 
-export type YieldableDependency<
-  Source,
-  Path extends string,
-> = {
+export type YieldableDependency<Source, Path extends string> = {
   readonly [YIELDABLE_DEPENDENCY]?: {
     readonly source: Source;
     readonly path: Path;
@@ -76,9 +82,7 @@ type DeepYieldableObject<
             Value[Key],
             Source,
             `${Path}.${Extract<Key, string>}`,
-            Depth extends readonly [unknown, ...infer Rest]
-              ? Rest
-              : readonly []
+            Depth extends readonly [unknown, ...infer Rest] ? Rest : readonly []
           >;
         };
 
@@ -97,30 +101,25 @@ export type DeepYieldableValue<
     unknown,
     unknown,
   ],
-> = (() =>
-  Generator<DeepYieldableReadRequest<Value, Source, Path>, Value, unknown>) &
+> = (() => Generator<
+  DeepYieldableReadRequest<Value, Source, Path>,
+  Value,
+  unknown
+>) &
   YieldableDependency<Source, Path> &
-  (Value extends object
-    ? DeepYieldableObject<Value, Source, Path, Depth>
-    : {});
+  (Value extends object ? DeepYieldableObject<Value, Source, Path, Depth> : {});
 
-type ReaderValue<Reader> = Reader extends YieldableReactiveValue<
-  infer Value,
-  any,
-  any
->
-  ? Value
-  : Reader extends (...args: any[]) => Generator<any, infer Value, any>
+type ReaderValue<Reader> =
+  Reader extends YieldableReactiveValue<infer Value, any, any>
     ? Value
-    : never;
+    : Reader extends (...args: any[]) => Generator<any, infer Value, any>
+      ? Value
+      : never;
 
-type ReaderName<Reader> = Reader extends YieldableReactiveValue<
-  any,
-  infer Name extends string,
-  any
->
-  ? Name
-  : string;
+type ReaderName<Reader> =
+  Reader extends YieldableReactiveValue<any, infer Name extends string, any>
+    ? Name
+    : string;
 
 /** Type returned by {@link deepYieldable}. */
 export type DeepYieldableReaderOf<Reader> = Reader &
@@ -144,6 +143,15 @@ export type DeepYieldableReaderOf<Reader> = Reader &
   DeepYieldableMarker & {
     readonly [DEEP_YIELDABLE]: true;
   };
+
+/**
+ * A reactive reader whose object-valued result can be projected property by
+ * property (`reader.profile.name`) while keeping every projection yieldable.
+ */
+export type DeepYieldableReactiveValue<
+  Value,
+  Name extends string = string,
+> = DeepYieldableReaderOf<YieldableReactiveValue<Value, Name>>;
 
 /** Structural companion to the runtime symbol, usable across project references. */
 export type DeepYieldableMarker = {
@@ -176,8 +184,7 @@ export function hasDeepYieldableInsertion(
 ): boolean {
   return insertions.some(
     (insertion) =>
-      typeof insertion === 'function' &&
-      DEEP_YIELDABLE_INSERTION in insertion,
+      typeof insertion === 'function' && DEEP_YIELDABLE_INSERTION in insertion,
   );
 }
 
@@ -255,8 +262,11 @@ export type RawReactiveProperties<Shape> =
           : Shape;
 
 /** Recursively replaces exposed Angular signals while preserving methods/plain values. */
-export type YieldableReactiveProperties<Shape> =
-  Shape extends YieldableReactiveValue<any, any>
+export type YieldableReactiveProperties<Shape> = Shape extends SourceBranded
+  ? Shape extends Signal<any>
+    ? YieldableReactiveSignal<Shape, string>
+    : Shape
+  : Shape extends YieldableReactiveValue<any, any>
     ? Shape
     : Shape extends Signal<any>
       ? YieldableReactiveSignal<Shape, string>
@@ -264,26 +274,35 @@ export type YieldableReactiveProperties<Shape> =
         ? Shape
         : Shape extends object
           ? {
-              [Key in keyof Shape]: Shape[Key] extends Signal<any>
-                ? Shape[Key] extends YieldableReactiveValue<any, any>
-                  ? Shape[Key]
-                  : YieldableReactiveSignal<
+              [Key in keyof Shape]: Shape[Key] extends SourceBranded
+                ? Shape[Key] extends Signal<any>
+                  ? YieldableReactiveSignal<
                       Shape[Key],
                       Key extends string ? Key : string
                     >
-                : Shape[Key] extends YieldableReactiveValue<any, any>
-                  ? Shape[Key]
-                  : Shape[Key] extends (...args: any[]) => any
-                    ? Key extends 'select' | 'selectOrCreate'
-                      ? (
-                          ...args: Parameters<Shape[Key]>
-                        ) => YieldableReactiveProperties<ReturnType<Shape[Key]>>
-                      : Key extends 'reload' | 'refresh'
-                        ? YieldableReactiveAction<Shape[Key]>
-                        : Shape[Key]
-                    : Shape[Key] extends object
-                      ? YieldableReactiveProperties<Shape[Key]>
-                      : Shape[Key];
+                  : Shape[Key]
+                : Shape[Key] extends Signal<any>
+                  ? Shape[Key] extends YieldableReactiveValue<any, any>
+                    ? Shape[Key]
+                    : YieldableReactiveSignal<
+                        Shape[Key],
+                        Key extends string ? Key : string
+                      >
+                  : Shape[Key] extends YieldableReactiveValue<any, any>
+                    ? Shape[Key]
+                    : Shape[Key] extends (...args: any[]) => any
+                      ? Key extends 'select' | 'selectOrCreate'
+                        ? (
+                            ...args: Parameters<Shape[Key]>
+                          ) => YieldableReactiveProperties<
+                            ReturnType<Shape[Key]>
+                          >
+                        : Key extends 'reload' | 'refresh'
+                          ? YieldableReactiveAction<Shape[Key]>
+                          : Shape[Key]
+                      : Shape[Key] extends object
+                        ? YieldableReactiveProperties<Shape[Key]>
+                        : Shape[Key];
             }
           : Shape;
 
@@ -314,16 +333,20 @@ export function ɵwithActiveReactiveReader<T>(
 }
 
 /** Observability hook notified whenever a Craft generator resolves a reactive read. */
-export const REACTIVE_READ_OBSERVERS = new InjectionToken<
-  readonly ReactiveReadObserver[]
->('REACTIVE_READ_OBSERVERS', {
-  providedIn: 'root',
-  factory: () => [],
-});
+export const REACTIVE_READ_OBSERVERS = Object.assign(
+  craftToken<readonly ReactiveReadObserver[]>('REACTIVE_READ_OBSERVERS'),
+  {
+    ɵfactory: (): readonly ReactiveReadObserver[] => [],
+  },
+);
 
 export function provideReactiveReadObserver(
   observer: ReactiveReadObserver,
-): Provider {
+): {
+  provide: typeof REACTIVE_READ_OBSERVERS;
+  useValue: ReactiveReadObserver;
+  multi: true;
+} {
   return { provide: REACTIVE_READ_OBSERVERS, useValue: observer, multi: true };
 }
 
@@ -472,7 +495,10 @@ function createDeepProjection(
     if (rootSignal) {
       const value = yield {
         [REACTIVE_READ_REQUEST]: true,
-        identity: { name: String(path[path.length - 1] ?? pathText), path: pathText },
+        identity: {
+          name: String(path[path.length - 1] ?? pathText),
+          path: pathText,
+        },
         read: () => readProjectedPath(rootSignal, path),
       };
       return value;
@@ -480,16 +506,15 @@ function createDeepProjection(
 
     const rootValue =
       typeof root === 'function'
-        ? yield* (root as unknown as () => Generator<
-            ReactiveReadRequest<unknown>,
-            unknown,
-            unknown
-          >)()
+        ? yield* (
+            root as unknown as () => Generator<
+              ReactiveReadRequest<unknown>,
+              unknown,
+              unknown
+            >
+          )()
         : root;
-    return readProjectedPath(
-      () => rootValue,
-      path,
-    );
+    return readProjectedPath(() => rootValue, path);
   };
 
   Object.defineProperty(reader, YIELDABLE_VALUE, {
@@ -518,7 +543,10 @@ function createDeepProjection(
   });
 }
 
-function getDeepProjection(root: object, path: readonly PropertyKey[]): unknown {
+function getDeepProjection(
+  root: object,
+  path: readonly PropertyKey[],
+): unknown {
   const cacheKey = path.map(String).join('.');
   const cached = deepYieldableCache.get(root);
   if (cached && cached instanceof Map && cached.has(cacheKey)) {
@@ -553,7 +581,9 @@ export function deepYieldable<Reader>(
       (typeof reader !== 'object' || reader === null)) ||
     deepYieldableRoots.has(reader as object)
   ) {
-    return reader as Reader extends object ? DeepYieldableReaderOf<Reader> : Reader;
+    return reader as Reader extends object
+      ? DeepYieldableReaderOf<Reader>
+      : Reader;
   }
 
   const root = reader as unknown as object;
@@ -592,7 +622,9 @@ export function deepYieldable<Reader>(
     enumerable: false,
   });
   deepYieldableRoots.add(facade);
-  return facade as Reader extends object ? DeepYieldableReaderOf<Reader> : Reader;
+  return facade as Reader extends object
+    ? DeepYieldableReaderOf<Reader>
+    : Reader;
 }
 
 const facadeCache = new WeakMap<object, Map<string, unknown>>();
@@ -613,78 +645,120 @@ export function createYieldableReactiveFacade<Shape>(
   ) as YieldableReactiveProperties<Shape>;
 }
 
+/**
+ * Creates the deep reader used by resource collections such as
+ * `query.exceptions`. Unlike `deepYieldable`, this starts from the raw signal
+ * so the primitive can opt one reactive property into deep projection without
+ * making the whole primitive deeply yieldable.
+ */
+export function createDeepYieldableReactiveValue<
+  Value,
+  const Name extends string,
+>(
+  source: Signal<Value>,
+  name: Name,
+  identity: Omit<ReactiveReadIdentity, 'name'> = {},
+): DeepYieldableReactiveValue<Value, Name> {
+  return deepYieldable(
+    createYieldableReactiveValue(source, name, identity),
+  ) as DeepYieldableReactiveValue<Value, Name>;
+}
+
 function createFacade(
   value: unknown,
   identity: ReactiveReadIdentity,
   path: string,
+  deep = false,
 ): unknown {
   if (typeof value !== 'object' && typeof value !== 'function') return value;
-  if (isYieldableReactiveValue(value)) return value;
+  if (value === null) return value;
+  // Generator/iterator instances carry native methods whose receiver must be
+  // the original instance. Proxying one (for example, the invocation returned
+  // by an insertion method named `select`) makes `yield*` call `.next` with the
+  // proxy as receiver and throws "incompatible receiver".
+  if (
+    'next' in value &&
+    typeof (value as { next?: unknown }).next === 'function'
+  ) {
+    return value;
+  }
+  if (isDeepYieldable(value) || isYieldableReactiveValue(value)) return value;
 
   const cacheKey = `${identity.primitive ?? ''}|${identity.computed ?? ''}|${path}`;
   const cachedByPath = facadeCache.get(value as object);
   if (cachedByPath?.has(cacheKey)) return cachedByPath.get(cacheKey);
 
   let facade: unknown;
-  if (isSignal(value)) {
+  if (isCraftSignal(value) || isCallableSignal(value)) {
     const pathParts = path.split('.');
     const propertyName = pathParts[pathParts.length - 1] ?? identity.name;
-    const reader = createYieldableReactiveValue(value, propertyName, {
-      ...identity,
-      path,
-    });
-    facade = new Proxy(reader, {
-      get(_target, property) {
-        if (property === YIELDABLE_VALUE || property === RAW_REACTIVE_VALUE) {
-          return Reflect.get(reader, property);
-        }
-        if (!Reflect.has(value, property) && Reflect.has(reader, property)) {
-          return createFacade(
-            Reflect.get(reader, property),
-            identity,
-            `${path}.${String(property)}`,
-          );
-        }
-        const child = Reflect.get(value, property);
-        if (
-          (property === 'select' || property === 'selectOrCreate') &&
-          typeof child === 'function'
-        ) {
-          return (...args: unknown[]) =>
-            createFacade(
-              Reflect.apply(child, value, args),
-              identity,
-              `${path}.${String(property)}.${String(args[0] ?? 'selected')}`,
+    const reader = createYieldableReactiveValue(
+      value as unknown as Signal<unknown>,
+      propertyName,
+      {
+        ...identity,
+        path,
+      },
+    );
+    facade = deep
+      ? deepYieldable(reader)
+      : new Proxy(reader, {
+          get(_target, property) {
+            if (
+              property === YIELDABLE_VALUE ||
+              property === RAW_REACTIVE_VALUE
+            ) {
+              return Reflect.get(reader, property);
+            }
+            if (!Reflect.has(value, property) && Reflect.has(reader, property)) {
+              return createFacade(
+                Reflect.get(reader, property),
+                identity,
+                `${path}.${String(property)}`,
+              );
+            }
+            const child = Reflect.get(value, property);
+            if (
+              (property === 'select' || property === 'selectOrCreate') &&
+              typeof child === 'function'
+            ) {
+              return (...args: unknown[]) =>
+                createFacade(
+                  Reflect.apply(child, value, args),
+                  identity,
+                  `${path}.${String(property)}.${String(args[0] ?? 'selected')}`,
+                );
+            }
+            return createFacade(
+              child,
+              {
+                ...identity,
+                insertion:
+                  identity.insertion ??
+                  (typeof property === 'string' ? property : undefined),
+              },
+              `${path}.${String(property)}`,
             );
-        }
-        return createFacade(
-          child,
-          {
-            ...identity,
-            insertion:
-              identity.insertion ??
-              (typeof property === 'string' ? property : undefined),
           },
-          `${path}.${String(property)}`,
-        );
-      },
-      ownKeys: (target) => [
-        ...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(value)]),
-      ],
-      getOwnPropertyDescriptor(_target, property) {
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(
-          reader,
-          property,
-        );
-        if (targetDescriptor) return targetDescriptor;
-        const descriptor = Reflect.getOwnPropertyDescriptor(value, property);
-        return descriptor ? { ...descriptor, configurable: true } : undefined;
-      },
-      has: (_target, property) =>
-        property === YIELDABLE_VALUE ||
-        property === RAW_REACTIVE_VALUE ||
-        Reflect.has(value, property),
-    });
+          ownKeys: (target) => [
+            ...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(value)]),
+          ],
+          getOwnPropertyDescriptor(_target, property) {
+            const targetDescriptor = Reflect.getOwnPropertyDescriptor(
+              reader,
+              property,
+            );
+            if (targetDescriptor) return targetDescriptor;
+            const descriptor = Reflect.getOwnPropertyDescriptor(value, property);
+            return descriptor
+              ? { ...descriptor, configurable: true }
+              : undefined;
+          },
+          has: (_target, property) =>
+            property === YIELDABLE_VALUE ||
+            property === RAW_REACTIVE_VALUE ||
+            Reflect.has(value, property),
+      });
   } else {
     facade = new Proxy(value as object, {
       get(target, property, receiver) {
@@ -712,7 +786,11 @@ function createFacade(
               `${path}.${String(property)}.${String(args[0] ?? 'selected')}`,
             );
         }
-        if (!isSignal(child) && (typeof child !== 'object' || child === null)) {
+        if (
+          !isCraftSignal(child) &&
+          !isCallableSignal(child) &&
+          (typeof child !== 'object' || child === null)
+        ) {
           return child;
         }
         return createFacade(
@@ -724,6 +802,7 @@ function createFacade(
               (typeof property === 'string' ? property : undefined),
           },
           `${path}.${String(property)}`,
+          property === 'exceptions',
         );
       },
     });
@@ -733,4 +812,11 @@ function createFacade(
   nextCache.set(cacheKey, facade);
   if (!cachedByPath) facadeCache.set(value as object, nextCache);
   return facade;
+}
+
+function isDeepYieldable(value: unknown): value is DeepYieldableMarker {
+  return (
+    (typeof value === 'object' && value !== null) ||
+    typeof value === 'function'
+  ) && '__craftDeepYieldable' in (value as object);
 }

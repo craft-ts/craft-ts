@@ -1,18 +1,12 @@
 import {
-  Directive,
   effect,
-  ElementRef,
-  inject,
   InjectionToken,
   Injector,
-  input,
   isDevMode,
-  OnDestroy,
-  OnInit,
   Renderer2,
   type Signal,
   untracked,
-} from '@angular/core';
+} from '../host/craft-compat';
 import type { GetDeps } from '../branded-component/branded-component';
 import { REACTIVE_VALUE_TYPE, rawReactiveFacade } from '../reactive-read';
 import {
@@ -21,6 +15,7 @@ import {
   type CraftNodeDirective,
   type CraftNodeEffectFactory,
 } from '../craft-node-directive';
+import type { CraftDomAdapter } from '../host/craft-dom';
 import {
   ControlSyncer,
   CraftCheckboxControl,
@@ -84,16 +79,28 @@ export class CraftFieldBinding<T> {
   private readonly craftField = () =>
     rawReactiveFacade(this.field) as CraftField<T>;
   private readonly createEffect: CraftNodeEffectFactory;
+  private readonly element: HTMLElement;
+  private readonly renderer: CraftDomAdapter;
+  private readonly injector: Injector;
+  private readonly field: CraftField<T>;
+  private readonly customValueControl: CraftValueControl<unknown> | null;
+  private readonly customCheckboxControl: CraftCheckboxControl | null;
 
   constructor(
-    private readonly element: HTMLElement,
-    private readonly renderer: Renderer2,
-    private readonly injector: Injector,
-    private readonly field: CraftField<T>,
-    private readonly customValueControl: CraftValueControl<unknown> | null = null,
-    private readonly customCheckboxControl: CraftCheckboxControl | null = null,
+    element: HTMLElement,
+    renderer: CraftDomAdapter,
+    injector: Injector,
+    field: CraftField<T>,
+    customValueControl: CraftValueControl<unknown> | null = null,
+    customCheckboxControl: CraftCheckboxControl | null = null,
     createEffect?: CraftNodeEffectFactory,
   ) {
+    this.element = element;
+    this.renderer = renderer;
+    this.injector = injector;
+    this.field = field;
+    this.customValueControl = customValueControl;
+    this.customCheckboxControl = customCheckboxControl;
     this.createEffect =
       createEffect ??
       ((_name, effectFn) => effect(effectFn, { injector: this.injector }));
@@ -276,8 +283,7 @@ export class CraftFieldBinding<T> {
   }
 
   private toggleClass(el: HTMLElement, cls: string, on: boolean): void {
-    if (on) this.renderer.addClass(el, cls);
-    else this.renderer.removeClass(el, cls);
+    el.classList.toggle(cls, on);
   }
 
   // ---------------------- Strategy: text ----------------------
@@ -611,16 +617,16 @@ export class CraftFieldBinding<T> {
 export function bindCraftField<T>(
   element: HTMLElement,
   field: CraftField<T>,
-  renderer: Renderer2,
-  injector: Injector,
+  renderer: CraftDomAdapter | object,
+  injector: Injector | object,
   customValueControl: CraftValueControl<unknown> | null = null,
   customCheckboxControl: CraftCheckboxControl | null = null,
   createEffect?: CraftNodeEffectFactory,
 ): () => void {
   const binding = new CraftFieldBinding(
     element,
-    renderer,
-    injector,
+    renderer as CraftDomAdapter,
+    injector as Injector,
     field,
     customValueControl,
     customCheckboxControl,
@@ -708,46 +714,19 @@ export function CraftFieldDirective<
   return directive as BoundCraftFieldDirective<Field>;
 }
 
-/** @deprecated Use the functional `CraftFieldDirective` on Craft nodes. */
-@Directive({
-  selector: '[craftField]',
-  standalone: true,
-  exportAs: 'craftField',
-})
-export class LegacyCraftFieldDirective<T> implements OnInit, OnDestroy {
-  readonly craftField = input.required<CraftField<T>>();
+export type GenDeps_LegacyCraftFieldDirective = GetDeps<{
+  deps: Record<never, never>;
+  provided: Record<never, never>;
+  missingProvider: {
+    Renderer2: Renderer2;
+    Injector: Injector;
+    CRAFT_FIELD_VALUE_CONTROL: typeof CRAFT_FIELD_VALUE_CONTROL;
+    CRAFT_FIELD_CHECKBOX_CONTROL: typeof CRAFT_FIELD_CHECKBOX_CONTROL;
+  };
+}>;
 
-  private readonly elementRef = inject(ElementRef<HTMLElement>);
-  private readonly renderer = inject(Renderer2);
-  private readonly injector = inject(Injector);
-  private readonly customValueControl = inject(CRAFT_FIELD_VALUE_CONTROL, {
-    optional: true,
-    self: true,
-  });
-  private readonly customCheckboxControl = inject(
-    CRAFT_FIELD_CHECKBOX_CONTROL,
-    {
-      optional: true,
-      self: true,
-    },
-  );
-  private cleanup: (() => void) | undefined;
-
-  ngOnInit(): void {
-    this.cleanup = bindCraftField(
-      this.elementRef.nativeElement,
-      this.craftField(),
-      this.renderer,
-      this.injector,
-      this.customValueControl,
-      this.customCheckboxControl,
-    );
-  }
-
-  ngOnDestroy(): void {
-    this.cleanup?.();
-  }
-}
+/** @deprecated DI metadata belongs to `LegacyCraftFieldDirective` only. */
+export type GenDeps_CraftFieldDirective = GenDeps_LegacyCraftFieldDirective;
 
 function formatMinMax(value: number | Date, inputType: string): string {
   if (value instanceof Date) return formatDateForInput(value, inputType);
@@ -792,17 +771,3 @@ function formatDateForInput(date: Date, inputType: string): string {
       return date.toISOString();
   }
 }
-
-export type GenDeps_LegacyCraftFieldDirective = GetDeps<{
-  deps: Record<never, never>;
-  provided: Record<never, never>;
-  missingProvider: {
-    Renderer2: Renderer2;
-    Injector: Injector;
-    CRAFT_FIELD_VALUE_CONTROL: typeof CRAFT_FIELD_VALUE_CONTROL;
-    CRAFT_FIELD_CHECKBOX_CONTROL: typeof CRAFT_FIELD_CHECKBOX_CONTROL;
-  };
-}>;
-
-/** @deprecated DI metadata belongs to `LegacyCraftFieldDirective` only. */
-export type GenDeps_CraftFieldDirective = GenDeps_LegacyCraftFieldDirective;

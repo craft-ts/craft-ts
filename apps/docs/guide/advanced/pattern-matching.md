@@ -63,7 +63,7 @@ type error, and each handler receives its own narrowed literal.
 Runs the handler only when `value` equals `matchCase`, otherwise returns `undefined`:
 
 ```ts
-import { craftMatch } from '@craft-ng/core';
+import { craftMatch } from '@craft-ts/core';
 
 const status = 'active' as Status;
 
@@ -79,7 +79,7 @@ The handler's argument is narrowed to the matched literal (`'active'` above), an
 The handler map must cover **exactly** the union — no more, no less:
 
 ```ts
-import { craftMatch } from '@craft-ng/core';
+import { craftMatch } from '@craft-ts/core';
 
 const label = (status: Status) =>
   craftMatch.exhaustive(status, {

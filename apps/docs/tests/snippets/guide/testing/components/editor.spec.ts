@@ -5,8 +5,8 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region editor
-import { button, craftComponent, div } from '@craft-ng/component';
-import { setupCraftComponentTemplateTest } from '@craft-ng/component/testing';
+import { button, craftComponent, div } from '@craft-ts/component';
+import { setupCraftComponentTemplateTest } from '@craft-ts/component/testing';
 
 const Editor = craftComponent(
   'Editor',

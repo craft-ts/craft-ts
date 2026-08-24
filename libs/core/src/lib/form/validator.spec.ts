@@ -1,5 +1,6 @@
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  signal,
+} from '../host/craft-compat';
 import { CRAFT_EXCEPTION_SYMBOL, craftException } from '../craft-exception';
 import { query } from '../query';
 import { state } from '../state';
@@ -18,25 +19,38 @@ import {
   cValidator,
 } from './validator';
 import { craftUse } from '../craft-use';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T => {
+  const { injector } = setupCraftServiceTest();
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
 
 function expectedException<
   Name extends string,
   Code extends string,
   Payload = undefined,
->(brand: Name, code: Code, payload: Payload) {
+>(brand: Name, tag: Code, payload: Payload) {
   return {
-    code,
+    _tag: tag,
     [CRAFT_EXCEPTION_SYMBOL]: true,
     payload,
-    [code]: payload,
+    [tag]: payload,
     __brand: brand,
     type: 'sync' as const,
   };
 }
 
 describe('validator', () => {
-  it('reports cRequired as a craft exception', () => {
-    TestBed.runInInjectionContext(() => {
+  it('reports cRequired as a craft exception', async () => {
+    await runInInjectionContext(async () => {
       const model = signal('');
       const fieldForm = craftUse(
         state(
@@ -55,7 +69,7 @@ describe('validator', () => {
       });
 
       model.set('test');
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
@@ -64,8 +78,8 @@ describe('validator', () => {
     });
   });
 
-  it('honors `when` to skip validation', () => {
-    TestBed.runInInjectionContext(() => {
+  it('honors `when` to skip validation', async () => {
+    await runInInjectionContext(async () => {
       const model = signal('');
       const fieldForm = craftUse(
         state(
@@ -85,8 +99,8 @@ describe('validator', () => {
     });
   });
 
-  it('reports cEmail when value does not match', () => {
-    TestBed.runInInjectionContext(() => {
+  it('reports cEmail when value does not match', async () => {
+    await runInInjectionContext(async () => {
       const model = signal('');
       const fieldForm = craftUse(
         state(
@@ -106,14 +120,14 @@ describe('validator', () => {
       });
 
       model.set('invalid-email');
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         cEmail: expectedException('cEmail', 'email', undefined),
       });
 
       model.set('valid@email.dev');
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
@@ -122,8 +136,8 @@ describe('validator', () => {
     });
   });
 
-  it('reports cMin and cMax when value is outside range', () => {
-    TestBed.runInInjectionContext(() => {
+  it('reports cMin and cMax when value is outside range', async () => {
+    await runInInjectionContext(async () => {
       const minModel = signal('2');
       const minForm = craftUse(
         state(
@@ -142,7 +156,7 @@ describe('validator', () => {
       });
 
       minModel.set('3');
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(minForm.form.exceptions())).toEqual({
         list: [],
@@ -168,8 +182,8 @@ describe('validator', () => {
     });
   });
 
-  it('reports cMinLength on an empty array', () => {
-    TestBed.runInInjectionContext(() => {
+  it('reports cMinLength on an empty array', async () => {
+    await runInInjectionContext(async () => {
       const model = signal<string[]>([]);
       const fieldForm = craftUse(
         state(
@@ -188,7 +202,7 @@ describe('validator', () => {
       });
 
       model.set(['first']);
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
@@ -197,8 +211,8 @@ describe('validator', () => {
     });
   });
 
-  it('reports cMinLength, cMaxLength and cPattern errors', () => {
-    TestBed.runInInjectionContext(() => {
+  it('reports cMinLength, cMaxLength and cPattern errors', async () => {
+    await runInInjectionContext(async () => {
       const minLenForm = craftUse(
         state(
           'minLenForm',
@@ -248,8 +262,8 @@ describe('validator', () => {
     });
   });
 
-  it('supports custom sync validators with cValidate', () => {
-    TestBed.runInInjectionContext(() => {
+  it('supports custom sync validators with cValidate', async () => {
+    await runInInjectionContext(async () => {
       const fieldState = signal('');
       const fieldForm = craftUse(
         state(
@@ -263,7 +277,7 @@ describe('validator', () => {
                   validWhen: () => fieldState() !== 'blocked',
                   exception: () =>
                     craftException(
-                      { code: 'blockedValue' },
+                      { _tag: 'blockedValue' },
                       { reason: 'reserved' },
                     ),
                 }),
@@ -278,11 +292,11 @@ describe('validator', () => {
       });
 
       fieldState.set('blocked');
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
         myCustomValidator: {
-          ...craftException({ code: 'blockedValue' }, { reason: 'reserved' }),
+          ...craftException({ _tag: 'blockedValue' }, { reason: 'reserved' }),
           __brand: 'myCustomValidator',
           type: 'sync',
         },
@@ -290,14 +304,14 @@ describe('validator', () => {
     });
   });
 
-  it('exposes cValidator as an alias of cValidate', () => {
+  it('exposes cValidator as an alias of cValidate', async () => {
     expect(cValidator).toBe(cValidate);
   });
 
   it('supports custom async validators (cAsyncValidate)', async () => {
     vi.useFakeTimers();
     try {
-      await TestBed.runInInjectionContext(async () => {
+      await runInInjectionContext(async () => {
         const model = signal('');
         const usernameQuery = craftUse(
           query('usernameQuery', {
@@ -320,7 +334,7 @@ describe('validator', () => {
                       craftUse(validateAsyncCraftResource.value())?.available
                         ? undefined
                         : craftException(
-                            { code: 'usernameTaken' },
+                            { _tag: 'usernameTaken' },
                             { message: 'Username already taken' },
                           ),
                   }),
@@ -338,15 +352,15 @@ describe('validator', () => {
 
         // A taken username resolves successfully but fails the success check.
         model.set('taken');
-        TestBed.tick();
+        flushHost();
         await vi.runAllTimersAsync();
-        TestBed.tick();
+        flushHost();
 
         expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject(
           {
             usernameAvailable: {
               ...craftException(
-                { code: 'usernameTaken' },
+                { _tag: 'usernameTaken' },
                 { message: 'Username already taken' },
               ),
               __brand: 'usernameAvailable',
@@ -357,9 +371,9 @@ describe('validator', () => {
 
         // An available username clears the exception.
         model.set('available');
-        TestBed.tick();
+        flushHost();
         await vi.runAllTimersAsync();
-        TestBed.tick();
+        flushHost();
 
         expect(craftUse(fieldForm.form.exceptions())).toEqual({
           list: [],

@@ -2,17 +2,17 @@
 import {
   craftUse,
   setupCraftServiceTestingByRegister,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
 useSnippetHarness();
 
 // #region search-facade
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ts/core';
 
 const { SearchApi } = craftService(
-  { name: 'SearchApi', scope: 'global' },
+  { name: 'SearchApi', providedIn: 'global' },
   function* () {
     const isLoading = yield* state('isLoading', false);
     const data = yield* state('data', [] as string[]);
@@ -26,7 +26,7 @@ const { SearchApi } = craftService(
 );
 
 const { SearchFacade } = craftService(
-  { name: 'SearchFacade', scope: 'global' },
+  { name: 'SearchFacade', providedIn: 'global' },
   function* () {
     const isLoading = yield* SearchApi.usersQuery.isLoading();
     return { isLoading };

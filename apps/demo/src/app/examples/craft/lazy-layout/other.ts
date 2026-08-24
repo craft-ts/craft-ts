@@ -2,18 +2,18 @@ import {
   craftComponent,
   div,
   p,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftException,
   CraftHttpClient,
   craftService,
   query,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { User } from '../query/api.service';
 import { OtherService, provideOtherService } from './to-provide.service';
 
 const { UsersApiOnError } = craftService(
-  { name: 'UsersApiOnError', scope: 'global' },
+  { name: 'UsersApiOnError', providedIn: 'global' },
   function* () {
     const users = yield* CraftHttpClient.get(({ response }) => ({
       url: 'users',
@@ -26,7 +26,7 @@ const { UsersApiOnError } = craftService(
             (yield* content('Password is required'))
           ) {
             return craftException(
-              { code: 'PASSWORD_REQUIRED', scope: 'AuthApi' },
+              { _tag: 'PASSWORD_REQUIRED', scope: 'AuthApi' },
               { field: 'password' },
             );
           }
@@ -45,7 +45,7 @@ const { UsersApiOnError } = craftService(
   },
 );
 
-const { Test2 } = craftService({ name: 'test2', scope: 'global' }, () => ({}));
+const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, () => ({}));
 
 export const OtherComponent = craftComponent(
   'OtherComponent',

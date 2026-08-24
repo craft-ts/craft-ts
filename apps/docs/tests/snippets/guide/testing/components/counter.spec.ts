@@ -5,14 +5,14 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region counter
-import { setupCraftComponentLogicTest } from '@craft-ng/component';
+import { setupCraftComponentLogicTest } from '@craft-ts/component';
 
-import { craftComputed, craftUse, state } from '@craft-ng/core';
-import { craftComponent, button } from '@craft-ng/component';
+import { craftComputed, craftUse, state } from '@craft-ts/core';
+import { craftComponent, button } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
   TemplateRendersStateWhen,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import type { Equal, Expect } from 'test-type';
 
 const Counter = craftComponent(

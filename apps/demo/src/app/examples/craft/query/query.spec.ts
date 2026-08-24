@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
@@ -7,9 +6,9 @@ import {
   TemplateRendersNamedElementWhen,
   setupCraftComponentLogicTest,
   type Input,
-} from '@craft-ng/component';
-import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import type { ExtractDeps, GetServiceDependencies } from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import CraftGlobalQuery from './query';
 import { ApiService } from './api.service';

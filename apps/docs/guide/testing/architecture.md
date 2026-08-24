@@ -1,25 +1,53 @@
 # Architecture rules
 
-Service and component tests prove a unit behaves. Architecture rules prove the
-**shape of the app**: this feature must not talk to that one, this HTTP endpoint
-is owned once, this persisted identity appears once. They analyze TypeScript
-without starting Angular — the same role as `e2e/`, on the static Craft graph
-instead of a browser.
+Architecture tests answer one question:
 
-**Use them when** a constraint is about who may depend on whom, not about what
-the user sees.
-**Not instead of** [service](/guide/testing/services) or
-[component](/guide/testing/components) tests — a green architecture suite does
-not mean a button works.
+> **Is the dependency shape of the app still allowed?**
 
-::: tip A rule is an ordinary `it()`
-Look a node up, walk its edges, assert. The helpers below are the declarative
-baseline — unique identities, unique HTTP, pure `craftComputed`, no
-`depends-on` cycles — plus `assertRouteDiProofs` for the routing DI contract
-and insertion rules (`insertReactOnMutation`, persisted `craftUnique`,
-`insertSelect` keys, `craftEffect` off the network and off imperative sync).
-Everything else is Vitest.
+They read the static Craft graph — routes, services, components, primitives and
+their edges — without starting the application. That makes them useful for
+rules that are about relationships, ownership or declarations rather than
+runtime behaviour.
+
+## Choose the right kind of test
+
+| If you want to verify… | Use… | Example |
+| --- | --- | --- |
+| one unit computes the right result | [service tests](/guide/testing/services) | a service returns the expected value |
+| one component renders and reacts correctly | [component tests](/guide/testing/components) | a button disables after a click |
+| two parts of the app are allowed to depend on each other | architecture tests | `checkout` must not depend on `admin` |
+| a complete user journey works in a browser | `e2e/` tests | a user can create and then see a task |
+
+Use an architecture rule when the requirement sounds like one of these:
+
+- **must not depend on** — a feature must not reach into another feature;
+- **must be owned once** — an HTTP endpoint or persisted identity has one owner;
+- **must declare a relationship** — a mutation must refresh a query;
+- **must remain pure** — reading a computed value must not perform work.
+
+A green architecture suite does not prove that a button works. It proves that
+the app still respects the boundaries that make that button maintainable.
+
+::: tip Start with the graph-wide baseline
+Add `assertDeclarativeArchitecture(graph.graph)` first. It checks the five
+invariants that are easiest to break during a refactor: unique identities,
+unique HTTP ownership, pure `craftComputed` values, no dependency cycles and
+declared mutation reactions. Add focused rules when your application has an
+additional boundary, such as route DI or folder ownership.
 :::
+
+## What a rule looks like
+
+A rule is an ordinary Vitest assertion. Look up a node, inspect its graph
+relationships or call a built-in assertion, then let CI protect the invariant:
+
+```typescript
+it('keeps checkout away from admin internals', () => {
+  noExclusiveLink(graph.route('/checkout'), graph.route('/admin'));
+});
+```
+
+The rest of this page explains the graph, the setup and the built-in rules.
 
 ## Import
 
@@ -38,12 +66,15 @@ import {
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPathBoundaries,
+  assertPrimitiveLoaderRequirements,
+  assertQueryMutationHasServerState,
   assertPersistedPrimitiveHasUnique,
+  assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
   buildArchitectureCatalog,
   createArchitectureGraph,
   noExclusiveLink,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 ```
 
 ## Mental model
@@ -82,14 +113,17 @@ npx craft-migrate-architecture \
 
 That writes `tsconfig.graph.json`, `tsconfig.architecture.json`,
 `vitest.architecture.config.ts`, the `architecture/` suite (loader, catalog,
-baseline rules, and an `architecture.spec.ts` for app-specific lookups), an
+baseline rules, and an `architecture.spec.ts`), an
 Nx `architecture` target or a `package.json` script, and ignores the generated
 catalog in the nearest flat ESLint config. `--write` overwrites the scaffold.
 `--check` fails when the suite is missing or the generated tooling files
 drifted. `craft-migrate --write` runs this as its last step.
 
-Common rules each get a file under `architecture/rules/`; app-specific lookups
-stay in `architecture.spec.ts`.
+Keep the rules and app-specific lookups in one `architecture.spec.ts` file when
+the graph is expensive to analyze. `loadArchitectureGraph()` caches only within
+one Vitest worker; separate spec files rebuild the TypeScript graph separately.
+The three demo apps use this single-file layout, which performs one graph
+analysis per app run.
 
 ### 1. Analysis tsconfig
 
@@ -136,12 +170,14 @@ unit-test target.
 ```typescript
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/demo-architecture',
-  plugins: [nxViteTsPaths()],
+  plugins: [],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     name: 'demo-architecture',
     watch: false,
@@ -167,7 +203,7 @@ import {
   architectureCatalogToTypeScript,
   buildArchitectureCatalog,
   createArchitectureGraph,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 import { architectureCatalog } from './catalog';
 
 const workspaceRoot = resolve(import.meta.dirname, '../../..');
@@ -235,7 +271,7 @@ graph.component('ListWithPagination');
 graph.providedOn('UserList');
 graph.httpEndpoint('GET', 'users');
 graph.unique('{"key":"user-query","storeName":"demo-app"}');
-graph.services({ browserBoundary: true, scope: 'global' });
+graph.services({ browserBoundary: true, providedIn: 'global' });
 graph.usingHttp();
 graph.dependingOnBrowserBoundary();
 graph.craftMethods();
@@ -263,29 +299,40 @@ Each node exposes `providers()`, `provider(name)`, `outgoing(kind?)`,
 in depth. `{ storeName, key }` and `{ key, storeName }` index as the same
 string.
 
+For adding a TypeScript backend with its own typed nodes and relations, see
+[Extensible architecture graph](/guide/testing/extensible-architecture-graph).
+
 ## Built-in helpers
 
 The declarative baseline is five graph-wide checks. Import them all, then
 either call each one or `assertDeclarativeArchitecture` for the five together.
-The demo suite keeps one file per rule in `apps/demo/architecture/rules/` —
-run it with `npx nx architecture demo`.
+The demo suite keeps all checks in `apps/demo/architecture/architecture.spec.ts`
+so the graph is loaded once. Run it with `npx nx architecture demo`.
+
+Each rule has a focused page with the invariant it protects, the failure it
+prevents and the smallest useful test. Start with the [declarative
+baseline](/guide/testing/architecture/declarative-baseline), then add the
+rules that express your application's boundaries.
 
 | Helper | Fails when |
 | --- | --- |
-| `assertCraftUnique` | the same `craftUnique` identity appears twice, or the argument is not a static literal |
-| `assertHttpEndpointUnique` | the same HTTP verb+URL is called from more than one site |
-| `assertCraftComputedPure` | a `craftComputed` `calls` a method or `writes` a `source$` |
-| `assertNoDependencyCycles` | a directed cycle exists on `depends-on` (services, components, computeds) |
-| `assertMutationHasReactOn` | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
-| `assertDeclarativeArchitecture` | any of the five above fail |
-| `assertRouteDiProofs` | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
-| `assertPathBoundaries` | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
-| `noExclusiveLink(a, b)` | the only path between two branches is a leak, not a shared kernel |
-| `assertPersistedPrimitiveHasUnique` | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
-| `assertInsertSelectUnique` | the same `insertSelect` key appears twice on one host primitive |
-| `assertCraftEffectNoNetwork` | a `craftEffect` `calls` HTTP or a `mutation` |
-| `assertCraftEffectNoImperativeSync` | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
-| `assertInteractiveElementNamed` | an interactive helper (`button`, `a`, `input` except `hidden`, `textarea`, `select`, or any node with `click` / `input` / `change` / `submit`) is missing a literal first-argument name, the name is not static, or the same `data-craft-name` appears twice in the app |
+| [`assertCraftUnique`](/guide/testing/architecture/unique-identities) | the same `craftUnique` identity appears twice, or the argument is not a static literal |
+| [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership) | the same HTTP verb+URL is called from more than one site |
+| [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity) | a `craftComputed` `calls` a method or `writes` a `source$` |
+| [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles) | a directed cycle exists on `depends-on` (services, components, computeds) |
+| [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions) | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
+| [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the five baseline checks fail |
+| [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs) | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
+| [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files) | a route loads its page component from the routing file, or multiple routed page components share one component file |
+| [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries) | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
+| [`noExclusiveLink(a, b)`](/guide/testing/architecture/exclusive-links) | the only path between two branches is a leak, not a shared kernel |
+| [`assertPersistedPrimitiveHasUnique`](/guide/testing/architecture/persisted-identities) | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
+| [`assertInsertSelectUnique`](/guide/testing/architecture/insert-select-keys) | the same `insertSelect` key appears twice on one host primitive |
+| [`assertCraftEffectNoNetwork`](/guide/testing/architecture/craft-effect-network) | a `craftEffect` `calls` HTTP or a `mutation` |
+| [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture/craft-effect-imperative-sync) | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
+| [`assertInteractiveElementNamed`](/guide/testing/architecture/interactive-element-names) | an interactive element lacks a literal name or duplicates a `data-craft-name` |
+| [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader) | a `query` or `mutation` does not reach an allowed server-state boundary |
+| [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements) | an Effect-aware primitive does not declare an allowed dependency boundary |
 
 ### `noExclusiveLink`
 
@@ -387,7 +434,7 @@ A `craftComputed` may only **read**. Outgoing `calls` (a `craftMethod`,
 `increment`, `mutate`, …) and `writes` (`source$.emit` / `.set`) fail.
 
 Local slips are also caught by ESLint
-`craft-ng/no-craft-computed-side-effects`. The graph catches a computed that
+`craft-ts/no-craft-computed-side-effects`. The graph catches a computed that
 calls a method declared in another binding.
 
 ```typescript
@@ -448,6 +495,22 @@ A missing proof, an unarmed mapper, a pending/error screen without its own
 `provideCraftRouteLoadErrorComponent` (or `withErrorComponent` /
 `withRouteLoadError`) without an armed `RouteExceptionComponentCheckedDI` fails
 with the file:line of the hole.
+
+### `assertRouteComponentsInSeparateFiles`
+
+Route definitions describe navigation and loading; page components live in
+their own files. This assertion compares the route file with every component
+target discovered through `component`, `loadComponent` or a lazy `import()`,
+then rejects multiple routed page components that share one component file.
+
+```typescript
+it('keeps route definitions separate from page components', () => {
+  assertRouteComponentsInSeparateFiles(graph.graph);
+});
+```
+
+The rule checks the page file boundary only. It does not restrict components
+rendered inside a page, and it does not require one route collection per file.
 
 ### `assertMutationHasReactOn`
 
@@ -513,7 +576,7 @@ A `craftEffect` that writes another `state` or `source$`, or that calls
 `query.call` / `mutation.mutate` / `asyncProcess.method`, is glue that should
 be a sourced `state` or reactive `params` instead. Logging, focus, and other
 I/O that does not push into a Craft primitive stay valid. ESLint
-`craft-ng/no-imperative-craft-resource-trigger` catches the resource-trigger
+`craft-ts/no-imperative-craft-resource-trigger` catches the resource-trigger
 half in the editor; this helper is the graph-wide counterpart, including
 state writes.
 
@@ -529,7 +592,7 @@ it('keeps craftEffect from pushing into other primitives', () => {
 proofs and DOM tests already key off that name. This helper makes the first
 string **mandatory** on clickable and fillable elements, and **unique in the
 app**: two `button('save')` in two components fail, and so does
-`button({ click() {} }, 'Save')`. ESLint `craft-ng/require-interactive-local-name`
+`button({ click() {} }, 'Save')`. ESLint `craft-ts/require-interactive-local-name`
 is the editor counterpart for the missing / non-static cases.
 
 ```typescript
@@ -599,7 +662,7 @@ If the lookup throws, the identity left the graph — the key changed, or
 
 Anything you can express with `outgoing` / `incoming` is a rule: “this
 `craftMethod` is either called or writes a `source$`, never both”, “this
-component does not `depends-on` that service”, “only `scope: 'global'` services
+component does not `depends-on` that service”, “only `providedIn: 'global'` services
 appear under `usingTemporal()`”. Keep the assertion next to a comment that
 states the product invariant, not the graph traversal.
 

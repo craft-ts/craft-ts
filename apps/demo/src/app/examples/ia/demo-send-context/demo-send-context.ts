@@ -4,7 +4,7 @@ import {
   each,
   heading,
   headingSection,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import { SendContextCounterComponent } from './counter';
 
 const DemoSendContextComponent = craftComponent(

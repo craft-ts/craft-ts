@@ -1,10 +1,10 @@
 {
-  "name": "@ng-craft/function-registry-mcp",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@craft-ts/function-registry-mcp",
+  "version": "0.7.0-beta.13",
+  "description": "MCP bridge for CraftTS browser pages and runtime registry",
   "type": "module",
   "bin": {
-    "ng-craft-registry-mcp": "dist/main.js"
+    "craft-ts-registry-mcp": "dist/main.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -19,7 +19,10 @@
   "devDependencies": {
     "@types/node": "20.19.9",
     "@types/ws": "8.18.1",
-    "typescript": "~5.9.2",
+    "typescript": "6.0.3",
     "vitest": "^4.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

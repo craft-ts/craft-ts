@@ -1,4 +1,4 @@
-import { computed, isSignal, signal, Signal, WritableSignal } from '@angular/core';
+import { computed, isSignal, signal, Signal, WritableSignal } from '../host/craft-compat';
 import type { AnyCraftException } from '../craft-exception';
 
 export type CraftFieldError = AnyCraftException;

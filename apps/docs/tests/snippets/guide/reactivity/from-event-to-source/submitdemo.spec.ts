@@ -11,8 +11,8 @@ import {
   form,
   input,
   p,
-} from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 
 export const SubmitDemo = craftComponent(
   'SubmitDemo',

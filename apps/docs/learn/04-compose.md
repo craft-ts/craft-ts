@@ -6,22 +6,12 @@ This is the step that makes everything else obvious. Take your time here.
 
 ## The problem `yield*` solves
 
-Classic Angular injection hides the dependency graph:
-
-```typescript
-class TaskList {
-  private api = inject(TaskApi); // invisible from the outside
-}
-```
-
-Nothing in `TaskList`'s type says it needs `TaskApi`. The compiler cannot tell
-you when you forget to provide it, and a test cannot tell you what to mock.
-
-Craft makes the same call **visible in the type**, by yielding it:
+Dependencies are easy to hide when a service reaches into a runtime container.
+Craft makes each dependency **visible in the type** by yielding it:
 
 ```typescript
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi(); // ← tracked
 
@@ -61,7 +51,7 @@ once. Don't store one and `yield*` it twice.
 
 ```typescript
 const { TaskApi } = craftService(
-  { name: 'TaskApi', scope: 'global' },
+  { name: 'TaskApi', providedIn: 'global' },
   () => ({
     // raw fetch, only to keep this example about composition —
     // see the note below
@@ -70,7 +60,7 @@ const { TaskApi } = craftService(
 );
 
 const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi();
     const tasks = yield* state('tasks', [] as Task[], ({ set }) => ({
@@ -84,7 +74,7 @@ const { TaskList } = craftService(
 );
 
 const { TaskStats } = craftService(
-  { name: 'TaskStats', scope: 'function' },
+  { name: 'TaskStats', providedIn: 'function' },
   function* () {
     const tasks = yield* TaskList();
     return {
@@ -114,7 +104,7 @@ promise instead of a declared failure. [Step 5](/learn/05-load-data) uses
 `CraftHttpClient` for real, and [step 6](/learn/06-mutate-data) shows the
 exceptions it produces.
 
-The `craft-ng/prefer-craft-http-client` ESLint rule flags direct `HttpClient`
+The `craft-ts/prefer-craft-http-client` ESLint rule flags direct `HttpClient`
 usage for the same reason.
 :::
 
@@ -124,7 +114,7 @@ usage for the same reason.
 
 ```typescript
 const { TaskStats } = craftService(
-  { name: 'TaskStats', scope: 'function' },
+  { name: 'TaskStats', providedIn: 'function' },
   function* () {
     const fetchAll = yield* TaskApi.fetchAll(); // one property
     // …

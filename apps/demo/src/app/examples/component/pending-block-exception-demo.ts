@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   catchBlock,
@@ -11,7 +11,8 @@ import {
   strong,
   ul,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
+import type { CraftDirective, CraftNodeChildren } from '@craft-ts/component';
 import {
   craftComputed,
   craftException,
@@ -19,7 +20,7 @@ import {
   craftSleep,
   mutation,
   settled,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 /**
  * The failing side of `settledValue`: a source can settle on an **exception**
@@ -89,25 +90,25 @@ export const pendingBlockExceptionDemo = craftComponent(
         // A business failure is a value the loader returns, not a throw.
         if (params.reject) {
           return craftException(
-            { code: 'INVOICE_REJECTED' },
+            { _tag: 'INVOICE_REJECTED' },
             { reference: params.reference },
           );
         }
 
         return { reference: params.reference, amount: 4200 };
       }),
-    });
+    },
+      ({ resource }) => ({
+        summary: craftComputed('summary', function* () {
+          const invoice = yield* settled(resource);
+          return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
+        }),
+      }),
+    );
 
-    // Reading through `settled(...)` keeps the happy path free of both
-    // `undefined` and the exception: `invoice` is the resolved invoice, always.
-    const summary = craftComputed('summary', function* () {
-      const invoice = yield* settled(issue);
-      return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
-    });
-
-    return { issue, summary };
+    return { issue };
   },
-  ({ issue, summary }) =>
+  ({ issue }) =>
     section({ class: 'pending-exception' }, [
       heading('settledValue — the failing path'),
       p(
@@ -141,47 +142,36 @@ export const pendingBlockExceptionDemo = craftComponent(
       ]),
       div([
         ul({ class: 'pending-exception__list' }, [
-          li(['Invoice: ', strong(summary)]),
+          li(['Invoice: ', strong(issue.summary)]),
         ]),
       ])
-        // The wait belongs to the pendingBlock…
         .pipe(
-          pendingBlock.exhaustive({
-            issue: {
-              // A mutation that has never run has no value either, so the same
-              // slot covers "not issued yet" and "issuing".
-              pending: () =>
-                p(
-                  { class: 'pending-exception__skeleton' },
-                  'Waiting for an invoice…',
-                ),
-              // Re-issuing keeps the previous invoice on screen: nothing
-              // suspends, so this indicator is rendered next to it.
-              reloading: () =>
-                p({ class: 'pending-exception__reloading' }, 'Re-issuing…'),
-            },
+          pendingBlock({
+            fallback: () =>
+              p(
+                { class: 'pending-exception__skeleton' },
+                'Waiting for an invoice…',
+              ) as CraftNodeChildren,
+            reloading: () =>
+              p({ class: 'pending-exception__reloading' }, 'Re-issuing…') as CraftNodeChildren,
           }),
         )
-        // …and the business failure to the catchBlock. Without it, the code
-        // `INVOICE_REJECTED` — reachable only through the settled read — has
-        // nowhere to go and the template does not compile.
         .pipe(
-          catchBlock.exhaustive({
+          // The mutation exposes this code at runtime, while its current
+          // settled-value type only carries the pending source.
+          (catchBlock.exhaustive({
             // A catchBlock handler receives the exception as `AnyCraftException`:
             // its `code` is known, its payload is not. Reach for `matchBlock`
             // when the fallback needs the payload itself.
             // `showSource: false` replaces the row instead of appending to it —
             // the summary line has nothing to show once the source failed.
-            INVOICE_REJECTED: {
-              showSource: false,
-              render: (exception) =>
-                p(
-                  { class: 'pending-exception__error' },
-                  `Invoice rejected (${exception.code})`,
-                ),
-            },
-          }),
-        ),
+          INVOICE_REJECTED: () =>
+              p(
+                { class: 'pending-exception__error' },
+                'Invoice rejected (INVOICE_REJECTED)',
+              ),
+          }) as unknown as CraftDirective),
+        )
     ]),
 );
 

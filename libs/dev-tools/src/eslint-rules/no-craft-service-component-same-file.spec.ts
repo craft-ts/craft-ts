@@ -10,8 +10,8 @@ const rule = require('./no-craft-service-component-same-file.cjs');
 describe('no-craft-service-component-same-file', () => {
   it('reports craftService and craftComponent declarations in the same file', async () => {
     const result = await lint(`
-      import { craftComponent } from '@craft-ng/component';
-      import { craftService } from '@craft-ng/core';
+      import { craftComponent } from '@craft-ts/component';
+      import { craftService } from '@craft-ts/core';
 
       const { DemoService } = craftService({ name: 'DemoService', scope: 'route' }, function* () {
         return {};
@@ -28,8 +28,8 @@ describe('no-craft-service-component-same-file', () => {
 
   it('supports aliased and namespace imports', async () => {
     const result = await lint(`
-      import { craftComponent as createComponent } from '@craft-ng/component';
-      import * as core from '@craft-ng/core';
+      import { craftComponent as createComponent } from '@craft-ts/component';
+      import * as core from '@craft-ts/core';
 
       const service = core.craftService({ name: 'Service', scope: 'global' }, () => ({}));
       const component = createComponent('Component', {}, () => ({}), () => []);
@@ -40,12 +40,12 @@ describe('no-craft-service-component-same-file', () => {
 
   it('allows files that declare only one kind of Craft host', async () => {
     const serviceResult = await lint(`
-      import { craftService } from '@craft-ng/core';
+      import { craftService } from '@craft-ts/core';
 
       const service = craftService({ name: 'Service', scope: 'global' }, () => ({}));
     `);
     const componentResult = await lint(`
-      import { craftComponent } from '@craft-ng/component';
+      import { craftComponent } from '@craft-ts/component';
 
       const component = craftComponent('Component', {}, () => ({}), () => []);
     `);

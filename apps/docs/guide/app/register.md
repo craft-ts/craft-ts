@@ -14,7 +14,7 @@ instead. A registry trades explicitness for reach.
 The registry is typed from the Craft targets it accepts:
 
 ```ts
-import { craftComputed, craftRegisterFor } from '@craft-ng/core';
+import { craftComputed, craftRegisterFor } from '@craft-ts/core';
 
 const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
@@ -93,7 +93,7 @@ observes them:
 
 ```ts
 const { Counter, provideCounter } = craftService(
-  { name: 'Counter', scope: 'toProvide' },
+  { name: 'Counter', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state(
       'counter',
@@ -326,7 +326,7 @@ is no compile error and no runtime error: the signal is simply `undefined`.
 :::
 
 ::: warning Craft targets only
-`craftRegisterFor` does not detect arbitrary Angular classes. It targets
+`craftRegisterFor` does not detect arbitrary classes. It targets
 `craftService`, `craftComponent` and `craftDirective`, whose scope and lifecycle
 the runtime knows.
 :::
@@ -354,7 +354,7 @@ close to `provideFnWrapper`, but limited to service yields:
 import {
   provideServiceYieldWrapper,
   type ServiceYieldContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 function* reportServiceYield(
   context: ServiceYieldContext,

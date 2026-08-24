@@ -22,7 +22,7 @@ token. This lets you implement the contract **inline at the providing site** (a 
 a feature config) instead of declaring a separate concrete `craftService`.
 
 ```typescript
-import { abstract, craftService } from '@craft-ng/core';
+import { abstract, craftService } from '@craft-ts/core';
 
 type User = { name: string };
 
@@ -43,7 +43,7 @@ the resulting provider participates in the cascade DI check just like a regular 
 
 ```typescript
 const { Greeting } = craftService(
-  { name: 'Greeting', scope: 'global' },
+  { name: 'Greeting', providedIn: 'global' },
   () => ({ prefix: 'Hello' }),
 );
 

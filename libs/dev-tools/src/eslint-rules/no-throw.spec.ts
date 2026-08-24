@@ -9,7 +9,7 @@ describe('no-throw', () => {
     const eslint = createEslint(true);
     const [result] = await eslint.lintText(
       `
-        import { craftGen } from '@craft-ng/core';
+        import { craftGen } from '@craft-ts/core';
 
         const load = craftGen(function* () {
           throw new Error('failed');
@@ -24,7 +24,7 @@ describe('no-throw', () => {
 
     expect(result.messages).toEqual([]);
     expect(result.output).toContain(
-      "import { craftGen, craftException } from '@craft-ng/core';",
+      "import { craftGen, craftException } from '@craft-ts/core';",
     );
     expect(result.output).toContain(
       "return craftException({ code: 'UNEXPECTED_ERROR' }, { error: new Error('failed') });",
@@ -40,7 +40,7 @@ describe('no-throw', () => {
 
     expect(result.messages).toEqual([]);
     expect(result.output).toContain(
-      "import { craftException } from '@craft-ng/core';",
+      "import { craftException } from '@craft-ts/core';",
     );
     expect(result.output).toContain(
       "return craftException({ code: 'UNEXPECTED_ERROR' }, { error: error });",
@@ -51,7 +51,7 @@ describe('no-throw', () => {
     const eslint = createEslint(true);
     const [result] = await eslint.lintText(
       `
-        import type { craftException } from '@craft-ng/core';
+        import type { craftException } from '@craft-ts/core';
         function* load() { throw error; }
       `,
       { filePath: 'demo.ts' },
@@ -59,7 +59,7 @@ describe('no-throw', () => {
 
     expect(result.messages).toEqual([]);
     expect(result.output).toContain(
-      "import { craftException } from '@craft-ng/core';",
+      "import { craftException } from '@craft-ts/core';",
     );
   });
 

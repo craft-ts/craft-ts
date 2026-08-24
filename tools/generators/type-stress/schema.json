@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/schema",
   "cli": "nx",
   "title": "Type Stress Generator",
-  "description": "Generates a type-stress app to benchmark craft-ng TypeScript type-checking performance",
+  "description": "Generates a type-stress app to benchmark craft-ts TypeScript type-checking performance",
   "type": "object",
   "properties": {
     "features": {

@@ -3,7 +3,7 @@ import {
   runInInjectionContext,
   type Injector,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   executeGeneratorCompatibleFactory,
   isGenerator,
@@ -95,13 +95,21 @@ type YieldableInsertionMethodOf<Fn> =
       ? Fn
       : Fn extends Signal<any>
         ? Fn
-        : Fn extends YieldableInsertionMethod<any, any, any>
-          ? Fn
-          : Fn extends (...args: infer Args) => infer Result
-            ? Result extends Generator<infer Yielded, infer Output, unknown>
-              ? YieldableInsertionMethod<Args, Output, Yielded>
-              : YieldableInsertionMethod<Args, Result>
-            : Fn;
+        : Fn extends {
+              emit: (...args: infer Args) => infer Result;
+              subscribe: (...args: any[]) => any;
+              value: unknown;
+            }
+          ? Omit<Fn, 'emit'> & {
+              readonly emit: YieldableInsertionMethod<Args, Result>;
+            }
+          : Fn extends YieldableInsertionMethod<any, any, any>
+            ? Fn
+            : Fn extends (...args: infer Args) => infer Result
+              ? Result extends Generator<infer Yielded, infer Output, unknown>
+                ? YieldableInsertionMethod<Args, Output, Yielded>
+                : YieldableInsertionMethod<Args, Result>
+              : Fn;
 
 /** Maps callable insertion outputs to methods consumed with `yield*`. */
 export type YieldableInsertionMethods<Shape> = Shape extends (

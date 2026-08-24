@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './query.css' with { loader: 'text' };
 import {
   button,
@@ -9,7 +9,7 @@ import {
   p,
   pre,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   Console,
   craftComputed,
@@ -19,21 +19,21 @@ import {
   insertStoragePersister,
   craftUnique,
   query,
-  craftUse,
-} from '@craft-ng/core';
+  type CraftServiceInput,
+} from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
 const { UserQuery } = craftService(
-  { name: 'UserQuery', scope: 'global' },
-  function* (inputs: { userId: () => string | undefined }) {
+  { name: 'UserQuery', providedIn: 'global' },
+  function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
     return yield* query(
       'userQuery',
       {
         params: inputs.userId,
         loader: function* ({ params }) {
           yield* Console.log('Loading user with id:', params);
-          return yield* ApiService.getItemById(params);
+          return yield* ApiService.getItemById(params as string);
         },
       },
       insertStoragePersister(craftUnique({
@@ -58,9 +58,7 @@ const CraftGlobalQuery = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const user = yield* UserQuery({
-      userId: () => {
-        return craftUse(userId());
-      },
+      userId,
     });
 
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({

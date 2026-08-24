@@ -4,7 +4,7 @@ import {
   untracked,
   ValueEqualityFn,
   WritableSignal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { IsUnknown } from './util/util.type';
 import { ReadonlySource } from './util/source.type';
 import { SourceBranded } from './util/util';

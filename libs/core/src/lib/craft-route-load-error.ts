@@ -1,7 +1,4 @@
-import { NgComponentOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  Component,
   computed,
   EnvironmentInjector,
   inject,
@@ -11,19 +8,7 @@ import {
   type Type,
   type ValueProvider,
   type WritableSignal,
-} from '@angular/core';
-import {
-  NavigationError,
-  RedirectCommand,
-  Router,
-  withNavigationErrorHandler,
-  type RouterFeatures,
-} from '@angular/router';
-import type {
-  ExtractDeps,
-  GetDeps,
-  GetPublicComponentProperties,
-} from './branded-component/branded-component';
+} from './host/craft-compat';
 import { craftException, isCraftException } from './craft-exception';
 import {
   CRAFT_DYNAMIC_IMPORT,
@@ -40,9 +25,9 @@ import {
 } from './craft-load-retry';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
-import { normalizeCraftRouteTarget } from './craft-route-target';
+import { CRAFT_ROUTER } from './craft-router-tokens';
 import {
-  toCraftService,
+  ɵtoCraftService as toCraftService,
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
   type SERVICE_EXPOSURE_TOKEN_MARKER,
   type SERVICE_HELPER_DEPENDENCIES,
@@ -115,12 +100,33 @@ interface ActiveRouteLoadError {
   readonly injector: EnvironmentInjector;
 }
 
-const CRAFT_ACTIVE_ROUTE_LOAD_ERROR = new InjectionToken<
+export const CRAFT_ACTIVE_ROUTE_LOAD_ERROR = new InjectionToken<
   WritableSignal<ActiveRouteLoadError | null>
 >('CRAFT_ACTIVE_ROUTE_LOAD_ERROR', {
   providedIn: 'root',
   factory: () => signal<ActiveRouteLoadError | null>(null),
 });
+
+let craftRouteLoadErrorHostComponent: Type<unknown> | undefined;
+
+/**
+ * Installs the recovery host. `@craft-ts/component` calls this on import —
+ * mounting the recovery UI needs the renderer that only it owns.
+ */
+export function ɵregisterCraftRouteLoadErrorHostComponent(
+  component: Type<unknown>,
+): void {
+  craftRouteLoadErrorHostComponent = component;
+}
+
+/**
+ * Without `@craft-ts/component` there is nothing that can render the recovery
+ * UI, so the host is null and the outlet simply shows nothing. The error is
+ * still reported through `CRAFT_ROUTE_LOAD_ERROR`.
+ */
+function getCraftRouteLoadErrorHostComponent(): Type<unknown> | null {
+  return craftRouteLoadErrorHostComponent ?? null;
+}
 
 export const CRAFT_ROUTE_LOAD_ERROR = new InjectionToken<
   Signal<CraftRouteLoadError | null>
@@ -141,19 +147,24 @@ export const CRAFT_ROUTE_LOAD_RECOVERY =
   new InjectionToken<CraftRouteLoadRecovery>('CRAFT_ROUTE_LOAD_RECOVERY', {
     providedIn: 'root',
     factory: () => {
-      const router = inject(Router);
+      const router = inject(CRAFT_ROUTER);
       const active = inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
       return {
         retry: async () => {
-          const targetUrl = active()?.exception.payload.targetUrl;
-          return targetUrl
-            ? router.navigateByUrl(targetUrl, { onSameUrlNavigation: 'reload' })
-            : false;
+          const targetUrl = active()?.exception.payload.targetUrl ?? router.url;
+          return targetUrl ? router.navigateByUrl(targetUrl) : false;
         },
         reload: () => globalThis.location?.reload(),
       };
     },
   });
+
+export function setActiveCraftRouteLoadError(
+  exception: CraftRouteLoadError,
+  injector: EnvironmentInjector,
+): void {
+  injector.get(CRAFT_ACTIVE_ROUTE_LOAD_ERROR).set({ exception, injector });
+}
 
 export function injectCraftRouteLoadError(): Signal<CraftRouteLoadError | null> {
   return inject(CRAFT_ROUTE_LOAD_ERROR);
@@ -165,13 +176,13 @@ export function injectCraftRouteLoadRecovery(): CraftRouteLoadRecovery {
 
 const craftRouteLoadErrorService = toCraftService({
   name: 'CraftRouteLoadError',
-  scope: 'global',
+  providedIn: 'global',
   inject: injectCraftRouteLoadError,
 });
 
 const craftRouteLoadRecoveryService = toCraftService({
   name: 'CraftRouteLoadRecovery',
-  scope: 'global',
+  providedIn: 'global',
   inject: injectCraftRouteLoadRecovery,
 });
 
@@ -213,7 +224,6 @@ function routeLoadRetryProvider(retry: CraftRouteLoadRetryConfig):
 }
 
 export interface RouteLoadErrorFeature extends CraftLoadingFeature {
-  readonly routerFeatures: readonly RouterFeatures[];
   readonly recoveryRoute: {
     readonly path: string;
     readonly component: Type<unknown>;
@@ -234,12 +244,9 @@ export function withRouteLoadError(
   const feature = craftLoadingFeature(providers) as RouteLoadErrorFeature;
 
   Object.assign(feature, {
-    routerFeatures: [
-      withNavigationErrorHandler(handleRouteLoadNavigationError),
-    ],
     recoveryRoute: {
       path: CRAFT_ROUTE_LOAD_ERROR_PATH,
-      component: CraftRouteLoadErrorHostComponent,
+      component: getCraftRouteLoadErrorHostComponent(),
     },
   });
 
@@ -248,7 +255,7 @@ export function withRouteLoadError(
 
 export function createRouteLoadError(payload: CraftRouteLoadErrorPayload) {
   return craftException(
-    { code: CRAFT_ROUTE_LOAD_ERROR_CODE, scope: 'router' },
+    { _tag: CRAFT_ROUTE_LOAD_ERROR_CODE, scope: 'router' },
     payload,
   );
 }
@@ -256,7 +263,7 @@ export function createRouteLoadError(payload: CraftRouteLoadErrorPayload) {
 export function isCraftRouteLoadError(
   value: unknown,
 ): value is CraftRouteLoadError {
-  return isCraftException(value) && value.code === CRAFT_ROUTE_LOAD_ERROR_CODE;
+  return isCraftException(value) && value._tag === CRAFT_ROUTE_LOAD_ERROR_CODE;
 }
 
 export function loadRouteWithRetry<T>(
@@ -267,7 +274,7 @@ export function loadRouteWithRetry<T>(
   let dependencies:
     | {
         injector: EnvironmentInjector;
-        router: Router;
+        router: { readonly url: string };
         retry: CraftRouteLoadRetry;
         dynamicImport: (url: string) => Promise<unknown>;
       }
@@ -275,7 +282,7 @@ export function loadRouteWithRetry<T>(
   try {
     dependencies = {
       injector: inject(EnvironmentInjector),
-      router: inject(Router),
+      router: inject(CRAFT_ROUTER),
       retry: inject(CRAFT_ROUTE_LOAD_RETRY),
       dynamicImport: inject(CRAFT_DYNAMIC_IMPORT),
     };
@@ -295,9 +302,7 @@ export function loadRouteWithRetry<T>(
         routePath,
         attempt: 1,
         error: firstError,
-        targetUrl:
-          dependencies.router.getCurrentNavigation()?.extractedUrl.toString() ??
-          dependencies.router.url,
+        targetUrl: dependencies.router.url,
       };
 
       let attempt = 1;
@@ -327,84 +332,3 @@ export function loadRouteWithRetry<T>(
     }
   })();
 }
-
-function handleRouteLoadNavigationError(
-  navigationError: NavigationError,
-): RedirectCommand | void {
-  if (!isCraftRouteLoadError(navigationError.error)) return;
-
-  const exception = navigationError.error;
-  const injector = (
-    exception as CraftRouteLoadError & {
-      readonly routeInjector?: EnvironmentInjector;
-    }
-  ).routeInjector;
-  if (!injector) return;
-
-  inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR).set({ exception, injector });
-  const router = inject(Router);
-  const targetUrl = exception.payload.targetUrl;
-  return new RedirectCommand(
-    router.parseUrl(`/${CRAFT_ROUTE_LOAD_ERROR_PATH}`),
-    { browserUrl: targetUrl, replaceUrl: true },
-  );
-}
-
-@Component({
-  standalone: true,
-  imports: [NgComponentOutlet],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <ng-container
-      [ngComponentOutlet]="component()"
-      [ngComponentOutletInjector]="componentInjector()"
-    />
-  `,
-})
-export class CraftRouteLoadErrorHostComponent {
-  private readonly active = inject(CRAFT_ACTIVE_ROUTE_LOAD_ERROR);
-  readonly componentInjector = signal<EnvironmentInjector | undefined>(
-    this.active()?.injector,
-  );
-  readonly component = signal<Type<unknown> | null>(
-    resolveEagerComponent(
-      this.active()?.injector.get(CRAFT_ROUTE_LOAD_ERROR_COMPONENT) ?? null,
-    ),
-  );
-}
-
-function resolveEagerComponent(
-  descriptor: CraftExceptionComponentDescriptor | null,
-): Type<unknown> | null {
-  if (!descriptor) return null;
-  if (descriptor.component) {
-    const target = normalizeCraftRouteTarget(descriptor.component);
-    if (target.kind === 'angular') return target.component;
-    throw new Error(
-      'The Angular route-load recovery host cannot render a Craft target directly. Configure the @craft-ng/component compatibility host for chunk recovery.',
-    );
-  }
-  throw new Error(
-    'withRouteLoadError requires an eager error component because lazy loading is unavailable after a route chunk failure.',
-  );
-}
-
-export type GenDeps_CraftRouteLoadErrorHostComponent = GetDeps<{
-  deps: {
-    NgComponentOutlet: NgComponentOutlet;
-  };
-  propertiesDeps: {
-    active: {
-      CRAFT_ACTIVE_ROUTE_LOAD_ERROR: typeof CRAFT_ACTIVE_ROUTE_LOAD_ERROR;
-    };
-    componentInjector: ExtractDeps<
-      CraftRouteLoadErrorHostComponent['componentInjector']
-    >;
-    component: ExtractDeps<CraftRouteLoadErrorHostComponent['component']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<CraftRouteLoadErrorHostComponent>;
-  missingProvider: {
-    CRAFT_ACTIVE_ROUTE_LOAD_ERROR: typeof CRAFT_ACTIVE_ROUTE_LOAD_ERROR;
-  };
-}>;

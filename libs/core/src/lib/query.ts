@@ -8,15 +8,14 @@ import {
   Provider,
   ResourceLoaderParams,
   ResourceOptions,
-  ResourceRef,
   ResourceStreamingLoader,
   runInInjectionContext,
   Signal,
   signal,
   untracked,
   WritableSignal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -104,6 +103,7 @@ import {
   nameInsertedReactiveValue,
   type YieldableReactiveValue,
   type YieldableReactiveProperties,
+  type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
 import {
@@ -195,7 +195,7 @@ type QueryConfig<
         loader: GeneratorCompatibleFactory<
           (
             param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -231,7 +231,7 @@ type QueryConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         params?: never;
@@ -283,13 +283,18 @@ type QueryConfig<
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
         params: GeneratorCompatibleFactory<
-          (entity: ResourceRef<NoInfer<FromObjectState>>) => Params,
+          (
+            entity: CraftResourceRef<
+              NoInfer<FromObjectState>,
+              NoInfer<FromObjectResourceParams>
+            >,
+          ) => Params,
           ParamsYielded
         >;
         loader: GeneratorCompatibleFactory<
           (
             param: NoInfer<ResourceLoaderParams<Params>>,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -376,7 +381,8 @@ export type ResourceLikeExceptions<
       >
     | undefined
   >;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           QueryException['params'],
@@ -408,7 +414,8 @@ export type ResourceByIdLikeExceptions<
   GroupIdentifier extends string,
 > = {
   hasException: Signal<boolean>;
-  exceptions: Signal<{
+  /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
+  exceptions: DeepYieldableReactiveValue<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
           QueryException['params'],
@@ -639,7 +646,7 @@ export type QueryRef<
     >;
 
 export type QueryOutput<
-  State extends object | undefined,
+  State,
   Params,
   ArgParams,
   SourceParams,
@@ -898,7 +905,7 @@ export function query<
   >
 >;
 export function query<
-  Name extends string,
+  const Name extends string,
   QueryState extends object | undefined,
   QueryParams,
   QueryArgsParams,
@@ -1092,7 +1099,7 @@ export function query<
  * @example
  * Business exceptions with `craftException`
  * ```ts
- * import { craftException, query } from '@craft-ng/core';
+ * import { craftException, query } from '@craft-ts/core';
  *
  * const userQuery = craftUse(query('userQuery', {
  *   method: (value: string) =>
@@ -1313,11 +1320,11 @@ function createQueryRef<
     // e.g. a non-blocking route guard awaiting the resource via
     // `craftUntilSettled(...)`, which subscribes outside one. Without an eagerly
     // captured injector, `getInjector()` below would fall back to the (absent)
-    // ambient context and throw NG0203.
+    // ambient context and throw.
     //
-    // `isInInjectionContext` is not part of @angular/core's public API in this
-    // version, so probe by attempting `inject(Injector)` and falling back to the
-    // lazy `getInjector()` if `query()` was genuinely constructed out of context.
+    // There is no `isInInjectionContext` on the Craft injector, so probe by
+    // attempting `inject(Injector)` and fall back to the lazy `getInjector()`
+    // if `query()` was genuinely constructed out of context.
     try {
       injector = ɵcreateHostTaggedInjector(
         inject(Injector),
@@ -1725,6 +1732,7 @@ function createQueryRef<
         unknown
       >({
         ...queryConfig,
+        ssrSourceName: name,
         params: resourceParamsSrc,
         loader: wrappedLoader,
         stream: wrappedStream,
@@ -1734,18 +1742,20 @@ function createQueryRef<
     : !queryConfig.preservePreviousValue || queryConfig.preservePreviousValue()
       ? preservedResource<QueryState, QueryParams>({
           ...queryConfig,
+          ssrSourceName: name,
           params: nonGroupedParams,
           equal: nonGroupedEqual,
           loader: wrappedLoader,
           stream: wrappedStream,
-        } as ResourceOptions<any, any>)
+        } as ResourceOptions<any, any> & { ssrSourceName: string })
       : craftResource<QueryState, QueryParams>({
           ...queryConfig,
+          ssrSourceName: name,
           params: nonGroupedParams,
           equal: nonGroupedEqual,
           loader: wrappedLoader,
           stream: wrappedStream,
-        } as ResourceOptions<any, any>);
+        } as ResourceOptions<any, any> & { ssrSourceName: string });
 
   if (configuredSchemas.loader) {
     const target = resourceTarget as any;
@@ -1781,16 +1791,15 @@ function createQueryRef<
             'query',
             resourceTarget as any,
           ),
+      name,
     ),
   );
 
-  // Capture the raw Angular status BEFORE `Object.assign` overrides
+  // Capture the raw resource status BEFORE `Object.assign` overrides
   // `resourceTarget.status` with the craft computed below (otherwise the craft
   // status computed would read itself and form a computation cycle).
-  // (`as unknown` because the raw Angular ref view — `error` included — is no
-  // longer part of the CraftResourceRef surface.)
   const rawResourceStatus = (
-    resourceTarget as unknown as ResourceRef<QueryState>
+    resourceTarget as unknown as CraftResourceRef<QueryState, QueryParams>
   ).status;
   const publicExceptions = hasConfiguredSchema
     ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
@@ -1978,11 +1987,13 @@ function createQueryRef<
                 >
               ).addById(id as GroupIdentifier & string);
             }
-            // Bump before the set so both writes land in the same tick and the
-            // resource request changes on every call.
-            methodTriggerSeq.update((n) => n + 1);
-            //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
+            //@ts-expect-error exposed method params cannot use the from-resource entity callback shape
             queryResourceParamsFnSignal.set(paramsResult as QueryParams);
+            // Set the params while the trigger is still inactive. The trigger
+            // is intentionally bumped last: Craft watches run synchronously,
+            // so bumping it first would briefly expose the previous params
+            // (undefined on the first call) and start an extra request.
+            methodTriggerSeq.update((n) => n + 1);
             return yieldableInvocation<MethodYielded, QueryParams>(
               paramsResult,
             );

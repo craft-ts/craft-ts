@@ -1,0 +1,4 @@
+interface:
+  display_name: "Translate Spec To craft-ts"
+  short_description: "Map specs to craft-ts utilities"
+  default_prompt: "Use $translate-spec-to-craft-ts to map this functional spec to @craft-ts/core primitives, insertions, and craft utilities."

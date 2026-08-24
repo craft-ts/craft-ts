@@ -1,4 +1,4 @@
-import { DestroyRef, EventEmitter, inject } from '@angular/core';
+import { DestroyRef, EventEmitter, inject } from './host/craft-compat';
 import { craftUse } from './craft-use';
 import type {
   ExtractServiceHelperDependencyMap,
@@ -9,6 +9,11 @@ import type {
 import type { HelperDependencyMap } from './craft-primitive-gen';
 import type { ReadonlySource$ } from './source$';
 import { SourceBranded } from './util/util';
+import type { ServiceTrackedDepsRequest } from './craft-primitive-gen';
+import {
+  ɵactiveMachineScope,
+  ɵregisterMachineSource,
+} from './craft-state-machine-runtime';
 
 type SourceSubscription<SourceType> = {
   subscribe: (callback: (value: SourceType) => void) => { unsubscribe(): void };
@@ -41,6 +46,23 @@ type SourceHelper<Helper extends ServiceReference> =
     ? Helper
     : never;
 
+/**
+ * Inside a `transitionStep(...)`, `on$` is a machine registration: the callback
+ * is driven through the craft runtime with its declaring step restored, so the
+ * `transit(...)` attempts it yields target that step. Consume it with `yield*`
+ * so the callback's dependencies join the machine's dependency graph.
+ */
+export function on$<SourceType, Name extends string, Yielded>(
+  source: ReadonlySource$<SourceType, Name>,
+  callback: (source: SourceType) => Generator<Yielded, unknown, unknown>,
+): Generator<
+  | Yielded
+  | ServiceTrackedDepsRequest<
+      HelperDependencyMap<ReadonlySource$<SourceType, Name>>
+    >,
+  void,
+  unknown
+>;
 export function on$<State, SourceType, Name extends string>(
   source: ReadonlySource$<SourceType, Name>,
   callback: (source: SourceType) => State,
@@ -59,7 +81,17 @@ export function on$<State, SourceType>(
     | ExternalSource<SourceType>
     | ServiceReference,
   callback: (source: SourceType) => State,
-): SourceBranded {
+  // The machine overload resolves to a registration generator instead of a
+  // branded source, so the implementation signature stays deliberately loose.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (ɵactiveMachineScope()) {
+    return ɵregisterMachineSource(
+      source as never,
+      callback as (value: never) => unknown,
+    ) as unknown as SourceBranded;
+  }
+
   const resolvedSource = (
     typeof source === 'function'
       ? craftUse((source as () => Generator)())

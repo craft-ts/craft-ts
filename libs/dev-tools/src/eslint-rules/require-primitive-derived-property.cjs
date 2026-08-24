@@ -1,9 +1,22 @@
-const PRIMITIVES = new Set([
-  'asyncProcess',
-  'mutation',
-  'query',
-  'queryParams',
-  'state',
+const PRIMITIVE_IMPORTS = new Map([
+  [
+    '@craft-ts/core',
+    new Map([
+      ['asyncProcess', 'asyncProcess'],
+      ['mutation', 'mutation'],
+      ['query', 'query'],
+      ['queryParams', 'queryParams'],
+      ['state', 'state'],
+    ]),
+  ],
+  [
+    '@craft-ts/effect',
+    new Map([
+      ['asyncProcessEffect', 'asyncProcess'],
+      ['mutationEffect', 'mutation'],
+      ['queryEffect', 'query'],
+    ]),
+  ],
 ]);
 
 const HOSTS = new Set(['craftComponent', 'craftService', 'toCraftService']);
@@ -47,7 +60,7 @@ module.exports = {
         }
 
         const computation = getComputationFunction(node, computedCall);
-        if (!computation || computation.generator) {
+        if (!computation) {
           return;
         }
 
@@ -66,13 +79,18 @@ module.exports = {
           return;
         }
 
-        const fix = createFix({
-          sourceCode,
-          computedCall: node,
-          computedName: declaredName,
-          computation,
-          dependency,
-        });
+        // Generator computations need a human refactor: their yieldable reads
+        // must become insertion-local reads, so the plain computed autofix
+        // cannot safely rewrite them.
+        const fix = computation.generator
+          ? undefined
+          : createFix({
+              sourceCode,
+              computedCall: node,
+              computedName: declaredName,
+              computation,
+              dependency,
+            });
 
         context.report({
           node,
@@ -102,7 +120,7 @@ function getComputedCall(node, sourceCode) {
 
   if (
     node.callee.name === 'craftComputed' &&
-    resolvesToImport(node.callee, '@craft-ng/core', 'craftComputed', sourceCode)
+    resolvesToImport(node.callee, '@craft-ts/core', 'craftComputed', sourceCode)
   ) {
     return 'craftComputed';
   }
@@ -188,16 +206,15 @@ function getPrimitiveCall(node, sourceCode) {
     return undefined;
   }
 
-  const primitive = getImportedName(
-    current.callee,
-    '@craft-ng/core',
-    sourceCode,
-  );
-  if (!primitive || !PRIMITIVES.has(primitive)) {
-    return undefined;
+  for (const [source, imports] of PRIMITIVE_IMPORTS) {
+    const importedName = getImportedName(current.callee, source, sourceCode);
+    const primitive = imports.get(importedName);
+    if (primitive) {
+      return { node: current, primitive };
+    }
   }
 
-  return { node: current, primitive };
+  return undefined;
 }
 
 function createFix({
@@ -279,7 +296,7 @@ function createPrimitiveInsertionFix(
   const pipeName = PIPE_BY_PRIMITIVE[primitiveName];
   const existingPipe = getImportedName(
     existing.callee,
-    '@craft-ng/core',
+    '@craft-ts/core',
     sourceCode,
   );
   if (
@@ -294,7 +311,7 @@ function createPrimitiveInsertionFix(
   const pipeImportFix = createNamedImportFix(
     fixer,
     sourceCode,
-    '@craft-ng/core',
+    '@craft-ts/core',
     pipeName,
   );
   const existingText = sourceCode.getText(existing);
@@ -398,9 +415,7 @@ function isInsidePrimitive(node, sourceCode) {
     if (
       current.type === 'CallExpression' &&
       current.callee.type === 'Identifier' &&
-      PRIMITIVES.has(
-        getImportedName(current.callee, '@craft-ng/core', sourceCode),
-      )
+      getPrimitiveCall(current, sourceCode)
     ) {
       return true;
     }

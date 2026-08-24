@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
-import type { ChannelsOf, CraftChannelsCarrier } from '@craft-ng/core';
-import { YIELDABLE_VALUE } from '@craft-ng/core';
+import type { ChannelsOf, CraftChannelsCarrier } from '@craft-ts/core';
+import { YIELDABLE_VALUE } from '@craft-ts/core';
 import { div, span } from './hyperscript';
 import { each } from './each';
 import { ifBlock } from './if-block';
@@ -9,7 +9,7 @@ import { craftTemplate, renderTemplate } from './template';
 import { craftComponent } from './component';
 import type { ComponentTemplateChannels } from './render/vnode';
 
-// `@craft-ng/style` does not exist yet, so the specs stand in for it with the
+// `@craft-ts/style` does not exist yet, so the specs stand in for it with the
 // only two shapes it will ever hand the tree: a class that demands something of
 // an ancestor, and a class that answers such a demand. Both ride on a prop,
 // which is exactly where the real ones will ride.

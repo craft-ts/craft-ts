@@ -95,7 +95,7 @@ Trois décisions de conception qui n'étaient pas dans le plan :
 1. **Un élément ne prend pas de paramètre de canal, il le dérive** de ses props et de
    ses enfants. Un paramètre en queue, même défaillé à `EmptyChannels`, est **imprimé
    dans les déclarations émises** — la première version faisait apparaître
-   `import("@craft-ng/core").EmptyChannels` dans chaque `.d.ts` de la lib. En dérivant,
+   `import("@craft-ts/core").EmptyChannels` dans chaque `.d.ts` de la lib. En dérivant,
    les 170 `.d.ts` émis par `libs/component` sont **identiques au byte près**, sauf les
    trois fichiers réellement modifiés (`vnode`, `types`, `channels`). C'est le critère
    de non-régression de la tâche 2, step 2 — et il ne passe que sous cette forme.

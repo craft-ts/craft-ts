@@ -1,4 +1,4 @@
-import type { ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import type { ActivatedRouteSnapshot, RouterStateSnapshot } from './host/craft-router-types';
 import type { StripCraftException } from './craft-exception';
 
 /**

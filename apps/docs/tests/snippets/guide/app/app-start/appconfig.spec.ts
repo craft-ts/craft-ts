@@ -5,12 +5,12 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region appconfig
-import { Console, craftAppConfig, craftService, onAppStart } from '@craft-ng/core';
+import { Console, craftAppConfig, craftService, onAppStart } from '@craft-ts/core';
 
 const { AppStartLog } = craftService(
   {
     name: 'AppStartLog',
-    scope: 'global',
+    providedIn: 'global',
     appStart: true,
   },
   function* () {
@@ -23,7 +23,7 @@ const { AppStartLog } = craftService(
   },
 );
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftAppStartRegistry {
     AppStartLog: typeof AppStartLog;
   }

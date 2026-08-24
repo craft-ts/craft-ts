@@ -15,6 +15,12 @@ import {
   runRouteVerification,
   type RouteVerificationResult,
 } from '../scripts/routes/verify-routes.js';
+import {
+  createCraftProject,
+  createModeFromFlag,
+  parseCreateAgents,
+} from '../scripts/create/create-project.js';
+import { runSecurityCheck } from '../scripts/security-check.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -27,6 +33,9 @@ type CommonOptions = {
 };
 
 async function main(argv: string[]): Promise<number> {
+  if (argv[0] === 'create') {
+    return await runCreate(argv.slice(1));
+  }
   if (argv[0] === 'graph') {
     const { spawn } = await import('node:child_process');
     const { fileURLToPath } = await import('node:url');
@@ -38,6 +47,27 @@ async function main(argv: string[]): Promise<number> {
       child.on('exit', (code) => resolve(code ?? 1));
       child.on('error', () => resolve(1));
     });
+  }
+  if (argv[0] === 'security' && argv[1] === 'check') {
+    const rootIndex = argv.indexOf('--root');
+    const rootDir = rootIndex >= 0 ? argv[rootIndex + 1] : process.cwd();
+    const result = runSecurityCheck({ rootDir, strict: argv.includes('--strict') });
+    for (const diagnostic of result.diagnostics) {
+      const line = `${diagnostic.file}:${diagnostic.line} ${diagnostic.code}: ${diagnostic.message}`;
+      if (diagnostic.severity === 'error') console.error(line);
+      else console.warn(`warning ${line}`);
+    }
+    const errors = result.diagnostics.filter(
+      (diagnostic) => diagnostic.severity === 'error',
+    ).length;
+    if (result.passed) {
+      console.log(
+        `Craft security check passed${result.diagnostics.length > 0 ? ` (${result.diagnostics.length} warning(s))` : ''}.`,
+      );
+    } else {
+      console.error(`Craft security check failed with ${errors} error(s).`);
+    }
+    return result.passed ? 0 : 1;
   }
   if (argv[0] !== 'route' || !['add', 'split', 'verify'].includes(argv[1] ?? '')) {
     printHelp();
@@ -190,6 +220,104 @@ function parseArgs(argv: string[]) {
   return { values, flags, positionals, help };
 }
 
+type CreateArgs = {
+  directory?: string;
+  effect?: string;
+  agents?: string;
+  flags: Set<string>;
+  help: boolean;
+};
+
+function parseCreateArgs(argv: string[]): CreateArgs {
+  const result: CreateArgs = { flags: new Set(), help: false };
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--help' || argument === '-h') {
+      result.help = true;
+      continue;
+    }
+    if (argument === '--no-effect') {
+      result.effect = 'none';
+      continue;
+    }
+    if (argument === '--effect' || argument === '--agents') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) {
+        throw new Error(`Missing value for ${argument}.`);
+      }
+      if (argument === '--effect') result.effect = value;
+      else result.agents = value;
+      continue;
+    }
+    if (argument.startsWith('--effect=')) {
+      result.effect = argument.slice('--effect='.length);
+      continue;
+    }
+    if (argument.startsWith('--agents=')) {
+      result.agents = argument.slice('--agents='.length);
+      continue;
+    }
+    if (argument === '--yes' || argument === '--force' || argument === '--json') {
+      result.flags.add(argument.slice(2));
+      continue;
+    }
+    if (argument.startsWith('--')) {
+      throw new Error(`Unknown option ${argument}.`);
+    }
+    if (result.directory) throw new Error('create accepts one destination directory.');
+    result.directory = argument;
+  }
+  return result;
+}
+
+async function runCreate(argv: string[]): Promise<number> {
+  const parsed = parseCreateArgs(argv);
+  if (parsed.help) {
+    printHelp();
+    return 0;
+  }
+  const readline = createInterface({ input, output });
+  try {
+    // This is intentionally the first question in the interactive flow: the
+    // Effect v4 choice changes both dependencies and the installed skills.
+    const mode = createModeFromFlag(
+      parsed.effect ??
+        (parsed.flags.has('yes')
+          ? 'none'
+          : (await readline.question('Use EffectTS v4? [y/N] ')).trim().toLowerCase().startsWith('y')
+            ? 'v4'
+            : 'none'),
+    );
+    const directory =
+      parsed.directory ?? (await readline.question('Project directory: ')).trim();
+    if (!directory) throw new Error('A destination directory is required.');
+    const agentsValue =
+      parsed.agents ??
+      (parsed.flags.has('yes')
+        ? undefined
+        : await readline.question(
+            'Agent integrations [codex,cursor,claude-code,cloud-code] (empty = Codex): ',
+          ));
+    const agents = parseCreateAgents(agentsValue);
+    const result = await createCraftProject({
+      directory,
+      mode,
+      agents,
+      force: parsed.flags.has('force'),
+    });
+    if (parsed.flags.has('json')) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Created ${result.mode === 'effect' ? 'Effect v4' : 'plain'} CraftTS app at ${result.directory}`);
+      console.log(`Agents: ${result.agents.length > 0 ? result.agents.join(', ') : 'none'}`);
+      console.log(`Next: cd ${result.directory} && npm install && npm run dev`);
+    }
+    return 0;
+  } finally {
+    readline.close();
+  }
+}
+
 function printResult(result: RouteCommandResult, json: boolean): void {
   if (json) {
     console.log(JSON.stringify(result, null, 2));
@@ -229,12 +357,19 @@ function printVerificationResult(
 
 function printHelp(): void {
   console.log(`Usage:
+  craft create [directory] [options]
   craft graph [options]
+  craft security check [--strict] [--root <dir>]
   craft route add [path] [options]
   craft route split --parent <file#collection> --prefix <path> --target <file>
   craft route verify [options]
 
 Options:
+  --effect <v4|none>           Select the Effect v4 or plain CraftTS starter
+  --no-effect                  Alias for --effect none
+  --agents <list>              codex,cursor,claude-code,cloud-code (or none)
+  --force                      Merge into a non-empty destination directory
+  --json                       Emit the creation result as JSON
   --root <dir>                 Workspace root (defaults to cwd)
   --project <name|tsconfig>    Angular project or tsconfig
   --parent <file#collection>   Parent craftRoutes collection

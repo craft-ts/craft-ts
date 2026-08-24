@@ -15,24 +15,12 @@ import {
   setupCraftComponentTemplateTest,
   setupCraftDirectiveLogicTest,
   setupCraftDirectiveTemplateTest,
-} from '@craft-ng/component/testing';
+} from '@craft-ts/component/testing';
 ```
 
-They complement the existing Angular setup and deliberately separate the
-factory from rendering. Each utility also exposes a `.byRegister(...)` form,
-which makes the services used by the tested code explicit.
-
-The package also re-exports the legacy registry-based setups:
-
-```ts
-import {
-  setupCraftServiceTestingByRegister,
-  setupCraftComponentTestingByRegister,
-} from '@craft-ng/component/testing';
-```
-
-They remain compatible with the existing test setup and can be used in the
-same file as the logic/template utilities.
+They deliberately separate the factory from rendering. Each utility also
+exposes a `.byRegister(...)` form, which makes the services used by the tested
+code explicit.
 
 ## Component logic
 
@@ -113,7 +101,7 @@ const saveButton = button(
 The same pattern works with every built-in helper:
 
 ```ts
-import { input } from '@craft-ng/component';
+import { input } from '@craft-ts/component';
 
 const searchInput = input('search', { 'aria-label': 'Search' }, []);
 ```
@@ -128,9 +116,9 @@ the `content` criterion. The locator does not inspect the rendered value, so
 this also works for non-text values and remains independent of formatting:
 
 ```typescript
-import { signal } from '@angular/core';
-import { span, craftComponent } from '@craft-ng/component';
-import { markYieldableValue, state } from '@craft-ng/core';
+import { craftSignal as signal } from '@craft-ts/core';
+import { span, craftComponent } from '@craft-ts/component';
+import { markYieldableValue, state } from '@craft-ts/core';
 
 const Status = craftComponent(
   'Status',

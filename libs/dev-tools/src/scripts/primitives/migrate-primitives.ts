@@ -557,10 +557,10 @@ function isValidateAsyncRxResourceCall(call: CallExpression): boolean {
 }
 
 function ensureCoreImports(file: SourceFile, names: string[]): void {
-  let declaration = file.getImportDeclaration('@craft-ng/core');
+  let declaration = file.getImportDeclaration('@craft-ts/core');
   if (!declaration)
     declaration = file.addImportDeclaration({
-      moduleSpecifier: '@craft-ng/core',
+      moduleSpecifier: '@craft-ts/core',
     });
   const existing = new Set(
     declaration.getNamedImports().map((item) => item.getName()),

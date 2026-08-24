@@ -1,0 +1,123 @@
+graph TD
+  n0[/"appConfig"/]
+  n1["App"]
+  n2["EffectLayerScopeComponent"]
+  n3["EffectSharedServiceComponent"]
+  n4["EffectYieldComponent"]
+  n5["AiContextMenu"]
+  n6["AiSendDialog"]
+  n7["craftPending"]
+  n8["CraftRouterOutlet"]
+  n9["AnonymousComponent@800"]
+  n10["craftComputed:globalLabel"]
+  n11["craftComputed:routeLabel"]
+  n12["craftComputed:greeting"]
+  n13["state:request — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n14["craftComputed:hasUser"]
+  n15["craftComputed:userExceptionLoader"]
+  n16["craftComputed:userIsLoading"]
+  n17["craftComputed:userName"]
+  n18["state:request — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n19["craftMethod:setInstruction"]
+  n20["craftMethod:setCopied"]
+  n21["state:instruction"]
+  n22["state:copied"]
+  n23["state:request.greet"]
+  n24["state:request.run"]
+  n25[["CanRun _CanRunEffectLayerScope"]]
+  n26[["CanRun _CanRunEffectSharedService"]]
+  n27[["CanRun _CanRunEffectYield"]]
+  n28[["RouteCheckedDI _CheckEffectLayerScopeDI"]]
+  n29[["RouteCheckedDI _CheckEffectSharedServiceDI"]]
+  n30[["RouteCheckedDI _CheckEffectYieldDI"]]
+  n31[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoEffectRoutes"]]
+  n32["demo-effect:.handleExceptions"]
+  n33{{"demo-effect:"}}
+  n34{{"demo-effect:layer-scope"}}
+  n35{{"demo-effect:shared-service"}}
+  n36(["BrowserCryptoService"])
+  n37(["BrowserDocumentService"])
+  n38(["BrowserHistoryService"])
+  n39(["BrowserLocationService"])
+  n40(["BrowserNavigatorService"])
+  n41(["BrowserPerformanceService"])
+  n42(["BrowserWindowService"])
+  n43(["ConsoleService"])
+  n44(["CookiesService"])
+  n45(["LocalStorageService"])
+  n46(["SessionStorageService"])
+  n47(["api"])
+  n48(["HostName"])
+  n49(["GlobalPersisterHandlerService"])
+  n50(["ServerFunctionTransport"])
+  n51(["LocalStoragePersister"])
+  n52(["SessionStoragePersister"])
+  n53(["StoragePersister"])
+  n54(["GlobalLayerService"])
+  n55(["GreetingService"])
+  n56(["RouteLayerService"])
+  n57["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
+  n58["source$ (source$) — libs/core/src/lib/insert-select.ts"]
+  n59["signalSource (signalSource)"]
+  n60["exampleLink"]
+  n61["adaButton"]
+  n62["graceButton"]
+  n63["linusButton"]
+  n64["successButton"]
+  n65["notFoundButton"]
+  n66["unauthorizedButton"]
+  n67["defectButton"]
+  n68["aiContextMenu"]
+  n69["aiSendToIa"]
+  n70["aiDialogClose"]
+  n71["aiDialogInstruction"]
+  n72["aiDialogCancel"]
+  n73["aiDialogCopy"]
+  n1 -->|contains| n60
+  n1 -->|renders| n8
+  n2 -->|contains| n10
+  n2 -->|contains| n11
+  n2 -->|uses-property| n10
+  n2 -->|uses-property| n11
+  n3 -->|calls| n23
+  n3 -->|contains| n12
+  n3 -->|contains| n13
+  n3 -->|contains| n61
+  n3 -->|contains| n62
+  n3 -->|contains| n63
+  n3 -->|uses-property| n12
+  n4 -->|calls| n24
+  n4 -->|contains| n14
+  n4 -->|contains| n15
+  n4 -->|contains| n16
+  n4 -->|contains| n17
+  n4 -->|contains| n18
+  n4 -->|contains| n64
+  n4 -->|contains| n65
+  n4 -->|contains| n66
+  n4 -->|contains| n67
+  n5 -->|contains| n68
+  n5 -->|contains| n69
+  n6 -->|contains| n19
+  n6 -->|contains| n20
+  n6 -->|contains| n21
+  n6 -->|contains| n22
+  n6 -->|contains| n70
+  n6 -->|contains| n71
+  n6 -->|contains| n72
+  n6 -->|contains| n73
+  n13 -->|contains| n23
+  n18 -->|contains| n24
+  n25 -->|contains| n28
+  n26 -->|contains| n29
+  n27 -->|contains| n30
+  n28 -->|checks| n34
+  n29 -->|checks| n35
+  n30 -->|checks| n33
+  n31 -->|checks| n33
+  n31 -->|checks| n34
+  n31 -->|checks| n35
+  n33 -->|contains| n32
+  n33 -->|loads| n4
+  n34 -->|loads| n2
+  n35 -->|loads| n3

@@ -4,7 +4,7 @@ import {
   Injector,
   type Signal,
   untracked,
-} from '@angular/core';
+} from '../host/craft-compat';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import {
   CraftExceptionResult,
@@ -109,7 +109,7 @@ type ExceptionsByValidatorFromTuple<
         ? MergeObject<
             Acc,
             {
-              [Key in M['code']]: Head;
+              [Key in M['_tag']]: Head;
             }
           >
         : Head

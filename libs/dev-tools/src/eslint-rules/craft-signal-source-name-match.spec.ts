@@ -23,7 +23,7 @@ describe('craft-signal-source-name-match', () => {
   it('accepts a const whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { signalSource } from '@craft-ng/core';
+        import { signalSource } from '@craft-ts/core';
 
         const search = signalSource<string>('search');
       `,
@@ -35,7 +35,7 @@ describe('craft-signal-source-name-match', () => {
   it('accepts a class property whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { signalSource } from '@craft-ng/core';
+        import { signalSource } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly search = signalSource<string>('search');
@@ -49,7 +49,7 @@ describe('craft-signal-source-name-match', () => {
   it('accepts an object property whose first arg matches its key', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { signalSource } from '@craft-ng/core';
+        import { signalSource } from '@craft-ts/core';
 
         const insertions = {
           search: signalSource<string>('search'),
@@ -63,7 +63,7 @@ describe('craft-signal-source-name-match', () => {
   it('reports a mismatch between object property key and first arg', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { signalSource } from '@craft-ng/core';
+        import { signalSource } from '@craft-ts/core';
 
         const insertions = {
           search: signalSource<string>('wrong'),
@@ -79,7 +79,7 @@ describe('craft-signal-source-name-match', () => {
   it('reports a missing first arg on a const', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { signalSource } from '@craft-ng/core';
+        import { signalSource } from '@craft-ts/core';
 
         const search = signalSource<string>();
       `,
@@ -94,7 +94,7 @@ describe('craft-signal-source-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { signalSource } from '@craft-ng/core';
+          import { signalSource } from '@craft-ts/core';
 
           const search = signalSource<string>('wrong');
         `,
@@ -109,7 +109,7 @@ describe('craft-signal-source-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { signalSource } from '@craft-ng/core';
+          import { signalSource } from '@craft-ts/core';
 
           const search = signalSource<string>();
         `,
@@ -123,7 +123,7 @@ describe('craft-signal-source-name-match', () => {
   it('ignores signalSource calls not assigned to a known name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { signalSource } from '@craft-ng/core';
+        import { signalSource } from '@craft-ts/core';
 
         export function createSource() {
           return signalSource<string>('search');
@@ -160,7 +160,7 @@ async function lintFixture(
       2,
     ),
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function signalSource<T>(...args: unknown[]): unknown;
       }
     `,

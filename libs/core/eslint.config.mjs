@@ -1,15 +1,28 @@
-import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
+import craftRules from '../dev-tools/src/eslint-rules/index.cjs';
 
 export default [
   ...baseConfig,
+  {
+    // Les libs implémentent les garde-fous : elles s'y soumettent aussi, à
+    // l'exception documentée près (exemptions `craft-security-ignore` et
+    // `eslint-disable` justifiés dans les fichiers concernés).
+    files: ['**/src/**/*.ts'],
+    ignores: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      ...craftRules.configs.security.rules,
+    },
+  },
   {
     files: ['**/*.json'],
     rules: {
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredDependencies: ['@angular/compiler', 'vitest'],
+          ignoredDependencies: ['vitest'],
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
         },
       ],
@@ -18,27 +31,14 @@ export default [
       parser: await import('jsonc-eslint-parser'),
     },
   },
-  ...nx.configs['flat/angular'],
-  ...nx.configs['flat/angular-template'],
   {
     files: ['**/*.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
     rules: {
-      '@angular-eslint/directive-selector': [
-        'error',
-        {
-          type: 'attribute',
-          prefix: ['lib', 'craft'],
-          style: 'camelCase',
-        },
-      ],
-      '@angular-eslint/component-selector': [
-        'error',
-        {
-          type: 'element',
-          prefix: ['lib', 'craft'],
-          style: 'kebab-case',
-        },
-      ],
+      'craft-ts/no-invalid-insertion-pipe': 'error',
+      'craft-ts/no-redundant-primitive-insertion': 'error',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -51,21 +51,18 @@ export default [
       '@typescript-eslint/no-unsafe-function-type': 'off',
       '@typescript-eslint/no-empty-interface': 'off',
       '@typescript-eslint/no-namespace': 'off',
-      '@angular-eslint/no-input-rename': 'off',
     },
   },
   {
     files: ['**/*.spec.ts'],
     rules: {
+      '@nx/enforce-module-boundaries': 'off',
       'no-constant-condition': 'off',
       'no-empty': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-inferrable-types': 'off',
       '@typescript-eslint/no-unused-expressions': 'off',
-      '@angular-eslint/component-selector': 'off',
-      '@angular-eslint/directive-selector': 'off',
-      '@angular-eslint/template/elements-content': 'off',
     },
   },
   {

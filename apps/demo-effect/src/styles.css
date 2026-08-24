@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  font-family: 'Chivo', Arial, Helvetica, sans-serif;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #f8fafc;
+}
+
+body {
+  color: #1e293b;
+}

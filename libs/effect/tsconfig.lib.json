@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../dist/out-tsc",
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSources": true,
+    "types": []
+  },
+  "include": ["**/*.ts"],
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.fixture.ts",
+    "vitest.config.ts",
+    "vitest.config.mts"
+  ],
+  "references": [
+    {
+      "path": "../core/tsconfig.lib.json"
+    }
+  ]
+}

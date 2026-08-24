@@ -1,4 +1,6 @@
-import { signal } from '@angular/core';
+import {
+  signal,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import {
@@ -7,11 +9,11 @@ import {
   removeResourceExceptionById,
 } from './resource-exception';
 
-const ex = (code: string) => craftException({ code });
+const ex = (code: string) => craftException({ _tag: code });
 
 describe('enrichResourceException', () => {
   it('sets scope and mirrors the payload under the exception code key', () => {
-    const exception = craftException({ code: 'notFound' }, { id: 1 });
+    const exception = craftException({ _tag: 'notFound' }, { id: 1 });
     const enriched = enrichResourceException(exception, { scope: 'loader' });
     expect(enriched.scope).toBe('loader');
     expect((enriched as Record<string, unknown>)['notFound']).toEqual({

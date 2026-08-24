@@ -1,4 +1,4 @@
-import { inject } from '@angular/core';
+import { inject } from './host/craft-compat';
 import { craftException } from './craft-exception';
 import { craftGen, type CraftGenInvocation } from './craft-gen';
 import {
@@ -23,7 +23,7 @@ export interface CraftLazyLoadErrorPayload {
 /** Builds the `craftException` `craftLazy` returns when an import finally fails. */
 export function createCraftLazyLoadError(cause: unknown) {
   return craftException(
-    { code: CRAFT_LAZY_LOAD_ERROR_CODE, scope: 'CraftLazy' },
+    { _tag: CRAFT_LAZY_LOAD_ERROR_CODE, scope: 'CraftLazy' },
     { cause } satisfies CraftLazyLoadErrorPayload,
   );
 }

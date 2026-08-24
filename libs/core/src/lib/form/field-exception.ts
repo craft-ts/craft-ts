@@ -1,4 +1,4 @@
-import { InjectionToken, type Signal } from '@angular/core';
+import { InjectionToken, type Signal } from '../host/craft-compat';
 import type { AnyCraftException } from '../craft-exception';
 import type { CraftField } from './craft-field';
 import type { ValidatorOutput } from './validator';
@@ -8,7 +8,7 @@ export declare const CRAFT_FIELD_VALIDATION_CASES: unique symbol;
 
 /** Runtime validation source exposed by `insertFormAttributes`. */
 export const CRAFT_FIELD_EXCEPTION_SOURCE = Symbol.for(
-  '@craft-ng/core/field-exception-source',
+  '@craft-ts/core/field-exception-source',
 );
 
 /** Type-only validator metadata emitted by `insertFormAttributes`. */

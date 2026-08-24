@@ -1,0 +1,50 @@
+import { describe, expect, it, vi } from 'vitest';
+import { setupCraftServiceTest } from '../setup-craft-service-test';
+import { EnvironmentInjector, inject } from './craft-compat';
+import { craftLinkedSignal } from './craft-linked-signal';
+import { craftSignal } from './craft-signal';
+
+describe('craftLinkedSignal', () => {
+  it('stops watching Craft sources when DestroyRef destroys', () => {
+    const { injector } = setupCraftServiceTest();
+    const source = craftSignal(0);
+    const linked = injector.run(() =>
+      craftLinkedSignal({
+        source: () => source(),
+        computation: (current) => current,
+      }),
+    );
+
+    expect(linked()).toBe(0);
+    source.set(1);
+    expect(linked()).toBe(1);
+
+    injector.run(() => inject(EnvironmentInjector).destroy());
+
+    source.set(2);
+    expect(linked()).toBe(1);
+  });
+
+  it('stops watching Craft sources when destroy() is called', () => {
+    const { injector } = setupCraftServiceTest();
+    const source = craftSignal(0);
+    const sourceFn = vi.fn(() => source());
+    const linked = injector.run(() =>
+      craftLinkedSignal({
+        source: sourceFn,
+        computation: (current) => current,
+      }),
+    );
+
+    expect(linked()).toBe(0);
+    source.set(1);
+    expect(linked()).toBe(1);
+
+    sourceFn.mockClear();
+    linked.destroy();
+
+    source.set(2);
+    expect(sourceFn).not.toHaveBeenCalled();
+    expect(linked()).toBe(1);
+  });
+});

@@ -36,13 +36,6 @@ const tasks = yield* state('tasks', []);
 `yield*` also folds whatever the primitive depends on into the enclosing
 dependency tree, which is what the route DI check and the test registers read.
 
-::: tip `craftUse` is for Angular interop
-In an Angular `@Component` class there is no generator to yield from, so you
-drive the primitive with `craftUse(state('tasks', []))` in a class field
-instead. Same primitive, same result — but a class field is the end of the
-graph, so there is nothing to track into.
-:::
-
 ## It resolves to the primitive reference
 
 Every named primitive returns its reference directly:
@@ -56,7 +49,7 @@ and exposes the primitive reference itself:
 
 ```typescript
 const { MyService } = craftService(
-  { name: 'MyService', scope: 'global' },
+  { name: 'MyService', providedIn: 'global' },
   () => state('counter', 0),
 );
 ```
@@ -73,10 +66,10 @@ import {
   query,
   state,
   type CraftServiceInput,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 const { UserQuery } = craftService(
-  { name: 'UserQueryWithState', scope: 'global' },
+  { name: 'UserQueryWithState', providedIn: 'global' },
   (inputs: { userId: CraftServiceInput<string | undefined> }) =>
     craftYieldRecord({
       userQuery: query('userQuery', {
@@ -135,7 +128,7 @@ query('userQuery', {
 Everyday insertions already receive `set`, `update`, and `patch` as arguments.
 Keep using that.
 
-Each primitive also **provides those same writes through Angular DI** on every
+Each primitive also **provides those same writes through Craft DI** on every
 insertion method. Wrappers, registries, tests, WebMCP tools, and other
 advanced patterns can recover them without being passed the insertion context
 — for example to seed a query result, patch a mutation value, or drive a
@@ -181,7 +174,7 @@ the root.
 import {
   injectQueryMethodRuntimeContext,
   provideFnWrapper,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 provideFnWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -206,7 +199,7 @@ import {
   providePrimitiveResourceRuntimeObserver,
   query,
   type PrimitiveResourceRuntimeContext,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 let usersRuntime: PrimitiveResourceRuntimeContext | undefined;
 
@@ -227,8 +220,8 @@ const users = yield* query('users', {
 usersRuntime?.set([{ id: 'stub', name: 'Preview' }]);
 ```
 
-The Angular `InjectionToken` behind these helpers is not part of the public
-API. Inject the helpers; do not look up the token yourself.
+The internal token behind these helpers is not part of the public API. Use the
+helpers; do not look up the token yourself.
 
 ## Reading a value that may have failed
 

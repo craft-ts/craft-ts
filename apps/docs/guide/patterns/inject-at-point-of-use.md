@@ -1,8 +1,7 @@
 # Inject at the point of use
 
 This page introduces the first **recommended approach** for structuring a
-Craft application. It is not a catalogue of "bad" Angular code: Angular and
-Craft make different trade-offs. The useful rule is simple:
+Craft application. The useful rule is simple:
 
 > **Get what you need where you need it.**
 
@@ -11,10 +10,10 @@ needs an API method, the query yields that method. If a route guard needs the
 current user, the guard yields the user service. There is no need to add an
 intermediary method to a component just to forward the call.
 
-## The usual Angular shape
+## The forwarding shape to avoid
 
-In a conventional Angular component, the API dependency is often injected into
-the class and then exposed through a method that performs the request:
+A component should not own dependency resolution, request orchestration, state
+storage, and loading/error handling in one method:
 
 ```typescript
 export class TasksComponent {
@@ -28,9 +27,9 @@ export class TasksComponent {
 }
 ```
 
-This is perfectly valid Angular. But the component now owns several different
-responsibilities: it resolves the API, starts the request, stores the result,
-and usually has to reproduce loading and error handling as well.
+This shape gives the component several different responsibilities: it resolves
+the API, starts the request, stores the result, and usually reproduces loading
+and error handling as well.
 
 The actual dependency is also hidden from the outside. Looking at the public
 type of `TasksComponent` does not tell the compiler, a route, or a test that
@@ -40,12 +39,11 @@ type of `TasksComponent` does not tell the compiler, a route, or a test that
 
 With Craft, the component declares the query directly, and the query yields
 exactly the API operation it needs. In this example, `TaskApi` is a crafted
-service (or an existing Angular service adapted with
-[`toCraftService`](/guide/app/integrate-existing)):
+service (or a small boundary adapter):
 
 ```typescript
-import { craftComponent, each, ifBlock, li, p, ul } from '@craft-ng/component';
-import { query } from '@craft-ng/core';
+import { craftComponent, each, ifBlock, li, p, ul } from '@craft-ts/component';
+import { query } from '@craft-ts/core';
 
 export const Tasks = craftComponent(
   'Tasks',

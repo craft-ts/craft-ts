@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/schema",
   "$id": "CraftRouteSplit",
-  "title": "Split Craft NG routes into a lazy collection",
+  "title": "Split CraftTS routes into a lazy collection",
   "type": "object",
   "properties": {
     "project": {

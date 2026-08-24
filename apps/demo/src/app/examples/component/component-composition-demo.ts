@@ -4,7 +4,7 @@ import {
   craftService,
   craftComputed,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   button,
   catchTag,
@@ -13,11 +13,11 @@ import {
   section,
   withProviders,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
-const noAccess = craftException({ code: 'NO_ACCESS' });
+const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
-  { name: 'restrictedData', scope: 'abstract' },
+  { name: 'restrictedData', providedIn: 'abstract' },
   abstract<string | typeof noAccess>(),
 );
 
@@ -30,7 +30,7 @@ const restrictedContent = craftComponent(
   ({ value }) =>
     p(
       { class: 'component-demo__restricted-content' },
-      `Donnée privée : ${value}`,
+      `Private data: ${value}`,
     ),
 );
 
@@ -55,7 +55,7 @@ export const componentCompositionDemo = craftComponent(
       ({ set }) => ({
         showNoAccessText: () =>
           set(
-            'NO_ACCESS géré par catchTag (la boundary ne rend pas de template).',
+            'NO_ACCESS handled by catchTag (the boundary renders no template).',
           ),
       }),
     );
@@ -66,16 +66,16 @@ export const componentCompositionDemo = craftComponent(
   },
   ({ canReadRestrictedData, lastHandledException }) =>
     section({ class: 'component-demo component-demo__composition-page' }, [
-      heading('Composition réactive avec providers'),
+      heading('Reactive composition with providers'),
       p(
-        'Le provider fournit les données au composant. Cliquez pour passer par le handler NO_ACCESS, puis revenir au template.',
+        'The provider supplies data to the component. Click to go through the NO_ACCESS handler, then back to the template.',
       ),
       button('accessToggle',
         { type: 'button',
           class: 'component-demo__access-toggle',
           click: canReadRestrictedData.toggle,
         },
-        'Changer les droits',
+        'Toggle access',
       ),
       p(lastHandledException),
       restrictedContent.pipe(

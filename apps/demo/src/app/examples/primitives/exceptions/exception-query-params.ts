@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -8,20 +8,20 @@ import {
   section,
   strong,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftMethod,
   CraftRouter,
   queryParams,
   craftComputed,
   craftException,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 function formatParseException(exception: {
-  code: string;
+  _tag: string;
   payload: { error: unknown };
 }) {
-  return `${exception.code}: ${exception.payload.error}`;
+  return `${exception._tag}: ${exception.payload.error}`;
 }
 
 const ExceptionQueryParamsComponent = craftComponent(
@@ -76,7 +76,7 @@ const ExceptionQueryParamsComponent = craftComponent(
               decode: ((value: string) => {
                 if (value !== 'success') {
                   return craftException(
-                    { code: 'UNEXPECTED_ERROR' },
+                    { _tag: 'UNEXPECTED_ERROR' },
                     { error: new Error(`Invalid mode: ${value}`) },
                   );
                 }
@@ -92,6 +92,17 @@ const ExceptionQueryParamsComponent = craftComponent(
           'hasParseException',
           function* () {
             return (yield* exceptions()).parse.mode !== undefined;
+          },
+        ),
+        parseExceptionMessage: craftComputed(
+          'parseExceptionMessage',
+          function* () {
+            return formatParseException(
+              (yield* exceptions()).parse.mode as {
+                _tag: string;
+                payload: { error: unknown };
+              },
+            );
           },
         ),
       }),
@@ -138,14 +149,7 @@ const ExceptionQueryParamsComponent = craftComponent(
         () =>
           p([
             strong('Exception: '),
-            function* () {
-              return formatParseException(
-                (yield* modeQueryParams.exceptions()).parse.mode as {
-                  code: string;
-                  payload: { error: unknown };
-                },
-              );
-            },
+            modeQueryParams.parseExceptionMessage,
           ]),
         () => p([strong('Exception: '), 'none']),
       ),

@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './query.css' with { loader: 'text' };
 import {
   button,
@@ -9,7 +9,7 @@ import {
   p,
   pre,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftMethod,
   CraftRouter,
@@ -18,7 +18,7 @@ import {
   insertQueryPipe,
   query,
   craftComputed,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
@@ -41,7 +41,7 @@ const GlobalQuery = craftComponent(
         params: userId,
         preservePreviousValue: () => true,
         loader: function* ({ params }) {
-          return yield* ApiService.getItemById(params);
+          return yield* ApiService.getItemById(params as string);
         },
       },
       insertQueryPipe(

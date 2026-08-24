@@ -1,10 +1,9 @@
-import '@angular/compiler';
-import { ApplicationInitStatus, InjectionToken, Type } from '@angular/core';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
+  ApplicationInitStatus,
+  InjectionToken,
+  Type,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 import type { AppCheckedDI } from './app-checked-di';
 import { GetDeps } from './branded-component/branded-component';
@@ -22,29 +21,14 @@ import {
   GetServiceDependencies,
   onAppStart,
   runServiceAppStart,
-  toCraftService,
+  ɵtoCraftService as toCraftService,
 } from './craft-service';
 import { craftUse } from './craft-use';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('craftAppConfig', () => {
   it('should expose APP_CONFIG_META_DATA with computed missing providers', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -91,7 +75,7 @@ describe('craftAppConfig', () => {
 
   it('should remove app providers from APP_CONFIG_META_DATA', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -131,7 +115,7 @@ describe('craftAppConfig', () => {
 
   it('should ignore plain Angular providers when extracting Craft provider names', () => {
     const { provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
     const token = new InjectionToken<string>('plain-provider');
@@ -152,7 +136,7 @@ describe('craftAppConfig', () => {
 
   it('should make app providers available to AppCheckedDI for AppComponent', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -180,7 +164,7 @@ describe('craftAppConfig', () => {
 
   it('should remove app providers from lazy child routes in APP_CONFIG_META_DATA', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -236,7 +220,7 @@ describe('craftAppConfig', () => {
 
     const { CraftRouter, provideCraftRouter } = toCraftService({
       name: 'CraftRouter',
-      scope: 'manuallyProvidedAtRoot',
+      providedIn: 'manuallyProvidedAtRoot',
       token: RouterLike,
       provide: () => [
         {
@@ -283,7 +267,7 @@ describe('craftAppConfig', () => {
 
   it('should include generator guard missing providers in APP_CONFIG_META_DATA', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       () => 1,
     );
 
@@ -330,7 +314,7 @@ describe('craftAppConfig', () => {
     type User = { id: string };
 
     const { UsersApi } = craftService(
-      { name: 'UsersApi', scope: 'global' },
+      { name: 'UsersApi', providedIn: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
@@ -471,7 +455,7 @@ describe('craftAppConfig appStart', () => {
     craftService(
       {
         name: 'GeneratorAppStart',
-        scope: 'global',
+        providedIn: 'global',
         appStart: true,
       },
       function* () {
@@ -508,7 +492,7 @@ describe('craftAppConfig appStart', () => {
     const { NestedAppStart } = craftService(
       {
         name: 'NestedAppStart',
-        scope: 'global',
+        providedIn: 'global',
         appStart: true,
       },
       function* () {

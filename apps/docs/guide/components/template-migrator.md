@@ -2,10 +2,10 @@
 
 Paste an HTML snippet or a web component from a UI library's documentation. The
 converter generates the equivalent Craft functional template and the imports it
-needs from `@craft-ng/component`.
+needs from `@craft-ts/component`.
 
 **Use it to** bring markup from outside — a design system's docs, a CodePen, an
-existing Angular template — into Craft's template syntax without transcribing it
+existing template markup — into Craft's template syntax without transcribing it
 by hand.
 
 <CraftTemplateMigrator />
@@ -20,11 +20,11 @@ custom tags become `customElement('my-element', ...)`.
 
 ## Pitfalls
 
-**Angular interpolations and bindings are preserved as expressions**, not
-translated. Adapt them to your Craft context.
+**Interpolations and bindings are preserved as expressions**, not translated.
+Adapt them to your Craft context.
 
-**`*ngIf`, `*ngFor` and Angular control-flow blocks are not converted.** Rewrite
-them with `ifBlock` or `each`.
+**Control-flow directives are not converted.** Rewrite conditional and repeated
+sections with `ifBlock` or `each`.
 
 ## See Also
 

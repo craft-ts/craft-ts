@@ -1,0 +1,12 @@
+services:
+  demo-ssr:
+    build:
+      context: .
+      dockerfile: apps/demo-ssr/Dockerfile
+    ports:
+      - '4300:4300'
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4300
+      GRACEFUL_SHUTDOWN_TIMEOUT_MS: 10000
+    init: true

@@ -1,4 +1,6 @@
-import { Injector } from '@angular/core';
+import {
+  Injector,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   executeGeneratorCompatibleFactory,
@@ -89,7 +91,7 @@ describe('runCraftGenerator', () => {
     function* gen(): Generator<unknown, unknown, unknown> {
       const received = yield {
         [SERVICE_YIELD_REQUEST_MARKER]: true,
-        scope: 'function',
+        providedIn: 'function',
         resolve: (_inj: Injector, hostScope: string) => `resolved:${hostScope}`,
       };
       return received;
@@ -231,7 +233,7 @@ describe('resolveCraftGeneratorYield', () => {
     const result = resolveCraftGeneratorYield(
       {
         [SERVICE_YIELD_REQUEST_MARKER]: true,
-        scope: 'function',
+        providedIn: 'function',
         resolve: () => 'resolved',
       },
       injector,
@@ -304,7 +306,7 @@ describe('executeGeneratorCompatibleFactory', () => {
       factory: function* (): Generator<unknown, unknown, unknown> {
         const received = yield {
           [SERVICE_YIELD_REQUEST_MARKER]: true,
-          scope: 'function',
+          providedIn: 'function',
           resolve: () => 'injected-value',
         };
         return received;

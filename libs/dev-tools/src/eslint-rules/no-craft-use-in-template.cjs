@@ -18,7 +18,7 @@ module.exports = {
 
     return {
       ImportDeclaration(node) {
-        if (node.source.value !== '@craft-ng/core') return;
+        if (node.source.value !== '@craft-ts/core') return;
 
         for (const specifier of node.specifiers) {
           if (

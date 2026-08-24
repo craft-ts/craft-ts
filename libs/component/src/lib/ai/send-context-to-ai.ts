@@ -2,23 +2,28 @@ import {
   DestroyRef,
   ElementRef,
   inject,
-  Injectable,
   Injector,
   runInInjectionContext,
   type Provider,
-} from '@angular/core';
+  type ProviderToken,
+} from '../host-runtime';
 import {
+  APP_SNAPSHOT_REGISTRY,
+  craftToken,
+  createSendContextToAiBuffer,
   fromEventToSource$,
   HOST_TAG_LIST,
   CRAFT_TEMPORAL_RUNTIME,
   injectHostName,
   provideComponentMonitoring,
+  SEND_CONTEXT_TO_AI_BUFFER,
   SendContextToAiBuffer,
   TAKE_APP_SNAPSHOT,
+  type CraftToken,
   type GetDeps,
   type SendContextPayload,
   type TemporalTaskHandle,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import { AiContextMenu } from './ai-context-menu';
 import { AiSendDialog } from './ai-send-dialog';
@@ -57,87 +62,132 @@ function closeOverlay(overlay: Overlay | null): null {
   return null;
 }
 
-@Injectable({ providedIn: 'root' })
-export class AiContextMenuController {
-  private readonly injector = inject(Injector);
-  private readonly buffer = inject(SendContextToAiBuffer);
-  private readonly takeSnapshot = inject(TAKE_APP_SNAPSHOT);
-  private readonly temporalRuntime = inject(CRAFT_TEMPORAL_RUNTIME);
-  private readonly destroyRef = inject(DestroyRef);
+export type AiContextMenuController = {
+  open(ctx: Omit<SendContextPayload, 'snapshot'>): void;
+};
 
-  private menu: Overlay | null = null;
-  private dialog: Overlay | null = null;
-  private dialogTimer: TemporalTaskHandle | null = null;
+export const AI_CONTEXT_MENU_CONTROLLER = craftToken<AiContextMenuController>(
+  'AiContextMenuController',
+);
 
-  open(ctx: Omit<SendContextPayload, 'snapshot'>): void {
-    this.dialogTimer?.cancel();
-    this.dialogTimer = null;
-    this.closeMenu();
-    this.closeDialog();
-    // Trigger a snapshot collection now so the buffer is populated
-    // by the time the user submits the dialog.
-    this.takeSnapshot();
+export function createAiContextMenuController({
+  injector,
+  buffer,
+  takeSnapshot,
+  temporalRuntime,
+  destroyRef,
+}: {
+  injector: Injector;
+  buffer: SendContextToAiBuffer;
+  takeSnapshot: () => void;
+  temporalRuntime: {
+    schedule(
+      callback: () => void,
+      delay: number,
+      options: {
+        kind: string;
+        owner: string;
+        destroyRef: DestroyRef;
+      },
+    ): TemporalTaskHandle;
+  };
+  destroyRef: DestroyRef;
+}): AiContextMenuController {
+  let menu: Overlay | null = null;
+  let dialog: Overlay | null = null;
+  let dialogTimer: TemporalTaskHandle | null = null;
 
-    this.menu = openOverlay(99998, 'none', (host) =>
-      mountCraftComponent(AiContextMenu, host, this.injector, {
-        x: function* () {
-          return ctx.coords.x;
+  function closeMenu(): void {
+    menu = closeOverlay(menu);
+  }
+
+  function closeDialog(): void {
+    dialog = closeOverlay(dialog);
+  }
+
+  function openDialog(payload: SendContextPayload): void {
+    dialog = openOverlay(99999, 'auto', (host) =>
+      mountCraftComponent(AiSendDialog, host, injector, {
+        payload: function* () {
+          return payload;
         },
-        y: function* () {
-          return ctx.coords.y;
-        },
-        onSelect: () => this.onSelect(ctx),
-        onDismiss: () => this.closeMenu(),
+        onClose: closeDialog,
       }),
     );
   }
 
-  private onSelect(ctx: Omit<SendContextPayload, 'snapshot'>) {
-    this.closeMenu();
+  function onSelect(ctx: Omit<SendContextPayload, 'snapshot'>): void {
+    closeMenu();
     // Wait for the snapshot buffer's debounceTime(500ms) to settle.
-    this.dialogTimer = this.temporalRuntime.schedule(
+    dialogTimer = temporalRuntime.schedule(
       () => {
-        this.dialogTimer = null;
-        this.openDialog({ ...ctx, snapshot: this.buffer.latestReports });
+        dialogTimer = null;
+        openDialog({ ...ctx, snapshot: buffer.latestReports });
       },
       550,
       {
         kind: 'ai-context-debounce',
         owner: 'ai-context-menu',
-        destroyRef: this.destroyRef,
+        destroyRef,
       },
     );
   }
 
-  private openDialog(payload: SendContextPayload) {
-    this.dialog = openOverlay(99999, 'auto', (host) =>
-      mountCraftComponent(AiSendDialog, host, this.injector, {
-        payload: function* () {
-          return payload;
-        },
-        onClose: () => this.closeDialog(),
-      }),
-    );
-  }
+  return {
+    open(ctx: Omit<SendContextPayload, 'snapshot'>): void {
+      dialogTimer?.cancel();
+      dialogTimer = null;
+      closeMenu();
+      closeDialog();
+      // Trigger a snapshot collection now so the buffer is populated
+      // by the time the user submits the dialog.
+      takeSnapshot();
 
-  private closeMenu() {
-    this.menu = closeOverlay(this.menu);
-  }
+      menu = openOverlay(99998, 'none', (host) =>
+        mountCraftComponent(AiContextMenu, host, injector, {
+          x: function* () {
+            return ctx.coords.x;
+          },
+          y: function* () {
+            return ctx.coords.y;
+          },
+          onSelect: () => onSelect(ctx),
+          onDismiss: closeMenu,
+        }),
+      );
+    },
+  };
+}
 
-  private closeDialog() {
-    this.dialog = closeOverlay(this.dialog);
-  }
+function asAngularToken<T>(token: CraftToken<T>): ProviderToken<T> {
+  return token as unknown as ProviderToken<T>;
 }
 
 export function provideSendContextToAi(): Provider[] {
   return [
+    {
+      provide: asAngularToken(SEND_CONTEXT_TO_AI_BUFFER),
+      useFactory: () =>
+        createSendContextToAiBuffer(inject(APP_SNAPSHOT_REGISTRY)),
+    },
+    {
+      provide: asAngularToken(AI_CONTEXT_MENU_CONTROLLER),
+      useFactory: () =>
+        createAiContextMenuController({
+          injector: inject(Injector),
+          buffer: inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER)),
+          takeSnapshot: inject(TAKE_APP_SNAPSHOT),
+          temporalRuntime: inject(CRAFT_TEMPORAL_RUNTIME),
+          destroyRef: inject(DestroyRef),
+        }),
+    },
     provideComponentMonitoring(() => {
       const el = inject(ElementRef).nativeElement as HTMLElement;
       const tagList = inject(HOST_TAG_LIST, { optional: true }) as unknown;
       const injector = inject(Injector);
-      const controller = inject(AiContextMenuController);
+      const controller = inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER));
       // Eagerly instantiate the buffer so snapshot reports start being collected.
-      inject(SendContextToAiBuffer);
+      inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER));
 
       fromEventToSource$<MouseEvent>(el, 'contextmenu').subscribe((event) => {
         const handled = event as HandledEvent;

@@ -13,7 +13,7 @@
 
 const ROUTES_FACTORY = 'craftRoutes';
 const ASSERT_FN = 'assertChildRouteMounts';
-const CRAFT_MODULE = '@craft-ng/core';
+const CRAFT_MODULE = '@craft-ts/core';
 
 module.exports = {
   meta: {

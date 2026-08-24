@@ -3,7 +3,7 @@ import {
   ResourceOptions,
   ResourceRef,
   ResourceStreamingLoader,
-} from '@angular/core';
+} from '../../host/craft-compat';
 import { ResourceMethod } from './shared.type';
 import { ResourceByIdRef } from '../../resource-by-id';
 

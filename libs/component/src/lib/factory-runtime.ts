@@ -1,13 +1,11 @@
 import {
-  Injector,
-  runInInjectionContext,
-} from '@angular/core';
-import {
   executeGeneratorCompatibleFactory,
   executeGeneratorCompatibleFactoryAsync,
+  type CraftInjector,
   type CraftProgramSettledStep,
   type ResolveGeneratorResult,
-} from '@craft-ng/core';
+  ɵcraftInjectorFromHost,
+} from '@craft-ts/core';
 import type { ComponentFactory } from './types';
 
 const INVALID_YIELD =
@@ -20,15 +18,14 @@ const APP_START_NOT_SUPPORTED =
 export function executeCraftComponentFactory<Factory extends ComponentFactory>(
   factory: Factory,
   args: Parameters<Factory>,
-  injector: Injector,
+  injector: CraftInjector | object,
 ): ResolveGeneratorResult<ReturnType<Factory>> {
-  return runInInjectionContext(
-    injector,
+  return ɵcraftInjectorFromHost(injector).run(
     () =>
       executeGeneratorCompatibleFactory({
         factory,
         thisArg: undefined,
-        getInjector: () => injector,
+        getInjector: () => ɵcraftInjectorFromHost(injector),
         args,
         invalidYieldErrorMessage: INVALID_YIELD,
         multipleAppStartErrorMessage: MULTIPLE_APP_START,
@@ -42,13 +39,13 @@ export function executeCraftComponentFactoryAsync<
 >(
   factory: Factory,
   args: Parameters<Factory>,
-  injector: Injector,
+  injector: CraftInjector | object,
 ): Promise<CraftProgramSettledStep> {
-  return runInInjectionContext(injector, () =>
+  return ɵcraftInjectorFromHost(injector).run(() =>
     executeGeneratorCompatibleFactoryAsync({
       factory,
       thisArg: undefined,
-      getInjector: () => injector,
+        getInjector: () => ɵcraftInjectorFromHost(injector),
       args,
       invalidYieldErrorMessage: INVALID_YIELD,
       appStartNotSupportedErrorMessage: APP_START_NOT_SUPPORTED,

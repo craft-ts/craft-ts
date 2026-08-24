@@ -1,6 +1,6 @@
 # GlobalPersisterHandler
 
-Clears everything `@craft-ng` has persisted through the active
+Clears everything `@craft-ts` has persisted through the active
 `StoragePersister`, in one call.
 
 **Use it when** cached data must not outlive a session boundary: logout,
@@ -17,7 +17,7 @@ goes.
 import {
   GlobalPersisterHandlerService,
   provideGlobalPersisterHandlerService,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 providers: [provideGlobalPersisterHandlerService()];
 ```
@@ -26,13 +26,13 @@ providers: [provideGlobalPersisterHandlerService()];
 
 The handler delegates to the active `StoragePersister`. The built-in
 localStorage and sessionStorage implementations remove every key that starts
-with the `ng-craft-` prefix from their respective backend. This ensures
-complete cleanup of all data cached by `@craft-ng`, including:
+with the `craft-ts-` prefix from their respective backend. This ensures
+complete cleanup of all data cached by `@craft-ts`, including:
 
 - Persisted queries
 - Persisted mutations
 - Persisted async processes
-- Any other data cached by the `@craft-ng` persistence layer
+- Any other data cached by the `@craft-ts` persistence layer
 
 ## The common case — clearing on logout
 
@@ -43,7 +43,7 @@ complete cleanup of all data cached by `@craft-ng`, including:
 
 ```typescript
 const { CacheActions } = craftService(
-  { name: 'CacheActions', scope: 'toProvide' },
+  { name: 'CacheActions', providedIn: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
     return { clearCache: () => persister.clearAllCache() };

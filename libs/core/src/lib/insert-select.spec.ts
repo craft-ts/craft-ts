@@ -1,11 +1,8 @@
-import '@angular/compiler';
-import { computed, inject } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { craftService, onAppStart } from './craft-service';
+  computed,
+  inject,
+} from './host/craft-compat';
+import { craftService, onAppStart, type CraftServiceProvider } from './craft-service';
 import { HOST_TAG_LIST } from './host-tag';
 import { insertSelect } from './insert-select';
 import { on$ } from './on$';
@@ -18,30 +15,57 @@ import {
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
 import { craftUse } from './craft-use';
+import { markNonYieldableInsertionMethod } from './yieldable';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
 
-const runInInjectionContext = <T>(fn: () => T): T =>
-  TestBed.runInInjectionContext(fn);
+const { InsertSelectSpecHost } = craftService(
+  { name: 'InsertSelectSpecHost', providedIn: 'global' },
+  () => ({}),
+);
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+const runInInjectionContext = <T>(
+  fn: () => T,
+  extraProviders: CraftServiceProvider[] = [],
+): T => {
+  const { injector } =
+    extraProviders.length === 0
+      ? setupCraftServiceTest()
+      : setupCraftServiceTest(InsertSelectSpecHost, {}, {
+          providers: extraProviders,
+        });
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
+
 
 describe('insertSelect', () => {
-  it('should expose the selected property context to method wrappers', () => {
+  it('should expose the selected property context to method wrappers', async () => {
     let runtimeContext: StateMethodRuntimeContext | undefined;
-    TestBed.configureTestingModule({
-      providers: [
+    runInInjectionContext(
+      () => {
+        const counter = craftUse(
+          state(
+            'counter',
+            { value: 0 },
+            insertSelect('value', ({ update }) => ({
+              increment: () => update((current) => current + 1),
+            })),
+          ),
+        );
+
+        counter.selectValue().increment();
+
+        expect(runtimeContext?.get()).toBe(1);
+        expect(runtimeContext?.originalSource).toContain('current + 1');
+        runtimeContext?.update((current) => Number(current) + 9);
+        expect(craftUse(counter()).value).toBe(10);
+      },
+      [
         provideFnWrapper(
           'Warning: dependency injection here is not type-safe and may fail at runtime',
           function* (factory, thisArg, args) {
@@ -50,29 +74,10 @@ describe('insertSelect', () => {
           },
         ),
       ],
-    });
-
-    runInInjectionContext(() => {
-      const counter = craftUse(
-        state(
-          'counter',
-          { value: 0 },
-          insertSelect('value', ({ update }) => ({
-            increment: () => update((current) => current + 1),
-          })),
-        ),
-      );
-
-      counter.selectValue().increment();
-
-      expect(runtimeContext?.get()).toBe(1);
-      expect(runtimeContext?.originalSource).toContain('current + 1');
-      runtimeContext?.update((current) => Number(current) + 9);
-      expect(craftUse(counter()).value).toBe(10);
-    });
+    );
   });
-  it('should reproduce payload inference issue on nested matrix emitters', () => {
-    runInInjectionContext(() => {
+  it('should reproduce payload inference issue on nested matrix emitters', async () => {
+    await runInInjectionContext(async () => {
       type PaintCellEvent = { color: string; cellIndex: number };
       type PixelCellState = {
         index: number;
@@ -132,8 +137,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should work on object states', () => {
-    runInInjectionContext(() => {
+  it('should work on object states', async () => {
+    await runInInjectionContext(async () => {
       const board = craftUse(
         state(
           'board',
@@ -151,7 +156,7 @@ describe('insertSelect', () => {
                 color: 'black',
                 paintCount: cell.paintCount + 1,
               })),
-            paintCountStr: computed(
+            paintCountStr: markNonYieldableInsertionMethod(
               () => `Painted ${craftUse(state()).paintCount} times`,
             ),
           })),
@@ -160,7 +165,6 @@ describe('insertSelect', () => {
       expectTypeOf(board.selectCell().paint).toBeFunction();
       expectTypeOf(board.selectCell().paintCountStr()).toEqualTypeOf<string>();
 
-      TestBed.tick();
       craftUse(board.selectCell().paint());
       craftUse(board.selectCell().paint());
       expect(craftUse(board()).cell.color).toBe('black');
@@ -169,8 +173,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should tag object select insertions with the select name', () => {
-    runInInjectionContext(() => {
+  it('should tag object select insertions with the select name', async () => {
+    await runInInjectionContext(async () => {
       const board = craftUse(
         state(
           'board',
@@ -190,8 +194,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should work on array states', () => {
-    runInInjectionContext(() => {
+  it('should work on array states', async () => {
+    await runInInjectionContext(async () => {
       const cells = craftUse(
         state(
           'cells',
@@ -203,7 +207,7 @@ describe('insertSelect', () => {
                 color: 'black',
                 paintCount: cell.paintCount + 1,
               })),
-            paintCountStr: computed(
+            paintCountStr: markNonYieldableInsertionMethod(
               () => `Painted ${craftUse(state()).paintCount} times`,
             ),
           })),
@@ -213,7 +217,6 @@ describe('insertSelect', () => {
         string | undefined
       >();
 
-      TestBed.tick();
       const paintInvocation = cells.selectCell(0)?.paint();
       if (paintInvocation) craftUse(paintInvocation);
       expect(cells.selectCell(0)?.color).toBe('black');
@@ -222,8 +225,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should tag array select insertions with the select name and selected identifier', () => {
-    runInInjectionContext(() => {
+  it('should tag array select insertions with the select name and selected identifier', async () => {
+    await runInInjectionContext(async () => {
       const cells = craftUse(
         state(
           'cells',
@@ -241,8 +244,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should support mixed nesting item + property via insertSelect', () => {
-    runInInjectionContext(() => {
+  it('should support mixed nesting item + property via insertSelect', async () => {
+    await runInInjectionContext(async () => {
       const matrix = craftUse(
         state(
           'matrix',
@@ -279,7 +282,7 @@ describe('insertSelect', () => {
         ),
       );
 
-      TestBed.tick();
+      flushHost();
       const paintStyleInvocation = matrix
         .selectRow(0)
         ?.selectCell()
@@ -291,8 +294,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should allow first insertSelect insertion to access previous state insertions on object states', () => {
-    runInInjectionContext(() => {
+  it('should allow first insertSelect insertion to access previous state insertions on object states', async () => {
+    await runInInjectionContext(async () => {
       const board = craftUse(
         state(
           'board',
@@ -334,7 +337,7 @@ describe('insertSelect', () => {
 
       expectTypeOf(board.selectCell().paintFromTest).toBeFunction();
 
-      TestBed.tick();
+      flushHost();
       expect(board.selectCell().paintCountStr()).toBe('Painted 0 times with 0');
 
       craftUse(board.emitTest(3));
@@ -345,8 +348,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should allow first insertSelect insertion to access previous state insertions on array states', () => {
-    runInInjectionContext(() => {
+  it('should allow first insertSelect insertion to access previous state insertions on array states', async () => {
+    await runInInjectionContext(async () => {
       const cells = craftUse(
         state('cells', [{ index: 0, paintCount: 0 }], (context) =>
           craftPipe(
@@ -377,7 +380,7 @@ describe('insertSelect', () => {
         ),
       );
 
-      TestBed.tick();
+      flushHost();
       expect(cells.selectCell(0)?.paintCountStr()).toBe(
         'Painted 0 times with 0',
       );
@@ -393,8 +396,8 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should expose cross-layer source$ from nested insertions', () => {
-    runInInjectionContext(() => {
+  it('should expose cross-layer source$ from nested insertions', async () => {
+    await runInInjectionContext(async () => {
       const cells = craftUse(
         state(
           'cells',
@@ -418,14 +421,14 @@ describe('insertSelect', () => {
           ),
         ),
       );
-      TestBed.tick();
+      flushHost();
       cells.selectCell(0)?.paintCell$('red');
       expect(cells.selectCell(0)?.color).toBe('red');
       expect(cells.selectCell(0)?.paintCount).toBe(1);
     });
   });
-  it('should expose cross-layer source$ from nested insertions', () => {
-    runInInjectionContext(() => {
+  it('should expose cross-layer source$ from nested insertions', async () => {
+    await runInInjectionContext(async () => {
       const cells = craftUse(
         state(
           'cells',
@@ -455,7 +458,7 @@ describe('insertSelect', () => {
           ),
         ),
       );
-      TestBed.tick();
+      flushHost();
       cells.selectData().selectCell(0)?.paintCell$('red');
       expect(cells.selectData().selectCell(0)?.color).toBe('red');
       expect(cells.selectData().selectCell(0)?.paintCount).toBe(1);
@@ -464,9 +467,9 @@ describe('insertSelect', () => {
 });
 
 describe('insertSelect with generator insertions', () => {
-  it('should resolve generator insertion on object states', () => {
+  it('should resolve generator insertion on object states', async () => {
     const { ObjLogger } = craftService(
-      { name: 'ObjLogger', scope: 'global' },
+      { name: 'ObjLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return {
@@ -476,7 +479,7 @@ describe('insertSelect with generator insertions', () => {
       },
     );
 
-    runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const board = craftUse(
         state(
           'board',
@@ -497,7 +500,7 @@ describe('insertSelect with generator insertions', () => {
         ),
       );
 
-      TestBed.tick();
+      flushHost();
       board.selectCell().paint();
       board.selectCell().paint();
 
@@ -506,9 +509,9 @@ describe('insertSelect with generator insertions', () => {
     });
   });
 
-  it('should resolve generator insertion on array states', () => {
+  it('should resolve generator insertion on array states', async () => {
     const { ArrLogger } = craftService(
-      { name: 'ArrLogger', scope: 'global' },
+      { name: 'ArrLogger', providedIn: 'global' },
       () => {
         const calls: string[] = [];
         return {
@@ -518,7 +521,7 @@ describe('insertSelect with generator insertions', () => {
       },
     );
 
-    runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const cells = craftUse(
         state(
           'cells',
@@ -539,7 +542,7 @@ describe('insertSelect with generator insertions', () => {
         ),
       );
 
-      TestBed.tick();
+      flushHost();
       cells.selectCell(0)?.paint('red');
       cells.selectCell(0)?.paint('blue');
 
@@ -548,8 +551,8 @@ describe('insertSelect with generator insertions', () => {
     });
   });
 
-  it('should throw on onAppStart inside generator insertion on object states', () => {
-    runInInjectionContext(() => {
+  it('should throw on onAppStart inside generator insertion on object states', async () => {
+    await runInInjectionContext(async () => {
       expect(() => {
         craftUse(
           state(
@@ -565,8 +568,8 @@ describe('insertSelect with generator insertions', () => {
     });
   });
 
-  it('should throw on onAppStart inside generator insertion on array states', () => {
-    runInInjectionContext(() => {
+  it('should throw on onAppStart inside generator insertion on array states', async () => {
+    await runInInjectionContext(async () => {
       expect(() => {
         craftUse(
           state(
@@ -584,7 +587,7 @@ describe('insertSelect with generator insertions', () => {
 });
 
 describe('previous regressions on insertSelect typings', () => {
-  it('counter with derived values from insertSelect', () => {
+  it('counter with derived values from insertSelect', async () => {
     const counter = runInInjectionContext(() =>
       craftUse(
         state(

@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateNamedElementDelegatesToContext,
   TemplateNamedElementRendersStateWhen,
   TemplateRendersNamedElementWhen,
-} from '@craft-ng/component';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it } from 'vitest';
 import FullDemo from './full-demo';
 

@@ -1,14 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Injector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { craftSignal as signal } from '@craft-ts/core';
 import {
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -23,45 +16,24 @@ import {
   settled,
   state,
   type CraftExceptionResult,
-  type CraftSettledSignal
-} from '@craft-ng/core';
+  type CraftSettledSignal,
+} from '@craft-ts/core';
 import {
   button,
   catchBlock,
   craftComponent,
   div,
-  mountCraftComponent,
   p,
   pendingBlock,
   section,
   span,
   assertAccessible,
 } from '../index';
+import { renderCraftComponent } from './testing';
 import type {
   CraftNodeChildrenPendingSources,
   CraftNodeChildrenSettledExceptions,
 } from './render/vnode';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
-function host(): HTMLElement {
-  const element = document.createElement('div');
-  document.body.append(element);
-  return element;
-}
 
 interface User {
   readonly id: string;
@@ -71,7 +43,6 @@ interface User {
 describe('pendingBlock', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
@@ -105,28 +76,28 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
-      root,
-      element,
-      TestBed.inject(Injector),
-    );
-    TestBed.tick();
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
 
     expect(element.textContent).toContain('chargement');
     expect(element.textContent).not.toContain('Ada');
-    const live = element.querySelector('[aria-live="polite"][aria-busy="true"]');
+    const live = element.querySelector(
+      '[aria-live="polite"][aria-busy="true"]',
+    );
     expect(live?.getAttribute('aria-live')).toBe('polite');
     expect(live?.getAttribute('aria-busy')).toBe('true');
     await assertAccessible(element);
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('Ada');
     expect(element.textContent).not.toContain('chargement');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('renders a settledValue bound directly in the template', async () => {
@@ -151,20 +122,18 @@ describe('pendingBlock', () => {
         div([span(text)]).pipe(pendingBlock({ fallback: () => p('attente') })),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
-      root,
-      element,
-      TestBed.inject(Injector),
-    );
-    TestBed.tick();
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toContain('attente');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('prêt');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('shows the reloading slot while a settled source refetches', async () => {
@@ -177,7 +146,9 @@ describe('pendingBlock', () => {
         }));
         const users = yield* query('users', {
           params: function* () {
-                const _reload = yield* reload(); return _reload; },
+            const _reload = yield* reload();
+            return _reload;
+          },
           loader: async ({ params }): Promise<User[]> => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return [{ id: String(params), name: `Ada ${params}` }];
@@ -203,21 +174,19 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
-      root,
-      element,
-      TestBed.inject(Injector),
-    );
-    TestBed.tick();
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toContain('vide');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Ada 0');
 
     (element.querySelector('button') as HTMLButtonElement).click();
-    TestBed.tick();
+    await flush();
 
     // A refetch keeps the stale value on screen and adds the indicator next
     // to it — it does not suspend.
@@ -226,11 +195,11 @@ describe('pendingBlock', () => {
     expect(element.textContent).not.toContain('vide');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Ada 1');
     expect(element.textContent).not.toContain('rafraichissement');
 
-    mounted.destroy();
+    destroy();
   });
 
   it('routes a source exception to the catchBlock, not to the fallback', async () => {
@@ -241,7 +210,7 @@ describe('pendingBlock', () => {
       function* () {
         const users = yield* query('users', {
           params: () =>
-            shouldFail() ? craftException({ code: 'MISSING_USER_ID' }) : true,
+            shouldFail() ? craftException({ _tag: 'MISSING_USER_ID' }) : true,
           loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
         });
         const firstName = craftComputed('firstName', function* () {
@@ -262,15 +231,13 @@ describe('pendingBlock', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
-      root,
-      element,
-      TestBed.inject(Injector),
-    );
-    TestBed.tick();
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
 
     expect(element.textContent).toContain('identifiant manquant');
     expect(element.textContent).not.toContain('chargement');
@@ -279,7 +246,7 @@ describe('pendingBlock', () => {
     );
     await assertAccessible(element);
 
-    mounted.destroy();
+    destroy();
   });
 
   it('picks the fallback of the pending source with the exhaustive form', async () => {
@@ -308,20 +275,18 @@ describe('pendingBlock', () => {
         ),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
-      root,
-      element,
-      TestBed.inject(Injector),
-    );
-    TestBed.tick();
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toContain('squelette utilisateurs');
 
     await vi.runAllTimersAsync();
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toContain('Ada');
 
-    mounted.destroy();
+    destroy();
   });
 });
 
@@ -334,7 +299,7 @@ describe('pendingBlock type-level contract', () => {
       readonly settledValue: CraftSettledSignal<
         string,
         'users',
-        CraftExceptionResult<{ code: 'MISSING_USER_ID' }, undefined>
+        CraftExceptionResult<{ _tag: 'MISSING_USER_ID' }, undefined>
       >;
     };
   } => ({ users: { settledValue: (() => '') as never } });
@@ -383,6 +348,47 @@ describe('pendingBlock type-level contract', () => {
       // @ts-expect-error 'users' has no fallback in this boundary
       pendingBlock.exhaustive({ orders: () => p('…') }),
     );
+  });
+
+  it('preserves insertion resource sources through the template boundary', () => {
+    const root = craftComponent(
+      'pendingInsertionResource',
+      {},
+      function* () {
+        const users = yield* query(
+          'users',
+          {
+            params: () => true,
+            loader: async (): Promise<User[]> => [],
+          },
+          ({ resource }) => ({
+            count: craftComputed('count', function* () {
+              return (yield* settled(resource)).length;
+            }),
+          }),
+        );
+        return { users };
+      },
+      ({ users }) =>
+        div([span(users.count)]).pipe(
+          pendingBlock.exhaustive({ users: () => p('…') }),
+        ),
+    );
+
+    expect(root).toBeDefined();
+  });
+
+  it('requires an explicit shell for client-only SSR', () => {
+    const invalidBoundary = () =>
+      // @ts-expect-error client-only SSR must render a stable server shell
+      pendingBlock({ ssr: 'client' });
+    const validBoundary = pendingBlock({
+      ssr: 'client',
+      fallback: () => p('browser shell'),
+    });
+
+    expect(invalidBoundary).toBeTypeOf('function');
+    expect(validBoundary).toBeTypeOf('function');
   });
 
   it('bubbles a settled read exception up until a catchBlock clears it', () => {

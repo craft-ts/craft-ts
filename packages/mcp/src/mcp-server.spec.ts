@@ -20,19 +20,19 @@ const resources: CraftMcpResources = {
   ],
   skills: [
     {
-      name: 'ng-craft-routes',
+      name: 'craft-ts-routes',
       description: 'Type-safe craftRoutes files.',
-      markdown: '# Creating ng-craft routes\n',
+      markdown: '# Creating craft-ts routes\n',
       references: {
         'di-checks.md': '# DI checks\n',
       },
     },
   ],
   bestPractices: '# Best practices\nyield* every reader.\n',
-  agentsMd: '# Craft NG\nDo not generate signal().\n',
+  agentsMd: '# CraftTS\nDo not generate signal().\n',
 };
 
-describe('craft-ng MCP server', () => {
+describe('craft-ts MCP server', () => {
   let client: Client;
 
   beforeEach(async () => {
@@ -72,7 +72,7 @@ describe('craft-ng MCP server', () => {
       result: expect.objectContaining({
         bestPractices: resources.bestPractices,
         agentsMd: resources.agentsMd,
-        llmsTxt: 'https://ng-angular-stack.github.io/craft/llms.txt',
+        llmsTxt: 'https://craft-ts.github.io/craft/llms.txt',
       }),
     });
   });
@@ -95,11 +95,11 @@ describe('craft-ng MCP server', () => {
   it('loads a skill and a named reference', async () => {
     const skill = await client.callTool({
       name: 'get_skill',
-      arguments: { name: 'ng-craft-routes' },
+      arguments: { name: 'craft-ts-routes' },
     });
     expect(skill.structuredContent).toEqual({
       result: expect.objectContaining({
-        name: 'ng-craft-routes',
+        name: 'craft-ts-routes',
         references: ['di-checks.md'],
       }),
     });
@@ -107,13 +107,13 @@ describe('craft-ng MCP server', () => {
     const reference = await client.callTool({
       name: 'get_skill',
       arguments: {
-        name: 'ng-craft-routes',
+        name: 'craft-ts-routes',
         reference: 'di-checks.md',
       },
     });
     expect(reference.structuredContent).toEqual({
       result: {
-        name: 'ng-craft-routes',
+        name: 'craft-ts-routes',
         reference: 'di-checks.md',
         markdown: '# DI checks\n',
       },

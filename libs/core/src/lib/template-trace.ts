@@ -3,7 +3,8 @@ import {
   runInInjectionContext,
   type Injector,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
+import { isCraftDevelopment } from './craft-runtime-mode';
 
 /** Metadata attached to one effective Craft template render. */
 export type TemplateTraceContext = Readonly<{
@@ -39,6 +40,7 @@ export const CRAFT_TEMPLATE_TRACE = new InjectionToken<
 >('CRAFT_TEMPLATE_TRACE', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 /** Register one composable synchronous template trace wrapper. */
@@ -62,6 +64,9 @@ export function executeTemplateTrace<Children>(
   context: TemplateTraceContext,
   next: () => Children,
 ): Children {
+  if (!isCraftDevelopment(injector)) {
+    return next();
+  }
   const wrappers = injector.get(CRAFT_TEMPLATE_TRACE, []);
   if (wrappers.length === 0) {
     return next();

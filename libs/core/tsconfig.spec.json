@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "node"],
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -12,8 +12,10 @@
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "customConditions": ["@ng-craft/source"],
+    "customConditions": ["@craft-ts/source"],
     "paths": {
+      "@craft-ts/core": ["../../libs/core/src/index.ts"],
+      "@craft-ts/component": ["../../libs/component/src/index.ts"],
       "test-type": ["../../libs/test-type/src/index.ts"]
     }
   },

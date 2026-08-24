@@ -3,7 +3,7 @@ import {
   InjectionToken,
   type Injector,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 import { runCraftGenerator } from './craft-generator-runtime';
 
 export type CraftTargetKind = 'component' | 'directive';
@@ -35,6 +35,7 @@ export const CRAFT_TARGET_WRAPPER = new InjectionToken<
 >('CRAFT_TARGET_WRAPPER', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 /** Adds a wrapper around the lifecycle registration of Craft targets. */

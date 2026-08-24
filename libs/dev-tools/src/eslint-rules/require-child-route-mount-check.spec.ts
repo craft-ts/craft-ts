@@ -30,7 +30,7 @@ describe('require-child-route-mount-check', () => {
   it('reports a lazy loadChildren collection missing the assert', async () => {
     const { messages } = await lintFixture({
       'src/app/app.routes.ts': `
-        import { craftRoutes } from '@craft-ng/core';
+        import { craftRoutes } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', [${LAZY_ROUTE}
         ]);
@@ -46,7 +46,7 @@ describe('require-child-route-mount-check', () => {
     const { output } = await lintFixture(
       {
         'src/app/app.routes.ts': `
-          import { craftRoutes } from '@craft-ng/core';
+          import { craftRoutes } from '@craft-ts/core';
 
           export const { demoRoutes } = craftRoutes('demo', [${LAZY_ROUTE}
           ]);
@@ -56,15 +56,15 @@ describe('require-child-route-mount-check', () => {
     );
 
     expect(output).toContain('assertChildRouteMounts(demoRoutes);');
-    // The @craft-ng/core import stays a single merged import.
-    expect((output?.match(/@craft-ng\/core/g) ?? []).length).toBe(1);
-    expect(output).toMatch(/import \{[\s\S]*assertChildRouteMounts[\s\S]*\} from '@craft-ng\/core'/);
+    // The @craft-ts/core import stays a single merged import.
+    expect((output?.match(/@craft-ts\/core/g) ?? []).length).toBe(1);
+    expect(output).toMatch(/import \{[\s\S]*assertChildRouteMounts[\s\S]*\} from '@craft-ts\/core'/);
   });
 
   it('accepts a collection already checked with assertChildRouteMounts', async () => {
     const { messages } = await lintFixture({
       'src/app/app.routes.ts': `
-        import { assertChildRouteMounts, craftRoutes } from '@craft-ng/core';
+        import { assertChildRouteMounts, craftRoutes } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', [${LAZY_ROUTE}
         ]);
@@ -79,7 +79,7 @@ describe('require-child-route-mount-check', () => {
   it('ignores collections with no lazy loadChildren route', async () => {
     const { messages } = await lintFixture({
       'src/app/app.routes.ts': `
-        import { craftRoutes } from '@craft-ng/core';
+        import { craftRoutes } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', [
           {

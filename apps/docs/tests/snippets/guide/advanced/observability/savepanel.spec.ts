@@ -5,8 +5,8 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region savepanel
-import { craftComponent, button } from '@craft-ng/component';
-import { provideCraftDomEventHook } from '@craft-ng/core';
+import { craftComponent, button } from '@craft-ts/component';
+import { provideCraftDomEventHook } from '@craft-ts/core';
 
 export const SavePanel = craftComponent(
   'SavePanel',

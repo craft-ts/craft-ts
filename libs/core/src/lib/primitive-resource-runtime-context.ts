@@ -3,7 +3,8 @@ import {
   InjectionToken,
   type Provider,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
+import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
 
 export type PrimitiveResourceRuntimeKind =
   | 'query'
@@ -21,6 +22,16 @@ export type PrimitiveResourceRuntimeContext<
   set(value: unknown, id?: string): unknown;
   update(updater: (current: unknown) => unknown, id?: string): unknown;
   patch(updater: (current: unknown) => object, id?: string): unknown;
+  /** Re-runs the loader from the params in force. */
+  reload?(): boolean;
+  /**
+   * Puts back a value the resource had produced itself. Unlike `set`, which
+   * marks the resource local and detaches it from its loader, a restored value
+   * settles as resolved.
+   */
+  restore?(value: unknown, id?: string): unknown;
+  status?(id?: string): string;
+  error?(id?: string): unknown;
 }>;
 
 export type PrimitiveResourceRuntimeObserver = (
@@ -31,6 +42,10 @@ type WritableResourceTarget = Readonly<{
   state: Signal<unknown>;
   set(value: unknown): unknown;
   update(updater: (current: unknown) => unknown): unknown;
+  reload?(): boolean;
+  restore?(value: unknown): unknown;
+  status?: Signal<string>;
+  error?: Signal<unknown>;
 }>;
 
 type ResourceByIdTarget = Readonly<{
@@ -47,6 +62,7 @@ const PRIMITIVE_RESOURCE_RUNTIME_OBSERVER = new InjectionToken<
 >('PRIMITIVE_RESOURCE_RUNTIME_OBSERVER', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 export function providePrimitiveResourceRuntimeObserver(
@@ -61,9 +77,27 @@ export function providePrimitiveResourceRuntimeObserver(
 
 export function ɵobservePrimitiveResourceRuntimeContext(
   context: PrimitiveResourceRuntimeContext,
+  name?: string,
 ): void {
   for (const observer of inject(PRIMITIVE_RESOURCE_RUNTIME_OBSERVER)) {
     observer(context);
+  }
+
+  // The same handle, addressable: the observer sees every resource as it is
+  // created, the registry lets tooling find one again by name afterwards.
+  if (name !== undefined) {
+    ɵregisterCraftPrimitive({
+      kind: context.kind,
+      name,
+      read: () => context.get(),
+      // A registry write puts a value BACK; it is not an application deciding
+      // to override one, so it must not detach the resource from its loader.
+      write: (value) =>
+        context.restore ? context.restore(value) : context.set(value),
+      reload: () => context.reload?.() ?? false,
+      ...(context.status ? { status: () => context.status!() } : {}),
+      ...(context.error ? { error: () => context.error!() } : {}),
+    });
   }
 }
 
@@ -75,6 +109,13 @@ export function ɵcreatePrimitiveResourceRuntimeContext(
     kind,
     grouped: false,
     ids: () => [],
+    reload: () => target.reload?.() ?? false,
+    ...(target.status ? { status: () => target.status!() } : {}),
+    ...(target.error ? { error: () => target.error!() } : {}),
+    restore: (value, id) => {
+      const resolved = rootTarget(target, id);
+      return resolved.restore ? resolved.restore(value) : resolved.set(value);
+    },
     get: (id) => rootTarget(target, id).state(),
     set: (value, id) => rootTarget(target, id).set(value),
     update: (updater, id) => rootTarget(target, id).update(updater),

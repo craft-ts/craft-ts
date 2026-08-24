@@ -8,8 +8,8 @@
 import '@angular/compiler';
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
-import type { ChannelsOf } from '@craft-ng/core';
-import { div, span } from '@craft-ng/component';
+import type { ChannelsOf } from '@craft-ts/core';
+import { div, span } from '@craft-ts/component';
 import {
   assign,
   bg,

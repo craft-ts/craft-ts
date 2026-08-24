@@ -24,7 +24,7 @@ Most of what you'll write falls into one of these. Each is expanded below.
 | a component logic field has a specific service output        | `ComponentLogicOutputOf` + `ResolvedServiceOutput` |
 
 ::: warning Experimental
-This contract is the least settled part of `@craft-ng`. The assertions below
+This contract is the least settled part of `@craft-ts`. The assertions below
 work and are covered by the library's own tests, but their **names and
 ergonomics are still moving** — expect the DX to get shorter and more readable
 before it stabilises. Pin the version if you rely on them heavily.
@@ -36,7 +36,7 @@ The assertions build on two type helpers, published for applications on a
 dedicated subpath:
 
 ```ts
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 ```
 
 They are **types only** — nothing is emitted, so importing them costs nothing at
@@ -57,8 +57,8 @@ factory. This lets you assert the type of a field returned by the factory,
 instead of checking only that the component declares a dependency:
 
 ```ts
-import type { ComponentLogicOutputOf } from '@craft-ng/component';
-import type { ResolvedServiceOutput } from '@craft-ng/core';
+import type { ComponentLogicOutputOf } from '@craft-ts/component';
+import type { ResolvedServiceOutput } from '@craft-ts/core';
 
 type FullDemoLogic = ComponentLogicOutputOf<typeof FullDemoCraft>;
 type TodoStoreOutput = ResolvedServiceOutput<typeof TodoStore, {}>;
@@ -110,8 +110,8 @@ a resolution loop.
 The contract also checks the required public props of `ComponentNode` and keeps
 the concrete child component reference. Dynamic component unions produce a
 dedicated diagnostic; split them into static branches so they can be checked at
-the type level. External Angular components form an explicit boundary and
-should be tested with their Angular harness.
+the type level. Components owned by another package form an explicit boundary
+and should be tested with that package's harness.
 
 The available assertions can verify elements, their exact props, event
 arguments, generator callbacks, and outputs. For example, start with a
@@ -332,15 +332,15 @@ assert what every item renders — here a translated label exposed by an
 `insertSelect` insertion:
 
 ```typescript
-import { computed } from '@angular/core';
-import { insertSelect, state } from '@craft-ng/core';
-import { craftComponent, each, span } from '@craft-ng/component';
+import { craftComputed as computed } from '@craft-ts/core';
+import { insertSelect, state } from '@craft-ts/core';
+import { craftComponent, each, span } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
   TemplateRendersNamedElementWhen,
   TemplateRendersStateWhen,
-} from '@craft-ng/component';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 
 const ItemList = craftComponent(
   'ItemList',
@@ -401,14 +401,14 @@ and that a yieldable action is available on a named element — `'click:incremen
 reads as "the `click` action on the element named `increment`":
 
 ```typescript
-import { craftMethod, state } from '@craft-ng/core';
-import { button, craftComponent, ifBlock } from '@craft-ng/component';
+import { craftMethod, state } from '@craft-ts/core';
+import { button, craftComponent, ifBlock } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
   TemplateRenderAvailableActionWhen,
   TemplateRendersStateWhen,
-} from '@craft-ng/component';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 
 const Counter = craftComponent(
   'Counter',
@@ -466,9 +466,9 @@ that is incompatible with `when`.
 `each` adds `<listName>: 'nonEmpty'` for its item template and
 `<listName>: 'empty'` for its empty template. Interactive helpers must use the
 named form (`button('increment', {}, '+')`): ESLint
-`craft-ng/require-interactive-local-name` requires the literal first argument,
+`craft-ts/require-interactive-local-name` requires the literal first argument,
 and `assertInteractiveElementNamed` requires that `data-craft-name` to be unique
-in the app. `craft-ng/template-element-name-unique` still forbids two
+in the app. `craft-ts/template-element-name-unique` still forbids two
 `tag:localName` pairs in the same component template, including across
 conditional branches.
 
@@ -483,8 +483,8 @@ available property names, and the available context paths:
 import type {
   ComponentTemplateOf,
   TemplateNamedElementRendersStateWhen,
-} from '@craft-ng/component';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/component';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 
 type FullDemoTemplate = ComponentTemplateOf<typeof FullDemoCraft>;
 
@@ -520,7 +520,7 @@ observe the DOM.
 generator event callback:
 
 ```ts
-import type { TemplateNamedElementDelegatesToContext } from '@craft-ng/component';
+import type { TemplateNamedElementDelegatesToContext } from '@craft-ts/component';
 
 type AddButtonClickUsesAddMutation = Expect<
   Equal<

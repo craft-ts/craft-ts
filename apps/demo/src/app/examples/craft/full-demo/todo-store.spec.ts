@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  setupCraftServiceTestingByRegister, craftUse } from '@craft-ng/core';
+  setupCraftServiceTestingByRegister, craftUse } from '@craft-ts/core';
 import { TodoStore, provideTodoStore } from './full-demo';
 
 describe('TodoStore logic', () => {
@@ -42,6 +41,9 @@ describe('TodoStore logic', () => {
         title: 'Write logic tests',
       }),
     );
+    await vi.waitFor(() =>
+      expect(craftUse(store.add.status())).toBe('resolved'),
+    );
     expect(craftUse(store.add.value())).toEqual({
       id: 3,
       title: 'Write logic tests',
@@ -55,6 +57,9 @@ describe('TodoStore logic', () => {
     store.add.mutate('Third todo');
     await vi.waitFor(() =>
       expect(craftUse(store.todos.value())).toHaveLength(3),
+    );
+    await vi.waitFor(() =>
+      expect(craftUse(store.add.status())).toBe('resolved'),
     );
 
     store.add.mutate('Fourth todo');
@@ -81,6 +86,9 @@ describe('TodoStore logic', () => {
       expect(craftUse(store.todos.value())).toEqual([
         { id: 2, title: 'Expose query and mutations' },
       ]),
+    );
+    await vi.waitFor(() =>
+      expect(craftUse(store.remove.status())).toBe('resolved'),
     );
     expect(craftUse(store.remove.value())).toBe(1);
   });

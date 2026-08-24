@@ -1,10 +1,5 @@
+import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import {
   BrowserCrypto,
   BrowserDocument,
@@ -23,21 +18,6 @@ import {
   SessionStorageService,
 } from './browser-boundaries';
 import { craftService, getServiceMetaData } from './craft-service';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 function clearCookies() {
   for (const cookie of document.cookie.split(';')) {
@@ -68,7 +48,7 @@ describe('browser boundaries', () => {
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const { BootLogger } = craftService(
-      { name: 'BootLogger', scope: 'global' },
+      { name: 'BootLogger', providedIn: 'global' },
       function* () {
         yield* Console.log('boot', { ready: true });
 
@@ -111,7 +91,7 @@ describe('browser boundaries', () => {
 
   it('should support LocalStorage, SessionStorage, and Cookies through the DSL', () => {
     const { BrowserPersistence } = craftService(
-      { name: 'BrowserPersistence', scope: 'global' },
+      { name: 'BrowserPersistence', providedIn: 'global' },
       function* () {
         yield* LocalStorage.setItem('token', 'abc');
         yield* SessionStorage.setItem('active-tab', 'settings');
@@ -164,7 +144,7 @@ describe('browser boundaries', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const { BrowserSnapshot } = craftService(
-      { name: 'BrowserSnapshot', scope: 'global' },
+      { name: 'BrowserSnapshot', providedIn: 'global' },
       function* () {
         yield* BrowserHistory.replaceState(
           { step: 2 },
@@ -232,7 +212,7 @@ describe('browser boundaries', () => {
     document.documentElement.removeAttribute('dir');
 
     const { BrowserDocumentFlow } = craftService(
-      { name: 'BrowserDocumentFlow', scope: 'global' },
+      { name: 'BrowserDocumentFlow', providedIn: 'global' },
       function* () {
         expect(yield* BrowserDocument.lang()).toBe('en');
         yield* BrowserDocument.setLang('fr');
@@ -255,7 +235,7 @@ describe('browser boundaries', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const { LeavePageFlow } = craftService(
-      { name: 'LeavePageFlow', scope: 'global' },
+      { name: 'LeavePageFlow', providedIn: 'global' },
       function* () {
         return yield* BrowserWindow.confirm('Stay on page?');
       },
@@ -278,7 +258,7 @@ describe('browser boundaries', () => {
     const payload = new TextEncoder().encode('craft');
 
     const { BrowserDiagnostics } = craftService(
-      { name: 'BrowserDiagnostics', scope: 'global' },
+      { name: 'BrowserDiagnostics', providedIn: 'global' },
       function* () {
         const bytes = yield* BrowserCrypto.getRandomValues(new Uint8Array(8));
 

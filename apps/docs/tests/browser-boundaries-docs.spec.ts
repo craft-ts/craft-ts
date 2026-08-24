@@ -26,6 +26,7 @@ describe('docs sidebar', () => {
     expect(Array.isArray(sidebar)).toBe(false);
     expect(Object.keys(sidebar).sort()).toEqual([
       '/guide/',
+      '/learn-effect/',
       '/learn/',
       '/reference/',
       '/resources/',
@@ -82,6 +83,7 @@ describe('docs sidebar', () => {
 
     expect(nav.map((entry) => entry.text)).toEqual([
       'Learn',
+      'Learn with Effect',
       'Guide',
       'Reference',
       'Packages',
@@ -197,30 +199,25 @@ describe('Type-safe DI/Routes setup doc page', () => {
   it('documents the app-level DI check and crafted routes setup', () => {
     expect(content).toContain('# Routing setup');
     expect(content).toContain(
-      'This guide assumes you are integrating type-safe DI/routes into an Angular app that consumes `@craft-ng/core`.',
+      'This guide assumes an app that consumes `@craft-ts/core`.',
     );
     expect(content).toContain(
-      'type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;',
+      'type _CheckAppDI = ValidateCascadeRoutesFile<',
     );
     expect(content).toContain('type _CanRunApp = CanRun<_CheckAppDI>;');
     expect(content).toContain(
       "componentDeps: {} as import('./test').GenDeps_TestComponent,",
     );
     expect(content).toContain('routingDeps: appRoutes.META_DATA');
-    expect(content).toContain('provideRouter(appRoutes.toRoutes()');
+    expect(content).toContain('provideCraftRouter(appRoutes.toRoutes()');
   });
 
   it('documents the codemod script and the refresh workflow', () => {
     expect(content).toContain(
-      '## 3. Run the Angular brand codemod through the published script',
+      '## 3. Generate dependency metadata',
     );
-    expect(content).toContain('craft-brand --root src/app');
-    expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
-    );
-    expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`',
-    );
+    expect(content).toContain('craft-brand --root src');
+    expect(content).toContain('run the dependency generator for the relevant source root');
   });
 
   it('points at the dedicated ESLint rules page', () => {
@@ -232,20 +229,11 @@ describe('ESLint rules doc page', () => {
   const content = readDoc('../guide/routing/eslint-rules.md');
 
   it('documents the plugin entry point and the enforced rules', () => {
-    expect(content).toContain('@craft-ng/dev-tools/eslint-rules');
+    expect(content).toContain('@craft-ts/dev-tools/eslint-rules');
     expect(content).toContain(
-      "'craft-ng/brand-angular-gen-deps-required': 'error'",
+      "'craft-ts/require-cascade-route-di-check': 'error'",
     );
-    expect(content).toContain("'craft-ng/brand-angular-deps-match': 'error'");
-    expect(content).toContain("'craft-ng/no-angular-inject': 'error'");
-    expect(content).toContain("'craft-ng/prefer-craft-service': 'error'");
-    expect(content).toContain("'craft-ng/prefer-craft-http-client': 'error'");
-    expect(content).toContain(
-      "'craft-ng/require-cascade-route-di-check': 'error'",
-    );
-    expect(content).toContain(
-      'generate missing aliases and refresh existing ones',
-    );
+    expect(content).toContain('Three rules do more than complain');
   });
 });
 
@@ -298,7 +286,7 @@ describe('Browser Boundaries doc page', () => {
       'it can declare ordered `exceptions: [function* (...) { ... }]` rules',
     );
     expect(content).toContain(
-      "it returns a promise of `Success | craftException({ code: 'HttpError' })`",
+      "it returns a promise of `Success | craftException({ _tag: 'HttpError' })`",
     );
     expect(content).toContain('const getUsers =');
     expect(content).toContain('CraftHttpClient.get(({ response }) => ({');
@@ -308,11 +296,8 @@ describe('Browser Boundaries doc page', () => {
     );
   });
 
-  it('links back to craftService and toCraftService', () => {
+  it('links back to craftService', () => {
     expect(content).toContain('[`craftService`](/guide/app/craft-service)');
-    expect(content).toContain(
-      '[`toCraftService`](/guide/app/integrate-existing)',
-    );
   });
 });
 
@@ -339,8 +324,8 @@ describe('craftMethod doc page', () => {
       "readonly increment = craftMethod('increment', this, function* (step = 1) {",
     );
     expect(content).toContain("yield* Console.log('increment is called');");
-    expect(content).toContain('function* (this: CounterComponent, step = 1) {');
-    expect(content).toContain('this: CounterComponent,');
+    expect(content).toContain('function* (this: Counter, step = 1) {');
+    expect(content).toContain('this: Counter,');
     expect(content).toContain('return yield* CounterWorker.set(value);');
     expect(content).toContain('[`craftService`](/guide/app/craft-service)');
   });
@@ -367,7 +352,7 @@ describe('craftComputed doc page', () => {
   it('documents plain and generator-based computed forms', () => {
     expect(content).toContain('# craftComputed');
     expect(content).toContain(
-      "import { craftComputed } from '@craft-ng/core';",
+      "import { craftComputed } from '@craft-ts/core';",
     );
     expect(content).toContain(
       'plain computation: `craftComputed(name, () => value)`',
@@ -393,26 +378,6 @@ describe('craftComputed doc page', () => {
   });
 });
 
-describe('toCraftService doc page', () => {
-  const content = readDoc('../guide/app/integrate-existing.md');
-
-  it('includes an HttpClient adaptation example', () => {
-    expect(content).toContain('## `HttpClient` Example');
-    expect(content).toContain(
-      "import { HttpClient } from '@angular/common/http';",
-    );
-    expect(content).toContain("name: 'HttpClient'");
-    expect(content).toContain('const { HttpClient } = toCraftService({');
-    expect(content).toContain(
-      'const http = yield* HttpClient(undefined, ({ get, post }) => ({',
-    );
-    expect(content).toContain(
-      "listUsers: () => http.get<User[]>('/api/users'),",
-    );
-    expect(content).toContain("http.post<User>('/api/users', payload)");
-  });
-});
-
 describe('craftService doc page', () => {
   const content = readDoc('../guide/app/craft-service.md');
 
@@ -423,41 +388,6 @@ describe('craftService doc page', () => {
     expect(content).toContain("yield* Console.log('startup log');");
     expect(content).toContain(
       'Dependencies used only inside that callback are still tracked on the parent service.',
-    );
-  });
-});
-
-describe('Angular Brand Config doc page', () => {
-  const content = readDoc('../guide/routing/angular-brand-config.md');
-
-  it('documents the project config entrypoint and the main rule shape', () => {
-    expect(content).toContain('# Angular brand config');
-    expect(content).toContain('craft-brand.config.ts');
-    expect(content).toContain('defineAngularBrandConfig');
-    expect(content).toContain('importAugmentations');
-    expect(content).toContain("module: '@ngx-translate/core'");
-    expect(content).toContain("symbols: ['TranslatePipe']");
-    expect(content).toContain("metadata: ['imports']");
-  });
-
-  it('documents the generated deps and lint alignment behavior', () => {
-    expect(content).toContain('TranslateService: TranslateService;');
-    expect(content).toContain('missingProvider');
-    expect(content).toContain('brand-angular-gen-deps-required');
-    expect(content).toContain('brand-angular-deps-match');
-    expect(content).toContain(
-      'A plain TypeScript import in the file is ignored',
-    );
-  });
-
-  it('mentions the built-in router augmentation and related docs', () => {
-    expect(content).toContain('@angular/router');
-    expect(content).toContain('Router');
-    expect(content).toContain(
-      '[`toCraftService`](/guide/app/integrate-existing)',
-    );
-    expect(content).toContain(
-      '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );
   });
 });

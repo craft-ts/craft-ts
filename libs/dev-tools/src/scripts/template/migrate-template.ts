@@ -105,7 +105,7 @@ export function migrateTemplateToCraft(
     : `({}) => ${expression}`;
   const importLine =
     options.includeImport !== false && imports.size > 0
-      ? `import { ${[...imports].sort().join(', ')} } from '@craft-ng/component';\n\n`
+      ? `import { ${[...imports].sort().join(', ')} } from '@craft-ts/component';\n\n`
       : '';
   return {
     code: `${importLine}${body}\n`,

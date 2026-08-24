@@ -4,11 +4,11 @@ import {
   craftUse,
   fromEventToSource$,
   state,
-  toCraftService,
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type TemporalTaskHandle,
   type SendContextPayload,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
+import { ɵtoCraftService as toCraftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {
@@ -27,7 +27,7 @@ import type { Input, Output } from '../types';
 
 const { CraftTemporalRuntime } = toCraftService({
   name: 'CraftTemporalRuntime',
-  scope: 'global',
+  providedIn: 'global',
   token: CRAFT_TEMPORAL_RUNTIME,
 }) as unknown as {
   CraftTemporalRuntime: () => Generator<

@@ -8,7 +8,7 @@ const {
   SyntaxKind,
 } = require('ts-morph');
 
-const CRAFT_MODULE = '@craft-ng/core';
+const CRAFT_MODULE = '@craft-ts/core';
 
 module.exports = {
   meta: {

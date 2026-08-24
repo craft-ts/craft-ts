@@ -65,6 +65,13 @@ const RULES = [
     call: 'assertNoDependencyCycles(graph.graph)',
   },
   {
+    file: 'app-config-route-cycles.spec.ts',
+    helper: 'assertNoAppConfigRouteCycles',
+    describe: 'assertNoAppConfigRouteCycles',
+    it: 'keeps app configuration and route modules acyclic',
+    call: 'assertNoAppConfigRouteCycles(graph.graph)',
+  },
+  {
     file: 'route-di-proofs.spec.ts',
     helper: 'assertRouteDiProofs',
     describe: 'assertRouteDiProofs',
@@ -288,7 +295,7 @@ import {
   architectureCatalogToTypeScript,
   buildArchitectureCatalog,
   createArchitectureGraph,
-} from '@craft-ng/dev-tools';
+} from '@craft-ts/dev-tools';
 import { architectureCatalog } from './catalog';
 
 const workspaceRoot = resolve(import.meta.dirname, '${context.workspaceFromArchitecture}');
@@ -335,7 +342,7 @@ describe('architecture', () => {
 
 function ruleSpecSource(rule: (typeof RULES)[number]): string {
   return `import { beforeAll, describe, it } from 'vitest';
-import { ${rule.helper} } from '@craft-ng/dev-tools';
+import { ${rule.helper} } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from '../load-graph';
 
 describe('${rule.describe}', () => {
@@ -365,12 +372,14 @@ function vitestConfig(context: ArchitectureContext): string {
     );
     return `/// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: ${JSON.stringify(cacheRel)},
-  plugins: [nxViteTsPaths()],
+  plugins: [],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     name: ${JSON.stringify(`${context.projectName}-architecture`)},
     watch: false,

@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../snippet-harness';
 useSnippetHarness();
 
 // #region task-form
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ts/core';
 import {
   cRequired,
   cMaxLength,
@@ -13,10 +13,10 @@ import {
   insertFormAttributes,
   insertNoopTypingAnchor,
   insertSelectFormTree,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const { TaskForm } = craftService(
-  { name: 'TaskForm', scope: 'function' },
+  { name: 'TaskForm', providedIn: 'function' },
   function* () {
     const taskForm = yield* state(
       'taskForm',

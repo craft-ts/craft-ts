@@ -68,7 +68,7 @@ exception into `CRAFT_GLOBAL_ERROR` just before rendering the component.
 The union comes from `CraftGlobalExceptionRegistry`, keyed by route path and code:
 
 ```ts
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftGlobalExceptionRegistry {
     'user/:userId': {
       USER_DISABLED: CraftRouteExceptionType<
@@ -86,7 +86,7 @@ declare module '@craft-ng/core' {
 }
 ```
 
-**Do not edit this block by hand.** The `craft-ng/global-exception-registry-match` ESLint rule
+**Do not edit this block by hand.** The `craft-ts/global-exception-registry-match` ESLint rule
 detects every `handleExceptions` handler that calls `globalError()` and keeps the registry in sync:
 
 ```bash

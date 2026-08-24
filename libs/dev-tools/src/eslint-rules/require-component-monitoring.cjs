@@ -191,21 +191,21 @@ function applyMonitoringFix(issue) {
 }
 
 function ensureComponentMonitoringImport(sourceFile) {
-  const craftNgCoreImport = sourceFile
+  const craftTsCoreImport = sourceFile
     .getImportDeclarations()
-    .find((imp) => imp.getModuleSpecifierValue() === '@craft-ng/core');
+    .find((imp) => imp.getModuleSpecifierValue() === '@craft-ts/core');
 
-  if (craftNgCoreImport) {
-    const namedImports = craftNgCoreImport.getNamedImports();
+  if (craftTsCoreImport) {
+    const namedImports = craftTsCoreImport.getNamedImports();
     const alreadyImported = namedImports.some(
       (ni) => ni.getName() === 'componentMonitoring',
     );
     if (!alreadyImported) {
-      craftNgCoreImport.addNamedImport('componentMonitoring');
+      craftTsCoreImport.addNamedImport('componentMonitoring');
     }
   } else {
     sourceFile.addImportDeclaration({
-      moduleSpecifier: '@craft-ng/core',
+      moduleSpecifier: '@craft-ts/core',
       namedImports: ['componentMonitoring'],
     });
   }

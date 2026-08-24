@@ -52,7 +52,7 @@ dependency of the containing primitive.
 
 ```typescript
 const { Reset } = craftService(
-  { name: 'Reset', scope: 'global' },
+  { name: 'Reset', providedIn: 'global' },
   function* () {
     const reset$ = yield* source$<void>('reset$');
     return reset$;
@@ -85,7 +85,8 @@ myState.reset(); // ❌ Not available (TypeScript error)
 
 ## Automatic Cleanup
 
-`on$` automatically unsubscribes from the source when the Angular injection context is destroyed, preventing memory leaks.
+`on$` automatically unsubscribes from the source when the injection context is
+destroyed, preventing memory leaks.
 
 ## Common Patterns
 
@@ -99,8 +100,8 @@ myState.reset(); // ❌ Not available (TypeScript error)
 ### Basic state reset on source emission
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const resetSource = source$<void>('resetSource');
 
@@ -125,8 +126,8 @@ console.log(yield* counter()); // 0
 ### Syncing state with a source
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 interface User {
   id: string;
@@ -158,8 +159,8 @@ console.log(currentUser()); // { id: '2', name: 'Bob' }
 ### Coordinating multiple states with a single source
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const resetAllSource = source$<void>('resetAllSource');
 
@@ -184,13 +185,13 @@ const { filters } = state('filters', [] as string[], ({ set }) => ({
 }));
 
 // Set some values
-search.set('angular');
+search.set('craft');
 page.next();
 page.next();
 filters.add('tutorial');
 filters.add('advanced');
 
-console.log(search()); // 'angular'
+console.log(search()); // 'craft'
 console.log(page()); // 3
 console.log(filters()); // ['tutorial', 'advanced']
 
@@ -205,10 +206,10 @@ console.log(filters()); // []
 ### Using on$ in a craft service
 
 ```typescript
-import { craftService, state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { craftService, state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
-const { Filters } = craftService({ name: 'Filters', scope: 'global' }, () => {
+const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, () => {
   const reset = source$<void>('reset');
   const { search } = state('search', '', ({ set }) => ({
     set,
@@ -230,10 +231,10 @@ const { Filters } = craftService({ name: 'Filters', scope: 'global' }, () => {
 
 const filters = Filters();
 
-filters.search.set('angular');
+filters.search.set('craft');
 filters.category.set('frameworks');
 
-console.log(filters.search()); // 'angular'
+console.log(filters.search()); // 'craft'
 console.log(filters.category()); // 'frameworks'
 
 // Reset all filters
@@ -248,8 +249,8 @@ console.log(filters.category()); // 'all'
 ### Conditional state updates
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 interface DataUpdate {
   value: number;
@@ -285,8 +286,8 @@ console.log(data()); // 3 (updated due to force flag)
 ### Working with complex transformations
 
 ```typescript
-import { state, source$ } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { state, source$ } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 interface ApiResponse {
   data: {
@@ -338,9 +339,9 @@ console.log(totalCount()); // 2
 ### Using with EventEmitter
 
 ```typescript
-import { EventEmitter } from '@angular/core';
-import { state } from '@craft-ng/core';
-import { on$ } from '@craft-ng/core';
+import { EventEmitter } from '@craft-ts/core';
+import { state } from '@craft-ts/core';
+import { on$ } from '@craft-ts/core';
 
 const clickEmitter = new EventEmitter<{ x: number; y: number }>();
 

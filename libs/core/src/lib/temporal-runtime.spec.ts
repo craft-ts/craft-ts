@@ -1,4 +1,6 @@
-import { Injector } from '@angular/core';
+import {
+  Injector,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';

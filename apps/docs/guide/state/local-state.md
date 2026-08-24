@@ -12,7 +12,7 @@ async action ([`asyncProcess`](/guide/state/async-process)).
 ## The common case
 
 ```typescript
-import { craftComputed, state } from '@craft-ng/core';
+import { craftComputed, state } from '@craft-ts/core';
 
 const counter = yield* state('counter', 0, ({ state, update, set }) => ({
   increment: () => update((value) => value + 1),
@@ -64,7 +64,7 @@ yield* doubled(); // 10
 One insertion function gets crowded. Split it and compose with `insertStatePipe`:
 
 ```typescript
-import { craftComputed, insertStatePipe, state } from '@craft-ng/core';
+import { craftComputed, insertStatePipe, state } from '@craft-ts/core';
 
 const counter = yield* state(
   'counter',
@@ -108,7 +108,7 @@ reset.emit(); // after yield* / craftUse, myState is 0
 ```
 
 Like every craft primitive, a source is **named**, and the name must match the
-variable it is assigned to — the `craft-ng/craft-source-name-match` ESLint rule
+variable it is assigned to — the `craft-ts/craft-source-name-match` ESLint rule
 enforces it and autofixes it.
 
 Note that `onIncrement` and `onReset` are **not** exposed on `myState`. Methods
@@ -129,7 +129,7 @@ yield* state('counter', 0, function* ({ state }) {
   });
 ```
 
-Prefer yielding a craft service over calling Angular's `inject` — yielding is
+Prefer yielding a craft service over reaching into a runtime container — yielding is
 what makes the dependency visible to the route DI check and to test registers.
 
 ## Pitfalls

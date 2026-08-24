@@ -10,7 +10,7 @@ dependencies with `yield*`.
 ## Import
 
 ```typescript
-import { craftMethod } from '@craft-ng/core';
+import { craftMethod } from '@craft-ts/core';
 ```
 
 ## Overview
@@ -47,10 +47,10 @@ function craftMethod<Name extends string, This, Args extends unknown[], Result>(
 ): (...args: Args) => Result;
 ```
 
-The first argument is the **host name**: it is required and must match the
+The first argument is the **name**: it is required and must match the
 property (or variable) the method is assigned to. It is the value used to tag
 the injector context — same role as `provideHostName(...)`. The
-[`craft-ng/craft-method-name-match`](/guide/routing/eslint-rules) ESLint rule
+[`craft-ts/craft-method-name-match`](/guide/routing/eslint-rules) ESLint rule
 enforces the match and offers a quick fix.
 
 ## The common case — inside a Craft component
@@ -59,8 +59,8 @@ In a Craft component's logic factory there is no `this`: declare the method with
 `craftMethod(name, fn)` and return it in the context.
 
 ```typescript
-import { button, craftComponent, div, p } from '@craft-ng/component';
-import { Console, craftMethod, state } from '@craft-ng/core';
+import { button, craftComponent, div, p } from '@craft-ts/component';
+import { Console, craftMethod, state } from '@craft-ts/core';
 
 export const Counter = craftComponent(
   'Counter',
@@ -99,29 +99,19 @@ const increment = craftMethod('increment', function* (value: number) {
 });
 ```
 
-::: details Angular class components — capturing `this`
-In an Angular `@Component` class the generator usually needs the instance, which
-is what the two `this`-aware overloads are for.
+::: details Class-based wrappers — capturing `this`
+When a class-based wrapper needs its instance, use one of the two `this`-aware
+overloads.
 
 ### Recommended form — capture `this`
 
 Use `craftMethod(name, this, fn)` when the generator needs component state.
 
 ```typescript
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { Console, craftMethod } from '@craft-ng/core';
+import { Console, craftMethod, craftSignal } from '@craft-ts/core';
 
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <p>{{ counter() }}</p>
-    <button (click)="increment()">Increment</button>
-  `,
-})
-export class CounterComponent {
-  readonly counter = signal(0);
+export class Counter {
+  readonly counter = craftSignal(0);
 
   readonly increment = craftMethod('increment', this, function* (step = 1) {
     yield* Console.log('increment is called');
@@ -139,26 +129,19 @@ increment();
 
 ### Receiver-based form
 
-Use `craftMethod(name, fn)` when you want the exact `(click)="increment()"` shape and are fine with the receiver-dependent behavior.
+Use `craftMethod(name, fn)` when you want the method to resolve `this` from its receiver, and are fine with the receiver-dependent behavior.
 
 In strict TypeScript, annotate `this` explicitly inside the generator:
 
 ```typescript
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { Console, craftMethod } from '@craft-ng/core';
+import { Console, craftMethod, craftSignal } from '@craft-ts/core';
 
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<button (click)="increment(2)">Increment</button>`,
-})
-export class CounterComponent {
-  readonly counter = signal(0);
+export class Counter {
+  readonly counter = craftSignal(0);
 
   readonly increment = craftMethod(
     'increment',
-    function* (this: CounterComponent, step = 1) {
+    function* (this: Counter, step = 1) {
       yield* Console.log('increment is called');
       this.counter.update((value) => value + step);
       return this.counter();
@@ -170,13 +153,7 @@ export class CounterComponent {
 ### Composing services from a class
 
 ```typescript
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<button (click)="increment()">Increment</button>`,
-})
-export class CounterComponent {
+export class Counter {
   readonly increment = craftMethod(
     'increment',
     this,
@@ -192,7 +169,7 @@ export class CounterComponent {
 ## Caveats
 
 - `craftMethod(...)` must be created inside an injection context, typically during component instantiation.
-- The first argument is a required host name; it must match the property or variable name. The `craft-ng/craft-method-name-match` ESLint rule enforces this and provides a quick fix.
+- The first argument is a required name; it must match the property or variable name. The `craft-ts/craft-method-name-match` ESLint rule enforces this and provides a quick fix.
 - `craftMethod(name, fn)` depends on the receiver used at call time. If you extract the callback, `this` is no longer guaranteed unless you bind it yourself.
 - `craftMethod(name, this, fn)` is the recommended form whenever the generator reads or writes `this`.
 - `onAppStart(...)` is not supported inside `craftMethod`.

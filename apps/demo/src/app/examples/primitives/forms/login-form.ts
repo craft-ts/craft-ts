@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -11,7 +11,7 @@ import {
   label,
   p,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   cEmail,
   cMinLength,
@@ -26,7 +26,7 @@ import {
   mutation,
   state,
   type ValidatedFormValue,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 type LoginData = {
   email: string;
@@ -74,12 +74,13 @@ const LoginFormComponent = craftComponent(
         }),
       ),
     );
-    return loginForm;
+    return {
+      loginForm,
+      email: fieldControl('email'),
+      password: fieldControl('password'),
+    };
   },
-  (loginForm) => {
-    const email = fieldControl('email');
-    const password = fieldControl('password');
-
+  ({ loginForm, email, password }) => {
     return (
       // exceptions are volontary handled at different place for demo reasons
       form('login',
@@ -92,14 +93,14 @@ const LoginFormComponent = craftComponent(
         [
           heading('Login form'),
           div({ class: 'login-field' }, [
-            label(email.label, 'Email'),
+            label({ ...email.label, htmlFor: 'email' }, 'Email'),
             input('email', { ...email.input, type: 'email' }).pipe(
               CraftFieldDirective(loginForm.form.selectEmail()),
             ),
-            p(email.description, 'We never share your email.'),
+            p({ ...email.description }, 'We never share your email.'),
           ]),
           div({ class: 'login-field' }, [
-            label(password.label, 'Password'),
+            label({ ...password.label, htmlFor: 'password' }, 'Password'),
             input('password', { ...password.input, type: 'password' })
               .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
               .pipe(
@@ -108,7 +109,7 @@ const LoginFormComponent = craftComponent(
                     p({ class: 'login-error' }, 'Password is required.'),
                 }),
               ),
-            p(password.description, 'Use at least 6 characters.'),
+            p({ ...password.description }, 'Use at least 6 characters.'),
           ]),
           ifBlock(loginForm.form.showSuccess, () =>
             p('✅ Login form submitted.'),

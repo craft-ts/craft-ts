@@ -9,7 +9,7 @@ tester séparément :
 - le template d’un component ou d’une directive ;
 - les dépendances réellement utilisées par chaque partie.
 
-L’API sera publiée dans `@craft-ng/component/testing`.
+L’API sera publiée dans `@craft-ts/component/testing`.
 
 ## API proposée
 
@@ -113,7 +113,7 @@ enfants, les directives Craft et le nettoyage des vues/injecteurs.
 
 Ajouter une documentation dédiée dans `apps/docs/component/`, couvrant :
 
-- l’installation et l’import depuis `@craft-ng/component/testing` ;
+- l’installation et l’import depuis `@craft-ts/component/testing` ;
 - les tests séparés de logic et de template ;
 - les exemples `StatusComponent` et `FullDemoCraft` ;
 - la différence entre contexte de template et dépendance de service ;

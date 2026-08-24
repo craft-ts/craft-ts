@@ -1,4 +1,6 @@
-import type { Signal } from '@angular/core';
+import {
+  type Signal,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { craftException } from './craft-exception';
 import { craftGen, CraftGenShortCircuit } from './craft-gen';
@@ -12,7 +14,7 @@ describe('craftUse', () => {
   it('drives an inline generator and resolves its dependency yields', () => {
     const request = {
       [SERVICE_YIELD_REQUEST_MARKER]: true,
-      scope: 'global',
+      providedIn: 'global',
       resolve: () => 'resolved-dependency',
     } as const;
 
@@ -36,7 +38,7 @@ describe('craftUse', () => {
 
   it('propagates CraftGenShortCircuit from a craftGen invocation', () => {
     const failGuard = craftGen(function* () {
-      return craftException({ code: 'FORBIDDEN' });
+      return craftException({ _tag: 'FORBIDDEN' });
     });
 
     expect(() => craftUse(failGuard())).toThrow(CraftGenShortCircuit);

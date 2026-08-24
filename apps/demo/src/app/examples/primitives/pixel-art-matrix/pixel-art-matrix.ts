@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './pixel-art-matrix.css' with { loader: 'text' };
 import {
   button,
@@ -9,8 +9,8 @@ import {
   p,
   section,
   heading,
-} from '@craft-ng/component';
-import { state, craftUse } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 import {
   LONG_PRESS_DURATION_MS,
   longPress,
@@ -47,8 +47,9 @@ const PixelArtMatrix = craftComponent(
       setColor: (color: string) => set(color),
     }));
     const grid = yield* state('grid', makeGrid(), ({ set, update }) => ({
-      paint: (rowIndex: number, columnIndex: number) =>
-        update((rows) =>
+      paint: function* (rowIndex: number, columnIndex: number) {
+        const activeColorValue = yield* activeColor();
+        return yield* update((rows) =>
           rows.map((row, r) =>
             r === rowIndex
               ? row.map((cell, c) =>
@@ -56,16 +57,17 @@ const PixelArtMatrix = craftComponent(
                     ? {
                         ...cell,
                         color:
-                          cell.color === craftUse(activeColor())
+                          cell.color === activeColorValue
                             ? EMPTY
-                            : craftUse(activeColor()),
+                            : activeColorValue,
                         count: cell.count + 1,
                       }
                     : cell,
                 )
               : row,
           ),
-        ),
+        );
+      },
       paintRow: (rowIndex: number, color: string) =>
         update((rows) =>
           rows.map((row, r) =>

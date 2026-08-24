@@ -4,8 +4,9 @@ import {
   Injector,
   InjectionToken,
   signal,
+  untracked,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import {
@@ -116,7 +117,7 @@ export function getCurrentStartCorrelationId(): string | null {
 
 export type CorrelationIdYield = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
-  scope: 'function';
+  providedIn: 'function';
   resolve: (
     injector: Injector,
     hostScope: ConcreteServiceScope,
@@ -130,14 +131,18 @@ export function* CorrelationId(): Generator<
 > {
   return (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    scope: 'function' as const,
+    providedIn: 'function' as const,
     resolve: (injector: Injector) => {
       const service = injector.get(CORRELATION_ID_SERVICE, null);
-      return {
+      // Untracked for the same reason as the correlation-id fn wrapper: this
+      // metadata is read from inside whatever computation is logging, and it
+      // changes on every interaction. Tracking it would make every logging
+      // caller depend on the id of the flow it happens to run in.
+      return untracked(() => ({
         lastCorrelationId: service?.lastCorrelationId() ?? null,
         mayCorrelatedIds: service?.mayCorrelatedIds() ?? [],
         startCorrelationId: _currentStartCorrelationId,
-      };
+      }));
     },
   }) as CorrelationIdMetadata;
 }

@@ -1,5 +1,7 @@
-import { computed, inject } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  inject,
+} from '../host/craft-compat';
 import { HOST_TAG_LIST } from '../host-tag';
 import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
@@ -7,14 +9,27 @@ import { insertForm } from './insert-form';
 import { insertSelectFormTree } from './insert-select-form-tree';
 import { formTreeNeed, makeFormTreeInsert } from './make-form-tree-insert';
 import { craftUse } from '../craft-use';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T => {
+  const { injector } = setupCraftServiceTest();
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
 
 type UserShape = {
   user: { name: string; age: number };
 };
 
 describe('makeFormTreeInsert', () => {
-  it('inlines the captured insertions onto the parent form', () => {
-    TestBed.runInInjectionContext(() => {
+  it('inlines the captured insertions onto the parent form', async () => {
+    await runInInjectionContext(async () => {
       const { insertUserFormTree } = makeFormTreeInsert(
         'UserForm',
         formTreeNeed<UserShape>(),
@@ -44,14 +59,14 @@ describe('makeFormTreeInsert', () => {
       expect(userForm.upperName()).toBe('ROMAIN');
 
       userForm.name.set('alice');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(parent()).user.name).toBe('alice');
       expect(userForm.upperName()).toBe('ALICE');
     });
   });
 
-  it('tags the inlined insertions with the host name', () => {
-    TestBed.runInInjectionContext(() => {
+  it('tags the inlined insertions with the host name', async () => {
+    await runInInjectionContext(async () => {
       const { insertUserFormTree } = makeFormTreeInsert(
         'UserForm',
         formTreeNeed<UserShape>(),
@@ -76,8 +91,8 @@ describe('makeFormTreeInsert', () => {
     });
   });
 
-  it('accumulates raw outputs across nested insertions', () => {
-    TestBed.runInInjectionContext(() => {
+  it('accumulates raw outputs across nested insertions', async () => {
+    await runInInjectionContext(async () => {
       const { insertUserFormTree } = makeFormTreeInsert(
         'UserForm',
         formTreeNeed<UserShape>(),
@@ -115,8 +130,8 @@ describe('makeFormTreeInsert', () => {
     });
   });
 
-  it("rejects a parent whose state doesn't satisfy the needed shape", () => {
-    TestBed.runInInjectionContext(() => {
+  it("rejects a parent whose state doesn't satisfy the needed shape", async () => {
+    await runInInjectionContext(async () => {
       const { insertUserFormTree } = makeFormTreeInsert(
         'UserForm',
         formTreeNeed<UserShape>(),
@@ -135,7 +150,7 @@ describe('makeFormTreeInsert', () => {
     });
   });
 
-  it('exposes a typed sentinel under `${HostName}Tree`', () => {
+  it('exposes a typed sentinel under `${HostName}Tree`', async () => {
     const { UserFormTree } = makeFormTreeInsert(
       'UserForm',
       formTreeNeed<UserShape>(),

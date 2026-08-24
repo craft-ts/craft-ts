@@ -7,7 +7,7 @@
  *
  * Everything that gives those payloads a meaning — CSS names, error wording,
  * the fact that an obligation is about `overflow` at all — lives outside the
- * core, in `@craft-ng/style`. Keeping the algebra here and the vocabulary there
+ * core, in `@craft-ts/style`. Keeping the algebra here and the vocabulary there
  * is what lets a second vocabulary reuse the same plumbing without the core
  * growing a single CSS identifier.
  */

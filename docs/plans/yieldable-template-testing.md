@@ -210,7 +210,7 @@ des blocs parents et l’état de la liste.
 
 ### Règles ESLint
 
-Ajouter `craft-ng/template-element-name-unique` afin d’interdire deux
+Ajouter `craft-ts/template-element-name-unique` afin d’interdire deux
 déclarations ayant la même clé `tag:localName` dans le template d’un même
 composant. Les templates de composants enfants ont leur propre namespace.
 

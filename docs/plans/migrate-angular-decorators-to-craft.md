@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Réduire les `@Component` et `@Directive` présents dans le moteur ng-craft en
+Réduire les `@Component` et `@Directive` présents dans le moteur craft-ts en
 les remplaçant par des `craftComponent` et `craftDirective`, tout en conservant
 les intégrations nécessaires avec Angular Router, l'injection de dépendances et
 le cycle de vie DOM.
@@ -215,9 +215,9 @@ type CraftRouteTarget =
 ```
 
 `CraftRouterOutlet` pourra rendre directement les deux types. Le core ne doit
-pas importer `@craft-ng/component`, afin d'éviter une dépendance circulaire.
+pas importer `@craft-ts/component`, afin d'éviter une dépendance circulaire.
 Le protocole de target devra donc vivre dans une couche neutre, ou être
-représenté par un contrat opaque enregistré par `@craft-ng/component`.
+représenté par un contrat opaque enregistré par `@craft-ts/component`.
 
 Le host Angular reste nécessaire uniquement au niveau du contrat Router :
 

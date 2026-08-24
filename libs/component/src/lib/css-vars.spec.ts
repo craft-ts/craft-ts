@@ -1,12 +1,10 @@
-import { TestBed } from '@angular/core/testing';
-import { Injector } from '@angular/core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import { craftComponent } from './component';
 import { div, span } from './hyperscript';
 import { forward, inherit, omit, required } from './css-vars';
 import type { CssVarsContractOfMeta, CssVarsOf } from './css-vars.type';
-import { mountCraftComponent } from './bridge';
+import { renderCraftComponent } from './testing';
 
 type Parsed = CssVarsOf<`
   :scope { --card-gap: 1rem; color: var(--card-ink); }
@@ -81,9 +79,8 @@ const ExplicitExternal = craftComponent(
 ExplicitExternal({ cssVars: { '--external-ink': 'black' } });
 
 describe('component CSS variables', () => {
-  beforeEach(() => TestBed.configureTestingModule({}));
 
-  it('writes supplied variables on the component root and keeps instances independent', () => {
+  it('writes supplied variables on the component root and keeps instances independent', async () => {
     const root = craftComponent(
       'CssVarRuntimeRootSpec',
       {},
@@ -95,9 +92,7 @@ describe('component CSS variables', () => {
           TypedBadge({ cssVars: { '--typed-badge-ink': 'green' } }),
         ]),
     );
-    const host = document.createElement('div');
-    mountCraftComponent(root, host, TestBed.inject(Injector));
-    TestBed.tick();
+    const { nativeElement: host, flush, destroy } = await renderCraftComponent(root);
     const badges = host.querySelectorAll<HTMLElement>('.badge');
     expect(
       Array.from(badges).map((badge) =>
@@ -106,7 +101,7 @@ describe('component CSS variables', () => {
     ).toEqual(['red', 'blue', 'green']);
   });
 
-  it('puts a forward default on the parent so caller values can override it', () => {
+  it('puts a forward default on the parent so caller values can override it', async () => {
     const parent = craftComponent(
       'ForwardParentSpec',
       {},
@@ -114,13 +109,17 @@ describe('component CSS variables', () => {
       () =>
         div(TypedBadge({ cssVars: { '--typed-badge-ink': forward('navy') } })),
     );
-    const host = document.createElement('div');
-    mountCraftComponent(parent, host, TestBed.inject(Injector), {
-      cssVars: { '--typed-badge-ink': 'purple' },
-    } as never);
-    TestBed.tick();
+    const { nativeElement: host, destroy } = await renderCraftComponent(
+      parent,
+      {
+        props: {
+          cssVars: { '--typed-badge-ink': 'purple' },
+        } as never,
+      },
+    );
     expect(host.firstElementChild?.getAttribute('style')).toContain(
       '--typed-badge-ink: purple',
     );
+    destroy();
   });
 });

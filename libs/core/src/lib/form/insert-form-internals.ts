@@ -5,7 +5,7 @@ import {
   runInInjectionContext,
   signal,
   Signal,
-} from '@angular/core';
+} from '../host/craft-compat';
 import { isGenerator, runCraftGenerator } from '../craft-generator-runtime';
 import { injectFnWrapper } from '../fn-wrapper';
 import { ɵcreateHostTaggedInjector } from '../craft-service';

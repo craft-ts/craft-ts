@@ -1,12 +1,17 @@
-import { InjectionToken, type EffectRef, type Injector } from '@angular/core';
-import { craftEffect } from '@craft-ng/core';
+import {
+  abstract,
+  craftService,
+  type EffectRef,
+  type ɵInjector as Injector,
+} from '@craft-ts/core';
+import { craftEffect } from '@craft-ts/core';
 import {
   functionRegistry,
   type FunctionRegistry,
   type FunctionRegistryEntry,
   type FunctionRegistryLog,
 } from './function-registry';
-import type { PrimitiveResourceRuntimeKind } from '@craft-ng/core';
+import type { PrimitiveResourceRuntimeKind } from '@craft-ts/core';
 import {
   applyPageActions,
   captureDomStyles,
@@ -20,17 +25,16 @@ declare global {
   var __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__: string | undefined;
 }
 
-export const FUNCTION_REGISTRY_BRIDGE_URL = new InjectionToken<string>(
-  'FUNCTION_REGISTRY_BRIDGE_URL',
-  {
-    factory: () =>
-      globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ??
-      'ws://127.0.0.1:3333',
-  },
+export const {
+  FunctionRegistryBridgeUrl,
+  provideFunctionRegistryBridgeUrl,
+} = craftService(
+  { name: 'FunctionRegistryBridgeUrl', providedIn: 'abstract' },
+  abstract<string>(),
 );
 
 export const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
-  'ng-craft.function-registry.client-id';
+  'craft-ts.function-registry.client-id';
 
 export function persistAssignedClientId(
   storage: Pick<Storage, 'getItem' | 'setItem'>,
@@ -53,19 +57,12 @@ export function nextReconnectDelayMs(
   return exp + Math.floor(random() * 250);
 }
 
-export const FUNCTION_REGISTRY_CLIENT_ID = new InjectionToken<string>(
-  'FUNCTION_REGISTRY_CLIENT_ID',
-  {
-    factory: () =>
-      createFunctionRegistryClientId(
-        // This token is resolved while the root injector is bootstrapping;
-        // using DI-backed browser boundaries here would re-enter this token.
-        // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-        globalThis.sessionStorage,
-        // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-        () => globalThis.crypto.randomUUID(),
-      ),
-  },
+export const {
+  FunctionRegistryClientId,
+  provideFunctionRegistryClientId,
+} = craftService(
+  { name: 'FunctionRegistryClientId', providedIn: 'abstract' },
+  abstract<string>(),
 );
 
 export type RegistryMethod =
@@ -135,7 +132,7 @@ export function startFunctionRegistryBridge({
   createSocket = (socketUrl) => new WebSocket(socketUrl),
   getPageInfo,
   navigate,
-  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   getDocument = () => globalThis.document,
 }: {
   injector: Injector;
@@ -157,7 +154,7 @@ export function startFunctionRegistryBridge({
   let handshakeComplete = false;
 
   const persistStorage = (): Pick<Storage, 'getItem' | 'setItem'> =>
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     globalThis.sessionStorage;
 
   const publishSurface = (): void => {
@@ -317,12 +314,12 @@ export function respondToBridgeMessage(
   socket: JsonSender,
   rawMessage: unknown,
   registry: FunctionRegistry = functionRegistry,
-  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   getDocument: () => Document = () => globalThis.document,
   getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }> = () => ({
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     pageUrl: globalThis.location?.href,
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     pageTitle: globalThis.document?.title,
   }),
   navigate?: (url: string) => Promise<void>,
@@ -357,12 +354,12 @@ export function respondToBridgeMessage(
 export function handleFunctionRegistryRequest(
   request: RegistryBridgeRequest,
   registry: FunctionRegistry = functionRegistry,
-  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+  // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   getDocument: () => Document = () => globalThis.document,
   getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }> = () => ({
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     pageUrl: globalThis.location?.href,
-    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     pageTitle: globalThis.document?.title,
   }),
   navigate?: (url: string) => Promise<void>,

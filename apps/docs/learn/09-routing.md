@@ -27,7 +27,7 @@ Declaring the collection's paths is what makes navigation type-safe across the
 app:
 
 ```typescript
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
     App: typeof appRoutes.META_PATHS;
   }
@@ -68,7 +68,7 @@ turns a mismatch into a TypeScript error.
 
 The `tasks` route created above remains visible as the source of truth; the
 check below validates that route's component and its `path: 'tasks'` context.
-An AI can also create this Craft NG routing boilerplate very well — including
+An AI can also create this CraftTS routing boilerplate very well — including
 the lazy import, retry handling, route registry and DI check — from the
 component and path you provide.
 
@@ -112,7 +112,7 @@ handler exists for a code nothing produces:
 assertExhaustiveRouteExceptions(appRoutes);
 ```
 
-The ESLint rule `craft-ng/require-assert-exhaustive-route-exceptions` adds it
+The ESLint rule `craft-ts/require-assert-exhaustive-route-exceptions` adds it
 for you.
 
 A component can also handle its own codes with `.pipe(catchTag.exhaustive(...))`,
@@ -124,7 +124,7 @@ just disappear](/guide/concepts/exceptions). Everything else is on
 
 <<< @/tests/snippets/learn/09-routing/app-config.spec.ts#app-config
 
-`toRoutes()` hands Angular the real routes; `META_DATA` hands the compile-time
+`toRoutes()` returns the runtime routes; `META_DATA` carries the compile-time
 graph to `craftAppConfig`.
 
 ## Make the DI contract enforceable
@@ -197,7 +197,7 @@ The `slow-page` demo exists for exactly this: two deliberately slow steps (~1.5s
 each) so you can watch the stay → blank → loader phases play out. The first
 visit is slow, a revisit is instant thanks to the query cache, and a "clear
 cache" button replays it. Source:
-[slow-page.routes.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts).
+[slow-page.routes.ts](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts).
 
 Full details — the phase diagram, per-route overrides, view transitions and the
 DI check on skeletons — are on

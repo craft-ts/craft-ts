@@ -23,7 +23,7 @@ const { updateUserMutation } = mutation('updateUserMutation', {
           }
 
           return craftException(
-            { code: 'USER_EMAIL_ALREADY_EXISTS' },
+            { _tag: 'USER_EMAIL_ALREADY_EXISTS' },
             { message: 'This email is already used' as const },
           );
         },
@@ -60,7 +60,7 @@ const { userFormState } = state(
           if (!emailConflict) return undefined;
 
           return craftException(
-            { code: 'EMAIL_NOT_AVAILABLE' },
+            { _tag: 'EMAIL_NOT_AVAILABLE' },
             emailConflict.payload,
           );
         },
@@ -102,7 +102,7 @@ insertFormSubmit(updateUserMutation, {
     ({ submitCraftResource }) => {
       if (submitCraftResource.exceptions()?.loader?.USER_EMAIL_ALREADY_EXISTS) {
         return craftException(
-          { code: 'EMAIL_NOT_AVAILABLE' },
+          { _tag: 'EMAIL_NOT_AVAILABLE' },
           { message: 'This email is already used' as const },
         );
       }

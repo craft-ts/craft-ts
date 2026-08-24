@@ -3,7 +3,7 @@ import {
   InjectionToken,
   type Provider,
   type Signal,
-} from '@angular/core';
+} from './host/craft-compat';
 import { rawReactiveFacade } from './reactive-read';
 
 export type PrimitiveMethodRuntimeKind =

@@ -32,7 +32,7 @@ import {
   section,
   type ContentSlot,
   type RequiredContent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 type CardInput = {
   readonly header?: ContentSlot;
@@ -128,7 +128,7 @@ import {
   each,
   renderContent,
   type ProjectionOf,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const Toolbar = craftComponent(
   'Toolbar',
@@ -203,7 +203,7 @@ StyledCard({
 ```
 
 Exposed styles apply to ordinary DOM nodes in the fragment. They never cross the
-boundary of a nested Craft or Angular component:
+boundary of a nested Craft component:
 
 ```ts
 StyledCard({

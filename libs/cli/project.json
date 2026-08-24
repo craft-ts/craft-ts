@@ -1,0 +1,33 @@
+{
+  "name": "craft-ts-cli",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/cli/src",
+  "prefix": "craft",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/cli",
+        "main": "libs/cli/src/index.ts",
+        "tsConfig": "libs/cli/tsconfig.lib.json",
+        "assets": ["libs/cli/LICENSE", "libs/cli/README.md"]
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/cli/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    }
+  }
+}

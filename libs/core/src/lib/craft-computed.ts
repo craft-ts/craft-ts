@@ -1,14 +1,14 @@
 import {
   assertInInjectionContext,
-  computed,
   DestroyRef,
   inject,
   Injector,
   runInInjectionContext,
   type CreateComputedOptions,
   type Signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
+import { craftComputed as createCraftComputed } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -31,6 +31,11 @@ import {
   ɵactiveReactiveReader,
   type YieldableReactiveValue,
 } from './reactive-read';
+
+const createComputedWithOptions = createCraftComputed as unknown as <T>(
+  computation: () => T,
+  options?: CreateComputedOptions<T>,
+) => Signal<T>;
 
 type CraftComputedGenerator<This, Yielded, T> = (
   this: This,
@@ -61,10 +66,11 @@ type TrackedCraftComputed<
 > = YieldableReactiveValue<T, Name> & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
 } & ([ReactiveDependencyMapFromYielded<Yielded>] extends [never]
-  ? {}
-  : {
-      readonly [REACTIVE_DEPENDENCIES]?: ReactiveDependencyMapFromYielded<Yielded>;
-    }) & SettledBrandFromYielded<Yielded>;
+    ? {}
+    : {
+        readonly [REACTIVE_DEPENDENCIES]?: ReactiveDependencyMapFromYielded<Yielded>;
+      }) &
+  SettledBrandFromYielded<Yielded>;
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,
@@ -129,41 +135,41 @@ export function craftComputed<T>(
     `computed:${name}`,
   );
 
-  let result: Signal<T>;
-
+  let evaluate: () => T;
   if (isGeneratorFunction(computationOrFactory)) {
-    result = computed(
-      () =>
-        runInInjectionContext(computedInjector, () => {
-          const iterator = (
-            computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
-          ).call(host);
-          return runCraftGenerator({
-            iterator,
-            injector: computedInjector,
-            hostScope: 'function',
-            invalidYieldErrorMessage:
-              'craftComputed generators can only yield Craft dependencies and reactive read requests; received an unknown yield.',
-            multipleAppStartErrorMessage:
-              'craftComputed generators cannot declare onAppStart(...) more than once.',
-            onAppStartNotSupportedErrorMessage:
-              'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
-            reactiveReader: ɵactiveReactiveReader() ?? {
-              name,
-              computed: name,
-              path: name,
-            },
-          }).value as T;
-        }),
-      options,
-    );
+    evaluate = () =>
+      runInInjectionContext(computedInjector, () => {
+        const iterator = (
+          computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
+        ).call(host);
+        return runCraftGenerator({
+          iterator,
+          injector: computedInjector,
+          hostScope: 'function',
+          invalidYieldErrorMessage:
+            'craftComputed generators can only yield Craft dependencies and reactive read requests; received an unknown yield.',
+          multipleAppStartErrorMessage:
+            'craftComputed generators cannot declare onAppStart(...) more than once.',
+          onAppStartNotSupportedErrorMessage:
+            'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
+          reactiveReader: ɵactiveReactiveReader() ?? {
+            name,
+            computed: name,
+            path: name,
+          },
+        }).value as T;
+      });
   } else {
     const computation = computationOrFactory as (this: unknown) => T;
-    result = computed(
-      hasHost ? () => computation.call(host) : (computation as () => T),
-      options,
-    );
+    evaluate = hasHost
+      ? () => computation.call(host)
+      : (computation as () => T);
   }
+
+  // One computation, tracked natively. Craft signals ARE the reactive graph
+  // now, so a read inside `evaluate` subscribes this computed on its own —
+  // there is nothing to capture, mirror or re-publish.
+  const result = createComputedWithOptions(evaluate, options) as Signal<T>;
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {

@@ -8,13 +8,13 @@ import {
 } from './resources.js';
 
 export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
-  const server = new McpServer({ name: 'craft-ng', version: '0.7.0' });
+  const server = new McpServer({ name: 'craft-ts', version: '0.7.0' });
 
   server.registerTool(
     'get_best_practices',
     {
       description:
-        'Return the Craft NG coding-agent guide: which primitive to use, yield* rules, the architecture/ graph contract, services, routes, ESLint, and the AGENTS.md snippet to drop into an app that imports @craft-ng/core. Call this before writing or reviewing Craft code.',
+        'Return the CraftTS coding-agent guide: which primitive to use, yield* rules, the architecture/ graph contract, services, routes, ESLint, and the AGENTS.md snippet to drop into an app that imports @craft-ts/core. Call this before writing or reviewing Craft code.',
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () =>
@@ -30,7 +30,7 @@ export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
     'search_documentation',
     {
       description:
-        'Search the bundled Craft NG documentation (Learn, Guide, Reference, Resources). Use it when you need the current API, a decision page, or a recipe. Prefer this over guessing from training data.',
+        'Search the bundled CraftTS documentation (Learn, Guide, Reference, Resources). Use it when you need the current API, a decision page, or a recipe. Prefer this over guessing from training data.',
       inputSchema: {
         query: z.string().min(1).describe('Keywords, API names, or a task'),
         section: z
@@ -99,7 +99,7 @@ export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
     'list_skills',
     {
       description:
-        'List Agent Skills shipped with @craft-ng/mcp (architecture tests, routes, spec translation, service migration, full-app migration). Load one with get_skill before following a workflow.',
+        'List Agent Skills shipped with @craft-ts/mcp (architecture tests, routes, spec translation, service migration, full-app migration). Load one with get_skill before following a workflow.',
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () =>
@@ -116,13 +116,13 @@ export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
     'get_skill',
     {
       description:
-        'Return a Craft NG Agent Skill. Omit `reference` to get SKILL.md; pass a reference filename from list_skills to load that file only.',
+        'Return a CraftTS Agent Skill. Omit `reference` to get SKILL.md; pass a reference filename from list_skills to load that file only.',
       inputSchema: {
         name: z
           .string()
           .min(1)
           .describe(
-            'Skill directory name, for example ng-craft-routes or translate-spec-to-ng-craft',
+            'Skill directory name, for example craft-ts-routes or translate-spec-to-craft-ts',
           ),
         reference: z
           .string()

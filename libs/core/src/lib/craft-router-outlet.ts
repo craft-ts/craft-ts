@@ -1,25 +1,13 @@
 import {
   DestroyRef,
-  effect,
   EnvironmentInjector,
   inject,
   Injector,
   InjectionToken,
   runInInjectionContext,
-  signal,
-  type EffectRef,
-  type Signal,
   type Type,
-  type WritableSignal,
-} from '@angular/core';
-import {
-  ActivatedRoute,
-  ChildrenOutletContexts,
-  Router,
-  type Data,
-  type RouterOutletContract,
-} from '@angular/router';
-import { DOCUMENT } from '@angular/common';
+} from './host/craft-compat';
+import { DOCUMENT } from './host/craft-compat';
 import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
 import { isCraftException, type AnyCraftException } from './craft-exception';
 import {
@@ -39,7 +27,16 @@ import {
   type CraftExceptionComponentInput,
   type CraftPendingComponentInput,
 } from './craft-route-exceptions';
-import { getCraftRouteMeta, type CraftRouteMeta } from './craft-route-meta';
+import {
+  createRouteLoadError,
+  isCraftRouteLoadError,
+  setActiveCraftRouteLoadError,
+} from './craft-route-load-error';
+import {
+  getCraftRouteMeta,
+  type CraftRouteMeta,
+  type CraftRouteStepFactory,
+} from './craft-route-meta';
 import {
   CRAFT_START_VIEW_TRANSITION,
   CRAFT_VIEW_TRANSITION,
@@ -53,49 +50,57 @@ import {
   type TemporalTaskHandle,
 } from './temporal-runtime';
 import {
-  angularRouteTarget,
-  angularComponentFromRouteTarget,
+  craftRouteTarget,
   CRAFT_ROUTE_TARGET,
   isCraftRouteTarget,
   normalizeCraftRouteTarget,
   type CraftRouteTarget,
   type CraftRouteTargetInput,
 } from './craft-route-target';
-import { combineLatest, type Subscription } from 'rxjs';
+import {
+  craftSignal,
+  craftWatch,
+  type CraftWritableSignal,
+} from './host/craft-signal';
+import {
+  serializeLocation,
+  sliceCraftMatchForOutlet,
+  type CraftCompiledRoute,
+  type CraftMatch,
+} from './host/craft-router-runtime';
+import {
+  CRAFT_CHILD_MATCH,
+  CRAFT_HISTORY,
+  CRAFT_MATCH,
+  CRAFT_ROUTER,
+  type CraftRouterNavigationApi,
+} from './craft-router-tokens';
+import { CRAFT_SSR_RUNTIME } from './craft-ssr';
+import { CRAFT_PLATFORM } from './craft-platform';
+import { CRAFT_HYDRATION_RUNTIME } from './craft-hydration';
 
-const ROUTE_PROP_SKIP = new Set([
-  'craftComponent',
-  'craftPendingComponent',
-]);
+const ROUTE_PROP_SKIP = new Set(['craftComponent', 'craftPendingComponent']);
 
-/**
- * Flatten params, data and query params from the activated route **and its
- * ancestors**. Leaf `ActivatedRoute.params` only contain that segment, so a
- * lazy child that declares parent inputs (`teamId`, route `data`, …) would
- * otherwise receive the child's own params in the wrong positional slots.
- */
-export function collectActivatedRouteProps(
-  route:
-    | Pick<ActivatedRoute, 'snapshot'>
-    | null
-    | undefined,
+export function collectMatchProps(
+  match: CraftMatch | null | undefined,
 ): Record<string, unknown> {
-  if (!route?.snapshot) {
+  if (!match) {
     return {};
   }
-
-  const snapshots = route.snapshot.pathFromRoot ?? [route.snapshot];
   const props: Record<string, unknown> = {};
-  for (const snapshot of snapshots) {
-    assignRoutePropBag(props, snapshot.params);
+  for (const route of match.routes) {
     assignRoutePropBag(
       props,
-      snapshot.data as Record<string, unknown> | undefined,
+      route.data as Record<string, unknown> | undefined,
     );
   }
-  assignRoutePropBag(props, route.snapshot.queryParams);
+  assignRoutePropBag(props, match.params);
+  assignRoutePropBag(props, match.queryParams);
   return props;
 }
+
+/** @deprecated Use {@link collectMatchProps}. */
+export const collectActivatedRouteProps = collectMatchProps;
 
 function assignRoutePropBag(
   target: Record<string, unknown>,
@@ -112,34 +117,6 @@ function assignRoutePropBag(
   }
 }
 
-function subscribeActivatedRouteProps(
-  route: ActivatedRoute,
-  sink: (props: Record<string, unknown>) => void,
-): Subscription | undefined {
-  const routes =
-    route.pathFromRoot && route.pathFromRoot.length > 0
-      ? route.pathFromRoot
-      : [route];
-  const sources = [
-    ...routes.flatMap((segment) =>
-      [segment.params, segment.data].filter(Boolean),
-    ),
-    route.queryParams,
-  ].filter(Boolean);
-  if (sources.length === 0) {
-    sink(collectActivatedRouteProps(route));
-    return undefined;
-  }
-  return combineLatest(sources).subscribe(() => {
-    sink(collectActivatedRouteProps(route));
-  });
-}
-
-/**
- * Outlet lifecycle for one navigation. While a route's chain is in flight the
- * outlet walks three phases: `'stay'` (keep the previous page) → `'blank'` →
- * `'pending'` (loader), before settling on `'loaded'` or `'error'`.
- */
 export type CraftOutletState =
   | 'idle'
   | 'stay'
@@ -148,11 +125,6 @@ export type CraftOutletState =
   | 'loaded'
   | 'error';
 
-/**
- * The function the outlet uses to drive a route's guard/resolve chain. Defaults
- * to {@link runCraftRouteChainAsync}; overridable in tests to drive the outlet's
- * state machine deterministically (a controlled promise + fake timers).
- */
 export const CRAFT_ROUTE_CHAIN_RUNNER = new InjectionToken<
   typeof runCraftRouteChainAsync
 >('CRAFT_ROUTE_CHAIN_RUNNER', {
@@ -160,36 +132,47 @@ export const CRAFT_ROUTE_CHAIN_RUNNER = new InjectionToken<
   factory: () => runCraftRouteChainAsync,
 });
 
+const syncTemplateFlushers = new Set<() => void>();
+
+/** Registers a synchronous template patch invoked from view-transition commits. */
+export function registerCraftSyncTemplateFlush(fn: () => void): () => void {
+  syncTemplateFlushers.add(fn);
+  return () => {
+    syncTemplateFlushers.delete(fn);
+  };
+}
+
+function runRegisteredSyncTemplateFlush(): void {
+  for (const flush of syncTemplateFlushers) {
+    flush();
+  }
+}
+
+/**
+ * Runs inside `startViewTransition`'s callback after Craft signals commit, so
+ * the displayed DOM is patched before the callback returns. Templates driven by
+ * `craftEffect` otherwise bump an Angular signal asynchronously.
+ */
+export const CRAFT_SYNC_TEMPLATE_FLUSH = new InjectionToken<() => void>(
+  'CRAFT_SYNC_TEMPLATE_FLUSH',
+  {
+    providedIn: 'root',
+    factory: () => runRegisteredSyncTemplateFlush,
+  },
+);
+
 /**
  * A non-blocking replacement for `<router-outlet>`. The URL commits immediately
- * (no blocking guard); this outlet reads the route's {@link CraftRouteMeta} and
- * drives canMatch → canActivate → resolve **after** commit, through three phases
- * while the chain is in flight:
- *
- * - **stay** ({@link CRAFT_STAY_MS}) — keeps the PREVIOUS page mounted, so a fast
- *   chain transitions straight to the target with no flash of blank/loader;
- * - **blank** ({@link CRAFT_BLANK_MS}) — a blank surface;
- * - **pending** — the pending component (loader), held at least
- *   {@link CRAFT_PENDING_MIN_MS}.
- *
- * Then it mounts the target only on success (`'data'` / `'noop'`), or applies the
- * route's `handleExceptions` outcome otherwise (redirect / dedicated component /
- * global error component / stay / noop), and keeps `canActivate` under reactive
- * observation while active (live guards).
- *
- * A renderer bound to {@link displayedComponent} drives the view: during
- * `'stay'` it is left pointing at the previous page's live instance, so that
- * instance is preserved (not re-created) across the transition.
- *
- * Routes without craft meta render immediately, exactly like `<router-outlet>`.
+ * (history.push); this outlet reads the route's {@link CraftRouteMeta} and
+ * drives canMatch → canActivate → resolve **after** commit.
  */
-export class CraftRouterOutletController implements RouterOutletContract {
-  /** Outlet name (matches `<router-outlet name>`); default `'primary'`. */
+export class CraftRouterOutletController {
   name = 'primary';
 
-  private readonly parentContexts = inject(ChildrenOutletContexts);
   private readonly rootInjector = inject(EnvironmentInjector);
-  private readonly router = inject(Router);
+  private readonly router =
+    inject(CRAFT_ROUTER, { optional: true }) ?? silentRouter();
+  private readonly history = inject(CRAFT_HISTORY, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly temporalRuntime = inject(CRAFT_TEMPORAL_RUNTIME);
 
@@ -200,7 +183,6 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private readonly defaultPendingMinMs = inject(CRAFT_PENDING_MIN_MS);
   private readonly chainRunner = inject(CRAFT_ROUTE_CHAIN_RUNNER);
 
-  // --- View transitions (outlet-driven; see withCraftViewTransitions) ---
   private readonly viewTransitionsEnabled = inject(
     CRAFT_VIEW_TRANSITIONS_ENABLED,
   );
@@ -208,29 +190,47 @@ export class CraftRouterOutletController implements RouterOutletContract {
     CRAFT_VIEW_TRANSITION_SKIP_BLANK,
   );
   private readonly startViewTransition = inject(CRAFT_START_VIEW_TRANSITION);
+  private readonly syncTemplateFlush = inject(CRAFT_SYNC_TEMPLATE_FLUSH);
   private readonly viewTransitionSink = inject(
     CRAFT_VIEW_TRANSITION,
-  ) as WritableSignal<CraftViewTransitionInput>;
+  ) as unknown as {
+    set(value: CraftViewTransitionInput): void;
+  };
   private readonly a11yNavigationFocus = inject(CRAFT_A11Y_NAVIGATION_FOCUS);
-  private readonly document = inject(DOCUMENT);
+  private readonly platform = inject(CRAFT_PLATFORM, { optional: true });
+  private readonly hydrationRuntime = inject(CRAFT_HYDRATION_RUNTIME, {
+    optional: true,
+  });
+  private readonly document = this.platform?.document ?? inject(DOCUMENT);
+  private readonly ssrRuntime = inject(CRAFT_SSR_RUNTIME, { optional: true });
   private a11yHasCompletedInitialActivation = false;
 
-  // --- What the template actually renders (single, stable outlet) ---
-  readonly displayedComponent = signal<Type<unknown> | null>(null);
-  readonly displayedTarget = signal<CraftRouteTarget | null>(null);
-  readonly displayedInjector = signal<Injector | undefined>(undefined);
-  readonly displayedProps = signal<Readonly<Record<string, unknown>>>({});
+  readonly displayedComponent: CraftWritableSignal<Type<unknown> | null> =
+    craftSignal<Type<unknown> | null>(null);
+  readonly displayedTarget: CraftWritableSignal<CraftRouteTarget | null> =
+    craftSignal<CraftRouteTarget | null>(null);
+  readonly displayedInjector: CraftWritableSignal<Injector | undefined> =
+    craftSignal<Injector | undefined>(undefined);
+  readonly displayedProps: CraftWritableSignal<
+    Readonly<Record<string, unknown>>
+  > = craftSignal<Readonly<Record<string, unknown>>>({});
 
-  // --- Phase / bookkeeping state (read by tests & the contract) ---
-  readonly state = signal<CraftOutletState>('idle');
-  readonly targetComponent = signal<Type<unknown> | null>(null);
-  readonly pendingComponent = signal<Type<unknown> | null>(null);
-  readonly errorComponent = signal<Type<unknown> | null>(null);
-  readonly pendingTarget = signal<CraftRouteTarget | null>(null);
-  readonly errorTarget = signal<CraftRouteTarget | null>(null);
+  readonly state: CraftWritableSignal<CraftOutletState> =
+    craftSignal<CraftOutletState>('idle');
+  readonly targetComponent: CraftWritableSignal<Type<unknown> | null> =
+    craftSignal<Type<unknown> | null>(null);
+  readonly pendingComponent: CraftWritableSignal<Type<unknown> | null> =
+    craftSignal<Type<unknown> | null>(null);
+  readonly errorComponent: CraftWritableSignal<Type<unknown> | null> =
+    craftSignal<Type<unknown> | null>(null);
+  readonly pendingTarget: CraftWritableSignal<CraftRouteTarget | null> =
+    craftSignal<CraftRouteTarget | null>(null);
+  readonly errorTarget: CraftWritableSignal<CraftRouteTarget | null> =
+    craftSignal<CraftRouteTarget | null>(null);
 
-  // --- Activation bookkeeping ---
-  private _activatedRoute: ActivatedRoute | null = null;
+  private _match: CraftMatch | null = null;
+  private _liveMatch: CraftWritableSignal<CraftMatch> | null = null;
+  private _childMatch: CraftWritableSignal<CraftMatch | null> | null = null;
   private _activeRouteInjector: Injector | null = null;
   private _meta: CraftRouteMeta | null = null;
   private _navId = 0;
@@ -240,72 +240,53 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private _pendingShownAt = 0;
   private _previousUrl = this.router.url;
   private _pendingDeactivation = false;
-  private _reactiveEffect: EffectRef | null = null;
-  private _routePropsSubscription: Subscription | null = null;
+  private _reactiveWatch: { destroy(): void } | null = null;
+  private _matchWatch: { destroy(): void } | null = null;
   private _frozen = false;
-
-  // --------------------------------------------------------------------------
-  // RouterOutletContract
-  // --------------------------------------------------------------------------
+  private _displayVersion = 0;
 
   get isActivated(): boolean {
-    return this._activatedRoute !== null;
+    return this._match !== null;
   }
 
   get component(): object {
-    if (!this._activatedRoute) {
+    if (!this._match) {
       throw new Error('CraftRouterOutlet is not activated');
     }
     return (this.targetComponent() ?? {}) as object;
   }
 
-  get activatedRoute(): ActivatedRoute | null {
-    return this._activatedRoute;
-  }
-
-  get activatedRouteData(): Data {
-    return this._activatedRoute?.snapshot.data ?? {};
-  }
-
   constructor() {
-    this.parentContexts.onChildOutletCreated(this.name, this);
-
-    // The route may already be activated (outlet created after navigation).
-    const context = this.parentContexts.getContext(this.name);
-    if (context?.route) {
-      this.activateWith(context.route, context.injector);
+    const matchSignal =
+      inject(CRAFT_CHILD_MATCH, { optional: true }) ??
+      inject(CRAFT_MATCH, { optional: true });
+    if (matchSignal) {
+      this._matchWatch = craftWatch(() => {
+        const match = matchSignal();
+        if (match) {
+          this.activateMatch(match, this.rootInjector);
+        } else if (this._match) {
+          this.deactivate();
+        }
+      });
     }
-
     this.destroyRef.onDestroy(() => this.destroy());
   }
 
   destroy(): void {
+    this._matchWatch?.destroy();
+    this._matchWatch = null;
     this.teardown();
-    this.parentContexts.onChildOutletDestroyed(this.name);
-  }
-
-  detach(): never {
-    // Detach/reattach (RouteReuseStrategy) is not supported by the craft outlet.
-    throw new Error('CraftRouterOutlet does not support detach/attach.');
-  }
-
-  attach(): void {
-    throw new Error('CraftRouterOutlet does not support detach/attach.');
   }
 
   deactivate(): void {
     this.teardown();
-    this._activatedRoute = null;
+    this._match = null;
+    this._liveMatch = null;
+    this._childMatch = null;
     this._activeRouteInjector = null;
     this._meta = null;
     this._previousUrl = this.router.url;
-
-    // Keep the current page rendered for a possible immediate re-activation:
-    // Angular calls `deactivate()` then `activateWith()` synchronously on a
-    // route→route change, so leaving `displayedComponent` in place lets the
-    // previous page stay mounted (alive) through the next navigation's `'stay'`
-    // phase. If no `activateWith` follows (navigating to a routeless URL), a
-    // microtask — which runs after that synchronous pass — clears it.
     this._pendingDeactivation = true;
     queueMicrotask(() => {
       if (this._pendingDeactivation) {
@@ -319,49 +300,120 @@ export class CraftRouterOutletController implements RouterOutletContract {
     });
   }
 
-  activateWith(
-    activatedRoute: ActivatedRoute,
-    environmentInjector: EnvironmentInjector,
+  activateMatch(
+    match: CraftMatch,
+    environmentInjector?: EnvironmentInjector,
   ): void {
-    // Cancel the deferred clear from a preceding `deactivate()` — we are
-    // re-activating, so the previous page must stay mounted for `'stay'`.
     this._pendingDeactivation = false;
+    const previousMatchUrl = this._match
+      ? serializeLocation(this._match)
+      : this._previousUrl;
+    const { activated, child } = sliceCraftMatchForOutlet(match);
+
+    if (
+      this._match &&
+      this._liveMatch &&
+      this._childMatch &&
+      this._activeRouteInjector &&
+      this.state() !== 'error' &&
+      canReuseActivation(this._match, activated, this._meta)
+    ) {
+      this._liveMatch.set(activated);
+      this._childMatch.set(child);
+      this.displayedProps.set(collectMatchProps(activated));
+      this.publishViewTransitionPayload();
+      return;
+    }
+
+    this._previousUrl = previousMatchUrl;
     this.teardown();
-    this._activatedRoute = activatedRoute;
+    this._match = activated;
+    this._liveMatch = craftSignal(activated);
+    this._childMatch = craftSignal(child);
+    const routeProviders = activated.route.providers;
     this._activeRouteInjector = Injector.create({
       providers: [
-        { provide: ActivatedRoute, useValue: activatedRoute },
-        {
-          provide: ChildrenOutletContexts,
-          useValue: this.parentContexts.getOrCreateContext(this.name).children,
-        },
+        { provide: CRAFT_MATCH, useValue: this._liveMatch },
+        { provide: CRAFT_CHILD_MATCH, useValue: this._childMatch },
+        ...(Array.isArray(routeProviders) ? (routeProviders as never[]) : []),
       ],
       parent: environmentInjector ?? this.rootInjector,
       name: 'CraftRouterOutlet',
     });
-    if (
-      activatedRoute.params &&
-      activatedRoute.queryParams &&
-      activatedRoute.data
-    ) {
-      this._routePropsSubscription = subscribeActivatedRouteProps(
-        activatedRoute,
-        (props) => this.displayedProps.set(props),
-      ) ?? null;
-    }
 
-    // Republish this navigation's view-transition payload before mounting
-    // anything, so the pending skeleton and the target both read it.
     this.publishViewTransitionPayload();
 
-    const meta = getCraftRouteMeta(
-      activatedRoute.snapshot.data as Record<string | symbol, unknown>,
+    const leafMeta = getCraftRouteMeta(
+      (activated.route.data ?? activated.data) as Record<
+        string | symbol,
+        unknown
+      >,
+    );
+    const meta = composeRouteMetas(
+      collectAncestorGuardMetas(match, activated),
+      leafMeta ?? null,
     );
     this._meta = meta ?? null;
     this.clearExceptionSinks(meta);
-    const component = this.resolveRouteComponent(activatedRoute);
+    const activation = this.finishActivation(activated, meta ?? null);
+    if (this.ssrRuntime) {
+      this.ssrRuntime.track(`route:${activated.route.path}`, activation);
+    } else if (this.platform?.hydrating && this.hydrationRuntime) {
+      this.hydrationRuntime.track(`route:${activated.route.path}`, activation);
+    } else {
+      void activation;
+    }
+  }
 
-    // Plain route (no craft chain) → behave like <router-outlet>.
+  private async finishActivation(
+    match: CraftMatch,
+    meta: CraftRouteMeta | null,
+  ): Promise<void> {
+    if (!this.isCurrentActivation(match)) {
+      return;
+    }
+    if (
+      typeof match.route.loadComponent === 'function' &&
+      !match.route.component
+    ) {
+      try {
+        const loaded = await runInInjectionContext(
+          this._activeRouteInjector ?? this.rootInjector,
+          () => Promise.resolve(match.route.loadComponent!()),
+        );
+        if (!this.isCurrentActivation(match)) {
+          return;
+        }
+        const component =
+          loaded && typeof loaded === 'object' && 'default' in loaded
+            ? (loaded as { default: unknown }).default
+            : loaded;
+        match.route.component = component;
+      } catch (error) {
+        if (!this.isCurrentActivation(match)) {
+          return;
+        }
+        const exception = isCraftRouteLoadError(error)
+          ? error
+          : createRouteLoadError({
+              phase: 'component',
+              routePath: match.route.path,
+              targetUrl: this.router.url,
+              cause: error,
+              attempt: 1,
+            });
+        setActiveCraftRouteLoadError(exception, this.rootInjector);
+        this.publishGlobalError(exception);
+        void this.showErrorComponent(
+          this._meta?.errorComponent ?? this.defaultErrorComponent,
+          exception,
+        );
+        return;
+      }
+    }
+    const component = this.resolveRouteComponent(match);
+    this.displayedProps.set(collectMatchProps(match));
+
     if (!meta || (!meta.match && !meta.guard && !meta.resolve)) {
       this.showComponent(
         component,
@@ -373,36 +425,26 @@ export class CraftRouterOutletController implements RouterOutletContract {
       return;
     }
 
-    this.runChain(meta, component, 'enter');
+    await this.runChain(meta, component, 'enter');
   }
-
-  // --------------------------------------------------------------------------
-  // Non-blocking chain
-  // --------------------------------------------------------------------------
 
   private runChain(
     meta: CraftRouteMeta,
     component: Type<unknown> | null,
     phase: 'enter' | 'active',
-  ): void {
+  ): Promise<void> {
     const navId = ++this._navId;
     const injector = this._activeRouteInjector ?? this.rootInjector;
-    const routeSnapshot = this._activatedRoute!.snapshot;
-    const stateSnapshot = this.router.routerState.snapshot;
+    const routeSnapshot = matchToSnapshot(this._match!);
+    const stateSnapshot = { url: this.router.url, root: routeSnapshot };
 
-    // Phase 1 — 'stay': keep the previous page mounted (displayedComponent is
-    // left untouched). A chain settling within stayMs jumps straight to target.
     this.state.set('stay');
     void this.resolvePendingComponent(meta);
 
     const stayMs = meta.stayMs ?? this.defaultStayMs;
-    // A view-transition route (or `withCraftViewTransitions({ skipBlank })`)
-    // skips the blank surface: a blank between the previous page and the
-    // skeleton would break the shared-element morph, so go stay → pending.
     const skipBlank = this.shouldSkipBlank(meta);
     const blankMs = skipBlank ? 0 : (meta.blankMs ?? this.defaultBlankMs);
 
-    // Phase 2 — 'blank': drop the previous page, show a blank surface.
     if (!skipBlank) {
       this._stayTimer = this.temporalRuntime.schedule(
         () => {
@@ -421,7 +463,6 @@ export class CraftRouterOutletController implements RouterOutletContract {
       );
     }
 
-    // Phase 3 — 'pending': show the loader (held at least pendingMinMs).
     this._blankTimer = this.temporalRuntime.schedule(
       () => {
         if (
@@ -445,18 +486,17 @@ export class CraftRouterOutletController implements RouterOutletContract {
       },
     );
 
-    this.chainRunner(
+    return this.chainRunner(
       {
-        match: meta.match?.(routeSnapshot, stateSnapshot),
-        // In the reactive `active` phase, only the guard invariant is re-checked.
-        guard: meta.guard?.(routeSnapshot, stateSnapshot),
+        match: meta.match?.(routeSnapshot as never, stateSnapshot as never),
+        guard: meta.guard?.(routeSnapshot as never, stateSnapshot as never),
         resolve:
           phase === 'enter'
-            ? meta.resolve?.(routeSnapshot, stateSnapshot)
+            ? meta.resolve?.(routeSnapshot as never, stateSnapshot as never)
             : undefined,
       },
       injector,
-      this.router,
+      this.router as import('./craft-router').CraftRouter,
       meta.handleExceptions,
       phase,
     ).then(
@@ -494,19 +534,19 @@ export class CraftRouterOutletController implements RouterOutletContract {
         this.installReactiveGuard(meta, component);
         return;
       case 'noop':
-        // Render the target with resolve data left undefined.
         this.showTarget(component, meta);
         this.installReactiveGuard(meta, component);
         return;
       case 'redirect':
-        void this.router.navigateByUrl(outcome.target);
+        void this.router.navigateByUrl(String(outcome.target));
         return;
       case 'stay':
-        // Cancel the navigation: restore the previous URL.
-        void this.router.navigateByUrl(this._previousUrl);
+        if (this._previousUrl !== this.router.url) {
+          void this.router.navigateByUrl(this._previousUrl);
+        }
         return;
       case 'render':
-        meta.exceptionSinks[outcome.exception.code]?.set(outcome.exception);
+        meta.exceptionSinks[outcome.exception._tag]?.set(outcome.exception);
         void this.showErrorComponent(outcome.component, outcome.exception);
         return;
       case 'global':
@@ -530,21 +570,36 @@ export class CraftRouterOutletController implements RouterOutletContract {
     }
   }
 
-  // Mounts `component` in the single template outlet with the given injector.
-  // When view transitions are enabled the swap is bracketed in
-  // `document.startViewTransition()` so the browser morphs the shared element.
   private showComponent(
     component: Type<unknown> | null,
     injector: Injector | null,
     target: CraftRouteTarget | null = component
-      ? angularRouteTarget(component)
+      ? craftRouteTarget(component)
       : null,
   ): void {
+    const activationId = this._navId;
+    const displayVersion = ++this._displayVersion;
+    const props = this.routeProps();
     const commit = () => {
+      // The browser may invoke a View Transition callback after a newer
+      // activation or swap has already been requested. Such a callback must
+      // not resurrect its old component, and its props must belong to the
+      // component captured at request time rather than the current route.
+      if (
+        this._navId !== activationId ||
+        this._displayVersion !== displayVersion
+      ) {
+        return;
+      }
       this.displayedInjector.set(injector ?? undefined);
-      this.displayedProps.set(this.routeProps());
-      this.displayedComponent.set(component);
+      this.displayedProps.set(props);
+      // Publish the target last: CraftRouterOutlet mounts it as soon as the
+      // target becomes visible, so its route injector and inputs must already
+      // be available or the first render is created with the parent injector
+      // and immediately remounted when the injector signal catches up.
       this.displayedTarget.set(target);
+      this.displayedComponent.set(component);
+      this.syncTemplateFlush();
     };
 
     if (!this.viewTransitionsEnabled) {
@@ -555,12 +610,6 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
     this.startViewTransition(() => {
       commit();
-      // `document.startViewTransition` snapshots the NEW state as soon as this
-      // callback returns. The swap only sets signals, so without a synchronous
-      // Angular's signal scheduler will render the new component after the
-      // callback. Do not force a nested ApplicationRef.tick here: when the
-      // browser invokes the callback during router activation, that nested tick
-      // can re-enter the outlet and create an unbounded navigation/render loop.
     });
     this.scheduleA11yNavigationFocus();
   }
@@ -577,13 +626,14 @@ export class CraftRouterOutletController implements RouterOutletContract {
       const target =
         this.document.getElementById('main') ??
         this.document.querySelector('main');
-      if (!(target instanceof HTMLElement)) {
+      if (!target || target.nodeType !== 1) {
         return;
       }
-      if (!target.hasAttribute('tabindex')) {
-        target.tabIndex = -1;
+      const element = target as HTMLElement;
+      if (!element.hasAttribute('tabindex')) {
+        element.tabIndex = -1;
       }
-      target.focus();
+      element.focus();
     });
   }
 
@@ -610,7 +660,11 @@ export class CraftRouterOutletController implements RouterOutletContract {
   ): Promise<void> {
     const resolved = await resolveComponentInput(input);
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    const component = angularComponentFromRouteTarget(target);
+    // Removing the Angular interop left this pinned at `null`, which silently
+    // emptied the error surface: nothing was reported through
+    // `errorComponent()` and nothing was mounted. The component IS the
+    // normalized target's — everything Craft renders is a Craft component.
+    const component = (target?.component ?? null) as Type<unknown> | null;
     this.errorComponent.set(component);
     this.errorTarget.set(target);
     this.showComponent(
@@ -619,12 +673,9 @@ export class CraftRouterOutletController implements RouterOutletContract {
       target,
     );
     this.state.set('error');
-    // An error outcome that stays on the URL freezes reactive re-evaluation.
     this._frozen = true;
   }
 
-  // Anti-flicker: once the loader is shown, keep it visible for at least
-  // `pendingMinMs` so a chain that settles right after it appears does not blink.
   private commitWithAntiFlicker(
     commit: () => void,
     meta: CraftRouteMeta,
@@ -654,10 +705,6 @@ export class CraftRouterOutletController implements RouterOutletContract {
     commit();
   }
 
-  // --------------------------------------------------------------------------
-  // Reactive ("live") guards — phase 'active'
-  // --------------------------------------------------------------------------
-
   private installReactiveGuard(
     meta: CraftRouteMeta,
     component: Type<unknown> | null,
@@ -670,15 +717,13 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
     const injector = this._activeRouteInjector ?? this.rootInjector;
     const guardFactory = meta.guard;
-    const routeSnapshot = this._activatedRoute!.snapshot;
-    const stateSnapshot = this.router.routerState.snapshot;
+    const routeSnapshot = matchToSnapshot(this._match!);
+    const stateSnapshot = { url: this.router.url, root: routeSnapshot };
 
-    this._reactiveEffect = runInInjectionContext(injector, () =>
-      effect(() => {
-        // Re-pump the guard synchronously so the effect tracks the craft signals
-        // it reads; a settled resource resolves on the fast path.
+    this._reactiveWatch = runInInjectionContext(injector, () =>
+      craftWatch(() => {
         const result = evaluateCraftGuardSync(
-          guardFactory(routeSnapshot, stateSnapshot),
+          guardFactory(routeSnapshot as never, stateSnapshot as never),
           injector,
         );
 
@@ -703,20 +748,13 @@ export class CraftRouterOutletController implements RouterOutletContract {
         })(),
       },
       this._activeRouteInjector ?? this.rootInjector,
-      this.router,
+      this.router as import('./craft-router').CraftRouter,
       meta.handleExceptions,
       'active',
     );
     this.applyOutcome(outcome, meta, component, 'active');
   }
 
-  // --------------------------------------------------------------------------
-  // Helpers
-  // --------------------------------------------------------------------------
-
-  // Skip the blank surface when a view transition is in play for this route —
-  // either it opted in (`withLoaderViewTransitionImage`) or the feature was
-  // configured to skip blank globally.
   private shouldSkipBlank(meta: CraftRouteMeta): boolean {
     return (
       this.viewTransitionsEnabled &&
@@ -725,30 +763,34 @@ export class CraftRouterOutletController implements RouterOutletContract {
     );
   }
 
-  // Reads this navigation's view-transition payload from Angular's navigation
-  // state (falling back to `history.state`) and republishes it on the sink the
-  // skeleton/target read. Always writes (even `null`) so a stale payload from a
-  // previous navigation cannot leak into this one.
   private publishViewTransitionPayload(): void {
-    const fromNavigation = this.router.getCurrentNavigation()?.extras.state as
+    const extras = this.router.getCurrentNavigation()?.extras;
+    const fromNavigation = extras?.state as Record<string, unknown> | undefined;
+    const craftState = this.history?.getState() as
       | Record<string, unknown>
+      | null
       | undefined;
-    const historyState =
+    const windowState =
       typeof history !== 'undefined'
         ? (history.state as Record<string, unknown> | null | undefined)
         : undefined;
+    const source = this.history
+      ? craftState
+      : extras?.skipLocationChange
+        ? fromNavigation
+        : windowState;
     const raw =
+      source?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
       fromNavigation?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
-      historyState?.[CRAFT_VIEW_TRANSITION_STATE_KEY] ??
       null;
 
     this.viewTransitionSink.set(raw as CraftViewTransitionInput);
   }
 
   private publishGlobalError(exception: AnyCraftException | null): void {
-    const sink = this.rootInjector.get(
-      CRAFT_GLOBAL_ERROR,
-    ) as WritableSignal<AnyCraftException | null>;
+    const sink = this.rootInjector.get(CRAFT_GLOBAL_ERROR) as unknown as {
+      set(value: AnyCraftException | null): void;
+    };
     sink.set(exception);
   }
 
@@ -757,18 +799,14 @@ export class CraftRouterOutletController implements RouterOutletContract {
       meta.pendingComponent ?? this.defaultPendingComponent,
     );
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    const component = angularComponentFromRouteTarget(target);
+    const component = null;
     this.pendingComponent.set(component);
     this.pendingTarget.set(target);
   }
 
-  private resolveRouteComponent(route: ActivatedRoute): Type<unknown> | null {
-    const snapshot = route.snapshot;
-    return (
-      ((route.component ??
-        snapshot.component ??
-        snapshot.routeConfig?.component) as Type<unknown> | undefined) ?? null
-    );
+  private resolveRouteComponent(match: CraftMatch): Type<unknown> | null {
+    const component = match.route.component;
+    return (component as Type<unknown> | undefined) ?? null;
   }
 
   private resolveRouteTarget(
@@ -776,12 +814,12 @@ export class CraftRouterOutletController implements RouterOutletContract {
   ): CraftRouteTarget | null {
     return (
       this._activeRouteInjector?.get(CRAFT_ROUTE_TARGET, null) ??
-      (component ? angularRouteTarget(component) : null)
+      (component ? craftRouteTarget(component) : null)
     );
   }
 
   private routeProps(): Readonly<Record<string, unknown>> {
-    return collectActivatedRouteProps(this._activatedRoute);
+    return collectMatchProps(this._match);
   }
 
   private clearTimers(): void {
@@ -800,11 +838,10 @@ export class CraftRouterOutletController implements RouterOutletContract {
   }
 
   private teardown(): void {
+    this._navId++;
     this.clearTimers();
-    this._reactiveEffect?.destroy();
-    this._reactiveEffect = null;
-    this._routePropsSubscription?.unsubscribe();
-    this._routePropsSubscription = null;
+    this._reactiveWatch?.destroy();
+    this._reactiveWatch = null;
     this._frozen = false;
     this.clearExceptionSinks(this._meta);
   }
@@ -813,19 +850,16 @@ export class CraftRouterOutletController implements RouterOutletContract {
     if (!meta) return;
     for (const sink of Object.values(meta.exceptionSinks)) sink.set(null);
   }
+
+  private isCurrentActivation(match: CraftMatch): boolean {
+    return this._match !== null && isSameActivation(this._match, match);
+  }
 }
 
-/**
- * Creates and registers the non-blocking outlet controller in the current
- * injection context. Its lifetime follows that context through `DestroyRef`.
- */
 export function createCraftRouterOutletController(): CraftRouterOutletController {
   return new CraftRouterOutletController();
 }
 
-// --- pure helpers (testable, no Angular) ---
-
-/** Resolves an eager or lazy exception component descriptor. */
 export async function resolveComponentInput(
   input: CraftExceptionComponentInput | null | undefined,
 ): Promise<CraftRouteTargetInput | null> {
@@ -834,7 +868,7 @@ export async function resolveComponentInput(
   }
   if (input.loadComponent) {
     const loaded = await input.loadComponent();
-    return typeof loaded === 'object' && 'default' in loaded
+    return loaded && typeof loaded === 'object' && 'default' in loaded
       ? loaded.default
       : loaded;
   }
@@ -861,9 +895,190 @@ function isLazyPendingComponent(
   );
 }
 
-/** Reads the current outlet render state (used by tooling/tests). */
 export function craftOutletStateOf(
   outlet: CraftRouterOutletController,
-): Signal<CraftOutletState> {
+): CraftWritableSignal<CraftOutletState> {
   return outlet.state;
+}
+
+function silentRouter(): CraftRouterNavigationApi {
+  return {
+    url: '/',
+    createUrlTree: (input) => ({
+      toString: () => `/${input.to}`,
+      __craftUrlTree: true as const,
+    }),
+    navigate: async () => true,
+    navigateByUrl: async () => true,
+    serializeUrl: (tree) => tree.toString(),
+    getCurrentNavigation: () => null,
+  };
+}
+
+function collectAncestorGuardMetas(
+  fullMatch: CraftMatch,
+  activated: CraftMatch,
+): CraftRouteMeta[] {
+  const index = fullMatch.routes.indexOf(activated.route);
+  if (index <= 0) {
+    return [];
+  }
+  const metas: CraftRouteMeta[] = [];
+  for (const route of fullMatch.routes.slice(0, index)) {
+    const meta = getCraftRouteMeta(
+      route.data as Record<string | symbol, unknown> | undefined,
+    );
+    if (meta?.match || meta?.guard) {
+      metas.push(meta);
+    }
+  }
+  return metas;
+}
+
+function composeRouteMetas(
+  ancestors: CraftRouteMeta[],
+  leaf: CraftRouteMeta | null,
+): CraftRouteMeta | null {
+  if (ancestors.length === 0) {
+    return leaf;
+  }
+  const guard: CraftRouteStepFactory = function* (route, state) {
+    for (const ancestor of ancestors) {
+      if (ancestor.match) {
+        const matchResult = yield* ancestor.match(route, state);
+        if (matchResult === false) {
+          return false;
+        }
+      }
+      if (ancestor.guard) {
+        const guardResult = yield* ancestor.guard(route, state);
+        if (guardResult === false) {
+          return false;
+        }
+      }
+    }
+    if (leaf?.match) {
+      const matchResult = yield* leaf.match(route, state);
+      if (matchResult === false) {
+        return false;
+      }
+    }
+    if (leaf?.guard) {
+      return yield* leaf.guard(route, state);
+    }
+    return true;
+  };
+  if (!leaf) {
+    return {
+      match: undefined,
+      guard,
+      resolve: undefined,
+      handleExceptions: Object.assign(
+        {},
+        ...ancestors.map((ancestor) => ancestor.handleExceptions),
+      ),
+      guardDataSink: null,
+      resolveDataSink: null,
+      exceptionSinks: {},
+      reactiveGuards: false,
+    };
+  }
+  return {
+    ...leaf,
+    match: undefined,
+    guard,
+  };
+}
+
+function paramNamesForPath(path: string): string[] {
+  if (!path || path === '**') {
+    return [];
+  }
+  return path
+    .split('/')
+    .filter((segment) => segment.startsWith(':'))
+    .map((segment) => segment.slice(1).replace(/\?$/, ''));
+}
+
+function paramsForActivatedRoute(
+  route: CraftCompiledRoute,
+  params: Record<string, string>,
+): Record<string, string> {
+  const names = paramNamesForPath(route.path);
+  const owned: Record<string, string> = {};
+  for (const name of names) {
+    if (params[name] !== undefined) {
+      owned[name] = params[name];
+    }
+  }
+  return owned;
+}
+
+/**
+ * Whether the live component survives this navigation.
+ *
+ * Angular decides this on the route config ALONE — `RouteReuseStrategy` keeps
+ * the instance when `future.routeConfig === curr.routeConfig`, and a separate
+ * `runGuardsAndResolvers` decides whether the chain re-runs on a param change.
+ * Craft drove both from one comparison, so changing `:userId` tore the
+ * component down and took with it whatever state it held — which is why a
+ * `preservePreviousValue` query could never preserve anything across a
+ * navigation.
+ *
+ * Craft keeps the component and lets reactivity carry the new params: the
+ * fast-path publishes them on the live match signal, `injectRouteParamsSignal`
+ * derives from it, and reactive guards re-evaluate off their own watch.
+ *
+ * Resolvers have no such reactivity yet — `meta.resolve` runs once, in the
+ * `'enter'` phase — so a route carrying one still gets a full activation
+ * instead of silently stale resolve data.
+ */
+function canReuseActivation(
+  current: CraftMatch,
+  next: CraftMatch,
+  meta: CraftRouteMeta | null,
+): boolean {
+  if (current.route !== next.route) {
+    return false;
+  }
+  return meta?.resolve ? isSameActivation(current, next) : true;
+}
+
+function isSameActivation(current: CraftMatch, next: CraftMatch): boolean {
+  if (current.route !== next.route) {
+    return false;
+  }
+  const currentParams = paramsForActivatedRoute(current.route, current.params);
+  const nextParams = paramsForActivatedRoute(next.route, next.params);
+  const currentKeys = Object.keys(currentParams);
+  const nextKeys = Object.keys(nextParams);
+  if (currentKeys.length !== nextKeys.length) {
+    return false;
+  }
+  return currentKeys.every((key) => currentParams[key] === nextParams[key]);
+}
+
+function matchToSnapshot(match: CraftMatch): {
+  params: Record<string, string>;
+  queryParams: Record<string, string>;
+  data: Record<string | symbol, unknown>;
+  url: unknown[];
+  routeConfig: { path: string };
+  pathFromRoot: unknown[];
+  component: unknown;
+} {
+  return {
+    params: match.params,
+    queryParams: match.queryParams,
+    data: match.data,
+    url: [],
+    routeConfig: { path: match.route.path },
+    pathFromRoot: match.routes.map((route) => ({
+      params: match.params,
+      data: route.data ?? {},
+      queryParams: match.queryParams,
+      routeConfig: route,
+    })),
+    component: match.route.component,
+  };
 }

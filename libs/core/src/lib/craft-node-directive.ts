@@ -2,16 +2,16 @@ import {
   InjectionToken,
   type EffectRef,
   type Injector,
-  type Renderer2,
-} from '@angular/core';
+} from './host/craft-compat';
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftRegistrationTarget,
 } from './craft-register-for-runtime';
+import type { CraftDomAdapter } from './host/craft-dom';
 
 /** Runtime marker shared by core-authored DOM directives and the Craft renderer. */
 export const CRAFT_NODE_DIRECTIVE = Symbol.for(
-  '@craft-ng/core/craft-node-directive',
+  '@craft-ts/core/craft-node-directive',
 );
 
 /** Creates a reactive effect owned by the current node-directive mount. */
@@ -31,7 +31,7 @@ export interface CraftNodeDirectiveContext<
 > {
   readonly element: Element;
   readonly injector: Injector;
-  readonly renderer: Renderer2;
+  readonly renderer: CraftDomAdapter;
   /**
    * The current directive inputs. Reading this property inside an effect tracks
    * input updates without remounting the directive.

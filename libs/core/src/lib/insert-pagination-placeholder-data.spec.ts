@@ -1,5 +1,8 @@
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';
@@ -162,6 +165,14 @@ describe('insertPaginationPlaceholderData', () => {
       expect(() => craftUse(userQuery.settledCount())).toThrow(
         CraftNotSettled,
       );
+      // While page 2 loads, the rows on screen are still page 1's — so
+      // everything derived from `state` has to agree with them. Reporting the
+      // incoming page's emptiness here is what put "0 on page" above four
+      // visible rows.
+      expect(craftUse(userQuery.currentPageData())).toEqual([
+        { id: '1-a', name: 'User1', completed: false },
+      ]);
+      expect(craftUse(userQuery.uncompletedCount())).toBe(1);
       await vi.advanceTimersByTimeAsync(2000);
       expect(craftUse(userQuery.currentPageData())).toEqual([
         { id: '2-a', name: 'User2', completed: false },

@@ -18,6 +18,7 @@ import {
   releasePeerDependencyRange,
   syncBuiltDocumentation,
   syncDemoWorkspace,
+  syncEffectDemoWorkspace,
 } from './release-local.mjs';
 
 function write(path, contents) {
@@ -49,6 +50,15 @@ test('publishes fixed-group packages directly from their dist directories', () =
     'beta',
     '--access',
     'public',
+  ]);
+  assert.deepEqual(npmPublishArguments('dist/libs/core', 'beta', '123456'), [
+    'publish',
+    'dist/libs/core',
+    '--tag',
+    'beta',
+    '--access',
+    'public',
+    '--otp=123456',
   ]);
 });
 
@@ -107,7 +117,7 @@ test('explains how to synchronize a repository with its remote', () => {
   );
 });
 
-test('mirrors the complete demo source and pins Craft NG dependencies', () => {
+test('mirrors the complete demo source and pins CraftTS dependencies', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-demo-sync-'));
   const source = join(temporaryRoot, 'source');
   const target = join(temporaryRoot, 'target');
@@ -122,7 +132,7 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
       [
         'import {',
         '  provideCorrelationIdTracking,',
-        "} from '@craft-ng/core';",
+        "} from '@craft-ts/core';",
         "import { provideLogForwarding } from './log-forwarder';",
         'export const appConfig = {',
         '  providers: [',
@@ -152,11 +162,11 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     write(
       join(target, 'package.json'),
       JSON.stringify({
-        name: 'ng-craft-demo',
+        name: 'craft-ts-demo',
         dependencies: {
-          '@craft-ng/core': '^0.5.0-beta.1',
-          '@craft-ng/component': '^0.5.0-beta.1',
-          '@craft-ng/dev-tools': '^0.5.0-beta.1',
+          '@craft-ts/core': '^0.5.0-beta.1',
+          '@craft-ts/component': '^0.5.0-beta.1',
+          '@craft-ts/dev-tools': '^0.5.0-beta.1',
         },
       }),
     );
@@ -180,7 +190,7 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
-      /\/\/ provideLogForwarding import disabled for the target demo\./,
+      /\/\/ Log forwarding imports disabled for the target demo\./,
     );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
@@ -204,12 +214,11 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     const manifest = JSON.parse(
       readFileSync(join(target, 'package.json'), 'utf8'),
     );
-    assert.equal(manifest.dependencies['@craft-ng/core'], '0.6.0');
-    assert.equal(manifest.dependencies['@craft-ng/component'], '0.6.0');
-    assert.equal(manifest.dependencies['@craft-ng/dev-tools'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/core'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/component'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/dev-tools'], '0.6.0');
     for (const dependency of [
       '@eslint/js',
-      'angular-eslint',
       'eslint',
       'typescript-eslint',
     ]) {
@@ -217,6 +226,71 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     }
     assert.equal(manifest.scripts.lint, 'eslint . --fix');
     assert.equal(manifest.scripts['lint:check'], 'eslint .');
+    assert.equal(
+      readFileSync(join(target, '.gitignore'), 'utf8')
+        .split('\n')
+        .filter((line) => line === '/package-lock.json').length,
+      1,
+    );
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('mirrors the frontend Effect demo and pins CraftTS plus Effect dependencies', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-effect-demo-sync-'));
+  const source = join(temporaryRoot, 'source');
+  const target = join(temporaryRoot, 'target');
+
+  try {
+    write(join(source, 'src/app/app.ts'), 'export const effectDemo = true;\n');
+    write(join(target, 'src/app/old.ts'), 'obsolete\n');
+    write(join(target, '.gitignore'), 'dist\n');
+    write(join(target, 'package-lock.json'), '{}\n');
+    write(
+      join(target, 'package.json'),
+      JSON.stringify({
+        name: 'craft-ts-demo-effect',
+        dependencies: {
+          '@craft-ng/core': '^0.6.0',
+          '@craft-ng/effect': '^0.6.0',
+          effect: '^4.0.0-rc.100',
+        },
+        devDependencies: {
+          '@craft-ng/dev-tools': '^0.6.0',
+        },
+      }),
+    );
+
+    syncEffectDemoWorkspace(source, target, '0.7.0-beta.11');
+
+    assert.equal(
+      readFileSync(join(target, 'src/app/app.ts'), 'utf8'),
+      'export const effectDemo = true;\n',
+    );
+    assert.equal(existsSync(join(target, 'src/app/old.ts')), false);
+    assert.equal(existsSync(join(target, 'package-lock.json')), false);
+
+    const manifest = JSON.parse(
+      readFileSync(join(target, 'package.json'), 'utf8'),
+    );
+    assert.equal(
+      manifest.dependencies['@craft-ts/core'],
+      '0.7.0-beta.11',
+    );
+    assert.equal(
+      manifest.dependencies['@craft-ts/component'],
+      '0.7.0-beta.11',
+    );
+    assert.equal(
+      manifest.dependencies['@craft-ts/effect'],
+      '0.7.0-beta.11',
+    );
+    assert.equal(manifest.dependencies.effect, '^4.0.0-rc.110');
+    assert.equal(
+      manifest.devDependencies['@craft-ts/dev-tools'],
+      '0.7.0-beta.11',
+    );
     assert.equal(
       readFileSync(join(target, '.gitignore'), 'utf8')
         .split('\n')

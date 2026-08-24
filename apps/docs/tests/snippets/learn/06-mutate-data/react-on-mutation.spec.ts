@@ -13,10 +13,10 @@ import {
   insertReactOnMutation,
   mutation,
   query,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const { TaskSync } = craftService(
-  { name: 'TaskSync', scope: 'function' },
+  { name: 'TaskSync', providedIn: 'function' },
   function* () {
     const { createTask } = yield* mutation('createTask', {
       method: (payload: { title: string }) => payload,

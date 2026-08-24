@@ -3,7 +3,7 @@
 import {
   assertCssVarsSatisfied,
   loadCraftComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
@@ -15,7 +15,7 @@ import {
   type CraftRouteExceptionType,
   type RouteCheckedDI,
   type ViewTransitionPayloadDef,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
@@ -91,14 +91,21 @@ export const { demoRoutes } = craftRoutes('demo', [
       ),
     ),
   },
-  {
-    path: 'pending-block/exception',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/component/pending-block-exception-demo'),
-      ).then(({ default: component }) => component),
-    ),
-  },
+  craftRoute(
+    'pending-block/exception',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(
+          import('./examples/component/pending-block-exception-demo'),
+        ).then(({ default: component }) => component),
+      ),
+    },
+    {
+      INVOICE_REJECTED: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
   {
     path: 'css-vars',
     ...loadCraftComponent(({ withRetry }) =>
@@ -266,6 +273,30 @@ export const { demoRoutes } = craftRoutes('demo', [
       ),
   },
   {
+    path: 'state-machine-list',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine-list/task-board'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+  {
+    path: 'state-machine',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine/profile-editor'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+  {
+    path: 'state-machine-text',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/state-machine/text-editor'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+  {
     path: 'login-form',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/primitives/forms/login-form')).then(
@@ -411,6 +442,9 @@ type DemoRoutePath =
   | 'craft/full-demo'
   | 'craft/lazy-layout/:teamId/users/:userId'
   | 'login-form'
+  | 'state-machine'
+  | 'state-machine-text'
+  | 'state-machine-list'
   | 'craft-service/counter'
   | 'craft-service/register-for'
   | 'craft-service/user-detail'
@@ -430,7 +464,7 @@ type DemoRoutePaths = readonly {
     : { path: Path };
 }[DemoRoutePath][];
 
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
     Demo: DemoRoutePaths;
   }
@@ -438,7 +472,7 @@ declare module '@craft-ng/core' {
 
 assertExhaustiveRouteExceptions(demoRoutes);
 assertCssVarsSatisfied(demoRoutes);
-declare module '@craft-ng/core' {
+declare module '@craft-ts/core' {
   interface CraftGlobalExceptionRegistry {
     'guard-demo': {
       USER_DISABLED: CraftRouteExceptionType<
@@ -683,6 +717,27 @@ type _CanRunLazyLayout = CanRun<
   >
 >;
 
+type _CanRunStateMachineList = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine-list/task-board'))['default'],
+    never,
+    'path: "state-machine-list"'
+  >
+>;
+type _CanRunStateMachine = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine/profile-editor'))['default'],
+    never,
+    'path: "state-machine"'
+  >
+>;
+type _CanRunStateMachineText = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/state-machine/text-editor'))['default'],
+    never,
+    'path: "state-machine-text"'
+  >
+>;
 type _CanRunLoginForm = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/primitives/forms/login-form'))['default'],

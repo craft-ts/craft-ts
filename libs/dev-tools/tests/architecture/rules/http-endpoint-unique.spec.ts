@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertHttpEndpointUnique } from '@craft-ng/dev-tools';
+import { assertHttpEndpointUnique } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('assertHttpEndpointUnique', () => {

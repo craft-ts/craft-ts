@@ -1,11 +1,11 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
   forward,
   p,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { TokenCard } from './css-vars-required-demo';
 

@@ -6,7 +6,7 @@ import {
 } from '../craft-runtime';
 
 export const { Cart, provideCart } = craftService(
-  { name: 'Cart', scope: 'toProvide' },
+  { name: 'Cart', providedIn: 'toProvide' },
   function* () {
     const items = yield* state(
       'cartItems',

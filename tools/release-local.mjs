@@ -17,7 +17,11 @@ import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
-import { parseReleaseVersion, releasePackages } from './release.mjs';
+import {
+  extractChangelogEntry,
+  parseReleaseVersion,
+  releasePackages,
+} from './release.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const workspaceRoot = resolve(dirname(scriptPath), '..');
@@ -86,7 +90,6 @@ function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
   targetManifest.devDependencies ??= {};
   for (const dependency of [
     '@eslint/js',
-    'angular-eslint',
     'eslint',
     'typescript-eslint',
   ]) {
@@ -109,26 +112,25 @@ function disableTargetLogForwarding(targetDemoRoot) {
   }
 
   const contents = readFileSync(appConfigPath, 'utf8');
-  const importPattern = /^(\s*)import \{ provideLogForwarding \} from '(\.\/log-forwarder)';(\s*)$/m;
-  const providerPattern = /^(\s*)provideLogForwarding\(\),(\s*)$/m;
+  const importPattern =
+    /^(\s*)import \{[^}\n]*(?:provideLogForwarding|provideLogServerUrl)[^}\n]*\} from '(\.\/log-forwarder)';(\s*)$/gm;
+  const providerPattern =
+    /^(\s*)(provideLogForwarding\(\)|provideLogServerUrl\([^\n]+\)),(\s*)$/gm;
   const hasImport = importPattern.test(contents);
+  importPattern.lastIndex = 0;
   const hasProvider = providerPattern.test(contents);
+  providerPattern.lastIndex = 0;
 
   if (!hasImport && !hasProvider) return;
-  if (!hasImport || !hasProvider) {
-    throw new Error(
-      `Target demo app config has an incomplete provideLogForwarding setup: ${appConfigPath}`,
-    );
-  }
 
   const updated = contents
     .replace(
       importPattern,
-      '$1// provideLogForwarding import disabled for the target demo.$2',
+      '$1// Log forwarding imports disabled for the target demo.$3',
     )
     .replace(
       providerPattern,
-      '$1// Disabled in the target demo: do not send logs to the local log server.\n$1// provideLogForwarding(),$2',
+      '$1// Disabled in the target demo: do not send logs to the local log server.\n$1// $2,$3',
     );
   writeFileSync(appConfigPath, updated);
 }
@@ -148,9 +150,9 @@ export function parseReleaseArgument(argument) {
 export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   const targetManifestPath = join(targetDemoRoot, 'package.json');
   const targetManifest = readJson(targetManifestPath);
-  if (targetManifest.name !== 'ng-craft-demo') {
+  if (targetManifest.name !== 'craft-ts-demo') {
     throw new Error(
-      `${targetDemoRoot} is not the ng-craft-demo workspace (received ${targetManifest.name ?? 'no package name'}).`,
+      `${targetDemoRoot} is not the craft-ts-demo workspace (received ${targetManifest.name ?? 'no package name'}).`,
     );
   }
 
@@ -168,11 +170,66 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   disableTargetLogForwarding(targetDemoRoot);
 
   targetManifest.dependencies ??= {};
-  targetManifest.dependencies['@craft-ng/core'] = version;
-  targetManifest.dependencies['@craft-ng/component'] = version;
-  targetManifest.dependencies['@craft-ng/dev-tools'] = version;
+  targetManifest.dependencies['@craft-ts/core'] = version;
+  targetManifest.dependencies['@craft-ts/component'] = version;
+  targetManifest.dependencies['@craft-ts/dev-tools'] = version;
   writeJson(targetManifestPath, targetManifest);
 
+  removeDemoPackageLock(targetDemoRoot);
+}
+
+export function syncEffectDemoWorkspace(
+  sourceDemoRoot,
+  targetDemoRoot,
+  version,
+) {
+  const targetManifestPath = join(targetDemoRoot, 'package.json');
+  const targetManifest = readJson(targetManifestPath);
+  if (targetManifest.name !== 'craft-ts-demo-effect') {
+    throw new Error(
+      `${targetDemoRoot} is not the craft-ts-demo-effect workspace (received ${targetManifest.name ?? 'no package name'}).`,
+    );
+  }
+
+  const source = join(sourceDemoRoot, 'src');
+  const target = join(targetDemoRoot, 'src');
+  if (!existsSync(source)) {
+    throw new Error(`Missing Effect demo source directory: ${source}`);
+  }
+  rmSync(target, { recursive: true, force: true });
+  cpSync(source, target, { recursive: true });
+
+  const workspaceManifest = readJson(join(workspaceRoot, 'package.json'));
+  const effectVersion =
+    workspaceManifest.dependencies?.effect ??
+    workspaceManifest.devDependencies?.effect;
+  if (!effectVersion) {
+    throw new Error('Missing workspace Effect dependency: effect');
+  }
+
+  targetManifest.dependencies ??= {};
+  targetManifest.devDependencies ??= {};
+  for (const legacyPackage of [
+    '@craft-ng/core',
+    '@craft-ng/component',
+    '@craft-ng/effect',
+    '@craft-ng/dev-tools',
+  ]) {
+    delete targetManifest.dependencies[legacyPackage];
+    delete targetManifest.devDependencies[legacyPackage];
+  }
+  targetManifest.dependencies['@craft-ts/core'] = version;
+  targetManifest.dependencies['@craft-ts/component'] = version;
+  targetManifest.dependencies['@craft-ts/effect'] = version;
+  targetManifest.dependencies.effect = effectVersion;
+  delete targetManifest.dependencies['@craft-ts/dev-tools'];
+  targetManifest.devDependencies['@craft-ts/dev-tools'] = version;
+  writeJson(targetManifestPath, targetManifest);
+
+  removeDemoPackageLock(targetDemoRoot);
+}
+
+function removeDemoPackageLock(targetDemoRoot) {
   rmSync(join(targetDemoRoot, 'package-lock.json'), { force: true });
 
   const gitignorePath = join(targetDemoRoot, '.gitignore');
@@ -321,6 +378,22 @@ function resolveRelease(argument) {
   return parseMetadata(output);
 }
 
+function releaseIsAlreadyPrepared(version) {
+  try {
+    for (const pkg of releasePackages) {
+      const manifest = readJson(join(workspaceRoot, pkg.sourceManifest));
+      if (manifest.version !== version) return false;
+    }
+    extractChangelogEntry(
+      readFileSync(join(workspaceRoot, 'CHANGELOG.md'), 'utf8'),
+      version,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function hasChanges(path) {
   return Boolean(
     git(path, ['status', '--porcelain'], { capture: true }).trim(),
@@ -334,7 +407,16 @@ function commitAll(path, message) {
   return true;
 }
 
-async function askForConfirmation(version, docsRepo, demoRepo) {
+function gitTagExists(path, tag) {
+  return Boolean(git(path, ['tag', '--list', tag], { capture: true }).trim());
+}
+
+async function askForConfirmation(
+  version,
+  docsRepo,
+  demoRepo,
+  effectDemoRepo,
+) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error('Use --yes when running release:local non-interactively.');
   }
@@ -344,7 +426,7 @@ async function askForConfirmation(version, docsRepo, demoRepo) {
     output: process.stdout,
   });
   const answer = await prompt.question(
-    `\nPublish ${version}, push ${workspaceRoot}, ${docsRepo}, and ${demoRepo}? [y/N] `,
+    `\nPublish ${version}, push ${workspaceRoot}, ${docsRepo}, ${demoRepo}, and ${effectDemoRepo}? [y/N] `,
   );
   prompt.close();
   const value = answer.trim().toLowerCase();
@@ -353,12 +435,20 @@ async function askForConfirmation(version, docsRepo, demoRepo) {
   }
 }
 
-export function npmPublishArguments(packageRoot, channel) {
-  return ['publish', packageRoot, '--tag', channel, '--access', 'public'];
+export function npmPublishArguments(packageRoot, channel, otp = '') {
+  return [
+    'publish',
+    packageRoot,
+    '--tag',
+    channel,
+    '--access',
+    'public',
+    ...(otp ? [`--otp=${otp}`] : []),
+  ];
 }
 
-function publishPackage(packageRoot, channel) {
-  run('npm', npmPublishArguments(packageRoot, channel));
+function publishPackage(packageRoot, channel, otp) {
+  run('npm', npmPublishArguments(packageRoot, channel, otp));
 }
 
 function verifyPublishedArtifacts(version, manifestPath) {
@@ -390,8 +480,12 @@ function verifyPublishedArtifacts(version, manifestPath) {
 
 async function main(args) {
   const [argument, ...flags] = args;
+  const otpFlag = flags.find((flag) => flag.startsWith('--otp='));
+  const otp = otpFlag?.slice('--otp='.length) ?? '';
   const allowedFlags = new Set(['--dry-run', '--yes']);
-  const unknownFlag = flags.find((flag) => !allowedFlags.has(flag));
+  const unknownFlag = flags.find(
+    (flag) => !allowedFlags.has(flag) && !flag.startsWith('--otp='),
+  );
   if (unknownFlag) {
     throw new Error(`Unknown release option: ${unknownFlag}`);
   }
@@ -399,20 +493,27 @@ async function main(args) {
   const dryRun = flags.includes('--dry-run');
   const assumeYes = flags.includes('--yes');
   const docsRepo = resolve(
-    process.env.CRAFT_DOCS_REPO ?? join(workspaceRoot, '../ng-craft.github.io'),
+    process.env.CRAFT_DOCS_REPO ?? join(workspaceRoot, '../craft'),
   );
   const demoRepo = resolve(
-    process.env.CRAFT_DEMO_REPO ?? join(workspaceRoot, '../ng-craft-demo'),
+    process.env.CRAFT_DEMO_REPO ?? join(workspaceRoot, '../craft-ts-demo'),
+  );
+  const effectDemoRepo = resolve(
+    process.env.CRAFT_EFFECT_DEMO_REPO ??
+      join(workspaceRoot, '../craft-ts-demo-effect'),
   );
 
-  assertGitWorkspace(workspaceRoot, 'main', 'ng-craft');
+  assertGitWorkspace(workspaceRoot, 'main', 'craft-ts');
   assertGitWorkspace(docsRepo, 'main', 'documentation');
   assertGitWorkspace(demoRepo, 'main', 'StackBlitz demo');
+  assertGitWorkspace(effectDemoRepo, 'main', 'Effect StackBlitz demo');
 
   run('npm', ['ci']);
   const release = resolveRelease(argument);
+  const releaseIsPrepared = releaseIsAlreadyPrepared(release.version);
   run('node', ['tools/release.mjs', 'assert-target', release.version]);
   run('npm', ['run', 'release:check']);
+  run('npx', ['nx', 'run-many', '-t', 'test', 'e2e-ci', '--all']);
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);
   run('npx', [
     'nx',
@@ -422,10 +523,11 @@ async function main(args) {
     '-p',
     ...releasePackages.map(({ project }) => project),
   ]);
+  run('npx', ['nx', 'build', 'demo-effect']);
   run('npx', ['nx', 'build', 'docs']);
 
   process.stdout.write(
-    `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n`,
+    `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n- Effect StackBlitz: ${effectDemoRepo}\n`,
   );
   if (dryRun) {
     process.stdout.write('\nDry run complete. No files were changed.\n');
@@ -435,11 +537,22 @@ async function main(args) {
   run('npm', ['whoami']);
   run('gh', ['auth', 'status']);
   if (!assumeYes) {
-    await askForConfirmation(release.version, docsRepo, demoRepo);
+    await askForConfirmation(
+      release.version,
+      docsRepo,
+      demoRepo,
+      effectDemoRepo,
+    );
   }
 
-  run('npx', ['nx', 'release', 'version', release.version]);
-  run('npx', ['nx', 'release', 'changelog', release.version]);
+  if (releaseIsPrepared) {
+    process.stdout.write(
+      `\n${release.version} is already present in package manifests and CHANGELOG.md; reusing it for the first npm publication of the new scope.\n`,
+    );
+  } else {
+    run('npx', ['nx', 'release', 'version', release.version]);
+    run('npx', ['nx', 'release', 'changelog', release.version]);
+  }
   run('npx', [
     'nx',
     'run-many',
@@ -448,13 +561,23 @@ async function main(args) {
     '-p',
     ...releasePackages.map(({ project }) => project),
   ]);
+  run('npx', ['nx', 'build', 'demo-effect']);
   run('npx', ['nx', 'build', 'docs']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
-  run('node', ['tools/release.mjs', 'assert-changes']);
+  run('node', [
+    'tools/release.mjs',
+    'assert-changes',
+    ...(releaseIsPrepared ? ['--allow-subset'] : []),
+  ]);
 
   syncDemoWorkspace(
     join(workspaceRoot, 'apps/demo'),
     demoRepo,
+    release.version,
+  );
+  syncEffectDemoWorkspace(
+    join(workspaceRoot, 'apps/demo-effect'),
+    effectDemoRepo,
     release.version,
   );
   syncBuiltDocumentation(
@@ -462,7 +585,7 @@ async function main(args) {
     docsRepo,
   );
 
-  const artifactsDirectory = mkdtempSync(join(tmpdir(), 'craft-ng-release-'));
+  const artifactsDirectory = mkdtempSync(join(tmpdir(), 'craft-ts-release-'));
   run('node', [
     'tools/release.mjs',
     'pack',
@@ -470,15 +593,28 @@ async function main(args) {
     artifactsDirectory,
   ]);
 
-  commitAll(workspaceRoot, `chore(release): publish ${release.version}`);
+  const workspaceChanged = commitAll(
+    workspaceRoot,
+    `chore(release): publish ${release.version}`,
+  );
   const docsChanged = commitAll(
     docsRepo,
-    `docs: deploy craft-ng ${release.version}`,
+    `docs: deploy craft-ts ${release.version}`,
   );
   const demoChanged = commitAll(
     demoRepo,
-    `chore: sync examples for craft-ng ${release.version}`,
+    `chore: sync examples for craft-ts ${release.version}`,
   );
+  const effectDemoChanged = commitAll(
+    effectDemoRepo,
+    `chore: sync Effect examples for craft-ts ${release.version}`,
+  );
+
+  process.stdout.write('\nPushing release commits before npm publication...\n');
+  if (workspaceChanged) git(workspaceRoot, ['push', 'origin', 'main']);
+  if (docsChanged) git(docsRepo, ['push', 'origin', 'main']);
+  if (demoChanged) git(demoRepo, ['push', 'origin', 'main']);
+  if (effectDemoChanged) git(effectDemoRepo, ['push', 'origin', 'main']);
 
   const plan = parseMetadata(
     run(
@@ -494,7 +630,11 @@ async function main(args) {
   );
   for (const pkg of releasePackages) {
     if (plan[pkg.key] === 'publish') {
-      publishPackage(resolve(workspaceRoot, pkg.distRoot), release.channel);
+      publishPackage(
+        resolve(workspaceRoot, pkg.distRoot),
+        release.channel,
+        otp,
+      );
     }
   }
 
@@ -503,14 +643,22 @@ async function main(args) {
     join(artifactsDirectory, 'manifest.json'),
   );
 
-  git(workspaceRoot, [
-    'tag',
-    '--annotate',
-    release.tag,
-    '--message',
-    release.tag,
-  ]);
-  git(workspaceRoot, ['push', '--atomic', 'origin', 'main', release.tag]);
+  const existingReleaseTag = gitTagExists(workspaceRoot, release.tag);
+  if (existingReleaseTag) {
+    process.stdout.write(
+      `\nReusing existing Git tag ${release.tag}; it already belongs to the previous-scope release.\n`,
+    );
+    git(workspaceRoot, ['push', 'origin', 'main']);
+  } else {
+    git(workspaceRoot, [
+      'tag',
+      '--annotate',
+      release.tag,
+      '--message',
+      release.tag,
+    ]);
+    git(workspaceRoot, ['push', '--atomic', 'origin', 'main', release.tag]);
+  }
 
   const notesPath = join(artifactsDirectory, 'release-notes.md');
   run('node', [
@@ -519,23 +667,22 @@ async function main(args) {
     release.version,
     notesPath,
   ]);
-  const releaseArguments = [
-    'release',
-    'create',
-    release.tag,
-    '--repo',
-    'ng-angular-stack/ng-craft',
-    '--verify-tag',
-    '--title',
-    release.tag,
-    '--notes-file',
-    notesPath,
-  ];
-  if (release.prerelease === 'true') releaseArguments.push('--prerelease');
-  run('gh', releaseArguments);
-
-  if (docsChanged) git(docsRepo, ['push', 'origin', 'main']);
-  if (demoChanged) git(demoRepo, ['push', 'origin', 'main']);
+  if (!existingReleaseTag) {
+    const releaseArguments = [
+      'release',
+      'create',
+      release.tag,
+      '--repo',
+      'craft-ts/craft-ts',
+      '--verify-tag',
+      '--title',
+      release.tag,
+      '--notes-file',
+      notesPath,
+    ];
+    if (release.prerelease === 'true') releaseArguments.push('--prerelease');
+    run('gh', releaseArguments);
+  }
 
   rmSync(artifactsDirectory, { recursive: true, force: true });
   process.stdout.write(

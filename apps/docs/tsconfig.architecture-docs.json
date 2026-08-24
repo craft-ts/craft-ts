@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "types": ["vitest/globals", "node"],
+    "erasableSyntaxOnly": false
+  },
+  "include": [
+    "tests/snippets/guide/testing/architecture/**/*.spec.ts"
+  ]
+}

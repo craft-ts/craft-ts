@@ -1,7 +1,7 @@
 import { craftService, mutation, query } from '../craft-runtime';
 
 export const { Users } = craftService(
-  { name: 'Users', scope: 'global' },
+  { name: 'Users', providedIn: 'global' },
   function* () {
     const save = yield* mutation('save', {});
     const user = yield* query('user', {});

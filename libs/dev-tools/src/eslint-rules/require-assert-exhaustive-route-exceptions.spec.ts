@@ -23,7 +23,7 @@ describe('require-assert-exhaustive-route-exceptions', () => {
   it('accepts a craftRoutes collection already checked', async () => {
     const { messages } = await lintFixture({
       'src/app/app.routes.ts': `
-        import { assertExhaustiveRouteExceptions, craftRoutes } from '@craft-ng/core';
+        import { assertExhaustiveRouteExceptions, craftRoutes } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', []);
 
@@ -37,7 +37,7 @@ describe('require-assert-exhaustive-route-exceptions', () => {
   it('reports a craftRoutes collection missing the assert', async () => {
     const { messages } = await lintFixture({
       'src/app/app.routes.ts': `
-        import { craftRoutes } from '@craft-ng/core';
+        import { craftRoutes } from '@craft-ts/core';
 
         export const { demoRoutes } = craftRoutes('demo', []);
       `,
@@ -50,7 +50,7 @@ describe('require-assert-exhaustive-route-exceptions', () => {
   it('honours a renamed routes binding', async () => {
     const { messages } = await lintFixture({
       'src/app/app.routes.ts': `
-        import { craftRoutes } from '@craft-ng/core';
+        import { craftRoutes } from '@craft-ts/core';
 
         export const { demoRoutes: routes } = craftRoutes('demo', []);
       `,
@@ -74,7 +74,7 @@ describe('require-assert-exhaustive-route-exceptions', () => {
     const { output } = await lintFixture(
       {
         'src/app/app.routes.ts': `
-          import { craftRoutes } from '@craft-ng/core';
+          import { craftRoutes } from '@craft-ts/core';
 
           export const { demoRoutes } = craftRoutes('demo', []);
         `,
@@ -85,11 +85,11 @@ describe('require-assert-exhaustive-route-exceptions', () => {
     expect(output).toContain('assertExhaustiveRouteExceptions(demoRoutes);');
   });
 
-  it('auto-fix adds the assert import to the existing @craft-ng/core import', async () => {
+  it('auto-fix adds the assert import to the existing @craft-ts/core import', async () => {
     const { output } = await lintFixture(
       {
         'src/app/app.routes.ts': `
-          import { craftRoutes } from '@craft-ng/core';
+          import { craftRoutes } from '@craft-ts/core';
 
           export const { demoRoutes } = craftRoutes('demo', []);
         `,
@@ -98,7 +98,7 @@ describe('require-assert-exhaustive-route-exceptions', () => {
     );
 
     expect(output).toContain('assertExhaustiveRouteExceptions');
-    const importCount = (output?.match(/@craft-ng\/core/g) ?? []).length;
+    const importCount = (output?.match(/@craft-ts\/core/g) ?? []).length;
     expect(importCount).toBe(1);
   });
 
@@ -106,7 +106,7 @@ describe('require-assert-exhaustive-route-exceptions', () => {
     const { output } = await lintFixture(
       {
         'src/app/app.routes.ts': `
-          import { craftRoutes } from '@craft-ng/core';
+          import { craftRoutes } from '@craft-ts/core';
 
           export const { aRoutes } = craftRoutes('a', []);
           export const { bRoutes } = craftRoutes('b', []);
@@ -146,7 +146,7 @@ async function lintFixture(
       2,
     ),
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function craftRoutes(...args: unknown[]): any;
         export declare function assertExhaustiveRouteExceptions(
           ...args: unknown[]

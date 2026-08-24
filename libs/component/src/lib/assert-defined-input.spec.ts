@@ -1,13 +1,6 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Injector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { craftSignal as signal } from '@craft-ts/core';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import {
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -20,28 +13,13 @@ import {
   catchInput,
   craftComponent,
   CraftUnhandledExceptionError,
-  mountCraftComponent,
   section,
   span,
   type Input,
   type CraftNodeChildren,
 } from '../index';
 import type { CraftNodeChildrenExceptions } from './render/vnode';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import { renderCraftComponent } from './testing';
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -51,11 +29,10 @@ function host(): HTMLElement {
 
 describe('assertDefinedInput', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
-  it('narrows the input and adds the typed exception to the component node', () => {
+  it('narrows the input and adds the typed exception to the component node', async () => {
     const value = signal<'ready' | undefined>('ready');
     const child = craftComponent(
       'assertDefinedInputTypeChild',
@@ -94,7 +71,7 @@ describe('assertDefinedInput', () => {
     section([source]);
   });
 
-  it('renders the fallback and recovers when the source becomes defined', () => {
+  it('renders the fallback and recovers when the source becomes defined', async () => {
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputRuntimeChild',
@@ -118,7 +95,7 @@ describe('assertDefinedInput', () => {
             catchBlock.exhaustive({
               CraftUndefinedPropertyException: {
                 render: (exception) => {
-                  expect(exception.code).toBe(
+                  expect(exception._tag).toBe(
                     'CraftUndefinedPropertyException',
                   );
                   return span('fallback');
@@ -130,27 +107,23 @@ describe('assertDefinedInput', () => {
         ]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toBe('fallback');
 
     value.set('ready');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('ready');
 
     value.set(undefined);
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('readyfallback');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('can convert the exception into an input value', () => {
+  it('can convert the exception into an input value', async () => {
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputValueCatchChild',
@@ -174,30 +147,26 @@ describe('assertDefinedInput', () => {
       () => section([child({ sourceValue: status })]),
     );
 
-    const element = host();
-    const mounted = mountCraftComponent(
+    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
       root,
-      element,
-      TestBed.inject(Injector),
     );
-    TestBed.tick();
     expect(element.textContent).toBe('idle');
 
     value.set('ready');
-    TestBed.tick();
+    await flush();
     expect(element.textContent).toBe('ready');
 
-    mounted.destroy();
+    destroy();
   });
 
-  it('requires an exhaustive value handler', () => {
+  it('requires an exhaustive value handler', async () => {
     const value = signal<'ready' | undefined>(undefined);
 
     // @ts-expect-error The asserted input exception must be handled exhaustively.
     assertDefinedInput(() => value()).pipe(catchInput.exhaustive({}));
   });
 
-  it('throws the standard unhandled error without a boundary', () => {
+  it('throws the standard unhandled error without a boundary', async () => {
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputUnhandledChild',
@@ -221,9 +190,8 @@ describe('assertDefinedInput', () => {
       },
     );
 
-    expect(() => {
-      mountCraftComponent(root, host(), TestBed.inject(Injector));
-      TestBed.tick();
-    }).toThrow(CraftUnhandledExceptionError);
+    await expect(renderCraftComponent(root)).rejects.toThrow(
+      CraftUnhandledExceptionError,
+    );
   });
 });

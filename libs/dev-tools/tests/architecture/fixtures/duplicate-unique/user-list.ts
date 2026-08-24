@@ -6,7 +6,7 @@ import {
 } from '../craft-runtime';
 
 export const { UserList, provideUserList } = craftService(
-  { name: 'UserList', scope: 'toProvide' },
+  { name: 'UserList', providedIn: 'toProvide' },
   function* () {
     const list = yield* query(
       'userList',

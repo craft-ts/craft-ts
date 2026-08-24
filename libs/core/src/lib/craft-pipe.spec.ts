@@ -1,12 +1,11 @@
-import { computed, Signal, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  computed,
+  Signal,
+  signal,
+} from './host/craft-compat';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { craftException, CraftExceptionResult } from './craft-exception';
-import { craftService } from './craft-service';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import { provideFnWrapObserver, provideFnWrapper } from './fn-wrapper';
 import { craftUnique } from './craft-unique';
 import { insertStoragePersister } from './insert-storage-persister';
@@ -25,42 +24,42 @@ import {
   provideSessionStoragePersister,
   provideStoragePersister,
 } from './storage-persister.service';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
-};
 
-const runInInjectionContext = <T>(fn: () => T): T =>
-  TestBed.runInInjectionContext(fn);
+const { PipeSpecHost } = craftService(
+  { name: 'PipeSpecHost', providedIn: 'global' },
+  () => ({}),
+);
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
-beforeEach(() => {
-  TestBed.configureTestingModule({
+const runInInjectionContext = <T>(
+  fn: () => T,
+  extraProviders: CraftServiceProvider[] = [],
+): T => {
+  const { injector } = setupCraftServiceTest(PipeSpecHost, {}, {
     providers: [
       provideLocalStoragePersister(),
       provideSessionStoragePersister(),
       provideStoragePersister(function* () {
         return yield* LocalStoragePersister();
       }),
+      ...extraProviders,
     ],
   });
-});
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+};
 
 describe('craftPipe with state', () => {
   beforeEach(() => {
@@ -70,8 +69,8 @@ describe('craftPipe with state', () => {
     vi.restoreAllMocks();
   });
 
-  it('merges outputs on the state ref, identically to the direct form', () => {
-    runInInjectionContext(() => {
+  it('merges outputs on the state ref, identically to the direct form', async () => {
+    await runInInjectionContext(async () => {
       const origin = signal(5);
       const myState = craftUse(
         state(
@@ -104,8 +103,8 @@ describe('craftPipe with state', () => {
     });
   });
 
-  it('runs members left to right and threads previous outputs through context.insertions', () => {
-    runInInjectionContext(() => {
+  it('runs members left to right and threads previous outputs through context.insertions', async () => {
+    await runInInjectionContext(async () => {
       const executionOrder: string[] = [];
       const myState = craftUse(
         state('myState', 0, (context) =>
@@ -135,8 +134,8 @@ describe('craftPipe with state', () => {
     });
   });
 
-  it('supports insertSelect as a member', () => {
-    runInInjectionContext(() => {
+  it('supports insertSelect as a member', async () => {
+    await runInInjectionContext(async () => {
       const counter = craftUse(
         state('counter', { value: 0, nestedValue: 'hello' }, (context) =>
           craftPipe(
@@ -153,16 +152,17 @@ describe('craftPipe with state', () => {
       );
 
       expectTypeOf(counter.selectValue().increment).toBeFunction();
-      expect(counter.selectValue().isOdd()).toBe(false);
+      expect(craftUse(counter.selectValue().isOdd())).toBe(false);
       craftUse(counter.selectValue().increment());
+      flushHost();
       expect(craftUse(counter()).value).toBe(1);
-      expect(counter.selectValue().isOdd()).toBe(true);
+      expect(craftUse(counter.selectValue().isOdd())).toBe(true);
       expect(counter.selectNestedValue().totalLength()).toBe(5);
     });
   });
 
-  it('supports a pipe INSIDE insertSelect (each level re-passes its context)', () => {
-    runInInjectionContext(() => {
+  it('supports a pipe INSIDE insertSelect (each level re-passes its context)', async () => {
+    await runInInjectionContext(async () => {
       const board = craftUse(
         state(
           'board',
@@ -174,7 +174,7 @@ describe('craftPipe with state', () => {
                 craftPipe(
                   cellContext,
                   ({ state: st }) => ({
-                    styleColor: computed(() => craftUse(st()).style.color),
+                    styleColor: () => craftUse(st()).style.color,
                   }),
                   insertSelect('style', ({ update }) => ({
                     paint: () =>
@@ -187,39 +187,37 @@ describe('craftPipe with state', () => {
                 ),
               ),
               ({ state: st }) => ({
-                paintCount: computed(
-                  () => craftUse(st()).cell.style.paintCount,
-                ),
+                paintCount: () => craftUse(st()).cell.style.paintCount,
               }),
             ),
         ),
       );
 
       expectTypeOf(board.selectCell().selectStyle().paint).toBeFunction();
-      expect(board.selectCell().styleColor()).toBe('white');
+      expect(craftUse(board.selectCell().styleColor())).toBe('white');
       craftUse(board.selectCell().selectStyle().paint());
       expect(craftUse(board()).cell.style.color).toBe('black');
       expect(craftUse(board()).cell.style.paintCount).toBe(1);
       expect(craftUse(board.paintCount())).toBe(1);
-      expect(board.selectCell().styleColor()).toBe('black');
+      expect(craftUse(board.selectCell().styleColor())).toBe('black');
     });
   });
 
-  it('resolves generator members and tracks their dependencies (types + runtime)', () => {
+  it('resolves generator members and tracks their dependencies (types + runtime)', async () => {
     const { PipeCounterReader } = craftService(
-      { name: 'PipeCounterReader', scope: 'global' },
+      { name: 'PipeCounterReader', providedIn: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
     const { PipeCounterStep } = craftService(
-      { name: 'PipeCounterStep', scope: 'global' },
+      { name: 'PipeCounterStep', providedIn: 'global' },
       () => ({
         step: (): number => 3,
       }),
     );
 
-    runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const myState = craftUse(
         state(
           'myState',
@@ -253,7 +251,7 @@ describe('craftPipe with state', () => {
 
       expectTypeOf<ExtractDeps<typeof myState>>().toEqualTypeOf<{
         PipeCounterReader: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -265,7 +263,7 @@ describe('craftPipe with state', () => {
           };
         };
         PipeCounterStep: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -283,9 +281,9 @@ describe('craftPipe with query', () => {
     vi.resetAllMocks();
   });
 
-  it('exposes all piped insertion outputs on the store', () => {
+  it('exposes all piped insertion outputs on the store', async () => {
     const { QueryPipeStore } = craftService(
-      { name: 'QueryPipeStore', scope: 'global' },
+      { name: 'QueryPipeStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -327,7 +325,7 @@ describe('craftPipe with query', () => {
         };
       },
     );
-    runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const store = craftUse(QueryPipeStore());
       // insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
@@ -341,9 +339,9 @@ describe('craftPipe with query', () => {
     });
   });
 
-  it('accepts seven members, all outputs appear in the store', () => {
+  it('accepts seven members, all outputs appear in the store', async () => {
     const { QueryPipeSevenStore } = craftService(
-      { name: 'QueryPipeSevenStore', scope: 'global' },
+      { name: 'QueryPipeSevenStore', providedIn: 'global' },
       function* () {
         return {
           user: yield* query(
@@ -373,7 +371,7 @@ describe('craftPipe with query', () => {
         };
       },
     );
-    runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const store = craftUse(QueryPipeSevenStore());
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext7).toEqualTypeOf<number>();
@@ -387,8 +385,8 @@ describe('craftPipe with query', () => {
     });
   });
 
-  it('typing: keeps the Exceptions inference anchor through the pipe (no collapse)', () => {
-    runInInjectionContext(() => {
+  it('typing: keeps the Exceptions inference anchor through the pipe (no collapse)', async () => {
+    await runInInjectionContext(async () => {
       const shouldFail = signal(true);
 
       const del = craftUse(
@@ -407,7 +405,7 @@ describe('craftPipe with query', () => {
             params: () =>
               shouldFail()
                 ? craftException(
-                    { code: 'INVALID_PAGE' },
+                    { _tag: 'INVALID_PAGE' },
                     { reason: 'missing' as const },
                   )
                 : { page: 1 },
@@ -446,37 +444,37 @@ describe('craftPipe with query', () => {
       type ParamsException = NonNullable<
         ReturnType<typeof q.exceptions>['params']
       >;
-      expectTypeOf<ParamsException['code']>().toEqualTypeOf<'INVALID_PAGE'>();
+      expectTypeOf<ParamsException['_tag']>().toEqualTypeOf<'INVALID_PAGE'>();
       expectTypeOf<ParamsException>().toEqualTypeOf<
         CraftExceptionResult<
-          { code: 'INVALID_PAGE'; scope: 'params' },
+          { _tag: 'INVALID_PAGE'; scope: 'params' },
           { reason: 'missing' }
         >
       >();
     });
   });
 
-  it('typing: tracks generator dependencies of piped members', () => {
+  it('typing: tracks generator dependencies of piped members', async () => {
     const { PipeUserIdService } = craftService(
-      { name: 'PipeUserIdService', scope: 'global' },
+      { name: 'PipeUserIdService', providedIn: 'global' },
       () => ({
         read: (): string => 'user-1',
       }),
     );
     const { PipeQueryTools } = craftService(
-      { name: 'PipeQueryTools', scope: 'global' },
+      { name: 'PipeQueryTools', providedIn: 'global' },
       () => ({
         prefix: (): string => 'user',
       }),
     );
     const { PipeQueryTools2 } = craftService(
-      { name: 'PipeQueryTools2', scope: 'global' },
+      { name: 'PipeQueryTools2', providedIn: 'global' },
       () => ({
         suffix: (): string => 'details',
       }),
     );
 
-    runInInjectionContext(() => {
+    await runInInjectionContext(async () => {
       const queryRef = craftUse(
         query(
           'queryRef',
@@ -516,19 +514,19 @@ describe('craftPipe with query', () => {
       // yields of ALL piped members are tracked (union), alongside config deps
       expectTypeOf<ExtractDeps<typeof queryRef>>().toEqualTypeOf<{
         PipeUserIdService: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
         };
         PipeQueryTools: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
         };
         PipeQueryTools2: {
-          scope: 'global';
+          providedIn: 'global';
           dependencies: {};
           browserBoundary: false;
           appStart: false;
@@ -537,8 +535,8 @@ describe('craftPipe with query', () => {
     });
   });
 
-  it('craftPipe works with mutation too (universal pipe)', () => {
-    runInInjectionContext(() => {
+  it('craftPipe works with mutation too (universal pipe)', async () => {
+    await runInInjectionContext(async () => {
       const save = craftUse(
         mutation(
           'save',
@@ -569,7 +567,7 @@ describe('craftPipe — fn-wrapper interaction', () => {
   });
   afterEach(() => {
     vi.resetAllMocks();
-    TestBed.resetTestingModule();
+    
   });
 
   it('each member factory is individually wrapped (per-member observability)', () => {
@@ -586,28 +584,47 @@ describe('craftPipe — fn-wrapper interaction', () => {
       isOdd: computed(() => st() % 2 === 1),
     });
     const wrappedFactories: string[] = [];
-    TestBed.configureTestingModule({
-      providers: [
+    runInInjectionContext(
+      () =>
+        craftUse(state('counter', 0, (context) => craftPipe(context, m1, m2))),
+      [
         provideFnWrapObserver((factory) => {
           wrappedFactories.push(factory.name || '(anonymous)');
         }),
       ],
-    });
-    runInInjectionContext(() =>
-      craftUse(state('counter', 0, (context) => craftPipe(context, m1, m2))),
     );
     expect(wrappedFactories.filter((n) => n === 'm1').length).toBe(1);
     expect(wrappedFactories.filter((n) => n === 'm2').length).toBe(1);
   });
 
-  it('a sync member returning a generator keeps its outputs when a FN_WRAPPER is installed', () => {
+  it('a sync member returning a generator keeps its outputs when a FN_WRAPPER is installed', async () => {
     // Regression: fn-wrapper's toGeneratorFactory must yield*-delegate a
     // generator RESULT, otherwise the generator becomes the wrapper
     // generator's return value, is never driven, and the outputs are
     // silently lost whenever any FN_WRAPPER (correlation-id tracking, app
     // snapshots) is active.
-    TestBed.configureTestingModule({
-      providers: [
+    const myState = runInInjectionContext(
+      () =>
+        craftUse(
+          state('myState', 0, (context) =>
+            craftPipe(
+              context,
+              (memberContext) =>
+                (function* () {
+                  return {
+                    inc: () => memberContext.update((current) => current + 1),
+                  };
+                })(),
+              ({ insertions }) => ({
+                incTwice: () => {
+                  insertions.inc();
+                  return insertions.inc();
+                },
+              }),
+            ),
+          ),
+        ),
+      [
         provideFnWrapper(
           'Warning: dependency injection here is not type-safe and may fail at runtime',
           function* (factory, thisArg, args) {
@@ -615,27 +632,6 @@ describe('craftPipe — fn-wrapper interaction', () => {
           },
         ),
       ],
-    });
-    const myState = runInInjectionContext(() =>
-      craftUse(
-        state('myState', 0, (context) =>
-          craftPipe(
-            context,
-            (memberContext) =>
-              (function* () {
-                return {
-                  inc: () => memberContext.update((current) => current + 1),
-                };
-              })(),
-            ({ insertions }) => ({
-              incTwice: () => {
-                insertions.inc();
-                return insertions.inc();
-              },
-            }),
-          ),
-        ),
-      ),
     );
 
     expect(typeof myState.inc).toBe('function');
@@ -645,36 +641,35 @@ describe('craftPipe — fn-wrapper interaction', () => {
     expect(craftUse(myState())).toBe(3);
   });
 
-  it('a throwing member propagates at construction and wrappers observe it', () => {
+  it('a throwing member propagates at construction and wrappers observe it', async () => {
     const caught: unknown[] = [];
-    TestBed.configureTestingModule({
-      providers: [
-        provideFnWrapper(
-          'Warning: dependency injection here is not type-safe and may fail at runtime',
-          function* (factory, thisArg, args) {
-            try {
-              return yield* factory.apply(thisArg, args);
-            } catch (error) {
-              caught.push(error);
-              throw error;
-            }
-          },
-        ),
-      ],
-    });
     expect(() =>
-      runInInjectionContext(() =>
-        craftUse(
-          state('counter', 0, (context) =>
-            craftPipe(
-              context,
-              () => ({ ok: () => 1 }),
-              () => {
-                throw new Error('member boom');
-              },
+      runInInjectionContext(
+        () =>
+          craftUse(
+            state('counter', 0, (context) =>
+              craftPipe(
+                context,
+                () => ({ ok: () => 1 }),
+                () => {
+                  throw new Error('member boom');
+                },
+              ),
             ),
           ),
-        ),
+        [
+          provideFnWrapper(
+            'Warning: dependency injection here is not type-safe and may fail at runtime',
+            function* (factory, thisArg, args) {
+              try {
+                return yield* factory.apply(thisArg, args);
+              } catch (error) {
+                caught.push(error);
+                throw error;
+              }
+            },
+          ),
+        ],
       ),
     ).toThrow('member boom');
     expect(caught.map((c) => (c as Error).message)).toContain('member boom');
@@ -682,7 +677,7 @@ describe('craftPipe — fn-wrapper interaction', () => {
 });
 
 describe('craftPipe — injector capture timing', () => {
-  it('outside an injection context, construction throws like the direct forms', () => {
+  it('outside an injection context, construction throws like the direct forms', async () => {
     expect(() =>
       craftUse(
         state('counter', 0, (context) =>
@@ -695,10 +690,10 @@ describe('craftPipe — injector capture timing', () => {
           ),
         ),
       ),
-    ).toThrowError(/NG0203|injection context/);
+    ).toThrowError(/injection context/);
   });
 
-  it('constructed inside a context, insertion methods stay callable outside any context', () => {
+  it('constructed inside a context, insertion methods stay callable outside any context', async () => {
     const s = runInInjectionContext(() =>
       craftUse(
         state('s', 0, (context) =>

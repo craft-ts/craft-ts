@@ -1,4 +1,4 @@
-import { provideAppInitializer, type ApplicationConfig } from '@angular/core';
+import { getCraftRootDefaultProviders, provideAppInitializer, type ApplicationConfig } from './host/craft-compat';
 import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
 import {
   getRegisteredAppStartServices,
@@ -13,7 +13,7 @@ import {
   type Simplify,
 } from './craft-service.shared';
 
-type AngularApplicationProvider = ApplicationConfig['providers'][number];
+type AngularApplicationProvider = ApplicationConfig['providers'][number] | object;
 type AngularApplicationProviders = readonly AngularApplicationProvider[];
 export type AppConfigProvidedServiceNamesKey =
   '__craftAppProvidedServiceNames__';
@@ -246,6 +246,7 @@ export function craftAppConfig<
     RequireCraftAppStartConfig,
 ): CraftAppConfigResult<RoutingDeps, Providers | readonly []> {
   const providers = [
+    ...getCraftRootDefaultProviders(),
     ...(config.providers ?? []),
   ] as AngularApplicationProvider[];
   const providerNames = collectProvidedServiceNames(providers);
@@ -261,8 +262,8 @@ export function craftAppConfig<
 
     if (
       Reflect.get(metaData, 'usesProvidedInput') === true &&
-      (metaData.scope === 'toProvide' ||
-        metaData.scope === 'manuallyProvidedAtRoot')
+      (metaData.providedIn === 'toProvide' ||
+        metaData.providedIn === 'manuallyProvidedAtRoot')
     ) {
       throw new Error(
         `craftAppConfig cannot auto-provide appStart service "${metaData.name}" because provide${metaData.name}(...) requires arguments.`,
@@ -270,8 +271,8 @@ export function craftAppConfig<
     }
 
     if (
-      (metaData.scope === 'toProvide' ||
-        metaData.scope === 'manuallyProvidedAtRoot') &&
+      (metaData.providedIn === 'toProvide' ||
+        metaData.providedIn === 'manuallyProvidedAtRoot') &&
       typeof metaData.provide === 'function' &&
       !providerNames.has(metaData.name)
     ) {
@@ -296,11 +297,12 @@ export function craftAppConfig<
   };
 }
 
-export function toApplicationConfig(config: {
-  providers: readonly AngularApplicationProvider[];
-}): ApplicationConfig {
+/** Returns a fresh host application config containing the Craft providers. */
+export function toApplicationConfig(
+  config: Pick<CraftAppConfigResult<readonly unknown[]>, 'providers'>,
+): ApplicationConfig {
   return {
-    providers: [...config.providers],
+    providers: [...config.providers] as ApplicationConfig['providers'],
   };
 }
 

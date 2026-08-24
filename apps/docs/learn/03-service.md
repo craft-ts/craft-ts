@@ -62,11 +62,10 @@ export const Tasks = craftComponent(
 );
 ```
 
-::: warning `toProvide` fails at runtime, not compile time
-Angular does not error when a provider is missing. That is exactly the hole the
-[route DI check](/learn/09-routing) closes — and that
-[architecture tests](/guide/testing/architecture#assertroutediproofs) keep in
-place.
+::: warning `toProvide` needs an explicit provider
+The route DI check verifies that the provider is present, and
+[architecture tests](/guide/testing/architecture#assertroutediproofs) keep the
+proof in place.
 :::
 
 The two remaining scopes (`manuallyProvidedAtRoot`, and the details of
@@ -81,7 +80,7 @@ the graph:
 
 ```typescript
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* (inputs: { projectId: CraftServiceInput<string> }) {
     const tasks = yield* state('tasks', [] as Task[] /* … */);
     const projectId = yield* inputs.projectId();
@@ -106,7 +105,7 @@ scoped to this service rather than to whoever mounts it:
 export const { TaskList } = craftService(
   {
     name: 'TaskList',
-    scope: 'function',
+    providedIn: 'function',
     providers: [provideTaskApi()],
   },
   function* () {

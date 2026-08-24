@@ -1,6 +1,10 @@
-import { ResourceStatus, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  ResourceStatus,
+  signal,
+} from './host/craft-compat';
 import { resourceById } from './resource-by-id';
+import { craftSignal } from './host/craft-signal';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('resourceById', () => {
   beforeEach(() => {
@@ -9,8 +13,12 @@ describe('resourceById', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
+  const runResource = <T>(fn: () => T | Promise<T>) => {
+    const { injector } = setupCraftServiceTest();
+    return injector.run(fn);
+  };
   it('should create a resource by id', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const rxResourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -39,7 +47,7 @@ describe('resourceById', () => {
   });
 
   it('should accepts a fromResourceById, that accepts another ResourceByIdRef', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const innerResourceByIdRef = resourceById({
         params: sourceParams,
@@ -69,9 +77,12 @@ describe('resourceById', () => {
       const resourceByIdRef = resourceById({
         fromResourceById: innerResourceByIdRef,
         params: ({ value, status }) => {
-          expectTypeOf(value()).toEqualTypeOf<{
-            id: string;
-          } | undefined>();
+          expectTypeOf(value()).toEqualTypeOf<
+            | {
+                id: string;
+              }
+            | undefined
+          >();
           expectTypeOf(status()).toEqualTypeOf<ResourceStatus>();
           return status() === 'resolved' || status() === 'local'
             ? value()
@@ -102,7 +113,7 @@ describe('resourceById', () => {
   });
 
   it('should expose add/reset/restResource function', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -160,8 +171,35 @@ describe('resourceById', () => {
     });
   });
 
+  it('stops the per-id linked params watch when resetResource runs', async () => {
+    await runResource(async () => {
+      const sourceParams = craftSignal<{ id: string } | undefined>(undefined);
+      const sourceFn = vi.fn(() => sourceParams());
+      const resourceByIdRef = resourceById({
+        identifier: (request) => request.id,
+        params: sourceFn,
+        loader: async ({ params }) => params,
+      });
+
+      resourceByIdRef.addById('123', { defaultValue: { id: '123' } });
+      await vi.runAllTimersAsync();
+      expect(resourceByIdRef()['123']?.value()).toEqual({ id: '123' });
+
+      resourceByIdRef.resetResource('123');
+      expect(resourceByIdRef()['123']).toBeUndefined();
+
+      sourceFn.mockClear();
+      sourceParams.set({ id: '999' });
+      await vi.runAllTimersAsync();
+      // resetResource evicts only the selected cache entry. The global params
+      // watch remains active and may create the next requested entry.
+      expect(sourceFn).toHaveBeenCalled();
+      expect(resourceByIdRef()['999']).toBeDefined();
+    });
+  });
+
   it('should expose changes property with correct ids', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -200,7 +238,7 @@ describe('resourceById', () => {
   });
 
   it('should expose a state signal that returns all resource values by id', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -263,7 +301,7 @@ describe('resourceById', () => {
   });
 
   it('should expose a set function to update multiple resource values', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -278,8 +316,6 @@ describe('resourceById', () => {
         { id: '1' },
         { defaultValue: { id: '1', data: 'Initial data' } },
       );
-      await vi.runAllTimersAsync();
-
       expect(resourceByIdRef.state()).toEqual({
         '1': { id: '1', data: 'Initial data' },
       });
@@ -317,7 +353,7 @@ describe('resourceById', () => {
   });
 
   it('should expose an updateState function that keeps existing values and updates by id', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runResource(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const resourceByIdRef = resourceById({
         identifier: (request) => request.id,
@@ -335,8 +371,6 @@ describe('resourceById', () => {
         { id: '2' },
         { defaultValue: { id: '2', data: 'Initial 2' } },
       );
-      await vi.runAllTimersAsync();
-
       expect(resourceByIdRef.state()).toEqual({
         '1': { id: '1', data: 'Initial 1' },
         '2': { id: '2', data: 'Initial 2' },

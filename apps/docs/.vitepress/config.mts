@@ -21,6 +21,49 @@ const learnSidebar = [
   },
 ];
 
+const learnEffectSidebar = [
+  {
+    text: 'Learn with Effect',
+    items: [
+      {
+        text: 'Effect users: start here',
+        link: '/learn-effect/00-start-here',
+      },
+      { text: 'Overview', link: '/learn-effect/' },
+      {
+        text: '1. Start with a Craft component',
+        link: '/learn-effect/01-first-component',
+      },
+      { text: '2. Derive UI state', link: '/learn-effect/02-derive' },
+      {
+        text: '3. Put the domain in Effect',
+        link: '/learn-effect/03-effect-domain',
+      },
+      {
+        text: '4. Load data with Effect',
+        link: '/learn-effect/04-load-data',
+      },
+      {
+        text: '5. Write data with Effect',
+        link: '/learn-effect/05-write-data',
+      },
+      {
+        text: '6. Provide Layers and route the app',
+        link: '/learn-effect/06-layers-routing',
+      },
+      {
+        text: '7. Build forms and validate boundaries',
+        link: '/learn-effect/07-forms-validation',
+      },
+      { text: '8. Test the graph', link: '/learn-effect/08-testing' },
+      {
+        text: '9. Server functions — POC',
+        link: '/learn-effect/09-server-functions',
+      },
+    ],
+  },
+];
+
 const guideSidebar = [
   { text: 'Guide overview', link: '/guide/' },
   {
@@ -28,10 +71,6 @@ const guideSidebar = [
     collapsed: false,
     items: [
       { text: 'The mental model', link: '/guide/concepts/mental-model' },
-      {
-        text: 'What craft adds to Angular',
-        link: '/guide/concepts/vs-angular',
-      },
       {
         text: 'Which primitive should I use?',
         link: '/guide/concepts/choose-primitive',
@@ -92,10 +131,6 @@ const guideSidebar = [
       { text: 'Service scopes', link: '/guide/app/service-scopes' },
       { text: 'Shaping the public API', link: '/guide/app/expose-api' },
       { text: 'Abstract services', link: '/guide/app/abstract-services' },
-      {
-        text: 'Integrating existing code',
-        link: '/guide/app/integrate-existing',
-      },
       { text: 'App start', link: '/guide/app/app-start' },
       { text: 'Lazy services', link: '/guide/app/lazy-services' },
       { text: 'craftRegisterFor', link: '/guide/app/register' },
@@ -122,10 +157,6 @@ const guideSidebar = [
       },
       { text: 'Route load errors', link: '/guide/routing/route-load-errors' },
       { text: 'Scaling routes', link: '/guide/routing/scaling' },
-      {
-        text: 'Angular brand config',
-        link: '/guide/routing/angular-brand-config',
-      },
     ],
   },
   {
@@ -178,7 +209,81 @@ const guideSidebar = [
       { text: 'Testing components', link: '/guide/testing/components' },
       { text: 'Type-level tests', link: '/guide/testing/type-level' },
       { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
-      { text: 'Architecture rules', link: '/guide/testing/architecture' },
+      {
+        text: 'Architecture rules',
+        collapsed: true,
+        items: [
+          { text: 'Overview', link: '/guide/testing/architecture' },
+          {
+            text: 'Declarative baseline',
+            link: '/guide/testing/architecture/declarative-baseline',
+          },
+          {
+            text: 'Unique identities',
+            link: '/guide/testing/architecture/unique-identities',
+          },
+          {
+            text: 'HTTP endpoint ownership',
+            link: '/guide/testing/architecture/http-endpoint-ownership',
+          },
+          {
+            text: 'Computed purity',
+            link: '/guide/testing/architecture/computed-purity',
+          },
+          {
+            text: 'Dependency cycles',
+            link: '/guide/testing/architecture/dependency-cycles',
+          },
+          {
+            text: 'Mutation reactions',
+            link: '/guide/testing/architecture/mutation-reactions',
+          },
+          {
+            text: 'Route DI proofs',
+            link: '/guide/testing/architecture/route-di-proofs',
+          },
+          {
+            text: 'Path boundaries',
+            link: '/guide/testing/architecture/path-boundaries',
+          },
+          {
+            text: 'Exclusive links',
+            link: '/guide/testing/architecture/exclusive-links',
+          },
+          {
+            text: 'Persisted identities',
+            link: '/guide/testing/architecture/persisted-identities',
+          },
+          {
+            text: 'insertSelect keys',
+            link: '/guide/testing/architecture/insert-select-keys',
+          },
+          {
+            text: 'craftEffect and network',
+            link: '/guide/testing/architecture/craft-effect-network',
+          },
+          {
+            text: 'craftEffect and imperative sync',
+            link: '/guide/testing/architecture/craft-effect-imperative-sync',
+          },
+          {
+            text: 'Interactive element names',
+            link: '/guide/testing/architecture/interactive-element-names',
+          },
+          {
+            text: 'Server-state loaders',
+            link: '/guide/testing/architecture/server-state-loader',
+          },
+          {
+            text: 'Primitive loader requirements',
+            link: '/guide/testing/architecture/primitive-loader-requirements',
+          },
+        ],
+      },
+      {
+        text: 'Extensible architecture graph',
+        link: '/guide/testing/extensible-architecture-graph',
+      },
       { text: 'Craft graph vs Nx', link: '/guide/testing/craft-graph-vs-nx' },
     ],
   },
@@ -203,9 +308,22 @@ const guideSidebar = [
     ],
   },
   {
+    text: 'Deployment (experimental)',
+    collapsed: true,
+    items: [
+      { text: 'Overview', link: '/guide/deployment/' },
+      { text: 'Manifest reference', link: '/guide/deployment/manifest' },
+      { text: 'Diagnostics', link: '/guide/deployment/diagnostics' },
+      { text: 'Providers', link: '/guide/deployment/providers' },
+      { text: 'Alchemy provider', link: '/guide/deployment/alchemy' },
+    ],
+  },
+  {
     text: 'Going further',
     collapsed: true,
     items: [
+      { text: 'SSR and hydration', link: '/guide/advanced/ssr-hydration' },
+      { text: 'Effect integration', link: '/guide/advanced/effect' },
       { text: 'Program operators', link: '/guide/advanced/program-operators' },
       { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },
       { text: 'Observability', link: '/guide/advanced/observability' },
@@ -222,6 +340,14 @@ const resourcesSidebar = [
       { text: 'Examples', link: '/resources/examples' },
       { text: 'Coding agents', link: '/resources/ai-agents' },
       { text: 'Migration', link: '/resources/migration' },
+      {
+        text: 'Effect compatibility & maturity',
+        link: '/resources/effect-compatibility',
+      },
+      {
+        text: 'Adopting CraftTS progressively',
+        link: '/resources/effect-adoption',
+      },
       { text: 'Press kit', link: '/resources/press-kit' },
       { text: 'Roadmap', link: '/resources/roadmap' },
       { text: 'Backlog', link: '/resources/backlog' },
@@ -231,9 +357,9 @@ const resourcesSidebar = [
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: '@craft-ng/core',
+  title: '@craft-ts',
   base: '/craft/',
-  description: 'Type-safe Angular, by construction',
+  description: 'Type-safe Craft applications, by construction',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/assets/favicon.png',
@@ -259,26 +385,35 @@ export default defineConfig({
     },
     nav: [
       { text: 'Learn', link: '/learn/', activeMatch: '^/learn/' },
+      {
+        text: 'Learn with Effect',
+        link: '/learn-effect/',
+        activeMatch: '^/learn-effect/',
+      },
       { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
       { text: 'Reference', link: '/reference/', activeMatch: '^/reference/' },
       {
         text: 'Packages',
         items: [
           {
-            text: '@craft-ng/core',
-            link: 'https://www.npmjs.com/package/@craft-ng/core',
+            text: '@craft-ts/core',
+            link: 'https://www.npmjs.com/package/@craft-ts/core',
           },
           {
-            text: '@craft-ng/component',
-            link: 'https://www.npmjs.com/package/@craft-ng/component',
+            text: '@craft-ts/component',
+            link: 'https://www.npmjs.com/package/@craft-ts/component',
           },
           {
-            text: '@craft-ng/dev-tools',
-            link: 'https://www.npmjs.com/package/@craft-ng/dev-tools',
+            text: '@craft-ts/dev-tools',
+            link: 'https://www.npmjs.com/package/@craft-ts/dev-tools',
           },
           {
-            text: '@craft-ng/mcp',
-            link: 'https://www.npmjs.com/package/@craft-ng/mcp',
+            text: '@craft-ts/effect',
+            link: 'https://www.npmjs.com/package/@craft-ts/effect',
+          },
+          {
+            text: '@craft-ts/mcp',
+            link: 'https://www.npmjs.com/package/@craft-ts/mcp',
           },
         ],
       },
@@ -289,6 +424,14 @@ export default defineConfig({
           { text: 'Examples', link: '/resources/examples' },
           { text: 'Coding agents', link: '/resources/ai-agents' },
           { text: 'Migration', link: '/resources/migration' },
+          {
+            text: 'Effect compatibility & maturity',
+            link: '/resources/effect-compatibility',
+          },
+          {
+            text: 'Adopting CraftTS progressively',
+            link: '/resources/effect-adoption',
+          },
           { text: 'Press kit', link: '/resources/press-kit' },
           { text: 'Roadmap', link: '/resources/roadmap' },
           { text: 'Backlog', link: '/resources/backlog' },
@@ -298,6 +441,7 @@ export default defineConfig({
 
     sidebar: {
       '/learn/': learnSidebar,
+      '/learn-effect/': learnEffectSidebar,
       '/guide/': guideSidebar,
       '/reference/': [
         {
@@ -311,7 +455,7 @@ export default defineConfig({
     outline: [2, 3],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/ng-angular-stack/ng-craft' },
+      { icon: 'github', link: 'https://github.com/craft-ts/craft-ts' },
     ],
   },
   head: [
@@ -320,19 +464,19 @@ export default defineConfig({
       'link',
       {
         rel: 'describedby',
-        href: 'https://ng-angular-stack.github.io/craft/llms.txt',
+        href: 'https://craft-ts.github.io/craft/llms.txt',
       },
     ],
   ],
   vite: {
     plugins: [
       llmstxt({
-        title: '@craft-ng/core',
+        title: '@craft-ts/core',
         description:
-          'Type-safe Angular. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ng/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
+          'Type-safe Craft applications. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ts/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
         details:
-          'After importing @craft-ng/core, run `npx -y @craft-ng/mcp@beta` and read /resources/ai-agents. In local development, the open ng serve tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Do not generate Angular signal(), inject(), or @Injectable in authored Craft code.',
-        domain: 'https://ng-angular-stack.github.io',
+          'After importing @craft-ts/core, run `npx -y @craft-ts/mcp@beta` and read /resources/ai-agents. In local development, the open development tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Keep authored application code within the Craft primitives and service model.',
+        domain: 'https://craft-ts.github.io',
         ignoreFiles: ['public/**', 'README.md'],
       }),
     ],

@@ -1,4 +1,4 @@
-# Learn @craft-ng
+# Learn @craft-ts
 
 This is the guided path. You build **one app**, from an empty component to a
 routed, tested feature — adding exactly one idea per step.
@@ -26,14 +26,9 @@ data, optimistic updates, URL state, a validated form, a typed route and tests.
 
 Then: [Where to go next](/learn/next).
 
-::: tip Wondering what this buys you over plain Angular?
-[What craft adds to Angular](/guide/concepts/vs-angular) is the inventory —
-including what it costs.
-:::
-
 ## Before you start
 
-You need an Angular 21 application and Node.js 20.19+ (or 22.12+). No prior
+You need a TypeScript application and Node.js 20.19+ (or 22.12+). No prior
 knowledge of generators, RxJS or signals internals is required — each is
 introduced when it first earns its place.
 
@@ -43,7 +38,7 @@ is where the mental model clicks — don't skip that one.
 :::
 
 ::: warning Experimental
-`@craft-ng` and this documentation are both experimental. APIs can still move
+`@craft-ts` and this documentation are both experimental. APIs can still move
 between minor versions.
 :::
 

@@ -1,6 +1,9 @@
+import {
+  Injector,
+  runInInjectionContext,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { CraftGenShortCircuit } from './craft-gen';
 import { craftException } from './craft-exception';
 import { CraftNotSettled, isCraftNotSettled } from './craft-settled';
@@ -14,11 +17,11 @@ import { FN_WRAPPER } from './fn-wrapper';
 afterEach(() => TestBed.resetTestingModule());
 
 describe('isCraftControlFlow', () => {
-  it('recognizes expected CraftNG control-flow throws', () => {
+  it('recognizes expected CraftTS control-flow throws', () => {
     expect(isCraftControlFlow(new CraftNotSettled('issue'))).toBe(true);
     expect(
       isCraftControlFlow(
-        new CraftGenShortCircuit(craftException({ code: 'EXPECTED' })),
+        new CraftGenShortCircuit(craftException({ _tag: 'EXPECTED' })),
       ),
     ).toBe(true);
   });

@@ -215,10 +215,10 @@ function joinNames(parent, names) {
 function ensureImports(text) {
   const names = ['CanRun', 'RouteExceptionComponentCheckedDI'];
   const match = text.match(
-    /import\s*\{([\s\S]*?)\}\s*from\s*(['"]@craft-ng\/core['"])/,
+    /import\s*\{([\s\S]*?)\}\s*from\s*(['"]@craft-ts\/core['"])/,
   );
   if (!match)
-    return `import type { ${names.join(', ')} } from '@craft-ng/core';\n${text}`;
+    return `import type { ${names.join(', ')} } from '@craft-ts/core';\n${text}`;
   const missing = names.filter(
     (name) => !new RegExp(`\\b${name}\\b`).test(match[1]),
   );

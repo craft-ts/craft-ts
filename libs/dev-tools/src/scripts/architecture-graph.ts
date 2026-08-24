@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto';
-import { relative } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import type {
   DependencyGraph,
   DependencyGraphEdge,
+  DependencyGraphEdgeFor,
   DependencyGraphEdgeKind,
   DependencyGraphNode,
   DependencyGraphNodeKind,
+  DependencyGraphNodeRegistry,
+  DependencyGraphProof,
 } from './dependency-graph.js';
 
 export type ArchitectureProvidedOn = {
@@ -22,6 +26,7 @@ export type ArchitectureCatalog = {
   components: readonly string[];
   primitives: readonly string[];
   sources: readonly string[];
+  serverFunctionFamilies: readonly string[];
   httpEndpoints: readonly { method: string; url: string }[];
   uniques: readonly string[];
   providers: readonly string[];
@@ -39,13 +44,14 @@ export type ArchitectureCatalog = {
 
 export type ArchitectureNodeView<
   C extends ArchitectureCatalog = ArchitectureCatalog,
+  K extends DependencyGraphNodeKind = DependencyGraphNodeKind,
 > = {
   id: string;
-  kind: DependencyGraphNodeKind;
+  kind: K;
   label: string;
   filePath?: string;
   line?: number;
-  details?: Record<string, unknown>;
+  details?: DependencyGraphNodeRegistry[K];
   provider(name: CatalogProviders<C>): ArchitectureNodeView<C>;
   providers(): ArchitectureNodeView<C>[];
   outgoing(kind?: DependencyGraphEdgeKind): DependencyGraphEdge[];
@@ -63,6 +69,14 @@ export type ArchitectureGraphView<
 > = {
   graph: DependencyGraph;
   catalog: C;
+  nodes<K extends DependencyGraphNodeKind>(
+    kind: K,
+  ): ArchitectureNodeView<C, K>[];
+  edges<K extends DependencyGraphEdgeKind>(
+    kind: K,
+  ): DependencyGraphEdgeFor<K>[];
+  pathsBetween(fromId: string, toId: string, maxDepth?: number): ArchitectureGraphPath[];
+  proofs(edge: DependencyGraphEdge): DependencyGraphProof[];
   route(path: CatalogRoutes<C>, file?: string): ArchitectureNodeView<C>;
   service(name: CatalogServices<C>, file?: string): ArchitectureNodeView<C>;
   component(name: CatalogComponents<C>, file?: string): ArchitectureNodeView<C>;
@@ -79,15 +93,42 @@ export type ArchitectureGraphView<
   craftMethods(): ArchitectureNodeView<C>[];
   primitives(primitive?: string): ArchitectureNodeView<C>[];
   sources(): ArchitectureNodeView<C>[];
+  serverFunctionFamilies(): ArchitectureNodeView<C>[];
+  serverFunctionMiddlewares(): ArchitectureNodeView<C>[];
+  clientFunctionMiddlewares(): ArchitectureNodeView<C>[];
+  handshakes(): ArchitectureNodeView<C>[];
+  serverFunctionFamily(id: string): ArchitectureNodeView<C>;
   httpEndpoints(): ArchitectureNodeView<C>[];
   unique(value: CatalogUniques<C>): ArchitectureNodeView<C>;
   uniques(): ArchitectureNodeView<C>[];
+};
+
+export type ArchitectureGraphPath = {
+  readonly nodes: DependencyGraphNode[];
+  readonly edges: DependencyGraphEdge[];
+  readonly proofs: DependencyGraphProof[];
 };
 
 export type ExclusiveLinkViolation = {
   from: string;
   to: string;
   kind: DependencyGraphEdgeKind;
+};
+
+export type SensitiveOutputProtectionOptions = {
+  readonly categories?: readonly string[];
+  readonly allowUnknown?: boolean;
+};
+
+export type SensitiveOutputProtectionViolation = {
+  readonly code:
+    | 'SENSITIVE_OUTPUT_UNPROTECTED'
+    | 'SENSITIVE_OUTPUT_UNKNOWN_PROTECTION';
+  readonly classification: string;
+  readonly outputId: string;
+  readonly message: string;
+  readonly path: readonly string[];
+  readonly proofs: readonly DependencyGraphProof[];
 };
 
 type CatalogRoutes<C extends ArchitectureCatalog> = C['routes'][number];
@@ -163,6 +204,11 @@ export function buildArchitectureCatalog(
   const sources = uniqueSorted(
     graph.nodes.filter((node) => node.kind === 'source').map((node) => node.label),
   );
+  const serverFunctionFamilies = uniqueSorted(
+    graph.nodes
+      .filter((node) => node.kind === 'server-function-family')
+      .map((node) => node.label),
+  );
   const httpEndpoints = graph.nodes
     .filter((node) => node.kind === 'http-endpoint')
     .map((node) => ({
@@ -223,6 +269,7 @@ export function buildArchitectureCatalog(
     components,
     primitives,
     sources,
+    serverFunctionFamilies,
     httpEndpoints,
     uniques,
     providers: providedNames,
@@ -323,6 +370,22 @@ export function createArchitectureGraph<
   return {
     graph,
     catalog: (catalog ?? buildArchitectureCatalog(graph)) as C,
+    nodes(kind) {
+      return graph.nodes
+        .filter((node) => node.kind === kind)
+        .map(wrap) as ArchitectureNodeView<C, typeof kind>[];
+    },
+    edges(kind) {
+      return graph.edges.filter((edge) => edge.kind === kind) as DependencyGraphEdgeFor<
+        typeof kind
+      >[];
+    },
+    pathsBetween(fromId, toId, maxDepth) {
+      return dependencyGraphPathsBetween(graph, fromId, toId, maxDepth);
+    },
+    proofs(edge) {
+      return edge.proof ? [edge.proof] : [];
+    },
     route(path, file) {
       return lookup('route', path, file);
     },
@@ -434,6 +497,33 @@ export function createArchitectureGraph<
     sources() {
       return graph.nodes.filter((node) => node.kind === 'source').map(wrap);
     },
+    serverFunctionFamilies() {
+      return graph.nodes
+        .filter((node) => node.kind === 'server-function-family')
+        .map(wrap);
+    },
+    serverFunctionMiddlewares() {
+      return graph.nodes
+        .filter((node) => node.kind === 'server-function-middleware')
+        .map(wrap);
+    },
+    clientFunctionMiddlewares() {
+      return graph.nodes
+        .filter((node) => node.kind === 'client-function-middleware')
+        .map(wrap);
+    },
+    handshakes() {
+      return graph.nodes.filter((node) => node.kind === 'handshake').map(wrap);
+    },
+    serverFunctionFamily(id) {
+      return lookup(
+        'server-function-family',
+        id,
+        undefined,
+        (node) =>
+          node.label === id || node.details?.['serverFunctionId'] === id,
+      );
+    },
     httpEndpoints() {
       return graph.nodes
         .filter((node) => node.kind === 'http-endpoint')
@@ -452,6 +542,128 @@ export function createArchitectureGraph<
       return graph.nodes.filter((node) => node.kind === 'unique').map(wrap);
     },
   };
+}
+
+/**
+ * Enumerates short, explainable paths without imposing a domain-specific
+ * notion of what a backend node means. Rules can first select typed nodes and
+ * then ask this generic primitive for paths between their ids.
+ */
+export function dependencyGraphPathsBetween(
+  graph: DependencyGraph,
+  fromId: string,
+  toId: string,
+  maxDepth = 32,
+): ArchitectureGraphPath[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  if (!nodesById.has(fromId) || !nodesById.has(toId)) return [];
+  if (fromId === toId) {
+    const node = nodesById.get(fromId);
+    return node ? [{ nodes: [node], edges: [], proofs: [] }] : [];
+  }
+
+  const outgoing = new Map<string, DependencyGraphEdge[]>();
+  for (const edge of graph.edges) {
+    const edges = outgoing.get(edge.from) ?? [];
+    edges.push(edge);
+    outgoing.set(edge.from, edges);
+  }
+  const paths: ArchitectureGraphPath[] = [];
+  const visit = (
+    nodeId: string,
+    nodePath: DependencyGraphNode[],
+    edgePath: DependencyGraphEdge[],
+    visited: Set<string>,
+  ): void => {
+    if (edgePath.length >= maxDepth) return;
+    for (const edge of outgoing.get(nodeId) ?? []) {
+      const target = nodesById.get(edge.to);
+      if (!target || visited.has(target.id)) continue;
+      const nextNodes = [...nodePath, target];
+      const nextEdges = [...edgePath, edge];
+      if (target.id === toId) {
+        paths.push({
+          nodes: nextNodes,
+          edges: nextEdges,
+          proofs: nextEdges.flatMap((candidate) =>
+            candidate.proof ? [candidate.proof] : [],
+          ),
+        });
+        continue;
+      }
+      visit(target.id, nextNodes, nextEdges, new Set([...visited, target.id]));
+    }
+  };
+  const start = nodesById.get(fromId);
+  if (start) visit(fromId, [start], [], new Set([fromId]));
+  return paths;
+}
+
+/**
+ * Checks the first conservative security policy for classified server
+ * responses. Capabilities are repository-declared on middleware nodes through
+ * `analyzeDependencyGraph({ middlewareCapabilities })`.
+ */
+export function sensitiveOutputProtectionViolations(
+  graph: DependencyGraph,
+  options: SensitiveOutputProtectionOptions = {},
+): SensitiveOutputProtectionViolation[] {
+  const allowed = options.categories ? new Set(options.categories) : undefined;
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const violations: SensitiveOutputProtectionViolation[] = [];
+
+  for (const exposure of graph.edges.filter((edge) => edge.kind === 'exposes-data')) {
+    const classification = String(exposure.details?.['classification'] ?? 'unknown');
+    if (allowed && !allowed.has(classification)) continue;
+    const output = nodesById.get(exposure.to);
+    if (!output || output.kind !== 'external-output') continue;
+    const serverFunctionId = output.details?.['serverFunctionId'];
+    const serverParts = graph.nodes.filter(
+      (node) =>
+        node.kind === 'server-function-server' &&
+        (node.details?.['serverFunctionId'] === serverFunctionId ||
+          node.filePath === output.filePath),
+    );
+    const middleware = serverParts.flatMap((part) =>
+      graph.edges
+        .filter((edge) => edge.from === part.id && edge.kind === 'depends-on')
+        .map((edge) => nodesById.get(edge.to))
+        .filter(
+          (node): node is DependencyGraphNode =>
+            node?.kind === 'server-function-middleware',
+        ),
+    );
+    const capable = middleware.some((node) => {
+      const protects = node.details?.['protects'];
+      return Array.isArray(protects) && protects.includes(classification);
+    });
+    const unknown = middleware.some(
+      (node) => node.details?.['protectionUnknown'] === true,
+    );
+    if (capable || (unknown && options.allowUnknown)) continue;
+    const proofs = exposure.proof ? [exposure.proof] : [];
+    const code = unknown
+      ? 'SENSITIVE_OUTPUT_UNKNOWN_PROTECTION'
+      : 'SENSITIVE_OUTPUT_UNPROTECTED';
+    violations.push({
+      code,
+      classification,
+      outputId: output.id,
+      path: [exposure.from, output.id],
+      proofs,
+      message: `${code}: ${output.label} exposes ${classification} without a middleware capability protecting ${classification}.`,
+    });
+  }
+  return violations;
+}
+
+export function assertSensitiveOutputsProtected(
+  graph: DependencyGraph,
+  options: SensitiveOutputProtectionOptions = {},
+): void {
+  const violations = sensitiveOutputProtectionViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(violations.map((violation) => violation.message).join('\n'));
 }
 
 export function exclusiveLinkViolations(
@@ -552,6 +764,95 @@ export function assertCraftUnique(graph: DependencyGraph): void {
       })
       .join('\n'),
   );
+}
+
+export type CraftHandshakeDiagnosticCode =
+  | 'CRAFT_HANDSHAKE_MISSING_COUNTERPART'
+  | 'CRAFT_HANDSHAKE_NOT_STATIC'
+  | 'CRAFT_HANDSHAKE_DUPLICATE_NAME';
+
+export type CraftHandshakeViolation = {
+  readonly code: CraftHandshakeDiagnosticCode;
+  readonly message: string;
+  readonly name: string;
+  readonly filePath?: string;
+  readonly line?: number;
+};
+
+/**
+ * Vérifie qu'un `craftHandshake(...)` est bien tenu des deux côtés.
+ *
+ * C'est le pendant exact de `assertCraftUnique`, avec le prédicat inverse :
+ * `craftUnique` exige un seul site, un handshake en exige **un de chaque
+ * côté**. Le contrôle compare des identifiants, pas des noms de clés devinés
+ * dans l'AST : il n'a rien d'heuristique.
+ */
+export function craftHandshakeViolations(
+  graph: DependencyGraph,
+): CraftHandshakeViolation[] {
+  const handshakes = graph.nodes.filter((node) => node.kind === 'handshake');
+  const violations: CraftHandshakeViolation[] = [];
+
+  for (const node of handshakes) {
+    if (node.details?.['static'] === false) {
+      violations.push({
+        code: 'CRAFT_HANDSHAKE_NOT_STATIC',
+        message: `CRAFT_HANDSHAKE_NOT_STATIC: craftHandshake(...) must name a static string literal; "${node.label}" cannot be matched across the boundary otherwise.`,
+        name: String(node.label),
+        filePath: relativeGraphPath(graph, node.filePath),
+        line: node.line,
+      });
+      continue;
+    }
+
+    const server = node.details?.['serverSites'];
+    const client = node.details?.['clientSites'];
+    const hasServer = Array.isArray(server) && server.length > 0;
+    const hasClient = Array.isArray(client) && client.length > 0;
+    if (hasServer && hasClient) continue;
+
+    const missing = hasServer ? 'client' : 'server';
+    const reached = hasServer ? server : hasClient ? client : [];
+    violations.push({
+      code: 'CRAFT_HANDSHAKE_MISSING_COUNTERPART',
+      message: `CRAFT_HANDSHAKE_MISSING_COUNTERPART: handshake "${node.label}" has no ${missing} counterpart${
+        reached.length ? ` (only ${reached.join(', ')})` : ' (nothing references it)'
+      }. A handshake exists to be honoured on both sides; one side alone means the other silently sends, or expects, nothing.`,
+      name: String(node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  const byName = new Map<string, DependencyGraphNode[]>();
+  for (const node of handshakes) {
+    const name = node.details?.['handshakeName'];
+    if (typeof name !== 'string') continue;
+    byName.set(name, [...(byName.get(name) ?? []), node]);
+  }
+  for (const [name, nodes] of byName) {
+    if (nodes.length < 2) continue;
+    const node = nodes[0];
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_HANDSHAKE_DUPLICATE_NAME',
+      message: `CRAFT_HANDSHAKE_DUPLICATE_NAME: handshake "${name}" is declared ${nodes.length} times (${nodes
+        .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
+        .sort()
+        .join(', ')}). A handshake is declared once and referenced from both sides; two declarations mean the two sides can agree on a name while sharing nothing.`,
+      name,
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  return violations;
+}
+
+export function assertCraftHandshake(graph: DependencyGraph): void {
+  const violations = craftHandshakeViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(violations.map((violation) => violation.message).join('\n'));
 }
 
 export type RouteDiProofViolationKind =
@@ -750,6 +1051,107 @@ export function assertRouteDiProofs(graph: DependencyGraph): void {
   );
 }
 
+export type RouteComponentFileViolation = {
+  kind: 'route-and-component-same-file' | 'components-share-file';
+  route: string;
+  component: string;
+  components: readonly string[];
+  routeFile: string;
+  componentFile: string;
+};
+
+export function routeComponentFileViolations(
+  graph: DependencyGraph,
+): RouteComponentFileViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const routedComponents = graph.edges.flatMap((edge) => {
+    if (edge.kind !== 'loads') return [];
+    const route = nodesById.get(edge.from);
+    const component = nodesById.get(edge.to);
+    if (
+      !route ||
+      route.kind !== 'route' ||
+      !component ||
+      component.kind !== 'component' ||
+      !route.filePath ||
+      !component.filePath
+    ) {
+      return [];
+    }
+    return [
+      {
+        componentId: component.id,
+        route: String(route.details?.['path'] ?? route.label),
+        component: component.label,
+        routeFile: relativeGraphPath(graph, route.filePath) ?? route.filePath,
+        componentFile:
+          relativeGraphPath(graph, component.filePath) ?? component.filePath,
+      },
+    ];
+  });
+
+  const routeAndComponentViolations = routedComponents
+    .filter((candidate) => candidate.routeFile === candidate.componentFile)
+    .map(
+      (candidate): RouteComponentFileViolation => ({
+        kind: 'route-and-component-same-file',
+        route: candidate.route,
+        component: candidate.component,
+        components: [candidate.component],
+        routeFile: candidate.routeFile,
+        componentFile: candidate.componentFile,
+      }),
+    );
+
+  const componentsByFile = new Map<string, typeof routedComponents>();
+  for (const candidate of routedComponents) {
+    const candidates = componentsByFile.get(candidate.componentFile) ?? [];
+    candidates.push(candidate);
+    componentsByFile.set(candidate.componentFile, candidates);
+  }
+
+  const sharedFileViolations: RouteComponentFileViolation[] = [];
+  for (const candidates of componentsByFile.values()) {
+    const uniqueComponents = [
+      ...new Map(candidates.map((candidate) => [candidate.componentId, candidate])).values(),
+    ];
+    if (uniqueComponents.length < 2) continue;
+    const first = uniqueComponents[0];
+    if (!first) continue;
+    sharedFileViolations.push({
+      kind: 'components-share-file',
+      route: uniqueComponents
+        .map((candidate) => candidate.route)
+        .join(', '),
+      component: uniqueComponents
+        .map((candidate) => candidate.component)
+        .join(', '),
+      components: uniqueComponents.map((candidate) => candidate.component),
+      routeFile: first.routeFile,
+      componentFile: first.componentFile,
+    });
+  }
+
+  return [...routeAndComponentViolations, ...sharedFileViolations];
+}
+
+export function assertRouteComponentsInSeparateFiles(
+  graph: DependencyGraph,
+): void {
+  const violations = routeComponentFileViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          violation.kind === 'components-share-file'
+            ? `Routes ${JSON.stringify(violation.route)} load multiple page components (${JSON.stringify(violation.component)}) from the same component file ${violation.componentFile}. Each routed page component must have its own file.`
+            : `Route ${JSON.stringify(violation.route)} loads component ${JSON.stringify(violation.component)} from the same file ${violation.routeFile}. Route definitions and page components must be in separate files.`,
+      )
+      .join('\n'),
+  );
+}
+
 export type HttpEndpointUniqueViolation = {
   id: string;
   label: string;
@@ -906,6 +1308,101 @@ export function assertNoDependencyCycles(graph: DependencyGraph): void {
       .map((cycle) => `Dependency cycle: ${cycle.labels.join(' -> ')}.`)
       .join('\n'),
   );
+}
+
+export type AppConfigRouteCycle = {
+  appConfigFile: string;
+  routeFile: string;
+  routeLabels: readonly string[];
+};
+
+/**
+ * App configuration owns route registration. A route module may expose route
+ * metadata to the config, but the two modules must not import each other: the
+ * cycle makes the inferred provider context unstable and invites manual DI
+ * fallbacks.
+ */
+export function appConfigRouteCycleViolations(
+  graph: DependencyGraph,
+): AppConfigRouteCycle[] {
+  const appConfigs = uniqueByFile(
+    graph.nodes.filter((node) => node.kind === 'app-config'),
+  );
+  const routesByFile = new Map<string, DependencyGraphNode[]>();
+  for (const node of graph.nodes) {
+    if (node.kind !== 'route' || !node.filePath) continue;
+    const routes = routesByFile.get(node.filePath) ?? [];
+    routes.push(node);
+    routesByFile.set(node.filePath, routes);
+  }
+
+  const violations: AppConfigRouteCycle[] = [];
+  for (const appConfig of appConfigs) {
+    if (!appConfig.filePath) continue;
+    for (const [routeFile, routeNodes] of routesByFile) {
+      if (
+        !importsFile(appConfig.filePath, routeFile) ||
+        !importsFile(routeFile, appConfig.filePath)
+      ) {
+        continue;
+      }
+      violations.push({
+        appConfigFile: appConfig.filePath,
+        routeFile,
+        routeLabels: routeNodes.map(routePath),
+      });
+    }
+  }
+  return violations;
+}
+
+export function assertNoAppConfigRouteCycles(graph: DependencyGraph): void {
+  const violations = appConfigRouteCycleViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `App config/routes dependency cycle: ${relativeGraphPath(graph, violation.appConfigFile)} -> ${relativeGraphPath(graph, violation.routeFile)} -> ${relativeGraphPath(graph, violation.appConfigFile)}. Remove the cycle so RouteCheckedDI can infer the application provider context; do not replace it with a manual provider list.`,
+      )
+      .join('\n'),
+  );
+}
+
+function uniqueByFile(nodes: readonly DependencyGraphNode[]): DependencyGraphNode[] {
+  const seen = new Set<string>();
+  return nodes.filter((node) => {
+    if (!node.filePath || seen.has(node.filePath)) return false;
+    seen.add(node.filePath);
+    return true;
+  });
+}
+
+function importsFile(fromFile: string, targetFile: string): boolean {
+  if (!existsSync(fromFile)) return false;
+  const source = readFileSync(fromFile, 'utf8');
+  const specifiers = source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g);
+  for (const match of specifiers) {
+    const specifier = match[1];
+    if (!specifier?.startsWith('.')) continue;
+    if (resolveImport(fromFile, specifier) === targetFile) return true;
+  }
+  return false;
+}
+
+function resolveImport(fromFile: string, specifier: string): string | undefined {
+  const base = resolve(dirname(fromFile), specifier);
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.mts`,
+    `${base}.js`,
+    `${base}.mjs`,
+    `${base}/index.ts`,
+    `${base}/index.tsx`,
+  ];
+  return candidates.find(existsSync);
 }
 
 export type PathBoundaryConstraint = {
@@ -1184,6 +1681,165 @@ export type CraftEffectNetworkViolation = {
   filePath?: string;
   line?: number;
 };
+
+export type LoaderRequirementContext = {
+  graph: DependencyGraph;
+  primitive: DependencyGraphNode;
+  target: DependencyGraphNode;
+  edge: DependencyGraphEdge;
+};
+
+export type LoaderRequirement = {
+  /** Human-readable name used in the diagnostic. */
+  label: string;
+  /** Returns true when this target satisfies the requirement. */
+  matches: (context: LoaderRequirementContext) => boolean;
+};
+
+export type PrimitiveLoaderRequirements = {
+  /** Primitive names to check. Requirements are OR-ed for each primitive. */
+  primitives: readonly string[];
+  requirements: readonly LoaderRequirement[];
+  /** Explicitly exempted primitive labels for intentional local-state examples. */
+  allow?: readonly string[];
+};
+
+export type PrimitiveLoaderRequirementViolation = {
+  primitive: string;
+  id: string;
+  label: string;
+  missing: readonly string[];
+  filePath?: string;
+  line?: number;
+};
+
+/**
+ * Checks that every selected resource has at least one qualifying dependency
+ * from its `loader`. This is intentionally predicate-based: query/mutation
+ * can use HTTP or server functions, while an Effect application can provide a
+ * rule that recognises Effect services or another domain boundary.
+ */
+export function primitiveLoaderRequirementViolations(
+  graph: DependencyGraph,
+  rule: PrimitiveLoaderRequirements,
+): PrimitiveLoaderRequirementViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const primitiveNames = new Set(rule.primitives);
+  const allowed = new Set(rule.allow ?? []);
+  return graph.nodes.flatMap((primitive) => {
+    if (
+      primitive.kind !== 'primitive' ||
+      typeof primitive.details?.['primitive'] !== 'string' ||
+      !primitiveNames.has(primitive.details['primitive'])
+    ) {
+      return [];
+    }
+
+    const label = primitiveDisplayName(primitive);
+    if (allowed.has(label) || allowed.has(primitive.label)) return [];
+
+    const loaderEdges = graph.edges.filter(
+      (edge) =>
+        edge.from === primitive.id &&
+        edge.details?.['resourceRole'] === 'loader',
+    );
+    const satisfied = loaderEdges.some((edge) => {
+      const target = nodesById.get(edge.to);
+      if (!target) return false;
+      const context = { graph, primitive, target, edge };
+      return rule.requirements.some((requirement) => requirement.matches(context));
+    });
+    if (satisfied) return [];
+
+    return [
+      {
+        primitive: primitive.details['primitive'],
+        id: primitive.id,
+        label,
+        missing: rule.requirements.map((requirement) => requirement.label),
+        filePath: relativeGraphPath(graph, primitive.filePath),
+        line: primitive.line,
+      },
+    ];
+  });
+}
+
+export function assertPrimitiveLoaderRequirements(
+  graph: DependencyGraph,
+  rule: PrimitiveLoaderRequirements,
+): void {
+  const violations = primitiveLoaderRequirementViolations(graph, rule);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        const requirements = violation.missing.join(' or ') || 'a qualifying dependency';
+        return `${violation.primitive} ${violation.label} loader must depend on ${requirements}${at ? ` (${at})` : ''}.`;
+      })
+      .join('\n'),
+  );
+}
+
+const SERVER_STATE_LOADER_REQUIREMENTS: readonly LoaderRequirement[] = [
+  {
+    label: 'CraftHttpClient',
+    matches: ({ graph, target }) =>
+      target.kind === 'http-endpoint' ||
+      reachesServerStateBoundary(graph, target.id),
+  },
+  {
+    label: 'server function',
+    matches: ({ graph, target }) =>
+      target.kind === 'server-function-family' ||
+      reachesServerStateBoundary(graph, target.id),
+  },
+];
+
+function reachesServerStateBoundary(
+  graph: DependencyGraph,
+  nodeId: string,
+  visited = new Set<string>(),
+): boolean {
+  if (visited.has(nodeId)) return false;
+  visited.add(nodeId);
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  if (
+    node?.kind === 'http-endpoint' ||
+    node?.kind === 'server-function-family'
+  ) {
+    return true;
+  }
+  return graph.edges
+    .filter(
+      (edge) =>
+        edge.from === nodeId &&
+        (edge.kind === 'depends-on' || edge.kind === 'calls'),
+    )
+    .some((edge) => reachesServerStateBoundary(graph, edge.to, visited));
+}
+
+export function queryMutationServerStateViolations(
+  graph: DependencyGraph,
+): PrimitiveLoaderRequirementViolation[] {
+  return primitiveLoaderRequirementViolations(graph, {
+    primitives: ['query', 'mutation'],
+    requirements: SERVER_STATE_LOADER_REQUIREMENTS,
+  });
+}
+
+export function assertQueryMutationHasServerState(
+  graph: DependencyGraph,
+  options: Pick<PrimitiveLoaderRequirements, 'allow'> = {},
+): void {
+  assertPrimitiveLoaderRequirements(graph, {
+    primitives: ['query', 'mutation'],
+    requirements: SERVER_STATE_LOADER_REQUIREMENTS,
+    ...options,
+  });
+}
 
 export function craftEffectNetworkViolations(
   graph: DependencyGraph,
@@ -1495,6 +2151,639 @@ export function assertInteractiveElementNamed(graph: DependencyGraph): void {
   );
 }
 
+export type ServerFunctionArchitectureDiagnosticCode =
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE'
+  | 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED'
+  | 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_EXPECTED'
+  | 'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH'
+  | 'CRAFT_SERVER_FUNCTION_DUPLICATE_ID'
+  | 'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_STATIC'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH'
+  | 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE'
+  | 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_NAMING_CONVENTION_MISSING'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_DUPLICATE_ID'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_CYCLE'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_IMPORTED_BY_SERVER'
+  | 'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_UNUSED';
+
+export type ServerFunctionArchitectureViolation = {
+  readonly code: ServerFunctionArchitectureDiagnosticCode;
+  readonly message: string;
+  readonly family: string;
+  readonly filePath?: string;
+  readonly line?: number;
+};
+
+/**
+ * Verifies the source-level server-function family contract. The rule is
+ * intentionally independent of a bundler: a production build must fail while
+ * the offending server import is still visible in the TypeScript graph.
+ */
+export function serverFunctionArchitectureViolations(
+  graph: DependencyGraph,
+): ServerFunctionArchitectureViolation[] {
+  const parts = graph.nodes.filter((node) =>
+    node.kind === 'server-function-contract' ||
+    node.kind === 'server-function-client' ||
+    node.kind === 'server-function-server',
+  );
+  const families = new Map<string, DependencyGraphNode[]>();
+  for (const node of parts) {
+    const family = String(node.details?.['family'] ?? node.label);
+    const entries = families.get(family) ?? [];
+    entries.push(node);
+    families.set(family, entries);
+  }
+
+  const violations: ServerFunctionArchitectureViolation[] = [];
+  const add = (
+    code: ServerFunctionArchitectureDiagnosticCode,
+    message: string,
+    node: DependencyGraphNode,
+  ): void => {
+    violations.push({
+      code,
+      message: `${code}: ${message}`,
+      family: String(node.details?.['family'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  };
+
+  for (const node of graph.nodes.filter((node) => node.kind === 'server-function-misnamed')) {
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING',
+      message:
+        'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING: serverFunction(...) is defined outside a "*.fn-serveur.ts" file, so the architecture graph cannot verify its client facade, contract, or id wiring. Move it into a "*.fn-serveur.ts" file.',
+      family: String(node.details?.['serverFunctionId'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  violations.push(...serverFunctionMiddlewareViolations(graph));
+  violations.push(...clientFunctionMiddlewareViolations(graph));
+
+  const idFamilies = new Map<string, Set<string>>();
+  for (const node of parts) {
+    const id = node.details?.['serverFunctionId'];
+    if (typeof id !== 'string') continue;
+    const family = String(node.details?.['family'] ?? node.label);
+    const entries = idFamilies.get(id) ?? new Set<string>();
+    entries.add(family);
+    idFamilies.set(id, entries);
+  }
+  for (const [id, familyNames] of idFamilies) {
+    if (familyNames.size < 2) continue;
+    const node = parts.find((candidate) => candidate.details?.['serverFunctionId'] === id);
+    if (node) {
+      add(
+        'CRAFT_SERVER_FUNCTION_DUPLICATE_ID',
+        `server function id "${id}" is declared by multiple families (${[...familyNames].sort().join(', ')}).`,
+        node,
+      );
+    }
+  }
+
+  for (const [, familyParts] of families) {
+    const contract = familyParts.find((node) => node.kind === 'server-function-contract');
+    const client = familyParts.find((node) => node.kind === 'server-function-client');
+    const server = familyParts.find((node) => node.kind === 'server-function-server');
+    const familyNode = graph.nodes.find(
+      (node) =>
+        node.kind === 'server-function-family' &&
+        node.details?.['family'] === familyParts[0]?.details?.['family'],
+    );
+    const anchor = contract ?? client ?? server ?? familyNode;
+    if (!anchor) continue;
+    const exposure = contract?.details?.['exposure'];
+    const id =
+      contract?.details?.['serverFunctionId'] ??
+      server?.details?.['serverFunctionId'] ??
+      client?.details?.['serverFunctionId'];
+    const hasClientExposure = exposure === 'client';
+
+    if (hasClientExposure && (!client || !server)) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_FAMILY_MISSING',
+        `client-exposed family must contain a client facade and a server implementation (found client=${Boolean(client)}, server=${Boolean(server)}).`,
+        anchor,
+      );
+    }
+    if (client && !server) {
+      add(
+        'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE',
+        'client facade has no corresponding server implementation.',
+        client,
+      );
+    }
+    if (client && !contract && !server) {
+      add(
+        'CRAFT_SERVER_FUNCTION_ORPHAN_CLIENT_FACADE',
+        'client facade has no corresponding server implementation.',
+        client,
+      );
+    }
+    if (
+      server?.details?.['declaresClientContext'] === true &&
+      exposure !== 'client'
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_REQUIRES_CLIENT_EXPOSURE',
+        'a declared client context requires a contract with exposure="client": no browser can fill it otherwise.',
+        server,
+      );
+    }
+    for (const violation of familyHandshakeViolations(graph, server, client)) {
+      add(violation.code, violation.reason, violation.node);
+    }
+    if (contract && exposure === 'server' && client) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'server-only contract cannot have a client facade.',
+        contract,
+      );
+    }
+    if (contract && server && id !== undefined && server.details?.['serverFunctionId'] !== id) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        `server implementation id does not match contract id "${id}".`,
+        server,
+      );
+    }
+    if (client && contract && client.details?.['contractFamily'] !== client.details?.['family']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'client facade does not use the contract from its own family.',
+        client,
+      );
+    }
+    if (
+      server &&
+      contract &&
+      (server.details?.['contractFamily'] !== server.details?.['family'] ||
+        (exposure === 'client' && server.details?.['contractFamily'] === undefined))
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'server implementation does not use the contract from its own family.',
+        server,
+      );
+    }
+    if (contract && !contract.details?.['serverFunctionId']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'contract must declare a stable non-empty id.',
+        contract,
+      );
+    }
+    if (client && contract && client.details?.['contractFamily'] === undefined) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'client facade must use the contract from its own family.',
+        client,
+      );
+    }
+    if (client && !contract && server) {
+      if (client.details?.['contractFamily'] === undefined) {
+        add(
+          'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+          'client facade must import the server function type from its own family.',
+          client,
+        );
+      }
+      if (
+        id !== undefined &&
+        server.details?.['serverFunctionId'] !== id
+      ) {
+        add(
+          'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+          `client facade id does not match server implementation id "${server.details?.['serverFunctionId'] ?? ''}".`,
+          client,
+        );
+      }
+    }
+    if (client && client.details?.['usesCraftUnique'] !== true) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE',
+        'client facade id must be wrapped in craftUnique(...).',
+        client,
+      );
+    }
+    if (client && client.details?.['clientIdentityStatic'] === false) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_STATIC',
+        'client facade craftUnique(...) id must be a static string literal.',
+        client,
+      );
+    }
+    if (
+      client &&
+      client.details?.['clientDefinitionFile'] !== undefined &&
+      client.details?.['clientDefinitionFile'] !==
+        `${String(client.details?.['family'])}.fn-serveur.ts`
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_DEFINITION_MISMATCH',
+        'client facade type definition does not belong to its server-function family.',
+        client,
+      );
+    }
+    if (
+      client &&
+      server &&
+      client.details?.['serverFunctionId'] !== undefined &&
+      server.details?.['serverFunctionId'] !== undefined &&
+      client.details?.['serverFunctionId'] !==
+        server.details?.['serverFunctionId']
+    ) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_ID_MISMATCH',
+        `client facade id does not match server implementation id "${String(server.details?.['serverFunctionId'])}".`,
+        client,
+      );
+    }
+    if (client?.details?.['runtimeServerImports']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CLIENT_IMPORTS_SERVER',
+        'client facade has a runtime import of *.fn-serveur.ts.',
+        client,
+      );
+    }
+    if (server?.details?.['runtimeClientImports']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'server implementation has a runtime import of *.fn-client.ts.',
+        server,
+      );
+    }
+    if (contract?.details?.['importsServerOnly']) {
+      add(
+        'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
+        'shared contract imports a server-only module.',
+        contract,
+      );
+    }
+  }
+  return violations;
+}
+
+/**
+ * Vérifie qu'un handshake exigé par la chaîne **serveur** d'une famille est
+ * bien rempli par la chaîne **client** de la *même* famille, et l'inverse.
+ *
+ * `assertCraftHandshake` répond à la question globale — « ce nom a-t-il un
+ * pendant quelque part ? ». Celle-ci répond à la seule qui compte à l'appel :
+ * cette server function-là reçoit-elle ce qu'elle attend ? Un handshake tenu à
+ * l'autre bout du dépôt, mais pas attaché sur cette façade, laisserait la
+ * fonction échouer à l'exécution.
+ */
+function familyHandshakeViolations(
+  graph: DependencyGraph,
+  server: DependencyGraphNode | undefined,
+  client: DependencyGraphNode | undefined,
+): {
+  code: ServerFunctionArchitectureDiagnosticCode;
+  reason: string;
+  node: DependencyGraphNode;
+}[] {
+  if (!server || !client) return [];
+
+  const serverFiles = reachableFiles(graph, server, 'middleware-uses');
+  const clientFiles = new Set([
+    ...reachableFiles(graph, client, 'client-middleware-attached'),
+    ...reachableFiles(graph, client, 'client-middleware-uses'),
+  ]);
+  // Les dépendances d'un middleware client attaché comptent aussi : la chaîne
+  // est aplatie à l'exécution, elle doit l'être ici.
+  for (const file of [...clientFiles]) {
+    for (const node of graph.nodes) {
+      if (node.kind !== 'client-function-middleware') continue;
+      if (relativeGraphPath(graph, node.filePath) !== file) continue;
+      for (const reached of reachableFiles(graph, node, 'client-middleware-uses')) {
+        clientFiles.add(reached);
+      }
+    }
+  }
+
+  const violations: {
+    code: ServerFunctionArchitectureDiagnosticCode;
+    reason: string;
+    node: DependencyGraphNode;
+  }[] = [];
+
+  for (const handshake of graph.nodes.filter((node) => node.kind === 'handshake')) {
+    const name = handshake.details?.['handshakeName'];
+    if (typeof name !== 'string') continue;
+    const declaredBy = sitesOf(handshake, 'serverSites');
+    const filledBy = sitesOf(handshake, 'clientSites');
+    const expected = declaredBy.some((file) => serverFiles.has(file));
+    const attached = filledBy.some((file) => clientFiles.has(file));
+
+    if (expected && !attached) {
+      violations.push({
+        code: 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_ATTACHED',
+        reason: `server chain expects handshake "${name}", but the client facade attaches nothing that fills it. Add its client middleware with .pipe(craftClientMiddleware(...)).`,
+        node: client,
+      });
+    } else if (attached && !expected) {
+      violations.push({
+        code: 'CRAFT_SERVER_FUNCTION_HANDSHAKE_NOT_EXPECTED',
+        reason: `client facade attaches handshake "${name}", but no middleware of the server chain expects it. The value would travel and be dropped.`,
+        node: client,
+      });
+    }
+  }
+
+  return violations;
+}
+
+function sitesOf(node: DependencyGraphNode, key: string): string[] {
+  const sites = node.details?.[key];
+  return Array.isArray(sites) ? sites.map((site) => String(site)) : [];
+}
+
+/** Fichiers atteints depuis un nœud en suivant une frontière d'arêtes. */
+function reachableFiles(
+  graph: DependencyGraph,
+  from: DependencyGraphNode,
+  boundary: string,
+): Set<string> {
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const files = new Set<string>();
+  const seen = new Set<string>();
+  const visit = (nodeId: string): void => {
+    if (seen.has(nodeId)) return;
+    seen.add(nodeId);
+    const node = byId.get(nodeId);
+    const file = node && relativeGraphPath(graph, node.filePath);
+    if (file) files.add(file);
+    for (const edge of graph.edges) {
+      if (edge.from !== nodeId) continue;
+      if (edge.details?.['boundary'] !== boundary) continue;
+      visit(edge.to);
+    }
+  };
+  visit(from.id);
+  return files;
+}
+
+/**
+ * Middleware rules. A middleware carries authorization and request context, so
+ * an ambiguous identity or a browser-reachable implementation is a boundary
+ * defect, not a style issue.
+ */
+function serverFunctionMiddlewareViolations(
+  graph: DependencyGraph,
+): ServerFunctionArchitectureViolation[] {
+  const violations: ServerFunctionArchitectureViolation[] = [];
+  const middlewares = graph.nodes.filter(
+    (node) => node.kind === 'server-function-middleware',
+  );
+
+  for (const node of graph.nodes.filter(
+    (node) => node.kind === 'server-function-middleware-misnamed',
+  )) {
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING',
+      message:
+        'CRAFT_SERVER_FUNCTION_MIDDLEWARE_NAMING_CONVENTION_MISSING: craftMiddleware(...) is defined outside a "*.mw-serveur.ts" file, so the architecture graph cannot keep it away from the client bundle. Move it into a "*.mw-serveur.ts" file.',
+      family: String(node.details?.['middlewareId'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  const byId = new Map<string, DependencyGraphNode[]>();
+  for (const node of middlewares) {
+    const id = node.details?.['middlewareId'];
+    if (typeof id !== 'string') continue;
+    byId.set(id, [...(byId.get(id) ?? []), node]);
+  }
+  for (const [id, nodes] of byId) {
+    if (nodes.length < 2) continue;
+    const node = nodes[0];
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID',
+      message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID: middleware id "${id}" is declared ${nodes.length} times (${nodes
+        .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
+        .sort()
+        .join(', ')}). The registry deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
+      family: id,
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const cycle of middlewareCycles(graph, middlewares)) {
+    const node = middlewares.find((candidate) => candidate.id === cycle[0]);
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE',
+      message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_CYCLE: middleware .use(...) dependencies form a cycle (${cycle
+        .map((id) => middlewareLabel(middlewares, id))
+        .join(' -> ')}).`,
+      family: middlewareLabel(middlewares, cycle[0] ?? ''),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const node of graph.nodes.filter(
+    (node) => node.kind === 'server-function-client',
+  )) {
+    const imported = node.details?.['runtimeMiddlewareImports'];
+    if (!Array.isArray(imported) || imported.length === 0) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT',
+      message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_IMPORTED_BY_CLIENT: client facade imports server middleware at runtime (${imported.join(', ')}). Import only the server function type from the client side.`,
+      family: String(node.details?.['family'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  return violations;
+}
+
+/**
+ * Règles miroir côté client. Un middleware client publie une **déclaration**,
+ * pas une donnée de confiance ; l'enjeu de frontière est donc l'inverse de
+ * celui du serveur : il ne doit jamais être tiré dans un module serveur, où sa
+ * présence laisserait croire que la valeur vient de la session.
+ */
+function clientFunctionMiddlewareViolations(
+  graph: DependencyGraph,
+): ServerFunctionArchitectureViolation[] {
+  const violations: ServerFunctionArchitectureViolation[] = [];
+  const middlewares = graph.nodes.filter(
+    (node) => node.kind === 'client-function-middleware',
+  );
+
+  for (const node of graph.nodes.filter(
+    (node) => node.kind === 'client-function-middleware-misnamed',
+  )) {
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_NAMING_CONVENTION_MISSING',
+      message:
+        'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_NAMING_CONVENTION_MISSING: craftMiddleware(...).client(...) is defined outside a "*.mw-client.ts" or "*.fn-client.ts" file, so the architecture graph cannot tell it apart from a server middleware. Move it next to the facade that uses it, or into a shared "*.mw-client.ts" file.',
+      family: String(node.details?.['middlewareId'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  const byId = new Map<string, DependencyGraphNode[]>();
+  for (const node of middlewares) {
+    const id = node.details?.['middlewareId'];
+    if (typeof id !== 'string') continue;
+    byId.set(id, [...(byId.get(id) ?? []), node]);
+  }
+  for (const [id, nodes] of byId) {
+    if (nodes.length < 2) continue;
+    const node = nodes[0];
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_DUPLICATE_ID',
+      message: `CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_DUPLICATE_ID: client middleware id "${id}" is declared ${nodes.length} times (${nodes
+        .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
+        .sort()
+        .join(', ')}). The chain deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
+      family: id,
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const cycle of middlewareCycles(
+    graph,
+    middlewares,
+    'client-middleware-uses',
+  )) {
+    const node = middlewares.find((candidate) => candidate.id === cycle[0]);
+    if (!node) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_CYCLE',
+      message: `CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_CYCLE: client middleware .use(...) dependencies form a cycle (${cycle
+        .map((id) => middlewareLabel(middlewares, id))
+        .join(' -> ')}).`,
+      family: middlewareLabel(middlewares, cycle[0] ?? ''),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const node of graph.nodes.filter(
+    (node) =>
+      node.kind === 'server-function-server' ||
+      node.kind === 'server-function-middleware',
+  )) {
+    const imported = node.details?.['runtimeClientMiddlewareImports'];
+    if (!Array.isArray(imported) || imported.length === 0) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_IMPORTED_BY_SERVER',
+      message: `CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_IMPORTED_BY_SERVER: a server module imports client middleware at runtime (${imported.join(', ')}). A client middleware only declares what the browser sends; the server must revalidate it through its own schema, never run it.`,
+      family: String(
+        node.details?.['middlewareId'] ?? node.details?.['family'] ?? node.label,
+      ),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  for (const node of middlewares) {
+    const unused = node.details?.['unusedClientContextKeys'];
+    if (!Array.isArray(unused) || unused.length === 0) continue;
+    violations.push({
+      code: 'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_UNUSED',
+      message: `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_UNUSED: client middleware "${node.details?.['middlewareId'] ?? node.label}" publishes ${unused
+        .map((key) => `"${String(key)}"`)
+        .join(', ')}, and no server module reads any of them through context.clientContext. This is a heuristic — a read behind an alias is invisible to it — but a context nobody reads is usually a leftover.`,
+      family: String(node.details?.['middlewareId'] ?? node.label),
+      filePath: relativeGraphPath(graph, node.filePath),
+      line: node.line,
+    });
+  }
+
+  return violations;
+}
+
+function middlewareLabel(
+  middlewares: readonly DependencyGraphNode[],
+  nodeId: string,
+): string {
+  const node = middlewares.find((candidate) => candidate.id === nodeId);
+  return String(node?.details?.['middlewareId'] ?? node?.label ?? nodeId);
+}
+
+function middlewareCycles(
+  graph: DependencyGraph,
+  middlewares: readonly DependencyGraphNode[],
+  boundary = 'middleware-uses',
+): string[][] {
+  const known = new Set(middlewares.map((node) => node.id));
+  const targets = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (edge.details?.['boundary'] !== boundary) continue;
+    if (!known.has(edge.from) || !known.has(edge.to)) continue;
+    targets.set(edge.from, [...(targets.get(edge.from) ?? []), edge.to]);
+  }
+
+  const cycles: string[][] = [];
+  const seen = new Set<string>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+
+  const visit = (nodeId: string): void => {
+    if (onStack.has(nodeId)) {
+      cycles.push([...stack.slice(stack.indexOf(nodeId)), nodeId]);
+      return;
+    }
+    if (seen.has(nodeId)) return;
+    seen.add(nodeId);
+    stack.push(nodeId);
+    onStack.add(nodeId);
+    for (const target of targets.get(nodeId) ?? []) visit(target);
+    stack.pop();
+    onStack.delete(nodeId);
+  };
+
+  for (const node of middlewares) visit(node.id);
+  return cycles;
+}
+
+export function assertServerFunctionArchitecture(graph: DependencyGraph): void {
+  const violations = serverFunctionArchitectureViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(violations.map((violation) => violation.message).join('\n'));
+}
+
+export type ArchitectureCheckTarget = 'development' | 'production';
+
+export function assertArchitecture(
+  graph: DependencyGraph,
+  options: { readonly target?: ArchitectureCheckTarget } = {},
+): void {
+  const target = options.target ?? 'development';
+  // Keep the target explicit even while development and production share the
+  // source-level rules. Production callers use this function as the mandatory
+  // gate immediately before the production build.
+  if (target !== 'development' && target !== 'production') {
+    throw new Error(`Unknown architecture check target "${target}".`);
+  }
+  assertDeclarativeArchitecture(graph);
+}
+
 export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
   options: MutationReactOnOptions = {},
@@ -1505,6 +2794,7 @@ export function assertDeclarativeArchitecture(
     assertHttpEndpointUnique,
     assertCraftComputedPure,
     assertNoDependencyCycles,
+    assertServerFunctionArchitecture,
   ]) {
     try {
       assert(graph);

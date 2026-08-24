@@ -1,7 +1,7 @@
 import { craftService } from '../craft-runtime';
 
 export const { Left } = craftService(
-  { name: 'Left', scope: 'global' },
+  { name: 'Left', providedIn: 'global' },
   function* () {
     yield* Right();
     return {};
@@ -9,7 +9,7 @@ export const { Left } = craftService(
 );
 
 export const { Right } = craftService(
-  { name: 'Right', scope: 'global' },
+  { name: 'Right', providedIn: 'global' },
   function* () {
     yield* Left();
     return {};

@@ -1,4 +1,4 @@
-import { Signal } from '@angular/core';
+import { Signal } from './host/craft-compat';
 import { craftComputed } from './craft-computed';
 import { isGenerator } from './craft-generator-runtime';
 import { settled, type CraftSettledBrand } from './craft-settled';
@@ -107,7 +107,11 @@ export type PaginationBuildContext<
   PrimitiveName,
   Exceptions['params'] | Exceptions['loader']
 > & {
-  /** Current page data (or `initialValue` when not yet loaded). */
+  /**
+   * The data on screen: the current page's, or the previous page's while the
+   * current one loads. Matches what `currentPageData` renders, so a derived
+   * count cannot disagree with the visible rows.
+   */
   state: YieldableReactiveValue<PageState, 'state'>;
   /** Current page data only when the current page has settled; suspends otherwise. */
   settledState: PaginationContextPassthrough<
@@ -240,35 +244,24 @@ export function insertPaginationPlaceholderData<
       PrimitiveName
     >;
 
-    let previousPageKey: string | undefined;
-    const showPlaceHolderData = craftComputed(
-      'showPlaceHolderData',
-      function* () {
-        const page = yield* readPaginationReactive(resourceParamsSrc);
-        const resources = (yield* readPaginationReactive(
-          resourceById,
-        )) as Partial<
-          Record<string, CraftResourceRef<PageState & object, unknown>>
-        >;
-        const pageKey = page != null ? identifier(page) : undefined;
-        if (!pageKey) {
-          return false;
-        }
-        const currentResource = resources[pageKey];
-        // true if loading and previousPage is used
-        if (
-          currentResource?.status() === 'loading' &&
-          !currentResource?.value() &&
-          previousPageKey !== undefined &&
-          resources[previousPageKey]
-        ) {
-          return true;
-        }
-        return false;
-      },
-    );
+    /**
+     * The rows currently on screen, whichever page they came from.
+     *
+     * This used to be tracked as a previous page KEY, which could not survive
+     * the case it exists for: on a page change the incoming page has no
+     * resource yet, so there was no 'loading' status to recognise, the
+     * placeholder branch was skipped, and the key was overwritten with the new
+     * page before it could ever be used — the list blanked on every
+     * navigation. Holding the VALUE needs neither the old resource to still be
+     * cached nor the new one to exist yet.
+     */
+    let lastShownValue: PageState | undefined;
 
-    const currentPageData = craftComputed('currentPageData', function* () {
+    const currentPageValue = function* (): Generator<
+      unknown,
+      { readonly pageKey: string | undefined; readonly hasOwnValue: boolean },
+      unknown
+    > {
       const page = yield* readPaginationReactive(resourceParamsSrc);
       const resources = (yield* readPaginationReactive(
         resourceById,
@@ -276,26 +269,54 @@ export function insertPaginationPlaceholderData<
         Record<string, CraftResourceRef<PageState & object, unknown>>
       >;
       const pageKey = page != null ? identifier(page) : undefined;
-      if (!pageKey) {
-        return config.initialValue;
+      return {
+        pageKey,
+        hasOwnValue:
+          pageKey !== undefined && resources[pageKey]?.value() !== undefined,
+      };
+    };
+
+    const showPlaceHolderData = craftComputed(
+      'showPlaceHolderData',
+      function* () {
+        const { pageKey, hasOwnValue } = yield* currentPageValue();
+        if (!pageKey) {
+          return false;
+        }
+        // Placeholder: the page in the URL has nothing of its own yet, and
+        // rows from an earlier one are still on screen.
+        return !hasOwnValue && lastShownValue !== undefined;
+      },
+    );
+
+    const currentPageData = craftComputed('currentPageData', function* () {
+      const { pageKey, hasOwnValue } = yield* currentPageValue();
+      if (pageKey !== undefined && hasOwnValue) {
+        const settled = (yield* settledState()) as PageState;
+        lastShownValue = settled;
+        return settled;
       }
-      const previousKey = previousPageKey;
-      const currentResource = resources[pageKey];
-      const showPlaceholder =
-        currentResource?.status() === 'loading' &&
-        !currentResource?.value() &&
-        previousKey !== undefined &&
-        resources[previousKey] !== undefined;
-      if (showPlaceholder && previousKey !== undefined) {
-        return resources[previousKey]?.hasValue()
-          ? (resources[previousKey]?.value() as PageState)
-          : config.initialValue;
+      if (lastShownValue === undefined) {
+        const resources = (yield* readPaginationReactive(
+          resourceById,
+        )) as Partial<
+          Record<string, CraftResourceRef<PageState & object, unknown>>
+        >;
+        // A page can change before its rows were read (for example, a store
+        // test can wait only for the loader). Recover the most recently
+        // inserted resolved page so the placeholder still has something to
+        // display while the new page is loading.
+        for (const resource of Object.values(resources).reverse()) {
+          const value = resource?.value();
+          if (value !== undefined) {
+            lastShownValue = value as PageState;
+            break;
+          }
+        }
       }
-      previousPageKey = pageKey;
-      if (currentResource?.value() === undefined) {
-        return config.initialValue;
-      }
-      return yield* settledState();
+      // Nothing for this page yet: keep what is already on screen instead of
+      // blanking the list, which is the entire point of the placeholder.
+      return lastShownValue ?? config.initialValue;
     });
 
     const currentPageStatus = craftComputed('currentPageStatus', function* () {
@@ -366,16 +387,35 @@ export function insertPaginationPlaceholderData<
       const params = rawReactiveFacade(resourceParamsSrc)();
       return params != null ? identifier(params) : undefined;
     };
-    const state = craftComputed('state', function* () {
-      const params = yield* readPaginationReactive(resourceParamsSrc);
-      const resources = (yield* readPaginationReactive(
-        resourceById,
-      )) as Partial<
+    /**
+     * What the page in the URL holds by itself — no placeholder.
+     *
+     * Writes are anchored here rather than on `state`: `set` targets the
+     * current page, so basing an update on rows that still belong to the
+     * PREVIOUS one would compute the new value from the wrong page.
+     */
+    const currentPageOwnValue = (): PageState => {
+      const params = rawReactiveFacade(resourceParamsSrc)();
+      const resources = rawReactiveFacade(resourceById)() as Partial<
         Record<string, CraftResourceRef<PageState & object, unknown>>
       >;
       const key = params != null ? identifier(params) : undefined;
       const res = key ? resources[key] : undefined;
       return res?.hasValue() ? (res.value() as PageState) : config.initialValue;
+    };
+
+    /**
+     * What the reader SEES, placeholder included — the same value the rows are
+     * rendered from.
+     *
+     * It used to report the current page's own data, which is `initialValue`
+     * for as long as that page is loading. Anything derived from it — a count,
+     * a summary — then contradicted the list still on screen: "0 on page"
+     * above four visible rows. `settledState` stays the strict reading for
+     * code that must wait for the page it actually asked for.
+     */
+    const state = craftComputed('state', function* () {
+      return yield* currentPageData();
     });
     const set: YieldableInsertionWrite<[PageState], PageState> = function* (
       newValue,
@@ -396,7 +436,7 @@ export function insertPaginationPlaceholderData<
       [(current: PageState) => PageState],
       PageState
     > = function* (updateFn) {
-      return yield* set(updateFn(rawReactiveFacade(state)()));
+      return yield* set(updateFn(currentPageOwnValue()));
     };
     const patch: YieldableInsertionWrite<
       [(current: PageState) => Partial<PageState>],

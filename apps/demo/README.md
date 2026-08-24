@@ -1,6 +1,6 @@
 # Demo app
 
-Angular application that exercises `@craft-ng/core` examples and integration
+Craft application that exercises `@craft-ts/core` examples and integration
 checks. Architecture rules live next to `e2e/`, in `architecture/`.
 
 ## Serve
@@ -11,28 +11,22 @@ From the repository root:
 npx nx serve demo
 ```
 
-See the root [README](../../README.md#run-the-project-locally) for the route
-selector and `--all-routes` / `--demo-routes`.
+The development server starts every demo route. The TypeScript type-check runs
+in parallel with Vite, with a small `Type checking in progress…` indicator in
+the top-right corner of the page until it completes. If it fails, a large
+overlay reports the failure while the development server remains available.
 
 ## Architecture tests
 
 The suite in `architecture/` analyzes the demo TypeScript with
-`@craft-ng/dev-tools`. App-specific lookups live in `architecture.spec.ts`.
-Each common rule has its own file under `architecture/rules/`:
+`@craft-ts/dev-tools`. All lookups and rules live in the single
+`architecture/architecture.spec.ts` file so the graph is analyzed only once
+per Vitest run. The file contains:
 
-- `rules/craft-unique.spec.ts` — `assertCraftUnique`
-- `rules/http-endpoint-unique.spec.ts` — `assertHttpEndpointUnique`
-- `rules/craft-computed-pure.spec.ts` — `assertCraftComputedPure`
-- `rules/no-dependency-cycles.spec.ts` — `assertNoDependencyCycles`
-- `rules/declarative-architecture.spec.ts` — `assertDeclarativeArchitecture`
-- `rules/exclusive-link.spec.ts` — `noExclusiveLink`
-- `rules/route-di-proofs.spec.ts` — `assertRouteDiProofs` (routes + `app.config.ts`)
-- `rules/mutation-react-on.spec.ts` — `assertMutationHasReactOn`
-- `rules/persisted-primitive-unique.spec.ts` — `assertPersistedPrimitiveHasUnique`
-- `rules/insert-select-unique.spec.ts` — `assertInsertSelectUnique`
-- `rules/craft-effect-no-network.spec.ts` — `assertCraftEffectNoNetwork`
-- `rules/craft-effect-no-imperative-sync.spec.ts` — `assertCraftEffectNoImperativeSync`
-- `rules/interactive-element-named.spec.ts` — `assertInteractiveElementNamed`
+- unique `craftUnique` and HTTP endpoint ownership;
+- pure computeds, dependency cycles, route DI proofs and mutation reactions;
+- persistence, `insertSelect`, Effect and interactive-element constraints;
+- declarative architecture and exclusive feature-link checks.
 
 Run them with Nx, from the repository root:
 
@@ -47,6 +41,6 @@ npx nx typecheck-architecture demo
 ```
 
 The target is defined in `project.json` and runs Vitest against
-`vitest.architecture.config.ts`. It does not boot Angular.
+`vitest.architecture.config.ts`. It does not boot the application runtime.
 
-Full reference: [Architecture rules](https://ng-angular-stack.github.io/craft/guide/testing/architecture).
+Full reference: [Architecture rules](https://craft-ts.github.io/craft/guide/testing/architecture).

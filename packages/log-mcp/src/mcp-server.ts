@@ -4,13 +4,13 @@ import { LOG_LEVELS } from './levels.js';
 import type { LogReader } from './log-reader.js';
 
 export function createLogMcpServer(reader: LogReader): McpServer {
-  const server = new McpServer({ name: 'ng-craft-logs', version: '0.1.0' });
+  const server = new McpServer({ name: 'craft-ts-logs', version: '0.1.0' });
 
   server.registerTool(
     'logs.search',
     {
       description:
-        'Search the application logs written by the ng-craft log server. Filters combine with AND. Results are newest first. Logs come from the craft Console.* boundary, so `from` is the host tag ancestry (for example App > UserCard) and `correlationId` carries the craft correlation metadata.',
+        'Search the application logs written by the craft-ts log server. Filters combine with AND. Results are newest first. Logs come from the craft Console.* boundary, so `from` is the host tag ancestry (for example App > UserCard) and `correlationId` carries the craft correlation metadata.',
       inputSchema: {
         text: z
           .string()

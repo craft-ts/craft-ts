@@ -93,7 +93,7 @@ describe('require-interactive-local-name', () => {
 
   it('is enabled as error on the a11y preset', () => {
     expect(
-      plugin.configs.a11y.rules['craft-ng/require-interactive-local-name'],
+      plugin.configs.a11y.rules['craft-ts/require-interactive-local-name'],
     ).toBe('error');
   });
 });

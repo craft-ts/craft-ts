@@ -1,9 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
+import { fileURLToPath } from 'node:url';
 
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL = process.env['BASE_URL'] || 'http://localhost:3000';
+const production = process.env['E2E_PRODUCTION'] === 'true';
 
 /**
  * Read environment variables from file.
@@ -15,7 +17,7 @@ const baseURL = process.env['BASE_URL'] || 'http://localhost:3000';
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  ...nxE2EPreset(__filename, { testDir: './e2e' }),
+  ...nxE2EPreset(fileURLToPath(import.meta.url), { testDir: './e2e' }),
   workers: 1,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
@@ -27,7 +29,9 @@ export default defineConfig({
   webServer: process.env['BASE_URL']
     ? undefined
     : {
-        command: 'NX_DAEMON=false npx nx serve demo --port 3000',
+        command: production
+          ? 'npm run build:demo:production && NX_DAEMON=false npx nx serve-static demo --port 3000'
+          : 'NX_DAEMON=false npx nx serve demo --port 3000',
         url: 'http://localhost:3000',
         reuseExistingServer: true,
         cwd: workspaceRoot,

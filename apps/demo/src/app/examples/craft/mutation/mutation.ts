@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
@@ -10,7 +10,7 @@ import {
   p,
   pre,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   CraftRouter,
   craftComputed,
@@ -23,14 +23,14 @@ import {
   mutation,
   query,
   state,
-  craftUse,
-} from '@craft-ng/core';
+  type CraftServiceInput,
+} from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
 export const { provideUserMutation, UserMutation } = craftService(
-  { name: 'UserMutation', scope: 'toProvide' },
-  function* (inputs: { userId: () => string | undefined }) {
+  { name: 'UserMutation', providedIn: 'toProvide' },
+  function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
@@ -46,7 +46,7 @@ export const { provideUserMutation, UserMutation } = craftService(
       {
         params: inputs.userId,
         loader: function* ({ params: userId }) {
-          return yield* ApiService.getItemById(userId);
+          return yield* ApiService.getItemById(userId as string);
         },
         preservePreviousValue: () => true,
       },
@@ -57,7 +57,8 @@ export const { provideUserMutation, UserMutation } = craftService(
         })),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
-            name: ({ mutationParams: { name } }) => name,
+            name: ({ mutationParams }: { mutationParams: { name: string } }) =>
+              mutationParams.name,
           },
         }),
       ),
@@ -75,9 +76,7 @@ const MutationCraft = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const store = yield* UserMutation({
-      userId: () => {
-        return craftUse(userId());
-      },
+      userId,
     });
     const nameInput = yield* state('nameInput', '', ({ set }) => ({
       setName: (value: string) => set(value),
@@ -95,7 +94,7 @@ const MutationCraft = craftComponent(
         if (userValue) {
           yield* updateUserName.mutate({
             userName: newName,
-            user: userValue,
+            user: userValue as User,
           });
         }
       },

@@ -1,18 +1,26 @@
-import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const workspaceRoot = resolve(import.meta.dirname, '..');
-const runtimeRoutesPath = resolve(
-  workspaceRoot,
-  'apps/demo/src/app/app.routes.runtime.ts',
-);
-const serveDemoPath = resolve(workspaceRoot, 'tools/serve-demo.mjs');
 const nxBin = resolve(workspaceRoot, 'node_modules/nx/bin/nx.js');
 const craftBin = resolve(
   workspaceRoot,
   'dist/libs/dev-tools/src/bin/craft.js',
 );
+const graphProjects = [
+  {
+    project: 'apps/demo/tsconfig.app.json',
+    output: 'craft-dependency-graph',
+  },
+  {
+    project: 'apps/demo-effect/tsconfig.graph.json',
+    output: 'craft-dependency-graph.demo-effect',
+  },
+  {
+    project: 'apps/demo-with-server-function/tsconfig.graph.json',
+    output: 'craft-dependency-graph.demo-with-server-function',
+  },
+];
 
 function runNode(args) {
   const result = spawnSync(process.execPath, args, {
@@ -24,33 +32,30 @@ function runNode(args) {
   return result.status ?? 1;
 }
 
-const originalRuntimeRoutes = readFileSync(runtimeRoutesPath, 'utf8');
 let exitCode = 0;
 
 try {
-  exitCode = runNode([serveDemoPath, '--all-routes', '--generate-only']);
-  if (exitCode !== 0) throw new Error('Impossible d’activer toutes les routes.');
-
   exitCode = runNode([nxBin, 'build', 'dev-tools']);
   if (exitCode !== 0) throw new Error('La construction de dev-tools a échoué.');
 
-  exitCode = runNode([
-    craftBin,
-    'graph',
-    '--project',
-    'apps/demo/tsconfig.app.json',
-    '--root',
-    '.',
-    '--out',
-    'craft-dependency-graph',
-    '--format',
-    'all',
-  ]);
+  for (const { project, output } of graphProjects) {
+    exitCode = runNode([
+      craftBin,
+      'graph',
+      '--project',
+      project,
+      '--root',
+      '.',
+      '--out',
+      output,
+      '--format',
+      'all',
+    ]);
+    if (exitCode !== 0) throw new Error(`Le graphe ${project} a échoué.`);
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   exitCode ||= 1;
-} finally {
-  writeFileSync(runtimeRoutesPath, originalRuntimeRoutes);
 }
 
 process.exitCode = exitCode;

@@ -1,17 +1,16 @@
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { provideCraftRouter } from './craft-router';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { provideRouter } from '@angular/router';
 import { craftComputed } from './craft-computed';
+import { craftException } from './craft-exception';
 import { craftUse } from './craft-use';
 import { insertStatePipe } from './insert-typed-pipes';
 import {
   deepYieldable,
+  createDeepYieldableReactiveValue,
   insertDeepYieldable,
   provideReactiveReadObserver,
   type ReactiveReadEdge,
@@ -21,21 +20,6 @@ import { query } from './query';
 import { mutation } from './mutation';
 import { asyncProcess } from './async-process';
 import { queryParams } from './query-params';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('yieldable reactive reads', () => {
   beforeEach(() => TestBed.resetTestingModule());
@@ -131,7 +115,7 @@ describe('yieldable reactive reads', () => {
         state(
           'user',
           source,
-          insertStatePipe(insertDeepYieldable(), () => ({})),
+          insertDeepYieldable(),
         ),
       ),
     );
@@ -172,6 +156,48 @@ describe('yieldable reactive reads', () => {
     expect(reads).toBe(1);
   });
 
+  it('projects resource exception buckets as deep reactive readers', () => {
+    const loaderException = craftException(
+      { _tag: 'PROFILE_NOT_FOUND' },
+      { userId: 'user-404' },
+    );
+    const paramsException = craftException(
+      { _tag: 'INVALID_PROFILE_ID' },
+      { reason: 'missing' },
+    );
+    const source = signal<{
+      list: (typeof paramsException | typeof loaderException)[];
+      params: typeof paramsException | undefined;
+      loader: typeof loaderException | undefined;
+    }>({
+      list: [paramsException, loaderException],
+      params: paramsException,
+      loader: loaderException,
+    });
+    const exceptions = TestBed.runInInjectionContext(() =>
+      createDeepYieldableReactiveValue(source, 'exceptions', {
+        primitive: 'query',
+        path: 'profileQuery.exceptions',
+      }),
+    );
+
+    expect(craftUse(exceptions.loader())).toBe(loaderException);
+    expect(craftUse(exceptions.params())).toBe(paramsException);
+    expect(craftUse(exceptions.list())).toEqual([
+      paramsException,
+      loaderException,
+    ]);
+
+    source.set({
+      list: [],
+      params: undefined,
+      loader: undefined,
+    });
+    expect(craftUse(exceptions.loader())).toBeUndefined();
+    expect(craftUse(exceptions.params())).toBeUndefined();
+    expect(craftUse(exceptions.list())).toEqual([]);
+  });
+
   it('rejects unknown yields with the craftComputed-specific error', () => {
     const invalid = TestBed.runInInjectionContext(() =>
       craftComputed('invalid', function* () {
@@ -186,7 +212,7 @@ describe('yieldable reactive reads', () => {
   });
 
   it('adapts nested reactive properties of query, mutation and asyncProcess', () => {
-    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
     const refs = TestBed.runInInjectionContext(() => ({
       query: craftUse(
         query('users', {

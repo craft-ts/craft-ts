@@ -263,7 +263,7 @@ function getCraftCoreModuleDeclaration(sourceFile) {
     const nameNode = moduleDeclaration.getNameNode();
     return (
       Node.isStringLiteral(nameNode) &&
-      nameNode.getLiteralText() === '@craft-ng/core'
+      nameNode.getLiteralText() === '@craft-ts/core'
     );
   });
 }
@@ -285,7 +285,7 @@ function ensureRegistryEntries(sourceFile, requiredRegistrations) {
   const moduleDeclaration =
     getCraftCoreModuleDeclaration(sourceFile) ??
     sourceFile.addModule({
-      name: "'@craft-ng/core'",
+      name: "'@craft-ts/core'",
       hasDeclareKeyword: true,
     });
   const registryInterface =

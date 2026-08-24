@@ -1,5 +1,6 @@
-import '@angular/compiler';
-import { Type } from '@angular/core';
+import {
+  Type,
+} from './host/craft-compat';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { GetDeps } from './branded-component/branded-component';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
@@ -23,7 +24,7 @@ type LoginResult = { token: string };
 const passwordRequired = () =>
   craftException(
     {
-      code: 'PASSWORD_REQUIRED',
+      _tag: 'PASSWORD_REQUIRED',
       scope: 'RouteHttpMockAuthApi',
     },
     {
@@ -34,7 +35,7 @@ const passwordRequired = () =>
 const invalidPasswordPayload = () =>
   craftException(
     {
-      code: 'INVALID_PASSWORD_PAYLOAD',
+      _tag: 'INVALID_PASSWORD_PAYLOAD',
       scope: 'RouteHttpMockAuthApi',
     },
     {
@@ -44,18 +45,18 @@ const invalidPasswordPayload = () =>
 
 const rateLimited = () =>
   craftException({
-    code: 'RATE_LIMITED',
+    _tag: 'RATE_LIMITED',
     scope: 'RouteHttpMockAuthApi',
   });
 
 const teapot = () =>
   craftException({
-    code: 'TEAPOT',
+    _tag: 'TEAPOT',
     scope: 'RouteHttpMockAuthApi',
   });
 
 const { RouteHttpMockUsersApi } = craftService(
-  { name: 'RouteHttpMockUsersApi', scope: 'global' },
+  { name: 'RouteHttpMockUsersApi', providedIn: 'global' },
   function* () {
     const getUsers = yield* CraftHttpClient.get(({ response }) => ({
       url: '/api/users',
@@ -69,7 +70,7 @@ const { RouteHttpMockUsersApi } = craftService(
 );
 
 const { RouteHttpMockAuthApi } = craftService(
-  { name: 'RouteHttpMockAuthApi', scope: 'global' },
+  { name: 'RouteHttpMockAuthApi', providedIn: 'global' },
   function* () {
     const login = yield* CraftHttpClient.post(({ response }) => ({
       url: '/api/login',
@@ -188,7 +189,7 @@ type DashboardMockInput = MockHttpRequestForRouteInput<
 >;
 type PasswordRequiredException = Extract<
   ExtractCraftHttpRequestCustomException<LoginRequest>,
-  { code: 'PASSWORD_REQUIRED' }
+  { _tag: 'PASSWORD_REQUIRED' }
 >;
 
 declare module './mock-http-request-for-route' {
@@ -251,7 +252,7 @@ describe('mockHttpRequestForRoute', () => {
         kind: 'mock',
         response: {
           kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           status: 400,
           body: {
             code: 'PASSWORD_REQUIRED',
@@ -282,7 +283,7 @@ describe('mockHttpRequestForRoute', () => {
         mode: 'mock',
         response: {
           kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           status: 400,
           body: {
             code: 'PASSWORD_REQUIRED',
@@ -345,7 +346,7 @@ describe('mockHttpRequestForRoute', () => {
         MockHttpRequestResponse<LoginRequest>,
         {
           kind: 'exception';
-          code: 'PASSWORD_REQUIRED';
+          _tag: 'PASSWORD_REQUIRED';
         }
       >
     >().toMatchTypeOf<{
@@ -366,7 +367,7 @@ describe('matchMockHttpRequestForRoute', () => {
         kind: 'mock',
         response: {
           kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
+          _tag: 'PASSWORD_REQUIRED',
           status: 400,
           body: {
             code: 'PASSWORD_REQUIRED',
@@ -394,7 +395,7 @@ describe('matchMockHttpRequestForRoute', () => {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -540,7 +541,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -556,7 +557,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'INVALID_PASSWORD_PAYLOAD',
+        _tag: 'INVALID_PASSWORD_PAYLOAD',
         status: 422,
         body: {
           errors: [
@@ -576,7 +577,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'RATE_LIMITED',
+        _tag: 'RATE_LIMITED',
         status: 429,
         body: {},
         headers: {
@@ -592,7 +593,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'TEAPOT',
+        _tag: 'TEAPOT',
         status: 418,
         body: {
           code: 'TEAPOT',
@@ -628,7 +629,7 @@ if (false) {
       // @ts-expect-error matched status must stay aligned with the exception rule
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 401,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -645,7 +646,7 @@ if (false) {
       // @ts-expect-error matched code must be reflected in body.code
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'INVALID',
@@ -662,7 +663,7 @@ if (false) {
       // @ts-expect-error matched content must be reflected in body.message
       response: {
         kind: 'exception',
-        code: 'PASSWORD_REQUIRED',
+        _tag: 'PASSWORD_REQUIRED',
         status: 400,
         body: {
           code: 'PASSWORD_REQUIRED',
@@ -678,7 +679,7 @@ if (false) {
       kind: 'mock',
       response: {
         kind: 'exception',
-        code: 'INVALID_PASSWORD_PAYLOAD',
+        _tag: 'INVALID_PASSWORD_PAYLOAD',
         status: 422,
         body: {
           // @ts-expect-error body<Body>() exceptions must provide the declared body shape
@@ -695,7 +696,7 @@ if (false) {
       // @ts-expect-error matched headers must preserve their expected value
       response: {
         kind: 'exception',
-        code: 'RATE_LIMITED',
+        _tag: 'RATE_LIMITED',
         status: 429,
         body: {},
         headers: {
@@ -712,7 +713,7 @@ if (false) {
       // @ts-expect-error read-mode header dependencies still require the header map
       response: {
         kind: 'exception',
-        code: 'TEAPOT',
+        _tag: 'TEAPOT',
         status: 418,
         body: {
           code: 'TEAPOT',
@@ -730,7 +731,7 @@ if (false) {
       // @ts-expect-error read-mode body dependencies must keep their declared fields
       response: {
         kind: 'exception',
-        code: 'TEAPOT',
+        _tag: 'TEAPOT',
         status: 418,
         body: {
           code: 'TEAPOT',

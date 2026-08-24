@@ -14,6 +14,30 @@
       "port": 4200
     },
     {
+      "name": "demo-effect",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/nx/bin/nx.js",
+        "serve",
+        "demo-effect",
+        "--port",
+        "4201"
+      ],
+      "port": 4201
+    },
+    {
+      "name": "demo-with-server-function",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/nx/bin/nx.js",
+        "serve",
+        "demo-with-server-function",
+        "--port",
+        "4202"
+      ],
+      "port": 4202
+    },
+    {
       "name": "docs",
       "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
       "runtimeArgs": [
@@ -30,7 +54,7 @@
       "runtimeArgs": [
         "node_modules/vitepress/bin/vitepress.js",
         "dev",
-        "/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/docs-restructure/apps/docs"
+        "/Users/romaingeffrault/Documents/projects/prive/craft-ts/.claude/worktrees/docs-restructure/apps/docs"
       ],
       "port": 5174,
       "autoPort": true

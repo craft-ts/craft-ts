@@ -1,51 +1,118 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import {
   CallExpression,
   Node,
-  ObjectBindingPattern,
   ObjectLiteralExpression,
   Project,
   PropertyAccessExpression,
   SourceFile,
   SyntaxKind,
   VariableDeclaration,
-  YieldExpression,
 } from 'ts-morph';
 import {
   architectureCatalogToTypeScript,
   buildArchitectureCatalog,
 } from './architecture-graph.js';
 
-export type DependencyGraphNodeKind =
-  | 'route'
-  | 'route-hook'
-  | 'route-check'
-  | 'app-config'
-  | 'component'
-  | 'service'
-  | 'property'
-  | 'primitive'
-  | 'source'
-  | 'http-endpoint'
-  | 'unique'
-  | 'template-element';
+import {
+  collectEffectLayers,
+  collectEffectOperationOwners,
+  collectEffectServices,
+  collectEffectServiceUsage,
+} from './effect-dependency-graph.js';
+import { collectDataFlowGraph } from './data-flow-graph.js';
 
-export type DependencyGraphEdgeKind =
-  | 'loads'
-  | 'renders'
-  | 'contains'
-  | 'checks'
-  | 'depends-on'
-  | 'provides'
-  | 'uses-property'
-  | 'calls'
-  | 'reads'
-  | 'writes'
-  | 'subscribes'
-  | 'triggers';
+/**
+ * The graph's built-in vocabulary.  Values are deliberately detail records
+ * rather than node classes: consumers can augment this interface with module
+ * augmentation without making the graph core import their runtime.
+ */
+export interface DependencyGraphNodeRegistry {
+  route: Record<string, unknown>;
+  'route-hook': Record<string, unknown>;
+  'route-check': Record<string, unknown>;
+  'app-config': Record<string, unknown>;
+  component: Record<string, unknown>;
+  service: Record<string, unknown>;
+  property: Record<string, unknown>;
+  primitive: Record<string, unknown>;
+  source: Record<string, unknown>;
+  'http-endpoint': Record<string, unknown>;
+  unique: Record<string, unknown>;
+  'template-element': Record<string, unknown>;
+  'server-function-family': Record<string, unknown>;
+  'server-function-contract': Record<string, unknown>;
+  'server-function-client': Record<string, unknown>;
+  'server-function-server': Record<string, unknown>;
+  'server-function-misnamed': Record<string, unknown>;
+  'server-function-middleware': Record<string, unknown>;
+  'server-function-middleware-misnamed': Record<string, unknown>;
+  'client-function-middleware': Record<string, unknown>;
+  'client-function-middleware-misnamed': Record<string, unknown>;
+  handshake: Record<string, unknown>;
+}
+
+export type DependencyGraphNodeKind = keyof DependencyGraphNodeRegistry;
+
+export type DependencyGraphNodeFor<
+  K extends DependencyGraphNodeKind = DependencyGraphNodeKind,
+> = {
+  id: string;
+  kind: K;
+  label: string;
+  filePath?: string;
+  line?: number;
+  details?: DependencyGraphNodeRegistry[K];
+};
+
+/**
+ * The built-in relation vocabulary.  Relation details are open for the same
+ * reason as node details: an adapter can add a typed relation without
+ * changing this module.
+ */
+export interface DependencyGraphEdgeRegistry {
+  loads: Record<string, unknown>;
+  renders: Record<string, unknown>;
+  contains: Record<string, unknown>;
+  checks: Record<string, unknown>;
+  'depends-on': Record<string, unknown>;
+  provides: Record<string, unknown>;
+  'uses-property': Record<string, unknown>;
+  calls: Record<string, unknown>;
+  reads: Record<string, unknown>;
+  writes: Record<string, unknown>;
+  subscribes: Record<string, unknown>;
+  triggers: Record<string, unknown>;
+}
+
+export type DependencyGraphEdgeKind = keyof DependencyGraphEdgeRegistry;
+
+export type DependencyGraphEdgeFor<
+  K extends DependencyGraphEdgeKind = DependencyGraphEdgeKind,
+> = {
+  from: string;
+  to: string;
+  kind: K;
+  evidence: 'ast' | 'type';
+  details?: DependencyGraphEdgeRegistry[K];
+  proof?: DependencyGraphProof;
+};
+
+export type DependencyGraphProof = {
+  filePath: string;
+  line?: number;
+  symbol?: string;
+  pattern?: string;
+};
+
+export type DependencyGraphDiagnostic = {
+  code: string;
+  message: string;
+  proof?: DependencyGraphProof;
+};
 
 export type RouteCheckMechanism =
   | 'ValidateCascadeRoutesFile'
@@ -81,6 +148,7 @@ export type DependencyGraphEdge = {
   kind: DependencyGraphEdgeKind;
   evidence: 'ast' | 'type';
   details?: Record<string, unknown>;
+  proof?: DependencyGraphProof;
 };
 
 export type DependencyGraph = {
@@ -89,12 +157,37 @@ export type DependencyGraph = {
   tsConfigFilePath: string;
   nodes: DependencyGraphNode[];
   edges: DependencyGraphEdge[];
+  diagnostics?: DependencyGraphDiagnostic[];
 };
 
 export type AnalyzeDependencyGraphOptions = {
   rootDir?: string;
   tsConfigFilePath?: string;
   include?: readonly string[];
+  /** Additional collectors are opt-in; importing their types has no effect. */
+  collectors?: readonly DependencyGraphCollector[];
+  /** Repository-declared middleware capabilities used by security rules. */
+  middlewareCapabilities?: Readonly<Record<string, readonly string[]>>;
+};
+
+export type DependencyGraphCollectorContext = {
+  readonly project: Project;
+  readonly rootDir: string;
+  readonly sourceFiles: readonly SourceFile[];
+  readonly graph: Readonly<DependencyGraph>;
+};
+
+export type DependencyGraphContribution = {
+  readonly nodes?: readonly DependencyGraphNode[];
+  readonly edges?: readonly DependencyGraphEdge[];
+  readonly diagnostics?: readonly DependencyGraphDiagnostic[];
+};
+
+export type DependencyGraphCollector = {
+  readonly name: string;
+  readonly collect: (
+    context: DependencyGraphCollectorContext,
+  ) => DependencyGraphContribution;
 };
 
 export type WriteDependencyGraphOptions = AnalyzeDependencyGraphOptions & {
@@ -106,20 +199,30 @@ const PRIMITIVES = new Set([
   'state',
   'query',
   'mutation',
+  'queryEffect',
+  'computedEffect',
+  'mutationEffect',
   'asyncProcess',
   'queryParams',
   'insertSelect',
+  'craftStateMachine',
   'craftComputed',
   'craftEffect',
   'craftMethod',
 ]);
+// A host owns the primitives declared inside it: they hang off the host in the
+// graph instead of flattening into the component or service around it.
 const HOST_PRIMITIVES = new Set([
   'state',
   'query',
   'mutation',
+  'queryEffect',
+  'computedEffect',
+  'mutationEffect',
   'asyncProcess',
   'queryParams',
   'insertSelect',
+  'craftStateMachine',
 ]);
 const STORAGE_PERSISTER_INSERTIONS = new Set([
   'insertStoragePersister',
@@ -144,11 +247,7 @@ const CRAFT_TEMPORAL_FUNCTIONS = new Set([
   'requestAnimationFrame',
   'cancelAnimationFrame',
 ]);
-const CRAFT_TEMPORAL_RUNTIME_METHODS = new Set([
-  'sleep',
-  'schedule',
-  'cancel',
-]);
+const CRAFT_TEMPORAL_RUNTIME_METHODS = new Set(['sleep', 'schedule', 'cancel']);
 const NON_DEPENDENCY_PROPERTY_NAMES = new Set([
   'map',
   'filter',
@@ -231,6 +330,7 @@ type RouteInfo = {
 type SourceInfo = {
   node: DependencyGraphNode;
   variableNames: Set<string>;
+  call: CallExpression;
 };
 
 type CraftHttpClientUsage = DependencyGraphHttpEndpoint;
@@ -258,6 +358,8 @@ type GraphBuilder = {
   componentByVariable: Map<string, ComponentInfo>;
   componentByVariableKey: Map<string, ComponentInfo>;
   componentsByVariableName: Map<string, ComponentInfo[]>;
+  diagnostics: DependencyGraphDiagnostic[];
+  middlewareCapabilities: Readonly<Record<string, readonly string[]>>;
 };
 
 export function analyzeDependencyGraph(
@@ -278,6 +380,7 @@ export function analyzeDependencyGraph(
       tsConfigFilePath,
       nodes: [],
       edges: [],
+      diagnostics: [],
     },
     nodes: new Map(),
     edges: new Map(),
@@ -291,6 +394,8 @@ export function analyzeDependencyGraph(
     componentByVariable: new Map(),
     componentByVariableKey: new Map(),
     componentsByVariableName: new Map(),
+    diagnostics: [],
+    middlewareCapabilities: options.middlewareCapabilities ?? {},
   };
 
   const sourceFiles = project
@@ -298,7 +403,9 @@ export function analyzeDependencyGraph(
     .filter((sourceFile) => !sourceFile.isDeclarationFile())
     .filter((sourceFile) =>
       options.include?.length
-        ? options.include.some((pattern) => sourceFile.getFilePath().includes(pattern))
+        ? options.include.some((pattern) =>
+            sourceFile.getFilePath().includes(pattern),
+          )
         : true,
     );
 
@@ -307,6 +414,12 @@ export function analyzeDependencyGraph(
   collectComponents(builder, sourceFiles);
   collectRoutes(builder, sourceFiles);
   collectAppConfigs(builder, sourceFiles);
+  // Server-function nodes must exist before service/component analysis so
+  // loader calls can be linked directly to their family node.
+  collectServerFunctions(builder, sourceFiles);
+  collectServerFunctionMiddlewares(builder, sourceFiles);
+  collectClientFunctionMiddlewares(builder, sourceFiles);
+  collectHandshakes(builder, sourceFiles);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
   collectInteractiveTemplateElements(builder);
@@ -314,6 +427,22 @@ export function analyzeDependencyGraph(
   analyzeInsertions(builder);
   collectCraftUniques(builder, sourceFiles);
   collectRouteChecks(builder);
+  collectEffectGraph(builder, sourceFiles);
+  linkEffectLoaderRequirements(builder);
+
+  builder.graph.nodes = [...builder.nodes.values()];
+  builder.graph.edges = [...builder.edges.values()];
+  for (const collector of options.collectors ?? []) {
+    const contribution = collector.collect({
+      project,
+      rootDir,
+      sourceFiles,
+      graph: builder.graph,
+    });
+    mergeCollectorContribution(builder, collector.name, contribution);
+    builder.graph.nodes = [...builder.nodes.values()];
+    builder.graph.edges = [...builder.edges.values()];
+  }
 
   builder.graph.nodes = [...builder.nodes.values()].sort((left, right) =>
     left.id.localeCompare(right.id),
@@ -323,6 +452,9 @@ export function analyzeDependencyGraph(
       `${right.from}:${right.kind}:${right.to}`,
     ),
   );
+  if (builder.diagnostics.length > 0) {
+    builder.graph.diagnostics = [...builder.diagnostics];
+  }
   return builder.graph;
 }
 
@@ -331,7 +463,10 @@ export async function writeDependencyGraph(
 ): Promise<DependencyGraph> {
   const graph = analyzeDependencyGraph(options);
   const format = options.format ?? 'both';
-  const outputPath = resolve(options.rootDir ?? process.cwd(), options.outputPath);
+  const outputPath = resolve(
+    options.rootDir ?? process.cwd(),
+    options.outputPath,
+  );
   await mkdir(dirname(outputPath), { recursive: true });
 
   if (format === 'json' || format === 'both' || format === 'all') {
@@ -346,7 +481,11 @@ export async function writeDependencyGraph(
   }
   if (format === 'mermaid' || format === 'both' || format === 'all') {
     const mermaidPath = format === 'mermaid' ? outputPath : `${outputPath}.mmd`;
-    await writeFile(mermaidPath, `${dependencyGraphToMermaid(graph)}\n`, 'utf8');
+    await writeFile(
+      mermaidPath,
+      `${dependencyGraphToMermaid(graph)}\n`,
+      'utf8',
+    );
   }
   if (format === 'html' || format === 'all') {
     const htmlPath = format === 'html' ? outputPath : `${outputPath}.html`;
@@ -415,7 +554,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Craft NG — Dependency Explorer</title>
+  <title>CraftTS — Dependency Explorer</title>
   <style>
     :root {
       color-scheme: light;
@@ -579,7 +718,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand"><h1>Craft NG · Dependency Explorer</h1><p>Analyse statique AST + typage TypeScript</p></div>
+      <div class="brand"><h1>CraftTS · Dependency Explorer</h1><p>Analyse statique AST + typage TypeScript</p></div>
       <label class="search"><span>⌕</span><input id="search" type="search" placeholder="Rechercher une route, un composant, un service…" aria-label="Rechercher"></label>
       <div class="stats" id="stats"></div>
     </header>
@@ -1012,12 +1151,21 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
 `;
 }
 
-function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile[]): void {
+function collectServices(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
   for (const sourceFile of sourceFiles) {
-    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
       if (call.getExpression().getText() !== 'craftService') continue;
-      const config = call.getArguments()[0]?.asKind(SyntaxKind.ObjectLiteralExpression);
-      const name = getStringProperty(config, 'name') ?? inferNameFromServiceDeclaration(call);
+      const config = call
+        .getArguments()[0]
+        ?.asKind(SyntaxKind.ObjectLiteralExpression);
+      const name =
+        getStringProperty(config, 'name') ??
+        inferNameFromServiceDeclaration(call);
       if (!name) continue;
       const node = addNode(builder, {
         id: `service:${sourceFile.getFilePath()}:${name}`,
@@ -1028,7 +1176,8 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
         details: {
           scope: getStringProperty(config, 'scope'),
           appStart: getBooleanProperty(config, 'appStart') === true,
-          browserBoundary: getBooleanProperty(config, 'browserBoundary') === true,
+          browserBoundary:
+            getBooleanProperty(config, 'browserBoundary') === true,
           outputProperties: [],
         },
       });
@@ -1038,7 +1187,9 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
         call,
         outputPropertyNames: new Set(),
       };
-      const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+      const declaration = call.getFirstAncestorByKind(
+        SyntaxKind.VariableDeclaration,
+      );
       if (declaration) {
         addBindingNames(declaration.getNameNode(), service.helpers);
       }
@@ -1051,7 +1202,9 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
         builder.servicesByHelperName.set(helper, services);
       }
       service.outputType = [...service.helpers]
-        .map((helper) => call.getType().getProperty(helper)?.getTypeAtLocation(call))
+        .map((helper) =>
+          call.getType().getProperty(helper)?.getTypeAtLocation(call),
+        )
         .map((type) => getServiceHelperOutputType(type))
         .find((type) => type !== undefined);
       for (const property of service.outputType?.getProperties() ?? []) {
@@ -1065,23 +1218,27 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
     }
   }
   for (const service of builder.services) {
-    collectProvides(
-      builder,
-      service.node.id,
-      service.call.getArguments()[0],
-    );
+    collectProvides(builder, service.node.id, service.call.getArguments()[0]);
   }
 }
 
-function collectSources(builder: GraphBuilder, sourceFiles: readonly SourceFile[]): void {
+function collectSources(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
   for (const sourceFile of sourceFiles) {
-    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
       const creator = call.getExpression().getText();
       if (!SOURCE_CREATORS.has(creator)) continue;
       const name = getStringArgument(call, 0) ?? creator;
       const variableNames = new Set<string>();
-      const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-      if (declaration) addBindingNames(declaration.getNameNode(), variableNames);
+      const declaration = call.getFirstAncestorByKind(
+        SyntaxKind.VariableDeclaration,
+      );
+      if (declaration)
+        addBindingNames(declaration.getNameNode(), variableNames);
       const node = addNode(builder, {
         id: `source:${sourceFile.getFilePath()}:${name}:${call.getStartLineNumber()}`,
         kind: 'source',
@@ -1090,7 +1247,7 @@ function collectSources(builder: GraphBuilder, sourceFiles: readonly SourceFile[
         line: call.getStartLineNumber(),
         details: { creator },
       });
-      builder.sources.push({ node, variableNames });
+      builder.sources.push({ node, variableNames, call });
     }
   }
 }
@@ -1100,16 +1257,23 @@ function collectCraftUniques(
   sourceFiles: readonly SourceFile[],
 ): void {
   for (const sourceFile of sourceFiles) {
-    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
       if (call.getExpression().getText() !== 'craftUnique') continue;
       addCraftUniqueUsage(builder, call);
     }
   }
 }
 
-function collectComponents(builder: GraphBuilder, sourceFiles: readonly SourceFile[]): void {
+function collectComponents(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
   for (const sourceFile of sourceFiles) {
-    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
       if (call.getExpression().getText() !== 'craftComponent') continue;
       const explicitLabel = getStringArgument(call, 0);
       const label =
@@ -1128,7 +1292,9 @@ function collectComponents(builder: GraphBuilder, sourceFiles: readonly SourceFi
       };
       builder.components.push(component);
       collectProvides(builder, component.node.id, call.getArguments()[1]);
-      const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+      const declaration = call.getFirstAncestorByKind(
+        SyntaxKind.VariableDeclaration,
+      );
       if (declaration) {
         for (const name of getBindingNames(declaration.getNameNode())) {
           builder.componentByVariable.set(name, component);
@@ -1144,13 +1310,21 @@ function collectComponents(builder: GraphBuilder, sourceFiles: readonly SourceFi
   }
 }
 
-function collectRoutes(builder: GraphBuilder, sourceFiles: readonly SourceFile[]): void {
+function collectRoutes(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
   for (const sourceFile of sourceFiles) {
-    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
       if (call.getExpression().getText() !== 'craftRoutes') continue;
-      const collectionName = getStringArgument(call, 0) ?? sourceFile.getBaseNameWithoutExtension();
+      const collectionName =
+        getStringArgument(call, 0) ?? sourceFile.getBaseNameWithoutExtension();
       const routesName = getCraftRoutesBindingName(call) ?? collectionName;
-      const routes = call.getArguments()[1]?.asKind(SyntaxKind.ArrayLiteralExpression);
+      const routes = call
+        .getArguments()[1]
+        ?.asKind(SyntaxKind.ArrayLiteralExpression);
       if (!routes) continue;
       const routeInfos: RouteInfo[] = [];
       for (const element of routes.getElements()) {
@@ -1158,7 +1332,9 @@ function collectRoutes(builder: GraphBuilder, sourceFiles: readonly SourceFile[]
         const object =
           element.asKind(SyntaxKind.ObjectLiteralExpression) ??
           (routeCall?.getExpression().getText() === 'craftRoute'
-            ? routeCall.getArguments()[1]?.asKind(SyntaxKind.ObjectLiteralExpression)
+            ? routeCall
+                .getArguments()[1]
+                ?.asKind(SyntaxKind.ObjectLiteralExpression)
             : undefined);
         if (!object) continue;
         const path =
@@ -1178,7 +1354,9 @@ function collectRoutes(builder: GraphBuilder, sourceFiles: readonly SourceFile[]
               path,
               routesName,
               hasComponent: routeHasTargetComponent(object),
-              hasPendingComponent: Boolean(object.getProperty('pendingComponent')),
+              hasPendingComponent: Boolean(
+                object.getProperty('pendingComponent'),
+              ),
               hasErrorComponent: Boolean(object.getProperty('errorComponent')),
             },
           }),
@@ -1191,7 +1369,10 @@ function collectRoutes(builder: GraphBuilder, sourceFiles: readonly SourceFile[]
         analyzeRouteObject(builder, route);
       }
       const existing = builder.routeFiles.get(sourceFile.getFilePath()) ?? [];
-      builder.routeFiles.set(sourceFile.getFilePath(), [...existing, ...routeInfos]);
+      builder.routeFiles.set(sourceFile.getFilePath(), [
+        ...existing,
+        ...routeInfos,
+      ]);
     }
   }
 }
@@ -1205,9 +1386,9 @@ function collectAppConfigs(
       SyntaxKind.CallExpression,
     )) {
       if (call.getExpression().getText() !== 'craftAppConfig') continue;
-      const object = call.getArguments()[0]?.asKind(
-        SyntaxKind.ObjectLiteralExpression,
-      );
+      const object = call
+        .getArguments()[0]
+        ?.asKind(SyntaxKind.ObjectLiteralExpression);
       if (!object) continue;
       const declaration = call.getFirstAncestorByKind(
         SyntaxKind.VariableDeclaration,
@@ -1269,7 +1450,9 @@ function appConfigComponentName(
 }
 
 function getCraftRoutesBindingName(call: CallExpression): string | undefined {
-  const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  const declaration = call.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
   const nameNode = declaration?.getNameNode();
   if (!nameNode) return undefined;
   if (Node.isIdentifier(nameNode)) return nameNode.getText();
@@ -1313,13 +1496,15 @@ function uncapitalize(value: string): string {
 
 function routeHasTargetComponent(object: ObjectLiteralExpression): boolean {
   if (
-    object.getProperties().some(
-      (property) =>
-        Node.isPropertyAssignment(property) &&
-        ['component', 'componentDeps', 'loadComponent'].includes(
-          property.getName(),
-        ),
-    )
+    object
+      .getProperties()
+      .some(
+        (property) =>
+          Node.isPropertyAssignment(property) &&
+          ['component', 'componentDeps', 'loadComponent'].includes(
+            property.getName(),
+          ),
+      )
   ) {
     return true;
   }
@@ -1384,7 +1569,9 @@ function collectRouteChecks(builder: GraphBuilder): void {
         if (!innerNode) continue;
         const inner = resolveRouteCheck(innerNode, aliases, new Set());
         if (!inner || inner.mechanism === 'CanRun') continue;
-        const innerRef = Node.isTypeReference(innerNode) ? innerNode : undefined;
+        const innerRef = Node.isTypeReference(innerNode)
+          ? innerNode
+          : undefined;
         const innerName = innerRef?.getTypeName().getText();
         const mapperName =
           innerName &&
@@ -1421,7 +1608,9 @@ function collectRouteChecks(builder: GraphBuilder): void {
     for (const call of sourceFile.getDescendantsOfKind(
       SyntaxKind.CallExpression,
     )) {
-      if (call.getExpression().getText() !== 'assertExhaustiveRouteExceptions') {
+      if (
+        call.getExpression().getText() !== 'assertExhaustiveRouteExceptions'
+      ) {
         continue;
       }
       const targetName = call.getArguments()[0]?.getText();
@@ -1483,7 +1672,10 @@ function resolveRouteCheck(
   if (!body) return undefined;
   const inner = resolveRouteCheck(body, aliases, visited);
   if (!inner) return undefined;
-  return { mechanism: inner.mechanism, hintNodes: [typeNode, ...inner.hintNodes] };
+  return {
+    mechanism: inner.mechanism,
+    hintNodes: [typeNode, ...inner.hintNodes],
+  };
 }
 
 function collectTypeCheckHints(node: Node): TypeCheckHints {
@@ -1570,7 +1762,7 @@ function linkMapperToAppConfig(
   );
   if (
     appConfig.node.details?.['hasGlobalError'] &&
-    (/global error/i.test(blob) && !/route load error/i.test(blob) ||
+    ((/global error/i.test(blob) && !/route load error/i.test(blob)) ||
       blobNamesComponent(blob, component))
   ) {
     addEdge(builder, mapperId, appConfig.node.id, 'checks', 'type', {
@@ -1579,8 +1771,7 @@ function linkMapperToAppConfig(
   }
   if (
     appConfig.node.details?.['hasRouteLoadError'] &&
-    (/route load error/i.test(blob) ||
-      blobNamesComponent(blob, loadComponent))
+    (/route load error/i.test(blob) || blobNamesComponent(blob, loadComponent))
   ) {
     addEdge(builder, mapperId, appConfig.node.id, 'checks', 'type', {
       target: 'route-load-error',
@@ -1621,12 +1812,17 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
   for (const service of builder.services) {
     const factory = service.call.getArguments()[1];
     if (!factory) continue;
-    for (const call of factory.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    for (const call of factory.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
       const httpClientUsage = findCraftHttpClientUsage(call);
       if (httpClientUsage) {
         const ownerNode = ownerNodeForCall(builder, call, service.node.id);
-        addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+        addHttpClientUsage(builder, ownerNode.id, httpClientUsage, {
+          ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+        });
       }
+      addServerFunctionUsage(builder, call, service.node.id);
       const temporalUsage = findCraftTemporalUsage(call);
       if (temporalUsage) {
         const ownerNode = ownerNodeForCall(builder, call, service.node.id);
@@ -1655,22 +1851,43 @@ function analyzeComponents(builder: GraphBuilder): void {
     for (const part of [setup, template]) {
       if (!part) continue;
       collectServiceBindingsFromReturns(component, part, builder);
-      for (const nested of part.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      for (const nested of part.getDescendantsOfKind(
+        SyntaxKind.CallExpression,
+      )) {
         const httpClientUsage = findCraftHttpClientUsage(nested);
         if (httpClientUsage) {
-          const ownerNode = ownerNodeForCall(builder, nested, component.node.id);
-          addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+          const ownerNode = ownerNodeForCall(
+            builder,
+            nested,
+            component.node.id,
+          );
+          addHttpClientUsage(builder, ownerNode.id, httpClientUsage, {
+            ...(resourceLoaderFactory(nested)
+              ? { resourceRole: 'loader' }
+              : {}),
+          });
         }
+        addServerFunctionUsage(builder, nested, component.node.id);
         const temporalUsage = findCraftTemporalUsage(nested);
         if (temporalUsage) {
-          const ownerNode = ownerNodeForCall(builder, nested, component.node.id);
+          const ownerNode = ownerNodeForCall(
+            builder,
+            nested,
+            component.node.id,
+          );
           addTemporalUsage(builder, ownerNode.id, temporalUsage);
         }
         const helper =
           findServiceForCall(builder, nested) ??
           findComponentBoundService(component, nested);
         if (helper) {
-          addEdge(builder, component.node.id, helper.node.id, 'depends-on', 'type');
+          addEdge(
+            builder,
+            component.node.id,
+            helper.node.id,
+            'depends-on',
+            'type',
+          );
           addServiceDependency(builder, component.node.id, helper, nested);
           if (!nearestPrimitiveFactory(nested)) {
             collectServiceBindings(component, nested, helper);
@@ -1700,12 +1917,7 @@ function analyzeComponents(builder: GraphBuilder): void {
       );
     }
     if (template) {
-      analyzeTemplateDependencies(
-        builder,
-        component,
-        template,
-        setupBindings,
-      );
+      analyzeTemplateDependencies(builder, component, template, setupBindings);
     }
     collectServicePropertyUses(builder, component);
   }
@@ -1794,7 +2006,7 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
       if (!Node.isCallExpression(node)) return;
       if (node.getExpression().getText() === 'craftComponent') return 'skip';
       const parsed = parseCraftHyperscript(node);
-      if (!parsed || !isInteractiveElement(parsed)) return;
+      if (!parsed || !isInteractiveElement(parsed)) return undefined;
       const filePath = node.getSourceFile().getFilePath();
       const element = addNode(builder, {
         id: `template-element:${filePath}:${node.getStartLineNumber()}:${node.getStart()}`,
@@ -1811,6 +2023,7 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
         },
       });
       addEdge(builder, component.node.id, element.id, 'contains', 'ast');
+      return undefined;
     });
   }
 }
@@ -1820,7 +2033,9 @@ function walkTemplate(node: Node, visit: (node: Node) => 'skip' | void): void {
   node.forEachChild((child) => walkTemplate(child, visit));
 }
 
-function parseCraftHyperscript(call: CallExpression): ParsedHyperscript | undefined {
+function parseCraftHyperscript(
+  call: CallExpression,
+): ParsedHyperscript | undefined {
   const callee = call.getExpression().getText();
   const args = call.getArguments();
   if (callee === 'h' || callee === 'customElement') {
@@ -1993,23 +2208,65 @@ function identifierText(node: Node | undefined): string | undefined {
 function analyzeRoutes(builder: GraphBuilder): void {
   for (const routeInfos of builder.routeFiles.values()) {
     for (const route of routeInfos) {
+      for (const property of route.object.getProperties()) {
+        if (!Node.isPropertyAssignment(property)) continue;
+        if (property.getName() === 'component') {
+          const component = findComponentForExpression(
+            builder,
+            property.getInitializer(),
+          );
+          if (component) {
+            addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
+          }
+        }
+        if (property.getName() === 'loadComponent') {
+          for (const identifier of property.getDescendantsOfKind(
+            SyntaxKind.Identifier,
+          )) {
+            const component = findComponentForExpression(builder, identifier);
+            if (component) {
+              addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
+            }
+          }
+        }
+      }
       const imports = findDynamicImportSpecifiers(route.object);
       for (const specifier of imports) {
-        const target = resolveImportedSource(route.sourceFile, specifier, builder.project);
+        const target = resolveImportedSource(
+          route.sourceFile,
+          specifier,
+          builder.project,
+        );
         if (!target) continue;
+        const exportNames = findDynamicImportExportNames(route.object, specifier);
         for (const component of builder.components.filter(
-          (candidate) => candidate.node.filePath === target.getFilePath(),
+          (candidate) =>
+            candidate.node.filePath === target.getFilePath() &&
+            (exportNames === undefined ||
+              exportNames.length === 0 ||
+              componentExportNames(candidate).some((name) =>
+                exportNames.includes(name),
+              )),
         )) {
           addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
         }
-        for (const childRoute of builder.routeFiles.get(target.getFilePath()) ?? []) {
+        for (const childRoute of builder.routeFiles.get(target.getFilePath()) ??
+          []) {
           addEdge(builder, route.node.id, childRoute.node.id, 'loads', 'ast');
         }
       }
       for (const property of route.object.getProperties()) {
         if (!Node.isPropertyAssignment(property)) continue;
         const name = property.getName();
-        if (!['canActivate', 'canMatch', 'resolve', 'queryParams', 'handleExceptions'].includes(name)) {
+        if (
+          ![
+            'canActivate',
+            'canMatch',
+            'resolve',
+            'queryParams',
+            'handleExceptions',
+          ].includes(name)
+        ) {
           continue;
         }
         const hook = addNode(builder, {
@@ -2092,12 +2349,19 @@ function collectServiceBindings(
   serviceCall: CallExpression,
   service: ServiceInfo,
 ): void {
-  const yieldExpression = serviceCall.getFirstAncestorByKind(SyntaxKind.YieldExpression);
-  const declaration = yieldExpression?.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  const yieldExpression = serviceCall.getFirstAncestorByKind(
+    SyntaxKind.YieldExpression,
+  );
+  const declaration = yieldExpression?.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
   if (declaration) {
-    for (const name of getBindingNames(declaration.getNameNode())) component.bindings.set(name, service);
+    for (const name of getBindingNames(declaration.getNameNode()))
+      component.bindings.set(name, service);
   }
-  const property = yieldExpression?.getFirstAncestorByKind(SyntaxKind.PropertyAssignment);
+  const property = yieldExpression?.getFirstAncestorByKind(
+    SyntaxKind.PropertyAssignment,
+  );
   if (property) component.bindings.set(property.getName(), service);
 }
 
@@ -2106,7 +2370,9 @@ function collectServiceBindingsFromReturns(
   part: Node,
   builder: GraphBuilder,
 ): void {
-  for (const yieldExpression of part.getDescendantsOfKind(SyntaxKind.YieldExpression)) {
+  for (const yieldExpression of part.getDescendantsOfKind(
+    SyntaxKind.YieldExpression,
+  )) {
     const expression = yieldExpression.getExpression();
     const call = expression?.asKind(SyntaxKind.CallExpression);
     if (!call) continue;
@@ -2116,14 +2382,19 @@ function collectServiceBindingsFromReturns(
   }
 }
 
-function collectServicePropertyUses(builder: GraphBuilder, component: ComponentInfo): void {
+function collectServicePropertyUses(
+  builder: GraphBuilder,
+  component: ComponentInfo,
+): void {
   const parts = [
     [component.call.getArguments()[2], 'setup'],
     [component.call.getArguments()[3], 'template'],
   ] as const;
   for (const [part, usage] of parts) {
     if (!part) continue;
-    for (const access of part.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    for (const access of part.getDescendantsOfKind(
+      SyntaxKind.PropertyAccessExpression,
+    )) {
       const chain = propertyAccessChain(access);
       if (!chain) continue;
       const service = component.bindings.get(chain[0]);
@@ -2135,7 +2406,9 @@ function collectServicePropertyUses(builder: GraphBuilder, component: ComponentI
         if (index > 0 && currentType?.isArray()) break;
         const property = currentType?.getProperty(propertyName);
         const propertyType = property?.getTypeAtLocation(access);
-        const propertyPath = chain.slice(1, chain.indexOf(propertyName) + 1).join('.');
+        const propertyPath = chain
+          .slice(1, chain.indexOf(propertyName) + 1)
+          .join('.');
         const propertyId = `property:${service.node.id}:${propertyPath}`;
         const propertyNode = addNode(builder, {
           id: propertyId,
@@ -2153,10 +2426,17 @@ function collectServicePropertyUses(builder: GraphBuilder, component: ComponentI
         addEdge(builder, parentId, propertyNode.id, 'contains', 'type', {
           property: propertyName,
         });
-        addEdge(builder, component.node.id, propertyNode.id, 'uses-property', 'type', {
-          property: propertyName,
-          usage,
-        });
+        addEdge(
+          builder,
+          component.node.id,
+          propertyNode.id,
+          'uses-property',
+          'type',
+          {
+            property: propertyName,
+            usage,
+          },
+        );
         parentId = propertyNode.id;
         currentType = propertyType;
       }
@@ -2164,16 +2444,36 @@ function collectServicePropertyUses(builder: GraphBuilder, component: ComponentI
   }
 }
 
-function addSourceInteractions(builder: GraphBuilder, ownerId: string, node: Node): void {
+function addSourceInteractions(
+  builder: GraphBuilder,
+  ownerId: string,
+  node: Node,
+): void {
   for (const source of builder.sources) {
     for (const name of source.variableNames) {
-      for (const access of node.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+      for (const access of node.getDescendantsOfKind(
+        SyntaxKind.PropertyAccessExpression,
+      )) {
         const text = access.getText();
-        if (!text.startsWith(`${name}.`)) continue;
+        const directSourceAccess = text.startsWith(`${name}.`);
+        const exposedMachineSourceAccess = isExposedMachineSourceAccess(
+          source,
+          access,
+          name,
+        );
+        if (!directSourceAccess && !exposedMachineSourceAccess) continue;
         const owner = ownerNodeForAst(builder, access, ownerId);
         if (text.endsWith('.emit') || text.endsWith('.set')) {
-          addEdge(builder, owner.id, source.node.id, 'writes', 'ast', { operation: text.split('.').pop() });
-        } else if (text.endsWith('.subscribe') || text.endsWith('.asReadonly')) {
+          addEdge(builder, owner.id, source.node.id, 'writes', 'ast', {
+            operation: text.split('.').pop(),
+            ...(exposedMachineSourceAccess
+              ? { exposedThrough: 'state-machine' }
+              : {}),
+          });
+        } else if (
+          text.endsWith('.subscribe') ||
+          text.endsWith('.asReadonly')
+        ) {
           addEdge(builder, owner.id, source.node.id, 'subscribes', 'ast');
         } else {
           addEdge(builder, owner.id, source.node.id, 'reads', 'ast');
@@ -2181,7 +2481,8 @@ function addSourceInteractions(builder: GraphBuilder, ownerId: string, node: Nod
       }
       for (const call of node.getDescendantsOfKind(SyntaxKind.CallExpression)) {
         const expression = call.getExpression().getText();
-        if (expression !== 'on$' && expression !== 'afterRecomputation') continue;
+        if (expression !== 'on$' && expression !== 'afterRecomputation')
+          continue;
         if (call.getArguments()[0]?.getText() === name) {
           const primitive = nearestPrimitiveFactory(call);
           addEdge(
@@ -2197,9 +2498,42 @@ function addSourceInteractions(builder: GraphBuilder, ownerId: string, node: Nod
   }
 }
 
+/**
+ * A state-machine insertion can expose a source under an alias such as
+ * `machine.change$`. The source declaration is still the one nested in the
+ * machine context factory, so connect that exposed access back to the source
+ * node instead of leaving the graph at an anonymous machine property.
+ */
+function isExposedMachineSourceAccess(
+  source: SourceInfo,
+  access: PropertyAccessExpression,
+  sourceName: string,
+): boolean {
+  const chain = propertyAccessChain(access);
+  if (!chain || chain.length < 3 || !chain.includes(sourceName)) return false;
+  const machineCall = nearestPrimitiveFactory(source.call);
+  if (
+    !machineCall ||
+    primitiveFactoryName(machineCall) !== 'craftStateMachine'
+  ) {
+    return false;
+  }
+  const machineDeclaration = machineCall.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
+  const machineNames = new Set<string>();
+  if (machineDeclaration) {
+    addBindingNames(machineDeclaration.getNameNode(), machineNames);
+  }
+  if (!machineNames.has(chain[0] ?? '')) return false;
+  const sourceIndex = chain.indexOf(sourceName);
+  return sourceIndex > 0 && chain[sourceIndex + 1] === 'emit';
+}
+
 function primitiveNodeId(builder: GraphBuilder, call: CallExpression): string {
   const owner = nearestPrimitiveFactory(call) ?? call;
-  const primitive = primitiveFactoryName(owner) ?? primitiveName(owner) ?? 'primitive';
+  const primitive =
+    primitiveFactoryName(owner) ?? primitiveName(owner) ?? 'primitive';
   const sourceFile = call.getSourceFile();
   return `primitive:${sourceFile.getFilePath()}:${primitive}:${owner.getStartLineNumber()}`;
 }
@@ -2218,9 +2552,15 @@ function ownerNodeForAst(
   aggregateOwnerId: string,
 ): DependencyGraphNode {
   const ownerPrimitive = nearestPrimitiveFactory(node);
-  const ownerPrimitiveName = ownerPrimitive && primitiveFactoryName(ownerPrimitive);
+  const ownerPrimitiveName =
+    ownerPrimitive && primitiveFactoryName(ownerPrimitive);
   return ownerPrimitive && ownerPrimitiveName
-    ? addPrimitiveNode(builder, ownerPrimitive, ownerPrimitiveName, aggregateOwnerId)
+    ? addPrimitiveNode(
+        builder,
+        ownerPrimitive,
+        ownerPrimitiveName,
+        aggregateOwnerId,
+      )
     : (builder.nodes.get(aggregateOwnerId) ?? {
         id: aggregateOwnerId,
         kind: 'service',
@@ -2236,7 +2576,13 @@ function addOwnedPrimitive(
 ): DependencyGraphNode | undefined {
   const primitive = primitiveFactoryName(call);
   if (!primitive) return undefined;
-  const primitiveNode = addPrimitiveNode(builder, call, primitive, aggregateOwnerId);
+  const primitiveNode = addPrimitiveNode(
+    builder,
+    call,
+    primitive,
+    aggregateOwnerId,
+  );
+  recordEffectLoaderRequirements(primitiveNode, call, primitive);
   const enclosing = nearestPrimitiveFactory(call);
   const enclosingName = enclosing && primitiveFactoryName(enclosing);
   const parentId =
@@ -2245,6 +2591,118 @@ function addOwnedPrimitive(
       : aggregateOwnerId;
   addEdge(builder, parentId, primitiveNode.id, 'contains', 'ast', details);
   return primitiveNode;
+}
+
+function recordEffectLoaderRequirements(
+  primitiveNode: DependencyGraphNode,
+  call: CallExpression,
+  primitive: string,
+): void {
+  if (
+    primitive !== 'queryEffect' &&
+    primitive !== 'mutationEffect' &&
+    primitive !== 'computedEffect'
+  ) {
+    return;
+  }
+
+  const config = call
+    .getArguments()[1]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression);
+  const callbacks: readonly (readonly [string, Node | undefined])[] =
+    primitive === 'computedEffect'
+      ? [['computed', call.getArguments()[1]]]
+      : [
+          [
+            'loader',
+            config
+              ?.getProperty('loader')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer(),
+          ],
+          [
+            'params',
+            config
+              ?.getProperty('params')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer(),
+          ],
+          [
+            'method',
+            config
+              ?.getProperty('method')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer(),
+          ],
+        ];
+
+  for (const [role, callback] of callbacks) {
+    const returnType = callback
+      ?.getType()
+      .getCallSignatures()[0]
+      ?.getReturnType();
+    const effectType =
+      (role === 'computed' || role === 'params') &&
+      returnType?.getSymbol()?.getName() === 'Generator'
+        ? returnType.getTypeArguments()[1]
+        : returnType;
+    const requirementType = effectType?.getTypeArguments()[2];
+    if (!requirementType) continue;
+    const requirements = requirementType.isUnion()
+      ? requirementType.getUnionTypes()
+      : [requirementType];
+    const names = requirements
+      .filter(
+        (type) => !['never', 'unknown', 'undefined'].includes(type.getText()),
+      )
+      .map(
+        (type) =>
+          type.getSymbol()?.getName() ??
+          type.getAliasSymbol()?.getName() ??
+          type.getText().split('.').at(-1),
+      )
+      .filter((name): name is string => Boolean(name));
+    if (names.length > 0) {
+      primitiveNode.details = {
+        ...(primitiveNode.details ?? {}),
+        [`${role}Requirements`]: [...new Set(names)],
+      };
+    }
+  }
+}
+
+function linkEffectLoaderRequirements(builder: GraphBuilder): void {
+  const effectServices = new Map(
+    [...builder.nodes.values()]
+      .filter(
+        (node) =>
+          node.kind === 'service' && node.details?.['runtime'] === 'effect',
+      )
+      .map((node) => [node.label, node]),
+  );
+  for (const primitive of builder.nodes.values()) {
+    if (primitive.kind !== 'primitive') {
+      continue;
+    }
+    for (const role of ['loader', 'params', 'method', 'computed']) {
+      const requirements = primitive.details?.[`${role}Requirements`];
+      if (
+        !Array.isArray(requirements) ||
+        !requirements.every((value) => typeof value === 'string')
+      ) {
+        continue;
+      }
+      for (const requirement of requirements) {
+        const service = effectServices.get(requirement);
+        if (!service) continue;
+        addEdge(builder, primitive.id, service.id, 'depends-on', 'type', {
+          runtime: 'effect',
+          effectRequirement: true,
+          resourceRole: role,
+        });
+      }
+    }
+  }
 }
 
 function collectReactiveBindings(
@@ -2264,14 +2722,15 @@ function collectReactiveBindings(
     const declaration = initializerDeclaration(call);
     const declarationName = declaration?.getNameNode();
     if (declarationName && Node.isIdentifier(declarationName)) {
-      bindings.set(declarationName.getText(), { primitiveId: primitiveNode.id });
+      bindings.set(declarationName.getText(), {
+        primitiveId: primitiveNode.id,
+      });
     }
 
     const property = initializerProperty(call);
     if (property) {
       bindings.set(property.getName(), { primitiveId: primitiveNode.id });
     }
-
   }
 
   if (component) {
@@ -2300,9 +2759,16 @@ function collectReactiveBindings(
         line: service.node.line,
         details: { member: name },
       });
-      addEdge(builder, service.node.id, `property:${service.node.id}:${name}`, 'contains', 'type', {
-        property: name,
-      });
+      addEdge(
+        builder,
+        service.node.id,
+        `property:${service.node.id}:${name}`,
+        'contains',
+        'type',
+        {
+          property: name,
+        },
+      );
     }
   }
 
@@ -2376,22 +2842,31 @@ function collectReactiveExpressions(scope: Node): Node[] {
     expressions.push(node);
   };
 
-  for (const yieldExpression of scope.getDescendantsOfKind(SyntaxKind.YieldExpression)) {
+  for (const yieldExpression of scope.getDescendantsOfKind(
+    SyntaxKind.YieldExpression,
+  )) {
     add(unwrapExpression(yieldExpression.getExpression()));
   }
   for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    if (isPrimitiveFactory(call) || findCraftHttpClientUsage(call) || findCraftTemporalUsage(call)) {
+    if (
+      isPrimitiveFactory(call) ||
+      findCraftHttpClientUsage(call) ||
+      findCraftTemporalUsage(call)
+    ) {
       continue;
     }
     add(call);
   }
-  for (const access of scope.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+  for (const access of scope.getDescendantsOfKind(
+    SyntaxKind.PropertyAccessExpression,
+  )) {
     if (access.getParent()?.isKind(SyntaxKind.CallExpression)) continue;
     add(access);
   }
   for (const identifier of scope.getDescendantsOfKind(SyntaxKind.Identifier)) {
     if (isBindingName(identifier)) continue;
-    if (identifier.getParent()?.isKind(SyntaxKind.PropertyAccessExpression)) continue;
+    if (identifier.getParent()?.isKind(SyntaxKind.PropertyAccessExpression))
+      continue;
     if (identifier.getParent()?.isKind(SyntaxKind.CallExpression)) continue;
     add(identifier);
   }
@@ -2404,13 +2879,21 @@ function resolveReactiveTarget(
   bindings: Map<string, ReactiveBinding>,
   component: ComponentInfo | undefined,
   aggregateOwnerId: string,
-): { id: string; kind: 'depends-on' | 'calls'; details?: Record<string, unknown> } | undefined {
+):
+  | {
+      id: string;
+      kind: 'depends-on' | 'calls';
+      details?: Record<string, unknown>;
+    }
+  | undefined {
   const unwrapped = unwrapExpression(expression);
   if (!unwrapped) return undefined;
 
   if (Node.isCallExpression(unwrapped)) {
     const callee = unwrapped.getExpression();
-    const wrapperName = Node.isIdentifier(callee) ? callee.getText() : undefined;
+    const wrapperName = Node.isIdentifier(callee)
+      ? callee.getText()
+      : undefined;
     if (wrapperName && REACTIVE_WRAPPER_NAMES.has(wrapperName)) {
       return resolveReactiveTarget(
         builder,
@@ -2470,7 +2953,13 @@ function resolveReactiveChain(
   bindings: Map<string, ReactiveBinding>,
   component: ComponentInfo | undefined,
   aggregateOwnerId: string,
-): { id: string; kind: 'depends-on' | 'calls'; details?: Record<string, unknown> } | undefined {
+):
+  | {
+      id: string;
+      kind: 'depends-on' | 'calls';
+      details?: Record<string, unknown>;
+    }
+  | undefined {
   const [root, ...rest] = chain;
   if (!root) return undefined;
   if (INSERTION_CONTEXT_NAMES.has(root)) {
@@ -2515,10 +3004,9 @@ function resolveReactiveChain(
         details: { reader: root },
       };
     }
-    const memberPrimitive =
-      INSERTION_CONTEXT_NAMES.has(root)
-        ? undefined
-        : findMemberPrimitive(builder, binding.primitiveId, rest[0]);
+    const memberPrimitive = INSERTION_CONTEXT_NAMES.has(root)
+      ? undefined
+      : findMemberPrimitive(builder, binding.primitiveId, rest[0]);
     if (memberPrimitive) {
       if (rest.length === 1) {
         return {
@@ -2558,12 +3046,21 @@ function resolveReactiveChain(
       if (primitive) {
         return { id: primitive.id, kind: method ? 'calls' : 'depends-on' };
       }
-      const propertyNode = addServiceMemberProperty(builder, service, root, node);
+      const propertyNode = addServiceMemberProperty(
+        builder,
+        service,
+        root,
+        node,
+      );
       return { id: propertyNode.id, kind: method ? 'calls' : 'depends-on' };
     }
     const rootPrimitive = findPrimitiveByName(builder, service.node.id, root);
     if (rootPrimitive) {
-      const memberPrimitive = findMemberPrimitive(builder, rootPrimitive.id, rest[0]);
+      const memberPrimitive = findMemberPrimitive(
+        builder,
+        rootPrimitive.id,
+        rest[0],
+      );
       if (memberPrimitive) {
         if (rest.length === 1) {
           return {
@@ -2596,7 +3093,12 @@ function resolveReactiveChain(
         details: { path: rest.join('.') },
       };
     }
-    const propertyNode = addServiceMemberProperty(builder, service, rest.join('.'), node);
+    const propertyNode = addServiceMemberProperty(
+      builder,
+      service,
+      rest.join('.'),
+      node,
+    );
     return {
       id: propertyNode.id,
       kind: method ? 'calls' : 'depends-on',
@@ -2694,7 +3196,8 @@ function findMemberPrimitive(
     const child = builder.nodes.get(edge.to);
     if (
       child?.kind === 'primitive' &&
-      (child.details?.['usage'] === memberName || child.details?.['name'] === memberName)
+      (child.details?.['usage'] === memberName ||
+        child.details?.['name'] === memberName)
     ) {
       return child;
     }
@@ -2712,7 +3215,9 @@ function isLikelyMethod(
   if (leaf && REACTIVE_METHOD_NAMES.has(leaf)) return true;
   if (leaf && REACTIVE_READER_NAMES.has(leaf)) return false;
   if (primitiveId) {
-    const member = leaf ? findMemberPrimitive(builder, primitiveId, leaf) : undefined;
+    const member = leaf
+      ? findMemberPrimitive(builder, primitiveId, leaf)
+      : undefined;
     if (member?.details?.['primitive'] === 'craftMethod') return true;
   }
   return (
@@ -2724,7 +3229,9 @@ function isLikelyMethod(
 
 function isTrackedReactiveHost(call: CallExpression): boolean {
   const name = primitiveFactoryName(call);
-  return name === 'craftComputed' || name === 'craftMethod' || name === 'craftEffect';
+  return (
+    name === 'craftComputed' || name === 'craftMethod' || name === 'craftEffect'
+  );
 }
 
 function reactiveHostBody(call: CallExpression): Node | undefined {
@@ -2739,8 +3246,12 @@ function reactiveHostBody(call: CallExpression): Node | undefined {
   );
 }
 
-function initializerDeclaration(call: CallExpression): VariableDeclaration | undefined {
-  const yieldExpression = call.getFirstAncestorByKind(SyntaxKind.YieldExpression);
+function initializerDeclaration(
+  call: CallExpression,
+): VariableDeclaration | undefined {
+  const yieldExpression = call.getFirstAncestorByKind(
+    SyntaxKind.YieldExpression,
+  );
   const declaration = (yieldExpression ?? call).getFirstAncestorByKind(
     SyntaxKind.VariableDeclaration,
   );
@@ -2820,6 +3331,7 @@ function addHttpClientUsage(
   builder: GraphBuilder,
   nodeId: string,
   usage: CraftHttpClientUsage,
+  edgeDetails: Record<string, unknown> = {},
 ): void {
   const node = builder.nodes.get(nodeId);
   if (!node) return;
@@ -2869,7 +3381,69 @@ function addHttpClientUsage(
     method: usage.method,
     url: usage.url,
     line: usage.line,
+    ...edgeDetails,
   });
+}
+
+/**
+ * Returns the resource factory whose `loader` property contains a call.
+ * Keeping this fact on the edge lets architecture rules distinguish a real
+ * loader dependency from an HTTP call made by params or an insertion.
+ */
+function resourceLoaderFactory(call: Node): CallExpression | undefined {
+  let current: Node | undefined = call;
+  while (current) {
+    if (Node.isPropertyAssignment(current) && current.getName() === 'loader') {
+      let parent: Node | undefined = current.getParent();
+      while (parent) {
+        if (Node.isCallExpression(parent)) {
+          const primitive = primitiveFactoryName(parent);
+          if (
+            primitive === 'query' ||
+            primitive === 'mutation' ||
+            primitive === 'queryEffect' ||
+            primitive === 'mutationEffect'
+          ) {
+            return parent;
+          }
+        }
+        parent = parent.getParent();
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+function addServerFunctionUsage(
+  builder: GraphBuilder,
+  call: CallExpression,
+  aggregateOwnerId: string,
+): void {
+  const family = serverFunctionFamilyForCall(builder, call);
+  if (!family) return;
+  const owner = ownerNodeForCall(builder, call, aggregateOwnerId);
+  addEdge(builder, owner.id, family.id, 'calls', 'type', {
+    serverFunction: true,
+    ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+    line: call.getStartLineNumber(),
+  });
+}
+
+function serverFunctionFamilyForCall(
+  builder: GraphBuilder,
+  call: CallExpression,
+): DependencyGraphNode | undefined {
+  const identifier = rootIdentifier(call.getExpression());
+  const symbol = identifier?.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  for (const declaration of resolved?.getDeclarations() ?? []) {
+    const filePath = declaration.getSourceFile().getFilePath();
+    if (!filePath.endsWith('.fn-client.ts')) continue;
+    const familyPath = filePath.slice(0, -'.fn-client.ts'.length);
+    return builder.nodes.get(`server-function-family:${familyPath}`);
+  }
+  return undefined;
 }
 
 type DependencyGraphUniqueCallSite = {
@@ -2878,7 +3452,10 @@ type DependencyGraphUniqueCallSite = {
   line: number;
 };
 
-function addCraftUniqueUsage(builder: GraphBuilder, call: CallExpression): void {
+function addCraftUniqueUsage(
+  builder: GraphBuilder,
+  call: CallExpression,
+): void {
   const sourceFile = call.getSourceFile();
   const filePath = relative(builder.rootDir, sourceFile.getFilePath())
     .split('\\')
@@ -2946,7 +3523,9 @@ function findCraftUniqueOwnerId(
     if (Node.isCallExpression(current)) {
       const service = builder.services.find((item) => item.call === current);
       if (service) return service.node.id;
-      const component = builder.components.find((item) => item.call === current);
+      const component = builder.components.find(
+        (item) => item.call === current,
+      );
       if (component) return component.node.id;
     }
     current = current.getParent();
@@ -2967,7 +3546,10 @@ function canonicalizeStaticValue(node: Node | undefined): CanonicalStaticValue {
 function staticLiteralValue(node: Node | undefined): unknown | undefined {
   const current = unwrapStaticExpression(node);
   if (!current) return undefined;
-  if (Node.isStringLiteral(current) || Node.isNoSubstitutionTemplateLiteral(current)) {
+  if (
+    Node.isStringLiteral(current) ||
+    Node.isNoSubstitutionTemplateLiteral(current)
+  ) {
     return current.getLiteralValue();
   }
   if (Node.isNumericLiteral(current)) {
@@ -3013,13 +3595,18 @@ function staticPropertyName(
 ): string | undefined {
   const nameNode = property.getNameNode();
   if (Node.isIdentifier(nameNode)) return nameNode.getText();
-  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
+  if (
+    Node.isStringLiteral(nameNode) ||
+    Node.isNoSubstitutionTemplateLiteral(nameNode)
+  ) {
     return nameNode.getLiteralValue();
   }
-  if (Node.isNumericLiteral(nameNode)) return String(nameNode.getLiteralValue());
+  if (Node.isNumericLiteral(nameNode))
+    return String(nameNode.getLiteralValue());
   if (Node.isComputedPropertyName(nameNode)) {
     const value = staticLiteralValue(nameNode.getExpression());
-    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (typeof value === 'string' || typeof value === 'number')
+      return String(value);
   }
   return undefined;
 }
@@ -3097,11 +3684,14 @@ function mergeHttpEndpoints(
   const endpoints = Array.isArray(previous)
     ? previous.filter(isHttpEndpoint)
     : [];
-  if (!endpoints.some((endpoint) =>
-    endpoint.method === next.method &&
-    endpoint.url === next.url &&
-    endpoint.line === next.line,
-  )) {
+  if (
+    !endpoints.some(
+      (endpoint) =>
+        endpoint.method === next.method &&
+        endpoint.url === next.url &&
+        endpoint.line === next.line,
+    )
+  ) {
     endpoints.push(next);
   }
   return endpoints.sort((left, right) => left.line - right.line);
@@ -3163,20 +3753,25 @@ function findCraftHttpClientUsage(
   const expression = call.getExpression();
   if (!Node.isPropertyAccessExpression(expression)) return undefined;
   const root = rootIdentifier(expression)?.getText();
-  if (root !== 'CraftHttpClient' && root !== 'craftHttpClient') return undefined;
+  if (root !== 'CraftHttpClient' && root !== 'craftHttpClient')
+    return undefined;
 
   const methodName = expression.getName();
   if (!CRAFT_HTTP_CLIENT_METHODS.has(methodName)) return undefined;
 
   const config = getHttpClientConfig(call);
   const url =
-    getStaticExpressionText(config?.getProperty('url')
-      ?.asKind(SyntaxKind.PropertyAssignment)
-      ?.getInitializer()) ?? getStringArgument(call, 0);
+    getStaticExpressionText(
+      config
+        ?.getProperty('url')
+        ?.asKind(SyntaxKind.PropertyAssignment)
+        ?.getInitializer(),
+    ) ?? getStringArgument(call, 0);
   if (!url) return undefined;
 
   const configuredMethod = getStaticExpressionText(
-    config?.getProperty('method')
+    config
+      ?.getProperty('method')
       ?.asKind(SyntaxKind.PropertyAssignment)
       ?.getInitializer(),
   );
@@ -3191,7 +3786,9 @@ function getHttpClientConfig(
   call: CallExpression,
 ): ObjectLiteralExpression | undefined {
   const firstArgument = call.getArguments()[0];
-  const directConfig = firstArgument?.asKind(SyntaxKind.ObjectLiteralExpression);
+  const directConfig = firstArgument?.asKind(
+    SyntaxKind.ObjectLiteralExpression,
+  );
   if (directConfig) return directConfig;
   if (
     firstArgument?.isKind(SyntaxKind.ArrowFunction) ||
@@ -3229,16 +3826,14 @@ function primitiveUsageName(call: CallExpression): string | undefined {
     return declarationName.getText();
   }
 
-  const callableProperty = call
-    .getAncestors()
-    .find((ancestor) => {
-      if (!Node.isPropertyAssignment(ancestor)) return false;
-      const initializer = ancestor.getInitializer();
-      return Boolean(
-        initializer?.isKind(SyntaxKind.ArrowFunction) ||
-          initializer?.isKind(SyntaxKind.FunctionExpression),
-      );
-    });
+  const callableProperty = call.getAncestors().find((ancestor) => {
+    if (!Node.isPropertyAssignment(ancestor)) return false;
+    const initializer = ancestor.getInitializer();
+    return Boolean(
+      initializer?.isKind(SyntaxKind.ArrowFunction) ||
+        initializer?.isKind(SyntaxKind.FunctionExpression),
+    );
+  });
   if (callableProperty && Node.isPropertyAssignment(callableProperty)) {
     return callableProperty.getName();
   }
@@ -3253,7 +3848,8 @@ function addServiceDependency(
   call: CallExpression,
 ): void {
   const ownerPrimitive = nearestPrimitiveFactory(call);
-  const ownerPrimitiveName = ownerPrimitive && primitiveFactoryName(ownerPrimitive);
+  const ownerPrimitiveName =
+    ownerPrimitive && primitiveFactoryName(ownerPrimitive);
   const ownerNode =
     ownerPrimitive && ownerPrimitiveName
       ? addPrimitiveNode(
@@ -3288,19 +3884,28 @@ function addServiceDependency(
     addEdge(builder, service.node.id, memberNode.id, 'contains', 'type', {
       member: memberPath,
     });
+    addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type', {
+      member: memberPath,
+      access: 'call',
+      ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+    });
     addEdge(builder, dependencyOwnerId, memberNode.id, 'depends-on', 'type', {
       member: memberPath,
       access: 'call',
+      ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
     });
     return;
   }
-  addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type');
+  addEdge(builder, dependencyOwnerId, service.node.id, 'depends-on', 'type', {
+    ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+  });
 }
 
 function nearestPrimitiveFactory(node: Node): CallExpression | undefined {
   let current: Node | undefined = node.getParent();
   while (current) {
-    if (Node.isCallExpression(current) && isPrimitiveFactory(current)) return current;
+    if (Node.isCallExpression(current) && isPrimitiveFactory(current))
+      return current;
     current = current.getParent();
   }
   return undefined;
@@ -3333,7 +3938,9 @@ function getServiceHelperOutputType(type: import('ts-morph').Type | undefined) {
   const signature = type?.getCallSignatures()[0];
   const returnType = signature?.getReturnType();
   const typeArguments = returnType?.getTypeArguments();
-  return typeArguments && typeArguments.length >= 2 ? typeArguments[1] : undefined;
+  return typeArguments && typeArguments.length >= 2
+    ? typeArguments[1]
+    : undefined;
 }
 
 function findServiceForCall(
@@ -3367,7 +3974,21 @@ function findComponentForCall(
   if (!Node.isIdentifier(expression)) return undefined;
   const key = symbolKey(expression.getSymbol());
   if (key) return builder.componentByVariableKey.get(key);
-  const byName = builder.componentsByVariableName.get(expression.getText()) ?? [];
+  const byName =
+    builder.componentsByVariableName.get(expression.getText()) ?? [];
+  return byName.length === 1 ? byName[0] : undefined;
+}
+
+function findComponentForExpression(
+  builder: GraphBuilder,
+  node: Node | undefined,
+): ComponentInfo | undefined {
+  const expression = unwrapExpression(node);
+  if (!expression || !Node.isIdentifier(expression)) return undefined;
+  const key = symbolKey(expression.getSymbol());
+  if (key) return builder.componentByVariableKey.get(key);
+  const byName =
+    builder.componentsByVariableName.get(expression.getText()) ?? [];
   return byName.length === 1 ? byName[0] : undefined;
 }
 
@@ -3393,9 +4014,13 @@ function findBindingElement(
   });
 }
 
-function findBindingNameNode(node: Node | undefined, name: string): Node | undefined {
+function findBindingNameNode(
+  node: Node | undefined,
+  name: string,
+): Node | undefined {
   if (!node) return undefined;
-  if (Node.isIdentifier(node)) return node.getText() === name ? node : undefined;
+  if (Node.isIdentifier(node))
+    return node.getText() === name ? node : undefined;
   if (!Node.isObjectBindingPattern(node) && !Node.isArrayBindingPattern(node)) {
     return undefined;
   }
@@ -3407,23 +4032,30 @@ function findBindingNameNode(node: Node | undefined, name: string): Node | undef
   return undefined;
 }
 
-function symbolKey(symbol: import('ts-morph').Symbol | undefined): string | undefined {
+function symbolKey(
+  symbol: import('ts-morph').Symbol | undefined,
+): string | undefined {
   if (!symbol) return undefined;
   const resolved = symbol.getAliasedSymbol() ?? symbol;
-  const declaration = resolved.getDeclarations()[0] ?? symbol.getDeclarations()[0];
+  const declaration =
+    resolved.getDeclarations()[0] ?? symbol.getDeclarations()[0];
   return declaration
     ? `${declaration.getSourceFile().getFilePath()}:${declaration.getStart()}`
     : `symbol:${resolved.getFullyQualifiedName()}`;
 }
 
-function propertyAccessChain(access: PropertyAccessExpression): string[] | undefined {
+function propertyAccessChain(
+  access: PropertyAccessExpression,
+): string[] | undefined {
   const parts: string[] = [access.getName()];
   let expression = access.getExpression();
   while (Node.isPropertyAccessExpression(expression)) {
     parts.unshift(expression.getName());
     expression = expression.getExpression();
   }
-  return Node.isIdentifier(expression) ? [expression.getText(), ...parts] : undefined;
+  return Node.isIdentifier(expression)
+    ? [expression.getText(), ...parts]
+    : undefined;
 }
 
 function findDynamicImportSpecifiers(node: Node): string[] {
@@ -3434,20 +4066,1708 @@ function findDynamicImportSpecifiers(node: Node): string[] {
     .filter((value): value is string => value !== undefined);
 }
 
-function resolveImportedSource(sourceFile: SourceFile, specifier: string, project: Project): SourceFile | undefined {
+function findDynamicImportExportNames(
+  node: Node,
+  specifier: string,
+): string[] | undefined {
+  const importCall = node
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find(
+      (call) =>
+        call.getExpression().getText() === 'import' &&
+        getStringArgument(call, 0) === specifier,
+    );
+  if (!importCall) return undefined;
+
+  let current: Node = importCall;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const parent = current.getParent();
+    if (!parent) return undefined;
+    if (
+      Node.isCallExpression(parent) &&
+      parent.getExpression().getText() === 'withRetry'
+    ) {
+      current = parent;
+      continue;
+    }
+    if (
+      Node.isPropertyAccessExpression(parent) &&
+      parent.getName() === 'then'
+    ) {
+      const thenCall = parent.getParent();
+      return thenCall && Node.isCallExpression(thenCall)
+        ? extractDynamicImportExportNames(thenCall)
+        : undefined;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+function extractDynamicImportExportNames(call: CallExpression): string[] | undefined {
+  const callback = call.getArguments()[0];
+  if (!callback || (!Node.isArrowFunction(callback) && !Node.isFunctionExpression(callback))) {
+    return undefined;
+  }
+  const parameter = callback.getParameters()[0];
+  const body = callback.getBody();
+  if (!parameter || !body || !Node.isExpression(body)) return undefined;
+
+  const bindingPattern = parameter.getNameNode();
+  if (Node.isObjectBindingPattern(bindingPattern) && Node.isIdentifier(body)) {
+    const binding = bindingPattern.getElements().find(
+      (element) =>
+        Node.isBindingElement(element) &&
+        element.getNameNode().getText() === body.getText(),
+    );
+    if (binding && Node.isBindingElement(binding)) {
+      return [binding.getPropertyNameNode()?.getText() ?? body.getText()];
+    }
+  }
+
+  if (Node.isPropertyAccessExpression(body)) {
+    const root = rootIdentifier(body.getExpression());
+    if (root && root.getText() === parameter.getName()) {
+      return [body.getName()];
+    }
+  }
+  return undefined;
+}
+
+function componentExportNames(component: ComponentInfo): string[] {
+  const declaration = component.call.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
+  if (!declaration) return [];
+  return [...component.call.getSourceFile().getExportedDeclarations()]
+    .filter(([, declarations]) =>
+      declarations.some(
+        (candidate) => candidate.getStart() === declaration.getStart(),
+      ),
+    )
+    .map(([name]) => name);
+}
+
+function resolveImportedSource(
+  sourceFile: SourceFile,
+  specifier: string,
+  project: Project,
+): SourceFile | undefined {
   if (!specifier.startsWith('.')) return undefined;
   const base = resolve(sourceFile.getDirectoryPath(), specifier);
-  const candidates = [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts')];
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    join(base, 'index.ts'),
+  ];
   return candidates
     .map((candidate) => project.getSourceFile(candidate))
     .find((candidate): candidate is SourceFile => candidate !== undefined);
 }
 
-function addNode(builder: GraphBuilder, node: DependencyGraphNode): DependencyGraphNode {
+function addNode(
+  builder: GraphBuilder,
+  node: DependencyGraphNode,
+): DependencyGraphNode {
   const existing = builder.nodes.get(node.id);
-  if (existing) return existing;
+  if (existing) {
+    if (existing.kind !== node.kind || existing.label !== node.label) {
+      throw new Error(
+        `Dependency graph node identity collision for "${node.id}": ${existing.kind}/${existing.label} versus ${node.kind}/${node.label}.`,
+      );
+    }
+    return existing;
+  }
   builder.nodes.set(node.id, node);
   return node;
+}
+
+function mergeCollectorContribution(
+  builder: GraphBuilder,
+  collectorName: string,
+  contribution: DependencyGraphContribution,
+): void {
+  for (const node of contribution.nodes ?? []) {
+    if (!node.id || !node.kind || !node.label) {
+      throw new Error(
+        `Dependency graph collector "${collectorName}" returned a node without id, kind, or label.`,
+      );
+    }
+    const existing = builder.nodes.get(node.id);
+    if (
+      existing &&
+      (existing.kind !== node.kind || existing.label !== node.label)
+    ) {
+      throw new Error(
+        `Dependency graph collector "${collectorName}" redefined node "${node.id}" with a different identity.`,
+      );
+    }
+    addNode(builder, node);
+  }
+
+  for (const edge of contribution.edges ?? []) {
+    if (!edge.from || !edge.to || !edge.kind) {
+      throw new Error(
+        `Dependency graph collector "${collectorName}" returned a relation without from, to, or kind.`,
+      );
+    }
+    if (!builder.nodes.has(edge.from) || !builder.nodes.has(edge.to)) {
+      throw new Error(
+        `Dependency graph collector "${collectorName}" returned relation "${edge.from} -[${edge.kind}]-> ${edge.to}" with an unknown endpoint.`,
+      );
+    }
+    addEdge(
+      builder,
+      edge.from,
+      edge.to,
+      edge.kind,
+      edge.evidence,
+      edge.details,
+      edge.proof,
+    );
+  }
+
+  for (const diagnostic of contribution.diagnostics ?? []) {
+    builder.diagnostics.push({
+      ...diagnostic,
+      code: `${collectorName}/${diagnostic.code}`,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Task 3.3 — fold the Effect-service contribution into the graph.
+//
+// The owner of an edge is the component or craft service whose factory call
+// encloses the `effectService(...)` call. A call that sits outside any known
+// consumer is skipped: attaching it to an arbitrary node would draw an edge
+// that is not true.
+// ---------------------------------------------------------------------------
+function collectEffectGraph(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const services = collectEffectServices(sourceFiles);
+  const dataFlow = collectDataFlowGraph(sourceFiles);
+  for (const node of dataFlow.nodes) addNode(builder, node);
+  for (const edge of dataFlow.edges) {
+    addEdge(
+      builder,
+      edge.from,
+      edge.to,
+      edge.kind,
+      edge.evidence,
+      edge.details,
+      edge.proof,
+    );
+  }
+  if (services.size === 0) return;
+
+  const operationOwners = collectEffectOperationOwners(sourceFiles, services);
+  for (const owner of operationOwners.values()) addNode(builder, owner.node);
+
+  const owners: readonly {
+    start: number;
+    end: number;
+    id: string;
+    file: string;
+  }[] = [
+    ...[...builder.components, ...builder.services].map((owner) => ({
+      start: owner.call.getStart(),
+      end: owner.call.getEnd(),
+      id: owner.node.id,
+      file: owner.call.getSourceFile().getFilePath(),
+    })),
+    ...[...builder.nodes.values()]
+      .filter((node) => node.kind === 'server-function-server')
+      .map((node) => ({
+        start: 0,
+        end: Number.MAX_SAFE_INTEGER,
+        id: node.id,
+        file: node.filePath ?? '',
+      })),
+  ];
+
+  const ownerIdOf = (node: Node): string | undefined => {
+    const file = node.getSourceFile().getFilePath();
+    const start = node.getStart();
+    let best: (typeof owners)[number] | undefined;
+    for (const owner of owners) {
+      if (owner.file !== file) continue;
+      if (owner.start > start || owner.end < start) continue;
+      // Innermost wins, so a service nested in a component is credited.
+      if (!best || owner.end - owner.start < best.end - best.start) {
+        best = owner;
+      }
+    }
+    const enclosingPrimitive = nearestPrimitiveFactory(node);
+    const primitive =
+      enclosingPrimitive && primitiveFactoryName(enclosingPrimitive);
+    if (enclosingPrimitive && primitive && best) {
+      return addPrimitiveNode(builder, enclosingPrimitive, primitive, best.id)
+        .id;
+    }
+    if (best) return best.id;
+    const operation = [...operationOwners.values()]
+      .filter(
+        (candidate) =>
+          candidate.filePath === file &&
+          candidate.start <= start &&
+          candidate.end >= start,
+      )
+      .sort(
+        (left, right) => left.end - left.start - (right.end - right.start),
+      )[0];
+    return operation?.node.id;
+  };
+
+  const contribution = collectEffectServiceUsage(
+    sourceFiles,
+    services,
+    ownerIdOf,
+    true,
+  );
+
+  for (const node of contribution.nodes) {
+    addNode(builder, node);
+  }
+  for (const edge of contribution.edges) {
+    addEdge(
+      builder,
+      edge.from,
+      edge.to,
+      edge.kind,
+      edge.evidence,
+      edge.details,
+      edge.proof,
+    );
+  }
+
+  const layers = collectEffectLayers(sourceFiles, services);
+  for (const node of layers.nodes) addNode(builder, node);
+  for (const edge of layers.edges) {
+    addEdge(
+      builder,
+      edge.from,
+      edge.to,
+      edge.kind,
+      edge.evidence,
+      edge.details,
+      edge.proof,
+    );
+  }
+}
+
+type ServerFunctionPart = {
+  readonly kind:
+    | 'server-function-contract'
+    | 'server-function-client'
+    | 'server-function-server';
+  readonly sourceFile: SourceFile;
+  readonly family: string;
+  readonly id?: string;
+  readonly exposure?: string;
+  readonly declaresClientContext?: boolean;
+  readonly contractFamily?: string;
+  readonly clientDefinitionFile?: string;
+  readonly usesCraftUnique?: boolean;
+  readonly clientIdentityStatic?: boolean;
+  readonly runtimeServerImports?: readonly string[];
+  readonly runtimeClientImports?: readonly string[];
+  readonly runtimeMiddlewareImports?: readonly string[];
+  readonly runtimeClientMiddlewareImports?: readonly string[];
+  readonly importsServerOnly?: readonly string[];
+  readonly middlewareUses?: readonly string[];
+};
+
+/**
+ * Records server-function boundaries from source naming and the small public
+ * API. This deliberately runs on source files, not emitted bundles: the
+ * architecture check must be able to reject a bad boundary before production
+ * build transforms anything.
+ */
+function collectServerFunctions(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const parts: ServerFunctionPart[] = [];
+  const byPath = new Map(sourceFiles.map((file) => [file.getFilePath(), file]));
+
+  for (const sourceFile of sourceFiles) {
+    const baseName = sourceFile.getBaseName();
+    const suffix = serverFunctionSuffix(baseName);
+    if (!suffix) continue;
+    const family = sourceFile.getFilePath().slice(0, -suffix.length);
+    const imports = serverFunctionImports(sourceFile, byPath);
+    if (suffix === '.fn-contract.ts') {
+      const contract = findServerFunctionContract(sourceFile);
+      parts.push({
+        kind: 'server-function-contract',
+        sourceFile,
+        family,
+        id: contract?.id,
+        exposure: contract?.exposure,
+        importsServerOnly: imports.serverOnly,
+      });
+    } else if (suffix === '.fn-client.ts') {
+      const clientContract = findClientContractFamily(sourceFile, byPath);
+      parts.push({
+        kind: 'server-function-client',
+        sourceFile,
+        family,
+        id: clientContract?.id,
+        contractFamily: clientContract?.family,
+        clientDefinitionFile: clientContract?.definitionFile,
+        usesCraftUnique: clientContract?.usesCraftUnique,
+        clientIdentityStatic: clientContract?.identityStatic,
+        runtimeServerImports: imports.server,
+        runtimeClientImports: imports.client,
+        runtimeMiddlewareImports: imports.middleware,
+      });
+    } else {
+      const server = findServerFunction(sourceFile, byPath);
+      parts.push({
+        kind: 'server-function-server',
+        sourceFile,
+        family,
+        id: server?.id,
+        exposure: server?.exposure,
+        declaresClientContext: server?.declaresClientContext,
+        contractFamily: server?.contractFamily,
+        runtimeClientImports: imports.client,
+        runtimeClientMiddlewareImports: imports.clientMiddleware,
+        middlewareUses: server?.middlewareUses,
+      });
+    }
+  }
+
+  const families = new Map<string, ServerFunctionPart[]>();
+  for (const part of parts) {
+    const entries = families.get(part.family) ?? [];
+    entries.push(part);
+    families.set(part.family, entries);
+  }
+
+  for (const [family, familyParts] of families) {
+    const id = familyParts.find((part) => part.id)?.id;
+    const familyNode = addNode(builder, {
+      id: `server-function-family:${family}`,
+      kind: 'server-function-family',
+      label: id ?? relative(builder.rootDir, family),
+      filePath: familyParts[0]?.sourceFile.getFilePath(),
+      line: familyParts[0]?.sourceFile.getLineAndColumnAtPos(0).line,
+      details: {
+        family: relative(builder.rootDir, family),
+        ...(id === undefined ? {} : { serverFunctionId: id }),
+      },
+    });
+
+    for (const part of familyParts) {
+      const node = addNode(builder, {
+        id: `server-function-part:${part.kind}:${part.sourceFile.getFilePath()}`,
+        kind: part.kind,
+        label: id ?? part.id ?? relative(builder.rootDir, family),
+        filePath: part.sourceFile.getFilePath(),
+        line: part.sourceFile.getLineAndColumnAtPos(0).line,
+        details: {
+          family: relative(builder.rootDir, family),
+          ...(part.id === undefined ? {} : { serverFunctionId: part.id }),
+          ...(part.exposure === undefined ? {} : { exposure: part.exposure }),
+          ...(part.declaresClientContext === undefined
+            ? {}
+            : { declaresClientContext: part.declaresClientContext }),
+          ...(part.contractFamily === undefined
+            ? {}
+            : {
+                contractFamily: relative(builder.rootDir, part.contractFamily),
+              }),
+          ...(part.clientDefinitionFile === undefined
+            ? {}
+            : {
+                clientDefinitionFile: relative(
+                  builder.rootDir,
+                  part.clientDefinitionFile,
+                ),
+              }),
+          ...(part.usesCraftUnique === undefined
+            ? {}
+            : { usesCraftUnique: part.usesCraftUnique }),
+          ...(part.clientIdentityStatic === undefined
+            ? {}
+            : { clientIdentityStatic: part.clientIdentityStatic }),
+          ...(part.runtimeServerImports?.length
+            ? {
+                runtimeServerImports: part.runtimeServerImports.map((file) =>
+                  relative(builder.rootDir, file),
+                ),
+              }
+            : {}),
+          ...(part.runtimeClientImports?.length
+            ? {
+                runtimeClientImports: part.runtimeClientImports.map((file) =>
+                  relative(builder.rootDir, file),
+                ),
+              }
+            : {}),
+          ...(part.importsServerOnly?.length
+            ? {
+                importsServerOnly: part.importsServerOnly.map((file) =>
+                  relative(builder.rootDir, file),
+                ),
+              }
+            : {}),
+          ...(part.runtimeMiddlewareImports?.length
+            ? {
+                runtimeMiddlewareImports: part.runtimeMiddlewareImports.map(
+                  (file) => relative(builder.rootDir, file),
+                ),
+              }
+            : {}),
+          ...(part.runtimeClientMiddlewareImports?.length
+            ? {
+                runtimeClientMiddlewareImports:
+                  part.runtimeClientMiddlewareImports.map((file) =>
+                    relative(builder.rootDir, file),
+                  ),
+              }
+            : {}),
+          ...(part.middlewareUses?.length
+            ? { middlewareUses: [...part.middlewareUses] }
+            : {}),
+        },
+      });
+      addEdge(builder, familyNode.id, node.id, 'contains', 'ast');
+
+      for (const imported of part.runtimeServerImports ?? []) {
+        addEdge(
+          builder,
+          node.id,
+          `server-function-part:server-function-server:${imported}`,
+          'depends-on',
+          'ast',
+          {
+            boundary: 'client-imports-server',
+          },
+        );
+      }
+      for (const imported of part.runtimeClientImports ?? []) {
+        addEdge(
+          builder,
+          node.id,
+          `server-function-part:server-function-client:${imported}`,
+          'depends-on',
+          'ast',
+          {
+            boundary: 'server-imports-client',
+          },
+        );
+      }
+    }
+  }
+
+  for (const sourceFile of sourceFiles) {
+    if (serverFunctionSuffix(sourceFile.getBaseName())) continue;
+    if (
+      declaresApi(sourceFile, 'serverFunction') ||
+      declaresApi(sourceFile, 'portableServerFunction')
+    )
+      continue;
+    const misnamed = findServerFunction(sourceFile, byPath);
+    if (!misnamed) continue;
+    addNode(builder, {
+      id: `server-function-misnamed:${sourceFile.getFilePath()}`,
+      kind: 'server-function-misnamed',
+      label: misnamed.id ?? relative(builder.rootDir, sourceFile.getFilePath()),
+      filePath: sourceFile.getFilePath(),
+      line: sourceFile.getLineAndColumnAtPos(0).line,
+      details: {
+        ...(misnamed.id === undefined ? {} : { serverFunctionId: misnamed.id }),
+      },
+    });
+  }
+}
+
+/**
+ * Remonte une chaîne d'appels `a(...).b(...).c(...)` depuis l'appel racine et
+ * renvoie les identifiants passés en premier argument à `.<method>(...)`.
+ */
+/**
+ * Comme `chainedCallArguments`, mais pour un `.pipe(a, b, c)` : la composition
+ * est variadique, et seuls les arguments nommés désignent une brique du graphe
+ * — `mapContext(...)` ou `requireServerPermission(...)` n'en sont pas.
+ */
+function chainedCallIdentifierArguments(
+  call: CallExpression,
+  method: string,
+): string[] {
+  const names: string[] = [];
+  let current: Node = call;
+  for (;;) {
+    const access = current.getParentIfKind(SyntaxKind.PropertyAccessExpression);
+    if (!access) break;
+    const outer = access.getParentIfKind(SyntaxKind.CallExpression);
+    if (!outer) break;
+    if (access.getName() === method) {
+      for (const argument of outer.getArguments()) {
+        const identifier = argument.asKind(SyntaxKind.Identifier);
+        if (identifier) names.push(identifier.getText());
+      }
+    }
+    current = outer;
+  }
+  return names;
+}
+
+function chainedCallArguments(call: CallExpression, method: string): string[] {
+  const names: string[] = [];
+  let current: Node = call;
+  for (;;) {
+    const access = current.getParentIfKind(SyntaxKind.PropertyAccessExpression);
+    if (!access) break;
+    const outer = access.getParentIfKind(SyntaxKind.CallExpression);
+    if (!outer) break;
+    if (access.getName() === method) {
+      const argument = outer.getArguments()[0]?.asKind(SyntaxKind.Identifier);
+      if (argument) names.push(argument.getText());
+    }
+    current = outer;
+  }
+  return names;
+}
+
+/**
+ * Vrai quand le fichier *définit* l'API plutôt que de l'utiliser — le module du
+ * framework lui-même. Sans ce garde-fou, une analyse dont le programme inclut
+ * les sources de `@craft-ts/core` signalerait la définition de `serverFunction`
+ * comme une server function mal nommée.
+ */
+function declaresApi(sourceFile: SourceFile, name: string): boolean {
+  const declaration = sourceFile.getFunction(name);
+  if (
+    declaration &&
+    !declaration.hasDeclareKeyword() &&
+    declaration.isExported()
+  ) {
+    return true;
+  }
+  const variable = sourceFile.getVariableDeclaration(name);
+  return (
+    variable !== undefined &&
+    variable.isExported() &&
+    variable.getVariableStatement()?.hasDeclareKeyword() !== true
+  );
+}
+
+/** Noms des méthodes chaînées après l'appel racine, dans l'ordre rencontré. */
+function chainedCallMethods(call: CallExpression): string[] {
+  const names: string[] = [];
+  let current: Node = call;
+  for (;;) {
+    const access = current.getParentIfKind(SyntaxKind.PropertyAccessExpression);
+    if (!access) break;
+    const outer = access.getParentIfKind(SyntaxKind.CallExpression);
+    if (!outer) break;
+    names.push(access.getName());
+    current = outer;
+  }
+  return names;
+}
+
+/**
+ * Clés d'objet passées à `.<method>(...)`, à travers un éventuel
+ * `Schema.Struct({ ... })`. Best-effort et assumé comme tel : c'est ce qui
+ * alimente le diagnostic heuristique de contexte client inutilisé.
+ */
+function chainedCallObjectKeys(call: CallExpression, method: string): string[] {
+  const keys: string[] = [];
+  let current: Node = call;
+  for (;;) {
+    const access = current.getParentIfKind(SyntaxKind.PropertyAccessExpression);
+    if (!access) break;
+    const outer = access.getParentIfKind(SyntaxKind.CallExpression);
+    if (!outer) break;
+    if (access.getName() === method) {
+      const argument = outer.getArguments()[0];
+      const literals = [
+        ...(argument?.asKind(SyntaxKind.ObjectLiteralExpression)
+          ? [argument.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)]
+          : []),
+        ...(argument?.getDescendantsOfKind(
+          SyntaxKind.ObjectLiteralExpression,
+        ) ?? []),
+      ];
+      for (const literal of literals) {
+        for (const property of literal.getProperties()) {
+          const name = property
+            .asKind(SyntaxKind.PropertyAssignment)
+            ?.getName();
+          if (name) keys.push(name.replace(/^['"]|['"]$/g, ''));
+        }
+      }
+    }
+    current = outer;
+  }
+  return keys;
+}
+
+type ServerFunctionMiddlewarePart = {
+  readonly sourceFile: SourceFile;
+  readonly variableName: string;
+  readonly id?: string;
+  readonly uses: readonly string[];
+  readonly line: number;
+  /** Terminal de la chaîne : `.server(...)`, `.client(...)`, ou aucun. */
+  readonly terminal?: 'server' | 'client';
+  /** Clés déclarées par `.provides(Schema.Struct({ ... }))`, best-effort. */
+  readonly providesKeys: readonly string[];
+  /** Comment cette brique se compose : `.use(...)` historique, ou `.pipe(...)`. */
+  readonly composition?: 'use' | 'pipe';
+};
+
+/**
+ * Records server-function middleware declared with `craftMiddleware(...)`,
+ * `portableServerMiddleware(...)`, or `effectServerMiddleware(...)`, plus
+ * the `.use(...)` edges between them and towards the server functions that
+ * declare them. Like the server-function boundaries above, this reads source
+ * files so a bad boundary fails before any bundle transform.
+ */
+function collectServerFunctionMiddlewares(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const byPath = new Map(sourceFiles.map((file) => [file.getFilePath(), file]));
+  const registry = new Map<string, ServerFunctionMiddlewarePart>();
+
+  for (const sourceFile of sourceFiles) {
+    if (
+      declaresApi(sourceFile, 'craftMiddleware') ||
+      declaresApi(sourceFile, 'portableServerMiddleware') ||
+      declaresApi(sourceFile, 'effectServerMiddleware') ||
+      declaresApi(sourceFile, 'serverLayer')
+    )
+      continue;
+    const isMiddlewareFile = isServerMiddlewareFile(sourceFile.getBaseName());
+    for (const part of findCraftMiddlewares(sourceFile)) {
+      // Un `.client(...)` appartient à l'autre famille : il est modélisé par
+      // `collectClientFunctionMiddlewares`, pas ici.
+      if (part.terminal === 'client') continue;
+      if (!isMiddlewareFile) {
+        addNode(builder, {
+          id: `server-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
+          kind: 'server-function-middleware-misnamed',
+          label: part.id ?? part.variableName,
+          filePath: sourceFile.getFilePath(),
+          line: part.line,
+          details: {
+            ...(part.id === undefined ? {} : { middlewareId: part.id }),
+            middlewareName: part.variableName,
+          },
+        });
+        continue;
+      }
+      registry.set(
+        middlewareKey(sourceFile.getFilePath(), part.variableName),
+        part,
+      );
+    }
+  }
+
+  for (const part of registry.values()) {
+    const clientMiddlewareImports = serverFunctionImports(
+      part.sourceFile,
+      byPath,
+    ).clientMiddleware;
+    addNode(builder, {
+      id: middlewareNodeId(part.sourceFile.getFilePath(), part.variableName),
+      kind: 'server-function-middleware',
+      label: part.id ?? part.variableName,
+      filePath: part.sourceFile.getFilePath(),
+      line: part.line,
+      details: {
+        ...(part.id === undefined ? {} : { middlewareId: part.id }),
+        middlewareName: part.variableName,
+        composition: part.composition ?? 'use',
+        ...(builder.middlewareCapabilities[part.id ?? part.variableName]
+          ? {
+              protects:
+                builder.middlewareCapabilities[part.id ?? part.variableName],
+            }
+          : {}),
+        ...(clientMiddlewareImports.length
+          ? {
+              runtimeClientMiddlewareImports: clientMiddlewareImports.map(
+                (file) => relative(builder.rootDir, file),
+              ),
+            }
+          : {}),
+      },
+    });
+  }
+
+  for (const part of registry.values()) {
+    for (const used of part.uses) {
+      const target = resolveMiddlewareReference(
+        part.sourceFile,
+        used,
+        byPath,
+        registry,
+      );
+      if (!target) continue;
+      addEdge(
+        builder,
+        middlewareNodeId(part.sourceFile.getFilePath(), part.variableName),
+        middlewareNodeId(target.sourceFile.getFilePath(), target.variableName),
+        'depends-on',
+        'ast',
+        { boundary: 'middleware-uses' },
+      );
+    }
+  }
+
+  for (const sourceFile of sourceFiles) {
+    if (!sourceFile.getBaseName().endsWith('.fn-serveur.ts')) continue;
+    const server = findServerFunction(sourceFile, byPath);
+    // Les deux compositions produisent la même arête — c'est la même
+    // dépendance — mais le graphe garde de laquelle il s'agit : c'est ce qui
+    // permet de vérifier qu'un exemple migré ne passe plus par `.use(...)`.
+    const composed: readonly (readonly [string, 'use' | 'pipe'])[] = [
+      ...(server?.middlewareUses ?? []).map(
+        (used) => [used, 'use'] as const,
+      ),
+      ...(server?.layerPipes ?? []).map((used) => [used, 'pipe'] as const),
+    ];
+    for (const [used, composition] of composed) {
+      const target = resolveMiddlewareReference(
+        sourceFile,
+        used,
+        byPath,
+        registry,
+      );
+      if (!target) continue;
+      addEdge(
+        builder,
+        `server-function-part:server-function-server:${sourceFile.getFilePath()}`,
+        middlewareNodeId(target.sourceFile.getFilePath(), target.variableName),
+        'depends-on',
+        'ast',
+        { boundary: 'middleware-uses', composition },
+      );
+    }
+  }
+}
+
+/**
+ * Jumeau client de `collectServerFunctionMiddlewares` : modélise les
+ * `craftMiddleware(...).client(...)`, leurs arêtes `.use(...)`, et les façades
+ * `*.fn-client.ts` qui les attachent via `.pipe(craftClientMiddleware(...))`.
+ *
+ * La règle de frontière est l'inverse de celle du serveur : un middleware
+ * client ne doit jamais être importé au runtime par un module serveur.
+ */
+function collectClientFunctionMiddlewares(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const byPath = new Map(sourceFiles.map((file) => [file.getFilePath(), file]));
+  const registry = new Map<string, ServerFunctionMiddlewarePart>();
+
+  for (const sourceFile of sourceFiles) {
+    if (
+      declaresApi(sourceFile, 'craftMiddleware') ||
+      declaresApi(sourceFile, 'portableServerMiddleware') ||
+      declaresApi(sourceFile, 'effectServerMiddleware') ||
+      declaresApi(sourceFile, 'serverLayer')
+    )
+      continue;
+    const isClientFile = declaresClientMiddleware(sourceFile.getBaseName());
+    for (const part of findCraftMiddlewares(sourceFile, byPath)) {
+      if (part.terminal !== 'client') continue;
+      if (!isClientFile) {
+        addNode(builder, {
+          id: `client-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
+          kind: 'client-function-middleware-misnamed',
+          label: part.id ?? part.variableName,
+          filePath: sourceFile.getFilePath(),
+          line: part.line,
+          details: {
+            ...(part.id === undefined ? {} : { middlewareId: part.id }),
+            middlewareName: part.variableName,
+          },
+        });
+        continue;
+      }
+      registry.set(
+        middlewareKey(sourceFile.getFilePath(), part.variableName),
+        part,
+      );
+    }
+  }
+
+  const serverReads = collectClientContextReads(sourceFiles);
+
+  for (const part of registry.values()) {
+    const unused = part.providesKeys.filter((key) => !serverReads.has(key));
+    addNode(builder, {
+      id: clientMiddlewareNodeId(
+        part.sourceFile.getFilePath(),
+        part.variableName,
+      ),
+      kind: 'client-function-middleware',
+      label: part.id ?? part.variableName,
+      filePath: part.sourceFile.getFilePath(),
+      line: part.line,
+      details: {
+        ...(part.id === undefined ? {} : { middlewareId: part.id }),
+        middlewareName: part.variableName,
+        composition: part.composition ?? 'use',
+        ...(builder.middlewareCapabilities[part.id ?? part.variableName]
+          ? {
+              protects:
+                builder.middlewareCapabilities[part.id ?? part.variableName],
+            }
+          : {}),
+        ...(part.providesKeys.length
+          ? { providesKeys: [...part.providesKeys] }
+          : {}),
+        ...(part.providesKeys.length > 0 &&
+        unused.length === part.providesKeys.length
+          ? { unusedClientContextKeys: unused }
+          : {}),
+      },
+    });
+  }
+
+  for (const part of registry.values()) {
+    for (const used of part.uses) {
+      const target = resolveMiddlewareReference(
+        part.sourceFile,
+        used,
+        byPath,
+        registry,
+      );
+      if (!target) continue;
+      addEdge(
+        builder,
+        clientMiddlewareNodeId(
+          part.sourceFile.getFilePath(),
+          part.variableName,
+        ),
+        clientMiddlewareNodeId(
+          target.sourceFile.getFilePath(),
+          target.variableName,
+        ),
+        'depends-on',
+        'ast',
+        { boundary: 'client-middleware-uses' },
+      );
+    }
+  }
+
+  for (const sourceFile of sourceFiles) {
+    if (!sourceFile.getBaseName().endsWith('.fn-client.ts')) continue;
+    for (const used of findClientContextAttachments(sourceFile)) {
+      const target = resolveMiddlewareReference(
+        sourceFile,
+        used,
+        byPath,
+        registry,
+      );
+      if (!target) continue;
+      addEdge(
+        builder,
+        `server-function-part:server-function-client:${sourceFile.getFilePath()}`,
+        clientMiddlewareNodeId(
+          target.sourceFile.getFilePath(),
+          target.variableName,
+        ),
+        'depends-on',
+        'ast',
+        { boundary: 'client-middleware-attached' },
+      );
+    }
+  }
+}
+
+type HandshakePart = {
+  readonly sourceFile: SourceFile;
+  readonly variableName: string;
+  readonly name?: string;
+  readonly line: number;
+};
+
+/**
+ * Modélise les `craftHandshake(...)` et, pour chacun, les fichiers qui le
+ * référencent — classés par côté de la frontière d'après leur suffixe.
+ *
+ * C'est tout ce dont la règle a besoin : un handshake est tenu quand au moins
+ * un module serveur et au moins un module client le référencent. Le contrôle
+ * est **exact**, puisqu'il compare des identifiants et non des noms de clés
+ * devinés dans l'AST.
+ */
+function collectHandshakes(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const byPath = new Map(sourceFiles.map((file) => [file.getFilePath(), file]));
+  const registry = new Map<string, HandshakePart>();
+
+  for (const sourceFile of sourceFiles) {
+    if (declaresApi(sourceFile, 'craftHandshake')) continue;
+    for (const declaration of sourceFile.getVariableDeclarations()) {
+      const initializer = declaration.getInitializer();
+      if (!initializer) continue;
+      const call = [
+        ...(Node.isCallExpression(initializer) ? [initializer] : []),
+        ...initializer.getDescendantsOfKind(SyntaxKind.CallExpression),
+      ].find(
+        (candidate) => candidate.getExpression().getText() === 'craftHandshake',
+      );
+      if (!call) continue;
+      const name = call
+        .getArguments()[0]
+        ?.asKind(SyntaxKind.StringLiteral)
+        ?.getLiteralValue();
+      registry.set(
+        handshakeKey(sourceFile.getFilePath(), declaration.getName()),
+        {
+          sourceFile,
+          variableName: declaration.getName(),
+          ...(name === undefined ? {} : { name }),
+          line: declaration.getStartLineNumber(),
+        },
+      );
+    }
+  }
+
+  const sides = new Map<
+    HandshakePart,
+    { server: string[]; client: string[] }
+  >();
+  for (const part of registry.values()) {
+    sides.set(part, { server: [], client: [] });
+  }
+
+  for (const sourceFile of sourceFiles) {
+    const side = handshakeSide(sourceFile.getBaseName());
+    if (!side) continue;
+    for (const part of referencedHandshakes(sourceFile, byPath, registry)) {
+      sides
+        .get(part)
+        ?.[side].push(relative(builder.rootDir, sourceFile.getFilePath()));
+    }
+  }
+
+  for (const [part, reached] of sides) {
+    addNode(builder, {
+      id: handshakeNodeId(part.sourceFile.getFilePath(), part.variableName),
+      kind: 'handshake',
+      label: part.name ?? part.variableName,
+      filePath: part.sourceFile.getFilePath(),
+      line: part.line,
+      details: {
+        ...(part.name === undefined
+          ? { static: false }
+          : { handshakeName: part.name }),
+        handshakeVariable: part.variableName,
+        ...(reached.server.length ? { serverSites: reached.server } : {}),
+        ...(reached.client.length ? { clientSites: reached.client } : {}),
+      },
+    });
+  }
+}
+
+/**
+ * Résout un identifiant vers le nom du `craftHandshake(...)` qu'il désigne,
+ * déclaré localement ou importé. Autonome à dessein : l'identité des server
+ * functions est collectée avant les handshakes.
+ */
+function resolveHandshakeName(
+  sourceFile: SourceFile,
+  name: string,
+  byPath: ReadonlyMap<string, SourceFile>,
+): string | undefined {
+  const local = handshakeNameOfDeclaration(sourceFile, name);
+  if (local !== undefined) return local;
+
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    if (declaration.isTypeOnly()) continue;
+    const named = declaration
+      .getNamedImports()
+      .find(
+        (candidate) =>
+          (candidate.getAliasNode()?.getText() ?? candidate.getName()) === name,
+      );
+    if (!named || named.isTypeOnly()) continue;
+    const imported = resolveImportedSource(
+      sourceFile,
+      declaration.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    if (!imported || !byPath.has(imported.getFilePath())) continue;
+    const resolved = handshakeNameOfDeclaration(imported, named.getName());
+    if (resolved !== undefined) return resolved;
+  }
+  return undefined;
+}
+
+function handshakeNameOfDeclaration(
+  sourceFile: SourceFile,
+  variableName: string,
+): string | undefined {
+  const initializer = sourceFile
+    .getVariableDeclaration(variableName)
+    ?.getInitializer();
+  if (!initializer) return undefined;
+  const call = [
+    ...(Node.isCallExpression(initializer) ? [initializer] : []),
+    ...initializer.getDescendantsOfKind(SyntaxKind.CallExpression),
+  ].find(
+    (candidate) => candidate.getExpression().getText() === 'craftHandshake',
+  );
+  return call
+    ?.getArguments()[0]
+    ?.asKind(SyntaxKind.StringLiteral)
+    ?.getLiteralValue();
+}
+
+function handshakeKey(filePath: string, variableName: string): string {
+  return `${filePath}#${variableName}`;
+}
+
+function handshakeNodeId(filePath: string, variableName: string): string {
+  return `handshake:${handshakeKey(filePath, variableName)}`;
+}
+
+/** De quel côté de la frontière un fichier parle, d'après sa convention de nom. */
+function handshakeSide(baseName: string): 'server' | 'client' | undefined {
+  if (baseName.endsWith('.fn-serveur.ts') || isServerMiddlewareFile(baseName)) {
+    return 'server';
+  }
+  if (baseName.endsWith('.fn-client.ts') || isClientMiddlewareFile(baseName)) {
+    return 'client';
+  }
+  return undefined;
+}
+
+/** Les handshakes qu'un fichier référence, déclarés localement ou importés. */
+function referencedHandshakes(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+  registry: ReadonlyMap<string, HandshakePart>,
+): HandshakePart[] {
+  const found = new Set<HandshakePart>();
+
+  for (const identifier of sourceFile.getDescendantsOfKind(
+    SyntaxKind.Identifier,
+  )) {
+    const local = registry.get(
+      handshakeKey(sourceFile.getFilePath(), identifier.getText()),
+    );
+    if (
+      local &&
+      identifier.getParent()?.getKind() !== SyntaxKind.VariableDeclaration
+    ) {
+      found.add(local);
+    }
+  }
+
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    if (declaration.isTypeOnly()) continue;
+    const imported = resolveImportedSource(
+      sourceFile,
+      declaration.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    if (!imported || !byPath.has(imported.getFilePath())) continue;
+    for (const named of declaration.getNamedImports()) {
+      if (named.isTypeOnly()) continue;
+      const part = registry.get(
+        handshakeKey(imported.getFilePath(), named.getName()),
+      );
+      if (part) found.add(part);
+    }
+  }
+
+  return [...found];
+}
+
+function clientMiddlewareNodeId(
+  filePath: string,
+  variableName: string,
+): string {
+  return `client-function-middleware:${middlewareKey(filePath, variableName)}`;
+}
+
+/**
+ * Identifiants passés à `craftClientMiddleware(...)` dans une façade client.
+ * Les arguments doivent être des identifiants statiques : une valeur construite
+ * dynamiquement échappe au graphe, comme partout ailleurs dans cette analyse.
+ */
+function findClientContextAttachments(sourceFile: SourceFile): string[] {
+  const names: string[] = [];
+  for (const call of sourceFile.getDescendantsOfKind(
+    SyntaxKind.CallExpression,
+  )) {
+    if (call.getExpression().getText() !== 'craftClientMiddleware') continue;
+    for (const argument of call.getArguments()) {
+      const identifier = argument.asKind(SyntaxKind.Identifier);
+      if (identifier) names.push(identifier.getText());
+    }
+  }
+  return names;
+}
+
+/**
+ * Clés du contexte client réellement lues côté serveur
+ * (`context.clientContext.<clé>`), tous fichiers serveur confondus.
+ *
+ * Heuristique assumée : une lecture indirecte (déstructuration réexportée,
+ * accès par variable) n'est pas vue. Le diagnostic qui s'en sert le dit.
+ */
+function collectClientContextReads(
+  sourceFiles: readonly SourceFile[],
+): Set<string> {
+  const reads = new Set<string>();
+  for (const sourceFile of sourceFiles) {
+    const baseName = sourceFile.getBaseName();
+    if (
+      !baseName.endsWith('.fn-serveur.ts') &&
+      !isServerMiddlewareFile(baseName)
+    ) {
+      continue;
+    }
+    for (const access of sourceFile.getDescendantsOfKind(
+      SyntaxKind.PropertyAccessExpression,
+    )) {
+      if (!access.getExpression().getText().endsWith('clientContext')) continue;
+      reads.add(access.getName());
+    }
+    for (const pattern of sourceFile.getDescendantsOfKind(
+      SyntaxKind.ObjectBindingPattern,
+    )) {
+      const initializer = pattern
+        .getParentIfKind(SyntaxKind.VariableDeclaration)
+        ?.getInitializer();
+      if (initializer?.getText().endsWith('clientContext') !== true) continue;
+      for (const element of pattern.getElements()) {
+        reads.add(
+          element.getPropertyNameNode()?.getText() ?? element.getName(),
+        );
+      }
+    }
+  }
+  return reads;
+}
+
+function middlewareKey(filePath: string, variableName: string): string {
+  return `${filePath}#${variableName}`;
+}
+
+function middlewareNodeId(filePath: string, variableName: string): string {
+  return `server-function-middleware:${middlewareKey(filePath, variableName)}`;
+}
+
+function findCraftMiddlewares(
+  sourceFile: SourceFile,
+  byPath?: ReadonlyMap<string, SourceFile>,
+): ServerFunctionMiddlewarePart[] {
+  const parts: ServerFunctionMiddlewarePart[] = [];
+  for (const declaration of sourceFile.getVariableDeclarations()) {
+    const initializer = declaration.getInitializer();
+    if (!initializer) continue;
+    const candidates = [
+      ...(Node.isCallExpression(initializer) ? [initializer] : []),
+      ...initializer.getDescendantsOfKind(SyntaxKind.CallExpression),
+    ];
+    // `craftHandshakeMiddleware(handshake, run)` est un middleware client
+    // complet en une déclaration : son id et son schéma viennent du handshake.
+    const handshakeCall = candidates.find(
+      (candidate) =>
+        candidate.getExpression().getText() === 'craftHandshakeMiddleware',
+    );
+    if (handshakeCall && byPath) {
+      const reference = handshakeCall
+        .getArguments()[0]
+        ?.asKind(SyntaxKind.Identifier);
+      const name = reference
+        ? resolveHandshakeName(sourceFile, reference.getText(), byPath)
+        : undefined;
+      parts.push({
+        sourceFile,
+        variableName: declaration.getName(),
+        ...(name === undefined ? {} : { id: name }),
+        uses: [],
+        line: declaration.getStartLineNumber(),
+        terminal: 'client',
+        providesKeys: [],
+      });
+      continue;
+    }
+
+    // `serverLayer(...)` compose un programme plutôt qu'un Effect, mais c'est
+    // la même famille pour le graphe : mêmes règles d'id, de nommage de
+    // fichier et de frontière client/serveur.
+    const layerCall = candidates.find((candidate) =>
+      ['serverLayer', 'serverLayerReading'].includes(
+        candidate.getExpression().getText(),
+      ),
+    );
+    if (layerCall) {
+      // `serverLayerReading<Ctx>()('id', run)` : l'identifiant est porté par
+      // l'appel extérieur, celui qui suit la curryfication.
+      const idCall =
+        layerCall.getExpression().getText() === 'serverLayerReading'
+          ? layerCall.getParentIfKind(SyntaxKind.CallExpression)
+          : layerCall;
+      const layerId = idCall
+        ?.getArguments()[0]
+        ?.asKind(SyntaxKind.StringLiteral)
+        ?.getLiteralValue();
+      parts.push({
+        sourceFile,
+        variableName: declaration.getName(),
+        ...(layerId === undefined ? {} : { id: layerId }),
+        uses: [],
+        line: declaration.getStartLineNumber(),
+        terminal: 'server',
+        providesKeys: [],
+        composition: 'pipe',
+      });
+      continue;
+    }
+
+    const call = candidates.find((candidate) =>
+      [
+        'craftMiddleware',
+        'portableServerMiddleware',
+        'effectServerMiddleware',
+      ].includes(candidate.getExpression().getText()),
+    );
+    if (!call) continue;
+    const id = call
+      .getArguments()[0]
+      ?.asKind(SyntaxKind.StringLiteral)
+      ?.getLiteralValue();
+    const methods = chainedCallMethods(call);
+    const constructor = call.getExpression().getText();
+    const terminal =
+      constructor === 'portableServerMiddleware' ||
+      constructor === 'effectServerMiddleware'
+        ? ('server' as const)
+        : methods.includes('client')
+          ? ('client' as const)
+          : methods.includes('server')
+            ? ('server' as const)
+            : undefined;
+    parts.push({
+      sourceFile,
+      variableName: declaration.getName(),
+      ...(id === undefined ? {} : { id }),
+      uses: [
+        ...chainedCallArguments(call, 'use'),
+        ...chainedCallIdentifierArguments(call, 'pipe'),
+      ],
+      line: declaration.getStartLineNumber(),
+      ...(terminal === undefined ? {} : { terminal }),
+      providesKeys: chainedCallObjectKeys(call, 'provides'),
+      composition: chainedCallIdentifierArguments(call, 'pipe').length
+        ? 'pipe'
+        : 'use',
+    });
+  }
+  return parts;
+}
+
+/** Résout un identifiant de middleware, déclaré localement ou importé. */
+function resolveMiddlewareReference(
+  sourceFile: SourceFile,
+  name: string,
+  byPath: ReadonlyMap<string, SourceFile>,
+  registry: ReadonlyMap<string, ServerFunctionMiddlewarePart>,
+): ServerFunctionMiddlewarePart | undefined {
+  const local = registry.get(middlewareKey(sourceFile.getFilePath(), name));
+  if (local) return local;
+
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    const named = declaration
+      .getNamedImports()
+      .find(
+        (candidate) =>
+          (candidate.getAliasNode()?.getText() ?? candidate.getName()) === name,
+      );
+    if (!named) continue;
+    const imported = resolveImportedSource(
+      sourceFile,
+      declaration.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    if (!imported || !byPath.has(imported.getFilePath())) continue;
+    return registry.get(middlewareKey(imported.getFilePath(), named.getName()));
+  }
+  return undefined;
+}
+
+function serverFunctionSuffix(
+  baseName: string,
+): '.fn-contract.ts' | '.fn-client.ts' | '.fn-serveur.ts' | undefined {
+  if (baseName.endsWith('.fn-contract.ts')) return '.fn-contract.ts';
+  if (baseName.endsWith('.fn-client.ts')) return '.fn-client.ts';
+  if (baseName.endsWith('.fn-serveur.ts')) return '.fn-serveur.ts';
+  return undefined;
+}
+
+function serverFunctionImports(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+): {
+  server: string[];
+  client: string[];
+  serverOnly: string[];
+  middleware: string[];
+  clientMiddleware: string[];
+} {
+  const server: string[] = [];
+  const client: string[] = [];
+  const serverOnly: string[] = [];
+  const middleware: string[] = [];
+  const clientMiddleware: string[] = [];
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    if (declaration.isTypeOnly()) continue;
+    const imported = resolveImportedSource(
+      sourceFile,
+      declaration.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    if (!imported || !byPath.has(imported.getFilePath())) continue;
+    const suffix = serverFunctionSuffix(imported.getBaseName());
+    if (suffix === '.fn-serveur.ts') server.push(imported.getFilePath());
+    if (suffix === '.fn-client.ts') client.push(imported.getFilePath());
+    if (imported.getBaseName().includes('.server.')) {
+      serverOnly.push(imported.getFilePath());
+    }
+    if (isServerMiddlewareFile(imported.getBaseName())) {
+      middleware.push(imported.getFilePath());
+    }
+    if (isClientMiddlewareFile(imported.getBaseName())) {
+      clientMiddleware.push(imported.getFilePath());
+    }
+  }
+  return { server, client, serverOnly, middleware, clientMiddleware };
+}
+
+function isServerMiddlewareFile(baseName: string): boolean {
+  return baseName.endsWith('.mw-serveur.ts');
+}
+
+function isClientMiddlewareFile(baseName: string): boolean {
+  return baseName.endsWith('.mw-client.ts');
+}
+
+/**
+ * Où un `craftMiddleware(...).client(...)` a le droit de vivre.
+ *
+ * `*.mw-client.ts` pour ce qui est réutilisable, mais aussi `*.fn-client.ts` :
+ * une façade est déjà un module purement navigateur, déjà tenue à l'écart du
+ * bundle serveur par les règles de famille, et c'est là que le contexte
+ * d'injection est disponible sans cérémonie. Interdire un middleware d'un seul
+ * usage à côté de la façade qui l'utilise coûterait un fichier pour rien.
+ */
+function declaresClientMiddleware(baseName: string): boolean {
+  return isClientMiddlewareFile(baseName) || baseName.endsWith('.fn-client.ts');
+}
+
+function findServerFunctionContract(
+  sourceFile: SourceFile,
+): { id?: string; exposure?: string } | undefined {
+  const call = sourceFile
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find(
+      (candidate) =>
+        candidate.getExpression().getText() === 'serverFunctionContract',
+    );
+  const object = call
+    ?.getArguments()[0]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (!object) return undefined;
+  return {
+    id: getStringProperty(object, 'id'),
+    exposure: getStringProperty(object, 'exposure'),
+  };
+}
+
+function findServerFunction(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+):
+  | {
+      id?: string;
+      exposure?: string;
+      declaresClientContext: boolean;
+      contractFamily?: string;
+      middlewareUses: readonly string[];
+      /** Briques nommées passées à `.pipe(...)`, dans l'ordre déclaré. */
+      layerPipes: readonly string[];
+    }
+  | undefined {
+  const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const serverCall = calls.find((candidate) => {
+    const expression = candidate.getExpression().getText();
+    return (
+      expression === 'serverFunction' || expression === 'portableServerFunction'
+    );
+  });
+  if (!serverCall) return undefined;
+  const first = serverCall.getArguments()[0];
+  const directId = first?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+  const firstIdentifier = first?.asKind(SyntaxKind.Identifier);
+  const handshakeId = firstIdentifier
+    ? resolveHandshakeName(sourceFile, firstIdentifier.getText(), byPath)
+    : undefined;
+  // Un handshake porte l'id ; seul un identifiant qui n'en est pas un désigne
+  // un contrat importé d'un `*.fn-contract.ts`.
+  const contractIdentifier =
+    handshakeId === undefined ? firstIdentifier : undefined;
+  let contractFamily: string | undefined;
+  let id = directId ?? handshakeId;
+  if (contractIdentifier) {
+    const importDeclaration = sourceFile
+      .getImportDeclarations()
+      .find((declaration) =>
+        declaration
+          .getNamedImports()
+          .some(
+            (named) =>
+              named.getAliasNode()?.getText() ===
+                contractIdentifier.getText() ||
+              named.getName() === contractIdentifier.getText(),
+          ),
+      );
+    const imported = importDeclaration
+      ? resolveImportedSource(
+          sourceFile,
+          importDeclaration.getModuleSpecifierValue(),
+          sourceFile.getProject(),
+        )
+      : undefined;
+    if (imported && byPath.has(imported.getFilePath())) {
+      contractFamily = imported.getFilePath().replace(/\.fn-contract\.ts$/, '');
+      const contract = findServerFunctionContract(imported);
+      id = contract?.id;
+    }
+  }
+  const options = serverCall
+    .getArguments()[2]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression);
+  // Une fonction qui déclare attendre un contexte du navigateur n'a de sens
+  // que si un navigateur peut l'appeler.
+  const declaresClientContext =
+    options?.getProperty('clientContext') !== undefined;
+  const middlewareUses = chainedCallArguments(serverCall, 'use');
+  const layerPipes = chainedCallIdentifierArguments(serverCall, 'pipe');
+  return {
+    id,
+    middlewareUses,
+    layerPipes,
+    exposure:
+      contractIdentifier === undefined
+        ? (getStringProperty(options, 'exposure') ?? 'server')
+        : 'client',
+    declaresClientContext,
+    ...(contractFamily === undefined ? {} : { contractFamily }),
+  };
+}
+
+function findClientContractFamily(
+  sourceFile: SourceFile,
+  byPath: ReadonlyMap<string, SourceFile>,
+):
+  | {
+      id?: string;
+      family?: string;
+      definitionFile?: string;
+      usesCraftUnique?: boolean;
+      identityStatic?: boolean;
+    }
+  | undefined {
+  const call = sourceFile
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find(
+      (candidate) =>
+        candidate.getExpression().getText() === 'createServerFunctionClient',
+    );
+  if (!call) return undefined;
+
+  const identity = findClientIdentity(call, byPath);
+  const serverDefinition = findClientServerDefinition(sourceFile, call, byPath);
+
+  if (serverDefinition) {
+    return {
+      id: identity.id ?? serverDefinition.id,
+      family: sourceFile.getFilePath().replace(/\.fn-client\.ts$/, ''),
+      definitionFile: serverDefinition.filePath,
+      ...(identity.usesCraftUnique === undefined
+        ? {}
+        : { usesCraftUnique: identity.usesCraftUnique }),
+      ...(identity.identityStatic === undefined
+        ? {}
+        : { identityStatic: identity.identityStatic }),
+    };
+  }
+
+  const identifier = call?.getArguments()[0]?.asKind(SyntaxKind.Identifier);
+  const directId = call
+    ?.getArguments()[0]
+    ?.asKind(SyntaxKind.StringLiteral)
+    ?.getLiteralValue();
+  const declaration = identifier
+    ? sourceFile
+        .getImportDeclarations()
+        .find((candidate) =>
+          candidate
+            .getNamedImports()
+            .some(
+              (named) =>
+                named.getName() === identifier.getText() ||
+                named.getAliasNode()?.getText() === identifier.getText(),
+            ),
+        )
+    : undefined;
+  const imported = declaration
+    ? resolveImportedSource(
+        sourceFile,
+        declaration.getModuleSpecifierValue(),
+        sourceFile.getProject(),
+      )
+    : undefined;
+  if (imported && byPath.has(imported.getFilePath())) {
+    const contract = findServerFunctionContract(imported);
+    return {
+      id: identity.id ?? contract?.id,
+      family: sourceFile.getFilePath().replace(/\.fn-client\.ts$/, ''),
+      ...(identity.usesCraftUnique === undefined
+        ? {}
+        : { usesCraftUnique: identity.usesCraftUnique }),
+      ...(identity.identityStatic === undefined
+        ? {}
+        : { identityStatic: identity.identityStatic }),
+    };
+  }
+
+  const serverImport = sourceFile.getImportDeclarations().find((candidate) => {
+    const resolved = resolveImportedSource(
+      sourceFile,
+      candidate.getModuleSpecifierValue(),
+      sourceFile.getProject(),
+    );
+    return resolved?.getBaseName().endsWith('.fn-serveur.ts') === true;
+  });
+  const server = serverImport
+    ? resolveImportedSource(
+        sourceFile,
+        serverImport.getModuleSpecifierValue(),
+        sourceFile.getProject(),
+      )
+    : undefined;
+  if (!server || !byPath.has(server.getFilePath())) return undefined;
+  const serverFunction = findServerFunction(server, byPath);
+  return {
+    id: identity.id ?? directId ?? serverFunction?.id,
+    family: sourceFile.getFilePath().replace(/\.fn-client\.ts$/, ''),
+    definitionFile: server.getFilePath(),
+    ...(identity.usesCraftUnique === undefined
+      ? {}
+      : { usesCraftUnique: identity.usesCraftUnique }),
+    ...(identity.identityStatic === undefined
+      ? {}
+      : { identityStatic: identity.identityStatic }),
+  };
+}
+
+function findClientIdentity(
+  call: CallExpression,
+  byPath: ReadonlyMap<string, SourceFile>,
+): {
+  id?: string;
+  usesCraftUnique?: boolean;
+  identityStatic?: boolean;
+  usesHandshake?: boolean;
+} {
+  const argument = call.getArguments()[0];
+  const identifier = argument?.asKind(SyntaxKind.Identifier);
+  if (identifier) {
+    // Un handshake référencé vaut identité partagée : les deux côtés passent la
+    // même valeur, donc l'égalité des ids est déjà tenue par TypeScript.
+    const handshake = resolveHandshakeName(
+      call.getSourceFile(),
+      identifier.getText(),
+      byPath,
+    );
+    if (handshake !== undefined) {
+      return {
+        id: handshake,
+        usesHandshake: true,
+        usesCraftUnique: true,
+        identityStatic: true,
+      };
+    }
+  }
+  if (!argument?.isKind(SyntaxKind.CallExpression)) {
+    return {};
+  }
+  if (argument.getExpression().getText() !== 'craftUnique') {
+    return { usesCraftUnique: false };
+  }
+  const value = argument.getArguments()[0];
+  if (
+    !value ||
+    (!value.isKind(SyntaxKind.StringLiteral) &&
+      !value.isKind(SyntaxKind.NoSubstitutionTemplateLiteral))
+  ) {
+    return { usesCraftUnique: true, identityStatic: false };
+  }
+  return {
+    id: value.getLiteralValue(),
+    usesCraftUnique: true,
+    identityStatic: true,
+  };
+}
+
+function findClientServerDefinition(
+  sourceFile: SourceFile,
+  call: CallExpression,
+  byPath: ReadonlyMap<string, SourceFile>,
+): { filePath: string; id?: string } | undefined {
+  const typeArgument = call.getTypeArguments()[0];
+  const match = /^typeof\s+([A-Za-z_$][\w$]*)$/.exec(
+    typeArgument?.getText() ?? '',
+  );
+  if (!match) return undefined;
+  const importedName = match[1];
+  const importDeclaration = sourceFile
+    .getImportDeclarations()
+    .find((declaration) =>
+      declaration
+        .getNamedImports()
+        .some(
+          (specifier) =>
+            (specifier.getAliasNode()?.getText() ?? specifier.getName()) ===
+            importedName,
+        ),
+    );
+  if (!importDeclaration) return undefined;
+  const imported = resolveImportedSource(
+    sourceFile,
+    importDeclaration.getModuleSpecifierValue(),
+    sourceFile.getProject(),
+  );
+  if (!imported || !byPath.has(imported.getFilePath())) return undefined;
+  if (!imported.getBaseName().endsWith('.fn-serveur.ts')) return undefined;
+  const server = findServerFunction(imported, byPath);
+  return {
+    filePath: imported.getFilePath(),
+    id: server?.id,
+  };
 }
 
 function addEdge(
@@ -3457,6 +5777,7 @@ function addEdge(
   kind: DependencyGraphEdgeKind,
   evidence: 'ast' | 'type',
   details?: Record<string, unknown>,
+  proof?: DependencyGraphProof,
 ): void {
   if (from === to) return;
   const key = `${from}:${kind}:${to}`;
@@ -3472,9 +5793,10 @@ function addEdge(
         );
       }
     }
+    if (proof && !existing.proof) existing.proof = proof;
     return;
   }
-  builder.edges.set(key, { from, to, kind, evidence, details });
+  builder.edges.set(key, { from, to, kind, evidence, details, proof });
 }
 
 function mergeUsageDetail(
@@ -3488,21 +5810,35 @@ function mergeUsageDetail(
 }
 
 function mergeUsageValues(previous: unknown, next: unknown): string {
-  return [...new Set([String(previous), String(next)].flatMap((value) => value.split('+')))]
+  return [
+    ...new Set(
+      [String(previous), String(next)].flatMap((value) => value.split('+')),
+    ),
+  ]
     .sort()
     .join('+');
 }
 
-function getStringArgument(call: CallExpression, index: number): string | undefined {
-  return call.getArguments()[index]?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+function getStringArgument(
+  call: CallExpression,
+  index: number,
+): string | undefined {
+  return call
+    .getArguments()
+    [index]?.asKind(SyntaxKind.StringLiteral)
+    ?.getLiteralValue();
 }
 
 function getStringProperty(
   object: ObjectLiteralExpression | undefined,
   name: string,
 ): string | undefined {
-  return object?.getProperty(name)?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer()
-    ?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+  return object
+    ?.getProperty(name)
+    ?.asKind(SyntaxKind.PropertyAssignment)
+    ?.getInitializer()
+    ?.asKind(SyntaxKind.StringLiteral)
+    ?.getLiteralValue();
 }
 
 function getBooleanProperty(
@@ -3532,15 +5868,23 @@ function getBindingNames(node: Node): string[] {
     });
   }
   if (Node.isArrayBindingPattern(node)) {
-    return node.getElements().flatMap((element) =>
-      Node.isBindingElement(element) ? getBindingNames(element.getNameNode()) : [],
-    );
+    return node
+      .getElements()
+      .flatMap((element) =>
+        Node.isBindingElement(element)
+          ? getBindingNames(element.getNameNode())
+          : [],
+      );
   }
   return [];
 }
 
-function inferNameFromServiceDeclaration(call: CallExpression): string | undefined {
-  const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+function inferNameFromServiceDeclaration(
+  call: CallExpression,
+): string | undefined {
+  const declaration = call.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
   const name = declaration?.getNameNode();
   return name && Node.isIdentifier(name) ? name.getText() : undefined;
 }
@@ -3554,5 +5898,11 @@ function detectTsConfig(rootDir: string): string {
 }
 
 function escapeMermaid(value: string): string {
-  return value.split('"').join('\\"').split('|').join('/').split('\n').join(' ');
+  return value
+    .split('"')
+    .join('\\"')
+    .split('|')
+    .join('/')
+    .split('\n')
+    .join(' ');
 }

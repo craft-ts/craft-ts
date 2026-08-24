@@ -16,7 +16,7 @@ import type {
   CraftChannels,
   CraftChannelsCarrier,
   MergeChannelUnion,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import type { AnyAxisPoint, AxisPoint } from './axes';
 import type { Declaration } from './props';
 import type { Obligation, ObligationEntry } from './obligations';

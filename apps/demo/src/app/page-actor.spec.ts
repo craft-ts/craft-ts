@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Injector } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
   button,
   craftComponent,
   each,
   input,
   mountCraftComponent,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
+import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import LoginFormComponent from './examples/primitives/forms/login-form';
 import {

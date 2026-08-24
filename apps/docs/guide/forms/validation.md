@@ -6,18 +6,19 @@ errors a field can raise are known to the compiler, not discovered at runtime.
 **Start with the built-ins** below; reach for `cValidate` / `cAsyncValidate`
 when a rule is specific to your domain.
 
-@craft-ng provides a complete set of validators with structured exception handling:
+@craft-ts provides a complete set of validators with structured exception handling:
 
 ## Schema validation
 
 Use `insertFormSchema` when the rules describe the complete form value rather
 than one field at a time. It accepts any schema compatible with
 `StandardSchemaV1`, including current versions of Zod, Valibot, ArkType and
-Effect Schema.
+Effect Schema — the latter through
+[`Schema.toStandardSchemaV1`](/guide/state/schema-validation#effect-schema).
 
 ```ts
 import { z } from 'zod';
-import { craftUse, insertForm, insertFormSchema, state } from '@craft-ng/core';
+import { craftUse, insertForm, insertFormSchema, state } from '@craft-ts/core';
 
 const userSchema = z.object({
   name: z.string().min(1),
@@ -162,7 +163,7 @@ insertFormAttributes(() => ({
       },
       exception: () =>
         craftException(
-          { code: 'weak-password' },
+          { _tag: 'weak-password' },
           {
             message:
               'Password must contain 8 characters and an uppercase letter',
@@ -200,7 +201,7 @@ function* registrationLogic() {
               validWhen: () =>
                 field.value().password === field.value().confirmation,
               exception: () =>
-                craftException({ code: 'passwordMismatch' }, undefined),
+                craftException({ _tag: 'passwordMismatch' }, undefined),
             }),
           ],
         })),
@@ -247,7 +248,7 @@ insertFormAttributes(() => ({
       name: 'emailAvailability',
       exceptionsOnSuccess: ({ validateAsyncCraftResource }) => {
         if (!validateAsyncCraftResource.value()?.available) {
-          return craftException({ code: 'email-taken' }, undefined);
+          return craftException({ _tag: 'email-taken' }, undefined);
         }
         return undefined;
       },

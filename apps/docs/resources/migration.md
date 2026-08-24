@@ -1,12 +1,12 @@
-# Migrating an Angular application
+# Migrating an existing application
 
-`craft-migrate` runs the Craft NG codemods in their required order:
+`craft-migrate` runs the CraftTS codemods in a safe, explicit order:
 
-1. Angular signals and primitive migration points
-2. Angular services and their consumers
-3. Angular route collections and type-safe DI checks
-4. Legacy `component(...)` factories to `craftComponent(name, ...)`
-5. Baseline architecture tests (Vitest, Node)
+1. primitive migration points
+2. service composition
+3. typed route collections and dependency checks
+4. legacy `component(...)` factories to `craftComponent(name, ...)`
+5. baseline architecture tests
 
 The migration is intentionally conservative. Deterministic transformations are
 written automatically; code requiring a business or lifecycle decision is
@@ -15,26 +15,21 @@ reported as a manual diagnostic.
 ## Install the migration tool
 
 ```shell
-npm install @craft-ng/core
-npm install --save-dev @craft-ng/dev-tools@beta
+npm install @craft-ts/core
+npm install --save-dev @craft-ts/dev-tools@beta
 ```
 
-The migration binaries are available starting with `0.5.1-beta.0` and are
-currently published on the `beta` tag. The `latest` version and older beta
-versions do not include `craft-migrate`. If the package was installed before
-that release, update it and verify the resolved version:
+The migration binaries are available from the `beta` tag. Verify the resolved
+version before starting:
 
 ```shell
-npm install --save-dev @craft-ng/dev-tools@beta
-npm ls @craft-ng/dev-tools
+npm ls @craft-ts/dev-tools
 ```
 
 Point the coding agent at [coding agents](/resources/ai-agents) so it uses
-`craft-migrate` through the `migrate-to-ng-craft` skill instead of rewriting
-the app by hand. Step 5 scaffolds the
-[architecture suite](/guide/testing/architecture) as the graph contract — load
-`ng-craft-architecture-tests` if that folder is missing. Do not add an
-architecture rule for each migrated feature.
+`craft-migrate` through the `migrate-to-craft-ts` skill. The final step
+scaffolds the [architecture suite](/guide/testing/architecture) as the graph
+contract. Do not add one architecture rule per migrated feature.
 
 Commit or stash the current application changes before writing a migration.
 The codemod does not revert unrelated local changes.
@@ -50,17 +45,7 @@ npx craft-migrate \
   --dry-run
 ```
 
-For an Angular CLI workspace, the project file is commonly under the
-application directory:
-
-```shell
-npx craft-migrate \
-  --project projects/my-app/tsconfig.app.json \
-  --root projects/my-app/src \
-  --dry-run
-```
-
-Use a JSON report when the diagnostics need to be reviewed or archived:
+Use a JSON report when diagnostics need to be reviewed or archived:
 
 ```shell
 npx craft-migrate \
@@ -93,7 +78,8 @@ npx craft-migrate-components --project tsconfig.app.json --root src --write
 npx craft-migrate-architecture --project tsconfig.app.json --root src --write
 ```
 
-For a pasted HTML/Web Component snippet, use the standalone template converter:
+For a pasted HTML or Web Component snippet, use the standalone template
+converter:
 
 ```shell
 printf '<section><h2>Hello</h2></section>' | npx craft-migrate-template
@@ -101,40 +87,29 @@ printf '<section><h2>Hello</h2></section>' | npx craft-migrate-template
 
 The generated callback can be pasted as the fourth argument of
 `craftComponent(...)`. The interactive [template converter](/guide/components/template-migrator)
-uses the same converter directly in the documentation.
+uses the same converter.
 
 ## Work remaining after the codemod
 
-Search the generated report and source code for migration diagnostics. In
-particular, complete the following work before considering the migration done:
+Search the generated report and source code for migration diagnostics. Complete
+the following before considering the migration done:
 
-- Rewrite Angular Signal Forms as `state(name, ..., insertForm(...))`.
-- Consume every primitive invocation (`state`, `query`, `mutation`,
-  `asyncProcess`, `queryParams`): `yield*` inside a generator factory,
-  `craftUse(...)` in a component field. The
-  `craft-ng/require-primitive-generator-unwrap` ESLint rule reports and
-  autofixes the remaining bare calls, and
-  `migrate-primitive-generators --paths <glob>` migrates whole directories.
+- Consume every primitive invocation inside a generator with `yield*`, or use
+  `craftUse(...)` at a synchronous boundary.
 - Map synchronous validators to `cRequired`, `cMaxLength`, and the other Craft
   validators.
-- Replace asynchronous form validation with `query` and `cAsyncValidate`.
+- Replace asynchronous validation with `query` and `cAsyncValidate`.
 - Replace form submission workflows with `mutation` and `insertFormSubmit`.
 - Resolve every `CRAFT_IMPLEMENTATION_REQUIRED` companion service.
-- Review generated service scopes and move `provideX(...)` close to the route or
-  feature that owns the instance.
-- Replace remaining direct Angular `inject(...)` calls with `toCraftService(...)`
-  adapters, then consume their generated `X()` helpers with `yield*`. The former
-  `injectX` and `XToYield` helpers are no longer part of the API.
-- Resolve imperative workflow diagnostics instead of only removing their
-  comments.
+- Review service scopes and move `provideX(...)` close to the route or feature
+  that owns the instance.
+- Resolve imperative workflow diagnostics instead of only removing comments.
 - Migrate guards, dynamic redirects, nested route collections, inherited route
   providers, and other route diagnostics that could not be inferred safely.
-- Confirm `componentDeps`, route provider names, and file-level DI checks are
-  complete.
-- Review HTTP mutations and subscriptions whose callback or lifecycle
-  semantics could not be moved automatically.
-- Add app-specific graph lookups in `architecture.spec.ts`. The migrator
-  already scaffolds the baseline rules under `architecture/rules/`.
+- Confirm `componentDeps`, route provider names, and file-level DI checks.
+- Review HTTP mutations and subscriptions whose lifecycle semantics could not be
+  moved automatically.
+- Add app-specific graph lookups in `architecture.spec.ts`.
 
 ## Verify the result
 
@@ -153,12 +128,10 @@ Then run the normal project verification:
 ```shell
 npx eslint "src/**/*.ts"
 npx tsc --noEmit -p tsconfig.app.json
-npx ng test
 npx vitest run --config vitest.architecture.config.ts
-npx ng build
 ```
 
-Use the workspace-specific lint, test and build commands when they differ.
+Use the workspace-specific lint, test, and build commands when they differ.
 Finally, exercise forms, navigation, pending/error UI, and write operations in
 the browser: those lifecycle behaviours cannot be fully established by a
 structural codemod.

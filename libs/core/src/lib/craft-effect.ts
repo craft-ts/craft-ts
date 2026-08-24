@@ -5,11 +5,15 @@ import {
   inject,
   Injector,
   runInInjectionContext,
+  signal,
+  untracked,
   type CreateEffectOptions,
   type EffectCleanupRegisterFn,
   type EffectRef,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
+import { craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -79,9 +83,12 @@ export function craftEffect(
 
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
-  const parentDestroyRef = inject(DestroyRef);
+  const ownerInjector = ɵcraftInjectorFromHost(
+    options?.injector ?? parentInjector,
+  );
+  const ownerDestroyRef = ownerInjector.get(DestroyRef);
   const effectInjector = ɵcreateHostTaggedInjector(
-    parentInjector,
+    ownerInjector,
     `effect:${name}`,
   );
 
@@ -114,17 +121,52 @@ export function craftEffect(
       : (plainFn as CraftEffectFn);
   }
 
-  const ref = effect(effectBody, {
-    ...options,
-    injector: parentInjector,
-    manualCleanup: options?.manualCleanup,
-  });
+  const craftInvalidation = signal(0);
+  let craftRef: { destroy(): void } | undefined;
+  let destroyed = false;
+  const angularRef = effect(
+    () => {
+      craftInvalidation();
+      craftRef?.destroy();
+      let initialRun = true;
+      craftRef = craftWatch(() => {
+        if (initialRun) {
+          const cleanups: (() => void)[] = [];
+          effectBody((cleanup) => cleanups.push(cleanup));
+          return cleanups.length === 0
+            ? undefined
+            : () => {
+                for (const cleanup of cleanups) cleanup();
+              };
+        }
+        untracked(() => craftInvalidation.update((revision) => revision + 1));
+        return undefined;
+      });
+      initialRun = false;
+    },
+    {
+      ...options,
+      injector: ownerInjector,
+      manualCleanup: true,
+    },
+  );
+  const ref = {
+    destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      angularRef.destroy();
+      craftRef?.destroy();
+    },
+  } as EffectRef;
+  if (!options?.manualCleanup) {
+    ownerDestroyRef.onDestroy(() => ref.destroy());
+  }
 
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  const registry = ownerInjector.get(APP_SNAPSHOT_REGISTRY, null);
   if (registry) {
     const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     registry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(parentDestroyRef))
+      .pipe(takeUntilDestroyed(ownerDestroyRef))
       .subscribe(() => {
         registry.allActiveEffects$.next({
           source: `effect:${name}`,

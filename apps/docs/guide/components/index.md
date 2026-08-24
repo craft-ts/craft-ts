@@ -3,9 +3,8 @@
 A Craft component is a **function**, not a class. No decorator, no separate
 template file, no host element wrapped around your markup.
 
-**Use it for** anything you would have written as an Angular component.
-**Keep Angular components** where you have them — the two coexist, and
-[`loadCraftComponent`](/guide/routing/setup) mounts a Craft one on a route.
+**Use it for** application components. [`loadCraftComponent`](/guide/routing/setup)
+mounts a Craft component on a route.
 
 ## Install
 
@@ -13,10 +12,10 @@ The component renderer is published as a separate package and is currently on
 the `beta` channel:
 
 ```shell
-npm i @craft-ng/core@beta @craft-ng/component@beta
+npm i @craft-ts/core@beta @craft-ts/component@beta
 ```
 
-See [`@craft-ng/component` on npm](https://www.npmjs.com/package/@craft-ng/component).
+See [`@craft-ts/component` on npm](https://www.npmjs.com/package/@craft-ts/component).
 
 ## The shape
 
@@ -76,12 +75,12 @@ Rendering a child is a function call, so there is no binding layer to get wrong:
 UserCard({ user: currentUser, onRemove: removeUser });
 ```
 
-| Angular                                     | Craft                                       |
-| ------------------------------------------- | ------------------------------------------- |
-| `@Input()` / `input()` / `input.required()` | an `Input<T>` factory parameter             |
-| `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: u, onRemove: fn })` |
-| Missing required input → runtime            | missing parameter → **compile error**       |
+| Contract | Craft |
+| --- | --- |
+| Input | an `Input<T>` factory parameter |
+| Output | an `Output<H>` parameter, called directly |
+| Component call | `UserCard({ user: u, onRemove: fn })` |
+| Missing required input | **compile error** |
 
 ## The template
 
@@ -107,15 +106,18 @@ See [Fine-grained reactivity](/guide/components/fine-grained-reactivity) for
 the complete rendering model, structural scopes, observability expectations,
 and migration checklist.
 
+See [Progressive `each` rendering](/guide/components/schedule-each) when a
+large collection needs frame-based scheduling.
+
 Keep render callbacks pure. They may read signals and calculate values, but
 must not call `set`, `update`, or `mutate`. Perform writes from DOM events,
 outputs, mutations, or explicit business effects. Enable
-`craft-ng/no-render-writes` to diagnose common violations.
+`craft-ts/no-render-writes` to diagnose common violations.
 
 Control flow is made of functions rather than syntax — `each`, `ifBlock`,
-`matchBlock`, `defer`. The correspondence with Angular's blocks, and why a raw
+`matchBlock`, `defer`. The relationship between these blocks, and why a raw
 ternary is the wrong tool for **structure**, is in
-[Learn step 2](/learn/02-derive#control-flow-the-angular-equivalents).
+[Learn step 2](/learn/02-derive#control-flow).
 
 ## The meta
 
@@ -163,15 +165,15 @@ export const appConfig = craftAppConfig({
 
 ```typescript
 // main.ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { CraftRootComponentHost } from '@craft-ng/component';
-import { toApplicationConfig } from '@craft-ng/core';
+import { bootstrapCraft } from '@craft-ts/component';
+import { appConfig } from './app.config';
 
-bootstrapApplication(CraftRootComponentHost, toApplicationConfig(appConfig));
+bootstrapCraft({ config: appConfig });
 ```
 
-`toApplicationConfig` produces the `ApplicationConfig` Angular expects, so the
-rest of your bootstrap is unchanged.
+`bootstrapCraft` builds the root injector, runs the app-start hooks, then
+mounts the root component into `<craft-root>` (or the element you pass as
+`host`).
 
 ## Pitfalls
 
@@ -194,5 +196,5 @@ with `.pipe(catchBlock.exhaustive(...))` — see
 
 - [Learn: your first state](/learn/01-first-state) — the guided version
 - [Directives and `.pipe(...)`](/guide/components/directives)
-- [Accessibilité](/guide/components/accessibility)
+- [Accessibility](/guide/components/accessibility)
 - [Testing components](/guide/testing/components)

@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { craftUse, craftService, setupCraftServiceTestingByRegister, state } from '@craft-ng/core';
+import {
+  craftComputed,
+  craftService,
+  craftUse,
+  setupCraftServiceTestingByRegister,
+  state,
+} from '@craft-ts/core';
 import { describe, expect, it, vi } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -8,17 +14,15 @@ useSnippetHarness();
 type Task = { id: string; title: string; done: boolean };
 
 export const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     return yield* state('tasks', [] as Task[]);
   },
 );
 
 // #region task-stats
-import { craftComputed, craftService, state } from '@craft-ng/core';
-
 export const { TaskStats, provideTaskStats } = craftService(
-  { name: 'TaskStats', scope: 'toProvide' },
+  { name: 'TaskStats', providedIn: 'toProvide' },
   function* () {
     const tasks = yield* TaskList();
 

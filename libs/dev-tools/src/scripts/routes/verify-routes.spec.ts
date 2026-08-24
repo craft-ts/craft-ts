@@ -130,7 +130,7 @@ type _CanRun = CanRun<RouteCheckedDI<import('./page').GenDeps_Page, never, Route
         filePath: routeFile,
         messages: [
           {
-            ruleId: 'craft-ng/require-assert-exhaustive-route-exceptions',
+            ruleId: 'craft-ts/require-assert-exhaustive-route-exceptions',
             severity: 2,
             line: 1,
             message:
@@ -204,11 +204,10 @@ exit 1
       join(root, 'tsconfig.json'),
       JSON.stringify({
         compilerOptions: {
-          baseUrl: root,
           module: 'preserve',
           moduleResolution: 'bundler',
           paths: {
-            '@craft-ng/core': [coreIndexPath],
+            '@craft-ts/core': [coreIndexPath],
           },
           skipLibCheck: true,
           strict: true,
@@ -231,7 +230,7 @@ exit 1
       log: () => undefined,
     });
 
-    expect(result.exitCode).toBe(0);
+    if (result.exitCode !== 0) throw new Error(JSON.stringify(result));
     expect(result.cases.every((item) => item.status === 'passed')).toBe(true);
   }, 120_000);
 

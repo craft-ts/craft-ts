@@ -1,19 +1,16 @@
 import {
-  ChangeDetectionStrategy,
-  Component,
   inject,
   InjectionToken,
   LOCALE_ID,
   signal,
   type Provider,
   type Signal,
-} from '@angular/core';
-import type {
-  GetDeps,
-  GetPublicComponentProperties,
-} from './branded-component/branded-component';
+} from './host/craft-compat';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
-import type { CraftRouteTargetInput } from './craft-route-target';
+import {
+  craftRouteTarget,
+  type CraftRouteTargetInput,
+} from './craft-route-target';
 
 /**
  * The non-blocking router outlet ({@link CraftRouterOutletController}) commits
@@ -67,31 +64,25 @@ export const CRAFT_LOADING_TEXT = new InjectionToken<Signal<string>>(
   },
 );
 
+let defaultCraftPendingComponent: CraftRouteTargetInput | undefined;
+
 /**
- * The default pending component: a single element rendering {@link CRAFT_LOADING_TEXT}.
- * Override globally with {@link withPendingComponent} or per route via the
- * route's `pendingComponent` field.
+ * Installs the real loader. `@craft-ts/component` calls this on import, since
+ * rendering anything at all needs the renderer that only it owns.
  */
-@Component({
-  selector: 'craft-pending',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="craft-pending">{{ loading() }}</div>`,
-  styles: [
-    `
-      .craft-pending {
-        padding: 1rem;
-        font-family:
-          system-ui,
-          -apple-system,
-          sans-serif;
-        color: #6b7280;
-      }
-    `,
-  ],
-})
-export class DefaultCraftPendingComponent {
-  readonly loading = inject(CRAFT_LOADING_TEXT);
+export function ɵregisterDefaultCraftPendingComponent(
+  component: CraftRouteTargetInput,
+): void {
+  defaultCraftPendingComponent = component;
+}
+
+/**
+ * Core alone can render nothing, so the fallback is an empty target rather
+ * than a throw: a router used without `@craft-ts/component` still navigates,
+ * it just shows nothing during the pending phase.
+ */
+function getDefaultCraftPendingComponent(): CraftRouteTargetInput {
+  return defaultCraftPendingComponent ?? craftRouteTarget(null);
 }
 
 /**
@@ -103,7 +94,7 @@ export class DefaultCraftPendingComponent {
 export const CRAFT_PENDING_COMPONENT =
   new InjectionToken<CraftRouteTargetInput>('CRAFT_PENDING_COMPONENT', {
     providedIn: 'root',
-    factory: () => DefaultCraftPendingComponent,
+    factory: () => getDefaultCraftPendingComponent(),
   });
 
 /**
@@ -275,17 +266,3 @@ export function provideCraftLoading(
 ): Provider[] {
   return features.flatMap((feature) => feature.providers);
 }
-
-export type GenDeps_DefaultCraftPendingComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    loading: {
-      CRAFT_LOADING_TEXT: typeof CRAFT_LOADING_TEXT;
-    };
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<DefaultCraftPendingComponent>;
-  missingProvider: {
-    CRAFT_LOADING_TEXT: typeof CRAFT_LOADING_TEXT;
-  };
-}>;

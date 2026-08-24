@@ -23,7 +23,7 @@ describe('craft-source-name-match', () => {
   it('accepts a const whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { source$ } from '@craft-ng/core';
+        import { source$ } from '@craft-ts/core';
 
         const reset$ = source$<void>('reset$');
       `,
@@ -35,7 +35,7 @@ describe('craft-source-name-match', () => {
   it('accepts a class property whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { source$ } from '@craft-ng/core';
+        import { source$ } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly reset$ = source$<void>('reset$');
@@ -49,7 +49,7 @@ describe('craft-source-name-match', () => {
   it('accepts an object property whose first arg matches its key', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { source$ } from '@craft-ng/core';
+        import { source$ } from '@craft-ts/core';
 
         const insertions = {
           resetAll$: source$<void>('resetAll$'),
@@ -63,7 +63,7 @@ describe('craft-source-name-match', () => {
   it('reports a mismatch between object property key and first arg', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { source$ } from '@craft-ng/core';
+        import { source$ } from '@craft-ts/core';
 
         const insertions = {
           resetAll$: source$<void>('wrong'),
@@ -79,7 +79,7 @@ describe('craft-source-name-match', () => {
   it('reports a missing first arg on a const', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { source$ } from '@craft-ng/core';
+        import { source$ } from '@craft-ts/core';
 
         const reset$ = source$<void>();
       `,
@@ -94,7 +94,7 @@ describe('craft-source-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { source$ } from '@craft-ng/core';
+          import { source$ } from '@craft-ts/core';
 
           const reset$ = source$<void>('wrong');
         `,
@@ -109,7 +109,7 @@ describe('craft-source-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { source$ } from '@craft-ng/core';
+          import { source$ } from '@craft-ts/core';
 
           const reset$ = source$<void>();
         `,
@@ -123,7 +123,7 @@ describe('craft-source-name-match', () => {
   it('ignores source$ calls not assigned to a known name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { source$ } from '@craft-ng/core';
+        import { source$ } from '@craft-ts/core';
 
         export function createSource() {
           return source$<void>('reset$');
@@ -160,7 +160,7 @@ async function lintFixture(
       2,
     ),
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function source$<T>(...args: unknown[]): unknown;
       }
     `,

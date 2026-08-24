@@ -9,7 +9,7 @@ import type {
   CraftField,
   FieldExceptionVisibility,
   FieldValidationCase,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
   CRAFT_DIRECTIVE,
   COMPONENT_FIELD_EXCEPTION_BLOCK,
@@ -67,13 +67,13 @@ type KnownFieldException =
 
 type KnownFieldExceptionForCode<Code extends string> = Extract<
   KnownFieldException,
-  { readonly code: Code }
+  { readonly _tag: Code }
 >;
 
 type FieldExceptionForCode<Code extends string> = [
   KnownFieldExceptionForCode<Code>,
 ] extends [never]
-  ? AnyCraftException & { readonly code: Code }
+  ? AnyCraftException & { readonly _tag: Code }
   : KnownFieldExceptionForCode<Code>;
 
 type LocalHandlerMap = Readonly<Record<string, AnyFieldExceptionHandler>>;
@@ -117,7 +117,7 @@ export type FieldExceptionHandlerChildren<Handler> = Handler extends (
 
 type CaseIdentity<Case> =
   Case extends FieldValidationCase<infer Path, any, infer Exception>
-    ? `${Path}.${Exception['code']}`
+    ? `${Path}.${Exception['_tag']}`
     : never;
 
 type HandlerIdentity<Handlers> = {
@@ -149,7 +149,7 @@ export type UnhandledFieldValidationCases<Cases> = Exclude<
 
 type CaseCode<Case> =
   Case extends FieldValidationCase<any, any, infer Exception>
-    ? Exception['code']
+    ? Exception['_tag']
     : never;
 
 type CasePath<Case> =
@@ -219,8 +219,8 @@ export type FieldExceptionBlockPartialCheck<Cases, Handlers> = [
 type HandledIdentity<Cases, Handlers> =
   HandlersAreLocal<Handlers> extends true
     ? Cases extends FieldValidationCase<infer Path, any, infer Exception>
-      ? Exception['code'] extends keyof Handlers
-        ? `${Path}.${Exception['code']}`
+      ? Exception['_tag'] extends keyof Handlers
+        ? `${Path}.${Exception['_tag']}`
         : never
       : never
     : HandlerIdentity<Handlers>;

@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+import { TestBed } from './host/craft-test-bed';
 import {
   afterEach,
   beforeAll,
@@ -35,21 +30,6 @@ import {
   type CraftLazyLoadHelpers,
 } from './craft-load-retry';
 import { craftUntilSettled } from './craft-until-settled';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 // Reads the promise an `await`-request suspends on so a hand-driven test can
 // resolve it itself and feed the value back — no async pump needed.
@@ -88,7 +68,7 @@ describe('craftLazy (generator protocol)', () => {
 
     const resolved = await awaitedPromise(program.next().value);
     expect(isCraftException(resolved)).toBe(true);
-    expect((resolved as CraftLazyLoadError).code).toBe(
+    expect((resolved as CraftLazyLoadError)._tag).toBe(
       CRAFT_LAZY_LOAD_ERROR_CODE,
     );
     expect((resolved as CraftLazyLoadError).payload.cause).toBe(cause);
@@ -98,7 +78,7 @@ describe('craftLazy (generator protocol)', () => {
       expect.unreachable('expected a CraftGenShortCircuit to be thrown');
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
-      expect((error as CraftGenShortCircuit).exception.code).toBe(
+      expect((error as CraftGenShortCircuit).exception._tag).toBe(
         CRAFT_LAZY_LOAD_ERROR_CODE,
       );
     }
@@ -166,7 +146,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
       expect(load).toHaveBeenCalledTimes(2);
       expect(craftUse(ref.status())).toBe('exception');
       expect(craftUse(ref.hasException())).toBe(true);
-      expect(craftUse(ref.exception())?.code).toBe(CRAFT_LAZY_LOAD_ERROR_CODE);
+      expect(craftUse(ref.exception())?._tag).toBe(CRAFT_LAZY_LOAD_ERROR_CODE);
       expect(
         craftUse(ref.exceptions()).loader?.[CRAFT_LAZY_LOAD_ERROR_CODE],
       ).toMatchObject({
@@ -249,8 +229,8 @@ describe('craftLazy (type propagation)', () => {
     // Typechecked but never executed (no injection context at runtime).
     function _typeOnly() {
       const search = craftGen(function* (q: string) {
-        if (q === 'a') return craftException({ code: 'E1' }, { q });
-        if (q === 'b') return craftException({ code: 'E2' }, { q });
+        if (q === 'a') return craftException({ _tag: 'E1' }, { q });
+        if (q === 'b') return craftException({ _tag: 'E2' }, { q });
         return [q];
       });
 
@@ -288,7 +268,7 @@ describe('craftLazy (type propagation)', () => {
       // Both the lazy-load failure and `search`'s business exceptions surface.
       type ResultCodes = NonNullable<
         ReturnType<typeof searchResult.exception>
-      >['code'];
+      >['_tag'];
       expectTypeOf<ResultCodes>().toEqualTypeOf<
         'E1' | 'E2' | typeof CRAFT_LAZY_LOAD_ERROR_CODE
       >();

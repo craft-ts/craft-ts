@@ -21,7 +21,7 @@ import {
   insertStatePipe,
   insertStoragePersister,
   state,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 ```
 
 ## The common case — selecting an object property
@@ -146,8 +146,8 @@ state('cells', initialCells, insertStatePipe(
 ::: details Working examples — pixel art
 Two demos built almost entirely on nested selects:
 
-- [Pixel Art (1D grid)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
-- [Pixel Art Matrix (2D grid)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
+- [Pixel Art (1D grid)](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
+- [Pixel Art Matrix (2D grid)](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
 
 :::
 

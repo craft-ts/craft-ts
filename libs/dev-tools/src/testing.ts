@@ -5,7 +5,7 @@
  * without depending on an internal workspace package:
  *
  * ```ts
- * import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+ * import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
  * ```
  *
  * These are types only — nothing is emitted at runtime.

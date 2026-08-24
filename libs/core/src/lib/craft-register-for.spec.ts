@@ -1,4 +1,7 @@
-import { Injector, runInInjectionContext } from '@angular/core';
+import {
+  Injector,
+  runInInjectionContext,
+} from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   CRAFT_REGISTRATION_TARGET,
@@ -78,7 +81,7 @@ describe('craftRegisterFor runtime', () => {
         provideServiceYieldWrapper(
           'test service yield wrapper',
           function* (context, next) {
-            seen.push(`${context.name}:${context.scope}`);
+            seen.push(`${context.name}:${context.providedIn}`);
             return yield* next();
           },
         ),
@@ -89,7 +92,7 @@ describe('craftRegisterFor runtime', () => {
       return yield {
         [SERVICE_YIELD_REQUEST_MARKER]: true,
         name: 'Counter',
-        scope: 'toProvide',
+        providedIn: 'toProvide',
         resolve: () => 'counter',
       };
     }
@@ -144,7 +147,7 @@ describe('craftRegisterFor runtime', () => {
             const dependency = yield {
               [SERVICE_YIELD_REQUEST_MARKER]: true,
               name: 'TargetTagService',
-              scope: 'function',
+              providedIn: 'function',
               resolve: () => 'tag',
             };
             seen.push(`dependency:${dependency}`);

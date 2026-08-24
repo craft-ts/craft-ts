@@ -1,16 +1,16 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
   div,
   p,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftComputed,
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',

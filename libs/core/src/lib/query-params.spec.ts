@@ -1,10 +1,5 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from './host/craft-test-bed';
 import { queryParams } from './query-params';
-import { provideRouter, Router } from '@angular/router';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { craftService } from './craft-service';
@@ -24,6 +19,7 @@ import {
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { craftUse } from './craft-use';
+import { CRAFT_HISTORY, CRAFT_ROUTER, provideCraftRouter } from './craft-router';
 
 let queryParamsResourceObserver:
   | ((context: PrimitiveResourceRuntimeContext) => void)
@@ -45,30 +41,16 @@ const queryParamsRuntimeContextWrapper: FnWrapper = function* (
   return yield* factory.apply(thisArg, args);
 };
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
 describe('queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    window.history.replaceState(null, '', '/');
     queryParamsResourceObserver = undefined;
     queryParamsWrapObserver = undefined;
     queryParamsRuntimeContextObserver = undefined;
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideCraftRouter([]),
         providePrimitiveResourceRuntimeObserver((context) => {
           queryParamsResourceObserver?.(context);
         }),
@@ -151,7 +133,6 @@ describe('queryParams', () => {
 
       expect(craftUse(myQueryParams.page())).toBe(1);
       expect(craftUse(myQueryParams.pageSize())).toBe(10);
-      console.log('myQueryParams', myQueryParams);
       myQueryParams.set({
         page: 2,
         pageSize: 20,
@@ -257,7 +238,7 @@ describe('queryParams', () => {
 
   it('typing: tracks dependencies used by generator insertions', () => {
     const { PaginationRulesDeps } = craftService(
-      { name: 'PaginationRulesDeps', scope: 'global' },
+      { name: 'PaginationRulesDeps', providedIn: 'global' },
       () => ({
         maxPage: () => 3,
       }),
@@ -297,12 +278,6 @@ describe('queryParams', () => {
       );
 
       expectTypeOf<ExtractDeps<typeof myQueryParams>>().toEqualTypeOf<{
-        Router: {
-          scope: 'global';
-          dependencies: {};
-          browserBoundary: false;
-          appStart: false;
-        };
         PaginationRulesDeps: GetServiceDependencies<typeof PaginationRulesDeps>;
       }>();
     });
@@ -565,7 +540,7 @@ describe('queryParams', () => {
 
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
+      const router = TestBed.inject(CRAFT_ROUTER);
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -625,8 +600,9 @@ describe('queryParams', () => {
 describe('queryParams codecs', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    window.history.replaceState(null, '', '/');
     TestBed.configureTestingModule({
-      providers: [provideRouter([])],
+      providers: [provideCraftRouter([])],
     }).compileComponents();
   });
 
@@ -636,7 +612,7 @@ describe('queryParams codecs', () => {
 
   it('decodes and encodes values through a synchronous codec', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
+      const router = TestBed.inject(CRAFT_ROUTER);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -657,7 +633,7 @@ describe('queryParams codecs', () => {
 
       expectTypeOf(craftUse(filters.page())).toEqualTypeOf<number>();
 
-      await router.navigate([], { queryParams: { page: '4' } });
+      await router.navigateByUrl('/?page=4');
       expect(craftUse(filters.page())).toBe(4);
 
       filters.set({ page: 5 });
@@ -666,11 +642,43 @@ describe('queryParams codecs', () => {
     });
   });
 
+  it('skipLocationChange updates url without changing the address bar', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(CRAFT_ROUTER);
+      const history = TestBed.inject(CRAFT_HISTORY);
+      const filters = craftUse(
+        queryParams(
+          'filters',
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: {
+                  decode: (value: string) => Number(value),
+                  encode: (value: number) => String(value),
+                },
+              },
+            },
+          },
+          ({ set }) => ({ set }),
+        ),
+      );
+
+      filters.set({ page: 2 }, { skipLocationChange: true });
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(filters.page())).toBe(2);
+      expect(router.url).toContain('page=2');
+      expect(history.get().search).toContain('page=2');
+      expect(window.location.search).toBe('');
+    });
+  });
+
   it('falls back and exposes native codec decode errors', async () => {
     const nativeError = new Error('invalid page');
 
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
+      const router = TestBed.inject(CRAFT_ROUTER);
       const filters = craftUse(
         queryParams('filters', {
           state: {
@@ -687,10 +695,10 @@ describe('queryParams codecs', () => {
         }),
       );
 
-      await router.navigate([], { queryParams: { page: 'invalid' } });
+      await router.navigateByUrl('/?page=invalid');
 
       expect(craftUse(filters.page())).toBe(1);
-      expect(craftUse(filters.exceptions()).parse.page?.code).toBe(
+      expect(craftUse(filters.exceptions()).parse.page?._tag).toBe(
         'QueryParamDecodeError',
       );
       expect(craftUse(filters.exceptions()).parse.page?.payload).toEqual({
@@ -703,8 +711,8 @@ describe('queryParams codecs', () => {
 
   it('throws a QueryParamEncodeError before navigation', () => {
     TestBed.runInInjectionContext(() => {
-      const router = TestBed.inject(Router);
-      const navigate = vi.spyOn(router, 'navigate');
+      const router = TestBed.inject(CRAFT_ROUTER);
+      const navigate = vi.spyOn(TestBed.inject(CRAFT_HISTORY), 'push');
       const filters = craftUse(
         queryParams(
           'filters',

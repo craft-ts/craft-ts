@@ -1,4 +1,9 @@
 import {
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import {
   afterEach,
   beforeAll,
   beforeEach,
@@ -8,12 +13,6 @@ import {
   it,
   vi,
 } from 'vitest';
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { craftException } from './craft-exception';
 import { isCraftGenShortCircuit } from './craft-gen';
 import { craftComputed } from './craft-computed';
@@ -37,21 +36,6 @@ interface User {
   readonly id: string;
   readonly name: string;
 }
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -130,7 +114,7 @@ describe('craftSettledValue', () => {
   it('short-circuits with the business exception through the existing channel', () => {
     const { resource, status, hasException, exceptions } = makeResource();
     const settledValue = craftSettledValue<User[]>('users', resource);
-    const exception = craftException({ code: 'MISSING_USER_ID' });
+    const exception = craftException({ _tag: 'MISSING_USER_ID' });
 
     status.set('exception');
     hasException.set(true);
@@ -218,7 +202,7 @@ describe('settledValue on query', () => {
           params: () =>
             Math.random() > 0.5
               ? true
-              : craftException({ code: 'MISSING_USER_ID' }),
+              : craftException({ _tag: 'MISSING_USER_ID' }),
           loader: async (): Promise<User[]> => [],
         }),
       );
@@ -509,7 +493,7 @@ describe('settled() inside craftComputed', () => {
           params: () =>
             Math.random() > 0.5
               ? true
-              : craftException({ code: 'MISSING_USER_ID' }),
+              : craftException({ _tag: 'MISSING_USER_ID' }),
           loader: async (): Promise<User[]> => [],
         }),
       );

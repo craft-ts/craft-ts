@@ -9,31 +9,80 @@ import { fileURLToPath } from 'node:url';
 export const releasePackages = [
   {
     key: 'core',
-    name: '@craft-ng/core',
-    project: 'ng-craft-core',
+    name: '@craft-ts/core',
+    project: 'craft-ts-core',
     sourceManifest: 'libs/core/package.json',
     distRoot: 'dist/libs/core',
   },
   {
     key: 'component',
-    name: '@craft-ng/component',
-    project: 'ng-craft-component',
+    name: '@craft-ts/component',
+    project: 'craft-ts-component',
     sourceManifest: 'libs/component/package.json',
     distRoot: 'dist/libs/component',
   },
   {
+    key: 'effect',
+    name: '@craft-ts/effect',
+    project: 'craft-ts-effect',
+    sourceManifest: 'libs/effect/package.json',
+    distRoot: 'dist/libs/effect',
+  },
+  {
     key: 'dev_tools',
-    name: '@craft-ng/dev-tools',
+    name: '@craft-ts/dev-tools',
     project: 'dev-tools',
     sourceManifest: 'libs/dev-tools/package.json',
     distRoot: 'dist/libs/dev-tools',
   },
   {
+    key: 'deploy',
+    name: '@craft-ts/deploy',
+    project: 'craft-ts-deploy',
+    sourceManifest: 'libs/deploy/package.json',
+    distRoot: 'dist/libs/deploy',
+  },
+  {
+    key: 'cli',
+    name: '@craft-ts/cli',
+    project: 'craft-ts-cli',
+    sourceManifest: 'libs/cli/package.json',
+    distRoot: 'dist/libs/cli',
+  },
+  {
+    key: 'deploy_alchemy',
+    name: '@craft-ts/deploy-alchemy',
+    project: 'craft-ts-deploy-alchemy',
+    sourceManifest: 'libs/deploy-alchemy/package.json',
+    distRoot: 'dist/libs/deploy-alchemy',
+  },
+  {
     key: 'mcp',
-    name: '@craft-ng/mcp',
+    name: '@craft-ts/mcp',
     project: 'mcp',
     sourceManifest: 'packages/mcp/package.json',
     distRoot: 'packages/mcp',
+  },
+  {
+    key: 'log_server',
+    name: '@craft-ts/log-server',
+    project: 'log-server',
+    sourceManifest: 'apps/log-server/package.json',
+    distRoot: 'apps/log-server',
+  },
+  {
+    key: 'log_mcp',
+    name: '@craft-ts/log-mcp',
+    project: 'log-mcp',
+    sourceManifest: 'packages/log-mcp/package.json',
+    distRoot: 'packages/log-mcp',
+  },
+  {
+    key: 'function_registry_mcp',
+    name: '@craft-ts/function-registry-mcp',
+    project: 'function-registry-mcp',
+    sourceManifest: 'packages/function-registry-mcp/package.json',
+    distRoot: 'packages/function-registry-mcp',
   },
 ];
 
@@ -279,13 +328,20 @@ function changedFiles(base, head) {
   return [...new Set([...unstaged, ...staged])].sort();
 }
 
-function assertChangedFiles(base, head) {
+function assertChangedFiles(base, head, allowSubset = false) {
   const actual = changedFiles(base, head);
-  assertFileNames(actual);
+  assertFileNames(actual, allowSubset);
 }
 
-function assertFileNames(actual) {
+function assertFileNames(actual, allowSubset = false) {
   actual = [...new Set(actual)].sort();
+  const unexpected = actual.filter((path) => !releaseTrackedFiles.includes(path));
+  if (unexpected.length > 0) {
+    throw new Error(
+      `Release changes contain unexpected files: ${unexpected.join(', ')}.`,
+    );
+  }
+  if (allowSubset) return;
   if (JSON.stringify(actual) !== JSON.stringify(releaseTrackedFiles)) {
     throw new Error(
       `Release changes must be exactly ${releaseTrackedFiles.join(', ')}; received ${actual.join(', ') || 'none'}.`,
@@ -408,7 +464,7 @@ function main([command, ...args]) {
       assertManifests(args[0]);
       break;
     case 'assert-changes':
-      assertChangedFiles(args[0], args[1]);
+      assertChangedFiles(args[0], args[1], args.includes('--allow-subset'));
       break;
     case 'assert-file-list':
       assertFileList(args[0]);

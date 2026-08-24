@@ -19,7 +19,7 @@ warning string.
 ## The common case
 
 ```ts
-import { provideCraftTargetWrapper } from '@craft-ng/core';
+import { provideCraftTargetWrapper } from '@craft-ts/core';
 
 const provideTargetCustomization = provideCraftTargetWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -59,10 +59,10 @@ type CraftTargetContext = {
 `target`, `kind`, `name` and `ref` describe the real instance and are immutable.
 **`hostName` is the only field you can change**, by passing it to `next(...)`.
 
-## Tagging the host name
+## Tagging the target name
 
 ```ts
-import { HOST_TAG_LIST, provideCraftTargetWrapper } from '@craft-ng/core';
+import { HOST_TAG_LIST, provideCraftTargetWrapper } from '@craft-ts/core';
 
 const provideTagBasedTargetRegistration = provideCraftTargetWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',

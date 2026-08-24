@@ -1,4 +1,4 @@
-import { ResourceRef, Signal } from '@angular/core';
+import { ResourceRef, Signal } from '../host/craft-compat';
 import { ResourceByIdRef } from '../resource-by-id';
 
 export interface PersistedQuery {

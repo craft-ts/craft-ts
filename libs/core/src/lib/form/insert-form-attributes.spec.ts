@@ -1,5 +1,7 @@
-import { computed, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+  computed,
+  signal,
+} from '../host/craft-compat';
 import { craftException } from '../craft-exception';
 import { provideFnWrapper } from '../fn-wrapper';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
@@ -13,10 +15,36 @@ import {
 } from './insert-select-form-tree';
 import { cEmail, cMinLength, cRequired, cValidator } from './validator';
 import { craftUse } from '../craft-use';
+import { craftService, type CraftServiceProvider } from '../craft-service';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from '../setup-craft-service-test';
+
+const { FormAttributesSpecHost } = craftService(
+  { name: 'FormAttributesSpecHost', providedIn: 'global' },
+  () => ({}),
+);
+
+const runInInjectionContext = <T>(
+  fn: () => T,
+  extraProviders: CraftServiceProvider[] = [],
+): T => {
+  const { injector } =
+    extraProviders.length === 0
+      ? setupCraftServiceTest()
+      : setupCraftServiceTest(FormAttributesSpecHost, {}, {
+          providers: extraProviders,
+        });
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
 
 describe('insertFormAttributes', () => {
-  it('binds disable, hidden and readonly signals to the field', () => {
-    TestBed.runInInjectionContext(() => {
+  it('binds disable, hidden and readonly signals to the field', async () => {
+    await runInInjectionContext(async () => {
       const disabled = signal(false);
       const hidden = signal(false);
       const readonly = signal(false);
@@ -42,7 +70,7 @@ describe('insertFormAttributes', () => {
       disabled.set(true);
       hidden.set(true);
       readonly.set(true);
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.disabled())).toBe(true);
       expect(craftUse(fieldForm.form.hidden())).toBe(true);
@@ -50,8 +78,8 @@ describe('insertFormAttributes', () => {
     });
   });
 
-  it('composes with insertSelectFormTree on a nested form tree', () => {
-    TestBed.runInInjectionContext(() => {
+  it('composes with insertSelectFormTree on a nested form tree', async () => {
+    await runInInjectionContext(async () => {
       const hidden = signal(false);
 
       const profileForm = craftUse(
@@ -80,14 +108,14 @@ describe('insertFormAttributes', () => {
       expect(profile?.hidden()).toBe(false);
 
       hidden.set(true);
-      TestBed.tick();
+      flushHost();
 
       expect(profile?.hidden()).toBe(true);
     });
   });
 
-  it('aggregates sync validator exceptions into list and byValidator', () => {
-    TestBed.runInInjectionContext(() => {
+  it('aggregates sync validator exceptions into list and byValidator', async () => {
+    await runInInjectionContext(async () => {
       const fieldState = signal<string>('');
       const fieldForm = craftUse(
         state(
@@ -103,7 +131,7 @@ describe('insertFormAttributes', () => {
                     fieldState() === '' || fieldState().includes('@'),
                   exception: () =>
                     craftException(
-                      { code: 'MISSING_AT' },
+                      { _tag: 'MISSING_AT' },
                       { message: 'Missing @' as const },
                     ),
                 }),
@@ -115,19 +143,19 @@ describe('insertFormAttributes', () => {
 
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        cRequired: { code: 'required' },
+        cRequired: { _tag: 'required' },
       });
 
       fieldState.set('romain');
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
+        hasAtSign: { _tag: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.invalid())).toBe(false);
       expect(craftUse(fieldForm.form.exceptions())).toEqual({
         list: [],
@@ -136,9 +164,32 @@ describe('insertFormAttributes', () => {
     });
   });
 
-  it('runs validators when a global fn wrapper is provided', () => {
-    TestBed.configureTestingModule({
-      providers: [
+  it('runs validators when a global fn wrapper is provided', async () => {
+    await runInInjectionContext(
+      async () => {
+        const fieldState = signal<string>('');
+        const fieldForm = craftUse(
+          state(
+            'fieldForm',
+            fieldState,
+            insertForm(
+              insertFormAttributes(() => ({
+                validators: [cRequired()],
+              })),
+            ),
+          ),
+        );
+
+        expect(craftUse(fieldForm.form.errors())[0]).toMatchObject({
+          _tag: 'required',
+        });
+
+        fieldState.set('ok');
+        flushHost();
+
+        expect(craftUse(fieldForm.form.errors())).toEqual([]);
+      },
+      [
         provideFnWrapper(
           'Warning: dependency injection here is not type-safe and may fail at runtime',
           function* (factory, thisArg, args) {
@@ -146,35 +197,11 @@ describe('insertFormAttributes', () => {
           },
         ),
       ],
-    });
-
-    TestBed.runInInjectionContext(() => {
-      const fieldState = signal<string>('');
-      const fieldForm = craftUse(
-        state(
-          'fieldForm',
-          fieldState,
-          insertForm(
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
-          ),
-        ),
-      );
-
-      expect(craftUse(fieldForm.form.errors())[0]).toMatchObject({
-        code: 'required',
-      });
-
-      fieldState.set('ok');
-      TestBed.tick();
-
-      expect(craftUse(fieldForm.form.errors())).toEqual([]);
-    });
+    );
   });
 
-  it('keeps exceptions hidden until the field is touched or submit is attempted', () => {
-    TestBed.runInInjectionContext(() => {
+  it('keeps exceptions hidden until the field is touched or submit is attempted', async () => {
+    await runInInjectionContext(async () => {
       const fieldForm = craftUse(
         state(
           'fieldForm',
@@ -191,17 +218,17 @@ describe('insertFormAttributes', () => {
       expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkDirty();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkTouched();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(1);
     });
   });
 
-  it('shares a touched visibility policy across all visible helpers', () => {
-    TestBed.runInInjectionContext(() => {
+  it('shares a touched visibility policy across all visible helpers', async () => {
+    await runInInjectionContext(async () => {
       const fieldForm = craftUse(
         state(
           'touchedFieldForm',
@@ -216,31 +243,31 @@ describe('insertFormAttributes', () => {
       );
 
       fieldForm.form.ɵmarkDirty();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.visibleExceptions()).list).toHaveLength(0);
       expect(
         craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
       ).toBeUndefined();
 
       fieldForm.form.ɵmarkTouched();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.visibleExceptions()).list).toHaveLength(1);
       expect(
         craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
       ).toMatchObject({
-        code: 'required',
+        _tag: 'required',
       });
 
       fieldForm.form.reset();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.touched())).toBe(false);
       expect(craftUse(fieldForm.form.visibleExceptions()).list).toHaveLength(0);
     });
   });
 
   describe('firstLeftFailedValidation / lastRightFailedValidation', () => {
-    it('exposes the first left and last right failing validator exceptions', () => {
-      TestBed.runInInjectionContext(() => {
+    it('exposes the first left and last right failing validator exceptions', async () => {
+      await runInInjectionContext(async () => {
         const fieldState = signal<string>('');
         const fieldForm = craftUse(
           state(
@@ -254,12 +281,12 @@ describe('insertFormAttributes', () => {
                     name: 'hasAtSign',
                     validWhen: () =>
                       fieldState() === '' || fieldState().includes('@'),
-                    exception: () => craftException({ code: 'MISSING_AT' }),
+                    exception: () => craftException({ _tag: 'MISSING_AT' }),
                   }),
                   cValidator({
                     name: 'minLen5',
                     validWhen: () => fieldState().length >= 5,
-                    exception: () => craftException({ code: 'TOO_SHORT' }),
+                    exception: () => craftException({ _tag: 'TOO_SHORT' }),
                   }),
                 ],
               })),
@@ -271,39 +298,39 @@ describe('insertFormAttributes', () => {
         expect(
           (
             craftUse(fieldForm.form.firstLeftFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('required');
         expect(
           (
             craftUse(fieldForm.form.lastRightFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('TOO_SHORT');
 
         // "ab" -> hasAtSign + minLen5 fail
         fieldState.set('ab');
-        TestBed.tick();
+        flushHost();
         expect(
           (
             craftUse(fieldForm.form.firstLeftFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('MISSING_AT');
         expect(
           (
             craftUse(fieldForm.form.lastRightFailedValidation()) as {
-              code: string;
+              _tag: string;
             }
-          )?.code,
+          )?._tag,
         ).toBe('TOO_SHORT');
 
         // valid -> undefined
         fieldState.set('foo@bar.com');
-        TestBed.tick();
+        flushHost();
         expect(
           craftUse(fieldForm.form.firstLeftFailedValidation()),
         ).toBeUndefined();
@@ -313,8 +340,8 @@ describe('insertFormAttributes', () => {
       });
     });
 
-    it('visible variants stay undefined until touched or submit attempted', () => {
-      TestBed.runInInjectionContext(() => {
+    it('visible variants stay undefined until touched or submit attempted', async () => {
+      await runInInjectionContext(async () => {
         const fieldForm = craftUse(
           state(
             'fieldForm',
@@ -338,7 +365,7 @@ describe('insertFormAttributes', () => {
         ).toBeUndefined();
 
         fieldForm.form.ɵmarkDirty();
-        TestBed.tick();
+        flushHost();
         expect(
           craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
         ).toBeUndefined();
@@ -347,7 +374,7 @@ describe('insertFormAttributes', () => {
         ).toBeUndefined();
 
         fieldForm.form.ɵmarkTouched();
-        TestBed.tick();
+        flushHost();
         expect(
           craftUse(fieldForm.form.visibleFirstLeftFailedValidation()),
         ).toBeDefined();
@@ -358,8 +385,8 @@ describe('insertFormAttributes', () => {
     });
   });
 
-  it('skips validators when the field is hidden, disabled, or readonly', () => {
-    TestBed.runInInjectionContext(() => {
+  it('skips validators when the field is hidden, disabled, or readonly', async () => {
+    await runInInjectionContext(async () => {
       const hidden = signal(false);
       const fieldForm = craftUse(
         state(
@@ -377,15 +404,15 @@ describe('insertFormAttributes', () => {
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
 
       hidden.set(true);
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.invalid())).toBe(false);
       expect(craftUse(fieldForm.form.exceptions()).list.length).toBe(0);
     });
   });
 
   describe('insertion factory context', () => {
-    it('receives state, field, set/update/patch, submission controls and previous insertions', () => {
-      TestBed.runInInjectionContext(() => {
+    it('receives state, field, set/update/patch, submission controls and previous insertions', async () => {
+      await runInInjectionContext(async () => {
         const seen: {
           insertionsHasUpperEmail?: boolean;
           upperEmail?: string;
@@ -447,8 +474,8 @@ describe('insertFormAttributes', () => {
       });
     });
 
-    it('chains insertion outputs through context.insertions', () => {
-      TestBed.runInInjectionContext(() => {
+    it('chains insertion outputs through context.insertions', async () => {
+      await runInInjectionContext(async () => {
         const f = craftUse(
           state(
             'f',
@@ -480,8 +507,8 @@ describe('insertFormAttributes', () => {
   });
 
   describe('parallel forms', () => {
-    it('registers independent validators per parallel entry', () => {
-      TestBed.runInInjectionContext(() => {
+    it('registers independent validators per parallel entry', async () => {
+      await runInInjectionContext(async () => {
         const usersForm = craftUse(
           state(
             'usersForm',
@@ -511,7 +538,7 @@ describe('insertFormAttributes', () => {
 
         expect(emailA?.invalid()).toBe(true);
         expect(emailA?.exceptions().byValidator).toMatchObject({
-          cRequired: { code: 'required' },
+          cRequired: { _tag: 'required' },
         });
 
         expect(emailB?.invalid()).toBe(false);
@@ -522,8 +549,8 @@ describe('insertFormAttributes', () => {
       });
     });
 
-    it('parallel entries receive their formIdentifier in the factory context', () => {
-      TestBed.runInInjectionContext(() => {
+    it('parallel entries receive their formIdentifier in the factory context', async () => {
+      await runInInjectionContext(async () => {
         const seenIdentifiers: string[] = [];
 
         const usersForm = craftUse(
@@ -560,8 +587,8 @@ describe('insertFormAttributes', () => {
 });
 
 describe('formAttributes', () => {
-  it('binds disable, hidden and readonly signals to the field', () => {
-    TestBed.runInInjectionContext(() => {
+  it('binds disable, hidden and readonly signals to the field', async () => {
+    await runInInjectionContext(async () => {
       const disabled = signal(false);
       const hidden = signal(false);
       const readonly = signal(false);
@@ -587,7 +614,7 @@ describe('formAttributes', () => {
       disabled.set(true);
       hidden.set(true);
       readonly.set(true);
-      TestBed.tick();
+      flushHost();
 
       expect(craftUse(fieldForm.form.disabled())).toBe(true);
       expect(craftUse(fieldForm.form.hidden())).toBe(true);
@@ -595,8 +622,8 @@ describe('formAttributes', () => {
     });
   });
 
-  it('aggregates sync validator exceptions into list and byValidator', () => {
-    TestBed.runInInjectionContext(() => {
+  it('aggregates sync validator exceptions into list and byValidator', async () => {
+    await runInInjectionContext(async () => {
       const fieldState = signal<string>('');
       const fieldForm = craftUse(
         state(
@@ -612,7 +639,7 @@ describe('formAttributes', () => {
                     fieldState() === '' || fieldState().includes('@'),
                   exception: () =>
                     craftException(
-                      { code: 'MISSING_AT' },
+                      { _tag: 'MISSING_AT' },
                       { message: 'Missing @' as const },
                     ),
                 }),
@@ -624,23 +651,23 @@ describe('formAttributes', () => {
 
       expect(craftUse(fieldForm.form.invalid())).toBe(true);
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        cRequired: { code: 'required' },
+        cRequired: { _tag: 'required' },
       });
 
       fieldState.set('romain');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.exceptions()).byValidator).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
+        hasAtSign: { _tag: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.invalid())).toBe(false);
     });
   });
 
-  it('composes with selectFormTree to validate sibling properties of a flat form', () => {
-    TestBed.runInInjectionContext(() => {
+  it('composes with selectFormTree to validate sibling properties of a flat form', async () => {
+    await runInInjectionContext(async () => {
       type LoginData = { email: string; password: string };
 
       const loginForm = craftUse(
@@ -685,23 +712,23 @@ describe('formAttributes', () => {
       expect(email?.invalid()).toBe(true);
       expect(password?.invalid()).toBe(true);
       expect(email?.exceptions().byValidator).toMatchObject({
-        cRequired: { code: 'required' },
+        cRequired: { _tag: 'required' },
       });
 
       loginForm.form.email.set('not-an-email');
-      TestBed.tick();
+      flushHost();
       expect(email?.invalid()).toBe(true);
 
       loginForm.form.email.set('hello@world.com');
       loginForm.form.password.set('secret');
-      TestBed.tick();
+      flushHost();
       expect(email?.invalid()).toBe(false);
       expect(password?.invalid()).toBe(false);
     });
   });
 
-  it('keeps formAttributes exceptions hidden until touched or submit is attempted', () => {
-    TestBed.runInInjectionContext(() => {
+  it('keeps formAttributes exceptions hidden until touched or submit is attempted', async () => {
+    await runInInjectionContext(async () => {
       const fieldForm = craftUse(
         state(
           'fieldForm',
@@ -716,17 +743,17 @@ describe('formAttributes', () => {
       expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkDirty();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(0);
 
       fieldForm.form.ɵmarkTouched();
-      TestBed.tick();
+      flushHost();
       expect(craftUse(fieldForm.form.visibleExceptions()).list.length).toBe(1);
     });
   });
 
-  it('receives the parallel formIdentifier in its context', () => {
-    TestBed.runInInjectionContext(() => {
+  it('receives the parallel formIdentifier in its context', async () => {
+    await runInInjectionContext(async () => {
       const seenIdentifiers: string[] = [];
 
       const usersForm = craftUse(
@@ -752,8 +779,8 @@ describe('formAttributes', () => {
     });
   });
 
-  it('exposes firstLeftFailedValidation and lastRightFailedValidation', () => {
-    TestBed.runInInjectionContext(() => {
+  it('exposes firstLeftFailedValidation and lastRightFailedValidation', async () => {
+    await runInInjectionContext(async () => {
       const fieldState = signal<string>('');
       const fieldForm = craftUse(
         state(
@@ -765,12 +792,12 @@ describe('formAttributes', () => {
                 cValidator({
                   name: 'hasAtSign',
                   validWhen: () => fieldState().includes('@'),
-                  exception: () => craftException({ code: 'MISSING_AT' }),
+                  exception: () => craftException({ _tag: 'MISSING_AT' }),
                 }),
                 cValidator({
                   name: 'hasDot',
                   validWhen: () => fieldState().includes('.'),
-                  exception: () => craftException({ code: 'MISSING_DOT' }),
+                  exception: () => craftException({ _tag: 'MISSING_DOT' }),
                 }),
               ],
             }),
@@ -781,20 +808,20 @@ describe('formAttributes', () => {
       expect(
         (
           craftUse(fieldForm.form.firstLeftFailedValidation()) as {
-            code: string;
+            _tag: string;
           }
-        )?.code,
+        )?._tag,
       ).toBe('MISSING_AT');
       expect(
         (
           craftUse(fieldForm.form.lastRightFailedValidation()) as {
-            code: string;
+            _tag: string;
           }
-        )?.code,
+        )?._tag,
       ).toBe('MISSING_DOT');
 
       fieldState.set('foo@bar.com');
-      TestBed.tick();
+      flushHost();
       expect(
         craftUse(fieldForm.form.firstLeftFailedValidation()),
       ).toBeUndefined();

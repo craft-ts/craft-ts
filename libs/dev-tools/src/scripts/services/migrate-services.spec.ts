@@ -61,7 +61,7 @@ describe('services migration', () => {
 
     expect(first.diagnostics).toEqual([]);
     expect(service).toContain(
-      "craftService({ name: 'Counter', scope: 'global' }",
+      "craftService({ name: 'Counter', providedIn: 'global' }",
     );
     expect(service).toContain('function increment(): void');
     expect(page).toContain('injectCounter()');
@@ -187,7 +187,7 @@ describe('services migration', () => {
       }),
       'wizard.ts': `
         import { Service } from '@angular/core';
-        import { state } from '@craft-ng/core';
+        import { state } from '@craft-ts/core';
         @Service({ autoProvided: false })
         export class CheckoutWizard {
           // CRAFT_IMPERATIVE_CODE_DETECTED: imperative code detected, prefer a declarative approach.
@@ -287,7 +287,7 @@ describe('services migration', () => {
     const service = await readFile(join(root, 'wizard.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
     expect(service).toContain(
-      "craftService({ name: 'CheckoutWizard', scope: 'function' }",
+      "craftService({ name: 'CheckoutWizard', providedIn: 'function' }",
     );
     expect(service).not.toContain('provideCheckoutWizard');
     expect(page).toContain('injectCheckoutWizard()');
@@ -335,7 +335,7 @@ describe('services migration', () => {
     const service = await readFile(join(root, 'wizard.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
     expect(service).toContain(
-      "craftService({ name: 'CheckoutWizard', scope: 'toProvide' }",
+      "craftService({ name: 'CheckoutWizard', providedIn: 'toProvide' }",
     );
     expect(service).toContain('provideCheckoutWizard');
     expect(page).toContain('provideCheckoutWizard()');
@@ -369,7 +369,7 @@ describe('services migration', () => {
 
     const service = await readFile(join(root, 'wizard.ts'), 'utf8');
     expect(service).toContain(
-      "craftService({ name: 'CheckoutWizard', scope: 'toProvide' }",
+      "craftService({ name: 'CheckoutWizard', providedIn: 'toProvide' }",
     );
     expect(service).toContain('provideCheckoutWizard');
   });
@@ -417,10 +417,10 @@ describe('services migration', () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'craft-dev-tools.config.ts': `
-        import { defineCraftDevToolsConfig } from '@craft-ng/dev-tools';
+        import { defineCraftDevToolsConfig } from '@craft-ts/dev-tools';
         export default defineCraftDevToolsConfig({
           brand: { importAugmentations: [{ match: { module: 'pkg' }, deps: [{ key: 'Box', symbol: 'Box', typeText: 'Box<string>' }] }] },
-          serviceMigration: { overrides: [{ symbol: 'ApiService', name: 'Backend', scope: 'manuallyProvidedAtRoot' }] },
+          serviceMigration: { overrides: [{ symbol: 'ApiService', name: 'Backend', providedIn: 'manuallyProvidedAtRoot' }] },
         });
       `,
       'api.ts': `
@@ -436,7 +436,7 @@ describe('services migration', () => {
     });
     const output = await readFile(join(root, 'api.ts'), 'utf8');
     expect(output).toContain(
-      "name: 'Backend', scope: 'manuallyProvidedAtRoot'",
+      "name: 'Backend', providedIn: 'manuallyProvidedAtRoot'",
     );
     expect(output).toContain('provideBackend');
     expect(
@@ -510,7 +510,7 @@ describe('services migration', () => {
 
     const companion = await readFile(join(root, 'legacy.craft.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
-    expect(companion).toContain("scope: 'toProvide'");
+    expect(companion).toContain("providedIn: 'toProvide'");
     expect(companion).toContain('provideLegacy');
     expect(page).toContain("from './legacy.craft'");
     expect(page).toContain('provideLegacy()');
@@ -577,7 +577,7 @@ describe('services migration', () => {
     expect(output).toContain('const _products = yield* query({');
     expect(output).toContain('yield* CraftHttpClient.request');
     expect(output).not.toMatch(
-      /import\s*\{[^}]*\btrack\b[^}]*\}\s*from '@craft-ng\/core'/,
+      /import\s*\{[^}]*\btrack\b[^}]*\}\s*from '@craft-ts\/core'/,
     );
   });
 
@@ -663,7 +663,7 @@ describe('services migration', () => {
     expect(page).toContain('const orderApi = yield* OrderApi();');
     expect(page).toContain('return yield* orderApi.createOrder(params);');
     expect(page).toContain('this.createOrderMutation.mutate(data)');
-    expect(page).toContain("from '@craft-ng/core'");
+    expect(page).toContain("from '@craft-ts/core'");
     expect(page).toContain("from './orders'");
   });
 

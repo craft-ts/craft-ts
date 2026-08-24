@@ -23,7 +23,7 @@ describe('craft-computed-name-match', () => {
   it('accepts a class property whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly total = craftComputed('total', () => 42);
@@ -37,7 +37,7 @@ describe('craft-computed-name-match', () => {
   it('accepts a const whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         const myValue = craftComputed('myValue', () => 42);
       `,
@@ -49,7 +49,7 @@ describe('craft-computed-name-match', () => {
   it('accepts an unnamed computed in an insertion result', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         const insertion = state('counter', 0, ({ state }) => ({
           total: craftComputed(function* () { return (yield* state()) * 2; }),
@@ -63,7 +63,7 @@ describe('craft-computed-name-match', () => {
   it('still requires a name in a plain object outside an insertion', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         const values = { total: craftComputed(() => 42) };
       `,
@@ -77,7 +77,7 @@ describe('craft-computed-name-match', () => {
   it('reports a mismatch between property name and first arg', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly total = craftComputed('wrong', () => 42);
@@ -93,7 +93,7 @@ describe('craft-computed-name-match', () => {
   it('reports a missing first arg on a class property', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         export class DemoComponent {
           readonly total = craftComputed(() => 42);
@@ -110,7 +110,7 @@ describe('craft-computed-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { craftComputed } from '@craft-ng/core';
+          import { craftComputed } from '@craft-ts/core';
 
           export class DemoComponent {
             readonly total = craftComputed('wrong', () => 42);
@@ -127,7 +127,7 @@ describe('craft-computed-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { craftComputed } from '@craft-ng/core';
+          import { craftComputed } from '@craft-ts/core';
 
           export class DemoComponent {
             readonly total = craftComputed(() => 42);
@@ -143,7 +143,7 @@ describe('craft-computed-name-match', () => {
   it('ignores craftComputed calls not assigned to a known name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { craftComputed } from '@craft-ts/core';
 
         export function createComputed() {
           return craftComputed('total', () => 42);
@@ -180,7 +180,7 @@ async function lintFixture(
       2,
     ),
     'src/craft-core.d.ts': `
-      declare module '@craft-ng/core' {
+      declare module '@craft-ts/core' {
         export declare function craftComputed(...args: unknown[]): unknown;
       }
     `,

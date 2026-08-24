@@ -1,7 +1,7 @@
 import { craftEffect, craftService, state } from '../craft-runtime';
 
 export const { Sync } = craftService(
-  { name: 'Sync', scope: 'global' },
+  { name: 'Sync', providedIn: 'global' },
   function* () {
     const selectedId = yield* state('selectedId', '1');
     const result = yield* state('result', null);

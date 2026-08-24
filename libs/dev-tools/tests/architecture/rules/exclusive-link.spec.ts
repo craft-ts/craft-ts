@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noExclusiveLink } from '@craft-ng/dev-tools';
+import { noExclusiveLink } from '@craft-ts/dev-tools';
 import { loadArchitectureFixture } from '../load-graph';
 
 describe('noExclusiveLink', () => {

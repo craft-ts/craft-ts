@@ -1,0 +1,97 @@
+{
+  "name": "demo-with-server-function",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/demo-with-server-function/src",
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vite --config apps/demo-with-server-function/vite.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/demo-with-server-function"],
+      "options": {
+        "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/demo-with-server-function/vite.config.ts --mode development"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc -p apps/demo-with-server-function/tsconfig.json --noEmit --pretty false"
+      }
+    },
+    "effect-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-effect-tsgo.mjs diagnostics --project apps/demo-with-server-function/tsconfig.json --format text --severity error,warning,message"
+      },
+      "inputs": [
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/package-lock.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["apps/demo-with-server-function/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/demo-with-server-function/vitest.config.ts"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/vitest.config.ts",
+        "{workspaceRoot}/libs/core/src/**/*.ts",
+        "{workspaceRoot}/libs/effect/src/**/*.ts"
+      ]
+    },
+    "architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.architecture.config.ts",
+        "cwd": "apps/demo-with-server-function"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/architecture/**/*.ts",
+        "{projectRoot}/tsconfig.graph.json",
+        "{projectRoot}/tsconfig.architecture.json"
+      ],
+      "cache": true
+    },
+    "typecheck-architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo-with-server-function",
+        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/architecture/**/*.ts"
+      ],
+      "cache": true
+    }
+  }
+}

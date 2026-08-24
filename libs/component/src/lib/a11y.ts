@@ -1,4 +1,4 @@
-import type { Yieldable } from '@craft-ng/core';
+import type { Yieldable } from '@craft-ts/core';
 import { a, span } from './hyperscript';
 import {
   pipeCraftNode,

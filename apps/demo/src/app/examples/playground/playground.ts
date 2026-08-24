@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -9,7 +9,7 @@ import {
   p,
   span,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftComputed,
   craftGen,
@@ -22,7 +22,7 @@ import {
   query,
   state,
   craftException,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 // -- Types --
 
@@ -40,7 +40,7 @@ const TODO_ICONS: Readonly<Record<string, string>> = {
 // -- Fake data store --
 
 const TODOS: Todo[] = [
-  { id: 1, title: 'Learn @craft-ng', completed: false },
+  { id: 1, title: 'Learn @craft-ts', completed: false },
   { id: 2, title: 'Build a playground', completed: true },
   { id: 3, title: 'Share on StackBlitz', completed: false },
 ];
@@ -48,7 +48,7 @@ const TODOS: Todo[] = [
 // -- ApiService: global craftService with CRUD endpoints --
 
 const { ApiService } = craftService(
-  { name: 'ApiService', scope: 'global' },
+  { name: 'ApiService', providedIn: 'global' },
   function* () {
     const nextId = yield* state('nextId', 4, ({ state, update }) => ({
       take: function* () {
@@ -68,7 +68,7 @@ const { ApiService } = craftService(
         const todo = TODOS.find((t) => t.id === id);
         if (!todo)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         yield* craftSleep(500);
@@ -88,7 +88,7 @@ const { ApiService } = craftService(
         const todo = TODOS.find((t) => t.id === id);
         if (!todo)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         todo.completed = !todo.completed;
@@ -99,7 +99,7 @@ const { ApiService } = craftService(
         const index = TODOS.findIndex((t) => t.id === id);
         if (index === -1)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`Todo ${id} not found`) },
           );
         const removed = TODOS.splice(index, 1)[0];
@@ -113,7 +113,7 @@ const { ApiService } = craftService(
 // -- Playground service: composes query + mutation --
 
 const { Playground } = craftService(
-  { name: 'Playground', scope: 'function' },
+  { name: 'Playground', providedIn: 'function' },
   function* () {
     const api = yield* ApiService();
     const addTodo = yield* mutation('addTodo', {
@@ -283,7 +283,7 @@ const PlaygroundComponent = craftComponent(
   ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
     return div({ class: 'playground' }, [
       heading('Playground'),
-      p('Sandbox for testing @craft-ng — ready to share on StackBlitz'),
+      p('Sandbox for testing @craft-ts — ready to share on StackBlitz'),
       div({ class: 'add-form' }, [
         input('title', {
           type: 'text',

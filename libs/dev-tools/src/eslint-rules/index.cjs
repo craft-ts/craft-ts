@@ -1,23 +1,12 @@
-const brandAngularGenDepsRequired = require('./brand-angular-gen-deps-required.cjs');
-const brandAngularDepsMatch = require('./brand-angular-deps-match.cjs');
 const appStartRegistryMatch = require('./app-start-registry-match.cjs');
 const globalExceptionRegistryMatch = require('./global-exception-registry-match.cjs');
-const componentTestGenDepsMatch = require('./component-test-gen-deps-match.cjs');
 const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
 const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
-const preferCraftComputed = require('./prefer-craft-computed.cjs');
 const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs');
-const preferCraftState = require('./prefer-craft-state.cjs');
-const preferCraftEffect = require('./prefer-craft-effect.cjs');
-const noAngularInject = require('./no-angular-inject.cjs');
-const noAngularSignalForms = require('./no-angular-signal-forms.cjs');
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
-const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
-const preferCraftInputOutput = require('./prefer-craft-input-output.cjs');
-const preferCraftService = require('./prefer-craft-service.cjs');
 const noCraftServiceComponentSameFile = require('./no-craft-service-component-same-file.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
@@ -28,9 +17,10 @@ const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.
 const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
 const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
+const noCraftUse = require('./no-craft-use.cjs');
+const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
-const preferCraftRouterOutlet = require('./prefer-craft-router-outlet.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
 const requireCraftExceptionHandler = require('./require-craft-exception-handler.cjs');
 const requireExceptionComponentDiCheck = require('./require-exception-component-di-check.cjs');
@@ -41,8 +31,8 @@ const craftComponentNameMatch = require('./craft-component-name-match.cjs');
 const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
 const templateElementNameUnique = require('./template-element-name-unique.cjs');
 const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
-const preferCraftReactivity = require('./prefer-craft-reactivity.cjs');
 const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
+const noTransitionActions = require('./no-transition-actions.cjs');
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
@@ -77,29 +67,39 @@ const roleHasRequiredAria = require('./role-has-required-aria.cjs');
 const targetBlankNoopener = require('./target-blank-noopener.cjs');
 const requireFocusVisible = require('./require-focus-visible.cjs');
 const requireReducedMotion = require('./require-reduced-motion.cjs');
+const requireEffectAdapters = require('./require-effect-adapters.cjs');
+const serverFunctionClientMatch = require('./server-function-client-match.cjs');
+const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
+const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
+const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
+const noExplicitEffectType = require('./no-explicit-effect-type.cjs');
+const preferInlineEffectInsertion = require('./prefer-inline-effect-insertion.cjs');
+const preferInlineRouteProviders = require('./prefer-inline-route-providers.cjs');
+const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
+const noInjectionToken = require('./no-injection-token.cjs');
+const noManualRouteProviderList = require('./no-manual-route-provider-list.cjs');
+const noWidenedRouteProviderContext = require('./no-widened-route-provider-context.cjs');
+const requireRouteSecurityPolicy = require('./require-route-security-policy.cjs');
+const requireServerFunctionTimeout = require('./require-server-function-timeout.cjs');
+const noAuthTokenInLocalStorage = require('./no-auth-token-in-local-storage.cjs');
+const noRawUserUrl = require('./no-raw-user-url.cjs');
+const noUnsafeTransferState = require('./no-unsafe-transfer-state.cjs');
+const noUnsafeHtml = require('./no-unsafe-html.cjs');
+const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
+const recommendedRules = require('./recommended-config.cjs');
+const securityRules = require('./security-config.cjs');
 
 const plugin = {
   rules: {
     'app-start-registry-match': appStartRegistryMatch,
     'global-exception-registry-match': globalExceptionRegistryMatch,
-    'brand-angular-gen-deps-required': brandAngularGenDepsRequired,
-    'brand-angular-deps-match': brandAngularDepsMatch,
-    'component-test-gen-deps-match': componentTestGenDepsMatch,
     'craft-method-name-match': craftMethodNameMatch,
     'craft-computed-name-match': craftComputedNameMatch,
     'craft-source-name-match': craftSourceNameMatch,
     'craft-signal-source-name-match': craftSignalSourceNameMatch,
-    'prefer-craft-computed': preferCraftComputed,
     'no-craft-computed-side-effects': noCraftComputedSideEffects,
-    'prefer-craft-state': preferCraftState,
-    'prefer-craft-effect': preferCraftEffect,
-    'no-angular-inject': noAngularInject,
-    'no-angular-signal-forms': noAngularSignalForms,
     'provide-host-name-match-component': provideHostNameMatchComponent,
-    'prefer-craft-http-client': preferCraftHttpClient,
     'prefer-craft-http-transport': preferCraftHttpTransport,
-    'prefer-craft-input-output': preferCraftInputOutput,
-    'prefer-craft-service': preferCraftService,
     'no-craft-service-component-same-file': noCraftServiceComponentSameFile,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
@@ -111,10 +111,11 @@ const plugin = {
     'require-yieldable-insertion-write': requireYieldableInsertionWrite,
     'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
     'no-craft-use-in-template': noCraftUseInTemplate,
+    'no-craft-use': noCraftUse,
+    'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,
-    'prefer-craft-router-outlet': preferCraftRouterOutlet,
     'require-pending-component-di-check': requirePendingComponentDiCheck,
     'require-craft-exception-handler': requireCraftExceptionHandler,
     'require-exception-component-di-check': requireExceptionComponentDiCheck,
@@ -125,8 +126,8 @@ const plugin = {
     'craft-directive-name-match': craftDirectiveNameMatch,
     'template-element-name-unique': templateElementNameUnique,
     'prefer-craft-template-blocks': preferCraftTemplateBlocks,
-    'prefer-craft-reactivity': preferCraftReactivity,
     'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
+    'no-transition-actions': noTransitionActions,
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
     'no-direct-temporal-globals': noDirectTemporalGlobals,
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,
@@ -145,7 +146,8 @@ const plugin = {
     'img-has-alt': imgHasAlt,
     'control-has-accessible-name': controlHasAccessibleName,
     'label-has-associated-control': labelHasAssociatedControl,
-    'no-noninteractive-element-interactions': noNoninteractiveElementInteractions,
+    'no-noninteractive-element-interactions':
+      noNoninteractiveElementInteractions,
     'anchor-has-href': anchorHasHref,
     'button-has-type': buttonHasType,
     'require-interactive-local-name': requireInteractiveLocalName,
@@ -161,36 +163,78 @@ const plugin = {
     'target-blank-noopener': targetBlankNoopener,
     'require-focus-visible': requireFocusVisible,
     'require-reduced-motion': requireReducedMotion,
+    'require-effect-adapters': requireEffectAdapters,
+    'server-function-client-match': serverFunctionClientMatch,
+    'no-invalid-insertion-pipe': noInvalidInsertionPipe,
+    'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
+    'no-effect-outside-loaders': noEffectOutsideLoaders,
+    'no-explicit-effect-type': noExplicitEffectType,
+    'prefer-inline-effect-insertion': preferInlineEffectInsertion,
+    'prefer-inline-route-providers': preferInlineRouteProviders,
+    // Backwards-compatible alias; use no-effect-outside-loaders in new configs.
+    'no-effect-in-params': noEffectOutsideLoaders,
+    'prefer-query-method-over-state-trigger': preferQueryMethodOverStateTrigger,
+    'no-injection-token': noInjectionToken,
+    'no-manual-route-provider-list': noManualRouteProviderList,
+    'no-widened-route-provider-context': noWidenedRouteProviderContext,
+    'require-route-security-policy': requireRouteSecurityPolicy,
+    'require-server-function-timeout': requireServerFunctionTimeout,
+    'no-auth-token-in-local-storage': noAuthTokenInLocalStorage,
+    'no-raw-user-url': noRawUserUrl,
+    'no-unsafe-transfer-state': noUnsafeTransferState,
+    'no-unsafe-html': noUnsafeHtml,
+    'no-trust-forwarded-headers': noTrustForwardedHeaders,
   },
 };
 
 const a11yRuleSeverity = {
-  'craft-ng/prefer-named-html-helpers': 'error',
-  'craft-ng/img-has-alt': 'error',
-  'craft-ng/control-has-accessible-name': 'error',
-  'craft-ng/label-has-associated-control': 'error',
-  'craft-ng/no-noninteractive-element-interactions': 'error',
-  'craft-ng/anchor-has-href': 'error',
-  'craft-ng/button-has-type': 'error',
-  'craft-ng/require-interactive-local-name': 'error',
-  'craft-ng/iframe-has-title': 'error',
-  'craft-ng/heading-has-content': 'error',
-  'craft-ng/prefer-relative-heading': 'error',
-  'craft-ng/require-route-heading-outline': 'error',
-  'craft-ng/require-outlet-heading-section': 'error',
-  'craft-ng/no-heading-level-skip': 'error',
-  'craft-ng/no-positive-tabindex': 'error',
-  'craft-ng/valid-aria': 'error',
-  'craft-ng/role-has-required-aria': 'error',
-  'craft-ng/target-blank-noopener': 'error',
-  'craft-ng/require-focus-visible': 'error',
-  'craft-ng/require-reduced-motion': 'error',
+  'craft-ts/prefer-named-html-helpers': 'error',
+  'craft-ts/img-has-alt': 'error',
+  'craft-ts/control-has-accessible-name': 'error',
+  'craft-ts/label-has-associated-control': 'error',
+  'craft-ts/no-noninteractive-element-interactions': 'error',
+  'craft-ts/anchor-has-href': 'error',
+  'craft-ts/button-has-type': 'error',
+  'craft-ts/require-interactive-local-name': 'error',
+  'craft-ts/iframe-has-title': 'error',
+  'craft-ts/heading-has-content': 'error',
+  'craft-ts/prefer-relative-heading': 'error',
+  'craft-ts/require-route-heading-outline': 'error',
+  'craft-ts/require-outlet-heading-section': 'error',
+  'craft-ts/no-heading-level-skip': 'error',
+  'craft-ts/no-positive-tabindex': 'error',
+  'craft-ts/valid-aria': 'error',
+  'craft-ts/role-has-required-aria': 'error',
+  'craft-ts/target-blank-noopener': 'error',
+  'craft-ts/require-focus-visible': 'error',
+  'craft-ts/require-reduced-motion': 'error',
 };
 
 plugin.configs = {
+  recommended: {
+    plugins: { 'craft-ts': plugin },
+    rules: { ...recommendedRules, ...securityRules },
+  },
+  effect: {
+    plugins: { 'craft-ts': plugin },
+    rules: {
+      ...recommendedRules,
+      ...securityRules,
+      'craft-ts/require-effect-adapters': 'error',
+      'craft-ts/no-effect-outside-loaders': 'error',
+      'craft-ts/no-explicit-effect-type': 'error',
+      'craft-ts/prefer-inline-effect-insertion': 'error',
+    },
+  },
   a11y: {
-    plugins: { 'craft-ng': plugin },
+    plugins: { 'craft-ts': plugin },
     rules: a11yRuleSeverity,
+  },
+  // Conservé pour activer le préréglage seul, sur un projet qui ne prend pas
+  // `recommended` (une lib partagée, un dossier d'outillage).
+  security: {
+    plugins: { 'craft-ts': plugin },
+    rules: securityRules,
   },
 };
 

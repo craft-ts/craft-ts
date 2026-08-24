@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { signal } from '@angular/core';
+import {
+  craftSignal as signal,
+} from '@craft-ts/core';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
@@ -9,14 +10,14 @@ import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
   type Input,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   markYieldableMethod,
   markYieldableValue,
   type ExtractDeps,
   type GetServiceDependencies,
-} from '@craft-ng/core';
-import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+} from '@craft-ts/core';
+import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import MutationCraft, { provideUserMutation } from './mutation';
 import { ApiService, type User } from './api.service';
@@ -146,14 +147,26 @@ function createTemplateContext(
 ) {
   const name = signal('');
   const userQuery = {
-    status: vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
-    hasValue: vi.fn(() => user !== undefined),
-    value: vi.fn(() => user),
+    status: markYieldableValue(
+      vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
+      'status',
+    ),
+    hasValue: markYieldableValue(
+      vi.fn(() => user !== undefined),
+      'hasValue',
+    ),
+    value: markYieldableValue(vi.fn(() => user), 'value'),
   };
   const updateUserName = {
-    isLoading: vi.fn(() => mutationLoading),
-    status: vi.fn(() =>
-      mutationLoading ? ('loading' as const) : ('idle' as const),
+    isLoading: markYieldableValue(
+      vi.fn(() => mutationLoading),
+      'isLoading',
+    ),
+    status: markYieldableValue(
+      vi.fn(() =>
+        mutationLoading ? ('loading' as const) : ('idle' as const),
+      ),
+      'status',
     ),
   };
   const updateUserNameFn = markYieldableMethod(

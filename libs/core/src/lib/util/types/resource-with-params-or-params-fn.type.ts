@@ -2,7 +2,7 @@ import {
   ResourceLoaderParams,
   ResourceOptions,
   ResourceStreamingLoader,
-} from '@angular/core';
+} from '../../host/craft-compat';
 import { ResourceMethod } from './shared.type';
 
 export type ResourceWithParamsOrParamsFn<ResourceState, Params, ParamsArgs> =

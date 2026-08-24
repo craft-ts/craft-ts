@@ -1,4 +1,4 @@
-import { Type } from '@angular/core';
+import { Type } from '../../host/craft-compat';
 import { Prettify } from '../util.type';
 import { ResourceExceptionConstraints } from '../../query.core';
 

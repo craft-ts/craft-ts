@@ -172,7 +172,7 @@ type EntitiesUtilsToMap<
  *   entity: { id: 'post-1', title: 'New Post' },
  * });
  *
- * @see {@link https://github.com/ng-angular-stack/ng-craft/blob/main/apps/docs/insertions/insert-entities.md | insertEntities Documentation}
+ * @see {@link https://github.com/craft-ts/craft-ts/blob/main/apps/docs/insertions/insert-entities.md | insertEntities Documentation}
  */
 export function insertEntities<
   State,

@@ -1,22 +1,14 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
-import { By } from '@angular/platform-browser';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { Router, RouterLinkActive } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
 import {
-  LegacyCraftRouterLink,
   CraftRouter,
+  CRAFT_HISTORY,
   provideCraftRouter,
   shouldHandleCraftRouterLinkClick,
 } from './craft-router';
@@ -25,10 +17,6 @@ import type { GetServiceDependencies } from './craft-service';
 import { queryParams } from './query-params';
 import { viewTransitionPayload } from './craft-view-transition';
 
-@Component({
-  standalone: true,
-  template: '',
-})
 class BlankComponent {}
 
 const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
@@ -124,37 +112,7 @@ declare module './craft-router' {
   }
 }
 
-@Component({
-  standalone: true,
-  imports: [LegacyCraftRouterLink, RouterLinkActive],
-  template: `
-    <a
-      [craftRouterLink]="{
-        to: 'users/:userId',
-        params: { userId: '42' },
-        queryParamsHandling: 'merge',
-      }"
-      routerLinkActive="active"
-      >User</a
-    >
-  `,
-})
 class CraftRouterLinkHostComponent {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 beforeEach(() => {
   TestBed.resetTestingModule();
@@ -192,33 +150,40 @@ describe('CraftRouter', () => {
         router.navigateByUrl({
           to: 'users/:userId',
           params: {
-            // @ts-expect-error route params must be strings
+            userId: '1',
+          },
+        });
+
+        // @ts-expect-error route params must be strings
+        router.navigateByUrl({
+          to: 'users/:userId',
+          params: {
             userId: 1,
           },
         });
 
+        // @ts-expect-error extra route params are rejected
         router.navigateByUrl({
           to: 'users/:userId',
           params: {
             userId: '1',
-            // @ts-expect-error extra route params are rejected
             teamId: '2',
           },
         });
 
+        // @ts-expect-error query params must be strings
         router.navigateByUrl({
           to: 'query-params',
           queryParams: {
-            // @ts-expect-error query params must be strings
             page: 2,
           },
         });
 
+        // @ts-expect-error unknown query params are rejected
         router.navigateByUrl({
           to: 'query-params',
           queryParams: {
             page: '2',
-            // @ts-expect-error unknown query params are rejected
             unknown: 'x',
           },
         });
@@ -248,7 +213,6 @@ describe('CraftRouter', () => {
       providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
     }).compileComponents();
 
-    const angularRouter = TestBed.inject(Router);
     const craftRouter = TestBed.runInInjectionContext(() =>
       craftUse(CraftRouter()),
     );
@@ -258,7 +222,7 @@ describe('CraftRouter', () => {
       params: { userId: '42' },
     });
 
-    expect(angularRouter.serializeUrl(userTree)).toBe('/users/42');
+    expect(craftRouter.serializeUrl(userTree)).toBe('/users/42');
 
     const queryTree = craftRouter.createUrlTree({
       to: 'query-params',
@@ -269,7 +233,7 @@ describe('CraftRouter', () => {
       fragment: 'top',
     });
 
-    expect(angularRouter.serializeUrl(queryTree)).toBe(
+    expect(craftRouter.serializeUrl(queryTree)).toBe(
       '/query-params?page=2&pageSize=20#top',
     );
 
@@ -278,7 +242,7 @@ describe('CraftRouter', () => {
       params: { userId: '42' },
       replaceUrl: true,
     });
-    expect(angularRouter.url).toBe('/users/42');
+    expect(craftRouter.url).toBe('/users/42');
 
     await craftRouter.navigate({
       to: 'query-params',
@@ -286,56 +250,33 @@ describe('CraftRouter', () => {
         page: '3',
       },
     });
-    expect(angularRouter.url).toBe('/query-params?page=3');
+    expect(craftRouter.url).toBe('/query-params?page=3');
   });
 
-  it('should render CraftRouterLink href and keep routerLinkActive compatible', async () => {
+  it('skipLocationChange updates url without changing the address bar', async () => {
+    window.history.replaceState(null, '', '/');
     await TestBed.configureTestingModule({
-      imports: [CraftRouterLinkHostComponent],
       providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(CraftRouterLinkHostComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const anchor = fixture.nativeElement.querySelector(
-      'a',
-    ) as HTMLAnchorElement;
-
-    expect(anchor.getAttribute('href')).toContain('/users/42');
-
-    fixture.debugElement.query(By.css('a')).triggerEventHandler('click', {
-      button: 0,
-      ctrlKey: false,
-      shiftKey: false,
-      altKey: false,
-      metaKey: false,
-    });
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(TestBed.inject(Router).url).toBe('/users/42');
-  }, 30_000);
-
-  it('only intercepts unmodified primary clicks targeting the current context', () => {
-    const anchor = document.createElement('a');
-    const click = (init: MouseEventInit = {}) =>
-      new MouseEvent('click', { button: 0, ...init });
-
-    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(true);
-    expect(shouldHandleCraftRouterLinkClick(click({ button: 1 }), anchor)).toBe(
-      false,
+    const craftRouter = TestBed.runInInjectionContext(() =>
+      craftUse(CraftRouter()),
     );
-    expect(
-      shouldHandleCraftRouterLinkClick(click({ ctrlKey: true }), anchor),
-    ).toBe(false);
 
-    anchor.target = '_blank';
-    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(false);
-    anchor.target = '_self';
-    anchor.setAttribute('aria-disabled', 'true');
-    expect(shouldHandleCraftRouterLinkClick(click(), anchor)).toBe(false);
+    await craftRouter.navigateByUrl('/users/42', { skipLocationChange: true });
+
+    expect(craftRouter.url).toBe('/users/42');
+    expect(window.location.pathname).toBe('/');
+    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/users/42');
+    expect(
+      craftRouter.isActive(
+        craftRouter.createUrlTree({
+          to: 'users/:userId',
+          params: { userId: '42' },
+        }),
+      ),
+    ).toBe(true);
+    window.history.replaceState(null, '', '/');
   });
 
   it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouter', () => {
@@ -366,19 +307,6 @@ describe('CraftRouter', () => {
     // `NavigableRoutePath`. Templates and shortcut calls using a joined path
     // such as `'parent/:teamId/child/:userId'` errored as "not assignable to
     // NavigableRoutePath" even though the route was registered.
-    @Component({
-      standalone: true,
-      imports: [LegacyCraftRouterLink],
-      template: `
-        <a
-          [craftRouterLink]="{
-            to: 'parent/:teamId/child/:userId',
-            params: { teamId: '1', userId: '42' },
-          }"
-          >Nested path</a
-        >
-      `,
-    })
     class NestedHost {}
 
     expect(NestedHost).toBeDefined();
@@ -468,7 +396,7 @@ describe('CraftRouter', () => {
 
     type ExpectedDeps = {
       ConsoleService: {
-        scope: 'global';
+        providedIn: 'global';
         dependencies: {};
         browserBoundary: true;
         appStart: false;
@@ -476,5 +404,19 @@ describe('CraftRouter', () => {
       CraftRouter: GetServiceDependencies<typeof CraftRouter>;
     };
     type _Check = Expect<Equal<ExtractDeps<MultiYield['run']>, ExpectedDeps>>;
+  });
+
+  it('disposes the browser history popstate listener when the injector is destroyed', () => {
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter([])],
+    });
+    TestBed.inject(CRAFT_HISTORY);
+    TestBed.resetTestingModule();
+
+    expect(
+      removeSpy.mock.calls.some((call) => call[0] === 'popstate'),
+    ).toBe(true);
+    removeSpy.mockRestore();
   });
 });

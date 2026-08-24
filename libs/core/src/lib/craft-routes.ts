@@ -1,5 +1,4 @@
 import {
-  computed,
   inject,
   Injector,
   isSignal,
@@ -7,31 +6,24 @@ import {
   signal,
   type Signal,
   type WritableSignal,
-} from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { toObservable } from './host/craft-compat';
 import {
-  ActivatedRoute,
-  NavigationEnd,
-  RedirectCommand,
-  Router,
-  UrlTree,
-  type ActivatedRouteSnapshot,
-  type Data,
-  type GuardResult,
-  type MaybeAsync,
-  type PartialMatchRouteSnapshot,
-  type Route,
-  type RouterStateSnapshot,
-  type UrlSegment,
-} from '@angular/router';
-import {
-  Observable,
   filter,
   firstValueFrom,
   isObservable,
-  map,
   take,
+  type Observable,
 } from 'rxjs';
+import type {
+  ActivatedRouteSnapshot,
+  Data,
+  GuardResult,
+  PartialMatchRouteSnapshot,
+  Route,
+  RouterStateSnapshot,
+  UrlSegment,
+} from './host/craft-router-types';
 import type {
   CRAFT_COMPONENT_DEPS,
   ComponentExceptionsCarrier,
@@ -40,18 +32,17 @@ import type {
 } from './branded-component/branded-component';
 import { type AnyCraftException } from './craft-exception';
 import {
-  isCraftGenShortCircuit,
-  type ExtractCraftGenExceptions,
-} from './craft-gen';
-import {
-  executeGeneratorCompatibleFactory,
+  GUARD_AWAIT_REQUEST_MARKER,
   isGenerator,
   runCraftGenerator,
 } from './craft-generator-runtime';
-import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
-import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
+import {
+  CRAFT_ROUTE_META,
+  type CraftRouteMeta,
+  type CraftRouteStepFactory,
+} from './craft-route-meta';
 import { CRAFT_VIEW_TRANSITION } from './craft-view-transition';
 import type { ViewTransitionPayloadDef } from './craft-view-transition';
 import type {
@@ -76,17 +67,34 @@ import {
   type MergeObjectUnion,
   type Simplify,
 } from './craft-service.shared';
-import {
-  CRAFT_TEMPORAL_RUNTIME,
-  RealCraftTemporalRuntime,
-  type TemporalTaskHandle,
-} from './temporal-runtime';
 import { provideHostName } from './host-tag';
 import {
   loadRouteWithRetry,
   type CraftRouteLazyLoadHelpers,
 } from './craft-route-load-error';
+import type {
+  CraftCompiledRoute,
+  CraftMatch,
+} from './host/craft-router-runtime';
+import { CRAFT_MATCH, type CraftUrlTree } from './craft-router-tokens';
+import { craftComputed } from './host/craft-signal';
+import { CRAFT_SSR_POLICY, type CraftSsrPolicy } from './craft-ssr';
 
+type MaybeAsync<T> = T | Promise<T> | Observable<T>;
+
+/** Type-only carrier for providers passed to loadCraftComponent(...). */
+export const CRAFT_ROUTE_ADDITIONAL_PROVIDERS = Symbol(
+  'CRAFT_ROUTE_ADDITIONAL_PROVIDERS',
+);
+
+export type CraftRouteAdditionalProvidersCarrier<Providers> = {
+  readonly [CRAFT_ROUTE_ADDITIONAL_PROVIDERS]?: Providers;
+};
+
+export type CraftRouteAdditionalProvidersOf<Route> =
+  Route extends CraftRouteAdditionalProvidersCarrier<infer Providers>
+    ? Providers
+    : never;
 type AngularRouteBase = Omit<
   Route,
   | 'canActivate'
@@ -277,7 +285,7 @@ type RouteQueryParamsFactory<Output = unknown, Yielded = never> = () =>
   | Output
   | Generator<Yielded, Output, unknown>;
 
-type RouteRedirectToResult = string | UrlTree;
+type RouteRedirectToResult = string | CraftUrlTree;
 
 // A `redirectTo` that can be a plain string, a synchronous/async function (a
 // plain Angular `RedirectFunction`), or a generator factory that `yield*`s
@@ -344,7 +352,7 @@ type ExtractCanActivateGuardData<Guard> = Guard extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
+      GuardResult | AnyCraftException | undefined | null
     >
   : never;
 
@@ -365,7 +373,7 @@ type ExtractResolveData<Resolve> = Resolve extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
+      GuardResult | AnyCraftException | undefined | null
     >
   : never;
 
@@ -382,7 +390,7 @@ type RouteResolvedDataOutput<RouteDefinition> = RouteDefinition extends {
 type RouteExceptionOutput<RouteDefinition, Code extends string> = Signal<
   Extract<
     Extract<RouteExceptionUnion<RouteDefinition>, AnyCraftException>,
-    { code: Code }
+    { _tag: Code }
   >
 >;
 
@@ -512,7 +520,7 @@ type HttpRequestsFromDerivedProperties<Properties> = Properties extends object
   : never;
 
 type HttpRequestsFromDependencyValue<Value> = Value extends {
-  scope: unknown;
+  providedIn: unknown;
   dependencies: infer Dependencies extends object;
 }
   ?
@@ -1143,6 +1151,7 @@ type CraftRouteSharedFields<
       providers?: Providers;
       providersFn?: (helpers: any) => Providers;
       data?: RouteData;
+      ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
       redirectTo?: string | RouteRedirectToFactory<any>;
       paramsProvider?: [PathParamNames<Path>] extends [never]
@@ -1160,6 +1169,7 @@ type AnyCraftRouteSharedFields = Simplify<
       providers?: AngularRouteProviders;
       providersFn?: (helpers: any) => AngularRouteProviders;
       data?: Data;
+      ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
       redirectTo?: string | RouteRedirectToFactory<any>;
       paramsProvider?: (
@@ -1177,6 +1187,7 @@ type AnyCraftRouteHelperDefinition = {
   canMatch?: CraftRouteCanMatchGuard;
   resolve?: CraftRouteResolve;
   withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
+  ssr?: CraftSsrPolicy;
 };
 
 type CraftRouteDefinitionInput<Def extends object> =
@@ -1196,7 +1207,7 @@ type CraftRouteLoaderHelperConstraint = {
 };
 
 type ExceptionCode<Exception> = Exception extends {
-  code: infer Code extends string;
+  _tag: infer Code extends string;
 }
   ? Code
   : never;
@@ -1214,7 +1225,7 @@ type TypedExceptionHandlers<
   Results extends ExceptionHandlerResults<Codes>,
 > = {
   [Code in Codes]: CraftExceptionHandler<
-    Extract<Exception, { code: Code }>,
+    Extract<Exception, { _tag: Code }>,
     Results[Code]
   >;
 };
@@ -1539,66 +1550,94 @@ type RouteInheritedHttpDeps<
   RouteHttpDepsMap<RouteDefinition>
 >;
 
-type FlattenLoadChildrenRouteMetaData<
+/**
+ * A route collection plus the context inherited by its routes.
+ *
+ * META_DATA is flattened depth-first. Keeping pending collections in a queue
+ * makes that flattening tail-recursive, so a large app route tree does not
+ * exhaust TypeScript's instantiation depth while computing one entry's child
+ * metadata.
+ */
+type CraftRoutesMetaDataWorkItem = readonly [
+  readonly AnyCraftRouteDefinition[],
+  string,
+  string,
+  string,
+  object,
+  object,
+  object,
+];
+
+type CraftRoutesMetaDataChildWorkItem<
   RouteDefinition extends AnyCraftRouteDefinition,
-  ParentPath extends string,
-  RouteCollectionName extends string,
-  InheritedServiceNames extends string,
-  InheritedPublicProperties extends object,
-  InheritedMissingProviders extends object,
-  InheritedHttpDeps extends object,
+  Parent extends CraftRoutesMetaDataWorkItem,
 > = [LoadChildrenRoutes<RouteDefinition>] extends [never]
   ? readonly []
-  : CraftRoutesMetaDataWithContext<
-      LoadChildrenRoutes<RouteDefinition>,
-      LoadChildrenRouteCollectionName<RouteDefinition>,
-      ParentPath,
-      RouteInheritedServiceNames<
-        RouteDefinition,
-        RouteCollectionName,
-        InheritedServiceNames
-      >,
-      RouteInheritedPublicProperties<
-        RouteDefinition,
-        InheritedPublicProperties
-      >,
-      RouteInheritedMissingProviders<
-        RouteDefinition,
-        RouteCollectionName,
-        InheritedServiceNames,
-        InheritedMissingProviders
-      >,
-      RouteInheritedHttpDeps<RouteDefinition, InheritedHttpDeps>
-    >;
+  : readonly [
+      [
+        LoadChildrenRoutes<RouteDefinition>,
+        LoadChildrenRouteCollectionName<RouteDefinition>,
+        JoinRoutePaths<Parent[2], RoutePath<RouteDefinition>>,
+        RouteInheritedServiceNames<RouteDefinition, Parent[1], Parent[3]>,
+        RouteInheritedPublicProperties<RouteDefinition, Parent[4]>,
+        RouteInheritedMissingProviders<
+          RouteDefinition,
+          Parent[1],
+          Parent[3],
+          Parent[5]
+        >,
+        RouteInheritedHttpDeps<RouteDefinition, Parent[6]>,
+      ],
+    ];
 
-type FlattenCraftRouteMetaDataEntry<
-  RouteDefinition extends AnyCraftRouteDefinition,
-  RouteCollectionName extends string,
-  ParentPath extends string = '',
-  InheritedServiceNames extends string = never,
-  InheritedPublicProperties extends object = {},
-  InheritedMissingProviders extends object = {},
-  InheritedHttpDeps extends object = {},
-> = readonly [
-  CraftRouteMetaDataEntry<
-    RouteDefinition,
-    RouteCollectionName,
-    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
-    InheritedServiceNames,
-    InheritedPublicProperties,
-    InheritedMissingProviders,
-    InheritedHttpDeps
-  >,
-  ...FlattenLoadChildrenRouteMetaData<
-    RouteDefinition,
-    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
-    RouteCollectionName,
-    InheritedServiceNames,
-    InheritedPublicProperties,
-    InheritedMissingProviders,
-    InheritedHttpDeps
-  >,
-];
+type CraftRoutesMetaDataFromQueue<
+  Queue extends readonly CraftRoutesMetaDataWorkItem[],
+  Acc extends readonly unknown[] = readonly [],
+> = Queue extends readonly [
+  infer Head extends CraftRoutesMetaDataWorkItem,
+  ...infer Tail extends readonly CraftRoutesMetaDataWorkItem[],
+]
+  ? number extends Head[0]['length']
+    ? CraftRoutesMetaDataFromQueue<
+        Tail,
+        readonly [
+          ...Acc,
+          CraftRouteMetaDataEntry<
+            Head[0][number],
+            Head[1],
+            string,
+            Head[3],
+            Head[4],
+            Head[5],
+            Head[6]
+          >,
+        ]
+      >
+    : Head[0] extends readonly [
+          infer Route extends AnyCraftRouteDefinition,
+          ...infer Rest extends readonly AnyCraftRouteDefinition[],
+        ]
+      ? CraftRoutesMetaDataFromQueue<
+          readonly [
+            ...CraftRoutesMetaDataChildWorkItem<Route, Head>,
+            [Rest, Head[1], Head[2], Head[3], Head[4], Head[5], Head[6]],
+            ...Tail,
+          ],
+          readonly [
+            ...Acc,
+            CraftRouteMetaDataEntry<
+              Route,
+              Head[1],
+              JoinRoutePaths<Head[2], RoutePath<Route>>,
+              Head[3],
+              Head[4],
+              Head[5],
+              Head[6]
+            >,
+          ]
+        >
+      : CraftRoutesMetaDataFromQueue<Tail, Acc>
+  : Acc;
 
 type CraftRoutesMetaDataWithContext<
   Routes extends readonly AnyCraftRouteDefinition[],
@@ -1608,41 +1647,19 @@ type CraftRoutesMetaDataWithContext<
   InheritedPublicProperties extends object,
   InheritedMissingProviders extends object,
   InheritedHttpDeps extends object,
-> = number extends Routes['length']
-  ? readonly CraftRouteMetaDataEntry<
-      Routes[number],
+> = CraftRoutesMetaDataFromQueue<
+  [
+    [
+      Routes,
       RouteCollectionName,
-      string,
+      ParentPath,
       InheritedServiceNames,
       InheritedPublicProperties,
       InheritedMissingProviders,
-      InheritedHttpDeps
-    >[]
-  : Routes extends readonly [
-        infer Head extends AnyCraftRouteDefinition,
-        ...infer Tail extends readonly AnyCraftRouteDefinition[],
-      ]
-    ? readonly [
-        ...FlattenCraftRouteMetaDataEntry<
-          Head,
-          RouteCollectionName,
-          ParentPath,
-          InheritedServiceNames,
-          InheritedPublicProperties,
-          InheritedMissingProviders,
-          InheritedHttpDeps
-        >,
-        ...CraftRoutesMetaDataWithContext<
-          Tail,
-          RouteCollectionName,
-          ParentPath,
-          InheritedServiceNames,
-          InheritedPublicProperties,
-          InheritedMissingProviders,
-          InheritedHttpDeps
-        >,
-      ]
-    : readonly [];
+      InheritedHttpDeps,
+    ],
+  ]
+>;
 
 export type CraftRoutesMetaData<
   Routes extends readonly AnyCraftRouteDefinition[],
@@ -2067,7 +2084,7 @@ export type CraftRoutesApp<
   readonly __craftParentMount?: ParentMount;
   /** @internal phantom property for fast type inference — do not use at runtime */
   readonly _routes: Routes;
-  toRoutes(): Route[];
+  toRoutes(): CraftCompiledRoute[];
   /**
    * Full per-route metadata — includes `path`, `queryParams`, and the
    * `componentDeps`-derived shape (`deps`, `missingProvider`, `httpDeps`,
@@ -2155,7 +2172,7 @@ function createRouteValueService<Name extends string, Output>(
   name: Name,
 ): CraftRouteValueServiceApi<Name, Output> {
   return craftService(
-    { name, scope: 'toProvide' },
+    { name, providedIn: 'toProvide' },
     (inputs: { $provided: { resolve: () => Output } }) =>
       inputs.$provided.resolve(),
   ) as CraftRouteValueServiceApi<Name, Output>;
@@ -2317,106 +2334,58 @@ function toExceptionInjectHelperName(
   return `inject${toRouteCollectionExceptionServiceName(routeCollectionName, routePath, code)}`;
 }
 
-function findActivatedRouteByPath(
-  route: ActivatedRoute,
-  routePath: string,
-): ActivatedRoute | null {
-  if (route.routeConfig?.path === routePath) {
-    return route;
-  }
-
-  for (const child of route.children ?? []) {
-    const match = findActivatedRouteByPath(child, routePath);
-
-    if (match) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
-function getRootActivatedRoute(route: ActivatedRoute): ActivatedRoute {
-  let currentRoute = route;
-
-  while (currentRoute.parent) {
-    currentRoute = currentRoute.parent;
-  }
-
-  return currentRoute;
-}
-
-function resolveActivatedRouteByPath(routePath: string): ActivatedRoute {
-  const activatedRoute = inject(ActivatedRoute);
-  const rootActivatedRoute = getRootActivatedRoute(activatedRoute);
-
-  return (
-    findActivatedRouteByPath(rootActivatedRoute, routePath) ?? activatedRoute
-  );
-}
-
-function findSnapshotRouteByPath(
-  snapshot: ActivatedRouteSnapshot,
-  routePath: string,
-): ActivatedRouteSnapshot | null {
-  if (snapshot.routeConfig?.path === routePath) {
-    return snapshot;
-  }
-
-  for (const child of snapshot.children) {
-    const match = findSnapshotRouteByPath(child, routePath);
-
-    if (match) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
 function injectRouteParamsSignal(
   routePath: string,
 ): Signal<Record<string, string>> {
-  // Read the params off the LIVE router snapshot on each navigation, rather than
-  // capturing one `ActivatedRoute` and subscribing to its `params`. The route's
-  // value service is a singleton cached on the (reused) route-`providers`
-  // injector, while Angular creates a fresh `ActivatedRoute` on every
-  // (re)activation — so a captured `route.params` observable goes stale the
-  // moment the route is left and re-entered (e.g. list → detail → list →
-  // detail). Driving off `Router.events` keeps the signal correct across
-  // activations.
-  const router = inject(Router);
+  const matchSignal = inject(CRAFT_MATCH);
+  const names = extractRouteParamNames(routePath);
+  let last: Record<string, string> = pickParams(matchSignal(), names);
+  return craftComputed(() => {
+    const match = matchSignal();
+    if (!match) {
+      return last;
+    }
+    last = pickParams(match, names);
+    return last;
+  }) as unknown as Signal<Record<string, string>>;
+}
 
-  const readSnapshot = (): ActivatedRouteSnapshot | null =>
-    findSnapshotRouteByPath(router.routerState.snapshot.root, routePath);
-
-  // Only emit while this route is part of the active tree. When it deactivates
-  // we deliberately DON'T emit (so `toSignal` retains the last params): the
-  // component is being torn down, and clearing to `{}` mid-teardown would drop
-  // anything bound to the params — e.g. a leaving page's `view-transition-name`
-  // would vanish before the browser snapshots the outgoing ("old") frame,
-  // killing the shared-element morph.
-  return toSignal(
-    router.events.pipe(
-      filter((event) => event instanceof NavigationEnd),
-      map(() => readSnapshot()),
-      filter(
-        (snapshot): snapshot is ActivatedRouteSnapshot => snapshot !== null,
-      ),
-      map((snapshot) => snapshot.params),
-    ),
-    { initialValue: readSnapshot()?.params ?? {} },
-  ) as Signal<Record<string, string>>;
+function pickParams(
+  match: CraftMatch | null,
+  names: readonly string[],
+): Record<string, string> {
+  if (!match) {
+    return {};
+  }
+  if (names.length === 0) {
+    return { ...match.params };
+  }
+  const params: Record<string, string> = {};
+  for (const name of names) {
+    const value = match.params[name];
+    if (value !== undefined) {
+      params[name] = value;
+    }
+  }
+  return params;
 }
 
 function injectRouteDataSignal<RouteData extends Data>(
   routePath: string,
 ): Signal<RouteData> {
-  const resolvedRoute = resolveActivatedRouteByPath(routePath);
-
-  return toSignal(resolvedRoute.data, {
-    initialValue: resolvedRoute.snapshot.data,
-  }) as Signal<RouteData>;
+  const matchSignal = inject(CRAFT_MATCH);
+  let last = (matchSignal()?.routes.find((route) => route.path === routePath)
+    ?.data ?? {}) as RouteData;
+  return craftComputed(() => {
+    const match = matchSignal();
+    const route = match?.routes.find(
+      (candidate) => candidate.path === routePath,
+    );
+    if (route) {
+      last = (route.data ?? {}) as RouteData;
+    }
+    return last;
+  }) as unknown as Signal<RouteData>;
 }
 
 const ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE =
@@ -2425,22 +2394,12 @@ const ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE =
   'route queryParams generators do not support onAppStart(...).';
 
 function executeRouteQueryParamsFactory<Output>(
-  routePath: string,
+  _routePath: string,
   factory: RouteQueryParamsFactory<Output>,
 ): Output {
-  const parentInjector = inject(Injector);
-  const resolvedRoute = resolveActivatedRouteByPath(routePath);
-  const routeScopedInjector = Injector.create({
-    parent: parentInjector,
-    providers: [
-      {
-        provide: ActivatedRoute,
-        useValue: resolvedRoute,
-      },
-    ],
-  });
+  const injector = inject(Injector);
 
-  return runInInjectionContext(routeScopedInjector, () => {
+  return runInInjectionContext(injector, () => {
     const result = factory();
 
     if (!isGenerator(result)) {
@@ -2449,7 +2408,7 @@ function executeRouteQueryParamsFactory<Output>(
 
     return runCraftGenerator({
       iterator: result,
-      injector: routeScopedInjector,
+      injector,
       hostScope: 'function',
       invalidYieldErrorMessage: ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE,
       multipleAppStartErrorMessage: ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
@@ -2459,40 +2418,70 @@ function executeRouteQueryParamsFactory<Output>(
   });
 }
 
-const ROUTE_REDIRECT_TO_INVALID_YIELD_ERROR_MESSAGE =
-  'route redirectTo generators can only yield craftService dependencies or exposed dependency helpers.';
-const ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE =
-  'route redirectTo generators do not support onAppStart(...).';
+function toCraftRouteStepFactory(
+  routePath: string,
+  guardName: 'canActivate' | 'canMatch',
+  factory: unknown,
+): CraftRouteStepFactory | undefined {
+  if (typeof factory !== 'function') {
+    return undefined;
+  }
 
-// Wraps a craft `redirectTo` factory into a plain Angular `RedirectFunction`.
-// Angular runs the result in an injection context, so a generator factory can
-// `yield*` craftService dependencies; we drive it with `runCraftGenerator` and
-// return the resolved redirect target. Plain (non-generator) factories pass
-// their result straight through.
-function createRedirectTo(
-  factory: RouteRedirectToFactory<unknown>,
-): (
-  redirectData: PartialMatchRouteSnapshot,
-) => MaybeAsync<RouteRedirectToResult> {
-  return (redirectData) => {
-    const result = factory(redirectData);
-
-    if (!isGenerator(result)) {
-      return result as MaybeAsync<RouteRedirectToResult>;
+  return function* (route, state) {
+    const result = factory(route, state);
+    if (isGenerator(result)) {
+      return yield* settlePublicGuardValue(routePath, guardName, yield* result);
     }
-
-    const injector = inject(Injector);
-
-    return runCraftGenerator({
-      iterator: result,
-      injector,
-      hostScope: 'function',
-      invalidYieldErrorMessage: ROUTE_REDIRECT_TO_INVALID_YIELD_ERROR_MESSAGE,
-      multipleAppStartErrorMessage: ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE,
-      onAppStartNotSupportedErrorMessage:
-        ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE,
-    }).value as RouteRedirectToResult;
+    return yield* settlePublicGuardValue(routePath, guardName, result);
   };
+}
+
+function* settlePublicGuardValue(
+  routePath: string,
+  guardName: 'canActivate' | 'canMatch',
+  value: unknown,
+): Generator<unknown, unknown, unknown> {
+  if (value === undefined) {
+    throw new Error(
+      `Route "${routePath}" ${guardName} guard must not synchronously return undefined.`,
+    );
+  }
+
+  if (isSignal(value)) {
+    return yield {
+      [GUARD_AWAIT_REQUEST_MARKER]: true,
+      kind: 'promise',
+      value: firstValueFrom(
+        toObservable(value).pipe(
+          filter((next) => next !== undefined),
+          take(1),
+        ),
+      ),
+    };
+  }
+
+  if (isObservable(value)) {
+    return yield {
+      [GUARD_AWAIT_REQUEST_MARKER]: true,
+      kind: 'promise',
+      value: firstValueFrom(
+        value.pipe(
+          filter((next) => next !== undefined),
+          take(1),
+        ),
+      ),
+    };
+  }
+
+  if (value instanceof Promise) {
+    return yield {
+      [GUARD_AWAIT_REQUEST_MARKER]: true,
+      kind: 'promise',
+      value,
+    };
+  }
+
+  return value;
 }
 
 function provideRouteValueService(
@@ -2563,7 +2552,7 @@ function isCraftRoutesApp(value: unknown): value is CraftRoutesApp {
 function createLoadChildren(
   routePath: string,
   loadChildren: AnyCraftLazyRouteDefinition['loadChildren'],
-): NonNullable<Route['loadChildren']> {
+): NonNullable<CraftCompiledRoute['loadChildren']> {
   return () =>
     loadRouteWithRetry(
       (helpers) => Promise.resolve(loadChildren(helpers)),
@@ -2575,11 +2564,11 @@ function createLoadChildren(
       }
 
       if (Array.isArray(childRoutes)) {
-        return childRoutes as Route[];
+        return childRoutes as CraftCompiledRoute[];
       }
 
       throw new Error(
-        `Route "${routePath}" loadChildren must return a craftRoutes routes object or an Angular Route array.`,
+        `Route "${routePath}" loadChildren must return a craftRoutes routes object or a Craft compiled route array.`,
       );
     });
 }
@@ -2597,165 +2586,6 @@ function createLoadComponent(
       'component',
       routePath,
     );
-}
-
-const ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE =
-  'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an craftUntilSettled/craftUntilDefined await request.';
-const ANGULAR_GUARD_APP_START_ERROR_MESSAGE =
-  'craft route guards cannot register application start hooks.';
-
-function isAngularGuardResult(value: unknown): value is GuardResult {
-  return (
-    typeof value === 'boolean' ||
-    value instanceof UrlTree ||
-    value instanceof RedirectCommand
-  );
-}
-
-function toAngularGuardResult(
-  value: unknown,
-  successDataSink?: WritableSignal<unknown>,
-): GuardResult {
-  if (isAngularGuardResult(value)) {
-    return value;
-  }
-
-  successDataSink?.set(value);
-  return true;
-}
-
-function normalizeAngularGuardResult(
-  routePath: string,
-  guardName: 'canActivate' | 'canMatch',
-  value: unknown,
-  successDataSink?: WritableSignal<unknown>,
-): MaybeAsync<GuardResult> | Observable<GuardResult> {
-  if (value === undefined) {
-    throw new Error(
-      `Route "${routePath}" ${guardName} guard must not synchronously return undefined.`,
-    );
-  }
-
-  if (isSignal(value)) {
-    return new Observable<GuardResult>((subscriber) => {
-      let active = true;
-      let timer: TemporalTaskHandle | null = null;
-      const temporalRuntime =
-        tryInjectTemporalRuntime() ?? new RealCraftTemporalRuntime();
-
-      const poll = () => {
-        if (!active) {
-          return;
-        }
-
-        const result = value();
-
-        if (result === undefined) {
-          timer = temporalRuntime.schedule(poll, 0, {
-            kind: 'route-guard-poll',
-            owner: `route:${routePath}`,
-          });
-          return;
-        }
-
-        subscriber.next(toAngularGuardResult(result, successDataSink));
-        subscriber.complete();
-      };
-
-      poll();
-
-      return () => {
-        active = false;
-        timer?.cancel();
-        timer = null;
-      };
-    });
-  }
-
-  if (isObservable(value)) {
-    return value.pipe(
-      filter((result) => result !== undefined),
-      take(1),
-      map((result) => toAngularGuardResult(result, successDataSink)),
-    );
-  }
-
-  if (value instanceof Promise) {
-    return value.then((result) =>
-      toAngularGuardResult(result, successDataSink),
-    );
-  }
-
-  return toAngularGuardResult(value, successDataSink);
-}
-
-function tryInjectTemporalRuntime() {
-  try {
-    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function createAngularGuard<
-  Args extends unknown[],
-  Result extends CraftRouteCanActivateResult | GuardResult,
->(
-  routePath: string,
-  guardName: 'canActivate' | 'canMatch',
-  guard: (...args: Args) => Result | Generator<unknown, Result, unknown>,
-  successDataSink?: WritableSignal<unknown>,
-): (...args: Args) => MaybeAsync<GuardResult> | Observable<GuardResult> {
-  return (...args) => {
-    const injector = inject(Injector);
-
-    try {
-      const result = executeGeneratorCompatibleFactory({
-        factory: guard,
-        thisArg: undefined,
-        getInjector: () => injector,
-        args,
-        invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage:
-          ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-      });
-
-      return normalizeAngularGuardResult(
-        routePath,
-        guardName,
-        result,
-        successDataSink,
-      );
-    } catch (error) {
-      // A craft exception is handled by the non-blocking Craft outlet after
-      // Angular commits the URL. Let that chain reach its typed route handler
-      // instead of exposing the internal short-circuit as a navigation error.
-      if (isCraftGenShortCircuit(error)) {
-        return true;
-      }
-
-      if (
-        !(error instanceof Error) ||
-        error.message !== ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE
-      ) {
-        throw error;
-      }
-
-      return executeGeneratorCompatibleFactoryAsync({
-        factory: guard,
-        thisArg: undefined,
-        getInjector: () => injector,
-        args,
-        invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
-        appStartNotSupportedErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-      }).then((settled) =>
-        settled.kind === 'shortCircuit'
-          ? false
-          : toAngularGuardResult(settled.value, successDataSink),
-      );
-    }
-  };
 }
 
 // Authors a single route with fully-typed, route-scoped provider helpers.
@@ -2956,7 +2786,7 @@ export function craftRoutes<
   const craftedRoutes: CraftRoutesApp<Routes, Name> = {
     name: routeCollectionName,
     _routes: [] as unknown as Routes,
-    toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
+    toRoutes: () => routes.map((route, index) => toCraftRoute(route, index)),
     META_DATA,
     META_PATHS: META_DATA as unknown as CraftRoutesPathRegistry<Routes>,
   };
@@ -2994,13 +2824,13 @@ export function craftRoutes<
     }
   }
 
-  function toAngularRoute(
+  function toCraftRoute(
     route: AnyCraftRouteDefinition,
     routeIndex: number,
-  ): Route {
-    const autoProviders: AngularRouteProviders = [
-      provideHostName('route:' + route.path),
-    ];
+  ): CraftCompiledRoute {
+    // A local accumulator, not the route contract: it is built up here and
+    // only ever handed out as a fresh readonly array below.
+    const autoProviders: unknown[] = [provideHostName('route:' + route.path)];
 
     for (const paramName of extractRouteParamNames(route.path)) {
       const serviceName = toRouteParamServiceName(
@@ -3027,7 +2857,7 @@ export function craftRoutes<
             return providedParams[paramName];
           }
 
-          return computed(() => paramsSignal()[paramName]);
+          return craftComputed(() => paramsSignal()[paramName]);
         }),
       );
     }
@@ -3174,6 +3004,9 @@ export function craftRoutes<
       ? providersFn(buildRouteProviderHelpers(route))
       : [];
     const resolvedRouteProviders = [
+      ...(route.ssr
+        ? [{ provide: CRAFT_SSR_POLICY, useValue: route.ssr }]
+        : []),
       ...(routeProviders ?? []),
       ...factoryProviders,
     ];
@@ -3185,35 +3018,7 @@ export function craftRoutes<
       loadComponent !== undefined
         ? createLoadComponent(route.path, loadComponent)
         : undefined;
-    const wrappedRedirectTo =
-      typeof redirectTo === 'function'
-        ? createRedirectTo(redirectTo)
-        : redirectTo;
-    const wrappedCanActivate =
-      canActivate !== undefined
-        ? [
-            createAngularGuard(
-              route.path,
-              'canActivate',
-              canActivate as CraftRouteCanActivateGuard,
-              guardDataSignal ?? undefined,
-            ),
-          ]
-        : undefined;
-    const wrappedCanMatch =
-      canMatch !== undefined
-        ? [
-            createAngularGuard(
-              route.path,
-              'canMatch',
-              canMatch as CraftRouteCanMatchGuard,
-            ),
-          ]
-        : undefined;
 
-    // Angular guards keep router matching/activation semantics intact. The
-    // outlet also reads this meta to publish guarded/resolved data and route
-    // exceptions through Craft's typed handlers.
     const hasCraftChain =
       canActivate !== undefined ||
       canMatch !== undefined ||
@@ -3221,8 +3026,12 @@ export function craftRoutes<
 
     const craftMeta: CraftRouteMeta | undefined = hasCraftChain
       ? {
-          match: canMatch as unknown as CraftRouteMeta['match'],
-          guard: canActivate as unknown as CraftRouteMeta['guard'],
+          match: toCraftRouteStepFactory(route.path, 'canMatch', canMatch),
+          guard: toCraftRouteStepFactory(
+            route.path,
+            'canActivate',
+            canActivate,
+          ),
           resolve: resolve as unknown as CraftRouteMeta['resolve'],
           handleExceptions: (handleExceptions ??
             {}) as CraftRouteExceptionHandlerMap,
@@ -3248,20 +3057,16 @@ export function craftRoutes<
     return {
       ...angularRoute,
       ...(mergedData !== undefined ? { data: mergedData } : {}),
-      ...(redirectTo !== undefined ? { redirectTo: wrappedRedirectTo } : {}),
+      ...(redirectTo !== undefined ? { redirectTo } : {}),
       loadChildren: wrappedLoadChildren,
       ...(wrappedLoadComponent !== undefined
         ? { loadComponent: wrappedLoadComponent }
         : {}),
-      ...(wrappedCanActivate !== undefined
-        ? { canActivate: wrappedCanActivate }
-        : {}),
-      ...(wrappedCanMatch !== undefined ? { canMatch: wrappedCanMatch } : {}),
       providers:
         autoProviders.length > 0 || resolvedRouteProviders.length
           ? [...autoProviders, ...resolvedRouteProviders]
           : undefined,
-    };
+    } as CraftCompiledRoute;
   }
 
   function buildRouteProviderHelpers(

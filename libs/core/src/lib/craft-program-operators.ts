@@ -112,7 +112,7 @@ function* catchWithLookup(
       throw error;
     }
 
-    const handler = lookupHandler(error.exception.code);
+    const handler = lookupHandler(error.exception._tag);
 
     if (!handler) {
       throw error;
@@ -161,7 +161,7 @@ export type CatchTagExhaustiveCodesCheck<
 export type CatchTagExhaustiveHandlersCheck<
   Exception extends AnyCraftException,
   Handlers,
-> = CatchTagExhaustiveCodesCheck<Exception['code'], Handlers>;
+> = CatchTagExhaustiveCodesCheck<Exception['_tag'], Handlers>;
 
 type ExhaustiveHandlersYielded<Handlers> = {
   [K in keyof Handlers]: HandlerYielded<Handlers[K]>;
@@ -334,7 +334,7 @@ export function retry(
             throw error;
           }
 
-          if (policy.while && !policy.while.includes(error.exception.code)) {
+          if (policy.while && !policy.while.includes(error.exception._tag)) {
             throw error;
           }
 

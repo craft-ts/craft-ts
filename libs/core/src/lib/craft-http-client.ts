@@ -1,12 +1,4 @@
-import {
-  HttpClient,
-  HttpContext,
-  HttpErrorResponse,
-  HttpHeaders,
-  HttpParams,
-} from '@angular/common/http';
-import type { Injector } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import type { Injector } from './host/craft-compat';
 import {
   craftException,
   type AnyCraftException,
@@ -20,6 +12,11 @@ import {
 } from './craft-service';
 import type { CraftDecoder } from './craft-codec';
 import { executeCraftHttpTrace } from './craft-http-trace';
+import {
+  craftFetchTransport,
+  type CraftHttpResponse,
+  ɵgetCraftHttpResponseMetadata,
+} from './host/craft-http';
 
 declare const CRAFT_HTTP_CLIENT_SUCCESS_MARKER: unique symbol;
 declare const CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER: unique symbol;
@@ -33,40 +30,14 @@ const CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER = Symbol(
   'craft-http-client-exception-dependency-request-marker',
 );
 
-type CraftHttpClientParamPrimitive = string | number | boolean | Date;
-
-type CraftHttpClientParamValue =
-  | CraftHttpClientParamPrimitive
-  | null
-  | undefined
-  | ReadonlyArray<CraftHttpClientParamPrimitive | null | undefined>;
-
 export type CraftHttpClientParams =
-  | HttpParams
-  | Record<string, CraftHttpClientParamValue>;
+  | URLSearchParams
+  | Readonly<Record<string, string | number | boolean | undefined>>;
 
 export type CraftHttpClientJsonOptions = {
-  headers?: HttpHeaders | Record<string, string | string[]>;
-  context?: HttpContext;
-  observe?: 'body';
+  headers?: Readonly<Record<string, string>>;
   params?: CraftHttpClientParams;
-  reportProgress?: boolean;
-  responseType?: 'json';
-  withCredentials?: boolean;
-  credentials?: RequestCredentials;
-  keepalive?: boolean;
-  priority?: RequestPriority;
-  cache?: RequestCache;
-  mode?: RequestMode;
-  redirect?: RequestRedirect;
-  referrer?: string;
-  integrity?: string;
-  referrerPolicy?: ReferrerPolicy;
-  transferCache?:
-    | {
-        includeHeaders?: string[];
-      }
-    | boolean;
+  signal?: AbortSignal;
   timeout?: number;
 };
 
@@ -75,15 +46,23 @@ export type CraftHttpClientJsonRequestOptions<Payload = unknown> =
     payload?: Payload | null;
   };
 
+export type CraftHttpClientErrorResponse = {
+  error: unknown;
+  headers: Headers;
+  status: number;
+  statusText: string;
+  url: string;
+};
+
 export type CraftHttpClientErrorPayload = {
-  error: HttpErrorResponse;
+  error: CraftHttpClientErrorResponse;
   method: string;
   url: string;
 };
 
 export type CraftHttpClientError = CraftExceptionResult<
   {
-    code: 'HttpError';
+    _tag: 'HttpError';
     scope: 'HttpClient';
     identifier?: string;
   },
@@ -100,7 +79,7 @@ export type CraftHttpResponseDecodeErrorPayload = {
 
 export type HttpResponseDecodeError = CraftExceptionResult<
   {
-    code: 'HttpResponseDecodeError';
+    _tag: 'HttpResponseDecodeError';
     scope: 'HttpClient';
     identifier?: string;
   },
@@ -158,7 +137,7 @@ type CraftHttpClientExceptionDependencyRequest<
 > = Readonly<{
   [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER]: true;
   dependency: Dependency;
-  evaluate: (error: HttpErrorResponse) => Result;
+  evaluate: (error: CraftHttpClientErrorResponse) => Result;
   preview: () => Result;
 }>;
 
@@ -569,8 +548,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http, injector) =>
-      createCraftHttpRequest(http, injector, 'GET', config),
+    return (yield createCraftHttpClientYieldRequest((injector) =>
+      createCraftHttpRequest(injector, 'GET', config),
     )) as CraftHttpRequestFromConfig<'GET', Config>;
   },
 
@@ -579,8 +558,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http, injector) =>
-      createCraftHttpRequest(http, injector, 'DELETE', config),
+    return (yield createCraftHttpClientYieldRequest((injector) =>
+      createCraftHttpRequest(injector, 'DELETE', config),
     )) as CraftHttpRequestFromConfig<'DELETE', Config>;
   },
 
@@ -589,8 +568,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http, injector) =>
-      createCraftHttpRequest(http, injector, 'POST', config),
+    return (yield createCraftHttpClientYieldRequest((injector) =>
+      createCraftHttpRequest(injector, 'POST', config),
     )) as CraftHttpRequestFromConfig<'POST', Config>;
   },
 
@@ -599,8 +578,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http, injector) =>
-      createCraftHttpRequest(http, injector, 'PUT', config),
+    return (yield createCraftHttpClientYieldRequest((injector) =>
+      createCraftHttpRequest(injector, 'PUT', config),
     )) as CraftHttpRequestFromConfig<'PUT', Config>;
   },
 
@@ -609,8 +588,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http, injector) =>
-      createCraftHttpRequest(http, injector, 'PATCH', config),
+    return (yield createCraftHttpClientYieldRequest((injector) =>
+      createCraftHttpRequest(injector, 'PATCH', config),
     )) as CraftHttpRequestFromConfig<'PATCH', Config>;
   },
 
@@ -620,9 +599,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
     const config = build(craftHttpClientBuilderHelpers);
 
     return (yield createCraftHttpClientYieldRequest(
-      (http, injector) =>
+      (injector) =>
         createCraftHttpRequest(
-          http,
           injector,
           config.method,
           config,
@@ -658,12 +636,12 @@ export function getCraftHttpRequestExceptionDependencies(
 }
 
 function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
-  factory: (http: HttpClient, injector: Injector) => Request,
+  factory: (injector: Injector) => Request,
 ): CraftHttpTrackedRequest<Request> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     name: 'CraftHttpClient',
-    scope: 'global',
+    providedIn: 'global',
     resolve: (injector) => {
       const override = injector
         .get(SERVICE_RUNTIME_OVERRIDES)
@@ -675,13 +653,13 @@ function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
 
       if (override?.kind === 'instantiate') {
         if (override.instance === undefined) {
-          override.instance = factory(injector.get(HttpClient), injector);
+          override.instance = factory(injector);
         }
 
         return override.instance as Request;
       }
 
-      return factory(injector.get(HttpClient), injector);
+      return factory(injector);
     },
   } as CraftHttpTrackedRequest<Request>;
 }
@@ -690,7 +668,6 @@ function createCraftHttpRequest<
   Method extends string,
   Config extends CraftHttpClientBaseConfig,
 >(
-  http: HttpClient,
   injector: Injector,
   method: Method,
   config: Config,
@@ -713,13 +690,18 @@ function createCraftHttpRequest<
       },
       async () => {
         try {
-          const responseBody = await firstValueFrom(
-            http.request<unknown>(
-              normalizedMethod,
-              config.url,
-              toHttpClientRequestOptions(config),
-            ),
+          const response = await craftFetchTransport(
+            toCraftFetchRequest(normalizedMethod, config),
           );
+          const responseBody = response.body;
+
+          if (response.status >= 400) {
+            return resolveCraftHttpClientError(
+              normalizedMethod,
+              config,
+              toCraftHttpClientErrorResponse(config.url, response),
+            );
+          }
 
           const decoder = (
             config.success as
@@ -745,19 +727,10 @@ function createCraftHttpRequest<
             ) as ExtractCraftHttpClientResponseDecodeError<Config>;
           }
         } catch (error) {
-          const normalizedError = normalizeHttpClientError(config.url, error);
-          const customException = resolveCraftHttpClientException(
-            config.exceptions,
-            normalizedError,
-          ) as ExtractCraftHttpClientExceptions<Config> | undefined;
-
-          return (
-            customException ??
-            toCraftHttpClientError(
-              normalizedMethod,
-              config.url,
-              normalizedError,
-            )
+          return resolveCraftHttpClientError(
+            normalizedMethod,
+            config,
+            normalizeHttpClientError(config.url, error),
           );
         }
       },
@@ -821,77 +794,54 @@ function createCraftHttpRequest<
   }) as CraftHttpRequestFromConfig<Uppercase<Method>, Config>;
 }
 
-function toHttpClientRequestOptions(config: CraftHttpClientBaseConfig): Omit<
-  CraftHttpClientJsonOptions,
-  'params'
-> & {
-  params?: HttpParams | Record<string, string | string[]>;
-  body?: unknown | null;
-} {
-  const {
-    url: _url,
-    success: _success,
-    exceptions: _exceptions,
-    method: _method,
-    payload,
-    params,
-    ...rest
-  } = config as CraftHttpClientRequestConfig;
+function toCraftFetchRequest(
+  method: string,
+  config: CraftHttpClientBaseConfig,
+) {
+  const urlSearchParams =
+    config.params instanceof URLSearchParams ? config.params : undefined;
 
-  const normalizedParams = normalizeCraftHttpClientParams(params);
-  const options = {
-    ...rest,
-    ...(normalizedParams !== undefined ? { params: normalizedParams } : {}),
+  return {
+    url:
+      urlSearchParams === undefined
+        ? config.url
+        : appendCraftHttpClientSearchParams(config.url, urlSearchParams),
+    method,
+    headers: config.headers,
+    params:
+      urlSearchParams === undefined
+        ? normalizeCraftHttpClientParams(config.params)
+        : undefined,
+    body: getConfigPayload(config),
+    signal: config.signal,
+    timeout: config.timeout,
   };
-
-  return payload === undefined
-    ? options
-    : {
-        ...options,
-        body: payload,
-      };
 }
 
-function craftHttpClientParamToString(
-  value: CraftHttpClientParamPrimitive,
+function appendCraftHttpClientSearchParams(
+  url: string,
+  params: URLSearchParams,
 ): string {
-  return value instanceof Date ? value.toISOString() : String(value);
+  const serialized = params.toString();
+  if (!serialized) {
+    return url;
+  }
+
+  const hashIndex = url.indexOf('#');
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+  const baseUrl = hashIndex === -1 ? url : url.slice(0, hashIndex);
+
+  return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${serialized}${hash}`;
 }
 
 function normalizeCraftHttpClientParams(
   params: CraftHttpClientParams | undefined,
-): HttpParams | Record<string, string | string[]> | undefined {
+): Record<string, string | number | boolean | undefined> | undefined {
   if (params === undefined) {
     return undefined;
   }
 
-  if (params instanceof HttpParams) {
-    return params;
-  }
-
-  const normalized: Record<string, string | string[]> = {};
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null) {
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      normalized[key] = value
-        .filter(
-          (item): item is CraftHttpClientParamPrimitive =>
-            item !== undefined && item !== null,
-        )
-        .map(craftHttpClientParamToString);
-      continue;
-    }
-
-    normalized[key] = craftHttpClientParamToString(
-      value as CraftHttpClientParamPrimitive,
-    );
-  }
-
-  return normalized;
+  return params instanceof URLSearchParams ? undefined : { ...params };
 }
 
 function getConfigPayload(config: CraftHttpClientBaseConfig): unknown {
@@ -938,9 +888,22 @@ function collectCraftHttpClientExceptionRuleDependencies(
   return dependencies;
 }
 
+function resolveCraftHttpClientError<Config extends CraftHttpClientBaseConfig>(
+  method: string,
+  config: Config,
+  error: CraftHttpClientErrorResponse,
+): ExtractCraftHttpClientExceptions<Config> | CraftHttpClientError {
+  const customException = resolveCraftHttpClientException(
+    config.exceptions,
+    error,
+  ) as ExtractCraftHttpClientExceptions<Config> | undefined;
+
+  return customException ?? toCraftHttpClientError(method, config.url, error);
+}
+
 function resolveCraftHttpClientException(
   rules: readonly CraftHttpClientExceptionRule[] | undefined,
-  error: HttpErrorResponse,
+  error: CraftHttpClientErrorResponse,
 ): AnyCraftException | undefined {
   if (!rules?.length) {
     return undefined;
@@ -1151,7 +1114,9 @@ function matchHttpClientExceptionValue<Value, Expected>(
   return Object.is(value, expected) ? expected : undefined;
 }
 
-function readCraftHttpClientErrorCode(error: HttpErrorResponse): unknown {
+function readCraftHttpClientErrorCode(
+  error: CraftHttpClientErrorResponse,
+): unknown {
   const payload = error.error;
 
   return payload && typeof payload === 'object' && 'code' in payload
@@ -1160,7 +1125,7 @@ function readCraftHttpClientErrorCode(error: HttpErrorResponse): unknown {
 }
 
 function readCraftHttpClientErrorContent(
-  error: HttpErrorResponse,
+  error: CraftHttpClientErrorResponse,
 ): string | undefined {
   if (typeof error.error === 'string') {
     return error.error;
@@ -1187,25 +1152,39 @@ function normalizeCraftHttpClientHeaderValue(
 function normalizeHttpClientError(
   url: string,
   error: unknown,
-): HttpErrorResponse {
-  return error instanceof HttpErrorResponse
-    ? error
-    : new HttpErrorResponse({
-        error,
-        status: 0,
-        statusText: 'Unknown Error',
-        url,
-      });
+): CraftHttpClientErrorResponse {
+  return {
+    error,
+    headers: new Headers(),
+    status: 0,
+    statusText: 'Unknown Error',
+    url,
+  };
+}
+
+function toCraftHttpClientErrorResponse(
+  url: string,
+  response: CraftHttpResponse<unknown>,
+): CraftHttpClientErrorResponse {
+  const metadata = ɵgetCraftHttpResponseMetadata(response);
+
+  return {
+    error: response.body,
+    headers: metadata?.headers ?? new Headers(),
+    status: response.status,
+    statusText: metadata?.statusText ?? '',
+    url: metadata?.url ?? url,
+  };
 }
 
 function toCraftHttpClientError(
   method: string,
   url: string,
-  error: HttpErrorResponse,
+  error: CraftHttpClientErrorResponse,
 ): CraftHttpClientError {
   return craftException(
     {
-      code: 'HttpError',
+      _tag: 'HttpError',
       scope: 'HttpClient',
       identifier: `${method} ${url}`,
     },
@@ -1227,7 +1206,7 @@ function toHttpResponseDecodeError(
 
   return craftException(
     {
-      code: 'HttpResponseDecodeError',
+      _tag: 'HttpResponseDecodeError',
       scope: 'HttpClient',
       identifier: `${method} ${url}`,
     },

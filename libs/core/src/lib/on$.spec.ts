@@ -1,8 +1,13 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  createEnvironmentInjector,
+  EnvironmentInjector,
+  EventEmitter,
+  runInInjectionContext,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { on$ } from './on$';
 import { source$ } from './source$';
 import { Subject } from 'rxjs';
-import { Component, EventEmitter } from '@angular/core';
 import { SourceBranded } from './util/util';
 
 describe('on$', () => {
@@ -29,8 +34,8 @@ describe('on$', () => {
       mySource.emit('Hello World');
       expect(callbackResults).toEqual(['Hello World']);
 
-      mySource.emit('Hello Ng-Craft');
-      expect(callbackResults).toEqual(['Hello World', 'Hello Ng-Craft']);
+      mySource.emit('Hello CraftTS');
+      expect(callbackResults).toEqual(['Hello World', 'Hello CraftTS']);
     });
   });
 
@@ -51,23 +56,24 @@ describe('on$', () => {
     const callbackResults: string[] = [];
     let mySource: ReturnType<typeof source$<string>>;
 
-    @Component({ template: '', standalone: true })
-    class TestComponent {
-      constructor() {
-        mySource = source$<string>('mySource');
-        on$(mySource, (value) => {
-          callbackResults.push(value);
-          return value;
-        });
-      }
-    }
-
-    const fixture = TestBed.createComponent(TestComponent);
+    // Was an @Component destroyed through a TestBed fixture. What the test is
+    // actually about is the injection context's lifetime, so own one directly.
+    const injector = createEnvironmentInjector(
+      [],
+      TestBed.inject(EnvironmentInjector),
+    );
+    runInInjectionContext(injector, () => {
+      mySource = source$<string>('mySource');
+      on$(mySource, (value) => {
+        callbackResults.push(value);
+        return value;
+      });
+    });
 
     mySource!.emit('before destroy');
     expect(callbackResults).toEqual(['before destroy']);
 
-    fixture.destroy();
+    injector.destroy();
 
     mySource!.emit('after destroy');
     // Le callback ne devrait plus être appelé après destruction

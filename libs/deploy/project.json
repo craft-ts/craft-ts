@@ -1,0 +1,46 @@
+{
+  "name": "craft-ts-deploy",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/deploy/src",
+  "prefix": "craft",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/deploy",
+        "main": "libs/deploy/src/index.ts",
+        "tsConfig": "libs/deploy/tsconfig.lib.json",
+        "assets": ["libs/deploy/LICENSE", "libs/deploy/README.md"]
+      }
+    },
+    "typecheck-manifests": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/deploy/tsconfig.manifests.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.manifests.json",
+        "{projectRoot}/src/**/*.ts",
+        "{workspaceRoot}/apps/*/craft.deploy.ts"
+      ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/deploy/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    }
+  }
+}

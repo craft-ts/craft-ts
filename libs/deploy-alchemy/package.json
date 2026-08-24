@@ -1,0 +1,52 @@
+{
+  "name": "@craft-ts/deploy-alchemy",
+  "version": "0.7.0-beta.13",
+  "description": "Optional Alchemy provider for CraftTS deployments: Cloudflare and AWS presets driven by the deployment manifest",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://craft-ts.github.io/craft/",
+  "bugs": {
+    "url": "https://github.com/craft-ts/craft-ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/craft-ts/craft-ts.git"
+  },
+  "keywords": [
+    "craft-ts",
+    "deployment",
+    "alchemy",
+    "cloudflare",
+    "aws",
+    "infrastructure",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "dependencies": {
+    "@craft-ts/deploy": "^0.7.0-beta.0"
+  },
+  "peerDependencies": {
+    "alchemy": ">=0.70.0"
+  },
+  "peerDependenciesMeta": {
+    "alchemy": {
+      "optional": true
+    }
+  }
+}

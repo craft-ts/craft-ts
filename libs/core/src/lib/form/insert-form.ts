@@ -1,17 +1,23 @@
 import {
   computed,
+  DestroyRef,
   inject,
   Injector,
-  linkedSignal,
+  runInInjectionContext,
   Signal,
   untracked,
-} from '@angular/core';
+  type EnvironmentInjector,
+} from '../host/craft-compat';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import {
   InsertionStateFactoryContext,
   InsertionsStateFactory,
 } from '../query.core';
 import { createCraftFieldTree, CraftFieldTree } from './craft-field';
+import {
+  craftLinkedSignal,
+  type CraftLinkedSignal,
+} from '../host/craft-linked-signal';
 import {
   createFormExceptions,
   createSubmissionController,
@@ -106,10 +112,15 @@ function buildSimpleForm<Model>(
 ): FormWithInsertions<Model, Record<string, unknown>> {
   const submission = createSubmissionController();
   const rawState = rawReactiveValue(context.state);
+  const fieldState = craftLinkedSignal({
+    source: rawState,
+    computation: (current) => current,
+    injector,
+  });
   const field = createCraftFieldTree<Model>({
     read: () => rawState(),
     set: (next: Model) => context.set(next),
-    asReadonly: () => rawState,
+    asReadonly: () => fieldState,
   });
 
   const { rawInsertionsOutput, exposedInsertionsOutput } =
@@ -767,10 +778,20 @@ export function insertForm(...args: any[]): any {
     type ParallelEntry = {
       formIdentifier: string | number;
       form: FormWithInsertions<unknown, Record<string, unknown>>;
+      itemState: CraftLinkedSignal<unknown>;
+      itemInjector: EnvironmentInjector;
     };
 
     const formsByIdentifier = new Map<string | number, ParallelEntry>();
     const identifier = parallelConfig.identifier;
+    const evictEntry = (formIdentifier: string | number): void => {
+      const entry = formsByIdentifier.get(formIdentifier);
+      entry?.itemState.destroy();
+      if (entry && !entry.itemInjector.destroyed) {
+        entry.itemInjector.destroy();
+      }
+      formsByIdentifier.delete(formIdentifier);
+    };
 
     const selectItem = (formIdentifier: string | number) => {
       const currentState = rawReactiveValue(context.state)();
@@ -806,7 +827,11 @@ export function insertForm(...args: any[]): any {
       const existing = formsByIdentifier.get(formIdentifier);
       if (existing) return existing;
 
-      const itemState = linkedSignal(() => selectItem(formIdentifier));
+      const itemState = craftLinkedSignal({
+        source: () => selectItem(formIdentifier),
+        computation: (current) => current,
+        injector: formInjector,
+      });
       const itemContext: InsertionStateFactoryContext<
         unknown,
         Record<string, unknown>
@@ -842,7 +867,16 @@ export function insertForm(...args: any[]): any {
       const itemInjector = ɵcreateHostTaggedInjector(
         formInjector,
         `formItem:${formIdentifier}`,
-      );
+      ) as EnvironmentInjector;
+      // `getOrCreateEntry` runs in the `formsSignal` computation, so
+      // `ɵcreateHostTaggedInjector` cannot see an ambient DestroyRef.
+      // Bind remaining rows to the form injector so host teardown
+      // destroys them even when they were never evicted.
+      formInjector.get(DestroyRef).onDestroy(() => {
+        if (!itemInjector.destroyed) {
+          itemInjector.destroy();
+        }
+      });
 
       // `buildSimpleForm` may create effects (e.g. via insertFormSubmit). When
       // `getOrCreateEntry` is invoked from within a reactive context (such as
@@ -850,43 +884,55 @@ export function insertForm(...args: any[]): any {
       // We wrap construction in `untracked` to detach from the surrounding
       // reactive context.
       const form = untracked(() =>
-        buildSimpleForm(
-          itemContext,
-          formInsertions,
-          inheritedInsertions,
-          itemInjector,
-          formIdentifier,
+        runInInjectionContext(itemInjector, () =>
+          buildSimpleForm(
+            itemContext,
+            formInsertions,
+            inheritedInsertions,
+            itemInjector,
+            formIdentifier,
+          ),
         ),
       );
-      const entry: ParallelEntry = { formIdentifier, form };
+      const entry: ParallelEntry = {
+        formIdentifier,
+        form,
+        itemState,
+        itemInjector,
+      };
       formsByIdentifier.set(formIdentifier, entry);
       return entry;
     };
 
-    const formsSignal = linkedSignal(() => {
-      const currentState = rawReactiveValue(context.state)();
-      if (!Array.isArray(currentState)) {
-        formsByIdentifier.clear();
-        return [] as ParallelEntry[];
-      }
-
-      const seen = new Set<string | number>();
-      const entries = currentState.map((item, index) => {
-        const id = identifier({ item, index });
-        if (seen.has(id)) {
-          throw new Error(
-            `Duplicate form identifier "${String(id)}" in state.`,
-          );
+    const formsSignal = craftLinkedSignal({
+      source: () => rawReactiveValue(context.state)(),
+      injector: formInjector,
+      computation: (currentState) => {
+        if (!Array.isArray(currentState)) {
+          for (const cachedId of [...formsByIdentifier.keys()]) {
+            evictEntry(cachedId);
+          }
+          return [] as ParallelEntry[];
         }
-        seen.add(id);
-        return getOrCreateEntry(id);
-      });
 
-      for (const cachedId of formsByIdentifier.keys()) {
-        if (!seen.has(cachedId)) formsByIdentifier.delete(cachedId);
-      }
+        const seen = new Set<string | number>();
+        const entries = currentState.map((item, index) => {
+          const id = identifier({ item, index });
+          if (seen.has(id)) {
+            throw new Error(
+              `Duplicate form identifier "${String(id)}" in state.`,
+            );
+          }
+          seen.add(id);
+          return getOrCreateEntry(id);
+        });
 
-      return entries;
+        for (const cachedId of [...formsByIdentifier.keys()]) {
+          if (!seen.has(cachedId)) evictEntry(cachedId);
+        }
+
+        return entries;
+      },
     });
 
     return {

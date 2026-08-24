@@ -1,4 +1,4 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
@@ -8,7 +8,7 @@ import {
   p,
   select,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 import {
   craftComputed,
   craftGen,
@@ -18,7 +18,7 @@ import {
   state,
   type CraftServiceInput,
   craftException,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 
 type User = { id: string; name: string; email: string };
 const USERS: User[] = [
@@ -30,7 +30,7 @@ const USERS: User[] = [
 ];
 
 const { UsersApi } = craftService(
-  { name: 'UsersApi', scope: 'global' },
+  { name: 'UsersApi', providedIn: 'global' },
   function* () {
     return {
       getUser: craftGen(function* (id: string) {
@@ -38,7 +38,7 @@ const { UsersApi } = craftService(
         const user = USERS.find((candidate) => candidate.id === id);
         if (!user)
           return craftException(
-            { code: 'UNEXPECTED_ERROR' },
+            { _tag: 'UNEXPECTED_ERROR' },
             { error: new Error(`User ${id} not found`) },
           );
         return user;
@@ -49,7 +49,7 @@ const { UsersApi } = craftService(
 );
 
 const { provideUser, User } = craftService(
-  { name: 'User', scope: 'toProvide' },
+  { name: 'User', providedIn: 'toProvide' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
     const user = yield* query('user', {
@@ -91,9 +91,18 @@ const CraftServiceUserDetailComponent = craftComponent(
     }));
     const user = yield* User({ userId });
     const hasValue = craftComputed('hasValue', () => user.hasValue());
-    return { userId, user, hasValue };
+    const userIdValue = craftComputed('userIdValue', function* () {
+      return (yield* user.value())?.id ?? '';
+    });
+    const userName = craftComputed('userName', function* () {
+      return (yield* user.value())?.name ?? '';
+    });
+    const userEmail = craftComputed('userEmail', function* () {
+      return (yield* user.value())?.email ?? '';
+    });
+    return { userId, user, hasValue, userIdValue, userName, userEmail };
   },
-  ({ userId, user, hasValue }) => {
+  ({ userId, user, hasValue, userIdValue, userName, userEmail }) => {
     return div([
       heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
@@ -116,17 +125,11 @@ const CraftServiceUserDetailComponent = craftComponent(
           () =>
             h('dl', [
               h('dt', 'ID'),
-              h('dd', function* () {
-                return ((yield* user.value()) as User).id;
-              }),
+              h('dd', userIdValue),
               h('dt', 'Name'),
-              h('dd', function* () {
-                return ((yield* user.value()) as User).name;
-              }),
+              h('dd', userName),
               h('dt', 'Email'),
-              h('dd', function* () {
-                return ((yield* user.value()) as User).email;
-              }),
+              h('dd', userEmail),
             ]),
           () =>
             ifBlock(

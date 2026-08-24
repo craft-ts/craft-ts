@@ -117,7 +117,7 @@ The register proves one service's graph is complete. Architecture rules prove
 invariants **across** services: this feature must not depend on that one, this
 HTTP endpoint is owned once, this `craftUnique` storage key appears once.
 
-They live next to `e2e/`, analyze TypeScript without booting Angular, and are
+They live next to `e2e/`, analyze TypeScript without starting the application, and are
 ordinary Vitest assertions on a typed graph. Look a node up, walk its edges,
 assert. A precise rule — HTTP may only be called from a `browserBoundary`
 service — is an `it()`:

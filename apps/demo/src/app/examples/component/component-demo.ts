@@ -10,8 +10,8 @@ import {
   type Input,
   type Output,
   heading,
-} from '@craft-ng/component';
-import { craftComputed, deepYieldable, state } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { craftComputed, deepYieldable, state } from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;
@@ -38,10 +38,10 @@ const userCard = craftComponent(
             yield* onRemove(yield* user());
           },
           'aria-label': function* () {
-            return `Retirer ${(yield* user()).name}`;
+            return `Remove ${(yield* user()).name}`;
           },
         },
-        'Retirer',
+        'Remove',
       ),
     ]),
 );
@@ -68,7 +68,7 @@ export const componentDemo = craftComponent(
             const id = current.nextId;
             return {
               nextId: id + 1,
-              items: [...current.items, { id, name: `Utilisateur ${id}` }],
+              items: [...current.items, { id, name: `User ${id}` }],
             };
           }),
         remove: (removed: DemoUser) =>
@@ -80,15 +80,15 @@ export const componentDemo = craftComponent(
     ),
   (users) =>
     section({ class: 'component-demo' }, [
-      heading('Composants fonctionnels SFC'),
-      p('Rendu runtime, signaux inline, liste keyée et enfant selectorless.'),
+      heading('Functional SFC components'),
+      p('Runtime rendering, inline signals, keyed list, and a selectorless child.'),
       button('addUser',
         { type: 'button',
           class: 'component-demo__add',
           click: users.addUser,
           'data-testid': 'add-user',
         },
-        'Ajouter un utilisateur',
+        'Add a user',
       ),
       div(
         { class: 'component-demo__list' },
@@ -97,7 +97,7 @@ export const componentDemo = craftComponent(
           {
             track: (user) => user.id,
             empty: () =>
-              p({ class: 'component-demo__empty' }, 'Aucun utilisateur'),
+              p({ class: 'component-demo__empty' }, 'No users'),
             },
             (user) =>
               userCard({
@@ -119,11 +119,11 @@ export const componentDemo = craftComponent(
                 class: 'component-demo__defer-trigger',
                 'data-testid': 'load-deferred',
               },
-              'Charger le composant différé',
+              'Load the deferred component',
             ),
-          loading: () => p('Chargement…'),
+          loading: () => p('Loading…'),
           error: () =>
-            p({ class: 'component-demo__error' }, 'Le chargement a échoué.'),
+            p({ class: 'component-demo__error' }, 'The load failed.'),
         },
       ),
     ]),

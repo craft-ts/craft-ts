@@ -4,8 +4,8 @@ import {
   p,
   type Input,
   heading,
-} from '@craft-ng/component';
-import { state } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 
 export const SendContextCounterComponent = craftComponent(
   'SendContextCounterComponent',

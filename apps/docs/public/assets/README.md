@@ -2,7 +2,7 @@
 
 This directory should contain:
 
-- `craft-ng-logo.png` - Main logo for the homepage
+- `craft-ts-logo.png` - Main logo for the homepage
 - `favicon.png` - Favicon for the site
 - `romain-geffrault.png` - Author portrait on the homepage (transparent background)
 

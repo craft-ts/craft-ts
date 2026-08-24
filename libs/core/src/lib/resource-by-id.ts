@@ -9,8 +9,8 @@ import {
   WritableSignal,
   computed,
   Signal,
-  linkedSignal,
-} from '@angular/core';
+} from './host/craft-compat';
+import { craftLinkedSignal as linkedSignal } from './host/craft-linked-signal';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
@@ -110,8 +110,10 @@ type ResourceByIdConfig<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-> = Omit<ResourceOptions<State, ResourceParams>, 'params'> &
-  (
+> = Omit<ResourceOptions<State, ResourceParams>, 'params'> & {
+  /** @internal Shared source name used by the server policy gate. */
+  ssrSourceName?: string;
+} & (
     | {
         fromResourceById?: never;
         params: () => ResourceParams;
@@ -157,7 +159,8 @@ export function resourceById<
   >,
 ): ResourceByIdRef<GroupIdentifier, State, ResourceParams> {
   const injector = inject(Injector);
-  const { identifier, params, loader, stream, equalParams } = config;
+  const { identifier, params, loader, stream, equalParams, ssrSourceName } =
+    config;
   const fromResourceById =
     'fromResourceById' in config ? config.fromResourceById : undefined;
 
@@ -165,6 +168,22 @@ export function resourceById<
   const resourceByGroup = signal<
     Partial<Record<GroupIdentifier, CraftResourceRef<State, ResourceParams>>>
   >({});
+  const linkedParamsByGroup = new Map<GroupIdentifier, { destroy(): void }>();
+  const rememberLinkedParams = (
+    group: GroupIdentifier,
+    linked: { destroy(): void },
+  ): void => {
+    linkedParamsByGroup.get(group)?.destroy();
+    linkedParamsByGroup.set(group, linked);
+  };
+  const destroyLinkedParams = (group: GroupIdentifier): void => {
+    linkedParamsByGroup.get(group)?.destroy();
+    linkedParamsByGroup.delete(group);
+  };
+  const destroyAllLinkedParams = (): void => {
+    linkedParamsByGroup.forEach((linked) => linked.destroy());
+    linkedParamsByGroup.clear();
+  };
 
   const resourceEqualParams =
     equalParams === 'useIdentifier'
@@ -192,6 +211,7 @@ export function resourceById<
 
       const filteredRequestByGroup = linkedSignal({
         source: params as () => ResourceParams,
+        injector,
         computation: (incomingRequestValue, previousGroupRequestData) => {
           if (!incomingRequestValue) {
             return incomingRequestValue;
@@ -204,19 +224,24 @@ export function resourceById<
           return incomingRequestValue;
         },
       });
+      rememberLinkedParams(group, filteredRequestByGroup);
 
-      //@ts-expect-error TypeScript misinterpreting
       const paramsWithEqualRule = computed(() => filteredRequestByGroup(), {
-        ...(equalParams !== 'default' && { equal: resourceEqualParams }),
+        ...(equalParams !== 'default' && {
+          equal: resourceEqualParams as (
+            a: ReturnType<typeof filteredRequestByGroup>,
+            b: ReturnType<typeof filteredRequestByGroup>,
+          ) => boolean,
+        }),
       });
 
       const CraftResourceRef = createDynamicResource(injector, {
         group,
-        //@ts-expect-error stream and loader conflict
         resourceOptions: {
           loader,
-          params: paramsWithEqualRule,
+          params: paramsWithEqualRule as () => ResourceParams,
           stream,
+          ssrSourceName,
         },
       });
 
@@ -255,12 +280,14 @@ export function resourceById<
     changes: changesTracker,
     state: stateSignal,
     reset: () => {
+      destroyAllLinkedParams();
       Object.values(resourceByGroup()).forEach((resource) =>
         (resource as CraftResourceRef<State, ResourceParams>).destroy(),
       );
       resourceByGroup.set({});
     },
     resetResource: (id: GroupIdentifier) => {
+      destroyLinkedParams(id);
       resourceByGroup.update((state) => {
         const newState = { ...state };
         newState[id]?.destroy();
@@ -311,6 +338,7 @@ export function resourceById<
       const computedParam = computed(() => params() ?? resourceParams);
       const filteredGlobalParamsByGroup = linkedSignal({
         source: computedParam as () => ResourceParams,
+        injector,
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
             return incomingParamsValue;
@@ -326,6 +354,7 @@ export function resourceById<
           return incomingParamsValue;
         },
       });
+      rememberLinkedParams(group, filteredGlobalParamsByGroup);
       // ! without pulling the signal here, it is not possible to load multiples resources in the same cycle
       const _pull_filteredGlobalParamsByGroup = filteredGlobalParamsByGroup();
       const paramsWithEqualRule = computed(
@@ -361,11 +390,16 @@ export function resourceById<
       },
     ) => {
       // Check if the resource already exist
-      if (resourceByGroup()[group]) {
-        return resourceByGroup()[group] as CraftResourceRef<
-          State,
-          ResourceParams
-        >;
+      const existing = resourceByGroup()[group];
+      if (existing) {
+        // A global params watch may have created this entry just before a
+        // persister restores its cached value. Apply that value to the
+        // existing ref as well; otherwise the restore is silently discarded
+        // and the in-flight request wins with a loading status.
+        if (options?.defaultValue !== undefined && !existing.hasValue()) {
+          existing.set(options.defaultValue);
+        }
+        return existing as CraftResourceRef<State, ResourceParams>;
       }
       const filteredGlobalParamsByGroup = linkedSignal({
         source: () =>
@@ -375,6 +409,7 @@ export function resourceById<
               FromObjectResourceParams
             >,
           ),
+        injector,
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
             return incomingParamsValue ?? options?.defaultParam;
@@ -390,6 +425,7 @@ export function resourceById<
           return incomingParamsValue;
         },
       });
+      rememberLinkedParams(group, filteredGlobalParamsByGroup);
 
       // ! without pulling the signal here, it is not possible to load multiples resources in the same cycle
       const _pull_filteredGlobalParamsByGroup = filteredGlobalParamsByGroup();
@@ -411,6 +447,9 @@ export function resourceById<
           defaultValue: options?.defaultValue,
         } as ResourceOptions<State, ResourceParams>,
       });
+      if (options?.defaultValue !== undefined) {
+        CraftResourceRef.set(options.defaultValue);
+      }
       resourceByGroup.update((state) => ({
         ...state,
         [group]: CraftResourceRef,
@@ -463,7 +502,7 @@ const RESOURCE_INSTANCE_TOKEN = new InjectionToken<
 );
 
 interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
-  resourceOptions: ResourceOptions<T, R>;
+  resourceOptions: ResourceOptions<T, R> & { ssrSourceName?: string };
   group: GroupIdentifier;
 }
 

@@ -1,4 +1,4 @@
-import { inject, Injector } from '@angular/core';
+import { inject, Injector } from '../host/craft-compat';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import { markNonYieldableInsertionMethod } from '../yieldable';
 import { CraftFieldTree } from './craft-field';

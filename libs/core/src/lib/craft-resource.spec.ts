@@ -1,27 +1,12 @@
-import '@angular/compiler';
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftResource } from './craft-resource';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import { craftSignal } from './host/craft-signal';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('craftResource', () => {
   beforeEach(() => {
@@ -104,6 +89,59 @@ describe('craftResource', () => {
     expect(() => reload()).not.toThrow();
     expect(() => destroy()).not.toThrow();
   }, 30_000);
+
+  it('cancels an in-flight load when a local value is set', async () => {
+    let resolve!: (value: { id: number; name: string }) => void;
+    const resource = TestBed.runInInjectionContext(() =>
+      craftResource({
+        params: () => ({ id: 1 }),
+        loader: () =>
+          new Promise<{ id: number; name: string }>((done) => {
+            resolve = done;
+          }),
+      }),
+    );
+
+    expect(resource.status()).toBe('loading');
+    resource.set({ id: 1, name: 'local' });
+    resolve({ id: 1, name: 'server' });
+    await Promise.resolve();
+
+    expect(resource.status()).toBe('local');
+    expect(resource.value()).toEqual({ id: 1, name: 'local' });
+  });
+
+  it('notifies Angular status consumers when destroyed', async () => {
+    const resource = createResource();
+    const status = computed(() => resource.status());
+    await vi_waitForResolved(resource);
+    expect(status()).toBe('resolved');
+
+    resource.destroy();
+
+    expect(status()).toBe('idle');
+  });
+
+  it('stops the linked Craft params watch when destroyed', async () => {
+    const { injector } = setupCraftServiceTest();
+    const params = craftSignal({ id: 1 });
+    const sourceFn = vi.fn(() => params());
+    const resource = injector.run(() =>
+      craftResource({
+        params: sourceFn,
+        loader: async ({ params: p }) => ({ id: p.id, name: `item-${p.id}` }),
+      }),
+    );
+
+    await vi_waitForResolved(resource);
+    expect(resource.value()).toEqual({ id: 1, name: 'item-1' });
+
+    sourceFn.mockClear();
+    resource.destroy();
+
+    params.set({ id: 2 });
+    expect(sourceFn).not.toHaveBeenCalled();
+  });
 });
 
 async function vi_waitForResolved(resource: {

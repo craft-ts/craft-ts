@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "types": ["vitest/globals", "node"],
+    "skipLibCheck": true
+  },
+  "files": ["src/lib/host/public-surface-types.spec.ts"]
+}

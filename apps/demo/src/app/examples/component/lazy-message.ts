@@ -1,7 +1,7 @@
 import {
   craftComponent,
   p,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 export const lazyMessage = craftComponent(
   'lazyMessage',
@@ -13,6 +13,6 @@ export const lazyMessage = craftComponent(
         class: 'component-demo__lazy-content',
         'data-testid': 'deferred-content',
       },
-      'Le composant différé est chargé.',
+      'The deferred component is loaded.',
     ),
 );

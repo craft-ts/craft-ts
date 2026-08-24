@@ -1,10 +1,27 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  createEnvironmentInjector,
+  ErrorHandler,
+  getCraftRootDefaultProviders,
+  type EnvironmentInjector,
+  inject,
+  Injector,
+  runInInjectionContext,
+  ɵEffectScheduler,
+  ɵINJECTOR_SCOPE,
+} from './host/craft-compat';
 import {
   createExposedServiceValue,
   getServiceMetaData,
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
+import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
+import {
+  createCraftInjector,
+  type CraftInjector,
+  type CraftProvider,
+} from './host/craft-injector';
+import { APP_SNAPSHOT_REGISTRY, AppSnapshotRegistry } from './take-app-snapshot';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
@@ -350,11 +367,11 @@ export function mock(
 }
 
 /**
- * Sets up a `craftService` or `toCraftService` in Angular's `TestBed` with typed
- * dependency coverage.
+ * Sets up a `craftService` or `toCraftService` in an isolated injector with
+ * typed dependency coverage.
  *
  * `setupCraftServiceTest` reads the runtime metadata attached to an inject helper
- * or a metadata object and instantiates the target inside an Angular injection
+ * or a metadata object and instantiates the target inside an isolated injection
  * context. Its type system checks the dependency tree so required child services
  * are either:
  *
@@ -399,6 +416,44 @@ export function mock(
  * });
  * ```
  */
+function createAngularHostCraftInjector(
+  extraProviders: readonly CraftServiceProvider[] = [],
+): { injector: CraftInjector; environmentInjector: EnvironmentInjector } {
+  const environmentInjector = createEnvironmentInjector(
+    [
+      ...getCraftRootDefaultProviders(),
+      { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+      { provide: ErrorHandler, useClass: ErrorHandler },
+      { provide: APP_SNAPSHOT_REGISTRY, useValue: new AppSnapshotRegistry() },
+      ...extraProviders,
+    ],
+    Injector.NULL as EnvironmentInjector,
+    'setupCraftServiceTest',
+  );
+  return {
+    environmentInjector,
+    injector: ɵcraftInjectorFromHost(environmentInjector),
+  };
+}
+
+/** Flush queued microtasks and the host effect scheduler without TestBed.tick(). */
+export async function flushCraftTest(injector: CraftInjector): Promise<void> {
+  const flushScheduler = () => {
+    injector.run(() => {
+      inject(ɵEffectScheduler).flush();
+    });
+  };
+  for (let index = 0; index < 5; index += 1) {
+    flushScheduler();
+    await Promise.resolve();
+  }
+  flushScheduler();
+}
+
+export function setupCraftServiceTest(): { injector: CraftInjector };
+export function setupCraftServiceTest(options: {
+  providers: readonly CraftProvider[];
+}): { injector: CraftInjector };
 export function setupCraftServiceTest<
   Target extends ServiceReference,
   const Overrides extends Record<string, unknown>,
@@ -415,9 +470,42 @@ export function setupCraftServiceTest<
 ): {
   sut: ResolvedServiceOutput<Target, Bindings>;
   mocks: CreateAngularTestMocks<Target, Overrides>;
-} {
+  injector: CraftInjector;
+};
+export function setupCraftServiceTest(
+  targetOrOptions?: ServiceReference | { providers: readonly CraftProvider[] },
+  overrides?: Record<string, unknown>,
+  options?: {
+    bindings?: ServiceBindings<ServiceReference>;
+    providers?: CraftServiceProvider[];
+  },
+):
+  | {
+      injector: CraftInjector;
+    }
+  | {
+      sut: unknown;
+      mocks: Record<string, unknown>;
+      injector: CraftInjector;
+    } {
+  if (arguments.length === 0) {
+    return {
+      injector: createAngularHostCraftInjector().injector,
+    };
+  }
+
+  if (arguments.length === 1) {
+    const nativeOptions = targetOrOptions as {
+      providers: readonly CraftProvider[];
+    };
+    return {
+      injector: createCraftInjector(nativeOptions.providers),
+    };
+  }
+
+  const target = targetOrOptions as ServiceReference;
   const internalMetaData = getServiceMetaData(target);
-  const providers = [...(options?.providers ?? [])];
+  const providers: CraftServiceProvider[] = [...(options?.providers ?? [])];
   const runtimeOverrides = new Map<
     string,
     { kind: 'useValue'; value: unknown }
@@ -429,8 +517,8 @@ export function setupCraftServiceTest<
   );
 
   if (
-    internalMetaData.scope === 'toProvide' ||
-    internalMetaData.scope === 'manuallyProvidedAtRoot'
+    internalMetaData.providedIn === 'toProvide' ||
+    internalMetaData.providedIn === 'manuallyProvidedAtRoot'
   ) {
     if (
       !('provide' in internalMetaData) ||
@@ -452,7 +540,7 @@ export function setupCraftServiceTest<
     }
   }
 
-  for (const [name, override] of Object.entries(overrides) as Array<
+  for (const [name, override] of Object.entries(overrides ?? {}) as Array<
     [string, AnyServiceOverride | undefined]
   >) {
     if (!override) {
@@ -483,19 +571,21 @@ export function setupCraftServiceTest<
     useValue: runtimeOverrides,
   });
 
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    providers,
-  });
+  const { environmentInjector, injector } =
+    createAngularHostCraftInjector(providers);
 
-  return TestBed.runInInjectionContext(() => ({
-    sut:
-      options?.bindings === undefined
-        ? internalMetaData.inject()
-        : internalMetaData.inject(options.bindings),
-    mocks,
-  })) as {
-    sut: ResolvedServiceOutput<Target, Bindings>;
-    mocks: CreateAngularTestMocks<Target, Overrides>;
+  return injector.run(() =>
+    runInInjectionContext(environmentInjector, () => ({
+      sut:
+        options?.bindings === undefined
+          ? internalMetaData.inject()
+          : internalMetaData.inject(options.bindings),
+      mocks,
+      injector,
+    })),
+  ) as {
+    sut: unknown;
+    mocks: Record<string, unknown>;
+    injector: CraftInjector;
   };
 }

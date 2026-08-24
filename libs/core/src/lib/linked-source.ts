@@ -1,4 +1,4 @@
-import { linkedSignal, Signal, ValueEqualityFn, signal } from '@angular/core';
+import { linkedSignal, Signal, ValueEqualityFn, signal } from './host/craft-compat';
 import { ReadonlySource } from './util/source.type';
 import { SignalSource } from './signal-source';
 import { SourceBranded } from './util/util';
@@ -34,5 +34,5 @@ export function linkedSource<SourceState, ComputedValue>(
       }),
     },
     SourceBranded,
-  ) as SignalSource<ComputedValue>;
+  ) as unknown as SignalSource<ComputedValue>;
 }

@@ -1,7 +1,10 @@
-import { signal } from '@angular/core';
+import {
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import { preservedResource } from './preserved-resource';
 import { vi } from 'vitest';
-import { TestBed } from '@angular/core/testing';
 
 describe('Preserved Resource', () => {
   beforeEach(() => {
@@ -39,6 +42,45 @@ describe('Preserved Resource', () => {
       // Assert that the original modified state is still preserved
       expect(resource.status()).toEqual('resolved');
       expect(resource.value()).toEqual('modified');
+    });
+  });
+
+  it('invalidates Angular computed consumers when the preserved value changes', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const params = signal('first');
+      const resource = preservedResource({
+        params,
+        loader: async ({ params: value }) => value,
+      });
+      const rendered = computed(() => resource.value());
+
+      await vi.runAllTimersAsync();
+      expect(rendered()).toBe('first');
+
+      params.set('second');
+      await vi.runAllTimersAsync();
+
+      expect(rendered()).toBe('second');
+    });
+  });
+
+  it('clears the preserved value and publishes idle on destroy', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const resource = preservedResource({
+        params: () => 'loaded',
+        loader: async ({ params }) => params,
+      });
+      const rendered = computed(() => ({
+        status: resource.status(),
+        value: resource.value(),
+      }));
+
+      await vi.runAllTimersAsync();
+      expect(rendered()).toEqual({ status: 'resolved', value: 'loaded' });
+
+      resource.destroy();
+
+      expect(rendered()).toEqual({ status: 'idle', value: undefined });
     });
   });
 });

@@ -6,9 +6,10 @@ import {
   runInInjectionContext,
   type EnvironmentProviders,
   type Provider,
-} from '@angular/core';
-import { Router, type Event as AngularRouterEvent } from '@angular/router';
+} from './host/craft-compat';
 import type { CraftRoutePhase } from './craft-route-exceptions';
+import { isCraftDevelopment } from './craft-runtime-mode';
+import { CRAFT_ROUTER, type CraftRouterEvent } from './craft-router-tokens';
 
 export type CraftRouterTraceStage =
   | 'match'
@@ -20,7 +21,7 @@ export type CraftRouterTraceContext = Readonly<{
   kind: 'routerEvent' | 'routeChain' | 'routeStage';
   phase: 'event' | 'run';
   eventName?: string;
-  event?: AngularRouterEvent;
+  event?: CraftRouterEvent;
   stage?: CraftRouterTraceStage;
   routePhase?: CraftRoutePhase;
   url?: string;
@@ -36,9 +37,19 @@ export const CRAFT_ROUTER_TRACE = new InjectionToken<
 >('CRAFT_ROUTER_TRACE', {
   providedIn: 'root',
   factory: () => [],
+  multi: true,
 });
 
 const routerTraceListeners = new WeakSet<Injector>();
+
+type CraftRouterEvents = {
+  subscribe(fn: (event: CraftRouterEvent) => void): { unsubscribe(): void };
+};
+
+function craftRouterEvents(router: object): CraftRouterEvents | undefined {
+  const events = (router as { events?: CraftRouterEvents }).events;
+  return events && typeof events.subscribe === 'function' ? events : undefined;
+}
 
 export function provideCraftRouterTrace(
   wrapper: CraftRouterTraceWrapper,
@@ -51,25 +62,26 @@ export function provideCraftRouterTrace(
     },
     provideAppInitializer(() => {
       const injector = inject(Injector);
-      const router = inject(Router);
+      if (!isCraftDevelopment(injector)) {
+        return;
+      }
+      const router = inject(CRAFT_ROUTER, { optional: true });
+      const events = router ? craftRouterEvents(router) : undefined;
 
-      if (routerTraceListeners.has(injector)) {
+      if (!events || routerTraceListeners.has(injector)) {
         return;
       }
       routerTraceListeners.add(injector);
 
-      router.events.subscribe((event) => {
+      events.subscribe((event) => {
         executeCraftRouterTrace(
           injector,
           {
             kind: 'routerEvent',
             phase: 'event',
-            eventName: event.constructor.name,
+            eventName: event.type,
             event,
-            url:
-              'url' in event && typeof event.url === 'string'
-                ? event.url
-                : undefined,
+            url: event.url,
           },
           () => undefined,
         );
@@ -83,6 +95,9 @@ export function executeCraftRouterTrace<Value>(
   context: CraftRouterTraceContext,
   next: () => Value,
 ): Value {
+  if (!isCraftDevelopment(injector)) {
+    return next();
+  }
   const wrappers = injector.get(CRAFT_ROUTER_TRACE, []);
   if (wrappers.length === 0) {
     return next();

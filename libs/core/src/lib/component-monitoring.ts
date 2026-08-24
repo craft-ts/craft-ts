@@ -5,7 +5,7 @@ import {
   InjectionToken,
   runInInjectionContext,
   type Provider,
-} from '@angular/core';
+} from './host/craft-compat';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 
 type ComponentMonitoringFactory =

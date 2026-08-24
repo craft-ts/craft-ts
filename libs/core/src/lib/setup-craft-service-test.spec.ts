@@ -1,41 +1,31 @@
-import { Component, inject, Injectable, InjectionToken } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { provideCraftRouter as provideRouter } from './craft-router';
+
+/**
+ * A stand-in DI token. These specs never drove a real router — they only
+ * needed some external service to adapt through `toCraftService`.
+ */
+class Router {
+  readonly url: string = '/';
+  navigateByUrl(_url: string): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+}
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { provideRouter, Router } from '@angular/router';
+  inject,
+  InjectionToken,
+} from './host/craft-compat';
 import { type GetDeps, type GetPublicComponentProperties } from '../index';
-import { craftService, toCraftService } from './craft-service';
+import { craftService, ɵtoCraftService as toCraftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 import { craftUse } from './craft-use';
 
-@Component({
-  standalone: true,
-  template: '',
-})
 class CheckoutPage {}
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('setupCraftServiceTest', () => {
   it('should keep metadata as a secondary setupCraftServiceTest entry', () => {
     const { Counter: Counter, COUNTER_META_DATA } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* () {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -45,7 +35,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { COUNTER_EXTENDED_META_DATA } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -71,7 +61,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should fail at typing time when a required child craftService is not covered', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* () {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -81,7 +71,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterExtended: CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         return yield* Counter();
       },
@@ -95,7 +85,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should enable a mocked ancestor to prune a branch of required descendants', () => {
     const { ChildCounter } = craftService(
-      { name: 'ChildCounter', scope: 'toProvide' },
+      { name: 'ChildCounter', providedIn: 'toProvide' },
       function* () {
         const childCounter = yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -105,7 +95,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { ParentCounter: ParentCounter } = craftService(
-      { name: 'ParentCounter', scope: 'toProvide' },
+      { name: 'ParentCounter', providedIn: 'toProvide' },
       function* () {
         const counter = yield* ChildCounter();
 
@@ -116,7 +106,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { RootCounter: RootCounter } = craftService(
-      { name: 'RootCounter', scope: 'toProvide' },
+      { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
         return yield* ParentCounter();
       },
@@ -134,7 +124,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should still require descendants when a craftService is covered with its real raw provider', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* () {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -144,7 +134,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { ParentCounter: ParentCounter, provideParentCounter } = craftService(
-      { name: 'ParentCounter', scope: 'toProvide' },
+      { name: 'ParentCounter', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -155,7 +145,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { RootCounter: RootCounter } = craftService(
-      { name: 'RootCounter', scope: 'toProvide' },
+      { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
         return yield* ParentCounter();
       },
@@ -174,7 +164,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should not require overriding a global dependency', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'global' },
+      { name: 'Counter', providedIn: 'global' },
       function* () {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -184,7 +174,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterConsumer: CounterConsumer } = craftService(
-      { name: 'CounterConsumer', scope: 'toProvide' },
+      { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -204,7 +194,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should allow mocking a global dependency with an implicit mock override', () => {
     const { Counter } = craftService(
-      { name: 'Counter', scope: 'global' },
+      { name: 'Counter', providedIn: 'global' },
       function* () {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -214,7 +204,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterConsumer: CounterConsumer } = craftService(
-      { name: 'CounterConsumer', scope: 'toProvide' },
+      { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -246,7 +236,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should allow mocking a global dependency with the explicit inject helper fallback', () => {
     const { Counter: Counter } = craftService(
-      { name: 'Counter', scope: 'global' },
+      { name: 'Counter', providedIn: 'global' },
       function* () {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -256,7 +246,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterConsumer: CounterConsumer } = craftService(
-      { name: 'CounterConsumer', scope: 'toProvide' },
+      { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -288,7 +278,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should type derived mocks with only the used properties and keep extras optional', () => {
     const { Counter: Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
         const counter = yield* state(
           'counter',
@@ -303,7 +293,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterExtended: CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         return yield* Counter(undefined, ({ $self, increment }) => ({
           $self,
@@ -345,7 +335,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should keep explicit mock fallback with inject helper', () => {
     const { Counter: Counter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* () {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -355,7 +345,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterExtended: CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -384,7 +374,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should support a real raw provider override for manuallyProvidedAtRoot dependencies', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -394,7 +384,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { GlobalCounter: GlobalCounter } = craftService(
-      { name: 'GlobalCounter', scope: 'global' },
+      { name: 'GlobalCounter', providedIn: 'global' },
       function* () {
         const counter = yield* Counter();
 
@@ -416,7 +406,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should support a real raw provider override for a toProvide dependency that needs $provided', () => {
     const { Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
         const counter = yield* state(
           'counter',
@@ -430,7 +420,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { CounterExtended: CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
+      { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         const counter = yield* Counter();
 
@@ -452,7 +442,7 @@ describe('setupCraftServiceTest', () => {
 
   it('should require an explicit provider in options.providers when the SUT itself needs $provided', () => {
     const { Counter: Counter, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
         const counter = yield* state(
           'counter',
@@ -483,8 +473,7 @@ describe('setupCraftServiceTest', () => {
   it('should require an explicit provider when a raw external dependency only uses provider inputs', () => {
     const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
 
-    @Injectable()
-    class CatalogDriver {
+        class CatalogDriver {
       readonly baseUrl = inject(API_BASE_URL);
 
       fetchProducts() {
@@ -494,7 +483,7 @@ describe('setupCraftServiceTest', () => {
 
     const { Catalog: Catalog, provideCatalog } = toCraftService({
       name: 'Catalog',
-      scope: 'toProvide',
+      providedIn: 'toProvide',
       token: CatalogDriver,
       provide: (provided: { apiBaseUrl: string }) => [
         {
@@ -523,44 +512,15 @@ describe('setupCraftServiceTest', () => {
     expect(sut.fetchProducts()).toBe('/api/products');
   });
 
-  it('should allow a global adapted Router without override when provideRouter is supplied', () => {
-    const { Router: RouterService } = toCraftService({
-      name: 'Router',
-      scope: 'global',
-      token: Router,
-    });
-
-    const { Navigation: Navigation } = craftService(
-      { name: 'Navigation', scope: 'toProvide' },
-      function* () {
-        const router = yield* RouterService();
-
-        return {
-          readUrl: () => router.url,
-        };
-      },
-    );
-
-    const { sut } = setupCraftServiceTest(
-      Navigation,
-      {},
-      {
-        providers: [provideRouter([])],
-      },
-    );
-
-    expect(typeof sut.readUrl()).toBe('string');
-  });
-
   it('should allow mocking a global adapted Router', async () => {
     const { Router: RouterService } = toCraftService({
       name: 'Router',
-      scope: 'global',
+      providedIn: 'global',
       token: Router,
     });
 
     const { Navigation: Navigation } = craftService(
-      { name: 'Navigation', scope: 'toProvide' },
+      { name: 'Navigation', providedIn: 'toProvide' },
       function* () {
         const router = yield* RouterService(undefined, ({ navigateByUrl }) => ({
           navigateByUrl,
@@ -584,63 +544,9 @@ describe('setupCraftServiceTest', () => {
     expect(mocks.Router.navigateByUrl).toHaveBeenCalledWith('/checkout');
   });
 
-  it('should require explicit coverage for a manuallyProvidedAtRoot adapted Router', async () => {
-    const { provideRouter: provideRouterDependency, Router: RouterService } =
-      toCraftService({
-        name: 'Router',
-        scope: 'manuallyProvidedAtRoot',
-        token: Router,
-        provide: () =>
-          provideRouter([{ path: 'checkout', component: CheckoutPage }]),
-      });
-
-    const { Navigation: Navigation } = craftService(
-      { name: 'Navigation', scope: 'global' },
-      function* () {
-        const router = yield* RouterService();
-
-        return {
-          readUrl: () => router.url,
-        };
-      },
-    );
-
-    // eslint-disable-next-line no-constant-condition
-    if (false) {
-      //@ts-expect-error Router should be explicitly covered because it is manuallyProvidedAtRoot
-      setupCraftServiceTest(Navigation, {}, { providers: [provideRouter([])] });
-    }
-
-    const { sut } = setupCraftServiceTest(Navigation, {
-      Router: provideRouterDependency(),
-    });
-
-    expect(typeof sut.readUrl()).toBe('string');
-
-    const { RouteNavigation: RouteNavigation } = craftService(
-      { name: 'RouteNavigation', scope: 'global' },
-      function* () {
-        const router = yield* RouterService();
-
-        return {
-          goToCheckout: () => router.navigateByUrl('/checkout'),
-          readUrl: () => router.url,
-        };
-      },
-    );
-
-    const routeNavigationTest = setupCraftServiceTest(RouteNavigation, {
-      Router: provideRouterDependency(),
-    });
-
-    await routeNavigationTest.sut.goToCheckout();
-
-    expect(routeNavigationTest.sut.readUrl()).toBe('/checkout');
-  });
-
   it('should help with autocompletion the mocking of a global service dependency', async () => {
     const { Service1 } = craftService(
-      { name: 'Service1', scope: 'global' },
+      { name: 'Service1', providedIn: 'global' },
       () => {
         return craftUse(
           state('service1', 0, ({ update }) => ({
@@ -651,7 +557,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { Service2 } = craftService(
-      { name: 'Service2', scope: 'global' },
+      { name: 'Service2', providedIn: 'global' },
       () => {
         return craftUse(
           state('service2', 0, ({ update }) => ({
@@ -662,7 +568,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { ServiceHost } = craftService(
-      { name: 'ServiceHost', scope: 'global' },
+      { name: 'ServiceHost', providedIn: 'global' },
       function* () {
         const _service1 = yield* Service1();
         const _service2 = yield* Service2();

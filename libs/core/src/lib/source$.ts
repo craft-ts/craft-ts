@@ -6,8 +6,8 @@ import {
   Injector,
   Signal,
   signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+} from './host/craft-compat';
+import { takeUntilDestroyed } from './host/craft-compat';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import type {
@@ -18,6 +18,8 @@ import {
   createNamedPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
+import { yieldableInvocation } from './yieldable';
+import { SourceBranded } from './util/util';
 
 export type SourceDependency<Name extends string> = {
   [K in Name]: ServiceDependencies<'function', {}>;
@@ -93,7 +95,7 @@ export type ReadonlySource$<
  * Yieldable source service
  * ```typescript
  * const { Reset } = craftService(
- *   { name: 'Reset', scope: 'global' },
+ *   { name: 'Reset', providedIn: 'global' },
  *   function* () {
  *     const reset$ = yield* source$<void>('reset$');
  *     return reset$;
@@ -107,7 +109,7 @@ export type ReadonlySource$<
  * @example
  * Basic usage with state coordination
  * ```typescript
- * import { source$, state, on$ } from '@craft-ng/core';
+ * import { source$, state, on$ } from '@craft-ts/core';
  *
  * @Component({
  *   selector: 'app-counter',
@@ -155,7 +157,7 @@ export type ReadonlySource$<
  * }
  * ```
  *
- * @see {@link https://ng-craft.dev/utils/source$ | source$ documentation}
+ * @see {@link https://craft-ts.dev/utils/source$ | source$ documentation}
  */
 export function source$<T, Name extends string = string>(
   name: Name,
@@ -192,9 +194,11 @@ export function source$<T, Name extends string = string>(
   }
 
   const source = {
+    ...SourceBranded,
     emit: (value: T) => {
       sourceRef$.emit(value);
       sourceAsSignal.set(value);
+      return yieldableInvocation<never, void>(undefined);
     },
     subscribe: (callback: (value: T) => void) => sourceRef$.subscribe(callback),
     preserveLastValue: () => {
@@ -206,18 +210,21 @@ export function source$<T, Name extends string = string>(
       destroyRef.onDestroy(() => subscriptionWithLastLastValue.unsubscribe());
 
       return {
+        ...SourceBranded,
         emit: (value: T) => {
           sourceWithLastValueRef.emit(value);
           sourceAsSignal.set(value);
+          return yieldableInvocation<never, void>(undefined);
         },
         subscribe: (callback: (value: T) => void) => {
           sourceWithLastValueRef.subscribe(callback);
-          sourceWithLastValueRef.emit(sourceAsSignal());
+          sourceWithLastValueRef.emit(sourceAsSignal() as T);
         },
         asReadonly: () => ({
+          ...SourceBranded,
           subscribe: (callback: (value: T) => void) => {
             sourceWithLastValueRef.subscribe(callback);
-            sourceWithLastValueRef.emit(sourceAsSignal());
+            sourceWithLastValueRef.emit(sourceAsSignal() as T);
           },
           value: sourceAsSignal.asReadonly(),
         }),
@@ -226,11 +233,12 @@ export function source$<T, Name extends string = string>(
     },
     value: sourceAsSignal.asReadonly(),
     asReadonly: () => ({
+      ...SourceBranded,
       subscribe: (callback: (value: T) => void) =>
         sourceRef$.subscribe(callback),
       value: sourceAsSignal.asReadonly(),
     }),
-  } as SourceInstance<T, Name>;
+  } as unknown as SourceInstance<T, Name>;
 
   const generator = createNamedPrimitiveGen(name, source);
 

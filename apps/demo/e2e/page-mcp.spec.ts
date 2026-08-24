@@ -21,7 +21,7 @@ test('goes to the login form through page act then fills it without reloading', 
   await page.addInitScript(
     ({ storageKey, value }) => sessionStorage.setItem(storageKey, value),
     {
-      storageKey: 'ng-craft.function-registry.client-id',
+      storageKey: 'craft-ts.function-registry.client-id',
       value: clientId,
     },
   );

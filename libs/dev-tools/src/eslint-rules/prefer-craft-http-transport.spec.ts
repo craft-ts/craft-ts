@@ -31,7 +31,7 @@ describe('prefer-craft-http-transport', () => {
 
   it('allows CraftHttpClient and shadowed local names', async () => {
     const messages = await lintText(`
-      import { CraftHttpClient, query, mutation } from '@craft-ng/core';
+      import { CraftHttpClient, query, mutation } from '@craft-ts/core';
 
       const read = query('users', () => CraftHttpClient.get('/users'));
       const write = mutation('saveUser', () => CraftHttpClient.post('/users'));

@@ -1,8 +1,8 @@
+import type { ActivatedRoute, CraftRouter } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 
 // #region route-checked-di
-import type { ActivatedRoute, Router } from '@angular/router';
-import type { CanRun, ComponentDepsOf, RouteCheckedDI } from '@craft-ng/core';
+import type { CanRun, ComponentDepsOf, RouteCheckedDI } from '@craft-ts/core';
 
 type AppRouteCheckedDI<
   Component,
@@ -11,7 +11,7 @@ type AppRouteCheckedDI<
 > = RouteCheckedDI<
   ComponentDepsOf<Component>,
   'CraftRouter',
-  Router | ActivatedRoute,
+  CraftRouter | ActivatedRoute,
   Context,
   RouteInputs
 >;

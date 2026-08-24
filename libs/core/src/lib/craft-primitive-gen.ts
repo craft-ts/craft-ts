@@ -1,4 +1,4 @@
-import { isSignal, type Injector, type Signal } from '@angular/core';
+import { isSignal, type Injector, type Signal } from './host/craft-compat';
 import {
   isGenerator,
   SERVICE_TRACKED_DEPS_REQUEST_MARKER,
@@ -38,7 +38,7 @@ export type ServiceTrackedDepsRequest<DepMap extends object = object> =
     [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true;
     /** Phantom carrier — never read at runtime. */
     readonly depMap?: DepMap;
-    scope: ConcreteServiceScope;
+    providedIn: ConcreteServiceScope;
     resolve: (injector: Injector, hostScope: ConcreteServiceScope) => unknown;
   }>;
 
@@ -64,7 +64,7 @@ export type ServiceTrackedDepsRequest<DepMap extends object = object> =
 type PrimitiveExceptionUnion<Ref> = Ref extends {
   readonly exception: Signal<infer Exception>;
 }
-  ? Extract<Exception, { readonly code: string }>
+  ? Extract<Exception, { readonly _tag: string }>
   : never;
 
 type PrimitiveExceptionMarker<Ref> = [PrimitiveExceptionUnion<Ref>] extends [
@@ -73,8 +73,20 @@ type PrimitiveExceptionMarker<Ref> = [PrimitiveExceptionUnion<Ref>] extends [
   ? never
   : CraftGenExceptionMarker<PrimitiveExceptionUnion<Ref>>;
 
+/**
+ * A generator's `Yielded` is an INFERRED union, and TypeScript subtype-reduces
+ * those: `ServiceTrackedDepsRequest<{}>` is a supertype of every other tracked
+ * request, so a primitive with no dependency would swallow the requests of every
+ * primitive yielded beside it. Collapsing an empty map to `never` flips the
+ * relation — the dependency-free request is now the subtype, and it is the one
+ * that disappears.
+ */
+type EmptyDepMapToNever<DepMap> = [keyof DepMap] extends [never]
+  ? never
+  : DepMap;
+
 export type CraftPrimitiveGen<Ref, ExceptionRef = Ref> = Generator<
-  | ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>
+  | ServiceTrackedDepsRequest<EmptyDepMapToNever<HelperDependencyMap<Ref>>>
   | PrimitiveExceptionMarker<ExceptionRef>,
   Ref,
   unknown
@@ -136,7 +148,7 @@ type YieldRecordYielded<Record extends object> =
  *
  * ```ts
  * const { UserStore } = craftService(
- *   { name: 'UserStore', scope: 'global' },
+ *   { name: 'UserStore', providedIn: 'global' },
  *   () =>
  *     craftYieldRecord({
  *       userQuery: query('userQuery', { ... }),
@@ -200,7 +212,7 @@ export function createPrimitiveGen<Ref>(ref: Ref): CraftPrimitiveGen<Ref> {
   const gen = (function* () {
     yield {
       [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true,
-      scope: 'global',
+      providedIn: 'global',
       resolve: () => undefined,
     } as ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>;
     return ref;

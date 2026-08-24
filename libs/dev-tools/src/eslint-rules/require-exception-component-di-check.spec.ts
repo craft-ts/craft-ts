@@ -22,7 +22,7 @@ describe('require-exception-component-di-check', () => {
       ],
     });
     const source = `
-import { craftRoutes, craftRoute, ValidateCascadeRoutesFile } from '@craft-ng/core';
+import { craftRoutes, craftRoute, ValidateCascadeRoutesFile } from '@craft-ts/core';
 const { demoRoutes } = craftRoutes('demo', [craftRoute(':userId', {
   component: class {}, componentDeps: {},
   errorComponent: { component: class {}, componentDeps: {} as import('./route-error').GenDeps_RouteError },

@@ -1,4 +1,4 @@
-import { effect, untracked, WritableSignal } from '@angular/core';
+import { effect, untracked, WritableSignal } from '../host/craft-compat';
 import { ReadonlySource } from './source.type';
 
 export const SourceBrand = Symbol('SourceBrand');

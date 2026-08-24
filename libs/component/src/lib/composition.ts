@@ -1,4 +1,4 @@
-import type { AnyCraftException, CraftServiceProvider } from '@craft-ng/core';
+import type { AnyCraftException, CraftServiceProvider } from '@craft-ts/core';
 import { craftDirective } from './directive';
 import {
   COMPONENT_OPERATOR,
@@ -30,7 +30,7 @@ export function withProviders<
 
 export type CatchTagHandlers<Codes extends string> = {
   readonly [Code in Codes]: (
-    exception: AnyCraftException & { readonly code: Code },
+    exception: AnyCraftException & { readonly _tag: Code },
   ) => Generator<unknown, void, unknown>;
 };
 

@@ -7,7 +7,7 @@ test('navigates to Craft Full Demo from the navbar without freezing', async ({
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
 
   const link = page.getByRole('link', {
     name: 'Craft Full Demo',
@@ -27,7 +27,7 @@ test('closes the examples navbar when clicking outside the panel', async ({
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
 
   await expect(page.locator('.demo-nav__panel')).toBeVisible();
   await page.locator('.demo-banner').click();
@@ -39,14 +39,14 @@ test('shows the beta documentation and feedback banner', async ({ page }) => {
   await page.goto('/');
 
   const banner = page.locator('.demo-banner');
-  await expect(banner).toContainText('Démo en bêta');
-  await expect(banner).toContainText('Vos retours sont les bienvenus');
+  await expect(banner).toContainText('Beta demo');
+  await expect(banner).toContainText('Your feedback is welcome');
   await expect(banner).toContainText(
-    'lisez `yield*` comme « j’ai besoin de… »',
+    'read `yield*` as “I need…”',
   );
   await expect(
-    banner.getByRole('link', { name: 'Lire la documentation' }),
-  ).toHaveAttribute('href', 'https://ng-angular-stack.github.io/craft/');
+    banner.getByRole('link', { name: 'Read the documentation' }),
+  ).toHaveAttribute('href', 'https://craft-ts.github.io/craft/');
 });
 
 test('does not activate Guard demo after its guard redirects', async ({
@@ -60,7 +60,7 @@ test('does not activate Guard demo after its guard redirects', async ({
     }
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
 
   await page.getByRole('link', { name: 'Guard demo', exact: true }).click({
     timeout: 2_000,
@@ -70,7 +70,7 @@ test('does not activate Guard demo after its guard redirects', async ({
     page.getByText('Should not be displayed', { exact: true }),
   ).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
   await page
     .getByRole('link', { name: 'craftService User Detail', exact: true })
     .click({ timeout: 2_000 });
@@ -133,7 +133,7 @@ test('exposes the query params demo in the navbar and applies its styles', async
 }) => {
   test.setTimeout(10_000);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+  await page.getByRole('button', { name: 'Browse examples' }).click();
 
   const link = page.getByRole('link', {
     name: 'Query Params',

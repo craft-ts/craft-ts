@@ -1,7 +1,7 @@
 import {
   craftComponent,
   heading,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 export const GuardDemo = craftComponent(
   'GuardDemo',

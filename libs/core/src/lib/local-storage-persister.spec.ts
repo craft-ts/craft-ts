@@ -1,8 +1,23 @@
-import { resource, signal } from '@angular/core';
+import { craftResource } from './craft-resource';
+import {
+  signal,
+} from './host/craft-compat';
 import { createStoragePersister } from './local-storage-persister';
 import type { StorageServiceApi } from './browser-boundaries';
 import { vi } from 'vitest';
-import { TestBed } from '@angular/core/testing';
+import {
+  flushCraftTest,
+  setupCraftServiceTest,
+} from './setup-craft-service-test';
+
+
+const runInInjectionContext = <T>(fn: () => T): T => {
+  const { injector } = setupCraftServiceTest();
+  lastInjector = injector;
+  return injector.run(fn);
+};
+let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
+const flushHost = () => flushCraftTest(lastInjector);
 
 describe('createStoragePersister', () => {
   let storage: StorageServiceApi;
@@ -35,9 +50,9 @@ describe('createStoragePersister', () => {
   });
 
   it('1 Should add a query to persist and store the query result in localStorage when the query is resolved', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -70,7 +85,7 @@ describe('createStoragePersister', () => {
       // Verify the stored value structure by checking the mock calls
       const setItemCalls = vi.mocked(localStorage.setItem).mock.calls;
       const userCall = setItemCalls.find(
-        (call) => call[0] === 'ng-craft-query-resource-user',
+        (call) => call[0] === 'craft-ts-query-resource-user',
       );
       expect(userCall).toBeDefined();
 
@@ -83,16 +98,16 @@ describe('createStoragePersister', () => {
   });
 
   it('2 Should set the query resource value of a persisted value with the same query key', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
         }),
       );
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -112,7 +127,7 @@ describe('createStoragePersister', () => {
       expect(persister).toBeDefined();
 
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
@@ -120,16 +135,16 @@ describe('createStoragePersister', () => {
   });
 
   it('3 Should clear the persisted query from localStorage', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
         }),
       );
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -151,33 +166,33 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       persister.clearQuery('user');
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('4 Should clear all the persisted queries from localStorage', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
         }),
       );
       localStorage.setItem(
-        'ng-craft-query-resource-users',
+        'craft-ts-query-resource-users',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: [{ id: 1, name: 'Romain' }],
         }),
       );
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -188,7 +203,7 @@ describe('createStoragePersister', () => {
       const queryUSersParamsFnSignal = signal<{ id: number } | undefined>(
         undefined,
       );
-      const queryUsersResource = resource({
+      const queryUsersResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -215,18 +230,18 @@ describe('createStoragePersister', () => {
       expect(persister).toBeDefined();
       persister.clearAllQueries();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-users',
+        'craft-ts-query-resource-users',
       );
     });
   });
 
   it('5 Should wait for the params source to be defined and equal to previous value before retrieve the value', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -234,7 +249,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -254,19 +269,19 @@ describe('createStoragePersister', () => {
 
       expect(queryResource.value()).toEqual(undefined);
       queryParamsFnSignal.set({ id: 1 });
-      expect(queryResource.status()).toBe('loading');
-      TestBed.tick();
+      // Craft effects flush synchronously, so the cache restore completes in
+      // the same turn as the params write.
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
   it('6 Should wait for the params source to be defined and not equal to previous value, so the value is not retrieved and the cache deleted', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -274,7 +289,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -295,14 +310,14 @@ describe('createStoragePersister', () => {
       expect(queryResource.value()).toEqual(undefined);
       queryParamsFnSignal.set({ id: 2 });
       expect(queryResource.status()).toBe('loading');
-      TestBed.tick();
+      flushHost();
       expect(queryResource.status()).toBe('loading');
       expect(queryResource.value()).toEqual(undefined);
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       await vi.runAllTimersAsync();
       expect(queryResource.status()).toBe('resolved');
@@ -311,11 +326,11 @@ describe('createStoragePersister', () => {
   });
 
   it('7 Should not retrieve expired cached value and remove it from localStorage', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       // Set a cached value with timestamp that is older than cacheTime
       const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -324,7 +339,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -347,17 +362,17 @@ describe('createStoragePersister', () => {
       expect(queryResource.value()).toEqual(undefined);
       // Should have removed the expired value
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('8 Should retrieve valid cached value when cache time has not expired', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       // Set a cached value with timestamp that is still valid
       const validTimestamp = Date.now() - 2000; // 2 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -366,7 +381,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -388,20 +403,20 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.removeItem).not.toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('9 Should check cache expiration when waitForParamsSrcToBeEqualToPreviousValue is true', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       // Set a cached value with timestamp that is expired
       const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -410,7 +425,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -431,16 +446,16 @@ describe('createStoragePersister', () => {
       expect(queryResource.value()).toEqual(undefined);
       queryParamsFnSignal.set({ id: 1 });
       expect(queryResource.status()).toBe('loading');
-      TestBed.tick();
+      flushHost();
 
       // Should not have set the cached value since it's expired
       expect(queryResource.status()).toBe('loading');
       expect(queryResource.value()).toEqual(undefined);
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
 
       await vi.runAllTimersAsync();
@@ -450,11 +465,11 @@ describe('createStoragePersister', () => {
   });
 
   it('10 Should ignore cache time validation when cacheTime is 0 or negative', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       // Set a cached value with very old timestamp
       const veryOldTimestamp = Date.now() - 60000; // 1 minute ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -463,7 +478,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -485,10 +500,10 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.getItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
       expect(localStorage.removeItem).not.toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
@@ -496,10 +511,10 @@ describe('createStoragePersister', () => {
   // --- staleTime tests ---
 
   it('11 Should restore cached value without reload when staleTime is not exceeded', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const freshTimestamp = Date.now() - 2000; // 2 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -508,7 +523,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -534,10 +549,10 @@ describe('createStoragePersister', () => {
   });
 
   it('12 Should restore cached value AND trigger reload when staleTime is exceeded (SWR)', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const staleTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -546,7 +561,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -571,10 +586,10 @@ describe('createStoragePersister', () => {
   });
 
   it('13 Should not restore when cacheTime is exceeded even if staleTime would apply', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -583,7 +598,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -606,16 +621,16 @@ describe('createStoragePersister', () => {
       expect(queryResource.value()).toBeUndefined();
       expect(reloadSpy).not.toHaveBeenCalled();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('14 Should restore cached value without reload when staleTime not exceeded (waitForParams=true)', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const freshTimestamp = Date.now() - 2000;
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -624,7 +639,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -644,7 +659,7 @@ describe('createStoragePersister', () => {
       });
 
       queryParamsFnSignal.set({ id: 1 });
-      TestBed.tick();
+      flushHost();
 
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
@@ -653,10 +668,10 @@ describe('createStoragePersister', () => {
   });
 
   it('15 Should restore AND trigger reload when staleTime exceeded (waitForParams=true)', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       const staleTimestamp = Date.now() - 6000;
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -665,7 +680,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -685,7 +700,7 @@ describe('createStoragePersister', () => {
       });
 
       queryParamsFnSignal.set({ id: 1 });
-      TestBed.tick();
+      flushHost();
 
       expect(reloadSpy).toHaveBeenCalledOnce();
       expect(['loading', 'reloading']).toContain(queryResource.status());
@@ -695,9 +710,9 @@ describe('createStoragePersister', () => {
   // --- validate tests ---
 
   it('16 Should not restore cached value when validate returns false', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -706,7 +721,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -727,15 +742,15 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('idle');
       expect(queryResource.value()).toBeUndefined();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('17 Should restore cached value when validate returns true', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -744,7 +759,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -765,15 +780,15 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
       expect(localStorage.removeItem).not.toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('18 Should not restore and remove cache when validate returns false (waitForParams=true)', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -782,7 +797,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -801,19 +816,19 @@ describe('createStoragePersister', () => {
       });
 
       queryParamsFnSignal.set({ id: 1 });
-      TestBed.tick();
+      flushHost();
 
       expect(queryResource.value()).toBeUndefined();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('19 Should restore cached value when validate returns true (waitForParams=true)', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -822,7 +837,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -841,7 +856,7 @@ describe('createStoragePersister', () => {
       });
 
       queryParamsFnSignal.set({ id: 1 });
-      TestBed.tick();
+      flushHost();
 
       expect(queryResource.status()).toBe('local');
       expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
@@ -849,9 +864,9 @@ describe('createStoragePersister', () => {
   });
 
   it('20 Should not restore when validate fails even if staleTime would trigger reload', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -860,7 +875,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -883,15 +898,15 @@ describe('createStoragePersister', () => {
       expect(queryResource.status()).toBe('idle');
       expect(reloadSpy).not.toHaveBeenCalled();
       expect(localStorage.removeItem).toHaveBeenCalledWith(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
       );
     });
   });
 
   it('21 Should restore AND reload when validate passes and staleTime is exceeded', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await runInInjectionContext(async () => {
       localStorage.setItem(
-        'ng-craft-query-resource-user',
+        'craft-ts-query-resource-user',
         JSON.stringify({
           queryParams: { id: 1 },
           queryValue: { id: 1, name: 'Romain' },
@@ -900,7 +915,7 @@ describe('createStoragePersister', () => {
       );
 
       const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
-      const queryResource = resource({
+      const queryResource = craftResource({
         params: queryParamsFnSignal,
         loader: async ({ params }) => {
           await wait(10000);
@@ -921,9 +936,10 @@ describe('createStoragePersister', () => {
       });
 
       expect(reloadSpy).toHaveBeenCalledOnce();
-      // No params request is active in this scenario; Angular keeps the raw
-      // resource status at `idle`. The reload call above is the contract.
-      expect(queryResource.status()).toBe('idle');
+      // With no active params request, a restored value remains local. The
+      // reload call above is the contract; there is no Angular status mirror
+      // to transiently report idle here.
+      expect(queryResource.status()).toBe('local');
     });
   });
 });

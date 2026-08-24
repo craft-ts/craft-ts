@@ -13,7 +13,7 @@ This function binds queries, mutations, and async methods to sources for automat
 
 - Listening to source emissions and computing new values
 - Providing a readonly source suitable for method binding
-- Maintaining reactivity through Angular's effect system
+- Maintaining reactivity through the effect system
 - Enabling source-based triggering patterns
 
 ## Signature
@@ -69,7 +69,7 @@ This pattern makes queries/mutations execute automatically when the source emits
 ### Binding a query to a source for automatic execution
 
 ```typescript
-import { afterRecomputation, query, source$ } from '@craft-ng/core';
+import { afterRecomputation, query, source$ } from '@craft-ts/core';
 
 const userIdChange = source$<string>('userIdChange');
 const { user } = query('user', {
@@ -91,7 +91,7 @@ userIdChange.emit('user-456');
 ### Binding a mutation to a source
 
 ```typescript
-import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
+import { afterRecomputation, mutation, source$ } from '@craft-ts/core';
 
 const submitForm = source$<{ name: string; email: string }>();
 const { submit } = mutation('submit', {
@@ -114,7 +114,7 @@ submitForm.emit({ name: 'John', email: 'john@example.com' });
 ### Binding async method to a source
 
 ```typescript
-import { afterRecomputation, asyncProcess, source$ } from '@craft-ng/core';
+import { afterRecomputation, asyncProcess, source$ } from '@craft-ts/core';
 
 const searchInput = source$<string>('searchInput');
 const { search } = asyncProcess('search', {
@@ -139,7 +139,7 @@ type FormData = {
   address: { city: string };
 };
 
-import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
+import { afterRecomputation, mutation, source$ } from '@craft-ts/core';
 
 const formSubmit = source$<FormData>('formSubmit');
 const { updateUser } = mutation('updateUser', {
@@ -165,7 +165,7 @@ formSubmit.emit({
 ### Transforming data before execution
 
 ```typescript
-import { afterRecomputation, query, source$ } from '@craft-ng/core';
+import { afterRecomputation, query, source$ } from '@craft-ts/core';
 
 const searchParams = source$<{ query: string; filters: string[] }>();
 const { results } = query('results', {
@@ -182,16 +182,16 @@ const { results } = query('results', {
 
 // Data is transformed before query execution
 searchParams.emit({
-  query: '  Angular  ',
+  query: '  craft  ',
   filters: ['tutorial', 'advanced'],
 });
-// -> query receives { q: 'angular', f: 'tutorial,advanced' }
+// -> query receives { q: 'craft', f: 'tutorial,advanced' }
 ```
 
 ### Validation and type narrowing
 
 ```typescript
-import { afterRecomputation, asyncProcess, source$ } from '@craft-ng/core';
+import { afterRecomputation, asyncProcess, source$ } from '@craft-ts/core';
 
 const inputChange = source$<string>('inputChange');
 const { validate } = asyncProcess('validate', {
@@ -222,7 +222,7 @@ inputChange.emit('valid input'); // Validation executes
 ### Multiple sources with different transformations
 
 ```typescript
-import { afterRecomputation, query, source$ } from '@craft-ng/core';
+import { afterRecomputation, query, source$ } from '@craft-ts/core';
 
 const quickSearch = source$<string>('quickSearch');
 const advancedSearch = source$<{ query: string; options: unknown }>();
@@ -257,20 +257,20 @@ const { advancedResults } = query('advancedResults', {
 });
 
 // Quick search with simple string
-quickSearch.emit('angular');
-// -> query receives { query: 'angular', mode: 'quick' }
+quickSearch.emit('craft');
+// -> query receives { query: 'craft', mode: 'quick' }
 
 advancedSearch.emit({
-  query: 'angular',
+  query: 'craft',
   options: { tags: ['signals'] },
 });
-// -> query receives { query: 'angular', options: { ... }, mode: 'advanced' }
+// -> query receives { query: 'craft', options: { ... }, mode: 'advanced' }
 ```
 
 ### Identity transformation (pass-through)
 
 ```typescript
-import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
+import { afterRecomputation, mutation, source$ } from '@craft-ts/core';
 
 const dataUpdate = source$<{ id: string; payload: unknown }>();
 const { update } = mutation('update', {

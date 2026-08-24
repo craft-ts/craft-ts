@@ -1,15 +1,12 @@
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { computed, Signal } from '@angular/core';
+import { provideCraftRouter } from './craft-router';
+import { computed, Signal } from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   insertAsyncProcessPipe,
   insertMutationPipe,
   insertQueryParamsPipe,
   insertQueryPipe,
+  insertStateMachinePipe,
   insertStatePipe,
 } from './insert-typed-pipes';
 import { asyncProcess } from './async-process';
@@ -18,21 +15,11 @@ import { mutation } from './mutation';
 import { query } from './query';
 import { queryParams } from './query-params';
 import { state } from './state';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import {
+  craftStateMachine,
+  initStateMachine,
+  transitionStep,
+} from './craft-state-machine';
 
 describe('typed insertion pipes', () => {
   it('composes state insertions, exposes previous outputs, and supports generators', () => {
@@ -114,7 +101,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes queryParams insertions without an explicit context', () => {
-    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
     TestBed.runInInjectionContext(() => {
       const pagination = craftUse(
         queryParams(
@@ -169,5 +156,41 @@ describe('typed insertion pipes', () => {
       expect(process.first).toBe('async');
       expect(process.second).toBe(5);
     });
+  });
+
+  it('composes state machine insertions and exposes previous outputs', () => {
+    const machine = TestBed.runInInjectionContext(() =>
+      craftUse(
+        craftStateMachine(
+          'pipe-machine',
+          function* () {
+            return {};
+          },
+          function* (_context, transit) {
+            return {
+              idle: transitionStep(function* () {
+                yield* initStateMachine(() => transit());
+              }),
+            };
+          },
+          function* () {
+            return { idle: {} };
+          },
+          insertStateMachinePipe(
+            function* () {
+              return { first: 'machine' };
+            },
+            ({ insertions }) => ({
+              second: `${insertions.first}-pipe`,
+            }),
+          ),
+        ),
+      ),
+    );
+
+    expectTypeOf(machine.first).toEqualTypeOf<string>();
+    expectTypeOf(machine.second).toEqualTypeOf<string>();
+    expect(machine.first).toBe('machine');
+    expect(machine.second).toBe('machine-pipe');
   });
 });

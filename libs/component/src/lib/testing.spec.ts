@@ -1,26 +1,13 @@
 // @vitest-environment jsdom
-import '@angular/compiler';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-} from 'vitest';
-import { craftService, craftUse } from '@craft-ng/core';
+import { craftSignal as signal } from '@craft-ts/core';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import { craftService, craftUse } from '@craft-ts/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { div, button, input, label, p, span } from './hyperscript';
 import { ifBlock } from './if-block';
 import { each } from './each';
-import { markYieldableValue } from '@craft-ng/core';
-import { signal } from '@angular/core';
+import { markYieldableValue } from '@craft-ts/core';
 import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
@@ -28,33 +15,17 @@ import {
   setupCraftDirectiveTemplateTest,
 } from './testing';
 import type { HostRequiredLogic, HostTemplate, Input } from './types';
-import type { NamedYieldableValue } from '@craft-ng/core';
+import type { NamedYieldableValue } from '@craft-ts/core';
 import type { LocatorContentNamesFor } from './locator';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('Craft component and directive testing utilities', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
   it('tests component logic with an isolated service register', async () => {
     const { LogicDependency } = craftService(
-      { name: 'LogicDependency', scope: 'function' },
+      { name: 'LogicDependency', providedIn: 'function' },
       () => ({ value: 'real' }),
     );
     const component = craftComponent(
@@ -69,9 +40,9 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftComponentLogicTest.byRegister(component, {
       args: [
-        (function* () {
+        function* () {
           return 'logic';
-        }) as Input<string>,
+        } as Input<string>,
       ],
       register: {
         LogicDependency: { value: 'mock' },
@@ -86,7 +57,7 @@ describe('Craft component and directive testing utilities', () => {
 
   it('tests a component template with direct context and child services', async () => {
     const { ChildDependency } = craftService(
-      { name: 'ChildDependency', scope: 'function' },
+      { name: 'ChildDependency', providedIn: 'function' },
       () => ({ label: 'child' }),
     );
     const child = craftComponent(
@@ -136,7 +107,9 @@ describe('Craft component and directive testing utilities', () => {
       context: {},
       register: {},
     });
-    expect(result.getByRole('button', { name: 'Save' }).textContent).toBe('Save');
+    expect(result.getByRole('button', { name: 'Save' }).textContent).toBe(
+      'Save',
+    );
     expect(result.getByRole('button', { name: /Save/g }).textContent).toBe(
       'Save',
     );
@@ -369,9 +342,9 @@ describe('Craft component and directive testing utilities', () => {
     const result = await setupCraftDirectiveLogicTest.byRegister(directive, {
       baseLogic: (value: Input<string>) => ({ value }),
       args: [
-        (function* () {
+        function* () {
           return 'directive';
-        }) as Input<string>,
+        } as Input<string>,
       ],
       register: {},
     });
@@ -389,8 +362,9 @@ describe('Craft component and directive testing utilities', () => {
       (baseTemplate: HostTemplate<{ visible: Input<boolean> }>) => (context) =>
         craftUse(context.visible()) ? baseTemplate(context) : p('hidden'),
     );
-    const baseTemplate: HostTemplate<{ visible: Input<boolean> }> = (_context) =>
-      div({ class: 'directive-root' }, 'visible');
+    const baseTemplate: HostTemplate<{ visible: Input<boolean> }> = (
+      _context,
+    ) => div({ class: 'directive-root' }, 'visible');
 
     const initialContext: { visible: Input<boolean> } = {
       visible: function* () {

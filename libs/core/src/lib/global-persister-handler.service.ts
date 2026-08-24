@@ -23,7 +23,7 @@ type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
 >;
 
 /**
- * Yields the global craft service responsible for clearing persisted `@craft-ng`
+ * Yields the global craft service responsible for clearing persisted `@craft-ts`
  * cache entries from the configured storage persister.
  *
  * This helper is provided at the application root and can follow the
@@ -33,13 +33,13 @@ type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
  *
  * @example
  * ```ts
- * import { GlobalPersisterHandlerService } from '@craft-ng/core';
+ * import { GlobalPersisterHandlerService } from '@craft-ts/core';
  *
  * export class AppComponent {
  *   // Consume GlobalPersisterHandlerService inside a craft generator.
  *
  *   logout() {
- *     // Clear all @craft-ng cached data from the configured backend.
+ *     // Clear all @craft-ts cached data from the configured backend.
  *     this.persisterHandler.clearAllCache();
  *   }
  * }
@@ -49,7 +49,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
   craftService(
     {
       name: 'GlobalPersisterHandlerService',
-      scope: 'toProvide',
+      providedIn: 'toProvide',
     },
     function* () {
       const persister = yield* StoragePersister();

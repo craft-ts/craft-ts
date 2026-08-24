@@ -17,7 +17,7 @@ yourself syncing a `state` with the URL, you want this primitive instead.
 ## The common case
 
 ```typescript
-import { queryParams } from '@craft-ng/core';
+import { queryParams } from '@craft-ts/core';
 
 const numberCodec = {
   decode: (value: string) => parseInt(value, 10),
@@ -60,7 +60,7 @@ address bar.
 state type is never `undefined`.
 
 Codecs stay synchronous because they run inside the reactive URL computation.
-`@craft-ng/core` deliberately doesn't depend on a validation library: supply a
+`@craft-ts/core` deliberately doesn't depend on a validation library: supply a
 small `{ decode, encode }` pair directly, or adapt one from the library you
 already use.
 
@@ -188,7 +188,7 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
 
 
 Working source:
-[exception-query-params.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts).
+[exception-query-params.ts](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts).
 :::
 
 ::: details Advanced — yielding dependencies

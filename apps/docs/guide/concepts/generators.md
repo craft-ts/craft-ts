@@ -6,16 +6,16 @@ generator outside a service.
 
 ## Why a generator at all
 
-Angular's `inject(TaskApi)` is invisible from the outside: nothing in the
-consumer's type says the dependency exists. The compiler can't catch a missing
-provider, and a test can't tell you what to mock.
+Dependencies hidden in a runtime container are invisible from the outside:
+nothing in the consumer's type says they exist. The compiler can't catch a
+missing provider, and a test can't tell you what to mock.
 
 A generator gives the runtime a channel. Each `yield*` reports "I need this",
 the driver resolves it, and the dependency is recorded **in the type**:
 
 ```typescript
 const { TaskList } = craftService(
-  { name: 'TaskList', scope: 'function' },
+  { name: 'TaskList', providedIn: 'function' },
   function* () {
     const api = yield* TaskApi(); // tracked
     const tasks = yield* state('tasks', []); // tracked
@@ -62,19 +62,19 @@ p(counter);
 button({ click: counter.increment }, '+');
 ```
 
-`craftUse(...)` is the Angular-interop path: in a `@Component` class there is no
-generator to yield from, so a class field drives the primitive with it instead.
-A class field is the end of the graph, which is why `craftUse` has nothing to
-track. Use it in tests and other synchronous boundaries too:
+`craftUse(...)` is the synchronous boundary: when there is no generator to yield
+from, a field or callback can drive the primitive with it instead. That is the
+end of the graph, which is why `craftUse` has nothing to track. Use it in tests
+and other synchronous boundaries too:
 `craftUse(counter.increment())`.
 
 Yield only what you use: `yield* TaskApi.fetchAll()` records one property
 instead of the whole service, which is what keeps test registers small. See
 [Shaping the public API](/guide/app/expose-api).
 
-The `craft-ng/require-yieldable-reactive-read`,
-`craft-ng/require-yieldable-insertion-write` and
-`craft-ng/require-yieldable-template-method` ESLint rules enforce this. See
+The `craft-ts/require-yieldable-reactive-read`,
+`craft-ts/require-yieldable-insertion-write` and
+`craft-ts/require-yieldable-template-method` ESLint rules enforce this. See
 [ESLint rules](/guide/routing/eslint-rules).
 
 ## `craftGen` — a tracked generator outside a service
@@ -96,26 +96,26 @@ flags, onboarding gates.
 ### The common case
 
 ```typescript
-import { craftException, craftGen } from '@craft-ng/core';
+import { craftException, craftGen } from '@craft-ts/core';
 
 export const roleGuard = craftGen(function* (...roles: Role[]) {
   const { user } = yield* Auth(undefined, ({ user }) => ({ user }));
   const currentUser = yield* user();
 
   if (!currentUser) {
-    return craftException({ code: 'NOT_AUTHENTICATED' });
+    return craftException({ _tag: 'NOT_AUTHENTICATED' });
   }
 
   return roles.includes(currentUser.role)
     ? true
-    : craftException({ code: 'FORBIDDEN_ROLE' });
+    : craftException({ _tag: 'FORBIDDEN_ROLE' });
 });
 
 export const noPizzeriaGuard = craftGen(function* () {
   const { pizzeria } = yield* Auth(undefined, ({ pizzeria }) => ({ pizzeria }));
 
   return (yield* pizzeria())
-    ? craftException({ code: 'HAS_PIZZERIA' })
+    ? craftException({ _tag: 'HAS_PIZZERIA' })
     : true;
 });
 ```
@@ -155,10 +155,6 @@ can safely reuse and evolve".
 
 **A primitive invocation is single-use.** Each call produces one generator, to be
 consumed exactly once — don't store one and `yield*` it twice.
-
-**Mixing `inject` into a craft factory.** It works at runtime and is invisible to
-every check that makes this library worth using. The
-`craft-ng/no-angular-inject` ESLint rule exists for this.
 
 ## See Also
 

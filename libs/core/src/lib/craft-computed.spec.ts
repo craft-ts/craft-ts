@@ -1,10 +1,8 @@
-import '@angular/compiler';
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
+  computed,
+  signal,
+} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -12,6 +10,7 @@ import {
   expect,
   expectTypeOf,
   it,
+  vi,
 } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
@@ -23,21 +22,7 @@ import {
 } from './craft-service';
 import type { YieldableReactiveValue } from './reactive-read';
 import { craftUse } from './craft-use';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
+import { craftSignal } from './host/craft-signal';
 
 describe('craftComputed', () => {
   beforeEach(() => {
@@ -67,9 +52,114 @@ describe('craftComputed', () => {
     expect(craftUse(component.doubled())).toBe(10);
   });
 
+  it('memoizes repeated reads until a dependency changes', () => {
+    const computation = vi.fn(() => 42);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('value', computation),
+    );
+
+    expect(craftUse(value())).toBe(42);
+    const callsAfterFirstRead = computation.mock.calls.length;
+    expect(craftUse(value())).toBe(42);
+
+    expect(computation).toHaveBeenCalledTimes(callsAfterFirstRead);
+  });
+
+  it('evaluates once per invalidation for an Angular computed consumer', () => {
+    const craftSource = craftSignal(2);
+    const angularSource = signal(3);
+    const computation = vi.fn(() => craftSource() * angularSource());
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('single-evaluation', computation),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(angularConsumer()).toBe(6);
+    expect(computation).toHaveBeenCalledTimes(1);
+
+    expect(angularConsumer()).toBe(6);
+    expect(computation).toHaveBeenCalledTimes(1);
+
+    craftSource.set(4);
+    expect(computation).toHaveBeenCalledTimes(1);
+    expect(angularConsumer()).toBe(12);
+    expect(computation).toHaveBeenCalledTimes(2);
+
+    angularSource.set(5);
+    expect(angularConsumer()).toBe(20);
+    expect(computation).toHaveBeenCalledTimes(3);
+  });
+
+  it('invalidates an Angular computed when a Craft dependency changes', () => {
+    const source = craftSignal(2);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('value', () => source() * 3),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(angularConsumer()).toBe(6);
+
+    source.set(4);
+
+    expect(angularConsumer()).toBe(12);
+  });
+
+  it('recovers an Angular consumer after a thrown first evaluation', () => {
+    const ready = craftSignal(false);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('recover', () => {
+        if (!ready()) {
+          throw new Error('not ready');
+        }
+        return 'recovered';
+      }),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(() => angularConsumer()).toThrow('not ready');
+
+    ready.set(true);
+
+    expect(angularConsumer()).toBe('recovered');
+  });
+
+  it('retraces conditional Angular dependencies after a Craft branch switch', () => {
+    const useSecond = craftSignal(false);
+    const first = signal('first');
+    const second = signal('second');
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('conditional', () => (useSecond() ? second() : first())),
+    );
+    const angularConsumer = computed(() => craftUse(value()));
+
+    expect(angularConsumer()).toBe('first');
+
+    useSecond.set(true);
+    expect(angularConsumer()).toBe('second');
+
+    second.set('updated');
+
+    expect(angularConsumer()).toBe('updated');
+  });
+
+  it('stays lazy after an unread Craft invalidation', () => {
+    const source = craftSignal(1);
+    const computation = vi.fn(() => source() * 2);
+    const value = TestBed.runInInjectionContext(() =>
+      craftComputed('lazy', computation),
+    );
+
+    expect(craftUse(value())).toBe(2);
+    const callsAfterRead = computation.mock.calls.length;
+
+    source.set(2);
+
+    expect(computation).toHaveBeenCalledTimes(callsAfterRead);
+  });
+
   it('should work with a generator factory that resolves DI deps once', () => {
     const { Multiplier } = craftService(
-      { name: 'Multiplier', scope: 'function' },
+      { name: 'Multiplier', providedIn: 'function' },
       () => ({ factor: 3 }),
     );
 
@@ -111,7 +201,7 @@ describe('craftComputed', () => {
 
   it('should preserve Signal<T> type from plain computation', () => {
     const { Multiplier4 } = craftService(
-      { name: 'Multiplier4', scope: 'function' },
+      { name: 'Multiplier4', providedIn: 'function' },
       () => ({ factor: 2 }),
     );
 
@@ -149,7 +239,7 @@ describe('craftComputed', () => {
 
   it('should expose craftComputed dependencies through ExtractDeps', () => {
     const { Multiplier5 } = craftService(
-      { name: 'Multiplier5', scope: 'function' },
+      { name: 'Multiplier5', providedIn: 'function' },
       () => ({ factor: 5 }),
     );
 

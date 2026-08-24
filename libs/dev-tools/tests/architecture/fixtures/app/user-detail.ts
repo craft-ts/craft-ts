@@ -7,7 +7,7 @@ import {
 import { UsersApi } from './users-api';
 
 export const { UserDetail, provideUserDetail } = craftService(
-  { name: 'UserDetail', scope: 'toProvide' },
+  { name: 'UserDetail', providedIn: 'toProvide' },
   function* () {
     yield* UsersApi();
     const detail = yield* query(

@@ -1,4 +1,4 @@
-import { YIELDABLE_VALUE, type NamedYieldableValue } from '@craft-ng/core';
+import { YIELDABLE_VALUE, type NamedYieldableValue } from '@craft-ts/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,

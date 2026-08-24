@@ -1,7 +1,13 @@
-import { inject, InjectionToken, isSignal, type Provider } from '@angular/core';
+import {
+  inject,
+  InjectionToken,
+  isSignal,
+  type Provider,
+} from './host/craft-compat';
 import { debounceTime, Subject, tap } from 'rxjs';
 import { provideFnWrapper } from './fn-wrapper';
 import { isCraftControlFlow } from './craft-control-flow';
+import { CRAFT_RUNTIME_MODE } from './craft-runtime-mode';
 
 export interface SnapshotReport {
   source: string;
@@ -56,6 +62,9 @@ export function provideTakeAppSnapshot(
     {
       provide: TAKE_APP_SNAPSHOT,
       useFactory: () => {
+        if (inject(CRAFT_RUNTIME_MODE) === 'production') {
+          return () => undefined;
+        }
         const registry = inject(APP_SNAPSHOT_REGISTRY);
         const pending: SnapshotReport[] = [];
         registry.allSnapShot$
@@ -74,6 +83,9 @@ export function provideTakeAppSnapshot(
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
+        if (inject(CRAFT_RUNTIME_MODE) === 'production') {
+          return yield* factory.apply(thisArg, args);
+        }
         try {
           return yield* factory.apply(thisArg, args);
         } catch (error) {

@@ -26,7 +26,7 @@ async function lint(source: string, fix = false) {
 describe('require-craft-exception-handler', () => {
   it('wraps a simple handler and adds the import', async () => {
     const result = await lint(
-      `import { craftRoute } from '@craft-ng/core';\ncraftRoute('x', {}, { X: ({ noop }) => noop() });`,
+      `import { craftRoute } from '@craft-ts/core';\ncraftRoute('x', {}, { X: ({ noop }) => noop() });`,
       true,
     );
     expect(result.output).toContain(

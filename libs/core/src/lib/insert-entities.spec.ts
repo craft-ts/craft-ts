@@ -1,10 +1,10 @@
-import { TestBed } from '@angular/core/testing';
+import { provideCraftRouter } from './craft-router';
+import { TestBed } from './host/craft-test-bed';
 import { state } from './state';
 import { removeOne, addOne, addMany, setOne } from './util/entities-util';
 import { insertEntities } from './insert-entities';
 import { queryParams } from './query-params';
 import { query } from './query';
-import { provideRouter } from '@angular/router';
 import { craftUse } from './craft-use';
 
 describe('insertEntities', () => {
@@ -33,7 +33,7 @@ describe('insertEntities', () => {
 
   it('should enable to insert entities util to a queryParams', async () => {
     TestBed.configureTestingModule({
-      providers: [provideRouter([])],
+      providers: [...provideCraftRouter([])],
     }).compileComponents();
     await TestBed.runInInjectionContext(async () => {
       const myState = craftUse(

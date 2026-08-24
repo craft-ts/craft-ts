@@ -1,12 +1,12 @@
-/* eslint-disable craft-ng/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
+/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
   ifBlock,
   p,
   heading,
-} from '@craft-ng/component';
-import { craftComputed, CraftGlobalError } from '@craft-ng/core';
+} from '@craft-ts/component';
+import { craftComputed, CraftGlobalError } from '@craft-ts/core';
 
 export const MyGlobalErrorScreen = craftComponent(
   'MyGlobalErrorScreen',
@@ -18,7 +18,7 @@ export const MyGlobalErrorScreen = craftComponent(
     const error = yield* CraftGlobalError();
     const disabled = craftComputed(
       'disabled',
-      () => (error() as { code?: string } | null)?.code === 'USER_DISABLED',
+      () => (error() as { _tag?: string } | null)?._tag === 'USER_DISABLED',
     );
     return { error, disabled };
   },

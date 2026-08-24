@@ -2,7 +2,7 @@ import type {
   CraftComponent,
   ComponentTemplateOf,
 } from './types';
-import { YIELDABLE_VALUE } from '@craft-ng/core';
+import { YIELDABLE_VALUE } from '@craft-ts/core';
 import type {
   CraftDirectiveNode,
   ElementNodeBase,

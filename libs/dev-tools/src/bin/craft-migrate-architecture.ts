@@ -46,7 +46,7 @@ function parseArgs(argv: string[]): Options {
 function printHelp(): void {
   console.log(`Usage: craft-migrate-architecture [options]
 
-Scaffolds the baseline Craft NG architecture test suite (Vitest, Node).
+Scaffolds the baseline CraftTS architecture test suite (Vitest, Node).
 
 Options:
   --project, --tsconfig <path> Application tsconfig.

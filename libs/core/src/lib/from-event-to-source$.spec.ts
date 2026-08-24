@@ -1,10 +1,9 @@
+import { TestBed } from './host/craft-test-bed';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import {
   fromEventToSource$,
   FromEventToSource$,
 } from './from-event-to-source$';
-import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
 import {
   craftService,
   craftUse,
@@ -76,34 +75,24 @@ describe('fromEventToSource$', () => {
   });
 
   it('should call dispose when DestroyRef triggers onDestroy', () => {
-    @Component({
-      template: '',
-      standalone: true,
-    })
-    class TestComponent {
+    let eventSource$!: FromEventToSource$<MouseEvent>;
+    TestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
-    }
-
-    TestBed.configureTestingModule({
-      imports: [TestComponent],
     });
 
-    const fixture = TestBed.createComponent(TestComponent);
-    const component = fixture.componentInstance;
-
     // Verify initial state and listener works
-    expect(component.eventSource$.value()).toBe(undefined);
+    expect(eventSource$.value()).toBe(undefined);
     const clickEvent = new MouseEvent('click');
     button.dispatchEvent(clickEvent);
-    expect(component.eventSource$.value()).toBe(clickEvent);
+    expect(eventSource$.value()).toBe(clickEvent);
 
-    // Destroy the component (this should trigger DestroyRef.onDestroy)
-    fixture.destroy();
+    // Destroy the pure Craft test injector (this triggers DestroyRef.onDestroy).
+    TestBed.resetTestingModule();
 
     // Fire another event - it should not update the signal after component destruction
     const clickEvent2 = new MouseEvent('click');
     button.dispatchEvent(clickEvent2);
-    expect(component.eventSource$.value()).toBe(clickEvent); // Should still be the first event
+    expect(eventSource$.value()).toBe(clickEvent); // Should still be the first event
   });
 
   it('should create a readonly source with computed value', () => {
@@ -227,7 +216,7 @@ describe('fromEventToSource$', () => {
 
   it('should be usable as a source service dependency', () => {
     const { ClickEventSource: Click } = craftService(
-      { name: 'ClickEventSource', scope: 'global' },
+      { name: 'ClickEventSource', providedIn: 'global' },
       function* () {
         const click = yield* fromEventToSource$<MouseEvent>(button, 'click');
         return click;
@@ -235,7 +224,7 @@ describe('fromEventToSource$', () => {
     );
 
     const { ClickEventConsumer: Counter } = craftService(
-      { name: 'ClickEventConsumer', scope: 'global' },
+      { name: 'ClickEventConsumer', providedIn: 'global' },
       function* () {
         const counter = yield* state('counter', 0, ({ set }) => ({
           increment: on$(Click, (event) => {
@@ -260,7 +249,7 @@ describe('fromEventToSource$', () => {
 
     expectTypeOf<ClickDependency['dependencies']>().toMatchTypeOf<{
       [key: string]: {
-        scope: 'function';
+        providedIn: 'function';
         dependencies: {};
       };
     }>();

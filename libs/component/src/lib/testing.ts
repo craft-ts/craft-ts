@@ -4,8 +4,9 @@ import {
   EnvironmentInjector,
   Injector,
   runInInjectionContext,
-} from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+  ɵEffectScheduler,
+  ɵINJECTOR_SCOPE,
+} from './host-runtime';
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   createExposedServiceValue,
@@ -16,8 +17,9 @@ import {
   type CraftServiceProvider,
   type CompleteServiceDependencyMapFromYielded,
   type FlattenDependencyTree,
-} from '@craft-ng/core';
+} from '@craft-ts/core';
 import {
+  mountInterpretedComponent,
   mountInterpretedComponentTemplate,
 } from './render/interpreter';
 import { craftComponent } from './component';
@@ -31,49 +33,42 @@ import {
   type CraftDirective,
   type FactoryContext,
   type FactoryYielded,
+  type PropsOf,
   type TemplateDependencies,
 } from './types';
 import type { CraftTemplateLocatorApi } from './locator';
 
 type IsAny<T> = 0 extends 1 & T ? true : false;
 
-type ComponentFactoryOf<Component> = Component extends CraftComponent<
-  any,
-  any,
-  infer Factory extends ComponentFactory
->
-  ? Factory
-  : ComponentFactory;
+type ComponentFactoryOf<Component> =
+  Component extends CraftComponent<
+    any,
+    any,
+    infer Factory extends ComponentFactory
+  >
+    ? Factory
+    : ComponentFactory;
 
 type ComponentContextOf<Component> = FactoryContext<
   ComponentFactoryOf<Component>
 >;
 
-type ComponentTemplateDepsOf<Component> = Component extends CraftComponent<
-  any,
-  any,
-  any,
-  any,
-  any,
-  infer TemplateDeps
->
-  ? TemplateDeps
-  : {};
+type ComponentTemplateDepsOf<Component> =
+  Component extends CraftComponent<any, any, any, any, any, infer TemplateDeps>
+    ? TemplateDeps
+    : {};
 
-type LogicDependenciesOf<Component> = Component extends CraftComponent<
-  any,
-  infer Dependencies extends object
->
-  ? Omit<Dependencies, 'missingProvider'> & { missingProvider: {} }
-  : {};
+type LogicDependenciesOf<Component> =
+  Component extends CraftComponent<any, infer Dependencies extends object>
+    ? Omit<Dependencies, 'missingProvider'> & { missingProvider: {} }
+    : {};
 
-type ServiceNamesFromNodeMap<Dependencies extends object> = IsAny<
-  Dependencies
-> extends true
-  ? never
-  : string extends keyof Dependencies
+type ServiceNamesFromNodeMap<Dependencies extends object> =
+  IsAny<Dependencies> extends true
     ? never
-    : Extract<keyof FlattenDependencyTree<Dependencies>, string>;
+    : string extends keyof Dependencies
+      ? never
+      : Extract<keyof FlattenDependencyTree<Dependencies>, string>;
 
 type ServiceNamesFromProperties<Properties extends object> = {
   [Name in Extract<keyof Properties, string>]: Properties[Name] extends object
@@ -82,23 +77,25 @@ type ServiceNamesFromProperties<Properties extends object> = {
 }[Extract<keyof Properties, string>];
 
 type ServiceNamesFromContract<Contract> = Contract extends object
-  ? (Contract extends { deps: infer Dependencies extends object }
-      ? ServiceNamesFromNodeMap<Dependencies>
-      : never) |
-      (Contract extends {
-        propertiesDeps: infer Properties extends object;
-      }
-        ? ServiceNamesFromProperties<Properties>
-        : never) |
-      (Contract extends {
-        missingProvider: infer Missing extends object;
-      }
-        ? ServiceNamesFromNodeMap<Missing>
-        : never)
+  ?
+      | (Contract extends { deps: infer Dependencies extends object }
+          ? ServiceNamesFromNodeMap<Dependencies>
+          : never)
+      | (Contract extends {
+          propertiesDeps: infer Properties extends object;
+        }
+          ? ServiceNamesFromProperties<Properties>
+          : never)
+      | (Contract extends {
+          missingProvider: infer Missing extends object;
+        }
+          ? ServiceNamesFromNodeMap<Missing>
+          : never)
   : never;
 
 /** The dependency contract used when only a Craft component factory is tested. */
-export type CraftComponentLogicDepsOf<Component> = LogicDependenciesOf<Component>;
+export type CraftComponentLogicDepsOf<Component> =
+  LogicDependenciesOf<Component>;
 
 /** The service dependency contract used when only a Craft component template is tested. */
 export type CraftComponentTemplateDepsOf<Component> = {
@@ -115,15 +112,12 @@ export type CraftComponentTemplateDepsOf<Component> = {
   missingProvider: {};
 };
 
-type DirectiveLogicFactory<Directive> = Directive extends CraftDirective<
-  infer Logic,
-  any,
-  any
->
-  ? ReturnType<Logic> extends ComponentFactory
-    ? ReturnType<Logic>
-    : ComponentFactory
-  : ComponentFactory;
+type DirectiveLogicFactory<Directive> =
+  Directive extends CraftDirective<infer Logic, any, any>
+    ? ReturnType<Logic> extends ComponentFactory
+      ? ReturnType<Logic>
+      : ComponentFactory
+    : ComponentFactory;
 
 type LogicDependenciesForFactory<Factory extends ComponentFactory> = {
   deps: CompleteServiceDependencyMapFromYielded<FactoryYielded<Factory>>;
@@ -145,15 +139,12 @@ export type CraftDirectiveLogicDepsOf<Directive> = LogicDependenciesForFactory<
   DirectiveLogicFactory<Directive>
 >;
 
-type DirectiveTemplateDependenciesOf<Directive> = Directive extends CraftDirective<
-  any,
-  infer Template,
-  any
->
-  ? Template extends (baseTemplate: ComponentTemplate<any>) => infer Decorated
-    ? TemplateDependencies<Decorated>
-    : {}
-  : {};
+type DirectiveTemplateDependenciesOf<Directive> =
+  Directive extends CraftDirective<any, infer Template, any>
+    ? Template extends (baseTemplate: ComponentTemplate<any>) => infer Decorated
+      ? TemplateDependencies<Decorated>
+      : {}
+    : {};
 
 /** The service dependencies used by a directive's template decorator. */
 export type CraftDirectiveTemplateDepsOf<Directive> = {
@@ -192,11 +183,13 @@ type TestBedOptions = {
   appStart?: Record<string, AppStartDecision>;
 };
 
-type LogicOptions<Factory extends ComponentFactory, Contract> =
-  TestBedOptions & {
-    register: RegisterForContract<Contract>;
-    args?: Parameters<Factory>;
-  };
+type LogicOptions<
+  Factory extends ComponentFactory,
+  Contract,
+> = TestBedOptions & {
+  register: RegisterForContract<Contract>;
+  args?: Parameters<Factory>;
+};
 
 type TemplateOptions<Context, Contract> = TestBedOptions & {
   context: Context;
@@ -216,10 +209,17 @@ function isProvider(value: unknown): value is CraftServiceProvider {
   );
 }
 
-function setupTestBed(providers: readonly CraftServiceProvider[] | undefined) {
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({ providers: [...(providers ?? [])] });
-  return TestBed.inject(EnvironmentInjector);
+function createTestingInjector(
+  providers: readonly CraftServiceProvider[] | undefined,
+) {
+  return createEnvironmentInjector(
+    [
+      { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+      ...(providers ?? []),
+    ],
+    Injector.NULL as EnvironmentInjector,
+    'CraftComponentTestRoot',
+  );
 }
 
 function createRuntimeProviders(
@@ -274,11 +274,7 @@ function createComponentInjector(
 }
 
 function isActiveRegisterEntry(entry: RegisterRuntimeEntry | undefined) {
-  return (
-    entry === 'real' ||
-    entry === 'provided' ||
-    isProvider(entry)
-  );
+  return entry === 'real' || entry === 'provided' || isProvider(entry);
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -371,7 +367,10 @@ function componentTemplateMount<Component extends CraftComponent<any>, Context>(
   providers: readonly CraftServiceProvider[] | undefined,
 ) {
   const runtime = createRuntimeProviders(register);
-  const parent = setupTestBed([...(providers ?? []), ...runtime.providers]);
+  const parent = createTestingInjector([
+    ...(providers ?? []),
+    ...runtime.providers,
+  ]);
   const host = document.createElement('div');
   document.body.append(host);
   const mounted = mountInterpretedComponentTemplate(
@@ -382,20 +381,18 @@ function componentTemplateMount<Component extends CraftComponent<any>, Context>(
     runtime.providers,
   );
 
-  return { host, mounted, mocks: runtime.mocks };
+  return { host, mounted, mocks: runtime.mocks, parent };
 }
 
 async function setupCraftComponentLogicTestImpl<
   Component extends CraftComponent<any>,
-  const Contract extends CraftComponentLogicDepsOf<Component> = CraftComponentLogicDepsOf<Component>,
+  const Contract extends
+    CraftComponentLogicDepsOf<Component> = CraftComponentLogicDepsOf<Component>,
 >(
   component: Component,
-  options: LogicOptions<
-    ComponentFactoryOf<Component>,
-    Contract
-  >,
+  options: LogicOptions<ComponentFactoryOf<Component>, Contract>,
 ) {
-  const parent = setupTestBed(options.providers);
+  const parent = createTestingInjector(options.providers);
   const host = document.createElement('div');
   const definition = component[CRAFT_COMPONENT];
   const { injector, mocks } = createComponentInjector(
@@ -426,7 +423,10 @@ async function setupCraftComponentLogicTestImpl<
     context,
     mocks: mocks as Record<string, unknown>,
     injector,
-    destroy: () => injector.destroy(),
+    destroy: () => {
+      injector.destroy();
+      parent.destroy();
+    },
   };
 }
 
@@ -435,25 +435,30 @@ export const setupCraftComponentLogicTest = Object.assign(
   { byRegister: setupCraftComponentLogicTestImpl },
 );
 
-type TemplateTestResult<Component extends CraftComponent<any>, Context> =
-  CraftTemplateLocatorApi<Component> & {
-    nativeElement: HTMLDivElement;
-    element: HTMLDivElement;
-    mocks: Record<string, unknown>;
-    detectChanges(): void;
-    updateContext(context: Context): void;
-    destroy(): void;
-    toBeAccessible(): Promise<void>;
-    getByRole(role: string, options?: { name?: string | RegExp }): HTMLElement;
-    queryByRole(
-      role: string,
-      options?: { name?: string | RegExp },
-    ): HTMLElement | undefined;
-    getByLabel(name: string | RegExp): HTMLElement;
-    queryByLabel(name: string | RegExp): HTMLElement | undefined;
-  };
+type TemplateTestResult<
+  Component extends CraftComponent<any>,
+  Context,
+> = CraftTemplateLocatorApi<Component> & {
+  nativeElement: HTMLDivElement;
+  element: HTMLDivElement;
+  mocks: Record<string, unknown>;
+  detectChanges(): void;
+  updateContext(context: Context): void;
+  destroy(): void;
+  toBeAccessible(): Promise<void>;
+  getByRole(role: string, options?: { name?: string | RegExp }): HTMLElement;
+  queryByRole(
+    role: string,
+    options?: { name?: string | RegExp },
+  ): HTMLElement | undefined;
+  getByLabel(name: string | RegExp): HTMLElement;
+  queryByLabel(name: string | RegExp): HTMLElement | undefined;
+};
 
-function matchesName(actual: string, expected: string | RegExp | undefined): boolean {
+function matchesName(
+  actual: string,
+  expected: string | RegExp | undefined,
+): boolean {
   if (expected === undefined) return true;
   if (typeof expected === 'string') {
     return actual === expected;
@@ -515,7 +520,8 @@ function implicitRole(element: Element): string | null {
     const type = (element as HTMLInputElement).type;
     if (type === 'checkbox') return 'checkbox';
     if (type === 'radio') return 'radio';
-    if (type === 'submit' || type === 'button' || type === 'reset') return 'button';
+    if (type === 'submit' || type === 'button' || type === 'reset')
+      return 'button';
     return 'textbox';
   }
   if (tag === 'img') return 'img';
@@ -555,38 +561,30 @@ function createAccessibleQueries(root: HTMLElement) {
   return {
     getByRole(role: string, options?: { name?: string | RegExp }) {
       const query = `role "${role}"${
-        options?.name === undefined ? '' : ` with name "${String(options.name)}"`
+        options?.name === undefined
+          ? ''
+          : ` with name "${String(options.name)}"`
       }`;
-      return requireSingle(
-        queryAllByRole(root, role, options),
-        query,
-        false,
-      )!;
+      return requireSingle(queryAllByRole(root, role, options), query, false)!;
     },
     queryByRole(role: string, options?: { name?: string | RegExp }) {
       const query = `role "${role}"${
-        options?.name === undefined ? '' : ` with name "${String(options.name)}"`
+        options?.name === undefined
+          ? ''
+          : ` with name "${String(options.name)}"`
       }`;
-      return requireSingle(
-        queryAllByRole(root, role, options),
-        query,
-        true,
-      );
+      return requireSingle(queryAllByRole(root, role, options), query, true);
     },
     getByLabel(name: string | RegExp) {
       const labelled = Array.from(
         root.querySelectorAll<HTMLElement>('input, textarea, select, button'),
-      ).filter(
-        (node) => matchesName(accessibleName(node, root), name),
-      );
+      ).filter((node) => matchesName(accessibleName(node, root), name));
       return requireSingle(labelled, `label "${String(name)}"`, false)!;
     },
     queryByLabel(name: string | RegExp) {
       const labelled = Array.from(
         root.querySelectorAll<HTMLElement>('input, textarea, select, button'),
-      ).filter(
-        (node) => matchesName(accessibleName(node, root), name),
-      );
+      ).filter((node) => matchesName(accessibleName(node, root), name));
       return requireSingle(labelled, `label "${String(name)}"`, true);
     },
   };
@@ -594,7 +592,8 @@ function createAccessibleQueries(root: HTMLElement) {
 
 function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
-  const Contract extends CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
+  const Contract extends
+    CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
   Context = unknown,
 >(
   component: Component,
@@ -603,20 +602,18 @@ function setupCraftComponentTemplateTestImpl<
 
 async function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
-  const Contract extends CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
+  const Contract extends
+    CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
   Context = unknown,
->(
-  component: Component,
-  options: TemplateOptions<Context, Contract>,
-) {
-  const { host, mounted, mocks } = componentTemplateMount(
+>(component: Component, options: TemplateOptions<Context, Contract>) {
+  const { host, mounted, mocks, parent } = componentTemplateMount(
     component,
     options.context,
     options.register as Record<string, RegisterRuntimeEntry>,
     options.providers,
   );
 
-  const detectChanges = () => TestBed.tick();
+  const detectChanges = () => parent.get(ɵEffectScheduler).flush();
   if (options.detectChanges ?? true) {
     detectChanges();
   }
@@ -624,7 +621,11 @@ async function setupCraftComponentTemplateTestImpl<
   const locator: CraftTemplateLocatorApi<Component>['locator'] = (
     tag: keyof HTMLElementTagNameMap,
     criteria: Readonly<Record<string, unknown>>,
-  ) => mounted.locator(tag, criteria as Readonly<Record<string, unknown>>) as never;
+  ) =>
+    mounted.locator(
+      tag,
+      criteria as Readonly<Record<string, unknown>>,
+    ) as never;
 
   return {
     nativeElement: host,
@@ -640,6 +641,7 @@ async function setupCraftComponentTemplateTestImpl<
     destroy() {
       mounted.destroy();
       host.remove();
+      parent.destroy();
     },
   };
 }
@@ -649,13 +651,59 @@ export const setupCraftComponentTemplateTest = Object.assign(
   { byRegister: setupCraftComponentTemplateTestImpl },
 );
 
+export async function renderCraftComponent<
+  Component extends CraftComponent<any>,
+>(
+  component: Component,
+  options: {
+    props?: PropsOf<Component>;
+    providers?: CraftServiceProvider[];
+  } = {},
+) {
+  const parent = createTestingInjector(options.providers);
+  const host = document.createElement('div');
+  document.body.append(host);
+  const mounted = mountInterpretedComponent(
+    component as never,
+    host,
+    parent,
+    (options.props ?? {}) as PropsOf<Component>,
+  );
+  const detectChanges = () => parent.get(ɵEffectScheduler).flush();
+  let destroyed = false;
+  const flush = async () => {
+    if (destroyed) return;
+    for (let index = 0; index < 5; index += 1) {
+      detectChanges();
+      await Promise.resolve();
+    }
+    if (!destroyed) {
+      detectChanges();
+    }
+  };
+  await flush();
+  return {
+    nativeElement: host,
+    element: host,
+    mounted,
+    // The injector the component was mounted under, so a test can reach the
+    // services its own `providers` installed.
+    injector: parent,
+    detectChanges,
+    flush,
+    destroy() {
+      destroyed = true;
+      mounted.destroy();
+      host.remove();
+      parent.destroy();
+    },
+  };
+}
+
 type DirectiveLogicOptions<
   BaseLogic extends ComponentFactory,
   Contract,
-> = LogicOptions<
-  BaseLogic,
-  Contract
-> & {
+> = LogicOptions<BaseLogic, Contract> & {
   baseLogic: BaseLogic;
 };
 
@@ -665,11 +713,8 @@ async function setupCraftDirectiveLogicTestImpl<
   const Contract extends CraftDirectiveLogicDepsOf<Directive> &
     LogicDependenciesForFactory<BaseLogic> = CraftDirectiveLogicDepsOf<Directive> &
     LogicDependenciesForFactory<BaseLogic>,
->(
-  directive: Directive,
-  options: DirectiveLogicOptions<BaseLogic, Contract>,
-) {
-  const parent = setupTestBed(options.providers);
+>(directive: Directive, options: DirectiveLogicOptions<BaseLogic, Contract>) {
+  const parent = createTestingInjector(options.providers);
   const host = document.createElement('div');
   const { injector, mocks } = createRuntimeDirectiveInjector(
     parent,
@@ -702,7 +747,10 @@ async function setupCraftDirectiveLogicTestImpl<
     context,
     mocks: mocks as Record<string, unknown>,
     injector,
-    destroy: () => injector.destroy(),
+    destroy: () => {
+      injector.destroy();
+      parent.destroy();
+    },
   };
 }
 
@@ -758,14 +806,14 @@ async function setupCraftDirectiveTemplateTestImpl<
     () => ({}),
     decoratedTemplate as ComponentTemplate<{}>,
   );
-  const { host, mounted, mocks } = componentTemplateMount(
+  const { host, mounted, mocks, parent } = componentTemplateMount(
     synthetic,
     options.context,
     options.register as Record<string, RegisterRuntimeEntry>,
     options.providers,
   );
 
-  const detectChanges = () => TestBed.tick();
+  const detectChanges = () => parent.get(ɵEffectScheduler).flush();
   if (options.detectChanges ?? true) {
     detectChanges();
   }
@@ -782,6 +830,7 @@ async function setupCraftDirectiveTemplateTestImpl<
     destroy() {
       mounted.destroy();
       host.remove();
+      parent.destroy();
     },
   };
 }
@@ -801,23 +850,33 @@ export async function assertAccessible(container: Element): Promise<void> {
 
   container.querySelectorAll('img').forEach((image) => {
     if (!image.hasAttribute('alt')) {
-      violations.push(`<img src="${image.getAttribute('src') ?? ''}"> is missing alt`);
+      violations.push(
+        `<img src="${image.getAttribute('src') ?? ''}"> is missing alt`,
+      );
     }
   });
 
-  container.querySelectorAll('button, a, [role="button"]').forEach((control) => {
-    const name = (
-      control.getAttribute('aria-label') ||
-      control.getAttribute('aria-labelledby') ||
-      control.textContent ||
-      ''
-    ).trim();
-    if (!name && control.getAttribute('href') !== null && !(control.textContent ?? '').trim()) {
-      violations.push(`<${control.tagName.toLowerCase()}> has no accessible name`);
-    } else if (!name && control.tagName === 'BUTTON') {
-      violations.push('<button> has no accessible name');
-    }
-  });
+  container
+    .querySelectorAll('button, a, [role="button"]')
+    .forEach((control) => {
+      const name = (
+        control.getAttribute('aria-label') ||
+        control.getAttribute('aria-labelledby') ||
+        control.textContent ||
+        ''
+      ).trim();
+      if (
+        !name &&
+        control.getAttribute('href') !== null &&
+        !(control.textContent ?? '').trim()
+      ) {
+        violations.push(
+          `<${control.tagName.toLowerCase()}> has no accessible name`,
+        );
+      } else if (!name && control.tagName === 'BUTTON') {
+        violations.push('<button> has no accessible name');
+      }
+    });
 
   container.querySelectorAll('[tabindex]').forEach((node) => {
     const value = Number(node.getAttribute('tabindex'));

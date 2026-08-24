@@ -1,12 +1,11 @@
-# @craft-ng/component
+# @craft-ts/component
 
-Functional, selectorless Angular components rendered from typed hyperscript
-descriptors.
+Functional components rendered from typed hyperscript descriptors.
 
 ## Installation
 
 ```bash
-npm install @craft-ng/core@beta @craft-ng/component@beta
+npm install @craft-ts/core@beta @craft-ts/component@beta
 ```
 
 ```ts
@@ -18,7 +17,7 @@ import {
   p,
   type Input,
   type Output,
-} from '@craft-ng/component';
+} from '@craft-ts/component';
 
 const userCard = craftComponent(
   'userCard',
@@ -55,8 +54,8 @@ export const userList = craftComponent(
 The renderer separates structural effects from binding effects. Explicit text,
 attribute, property, class, and style callbacks update only their existing DOM
 node; `ifBlock`, `each`, projections, and templates own their structural
-effects. DOM is patched through Angular's public `Renderer2` API, without Ivy
-instructions or private Angular APIs.
+effects. DOM is patched through the public renderer contract, without generated
+instructions or private runtime APIs.
 
 Prefer explicit callbacks for values that should update granularly:
 
@@ -77,7 +76,7 @@ p(`Count: ${count()}`);
 Render callbacks must be pure: read signals and calculate a value, but do not
 call `set`, `update`, or `mutate`. Writes belong in DOM events, outputs,
 mutations, or explicit business effects. The optional
-`craft-ng/no-render-writes` ESLint rule detects the common invalid patterns.
+`craft-ts/no-render-writes` ESLint rule detects the common invalid patterns.
 
 `Input<T>` values are yieldable reactive readers. `Output<T>` values are
 yieldable callbacks.
@@ -87,8 +86,8 @@ runtime, positional factory arguments follow the key order of the props object;
 keep that order aligned with the factory parameters.
 
 Mount a root component imperatively with `mountCraftComponent`, or use the
-standalone `[craftComponentHost]` bridge directive from an Angular template.
+standalone `[craftComponentHost]` bridge directive from a host template.
 
-Coding agents: [`llms.txt`](https://ng-angular-stack.github.io/craft/llms.txt)
-and the [coding agents](https://ng-angular-stack.github.io/craft/resources/ai-agents)
-guide. MCP: `npx -y @craft-ng/mcp@beta`.
+Coding agents: [`llms.txt`](https://craft-ts.github.io/craft/llms.txt)
+and the [coding agents](https://craft-ts.github.io/craft/resources/ai-agents)
+guide. MCP: `npx -y @craft-ts/mcp@beta`.

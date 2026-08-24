@@ -1,4 +1,4 @@
-import { EventEmitter, Type } from '@angular/core';
+import { EventEmitter, Type } from '../host/craft-compat';
 import { SignalSource } from '../signal-source';
 import { ExtractSignalPropsAndMethods } from './extract-signal-props-and-methods';
 import { ReadonlySource } from './source.type';
