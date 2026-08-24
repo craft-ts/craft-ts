@@ -33,7 +33,7 @@ function looksLikeChildren(value: unknown): boolean {
  *
  * A local `heading()` is allowed in this template (route page title = `h1`).
  * A child component that renders `heading()` must be wrapped by **this**
- * parent in {@link headingSection} (same DNA as `pendingBlock`). Otherwise
+ * parent in {@link headingSection} (same DNA as `pendingNode`). Otherwise
  * the call does not compile:
  * `ERROR_child_heading_rendered_outside_a_headingSection`.
  *
@@ -88,7 +88,7 @@ export function heading(
  * Increments the heading outline by one rank for the subtree.
  *
  * Not a visual box and not a `<section>`: comment-bounded fragment, no extra
- * DOM node (same as `ifBlock`). Nested {@link heading} calls become
+ * DOM node (same as `ifNode`). Nested {@link heading} calls become
  * `hN+1`. Also absorbs a child's heading need so the parent compiles.
  *
  * Nest to build the document outline: page `heading()` → `h1`, first

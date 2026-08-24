@@ -106,7 +106,7 @@ See [Fine-grained reactivity](/guide/components/fine-grained-reactivity) for
 the complete rendering model, structural scopes, observability expectations,
 and migration checklist.
 
-See [Progressive `each` rendering](/guide/components/schedule-each) when a
+See [Progressive `forNode` rendering](/guide/components/schedule-for) when a
 large collection needs frame-based scheduling.
 
 Keep render callbacks pure. They may read signals and calculate values, but
@@ -114,8 +114,8 @@ must not call `set`, `update`, or `mutate`. Perform writes from DOM events,
 outputs, mutations, or explicit business effects. Enable
 `craft-ts/no-render-writes` to diagnose common violations.
 
-Control flow is made of functions rather than syntax — `each`, `ifBlock`,
-`matchBlock`, `defer`. The relationship between these blocks, and why a raw
+Control flow is made of functions rather than syntax — `forNode`, `ifNode`,
+`matchNode`, `deferNode`. The relationship between these blocks, and why a raw
 ternary is the wrong tool for **structure**, is in
 [Learn step 2](/learn/02-derive#control-flow).
 
@@ -181,12 +181,12 @@ mounts the root component into `<craft-root>` (or the element you pass as
 build time. Pass the reader (`p(tasks.remaining)`) or use a generator:
 `h1(function* () { return yield* tasks.remaining(); })`.
 
-**Forgetting `track` in `each`.** Without a stable identity the renderer cannot
+**Forgetting `track` in `forNode`.** Without a stable identity the renderer cannot
 reuse, move or remove the right node.
 
 **Exceptions from the factory or providers don't vanish.** They become the
 component's initialization exceptions and flow up to the route unless handled
-with `.pipe(catchBlock.exhaustive(...))` — see
+with `.pipe(catchNode.exhaustive(...))` — see
 [Exceptions as values](/guide/concepts/exceptions).
 
 **Naming mismatch.** The first argument must match the exported binding; the

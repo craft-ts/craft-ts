@@ -14,12 +14,12 @@ describe('prefer-craft-template-blocks', () => {
         {},
         () => ({ ready: state, kind: query }),
         ({ ready, kind }) => div([
-          ifBlock(ready, () => p('ready'), () => p('not ready')),
-          matchBlock.exhaustive(kind, 'code', {
+          ifNode(ready, () => p('ready'), () => p('not ready')),
+          matchNode.exhaustive(kind, 'code', {
             OK: () => p('ok'),
             ERROR: () => p('error'),
           }),
-          each(items, { track: (item) => item.id }, (item) => p(item.name)),
+          forNode(items, { track: (item) => item.id }, (item) => p(item.name)),
         ]),
       );
     `);
@@ -90,8 +90,8 @@ describe('prefer-craft-template-blocks', () => {
     `);
 
     expect(messages).toEqual([
-      'Do not use imperative control flow in a Craft template. Use ifBlock(...), matchBlock.exhaustive(...), each(...), or defer(...) so the render contract stays type-checkable.',
-      'Do not use a ternary in a Craft template. Use ifBlock(...) for boolean visibility or matchBlock.exhaustive(...) for a discriminated union.',
+      'Do not use imperative control flow in a Craft template. Use ifNode(...), matchNode.exhaustive(...), forNode(...), or deferNode(...) so the render contract stays type-checkable.',
+      'Do not use a ternary in a Craft template. Use ifNode(...) for boolean visibility or matchNode.exhaustive(...) for a discriminated union.',
       'Do not use a logical expression in a Craft template. Move the derivation to state, query, or craftComputed, then render it with a Craft block.',
       'Do not use negation in a Craft template. Move the boolean derivation to state, query, or craftComputed, then bind the resulting value.',
     ]);
@@ -167,12 +167,12 @@ describe('prefer-craft-template-blocks', () => {
       );
     `);
 
-    expect(fixed).toContain("import { ifBlock } from '@craft-ts/component';");
+    expect(fixed).toContain("import { ifNode } from '@craft-ts/component';");
     expect(fixed).toContain(
-      "button({}, ifBlock(ready, () => 'Ready', () => 'Waiting'))",
+      "button({}, ifNode(ready, () => 'Ready', () => 'Waiting'))",
     );
     expect(fixed).toContain(
-      "ifBlock(ready, () => p('Ready'), () => p('Waiting'))",
+      "ifNode(ready, () => p('Ready'), () => p('Waiting'))",
     );
   });
 
@@ -192,10 +192,10 @@ describe('prefer-craft-template-blocks', () => {
     `);
 
     expect(fixed).toContain(
-      "import { matchBlock } from '@craft-ts/component';",
+      "import { matchNode } from '@craft-ts/component';",
     );
     expect(fixed).toContain(
-      "return matchBlock.exhaustive(() => result(), \"code\", { OK: () => p('ok'), ERROR: () => p('error') });",
+      "return matchNode.exhaustive(() => result(), \"code\", { OK: () => p('ok'), ERROR: () => p('error') });",
     );
   });
 

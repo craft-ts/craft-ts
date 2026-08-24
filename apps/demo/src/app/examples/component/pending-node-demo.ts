@@ -5,7 +5,7 @@ import {
   div,
   li,
   p,
-  pendingBlock,
+  pendingNode,
   section,
   span,
   ul,
@@ -26,15 +26,15 @@ const USERS: readonly DemoUser[] = [
 ];
 
 /**
- * `settledValue` + `pendingBlock` — type-safe suspension.
+ * `settledValue` + `pendingNode` — type-safe suspension.
  *
  * The template never sees `undefined`: `settled(...)` hands back a resolved
- * value, and the loading state belongs to the `pendingBlock`. Removing the
+ * value, and the loading state belongs to the `pendingNode`. Removing the
  * boundary below is a **compile error**, not an `undefined` leaking into the
  * render.
  */
-export const pendingBlockDemo = craftComponent(
-  'pendingBlockDemo',
+export const pendingNodeDemo = craftComponent(
+  'pendingNodeDemo',
   {
     host: { class: 'pending-demo-host' },
     styles: `
@@ -93,9 +93,9 @@ export const pendingBlockDemo = craftComponent(
   },
   ({ users }) =>
     section({ class: 'pending-demo' }, [
-      heading('settledValue + pendingBlock'),
+      heading('settledValue + pendingNode'),
       p(
-        'The template reads an always-resolved value; the pendingBlock owns the loading state.',
+        'The template reads an always-resolved value; the pendingNode owns the loading state.',
       ),
       button(
         'reload',
@@ -116,11 +116,11 @@ export const pendingBlockDemo = craftComponent(
       ]).pipe(
         // One boundary covers both computeds. Remove this line and
         // `craftComponent(...)` refuses to compile, naming the "users" source.
-        pendingBlock({
+        pendingNode({
           fallback: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
         }),
       ),
     ]),
 );
 
-export default pendingBlockDemo;
+export default pendingNodeDemo;

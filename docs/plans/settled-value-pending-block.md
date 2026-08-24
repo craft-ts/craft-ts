@@ -1,4 +1,4 @@
-# `settledValue` + `pendingBlock` — suspension type-safe (inspiré de SolidJS v2)
+# `settledValue` + `pendingNode` — suspension type-safe (inspiré de SolidJS v2)
 
 ## Intention
 
@@ -11,7 +11,7 @@ valeur en état d'exception. Elle est consommable :
 - directement dans un template (`span(users.settledValue)`).
 
 Toute lecture d'une valeur non encore résolue doit être couverte par un
-`pendingBlock` dans le template — sinon **erreur de compilation**.
+`pendingNode` dans le template — sinon **erreur de compilation**.
 
 ## Le mécanisme existe déjà pour les exceptions
 
@@ -22,7 +22,7 @@ duplique pour le canal « pas encore résolu » :
 | -------------------------------------------- | ---------------------------------------- |
 | `CraftNodeExceptionsCarrier<Codes>`           | `CraftNodePendingCarrier<Sources>`       |
 | `CraftNodeChildrenExceptions<Children>`       | `CraftNodeChildrenPendingSources<…>`     |
-| `catchBlock.exhaustive({...})` via `.pipe`    | `pendingBlock({...})` via `.pipe`        |
+| `catchNode.exhaustive({...})` via `.pipe`    | `pendingNode({...})` via `.pipe`        |
 | `CraftGenShortCircuit` (throw)                | `CraftNotSettled` (throw)                |
 | `exceptionBoundary` / `exceptionBoundaryResolved` dans `RenderContext` | `pendingBoundary` (compteur de jetons) |
 | `RequireCaughtComponentExceptions`            | check `ValidPendingSources` sur `craftComponent` |
@@ -38,7 +38,7 @@ settledValue()  ->  hasException()            -> throw new CraftGenShortCircuit(
 ```
 
 Le premier cas réutilise **tel quel** le canal exception existant (donc
-`catchBlock` et son exhaustivité fonctionnent sans une ligne de code neuve).
+`catchNode` et son exhaustivité fonctionnent sans une ligne de code neuve).
 
 Angular `computed()` mémorise l'erreur levée et la relance à chaque lecture
 jusqu'à ce qu'une dépendance change : le `status` de la ressource étant lu avant
@@ -64,13 +64,13 @@ par une règle ESLint typée (itération 2).
 ### 3. Propagation et barrière
 
 Les sources pending remontent l'arbre de nœuds comme les codes d'exception. Un
-`.pipe(pendingBlock(...))` les efface :
+`.pipe(pendingNode(...))` les efface :
 
 ```ts
-div([span(users.settledValue)]).pipe(pendingBlock({ fallback: () => Spinner() }))
+div([span(users.settledValue)]).pipe(pendingNode({ fallback: () => Spinner() }))
 // -> toutes les sources du sous-arbre effacées
 
-div([...]).pipe(pendingBlock.exhaustive({ users: () => SkeletonList() }))
+div([...]).pipe(pendingNode.exhaustive({ users: () => SkeletonList() }))
 // -> Exclude<Sources, 'users'>, avec vérification d'exhaustivité
 ```
 
@@ -96,15 +96,15 @@ Vertical complet sur `query` uniquement.
 1. `libs/core` — **fait** : `CraftNotSettled`, brand `CraftSettledSignal`,
    `settled(...)`, `settledValue` attaché à la forme `resourceLike` au moment du
    nommage (`createNamedPrimitiveGen`), tag pending sur `craftComputed`.
-2. `libs/component` — **fait** : carrier pending dans `vnode.ts`, `pendingBlock`
+2. `libs/component` — **fait** : carrier pending dans `vnode.ts`, `pendingNode`
    (+ `.exhaustive`), threading dans `CraftNodePipe`, check `ValidPendingSources`
    sur `craftComponent`.
 3. `interpreter.ts` — **fait** : `pendingBoundary` (jetons par binding),
    `PendingBlockRenderedNode`, capture de `CraftNotSettled` **et** de
    `CraftGenShortCircuit` dans `createRenderEffect`.
-4. Specs (`craft-settled.spec.ts`, `pending-block.spec.ts`) + démo
-   (`examples/component/pending-block-demo.ts`, route `pending-block`, entrée de
-   nav, union `DemoRoutePath`) + doc (`guide/components/pending-block.md`) —
+4. Specs (`craft-settled.spec.ts`, `pending-node.spec.ts`) + démo
+   (`examples/component/pending-node-demo.ts`, route `pending-node`, entrée de
+   nav, union `DemoRoutePath`) + doc (`guide/components/pending-node.md`) —
    **fait**, vérifié dans le navigateur (fallback à ~240 ms, données à ~2,2 s,
    zéro erreur console).
 
@@ -116,7 +116,7 @@ Les deux `provideFnWrapper` de la démo (`app.config.ts` et le tracer de
 n'arrivait donc jamais à sa barrière : la démo affichait `[object Object]` à la
 place du fallback. Les deux relancent désormais `CraftGenShortCircuit` et
 `CraftNotSettled`. Le cas du short-circuit était cassé avant cette feature — un
-`catchBlock` ne pouvait pas recevoir une exception levée à travers un wrapper.
+`catchNode` ne pouvait pas recevoir une exception levée à travers un wrapper.
 
 ### Deux points tranchés en cours de route
 
@@ -136,17 +136,17 @@ place du fallback. Les deux relancent désormais `CraftGenShortCircuit` et
    (`CraftNodeSettledExceptionsCarrier`). Il ne pouvait pas passer par le porteur
    d'exceptions existant : `RequireCaughtComponentExceptions` se déclenche sur
    les enfants du tag helper qui les reçoit, donc `span(userName)` exigerait un
-   `catchBlock` à l'intérieur des enfants de `span`. Le nouveau porteur remonte
-   silencieusement, est vidé par n'importe quel `catchBlock` ancêtre, et est
+   `catchNode` à l'intérieur des enfants de `span`. Le nouveau porteur remonte
+   silencieusement, est vidé par n'importe quel `catchNode` ancêtre, et est
    vérifié une seule fois à `craftComponent`. Le check d'exhaustivité de
-   `catchBlock` lit désormais `Exceptions | SettledExceptions`, sans quoi un
+   `catchNode` lit désormais `Exceptions | SettledExceptions`, sans quoi un
    handler pour un code atteignable uniquement par la lecture settled serait
    rejeté comme « unreachable ».
-3. **Second exemple** (`pending-block-exception-demo.ts`, route
-   `pending-block/exception`) : une mutation qui peut retourner un
+3. **Second exemple** (`pending-node-exception-demo.ts`, route
+   `pending-node/exception`) : une mutation qui peut retourner un
    `craftException`, avec les deux barrières enchaînées. Vérifié dans le
-   navigateur : au repos → pendingBlock, succès → pendingBlock puis données,
-   rejet → pendingBlock puis catchBlock, zéro erreur console.
+   navigateur : au repos → pendingNode, succès → pendingNode puis données,
+   rejet → pendingNode puis catchNode, zéro erreur console.
 
 ## Itérations suivantes
 

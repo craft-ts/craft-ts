@@ -5,8 +5,8 @@ import {
   craftComponent,
   CraftRouterOutlet,
   div,
-  each,
-  ifBlock,
+  forNode,
+  ifNode,
   main,
   nav,
   skipLink,
@@ -36,8 +36,8 @@ const NAV_GROUPS = [
       ['Functional Components', { to: '' }],
       ['Reactive Composition', { to: 'component-composition' }],
       ['Content Projection', { to: 'content-projection' }],
-      ['Pending Block', { to: 'pending-block' }],
-      ['Pending Block — Exception', { to: 'pending-block/exception' }],
+      ['Pending Block', { to: 'pending-node' }],
+      ['Pending Block — Exception', { to: 'pending-node/exception' }],
       ['CSS Variables — Overview', { to: 'css-vars' }],
       ['CSS Variables — Required', { to: 'css-vars/required' }],
       ['CSS Variables — Inheritance', { to: 'css-vars/inheritance' }],
@@ -221,7 +221,7 @@ export const App = craftComponent(
             },
             navOpen.navToggleLabel,
           ),
-          ifBlock(
+          ifNode(
             navOpen,
             () =>
               div(
@@ -229,7 +229,7 @@ export const App = craftComponent(
                 {
                   class: 'demo-nav__panel',
                 },
-                each(
+                forNode(
                   VISIBLE_NAV_GROUPS,
                   { track: (group) => group.label },
                   (group) =>
@@ -239,7 +239,7 @@ export const App = craftComponent(
                       }),
                       div(
                         { class: 'demo-nav__links' },
-                        each(
+                        forNode(
                           function* () {
                             return (yield* group()).links;
                           },

@@ -1,12 +1,12 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
-  catchBlock,
+  catchNode,
   craftComponent,
   div,
   li,
   p,
-  pendingBlock,
+  pendingNode,
   section,
   strong,
   ul,
@@ -28,15 +28,15 @@ import {
  *
  * A settled read has two exits and each one has its own boundary:
  *
- * - nothing to show yet → `CraftNotSettled` → the nearest `pendingBlock`;
- * - the source carries a `craftException` → the nearest `catchBlock`.
+ * - nothing to show yet → `CraftNotSettled` → the nearest `pendingNode`;
+ * - the source carries a `craftException` → the nearest `catchNode`.
  *
  * Both are compile-time obligations. Drop either `.pipe(...)` below and
  * `craftComponent(...)` refuses to compile — naming the "issue" source for the
  * first, the `INVOICE_REJECTED` code for the second.
  */
-export const pendingBlockExceptionDemo = craftComponent(
-  'pendingBlockExceptionDemo',
+export const pendingNodeExceptionDemo = craftComponent(
+  'pendingNodeExceptionDemo',
   {
     host: { class: 'pending-exception-host' },
     styles: `
@@ -112,7 +112,7 @@ export const pendingBlockExceptionDemo = craftComponent(
     section({ class: 'pending-exception' }, [
       heading('settledValue — the failing path'),
       p(
-        'The same read suspends to the pendingBlock, then fails to the catchBlock.',
+        'The same read suspends to the pendingNode, then fails to the catchNode.',
       ),
       div({ class: 'pending-exception__actions' }, [
         button('issueSuccess',
@@ -146,7 +146,7 @@ export const pendingBlockExceptionDemo = craftComponent(
         ]),
       ])
         .pipe(
-          pendingBlock({
+          pendingNode({
             fallback: () =>
               p(
                 { class: 'pending-exception__skeleton' },
@@ -159,9 +159,9 @@ export const pendingBlockExceptionDemo = craftComponent(
         .pipe(
           // The mutation exposes this code at runtime, while its current
           // settled-value type only carries the pending source.
-          (catchBlock.exhaustive({
-            // A catchBlock handler receives the exception as `AnyCraftException`:
-            // its `code` is known, its payload is not. Reach for `matchBlock`
+          (catchNode.exhaustive({
+            // A catchNode handler receives the exception as `AnyCraftException`:
+            // its `code` is known, its payload is not. Reach for `matchNode`
             // when the fallback needs the payload itself.
             // `showSource: false` replaces the row instead of appending to it —
             // the summary line has nothing to show once the source failed.
@@ -175,4 +175,4 @@ export const pendingBlockExceptionDemo = craftComponent(
     ]),
 );
 
-export default pendingBlockExceptionDemo;
+export default pendingNodeExceptionDemo;

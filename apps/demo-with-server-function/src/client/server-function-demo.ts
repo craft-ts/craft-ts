@@ -4,12 +4,12 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   footer,
   form,
   heading,
   header,
-  ifBlock,
+  ifNode,
   input,
   label,
   main,
@@ -332,10 +332,10 @@ const ServerFunctionDemo = craftComponent(
               return yield* usersQuery.resultCount();
             }),
           ]),
-          ifBlock(usersQuery.isLoading, () =>
+          ifNode(usersQuery.isLoading, () =>
             p({ class: 'loading' }, '⏳ The Effect backend is working…'),
           ),
-          ifBlock(usersQuery.accessDenied, () =>
+          ifNode(usersQuery.accessDenied, () =>
             div({ class: 'empty' }, [
               strong('Access denied'),
               span(
@@ -343,7 +343,7 @@ const ServerFunctionDemo = craftComponent(
               ),
             ]),
           ),
-          ifBlock(notFound, () =>
+          ifNode(notFound, () =>
             div({ class: 'empty' }, [
               strong('No users found'),
               span(function* () {
@@ -352,10 +352,10 @@ const ServerFunctionDemo = craftComponent(
               span('The server returned a 404 exception for this filter.'),
             ]),
           ),
-          ifBlock(usersQuery.hasUsers, () =>
+          ifNode(usersQuery.hasUsers, () =>
             ul(
               { class: 'results' },
-              each(usersQuery.value, { track: (user) => user.id }, (user) =>
+              forNode(usersQuery.value, { track: (user) => user.id }, (user) =>
                 article({ class: 'user-row' }, [
                   div({ class: 'avatar' }, function* () {
                     return (yield* user()).name.slice(0, 1);
@@ -375,7 +375,7 @@ const ServerFunctionDemo = craftComponent(
               ),
             ),
           ),
-          ifBlock(usersQuery.isEmpty, () =>
+          ifNode(usersQuery.isEmpty, () =>
             div({ class: 'empty' }, [
               strong('No results loaded'),
               span('Run a search to display users.'),

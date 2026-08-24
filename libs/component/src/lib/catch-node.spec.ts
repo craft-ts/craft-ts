@@ -14,13 +14,13 @@ import {
   createDeepYieldableReactiveValue,
 } from '@craft-ts/core';
 import {
-  catchBlock,
+  catchNode,
   CraftUnhandledExceptionError,
   craftComponent,
   craftDirective,
-  matchBlock,
+  matchNode,
   p,
-  resolveCatchBlockHandler,
+  resolveCatchHandler,
   section,
   withProviders,
 } from '../index';
@@ -43,7 +43,7 @@ describe('template exception blocks', () => {
     const fallback = p('fallback');
 
     expect(
-      resolveCatchBlockHandler(
+      resolveCatchHandler(
         { render: () => fallback, showSource: false, position: 'before' },
         denied,
         true,
@@ -55,7 +55,7 @@ describe('template exception blocks', () => {
       position: 'before',
     });
     expect(
-      resolveCatchBlockHandler(
+      resolveCatchHandler(
         { render: () => fallback, showSource: true },
         denied,
         false,
@@ -84,13 +84,13 @@ describe('template exception blocks', () => {
       ]),
     );
     const caughtBefore = source({}).pipe(
-      catchBlock.exhaustive(
+      catchNode.exhaustive(
         { DENIED: () => p('before fallback') },
         { position: 'before' },
       ),
     );
     const caughtAfter = source({}).pipe(
-      catchBlock.exhaustive(
+      catchNode.exhaustive(
         { DENIED: () => p('after fallback') },
         { position: 'after' },
       ),
@@ -108,7 +108,7 @@ describe('template exception blocks', () => {
       () =>
         section([
           source({}).pipe(
-            catchBlock.exhaustive(
+            catchNode.exhaustive(
               {
                 DENIED: () => p('before fallback'),
               },
@@ -116,7 +116,7 @@ describe('template exception blocks', () => {
             ),
           ),
           source({}).pipe(
-            catchBlock.exhaustive(
+            catchNode.exhaustive(
               {
                 DENIED: (exception) => {
                   return p('fallback');
@@ -147,7 +147,7 @@ describe('template exception blocks', () => {
   });
 
   it.each(['before', 'after'] as const)(
-    'renders a matchBlock fallback (%s)',
+    'renders a matchNode fallback (%s)',
     async (position) => {
       const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
       const exception = signal<typeof denied | undefined>(undefined);
@@ -158,7 +158,7 @@ describe('template exception blocks', () => {
         ({ exception }) =>
           section([
             p('source'),
-            matchBlock.exhaustive(exception, '_tag', {
+            matchNode.exhaustive(exception, '_tag', {
               DENIED: (value) => {
                 expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
                 return p(
@@ -202,7 +202,7 @@ describe('template exception blocks', () => {
       {},
       () => ({ exceptions }),
       ({ exceptions }) =>
-        matchBlock.exhaustive(exceptions.loader, '_tag', {
+        matchNode.exhaustive(exceptions.loader, '_tag', {
           DENIED: (value) => {
             expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
             return p('deep fallback');
@@ -249,7 +249,7 @@ describe('template exception blocks', () => {
       {},
       () => ({ step }),
       ({ step }) =>
-        matchBlock.exhaustive(step, {
+        matchNode.exhaustive(step, {
           reading: () => p('reading'),
           editing: () => p('editing'),
         }),

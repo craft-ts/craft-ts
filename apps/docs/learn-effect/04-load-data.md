@@ -59,8 +59,8 @@ The adapter has the same lifecycle as `query`, but its loader returns an Effect:
 import {
   type Input,
   craftComponent,
-  ifBlock,
-  matchBlock,
+  ifNode,
+  matchNode,
   p,
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
@@ -88,7 +88,7 @@ const Profile = craftComponent(
     return { profile };
   },
   ({ profile }) => [
-    ifBlock(profile.isLoading, () => p('Loading…')),
+    ifNode(profile.isLoading, () => p('Loading…')),
     /* bind profile.value() or match profile.exceptions().loader here */
   ],
 );
@@ -110,11 +110,11 @@ source: changing it reruns `loadUserProfile`; there is no `method` or manual
 
 Interruption is cancellation. It does not become a user-facing exception.
 
-Handle typed errors exhaustively with `matchBlock.exhaustive` or with a route
+Handle typed errors exhaustively with `matchNode.exhaustive` or with a route
 exception handler:
 
 ```typescript
-matchBlock.exhaustive(profile.exception, '_tag', {
+matchNode.exhaustive(profile.exception, '_tag', {
   UserNotFound: () => p('No profile matches that user.'),
   Unauthorized: () => p('Your session has expired.'),
 });

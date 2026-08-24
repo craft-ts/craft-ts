@@ -53,7 +53,7 @@ Références principales :
 
 1. Le DOM existant est réutilisé lorsque l’identité du nœud ne change pas.
 2. Les composants enfants ne sont pas recréés lorsqu’une valeur d’input change.
-3. Les blocs `ifBlock` et `each` conservent leur sémantique actuelle,
+3. Les blocs `ifNode` et `forNode` conservent leur sémantique actuelle,
    notamment la réutilisation des éléments suivis par clé.
 4. Les callbacks de rendu restent synchrones et déterministes.
 5. Les effets sont détruits avec le nœud DOM, le bloc ou le composant qui les
@@ -79,7 +79,7 @@ Références principales :
 flowchart TD
   A[Signal modifié] --> B{Quel type de dépendance ?}
   B -->|Binding texte / prop / class / style| C[Effet du binding]
-  B -->|Condition ifBlock| D[Effet du bloc]
+  B -->|Condition ifNode| D[Effet du bloc]
   B -->|Source each| E[Effet de réconciliation de liste]
   B -->|Input d'un composant enfant| F[Effet du composant enfant]
   C --> G[Patch d'un nœud DOM]
@@ -282,14 +282,14 @@ des callbacks.
 - un signal lu dans le parent mais affiché dans l’enfant suit la frontière
   attendue ;
 - un enfant memoïsé par identité d’input n’est pas recréé ;
-- les effets de l’enfant sont détruits lorsque l’enfant sort d’un `ifBlock` ou
-  d’un `each`.
+- les effets de l’enfant sont détruits lorsque l’enfant sort d’un `ifNode` ou
+  d’un `forNode`.
 
 ### Tests de blocs
 
-- `ifBlock` ne réévalue pas la branche inactive pour un changement de binding
+- `ifNode` ne réévalue pas la branche inactive pour un changement de binding
   local ;
-- `each` ne réévalue pas les items dont la clé et les bindings restent
+- `forNode` ne réévalue pas les items dont la clé et les bindings restent
   inchangés ;
 - une modification d’un item ne recrée pas les autres items ;
 - ajout, suppression, déplacement et doublon de clé conservent les garanties
@@ -374,7 +374,7 @@ Le travail sera considéré comme réussi lorsque :
 1. baseline et compteurs de test ;
 2. rendered node de texte réactif ;
 3. bindings d’attribut, propriété, classe et style ;
-4. isolation des effets `ifBlock` et `each` ;
+4. isolation des effets `ifNode` et `forNode` ;
 5. frontières composants/projection/template ;
 6. diagnostics de pureté et règle ESLint ;
 7. benchmarks automatisés et seuils de régression ;

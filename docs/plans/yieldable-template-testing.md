@@ -55,8 +55,8 @@ un exécuteur équivalent.
 - Rendre les callbacks `Output` des sous-composants yieldables.
 - Adapter les outputs Angular.
 - Rejeter les callbacks impératifs non générateurs selon le nouveau contrat.
-- Garder synchrones les callbacks de rendu : texte, classes, styles, `each`,
-  `defer.resolve`, etc.
+- Garder synchrones les callbacks de rendu : texte, classes, styles, `forNode`,
+  `deferNode.resolve`, etc.
 
 ### 5. Préservation des VNodes
 
@@ -141,7 +141,7 @@ Le même mécanisme doit être partagé par `state`, `query`, `mutation`,
 doivent conserver leur branding sans être marquées deux fois.
 
 Les valeurs comme `isAuth` et `isManager` arrivent déjà brandées depuis leur
-service. C’est `ifBlock(...)` qui les transforme en dépendances conditionnelles
+service. C’est `ifNode(...)` qui les transforme en dépendances conditionnelles
 du template ; l’utilisateur ne construit pas directement un
 `ConditionBranded`.
 
@@ -150,10 +150,10 @@ du template ; l’utilisateur ne construit pas directement un
 Ajouter une primitive :
 
 ```ts
-ifBlock(condition, whenTrue, whenFalse?);
+ifNode(condition, whenTrue, whenFalse?);
 ```
 
-La condition doit être une valeur Craft nommée et yieldable. Le `IfBlockNode`
+La condition doit être une valeur Craft nommée et yieldable. Le `IfNode`
 conserve le nom de la condition et les deux branches afin que le resolver de
 template puisse accumuler les dépendances de visibilité.
 
@@ -199,13 +199,13 @@ Le nom du composant distingue les éléments homonymes de composants enfants.
 
 ### État des listes
 
-Une liste issue d’une primitive conserve également son nom. `each` ajoute au
+Une liste issue d’une primitive conserve également son nom. `forNode` ajoute au
 chemin de visibilité :
 
 - `counterList: 'nonEmpty'` pour le template d’un item ;
 - `counterList: 'empty'` pour le template vide.
 
-Un élément dans un `each` peut donc être vérifié avec les conditions combinées
+Un élément dans un `forNode` peut donc être vérifié avec les conditions combinées
 des blocs parents et l’état de la liste.
 
 ### Règles ESLint
@@ -215,5 +215,5 @@ déclarations ayant la même clé `tag:localName` dans le template d’un même
 composant. Les templates de composants enfants ont leur propre namespace.
 
 La règle doit inspecter les branches conditionnelles et exiger un nom littéral
-statiquement déterminable. Une seule déclaration dans le template d’un `each`
+statiquement déterminable. Une seule déclaration dans le template d’un `forNode`
 reste valide, même si elle est rendue plusieurs fois à l’exécution.

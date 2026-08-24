@@ -11,13 +11,13 @@ est gérée exactement une fois par une boundary locale ou par le composant. Une
 exception oubliée et un handler impossible doivent tous les deux produire une
 erreur TypeScript.
 
-Le mécanisme public retenu est `fieldExceptionBlock`. Il reprend le modèle
-d'exhaustivité de `catchBlock`, mais conserve un canal runtime distinct : une
+Le mécanisme public retenu est `fieldErrorNode`. Il reprend le modèle
+d'exhaustivité de `catchNode`, mais conserve un canal runtime distinct : une
 validation invalide est un état réactif attendu, pas une interruption du rendu.
 
 ## Décisions
 
-- Conserver le nom public `fieldExceptionBlock`.
+- Conserver le nom public `fieldErrorNode`.
 - Ne pas transformer une exception de validation en exception levée.
 - Conserver le champ et son composant visibles lorsqu'une validation échoue.
 - Transporter les obligations de validation séparément des exceptions
@@ -29,7 +29,7 @@ validation invalide est un état réactif attendu, pas une interruption du rendu
 - Ne pas ajouter les exceptions de champs aux unions `handleExceptions` des
   routes.
 - Utiliser directement les exceptions visibles du formulaire par défaut.
-- Garantir qu'un `fieldExceptionBlock` sans option observe exactement
+- Garantir qu'un `fieldErrorNode` sans option observe exactement
   `visibleExceptions`, sans recalculer une règle de visibilité parallèle.
 - Rendre la politique de visibilité configurable et partageable avec
   `insertFormAttributes`.
@@ -87,7 +87,7 @@ input({
 })
   .pipe(CraftFieldDirective(loginForm.form.selectEmail()))
   .pipe(
-    fieldExceptionBlock.exhaustive(
+    fieldErrorNode.exhaustive(
       {
         required: () => p('Email is required.'),
         email: () => p('Enter a valid email.'),
@@ -107,7 +107,7 @@ donc indexée directement par code.
 
 ```ts
 const LoginFormComponent = BaseLoginFormComponent.pipe(
-  fieldExceptionBlock.exhaustive(
+  fieldErrorNode.exhaustive(
     {
       email: {
         required: () => p('Email is required.'),
@@ -172,7 +172,7 @@ consomme alors directement l'état visible exposé par le champ :
 - il ne reconstruit pas la condition à partir de `dirty`, `touched` ou
   `submitted`.
 
-Cette règle garantit qu'un message rendu par `fieldExceptionBlock` apparaît et
+Cette règle garantit qu'un message rendu par `fieldErrorNode` apparaît et
 disparaît au même moment que la même exception lue via les helpers
 `visibleExceptions` du formulaire.
 
@@ -214,7 +214,7 @@ insertFormAttributes(() => ({
 ```
 
 `visibleExceptions` et les variantes `visibleFirst...` / `visibleLast...`
-restent donc la source de vérité. Par défaut, `fieldExceptionBlock` les consomme
+restent donc la source de vérité. Par défaut, `fieldErrorNode` les consomme
 au lieu de réimplémenter leur politique.
 
 La boundary peut surcharger localement la politique héritée. Cette surcharge
@@ -292,13 +292,13 @@ Les cas doivent être propagés par :
 
 - les tags hyperscript ;
 - les tableaux d'enfants ;
-- `ifBlock` ;
-- `each` ;
+- `ifNode` ;
+- `forNode` ;
 - les templates et projections ;
 - les composants imbriqués ;
 - les directives et blocks structurels.
 
-`fieldExceptionBlock.exhaustive` soustrait les cas gérés et conserve les cas
+`fieldErrorNode.exhaustive` soustrait les cas gérés et conserve les cas
 résiduels. Les exceptions éventuelles produites par le contenu des handlers
 doivent continuer à suivre leurs carriers habituels.
 
@@ -314,7 +314,7 @@ Un composant brut peut conserver des cas résiduels afin de permettre :
 
 ```ts
 const SafeComponent = UnsafeComponent.pipe(
-  fieldExceptionBlock.exhaustive(/* handlers */),
+  fieldErrorNode.exhaustive(/* handlers */),
 );
 ```
 
@@ -344,8 +344,8 @@ Il est possible d'extraire un utilitaire générique depuis
 Messages attendus :
 
 ```text
-fieldExceptionBlock.exhaustive is missing handlers for field exceptions
-fieldExceptionBlock.exhaustive has handlers for unreachable field exceptions
+fieldErrorNode.exhaustive is missing handlers for field exceptions
+fieldErrorNode.exhaustive has handlers for unreachable field exceptions
 ```
 
 La visibilité n'intervient jamais dans ce calcul. Une exception invisible à
@@ -417,7 +417,7 @@ La boundary locale doit pouvoir relier les messages au contrôle :
 5. Interdire les résidus aux frontières de rendu sans modifier les unions de
    routes.
 
-### Phase 3 — `fieldExceptionBlock.exhaustive`
+### Phase 3 — `fieldErrorNode.exhaustive`
 
 1. Définir le contrat exact des handlers locaux.
 2. Définir le contrat groupé par chemin pour les composants.
@@ -450,7 +450,7 @@ La boundary locale doit pouvoir relier les messages au contrôle :
 
 ### Phase 6 — Adoption et documentation
 
-1. Migrer l'exemple `login-form` vers `fieldExceptionBlock`.
+1. Migrer l'exemple `login-form` vers `fieldErrorNode`.
 2. Documenter la gestion locale et la gestion composant.
 3. Documenter les politiques dirty, touched et submitted.
 4. Ajouter un exemple de validateur personnalisé et async.
@@ -467,7 +467,7 @@ Les tests utilisent `expectTypeOf` pour les contrats positifs et
 
 - tous les handlers locaux sont présents ;
 - tous les champs et codes sont couverts au niveau composant ;
-- le type résiduel devient `never` après `fieldExceptionBlock.exhaustive` ;
+- le type résiduel devient `never` après `fieldErrorNode.exhaustive` ;
 - le payload du handler est correctement réduit ;
 - un champ sans validateur ne crée aucune obligation ;
 - une exception gérée localement n'est plus exigée par le composant ;
@@ -482,7 +482,7 @@ Les tests utilisent `expectTypeOf` pour les contrats positifs et
 input(...)
   .pipe(CraftFieldDirective(emailField))
   .pipe(
-    fieldExceptionBlock.exhaustive({
+    fieldErrorNode.exhaustive({
       required: () => p('Required'),
     }),
   );
@@ -490,7 +490,7 @@ input(...)
 
 ```ts
 // @ts-expect-error — unreachable handler: minLength
-fieldExceptionBlock.exhaustive({
+fieldErrorNode.exhaustive({
   required: () => p('Required'),
   email: () => p('Invalid'),
   minLength: () => p('Impossible'),
@@ -545,7 +545,7 @@ La matrice négative doit aussi couvrir :
 | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Profondeur excessive des types     | Transporter une union plate de cas et construire les maps uniquement à la boundary.               |
 | Collision de codes entre champs    | Inclure le chemin dans l'identité du cas.                                                         |
-| Confusion avec `catchBlock`        | Maintenir des carriers et un runtime distincts.                                                   |
+| Confusion avec `catchNode`        | Maintenir des carriers et un runtime distincts.                                                   |
 | Divergence de visibilité           | Consommer directement `visibleExceptions` par défaut et centraliser sa policy dans le formulaire. |
 | Effets de bord depuis les handlers | Documenter et tester un contrat de rendu pur.                                                     |
 | Fuite de sources ou de messages    | Lier l'enregistrement au lifecycle du nœud et tester le cleanup.                                  |
@@ -561,7 +561,7 @@ Le chantier est terminé lorsque :
 - un handler manquant ou supplémentaire produit une erreur TypeScript ;
 - un composant avec des exceptions de champs résiduelles est refusé à sa
   frontière d'utilisation ;
-- `fieldExceptionBlock.exhaustive` fonctionne sur un tag et un composant ;
+- `fieldErrorNode.exhaustive` fonctionne sur un tag et un composant ;
 - deux champs partageant le même code restent exhaustifs séparément ;
 - sans option, le rendu reflète exactement `visibleExceptions` ;
 - la policy dirty/touched/submitted est unique, héritée et surchargeable ;

@@ -98,7 +98,7 @@
 - support first publication after package rename ([aa8e9782](https://github.com/craft-ts/craft-ts/commit/aa8e9782))
 - make demo release sync idempotent ([edcd82be](https://github.com/craft-ts/craft-ts/commit/edcd82be))
 - push release commits before publishing ([a391b5ee](https://github.com/craft-ts/craft-ts/commit/a391b5ee))
-- **component:** let a pendingBlock survive a synchronous suspension ([428603f0](https://github.com/craft-ts/craft-ts/commit/428603f0))
+- **component:** let a pendingNode survive a synchronous suspension ([428603f0](https://github.com/craft-ts/craft-ts/commit/428603f0))
 - **core:** keep the persister independent of effect timing ([aae62441](https://github.com/craft-ts/craft-ts/commit/aae62441))
 - **core:** keep sibling dependency maps when a primitive has none ([7f30357c](https://github.com/craft-ts/craft-ts/commit/7f30357c))
 - **correlation-id:** stop every binding from depending on the correlation id ([eda8dceb](https://github.com/craft-ts/craft-ts/commit/eda8dceb))
@@ -254,7 +254,7 @@
 - keep server function demo dependency free ([3e1b1b8b](https://github.com/craft-ts/craft-ts/commit/3e1b1b8b))
 - support first publication after package rename ([aa8e9782](https://github.com/craft-ts/craft-ts/commit/aa8e9782))
 - make demo release sync idempotent ([edcd82be](https://github.com/craft-ts/craft-ts/commit/edcd82be))
-- **component:** let a pendingBlock survive a synchronous suspension ([428603f0](https://github.com/craft-ts/craft-ts/commit/428603f0))
+- **component:** let a pendingNode survive a synchronous suspension ([428603f0](https://github.com/craft-ts/craft-ts/commit/428603f0))
 - **core:** keep the persister independent of effect timing ([aae62441](https://github.com/craft-ts/craft-ts/commit/aae62441))
 - **core:** keep sibling dependency maps when a primitive has none ([7f30357c](https://github.com/craft-ts/craft-ts/commit/7f30357c))
 - **correlation-id:** stop every binding from depending on the correlation id ([eda8dceb](https://github.com/craft-ts/craft-ts/commit/eda8dceb))
@@ -376,8 +376,8 @@ This was a version bump only, there were no code changes.
 ### 🚀 Features
 
 - **component:** CSS variables contract for craft components ([dc6d2e8](https://github.com/craft-ts/craft-ts/commit/dc6d2e8))
-- **component:** settledValue + pendingBlock, type-safe suspension ([15a77ab](https://github.com/craft-ts/craft-ts/commit/15a77ab))
-- **component:** pendingBlock reloading slot, and reliable boundary recovery ([7dbf767](https://github.com/craft-ts/craft-ts/commit/7dbf767))
+- **component:** settledValue + pendingNode, type-safe suspension ([15a77ab](https://github.com/craft-ts/craft-ts/commit/15a77ab))
+- **component:** pendingNode reloading slot, and reliable boundary recovery ([7dbf767](https://github.com/craft-ts/craft-ts/commit/7dbf767))
 
 ### ❤️ Thank You
 

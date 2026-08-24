@@ -1,13 +1,13 @@
 import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildren,
-  EachNode,
+  ForNode,
 } from './render/vnode';
 import { pipeCraftNode } from './render/vnode';
 import type { InputValue } from './types';
 import { YIELDABLE_VALUE } from '@craft-ts/core';
 
-export interface EachOptions<Item, Key> {
+export interface ForOptions<Item, Key> {
   readonly track: (item: Item, index: number) => Key;
   readonly empty?: () => CraftNodeChildren;
 }
@@ -30,7 +30,7 @@ type SourceName<Source> = Source extends {
   ? Name
   : undefined;
 
-type EachSource =
+type ForSource =
   | readonly unknown[]
   | null
   | undefined
@@ -38,37 +38,37 @@ type EachSource =
   | Generator<unknown, readonly unknown[] | null | undefined, unknown>
   | (() => Generator<unknown, readonly unknown[] | null | undefined, unknown>);
 
-type EachItemFromValue<Value> = [NonNullable<Value>] extends [never]
+type ForItemFromValue<Value> = [NonNullable<Value>] extends [never]
   ? never
   : NonNullable<Value> extends (...args: any[]) => infer Result
-    ? EachItemFromValue<Result>
+    ? ForItemFromValue<Result>
     : NonNullable<Value> extends Generator<any, infer Result, any>
-      ? EachItemFromValue<Result>
+      ? ForItemFromValue<Result>
       : NonNullable<Value> extends readonly (infer Item)[]
         ? Item
         : never;
 
-type EachItem<Source> = [NonNullable<Source>] extends [never]
+type ForItem<Source> = [NonNullable<Source>] extends [never]
   ? unknown
-  : EachItemFromValue<Source>;
+  : ForItemFromValue<Source>;
 
-type EachItemInput<Source> = InputValue<EachItem<Source>>;
+type ForItemInput<Source> = InputValue<ForItem<Source>>;
 
-export function each<
+export function forNode<
   Name extends string,
-  Source extends EachSource,
+  Source extends ForSource,
   Key,
-  Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
+  Options extends ForOptions<NoInfer<ForItem<Source>>, Key>,
   ItemTemplate extends (
-    item: NoInfer<EachItemInput<Source>>,
+    item: NoInfer<ForItemInput<Source>>,
     index: number,
   ) => CraftNodeChildren,
 >(
   source: Source & { readonly [YIELDABLE_VALUE]: Name },
   options: Options,
   itemTemplate: ItemTemplate,
-): EachNode<
-  EachItem<Source>,
+): ForNode<
+  ForItem<Source>,
   Key,
   CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
   Name,
@@ -78,20 +78,20 @@ export function each<
     : never
 >;
 
-export function each<
-  Source extends EachSource,
+export function forNode<
+  Source extends ForSource,
   Key,
-  Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
+  Options extends ForOptions<NoInfer<ForItem<Source>>, Key>,
   ItemTemplate extends (
-    item: NoInfer<EachItemInput<Source>>,
+    item: NoInfer<ForItemInput<Source>>,
     index: number,
   ) => CraftNodeChildren,
 >(
-  source: Source & EachSource,
+  source: Source & ForSource,
   options: Options,
   itemTemplate: ItemTemplate,
-): EachNode<
-  EachItem<Source>,
+): ForNode<
+  ForItem<Source>,
   Key,
   CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
   SourceName<Source>,
@@ -101,20 +101,20 @@ export function each<
     : never
 >;
 
-export function each<
-  Source extends EachSource,
+export function forNode<
+  Source extends ForSource,
   Key,
-  Options extends EachOptions<EachItem<Source>, Key>,
+  Options extends ForOptions<ForItem<Source>, Key>,
   ItemTemplate extends (
-    item: EachItemInput<Source>,
+    item: ForItemInput<Source>,
     index: number,
   ) => CraftNodeChildren,
 >(
-  source: Source & EachSource,
+  source: Source & ForSource,
   options: Options,
   itemTemplate: ItemTemplate,
-): EachNode<
-  EachItem<Source>,
+): ForNode<
+  ForItem<Source>,
   Key,
   CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
   SourceName<Source>,
@@ -134,8 +134,8 @@ export function each<
       : undefined;
 
   const node = {
-    kind: 'each' as const,
-    source: source as EachNode<EachItem<Source>, Key>['source'],
+    kind: 'for' as const,
+    source: source as ForNode<ForItem<Source>, Key>['source'],
     sourceName: sourceName as SourceName<Source> | undefined,
     track: options.track,
     empty: options.empty as
@@ -146,18 +146,18 @@ export function each<
           : never)
       | undefined,
     itemTemplate: itemTemplate as unknown as (
-      item: EachItemInput<Source>,
+      item: ForItemInput<Source>,
       index: number,
     ) => ReturnType<ItemTemplate>,
   };
   Object.defineProperty(node, 'pipe', {
     value: (directive: unknown) =>
-      pipeCraftNode(node as unknown as EachNode, directive as never),
+      pipeCraftNode(node as unknown as ForNode, directive as never),
     enumerable: false,
   });
 
-  return node as unknown as EachNode<
-    EachItem<Source>,
+  return node as unknown as ForNode<
+    ForItem<Source>,
     Key,
     CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
     SourceName<Source>,
@@ -168,11 +168,11 @@ export function each<
   >;
 }
 
-export type { ScheduleEachDirective } from './each-scheduling';
+export type { ScheduleForDirective } from './for-scheduling';
 export {
-  EACH_SCHEDULER,
-  FrameEachScheduler,
-  SyncEachScheduler,
-  createEachScheduler,
-  scheduleEach,
-} from './each-scheduling';
+  FOR_SCHEDULER,
+  FrameForScheduler,
+  SyncForScheduler,
+  createForScheduler,
+  scheduleFor,
+} from './for-scheduling';

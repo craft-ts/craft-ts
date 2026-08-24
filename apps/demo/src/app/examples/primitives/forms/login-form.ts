@@ -4,9 +4,9 @@ import {
   craftComponent,
   div,
   fieldControl,
-  fieldExceptionBlock,
+  fieldErrorNode,
   form,
-  ifBlock,
+  ifNode,
   input,
   label,
   p,
@@ -104,20 +104,20 @@ const LoginFormComponent = craftComponent(
             input('password', { ...password.input, type: 'password' })
               .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
               .pipe(
-                fieldExceptionBlock.partial({
+                fieldErrorNode.partial({
                   required: () =>
                     p({ class: 'login-error' }, 'Password is required.'),
                 }),
               ),
             p({ ...password.description }, 'Use at least 6 characters.'),
           ]),
-          ifBlock(loginForm.form.showSuccess, () =>
+          ifNode(loginForm.form.showSuccess, () =>
             p('✅ Login form submitted.'),
           ),
           button('submit', { type: 'submit' }, 'Sign in'),
         ],
       ).pipe(
-        fieldExceptionBlock.exhaustive({
+        fieldErrorNode.exhaustive({
           email: {
             required: () => p({ class: 'login-error' }, 'Email is required.'),
             email: () => p({ class: 'login-error' }, 'Enter a valid email.'),

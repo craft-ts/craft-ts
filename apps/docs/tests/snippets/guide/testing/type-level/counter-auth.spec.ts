@@ -10,7 +10,7 @@ import {
   button,
   craftComponent,
   div,
-  ifBlock,
+  ifNode,
   span,
 } from '@craft-ts/component';
 
@@ -23,7 +23,7 @@ const Counter = craftComponent(
     return { isAuth, brandedStatus };
   },
   ({ isAuth, brandedStatus }) =>
-    ifBlock(
+    ifNode(
       isAuth,
       () =>
         div([

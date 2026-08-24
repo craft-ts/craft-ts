@@ -5,7 +5,7 @@ import {
   craftComponent,
   div,
   p,
-  pendingBlock,
+  pendingNode,
   provideCraftRootComponent,
   renderCraft,
   span,
@@ -33,7 +33,7 @@ describe('Craft server renderer without browser globals', () => {
           span(function* () {
             return String(yield* resolved());
           }),
-        ]).pipe(pendingBlock({ ssr: 'block', fallback: () => p('pending') })),
+        ]).pipe(pendingNode({ ssr: 'block', fallback: () => p('pending') })),
     );
 
     expect(globalThis.document).toBeUndefined();

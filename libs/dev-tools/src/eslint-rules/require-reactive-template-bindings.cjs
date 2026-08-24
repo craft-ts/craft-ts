@@ -1,15 +1,15 @@
 const REACTIVE_BRANDS = ['SIGNAL', 'YIELDABLE_VALUE', 'INPUT_BRAND'];
 const { NAMED_HTML_HELPERS } = require('./html-helpers.cjs');
 const STRUCTURAL_HELPERS = new Set([
-  'catchBlock',
+  'catchNode',
   'content',
-  'defer',
-  'each',
+  'deferNode',
+  'forNode',
   'heading',
   'headingSection',
-  'ifBlock',
+  'ifNode',
   'liveRegion',
-  'matchBlock',
+  'matchNode',
   'renderContent',
   'renderTemplate',
 ]);
@@ -170,13 +170,13 @@ module.exports = {
       const argumentIndex = argument ? call.arguments.indexOf(argument) : -1;
       const key = enclosingPropertyName(fn, call);
 
-      if (name === 'each') {
+      if (name === 'forNode') {
         return argumentIndex === 2 || key === 'empty';
       }
-      if (name === 'ifBlock') {
+      if (name === 'ifNode') {
         return argumentIndex === 1 || argumentIndex === 2;
       }
-      if (name === 'defer') {
+      if (name === 'deferNode') {
         return ['resolve', 'placeholder', 'loading', 'error'].includes(key);
       }
       if (name === 'exhaustive') {

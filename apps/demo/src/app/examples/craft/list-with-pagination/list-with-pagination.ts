@@ -2,14 +2,14 @@
 import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
-  ifBlock,
+  ifNode,
   craftComponent,
   div,
-  each,
+  forNode,
   main,
   option,
   select,
-  pendingBlock,
+  pendingNode,
   span,
   table,
   thead,
@@ -120,7 +120,7 @@ const ListWithPaginationCraft = craftComponent(
                 StatusComponent({
                   status: store.users.currentPageStatus,
                 }),
-              ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
+              ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
               span(
                 'TotalUsers',
                 { class: 'current-page' },
@@ -136,7 +136,7 @@ const ListWithPaginationCraft = craftComponent(
               table( { class: 'table' }, [
                 thead( tr( [th( 'ID'), th( 'Name')])),
                 tbody(
-                  each(
+                  forNode(
                     store.users.currentPageData,
                     {
                       track: (user) => user.id,
@@ -150,7 +150,7 @@ const ListWithPaginationCraft = craftComponent(
                                 padding: '32px',
                               },
                             },
-                            ifBlock(
+                            ifNode(
                               isCurrentPageResolved,
                               () => 'No users found',
                               () => 'Loading…',
@@ -170,7 +170,7 @@ const ListWithPaginationCraft = craftComponent(
                   ),
                 ),
               ]),
-            ]).pipe(pendingBlock({ fallback: () => div('⏳ Loading users…') })),
+            ]).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
             div({ class: 'pagination' }, [
               select(
                 'PageSize',

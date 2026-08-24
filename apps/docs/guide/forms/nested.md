@@ -56,7 +56,7 @@ return { registration, credentials };
 
 Its typed validation cases then belong to the component contract without
 requiring `CraftFieldDirective(credentials)`. Bind the leaf controls and handle
-the group path on an enclosing `fieldExceptionBlock`. See
+the group path on an enclosing `fieldErrorNode`. See
 [Form exception handling](/guide/forms/exceptions#case-4-handle-a-group-or-cross-field-validator).
 
 ## insertSubFormField

@@ -44,7 +44,7 @@ type CraftComputedGenerator<This, Yielded, T> = (
 /**
  * A computation that read a `settledValue` through `yield* settled(...)` inherits
  * its source's two obligations: the async source must be covered by a
- * `pendingBlock`, and its exceptions by a `catchBlock`. Both travel as the
+ * `pendingNode`, and its exceptions by a `catchNode`. Both travel as the
  * {@link CraftSettledBrand} of the resulting signal, so a template rendering it
  * is checked exactly as if it rendered the `settledValue` itself.
  *

@@ -16,9 +16,9 @@ import {
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
-import { defer } from './defer';
-import { ifBlock } from './if-block';
-import { each, scheduleEach } from './each';
+import { deferNode } from './defer-node';
+import { ifNode } from './if-node';
+import { forNode, scheduleFor } from './for-node';
 import { button, div, h2, input, li, p, section, span } from './hyperscript';
 import { content, renderContent } from './project';
 import { craftTemplate, renderTemplate } from './template';
@@ -40,8 +40,8 @@ import type {
   TemplateRenderAvailableActionWhen,
 } from './template-contract';
 
-it('exposes scheduleEach only on each nodes and preserves item/index types', () => {
-  const scheduled = each(
+it('exposes scheduleFor only on each nodes and preserves item/index types', () => {
+  const scheduled = forNode(
     [{ id: 1 }],
     { track: (item) => item.id },
     (item, index) => {
@@ -50,15 +50,15 @@ it('exposes scheduleEach only on each nodes and preserves item/index types', () 
         return String((yield* item()).id);
       });
     },
-  ).pipe(scheduleEach({ enabled: true, strategy: 'frame' }));
+  ).pipe(scheduleFor({ enabled: true, strategy: 'frame' }));
 
   expectTypeOf(scheduled.schedule?.strategy).toEqualTypeOf<
     'frame' | undefined
   >();
 
   if (false) {
-    // @ts-expect-error scheduleEach is structural and cannot decorate elements.
-    button('not-an-each').pipe(scheduleEach({ strategy: 'frame' }));
+    // @ts-expect-error scheduleFor is structural and cannot decorate elements.
+    button('not-an-each').pipe(scheduleFor({ strategy: 'frame' }));
   }
 });
 import type {
@@ -959,7 +959,7 @@ it('resolves the component loaded by defer in the type-only contract', () => {
     () => ({}),
     () => p('deferred'),
   );
-  const deferred = defer(async () => child);
+  const deferred = deferNode(async () => child);
   const parent = craftComponent(
     'contractDeferredParent',
     {},
@@ -1042,7 +1042,7 @@ it('tracks named elements through conditional template branches', () => {
       return { isAuth };
     },
     ({ isAuth }) =>
-      ifBlock(
+      ifNode(
         isAuth,
         () =>
           button(
@@ -1091,7 +1091,7 @@ it('tracks rendered state reads through conditional template branches', () => {
       return { isAdult, isAuth };
     },
     ({ isAdult, isAuth }) =>
-      ifBlock(
+      ifNode(
         isAuth,
         () =>
           button('increment', {}, function* () {
@@ -1129,7 +1129,7 @@ it('tracks list visibility paths for named elements', () => {
       return { counterList };
     },
     ({ counterList }) =>
-      each(
+      forNode(
         counterList,
         { track: (item) => item, empty: () => p('empty') },
         () => button('item', {}, 'item'),
@@ -1185,7 +1185,7 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
       return { items };
     },
     ({ items }) =>
-      each(items, { track: (item) => item.key }, (_item, index) =>
+      forNode(items, { track: (item) => item.key }, (_item, index) =>
         span(
           'itemLabel',
           {
@@ -1236,7 +1236,7 @@ it('tracks available actions through conditional template branches', () => {
       };
     },
     ({ isAuth, increment }) =>
-      ifBlock(
+      ifNode(
         isAuth,
         () => button('increment', { click: increment }, '+'),
         () => p('signed out'),
@@ -1279,7 +1279,7 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
     },
     ({ users }) => [
       span(String(craftUse(users()).length)),
-      each(
+      forNode(
         () => craftUse(users()),
         { track: (user) => user.id },
         (user) => p(user.name),
@@ -1293,7 +1293,7 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
 it('accepts nullable each sources', () => {
   let items!: readonly { key: string }[] | null | undefined;
 
-  each(items, { track: (item) => item.key }, (item) =>
+  forNode(items, { track: (item) => item.key }, (item) =>
     p(function* () {
       return (yield* item()).key;
     }),

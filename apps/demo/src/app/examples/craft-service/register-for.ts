@@ -3,7 +3,7 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   p,
   section,
   span,
@@ -142,7 +142,7 @@ const RegisterForDemo = craftComponent(
       ]),
       div(
         { class: 'children' },
-        each(counterChildIds, { track: (id) => id }, () => CounterChild({})),
+        forNode(counterChildIds, { track: (id) => id }, () => CounterChild({})),
       ),
     ]),
 );

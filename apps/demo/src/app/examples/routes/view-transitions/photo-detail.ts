@@ -4,7 +4,7 @@ import {
   article,
   craftComponent,
   div,
-  ifBlock,
+  ifNode,
   p,
   span,
   type Input,
@@ -62,7 +62,7 @@ const ViewTransitionsDetailComponent = craftComponent(
         },
         '← Back to gallery',
       ),
-      ifBlock(
+      ifNode(
         hasPhoto,
         () =>
           article({ class: 'vt-detail' }, [

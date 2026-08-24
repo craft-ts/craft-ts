@@ -12,10 +12,10 @@
 
 - Pas de rename npm (`@craft-ng/*` reste). Pas de rewrite du DSL, de l’interpreter (algorithme), ni du graphe de types.
 - Une phase n’est terminée que si le seam visé n’importe plus `@angular/*` dans les fichiers de production concernés.
-- Encapsuler d’abord à perf constante, swap ensuite, mesurer (bancs Counter bundle / `each` 1000 / Vitest setup).
+- Encapsuler d’abord à perf constante, swap ensuite, mesurer (bancs Counter bundle / `forNode` 1000 / Vitest setup).
 - `erasableSyntaxOnly: true` sur core, component, demo dès que les décorateurs sont partis. Interdit : `enum`, `namespace`, parameter properties, décorateurs.
 - `@craft-ng/angular` est un package durable (îles Angular), pas un pont jetable.
-- Hors v1 : compilateur prod, virtualisation de `each`, SSR produit, rename, RxJS-like library.
+- Hors v1 : compilateur prod, virtualisation de `forNode`, SSR produit, rename, RxJS-like library.
 - Tests : TDD, interface publique, Vitest. Commandes actuelles `npx nx test ng-craft-core --testPathPattern=<file>` jusqu’à la tâche 9 ; ensuite `npx vitest run <file>`.
 - Ne pas optimiser `query` et le scheduler **en même temps** qu’un wrap.
 
@@ -764,7 +764,7 @@ EOF
 
 - Compilateur prod v1 (lift + sous-arbres statiques, OXC) : `docs/superpowers/plans/2026-08-15-compilateur-prod-v1.md`
 - Suite compilateur (bindings spécialisés, DI AOT, matcher, SSR) : `docs/superpowers/plans/2026-08-15-compilateur-prod-suite.md`
-- Virtualisation `each`.
+- Virtualisation `forNode`.
 - Scheduler rAF / priorités (sauf le flush sync view-transition déjà dans la tâche 9).
 - Rename `@craft-ng` → `@craft`.
 
@@ -773,7 +773,7 @@ EOF
 | Banc | Commande / lieu | Quand ça doit bouger |
 |---|---|---|
 | Bundle demo Counter | `npx nx build demo` puis taille `dist/apps/demo` JS initial | Tâches 4, 5, 11 |
-| Update 1000 `each` | spec interpreter existante + `performance.now()` | Tâches 4, 6 |
+| Update 1000 `forNode` | spec interpreter existante + `performance.now()` | Tâches 4, 6 |
 | `setupCraftServiceTest` | durée `npx vitest run libs/core/src/lib/setup-craft-service-test.spec.ts` | Tâche 8 |
 
 Mesurer avant/après chaque swap. Ne pas « optimiser » pendant un wrap.

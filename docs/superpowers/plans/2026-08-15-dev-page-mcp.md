@@ -129,7 +129,7 @@ Default style whitelist: `display`, `visibility`, `opacity`, `color`, `backgroun
 
 **Produces:** `collectPageControls(root)`, `applyPageActions(root, act)`, `captureDomStyles(root, styles?)`.
 
-Fill: set `value`/`checked` then one `input` or `change`, then `blur` (covers CraftFieldDirective). Click: `click()` if enabled. Ambiguous id without `match` errors and lists index/track. Batch stops on first error. `track` from ancestor comment `craft-each:<key>:start`. `dom-styles` includes `display:none` nodes; `styles: []` omits computed styles; default whitelist; throw `dom-styles exceeds size cap` above 256 KiB.
+Fill: set `value`/`checked` then one `input` or `change`, then `blur` (covers CraftFieldDirective). Click: `click()` if enabled. Ambiguous id without `match` errors and lists index/track. Batch stops on first error. `track` from ancestor comment `craft-for:<key>:start`. `dom-styles` includes `display:none` nodes; `styles: []` omits computed styles; default whitelist; throw `dom-styles exceeds size cap` above 256 KiB.
 
 - [ ] Write failing actor tests (field fill+touched, `*input` fill, named button click, batch stop-on-error, each ambiguity + index, whitelist, hidden node, default controls have no DOM tree).
 - [ ] Implement the actor.

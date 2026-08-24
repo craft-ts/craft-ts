@@ -286,14 +286,14 @@ The bridge keeps Effect's distinctions intact:
 | Effect outcome             | Craft outcome                         | Handle it with                           |
 | -------------------------- | ------------------------------------- | ---------------------------------------- |
 | `Effect.succeed(value)`    | resource value / generator result     | normal rendering                         |
-| typed `Effect.fail(error)` | Craft exception keyed by `error._tag` | `matchBlock`, `catchTag`, route handlers |
+| typed `Effect.fail(error)` | Craft exception keyed by `error._tag` | `matchNode`, `catchTag`, route handlers |
 | `Effect.die(defect)`       | technical error                       | error boundary / monitoring              |
 | interruption               | cancellation                          | normally no user-facing handler          |
 
 Use exhaustive matching for business errors:
 
 ```typescript
-matchBlock.exhaustive(resource.exception, '_tag', {
+matchNode.exhaustive(resource.exception, '_tag', {
   UserNotFound: () => p('No user was found.'),
   Unauthorized: () => p('Your session has expired.'),
 });

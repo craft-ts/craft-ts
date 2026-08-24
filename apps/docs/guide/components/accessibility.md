@@ -1,6 +1,6 @@
 # Accessibility
 
-Craft already enforces exhaustive exceptions, `pendingBlock`, and reactive
+Craft already enforces exhaustive exceptions, `pendingNode`, and reactive
 templates. Accessibility follows the same DNA: **an illegal state doesn't
 compile, an omission is an ESLint error, the block runtime doesn't wait for
 the author to remember.**
@@ -14,8 +14,8 @@ Target: **WCAG 2.2 level AA**.
    `svg`…) exist so the lint applies without going through `h()`.
 2. **ESLint `craft-ts/a11y`** — accessible name, labels, ARIA, no click on a
    `div`, `button` with `type`, `h()` forbidden when a named helper exists.
-3. **Block runtime** — `pendingBlock` announces the fallback (`aria-live`,
-   `aria-busy`), `catchBlock` sets `role="alert"`, `defer` renders a keyboard
+3. **Block runtime** — `pendingNode` announces the fallback (`aria-live`,
+   `aria-busy`), `catchNode` sets `role="alert"`, `deferNode` renders a keyboard
    placeholder, `CraftRouterLink` sets `aria-current="page"`.
 4. **Primitives** — `heading` / `headingSection` (relative outline), `dialog`
    (native modal + focus), `liveRegion` (toasts). No **styled** button:
@@ -77,7 +77,7 @@ the application shell:
 
 - `heading()` reads the current level (1–6) and renders `h1`…`h6`.
 - `headingSection(...)` increments by one for the subtree — comment
-  fragments, no DOM wrapper, like `ifBlock`.
+  fragments, no DOM wrapper, like `ifNode`.
 - `headingRoot(...)` resets to `h1` (dialog, explicit reset). A `dialog` also
   sets its own outline root (the dialog title = level 1 **inside** the
   dialog). SFCs loaded via `loadComponent` stay on `heading()`.
@@ -86,7 +86,7 @@ the application shell:
 
 A reusable component exposes `heading()` without a local `headingSection`:
 the need for an outline **bubbles up** to the parent. Calling this component
-outside a `headingSection` **doesn't compile** (same DNA as `pendingBlock`).
+outside a `headingSection` **doesn't compile** (same DNA as `pendingNode`).
 
 Any SFC mounted via `loadComponent` / `loadCraftComponent` calls `heading()` —
 not `headingRoot()`. The rank (h1 vs h2+) comes from the parent:
@@ -121,16 +121,16 @@ headingSection([
 
 ## Blocks
 
-`pendingBlock` detaches the source from the document while loading (the
+`pendingNode` detaches the source from the document while loading (the
 nodes stay mounted, they aren't CSS `hidden`). The fallback is wrapped in
 `aria-live="polite"` `aria-atomic="true"` `aria-busy="true"`. On reload, the
 source stays visible; `aria-busy` signals the refresh. Focus in the source is
 restored when it resumes.
 
-`catchBlock` wraps the error message in `role="alert"` if the fallback isn't
+`catchNode` wraps the error message in `role="alert"` if the fallback isn't
 already a live region.
 
-`defer` sets `aria-busy` while loading. An `interaction` trigger on a
+`deferNode` sets `aria-busy` while loading. An `interaction` trigger on a
 placeholder that isn't already a control gets `role="button"` and
 `tabIndex="0"`, and only fires on keyboard via Enter / Space.
 
@@ -188,7 +188,7 @@ any event happens.
 liveRegion({ label: 'Notifications' }, copied() ? 'Copied' : '');
 
 // incorrect — SR never subscribes
-ifBlock(copied, () => liveRegion('Copied'));
+ifNode(copied, () => liveRegion('Copied'));
 ```
 
 ## Navigation

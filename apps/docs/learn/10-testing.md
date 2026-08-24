@@ -86,7 +86,7 @@ types. Those get their own kind of test, resolved by the compiler with no
 type TasksTemplateTest = SetupTestComponentTemplate<typeof Tasks, [typeof TaskRow]>;
 ```
 
-The resolver walks elements, directives, `each`, `defer` and child components,
+The resolver walks elements, directives, `forNode`, `deferNode` and child components,
 and a child missing from the tuple becomes a type diagnostic. Companion
 assertions — `TemplateHasElement`, `TemplateHasElementWithProps`,
 `TemplateHasYieldableEvent`, `TemplateRendersStateWhen` — check that the template

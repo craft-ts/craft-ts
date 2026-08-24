@@ -12,7 +12,7 @@ const DECLARE_HOSTS = `
   declare function div(children?: unknown): unknown;
   declare function input(options?: object): unknown;
   declare function button(options?: object): unknown;
-  declare function each(...args: unknown[]): unknown;
+  declare function forNode(...args: unknown[]): unknown;
 `;
 
 describe('no-ephemeral-template-form-state', () => {
@@ -77,7 +77,7 @@ describe('no-ephemeral-template-form-state', () => {
 
       craftComponent('Demo', {}, function* () { return {}; }, () =>
         div(
-          each(todos, { track: (todo) => todo.id }, (todo) => {
+          forNode(todos, { track: (todo) => todo.id }, (todo) => {
             const title = todo.title;
             return div(function* () {
               const completed = yield* todo();
@@ -209,7 +209,7 @@ describe('no-ephemeral-template-form-state', () => {
       ${DECLARE_HOSTS}
 
       craftComponent('Demo', {}, function* () { return {}; }, ({ todos }) =>
-        div(each(todos, { track: (todo) => todo.id }, (todo) => div(todo.title))),
+        div(forNode(todos, { track: (todo) => todo.id }, (todo) => div(todo.title))),
       );
     `);
 

@@ -26,7 +26,7 @@ La première tranche est implémentée dans `@craft-ts/core` :
 - `withCraftTimeout(...)`, les tâches inspectables et l’annulation liée à
   `DestroyRef` sont disponibles ;
 - les schedules fixe, exponentiel et séquentiel sont disponibles ;
-- `retry`, le router, les guards signalés, les `defer`, la corrélation et les
+- `retry`, le router, les guards signalés, les `deferNode`, la corrélation et les
   retries de lazy loading utilisent le seam temporel ;
 - `no-direct-temporal-globals` protège les modules Craft contre les timers
   globaux, en laissant l’adapter temporel être l’unique frontière native.

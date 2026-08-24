@@ -121,13 +121,13 @@ module.exports = {
     schema: [],
     messages: {
       ternary:
-        'Do not use a ternary in a Craft template. Use ifBlock(...) for boolean visibility or matchBlock.exhaustive(...) for a discriminated union.',
+        'Do not use a ternary in a Craft template. Use ifNode(...) for boolean visibility or matchNode.exhaustive(...) for a discriminated union.',
       logical:
         'Do not use a logical expression in a Craft template. Move the derivation to state, query, or craftComputed, then render it with a Craft block.',
       negation:
         'Do not use negation in a Craft template. Move the boolean derivation to state, query, or craftComputed, then bind the resulting value.',
       controlFlow:
-        'Do not use imperative control flow in a Craft template. Use ifBlock(...), matchBlock.exhaustive(...), each(...), or defer(...) so the render contract stays type-checkable.',
+        'Do not use imperative control flow in a Craft template. Use ifNode(...), matchNode.exhaustive(...), forNode(...), or deferNode(...) so the render contract stays type-checkable.',
     },
   },
 
@@ -169,7 +169,7 @@ module.exports = {
                   fix: (fixer) =>
                     [
                       fixer.replaceText(replacement.node, replacement.text),
-                      namedImportFix(fixer, 'ifBlock'),
+                      namedImportFix(fixer, 'ifNode'),
                     ].filter(Boolean),
                 }),
           });
@@ -200,7 +200,7 @@ module.exports = {
                   fix: (fixer) =>
                     [
                       fixer.replaceText(node, replacement),
-                      namedImportFix(fixer, 'matchBlock'),
+                      namedImportFix(fixer, 'matchNode'),
                     ].filter(Boolean),
                 }),
           });
@@ -244,7 +244,7 @@ module.exports = {
         return undefined;
       }
 
-      const text = `ifBlock(${condition}, () => ${sourceCode.getText(
+      const text = `ifNode(${condition}, () => ${sourceCode.getText(
         node.consequent,
       )}, () => ${sourceCode.getText(node.alternate)})`;
       const parent = node.parent;
@@ -271,7 +271,7 @@ module.exports = {
             `${formatObjectKey(key)}: () => ${expression}`,
         )
         .join(', ');
-      return `return matchBlock.exhaustive(${match.source}, ${JSON.stringify(
+      return `return matchNode.exhaustive(${match.source}, ${JSON.stringify(
         match.key,
       )}, { ${handlers} });`;
     }
@@ -429,8 +429,8 @@ function isRenderableArrow(node) {
   }
 
   return !new Set([
-    'each',
-    'defer',
+    'forNode',
+    'deferNode',
     'content',
     'craftTemplate',
     'renderTemplate',

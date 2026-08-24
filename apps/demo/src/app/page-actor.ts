@@ -327,7 +327,7 @@ function trackOf(node: Node): string | undefined {
     let sibling: Node | null = current.previousSibling;
     while (sibling !== null) {
       if (sibling.nodeType === Node.COMMENT_NODE) {
-        const match = /^craft-each:(.+):start$/.exec(sibling.textContent ?? '');
+        const match = /^craft-for:(.+):start$/.exec(sibling.textContent ?? '');
         if (match?.[1] !== undefined) {
           return match[1];
         }

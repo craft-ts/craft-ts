@@ -178,17 +178,17 @@
       "line": 6
     },
     {
-      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
       "kind": "component",
-      "label": "pendingBlockDemo",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts",
+      "label": "pendingNodeDemo",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts",
       "line": 36
     },
     {
-      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
+      "id": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
       "kind": "component",
-      "label": "pendingBlockExceptionDemo",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts",
+      "label": "pendingNodeExceptionDemo",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
       "line": 37
     },
     {
@@ -689,41 +689,41 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:craftComputed:80",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:craftComputed:80",
       "kind": "primitive",
       "label": "craftComputed:teams",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts",
       "line": 80,
       "details": {
         "primitive": "craftComputed",
         "name": "teams",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
         "usage": "teams"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:craftComputed:87",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:craftComputed:87",
       "kind": "primitive",
       "label": "craftComputed:total",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts",
       "line": 87,
       "details": {
         "primitive": "craftComputed",
         "name": "total",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
         "usage": "total"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63",
       "kind": "primitive",
       "label": "query:users",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts",
       "line": 63,
       "details": {
         "primitive": "query",
         "name": "users",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
         "usage": "users",
         "temporal": true,
         "temporalOperations": [
@@ -736,28 +736,28 @@
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:craftComputed:103",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:craftComputed:103",
       "kind": "primitive",
       "label": "craftComputed:summary",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
       "line": 103,
       "details": {
         "primitive": "craftComputed",
         "name": "summary",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
         "usage": "summary"
       }
     },
     {
-      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79",
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79",
       "kind": "primitive",
       "label": "mutation:issue",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
       "line": 79,
       "details": {
         "primitive": "mutation",
         "name": "issue",
-        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
         "usage": "issue",
         "temporal": true,
         "temporalOperations": [
@@ -3080,20 +3080,20 @@
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63:call",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63:call",
       "kind": "property",
       "label": "query:users.call",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts",
       "line": 104,
       "details": {
         "member": "call"
       }
     },
     {
-      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79:mutate",
+      "id": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79:mutate",
       "kind": "property",
       "label": "mutation:issue.mutate",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
       "line": 121,
       "details": {
         "member": "mutate"
@@ -7375,14 +7375,14 @@
       }
     },
     {
-      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block",
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node",
       "kind": "route",
-      "label": "demo:pending-block",
+      "label": "demo:pending-node",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts",
       "line": 86,
       "details": {
         "collection": "demo",
-        "path": "pending-block",
+        "path": "pending-node",
         "routesName": "demoRoutes",
         "hasComponent": true,
         "hasPendingComponent": false,
@@ -7390,14 +7390,14 @@
       }
     },
     {
-      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block/exception",
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node/exception",
       "kind": "route",
-      "label": "demo:pending-block/exception",
+      "label": "demo:pending-node/exception",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts",
       "line": 94,
       "details": {
         "collection": "demo",
-        "path": "pending-block/exception",
+        "path": "pending-node/exception",
         "routesName": "demoRoutes",
         "hasComponent": true,
         "hasPendingComponent": false,
@@ -7960,14 +7960,14 @@
       }
     },
     {
-      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block",
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node",
       "kind": "route",
-      "label": "demo:pending-block",
+      "label": "demo:pending-node",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts",
       "line": 95,
       "details": {
         "collection": "demo",
-        "path": "pending-block",
+        "path": "pending-node",
         "routesName": "demoRoutes",
         "hasComponent": true,
         "hasPendingComponent": false,
@@ -7975,14 +7975,14 @@
       }
     },
     {
-      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block/exception",
+      "id": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node/exception",
       "kind": "route",
-      "label": "demo:pending-block/exception",
+      "label": "demo:pending-node/exception",
       "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts",
       "line": 105,
       "details": {
         "collection": "demo",
-        "path": "pending-block/exception",
+        "path": "pending-node/exception",
         "routesName": "demoRoutes",
         "hasComponent": true,
         "hasPendingComponent": false,
@@ -10010,45 +10010,45 @@
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:100:3137",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:100:3137",
       "kind": "template-element",
       "label": "reload",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts",
       "line": 100,
       "details": {
         "tag": "button",
         "localName": "reload",
         "static": true,
         "missing": false,
-        "component": "pendingBlockDemo"
+        "component": "pendingNodeDemo"
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:117:3715",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:117:3715",
       "kind": "template-element",
       "label": "issueSuccess",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
       "line": 117,
       "details": {
         "tag": "button",
         "localName": "issueSuccess",
         "static": true,
         "missing": false,
-        "component": "pendingBlockExceptionDemo"
+        "component": "pendingNodeExceptionDemo"
       }
     },
     {
-      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:129:4041",
+      "id": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:129:4041",
       "kind": "template-element",
       "label": "issueRejected",
-      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts",
+      "filePath": "/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
       "line": 129,
       "details": {
         "tag": "button",
         "localName": "issueRejected",
         "static": true,
         "missing": false,
-        "component": "pendingBlockExceptionDemo"
+        "component": "pendingNodeExceptionDemo"
       }
     },
     {
@@ -11995,8 +11995,8 @@
       "evidence": "ast"
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63:call",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63:call",
       "kind": "calls",
       "evidence": "ast",
       "details": {
@@ -12005,8 +12005,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:craftComputed:80",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:craftComputed:80",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -12014,8 +12014,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:craftComputed:87",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:craftComputed:87",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -12023,8 +12023,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -12032,14 +12032,14 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:100:3137",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:100:3137",
       "kind": "contains",
       "evidence": "ast"
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -12048,8 +12048,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79:mutate",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79:mutate",
       "kind": "calls",
       "evidence": "ast",
       "details": {
@@ -12058,8 +12058,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:craftComputed:103",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:craftComputed:103",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -12067,8 +12067,8 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -12076,20 +12076,20 @@
       }
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:117:3715",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:117:3715",
       "kind": "contains",
       "evidence": "ast"
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
-      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:129:4041",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
+      "to": "template-element:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:129:4041",
       "kind": "contains",
       "evidence": "ast"
     },
     {
-      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79",
+      "from": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79",
       "kind": "uses-property",
       "evidence": "ast",
       "details": {
@@ -16006,8 +16006,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:craftComputed:80",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:craftComputed:80",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63",
       "kind": "depends-on",
       "evidence": "ast",
       "details": {
@@ -16015,8 +16015,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:craftComputed:87",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:craftComputed:87",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63",
       "kind": "depends-on",
       "evidence": "ast",
       "details": {
@@ -16024,8 +16024,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:query:63:call",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:query:63:call",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -16033,8 +16033,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:craftComputed:103",
-      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:craftComputed:103",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79",
       "kind": "depends-on",
       "evidence": "ast",
       "details": {
@@ -16042,8 +16042,8 @@
       }
     },
     {
-      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79",
-      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:mutation:79:mutate",
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79",
+      "to": "property:primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:mutation:79:mutate",
       "kind": "contains",
       "evidence": "ast",
       "details": {
@@ -19336,7 +19336,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:_CanRunPendingBlock:RouteCheckedDI",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node",
       "kind": "checks",
       "evidence": "type",
       "details": {
@@ -19351,7 +19351,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:_CanRunPendingBlockException:RouteCheckedDI",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block/exception",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node/exception",
       "kind": "checks",
       "evidence": "type",
       "details": {
@@ -19732,7 +19732,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:assertExhaustiveRouteExceptions:demoRoutes",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node",
       "kind": "checks",
       "evidence": "ast",
       "details": {
@@ -19741,7 +19741,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:assertExhaustiveRouteExceptions:demoRoutes",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block/exception",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node/exception",
       "kind": "checks",
       "evidence": "ast",
       "details": {
@@ -20287,7 +20287,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:_CanRunPendingBlock:RouteCheckedDI",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node",
       "kind": "checks",
       "evidence": "type",
       "details": {
@@ -20302,7 +20302,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:_CanRunPendingBlockException:RouteCheckedDI",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block/exception",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node/exception",
       "kind": "checks",
       "evidence": "type",
       "details": {
@@ -20683,7 +20683,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:assertExhaustiveRouteExceptions:demoRoutes",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node",
       "kind": "checks",
       "evidence": "ast",
       "details": {
@@ -20692,7 +20692,7 @@
     },
     {
       "from": "route-check:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:assertExhaustiveRouteExceptions:demoRoutes",
-      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block/exception",
+      "to": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node/exception",
       "kind": "checks",
       "evidence": "ast",
       "details": {
@@ -21114,14 +21114,14 @@
       "evidence": "ast"
     },
     {
-      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block",
-      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
       "kind": "loads",
       "evidence": "ast"
     },
     {
-      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-block/exception",
-      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.runtime.ts:demo:pending-node/exception",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
       "kind": "loads",
       "evidence": "ast"
     },
@@ -21444,14 +21444,14 @@
       "evidence": "ast"
     },
     {
-      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block",
-      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-demo.ts:pendingBlockDemo",
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-demo.ts:pendingNodeDemo",
       "kind": "loads",
       "evidence": "ast"
     },
     {
-      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-block/exception",
-      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-block-exception-demo.ts:pendingBlockExceptionDemo",
+      "from": "route:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/app.routes.ts:demo:pending-node/exception",
+      "to": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/apps/demo/src/app/examples/component/pending-node-exception-demo.ts:pendingNodeExceptionDemo",
       "kind": "loads",
       "evidence": "ast"
     },

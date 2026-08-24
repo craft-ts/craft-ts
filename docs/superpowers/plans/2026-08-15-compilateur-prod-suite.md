@@ -15,7 +15,7 @@
 - DI AOT seulement pour `scope: 'global'` et `scope: 'function'` **sans** override runtime. `abstract` / `toProvide` restent dynamiques.
 - SSR v1 = HTML string + hydration par **re-mount** Craft (pas de resumability). Attrs `data-craft-hk` stables.
 - Matcher compilé : même sémantique que `matchCraftRoutes` (segments, `:param`, `**`, pending inchangé).
-- Interdiction : réécrire le graphe de types, virtualiser `each`, scheduler rAF (sauf flush déjà fait pour view transitions).
+- Interdiction : réécrire le graphe de types, virtualiser `forNode`, scheduler rAF (sauf flush déjà fait pour view transitions).
 
 ## File map
 
@@ -308,7 +308,7 @@ Adapter SSR :
 export function createStringDomAdapter(): CraftDomAdapter & { serialize(): string };
 ```
 
-`createElement` alloue un nœud virtuel `{ tag, attrs, children }`. `serialize()` → HTML. Bindings : lire la valeur **une fois** (pas de `watch` persistant). `pendingBlock` : rendre le fallback ou attendre `craftUntilSettled` (réutiliser le runtime settled déjà dans core).
+`createElement` alloue un nœud virtuel `{ tag, attrs, children }`. `serialize()` → HTML. Bindings : lire la valeur **une fois** (pas de `watch` persistant). `pendingNode` : rendre le fallback ou attendre `craftUntilSettled` (réutiliser le runtime settled déjà dans core).
 
 Hydration v1 : le client **remonte** le composant (wipe + mount). Attribut `data-craft-root` sur le host. Pas de morph DOM (plus tard).
 
@@ -349,7 +349,7 @@ describe('renderToString', () => {
 
 - [ ] **Step 3: Implement string DOM adapter + `renderToString` walking the same interpreter mount path. Do not use jsdom. Then add compiled static nodes path (already `staticElement`). Then Vite emit `render` for demo.**
 
-- [ ] **Step 4: Spec : Counter with `state(0)` SSR shows `0`. `pendingBlock` on a slow query : wait until settled or render fallback — pick **wait until settled** with a 2s test timeout for the spec, fallback documented as follow-up if timeout.**
+- [ ] **Step 4: Spec : Counter with `state(0)` SSR shows `0`. `pendingNode` on a slow query : wait until settled or render fallback — pick **wait until settled** with a 2s test timeout for the spec, fallback documented as follow-up if timeout.**
 
 Expected: PASS. Demo : script `ssr:demo` qui imprime `/` en HTML.
 
@@ -370,7 +370,7 @@ EOF
 - Hydration fine (reprise des nœuds).
 - Resumability / islands.
 - Type-aware DI AOT cross-project.
-- Virtualisation `each`.
+- Virtualisation `forNode`.
 - Streaming HTML chunked (`ReadableStream`) — v2 SSR.
 
 ## Self-review

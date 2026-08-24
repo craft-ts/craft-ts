@@ -4,7 +4,7 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   input,
   li,
   p,
@@ -113,7 +113,7 @@ const FullDemo = craftComponent(
         ),
       ]),
       ul(
-        each(
+        forNode(
           todos.value,
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>

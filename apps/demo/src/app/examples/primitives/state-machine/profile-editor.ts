@@ -5,7 +5,7 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   input,
   label,
   p,
@@ -316,10 +316,10 @@ const ProfileEditorStateMachine = craftComponent(
 
       p({ class: 'hint' }, machine.stepHint),
 
-      ifBlock(
+      ifNode(
         machine.isReading,
         () =>
-          ifBlock(
+          ifNode(
             machine.profileIsLoading,
             () =>
               div({ class: 'panel loading-panel' }, [
@@ -344,7 +344,7 @@ const ProfileEditorStateMachine = craftComponent(
               ]),
           ),
         () =>
-          ifBlock(
+          ifNode(
             machine.isEditing,
             () =>
               div({ class: 'panel' }, [
@@ -378,7 +378,7 @@ const ProfileEditorStateMachine = craftComponent(
                     },
                   }),
                 ]),
-                ifBlock(machine.submitBlocked, () =>
+                ifNode(machine.submitBlocked, () =>
                   p(
                     { class: 'blocked' },
                     'Save is blocked: the draft is invalid, or the profile is read-only.',
@@ -452,7 +452,7 @@ const ProfileEditorStateMachine = craftComponent(
           },
           'Toggle read-only',
         ),
-        ifBlock(
+        ifNode(
           permissions.readOnly,
           () => span('read-only: on — saving is blocked'),
           () => span('read-only: off'),

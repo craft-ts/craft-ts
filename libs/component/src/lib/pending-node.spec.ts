@@ -20,11 +20,11 @@ import {
 } from '@craft-ts/core';
 import {
   button,
-  catchBlock,
+  catchNode,
   craftComponent,
   div,
   p,
-  pendingBlock,
+  pendingNode,
   section,
   span,
   assertAccessible,
@@ -40,7 +40,7 @@ interface User {
   readonly name: string;
 }
 
-describe('pendingBlock', () => {
+describe('pendingNode', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     document.body.replaceChildren();
@@ -71,7 +71,7 @@ describe('pendingBlock', () => {
       ({ firstName }) =>
         section([
           div([span(firstName)]).pipe(
-            pendingBlock({ fallback: () => p('chargement') }),
+            pendingNode({ fallback: () => p('chargement') }),
           ),
         ]),
     );
@@ -119,7 +119,7 @@ describe('pendingBlock', () => {
         return { label, text };
       },
       ({ text }) =>
-        div([span(text)]).pipe(pendingBlock({ fallback: () => p('attente') })),
+        div([span(text)]).pipe(pendingNode({ fallback: () => p('attente') })),
     );
 
     const {
@@ -164,7 +164,7 @@ describe('pendingBlock', () => {
         section([
           button({ click: reload.again }, 'recharger'),
           div([span(firstName)]).pipe(
-            pendingBlock.exhaustive({
+            pendingNode.exhaustive({
               users: {
                 pending: () => p('vide'),
                 reloading: () => p('rafraichissement'),
@@ -202,7 +202,7 @@ describe('pendingBlock', () => {
     destroy();
   });
 
-  it('routes a source exception to the catchBlock, not to the fallback', async () => {
+  it('routes a source exception to the catchNode, not to the fallback', async () => {
     const shouldFail = signal(true);
     const root = craftComponent(
       'pendingWithException',
@@ -222,9 +222,9 @@ describe('pendingBlock', () => {
       ({ firstName }) =>
         section([
           div([span(firstName)])
-            .pipe(pendingBlock({ fallback: () => p('chargement') }))
+            .pipe(pendingNode({ fallback: () => p('chargement') }))
             .pipe(
-              catchBlock.exhaustive({
+              catchNode.exhaustive({
                 MISSING_USER_ID: () => p('identifiant manquant'),
               }),
             ),
@@ -271,7 +271,7 @@ describe('pendingBlock', () => {
       },
       ({ firstName }) =>
         div([span(firstName)]).pipe(
-          pendingBlock.exhaustive({ users: () => p('squelette utilisateurs') }),
+          pendingNode.exhaustive({ users: () => p('squelette utilisateurs') }),
         ),
     );
 
@@ -290,7 +290,7 @@ describe('pendingBlock', () => {
   });
 });
 
-describe('pendingBlock type-level contract', () => {
+describe('pendingNode type-level contract', () => {
   // A type-only stand-in for `yield* query('users', ...)`: the contract under
   // test is the brand on `settledValue`, not how the ref is built.
   // Same fixture, with a source whose settled read can raise MISSING_USER_ID.
@@ -319,10 +319,10 @@ describe('pendingBlock type-level contract', () => {
     >().toEqualTypeOf<'users'>();
   });
 
-  it('clears the source once a pendingBlock covers it', () => {
+  it('clears the source once a pendingNode covers it', () => {
     const { users } = _asyncTemplate();
     const _covered = div([span(users.settledValue)]).pipe(
-      pendingBlock({ fallback: () => p('…') }),
+      pendingNode({ fallback: () => p('…') }),
     );
 
     expectTypeOf<
@@ -333,7 +333,7 @@ describe('pendingBlock type-level contract', () => {
   it('clears only the sources the exhaustive form lists', () => {
     const { users } = _asyncTemplate();
     const _covered = div([span(users.settledValue)]).pipe(
-      pendingBlock.exhaustive({ users: () => p('…') }),
+      pendingNode.exhaustive({ users: () => p('…') }),
     );
 
     expectTypeOf<
@@ -346,7 +346,7 @@ describe('pendingBlock type-level contract', () => {
 
     div([span(users.settledValue)]).pipe(
       // @ts-expect-error 'users' has no fallback in this boundary
-      pendingBlock.exhaustive({ orders: () => p('…') }),
+      pendingNode.exhaustive({ orders: () => p('…') }),
     );
   });
 
@@ -371,7 +371,7 @@ describe('pendingBlock type-level contract', () => {
       },
       ({ users }) =>
         div([span(users.count)]).pipe(
-          pendingBlock.exhaustive({ users: () => p('…') }),
+          pendingNode.exhaustive({ users: () => p('…') }),
         ),
     );
 
@@ -381,8 +381,8 @@ describe('pendingBlock type-level contract', () => {
   it('requires an explicit shell for client-only SSR', () => {
     const invalidBoundary = () =>
       // @ts-expect-error client-only SSR must render a stable server shell
-      pendingBlock({ ssr: 'client' });
-    const validBoundary = pendingBlock({
+      pendingNode({ ssr: 'client' });
+    const validBoundary = pendingNode({
       ssr: 'client',
       fallback: () => p('browser shell'),
     });
@@ -391,16 +391,16 @@ describe('pendingBlock type-level contract', () => {
     expect(validBoundary).toBeTypeOf('function');
   });
 
-  it('bubbles a settled read exception up until a catchBlock clears it', () => {
+  it('bubbles a settled read exception up until a catchNode clears it', () => {
     const _uncaught = () => {
       const users = _asyncFailingTemplate().users;
       return div([span(users.settledValue)]).pipe(
-        pendingBlock({ fallback: () => p('…') }),
+        pendingNode({ fallback: () => p('…') }),
       );
     };
     const _caught = () =>
       _uncaught().pipe(
-        catchBlock.exhaustive({ MISSING_USER_ID: () => p('…') }),
+        catchNode.exhaustive({ MISSING_USER_ID: () => p('…') }),
       );
 
     // A pending boundary is not an exception boundary.
@@ -412,16 +412,16 @@ describe('pendingBlock type-level contract', () => {
     >().toBeNever();
   });
 
-  it('rejects a template whose settled read exception has no catchBlock', () => {
+  it('rejects a template whose settled read exception has no catchNode', () => {
     craftComponent(
       'uncaughtSettledException',
       {},
       () => ({ users: _asyncFailingTemplate().users }),
       // @ts-expect-error MISSING_USER_ID can be raised by the settled read and
-      // is not handled by any catchBlock
+      // is not handled by any catchNode
       ({ users }) =>
         div([span(users.settledValue)]).pipe(
-          pendingBlock({ fallback: () => p('…') }),
+          pendingNode({ fallback: () => p('…') }),
         ),
     );
   });
@@ -442,7 +442,7 @@ describe('pendingBlock type-level contract', () => {
         return { label };
       },
       // @ts-expect-error the 'users' source reached through the computed has no
-      // pendingBlock to show its loading state
+      // pendingNode to show its loading state
       ({ label }) => div([span(label)]),
     );
   });
@@ -452,7 +452,7 @@ describe('pendingBlock type-level contract', () => {
       'uncovered',
       {},
       () => ({ users: _asyncTemplate().users }),
-      // @ts-expect-error the 'users' source has no pendingBlock to show it
+      // @ts-expect-error the 'users' source has no pendingNode to show it
       ({ users }) => div([span(users.settledValue)]),
     );
   });

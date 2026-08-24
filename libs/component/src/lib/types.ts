@@ -51,10 +51,10 @@ import type {
   MergeCssVarContracts,
 } from './css-vars.type';
 import type {
-  FieldExceptionBlockDirective,
-  FieldExceptionBlockExhaustiveCheck,
-  FieldExceptionBlockPartialCheck,
-  FieldExceptionBlockOptions,
+  FieldErrorDirective,
+  FieldErrorExhaustiveCheck,
+  FieldErrorPartialCheck,
+  FieldErrorOptions,
   FieldExceptionHandlerFieldExceptions,
   FieldExceptionHandlerChildren,
   FieldExceptionHandlers,
@@ -62,7 +62,7 @@ import type {
   ResidualFieldValidationCasesByIdentity,
   FieldValidationHandledIdentitiesOf,
   UnhandledFieldValidationCases,
-} from './field-exception-block';
+} from './field-error-node';
 
 export type CraftProvider = unknown;
 type HostReader<T> = () => T;
@@ -462,7 +462,7 @@ export type TemplateCssVars<Template> = Template extends (
   ? CraftNodeChildrenCssVars<Output>
   : import('./css-vars.type').EmptyCssVarContract;
 
-/** Async sources a template renders without covering them with a `pendingBlock`. */
+/** Async sources a template renders without covering them with a `pendingNode`. */
 export type TemplatePendingSources<Template> = Template extends (
   ...args: any[]
 ) => infer Output
@@ -481,7 +481,7 @@ export type TemplateHeadingNeed<Template> = Template extends (
 
 /**
  * Exception codes a template can reach through a settled read without covering
- * them with a `catchBlock`.
+ * them with a `catchNode`.
  */
 export type TemplateSettledExceptions<Template> = Template extends (
   ...args: any[]
@@ -661,24 +661,24 @@ export type ComponentCompositionDefinition = {
   readonly catchTagHandlers?: Readonly<
     Record<string, ComponentExceptionGenerator>
   >;
-  readonly catchBlockPosition?: 'before' | 'after';
+  readonly catchNodePosition?: 'before' | 'after';
   readonly fieldExceptionHandlers?: FieldExceptionHandlers;
   readonly fieldExceptionOptions?: Required<
-    Pick<FieldExceptionBlockOptions, 'mode' | 'position'>
+    Pick<FieldErrorOptions, 'mode' | 'position'>
   > &
-    Pick<FieldExceptionBlockOptions, 'visibility'>;
+    Pick<FieldErrorOptions, 'visibility'>;
 };
 
 export type ComponentOperatorDefinition = ComponentCompositionDefinition;
 
 /** Internal marker carried by operators that alter component composition. */
 export const COMPONENT_OPERATOR = Symbol('craft-component-operator');
-export const COMPONENT_CATCH_BLOCK = Symbol('craft-component-catch-block');
-export const COMPONENT_FIELD_EXCEPTION_BLOCK = Symbol(
-  'craft-component-field-exception-block',
+export const COMPONENT_CATCH_NODE = Symbol('craft-component-catch-node');
+export const COMPONENT_FIELD_ERROR_NODE = Symbol(
+  'craft-component-field-error-node',
 );
-export const FIELD_EXCEPTION_BLOCK_DIRECTIVE = Symbol(
-  'craft-field-exception-block-directive',
+export const FIELD_ERROR_NODE_DIRECTIVE = Symbol(
+  'craft-field-error-node-directive',
 );
 
 export type ComponentOperator<
@@ -700,12 +700,12 @@ export type ComponentOperator<
               >;
             }
           | {
-              readonly kind: 'catchBlock';
+              readonly kind: 'catchNode';
               readonly catchHandlers: Record<
                 Codes,
                 ComponentExceptionHandlerEntry
               >;
-              readonly catchBlockPosition?: 'before' | 'after';
+              readonly catchNodePosition?: 'before' | 'after';
             });
 };
 
@@ -866,13 +866,13 @@ type ComponentOperatorExhaustiveCheck<
       >,
       Record<Extract<ComponentOperatorHandlers<Operator>, string>, unknown>
     > &
-      (Operator extends { readonly [COMPONENT_CATCH_BLOCK]: true }
+      (Operator extends { readonly [COMPONENT_CATCH_NODE]: true }
         ? [
             Extract<ComponentOperatorHandlers<Operator>, HandledByTemplate>,
           ] extends [never]
           ? unknown
           : {
-              'catchBlock.exhaustive has handlers for codes already handled by the template': Extract<
+              'catchNode.exhaustive has handlers for codes already handled by the template': Extract<
                 ComponentOperatorHandlers<Operator>,
                 HandledByTemplate
               >;
@@ -937,7 +937,7 @@ type VisitProjectedContent<
                 NextContentSelectorDepth<Depth>
               >
             : Node extends {
-                  readonly kind: 'each';
+                  readonly kind: 'for';
                   readonly itemTemplate: (...args: any[]) => infer ItemChildren;
                   readonly empty?: () => infer EmptyChildren;
                 }
@@ -1108,7 +1108,7 @@ type ComponentCallNode<
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
   Directive extends CraftDirective,
-> = Directive extends { readonly [COMPONENT_FIELD_EXCEPTION_BLOCK]: true }
+> = Directive extends { readonly [COMPONENT_FIELD_ERROR_NODE]: true }
   ? Factory
   : Directive extends ComponentOperator<any, any>
     ? Factory
@@ -1136,7 +1136,7 @@ type MergePipedComponentDependencies<
 >;
 
 type ComponentFieldExceptionsAfterOperator<ExistingFieldExceptions, Directive> =
-  Directive extends FieldExceptionBlockDirective<
+  Directive extends FieldErrorDirective<
     infer Handlers extends FieldExceptionHandlers,
     boolean
   >
@@ -1146,17 +1146,17 @@ type ComponentFieldExceptionsAfterOperator<ExistingFieldExceptions, Directive> =
     : ExistingFieldExceptions;
 
 type ComponentFieldExceptionOperatorCheck<ExistingFieldExceptions, Directive> =
-  Directive extends FieldExceptionBlockDirective<
+  Directive extends FieldErrorDirective<
     infer Handlers extends FieldExceptionHandlers,
     infer Exhaustive extends boolean
   >
     ? Exhaustive extends true
-      ? FieldExceptionBlockExhaustiveCheck<ExistingFieldExceptions, Handlers>
-      : FieldExceptionBlockPartialCheck<ExistingFieldExceptions, Handlers>
+      ? FieldErrorExhaustiveCheck<ExistingFieldExceptions, Handlers>
+      : FieldErrorPartialCheck<ExistingFieldExceptions, Handlers>
     : unknown;
 
 type ComponentFieldExceptionFallbackExceptionCodes<Directive> =
-  Directive extends FieldExceptionBlockDirective<
+  Directive extends FieldErrorDirective<
     infer Handlers extends FieldExceptionHandlers,
     boolean
   >

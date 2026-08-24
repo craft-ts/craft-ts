@@ -82,7 +82,7 @@ looks for the selector in every rendered branch:
 ```ts
 const body = content(() => [
   showIntro() ? div({ class: 'card-body' }, 'Introduction') : undefined,
-  each(rows(), { track: (row) => row.id }, (row) =>
+  forNode(rows(), { track: (row) => row.id }, (row) =>
     div({ class: 'card-body' }, row.label),
   ),
   renderTemplate(cardRowTemplate, { $implicit: selectedRow() }),
@@ -118,14 +118,14 @@ Projection therefore depends on **neither** the component's name, **nor** a
 ## Explicit collections, order and stable keys
 
 The consuming component receives a typed collection explicitly. Each unit must
-supply a **stable key**, which `each` uses to reuse, move or remove the right
+supply a **stable key**, which `forNode` uses to reuse, move or remove the right
 projection.
 
 ```ts
 import {
   craftComponent,
   div,
-  each,
+  forNode,
   renderContent,
   type ProjectionOf,
 } from '@craft-ts/component';
@@ -139,7 +139,7 @@ const Toolbar = craftComponent(
   ({ actions }) =>
     div(
       { role: 'toolbar' },
-      each(actions, { track: (action) => action.key }, (action) =>
+      forNode(actions, { track: (action) => action.key }, (action) =>
         renderContent(action),
       ),
     ),
@@ -272,7 +272,7 @@ const Dialog = craftComponent(
     section({ role: 'dialog' }, [
       body ? renderContent(body) : [],
       footer(
-        each(actions, { track: (action) => action.key }, (action) =>
+        forNode(actions, { track: (action) => action.key }, (action) =>
           renderContent(action),
         ),
       ),
@@ -310,7 +310,7 @@ const OptionalToolbar = craftComponent(
   }) => input,
   ({ visible, actions }) =>
     visible()
-      ? each(actions, { track: (action) => action.key }, (action) =>
+      ? forNode(actions, { track: (action) => action.key }, (action) =>
           renderContent(action),
         )
       : [],

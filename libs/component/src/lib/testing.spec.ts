@@ -5,8 +5,8 @@ import { craftService, craftUse } from '@craft-ts/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { div, button, input, label, p, span } from './hyperscript';
-import { ifBlock } from './if-block';
-import { each } from './each';
+import { ifNode } from './if-node';
+import { forNode } from './for-node';
 import { markYieldableValue } from '@craft-ts/core';
 import {
   setupCraftComponentLogicTest,
@@ -226,7 +226,7 @@ describe('Craft component and directive testing utilities', () => {
       {},
       () => ({ visible, brandedStatus }),
       ({ visible, brandedStatus }) =>
-        ifBlock(
+        ifNode(
           visible,
           () => span(brandedStatus),
           () => p('Hidden'),
@@ -259,7 +259,7 @@ describe('Craft component and directive testing utilities', () => {
       {},
       () => ({ visible: initialVisible }),
       ({ visible }: { visible: any }) =>
-        ifBlock(
+        ifNode(
           visible,
           () => button({ class: 'conditional' }, 'Conditional'),
           () => p('Hidden'),
@@ -310,7 +310,7 @@ describe('Craft component and directive testing utilities', () => {
       {},
       () => ({}),
       () =>
-        each(
+        forNode(
           [{ id: 1 }, { id: 2 }],
           { track: (item: { id: number }) => item.id },
           () => button({ class: 'row' }, 'Row'),

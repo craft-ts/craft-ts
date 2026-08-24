@@ -2,7 +2,7 @@ import { YIELDABLE_VALUE, type NamedYieldableValue } from '@craft-ts/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
-  IfBlockNode,
+  IfNode,
 } from './render/vnode';
 
 type Condition<Name extends string> = NamedYieldableValue<Name, () => unknown>;
@@ -14,7 +14,7 @@ type BranchDependencies<Branch> = Branch extends (
   : {};
 
 /** Creates a conditionally rendered Craft template block. */
-export function ifBlock<
+export function ifNode<
   Name extends string,
   TrueBranch extends () => CraftNodeChildren,
   FalseBranch extends (() => CraftNodeChildren) | undefined = undefined,
@@ -22,7 +22,7 @@ export function ifBlock<
   condition: Condition<Name>,
   whenTrue: TrueBranch,
   whenFalse?: FalseBranch,
-): IfBlockNode<
+): IfNode<
   Name,
   BranchDependencies<TrueBranch> | BranchDependencies<FalseBranch>,
   ReturnType<TrueBranch>,
@@ -35,7 +35,7 @@ export function ifBlock<
   )[YIELDABLE_VALUE];
   if (typeof conditionName !== 'string') {
     throw new Error(
-      'ifBlock(...) requires a named Craft reactive value as its condition.',
+      'ifNode(...) requires a named Craft reactive value as its condition.',
     );
   }
 

@@ -8,7 +8,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { pendingBlock } from '@craft-ts/component';
+import { pendingNode } from '@craft-ts/component';
 import { craftComputed, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 
@@ -82,7 +82,7 @@ export const DataPage = craftComponent(
           ]),
         ]),
       ]).pipe(
-        pendingBlock({
+        pendingNode({
           ssr: 'block',
           fallback: () =>
             div({ class: 'pending-box' }, [

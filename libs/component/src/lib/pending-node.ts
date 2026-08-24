@@ -2,7 +2,7 @@ import { CRAFT_DIRECTIVE, type CraftDirective } from './types';
 import type { CraftNodeChildren } from './render/vnode';
 import type { SsrMode } from '@craft-ts/core';
 
-export const PENDING_BLOCK_DIRECTIVE = Symbol('craft-pending-block-directive');
+export const PENDING_NODE_DIRECTIVE = Symbol('craft-pending-node-directive');
 
 /**
  * Where the fallback is inserted relative to the suspended subtree. The subtree
@@ -11,7 +11,7 @@ export const PENDING_BLOCK_DIRECTIVE = Symbol('craft-pending-block-directive');
  * CSS), so its state survives the wait. Assistive tech is told via
  * `aria-busy` / `aria-live` on the fallback, not via the detached source.
  */
-export type PendingBlockPosition = 'before' | 'after';
+export type PendingPosition = 'before' | 'after';
 
 export type PendingFallback = () => CraftNodeChildren;
 
@@ -20,7 +20,7 @@ export type PendingFallback = () => CraftNodeChildren;
  * object form adds `reloading`, rendered **next to the still-visible subtree**
  * when the source already has a value and is refetching.
  */
-export type PendingBlockHandler =
+export type PendingHandler =
   | PendingFallback
   | {
       readonly pending: PendingFallback;
@@ -28,8 +28,8 @@ export type PendingBlockHandler =
     };
 
 /** One handler per async source name, for the `.exhaustive` form. */
-export type PendingBlockHandlers = Readonly<
-  Record<string, PendingBlockHandler>
+export type PendingHandlers = Readonly<
+  Record<string, PendingHandler>
 >;
 
 type HandlerChildrenOf<Handler> = Handler extends () => infer Children
@@ -41,11 +41,11 @@ type HandlerChildrenOf<Handler> = Handler extends () => infer Children
     ? Pending | Reloading
     : never;
 
-export type PendingBlockHandlerChildren<Handler> = HandlerChildrenOf<Handler>;
+export type PendingHandlerChildren<Handler> = HandlerChildrenOf<Handler>;
 
 /** Resolves the children a handler renders for one of its two states. */
-export function resolvePendingBlockHandler(
-  handler: PendingBlockHandler,
+export function resolvePendingHandler(
+  handler: PendingHandler,
   state: 'pending' | 'reloading',
 ): CraftNodeChildren {
   if (typeof handler === 'function') {
@@ -58,7 +58,7 @@ export function resolvePendingBlockHandler(
 }
 
 /**
- * Thrown when a `CraftNotSettled` escapes every `pendingBlock` boundary — the
+ * Thrown when a `CraftNotSettled` escapes every `pendingNode` boundary — the
  * runtime counterpart of the compile-time check, for the cases the types cannot
  * see (a settled read hidden inside a lambda, a dynamically built subtree).
  */
@@ -67,23 +67,23 @@ export class CraftUnhandledPendingError extends Error {
 
   constructor(source: string) {
     super(
-      `Craft async source "${source}" suspended outside of any pendingBlock(...) boundary.`,
+      `Craft async source "${source}" suspended outside of any pendingNode(...) boundary.`,
     );
     this.name = 'CraftUnhandledPendingError';
     this.source = source;
   }
 }
 
-export type PendingBlockDirective<
-  Handlers extends PendingBlockHandlers | undefined = undefined,
+export type PendingDirective<
+  Handlers extends PendingHandlers | undefined = undefined,
   FallbackChildren extends CraftNodeChildren = CraftNodeChildren,
 > = CraftDirective & {
-  readonly [PENDING_BLOCK_DIRECTIVE]: {
+  readonly [PENDING_NODE_DIRECTIVE]: {
     /** `undefined` for the catch-all form: every source below is covered. */
     readonly handlers: Handlers;
     readonly fallback: PendingFallback | undefined;
     readonly reloading: PendingFallback | undefined;
-    readonly position: PendingBlockPosition;
+    readonly position: PendingPosition;
     readonly ssr: SsrMode | undefined;
     /** Phantom carrier — the fallback's own nodes, never read at runtime. */
     readonly fallbackChildren?: FallbackChildren;
@@ -91,58 +91,58 @@ export type PendingBlockDirective<
 };
 
 /**
- * The sources a `pendingBlock` leaves uncovered. The catch-all form covers
+ * The sources a `pendingNode` leaves uncovered. The catch-all form covers
  * everything below it; the `.exhaustive` form covers only the sources it names.
  */
-export type PendingBlockResidualSources<
+export type PendingResidualSources<
   Sources extends string,
-  Handlers extends PendingBlockHandlers | undefined,
-> = Handlers extends PendingBlockHandlers
+  Handlers extends PendingHandlers | undefined,
+> = Handlers extends PendingHandlers
   ? Exclude<Sources, Extract<keyof Handlers, string>>
   : never;
 
-/** Exhaustiveness check for `pendingBlock.exhaustive({...})`. */
-export type PendingBlockExhaustiveCheck<
+/** Exhaustiveness check for `pendingNode.exhaustive({...})`. */
+export type PendingExhaustiveCheck<
   Sources extends string,
-  Handlers extends PendingBlockHandlers,
+  Handlers extends PendingHandlers,
 > = [Exclude<Sources, Extract<keyof Handlers, string>>] extends [never]
   ? [Exclude<Extract<keyof Handlers, string>, Sources>] extends [never]
     ? unknown
     : {
-        'pendingBlock.exhaustive has fallbacks for sources that never suspend here': Exclude<
+        'pendingNode.exhaustive has fallbacks for sources that never suspend here': Exclude<
           Extract<keyof Handlers, string>,
           Sources
         >;
       }
   : {
-      'pendingBlock.exhaustive is missing a fallback for async sources': Exclude<
+      'pendingNode.exhaustive is missing a fallback for async sources': Exclude<
         Sources,
         Extract<keyof Handlers, string>
       >;
     };
 
-function createPendingBlockDirective<
-  Handlers extends PendingBlockHandlers | undefined,
+function createPendingDirective<
+  Handlers extends PendingHandlers | undefined,
 >(
   handlers: Handlers,
   fallback: PendingFallback | undefined,
   reloading: PendingFallback | undefined,
-  position: PendingBlockPosition,
+  position: PendingPosition,
   ssr: SsrMode | undefined,
-): PendingBlockDirective<Handlers> {
+): PendingDirective<Handlers> {
   const directive = (() =>
-    undefined) as unknown as PendingBlockDirective<Handlers>;
+    undefined) as unknown as PendingDirective<Handlers>;
 
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: {
-      name: handlers ? 'pendingBlock.exhaustive' : 'pendingBlock',
+      name: handlers ? 'pendingNode.exhaustive' : 'pendingNode',
       meta: {},
       logic: (baseLogic: (...args: any[]) => any) => baseLogic,
       template: (baseTemplate: (context: any) => any) => baseTemplate,
     },
     enumerable: false,
   });
-  Object.defineProperty(directive, PENDING_BLOCK_DIRECTIVE, {
+  Object.defineProperty(directive, PENDING_NODE_DIRECTIVE, {
     value: { handlers, fallback, reloading, position, ssr },
     enumerable: false,
   });
@@ -150,7 +150,7 @@ function createPendingBlockDirective<
   return directive;
 }
 
-type PendingBlockBaseOptions<
+type PendingBaseOptions<
   Fallback extends PendingFallback = PendingFallback,
 > = Readonly<{
   /**
@@ -160,7 +160,7 @@ type PendingBlockBaseOptions<
    */
   readonly reloading?: Fallback;
   /** Where the fallback goes relative to the (hidden) subtree. Defaults to `'before'`. */
-  readonly position?: PendingBlockPosition;
+  readonly position?: PendingPosition;
 }>;
 
 /**
@@ -168,9 +168,9 @@ type PendingBlockBaseOptions<
  * subtree. Other modes may omit it when an exhaustive handler or an outer
  * boundary owns the pending UI.
  */
-export type PendingBlockOptions<
+export type PendingOptions<
   Fallback extends PendingFallback = PendingFallback,
-> = PendingBlockBaseOptions<Fallback> &
+> = PendingBaseOptions<Fallback> &
   (
     | Readonly<{
         readonly ssr: 'client';
@@ -183,14 +183,14 @@ export type PendingBlockOptions<
       }>
   );
 
-interface PendingBlockFactory {
+interface PendingFactory {
   /**
    * A boundary that renders `fallback` while **any** async source read below it
    * has no value yet — the template equivalent of Solid's `Suspense`.
    *
    * ```ts
    * div([span(users.settledValue)]).pipe(
-   *   pendingBlock({ fallback: () => span('Chargement…') }),
+   *   pendingNode({ fallback: () => span('Chargement…') }),
    * )
    * ```
    *
@@ -199,8 +199,8 @@ interface PendingBlockFactory {
    * arrives. The fallback is announced with `aria-live="polite"`.
    */
   <Fallback extends PendingFallback>(
-    options?: PendingBlockOptions<Fallback>,
-  ): PendingBlockDirective<
+    options?: PendingOptions<Fallback>,
+  ): PendingDirective<
     undefined,
     ReturnType<Fallback> extends CraftNodeChildren
       ? ReturnType<Fallback>
@@ -214,7 +214,7 @@ interface PendingBlockFactory {
    *
    * ```ts
    * div([...]).pipe(
-   *   pendingBlock.exhaustive({
+   *   pendingNode.exhaustive({
    *     users: () => SkeletonList(),
    *     orders: () => SkeletonRows(),
    *   }),
@@ -224,22 +224,22 @@ interface PendingBlockFactory {
    * When several listed sources are pending at once, the fallback of the first
    * one to suspend is rendered.
    */
-  exhaustive<const Handlers extends PendingBlockHandlers>(
+  exhaustive<const Handlers extends PendingHandlers>(
     handlers: Handlers,
-    options?: Omit<PendingBlockOptions, 'fallback' | 'reloading'>,
-  ): PendingBlockDirective<
+    options?: Omit<PendingOptions, 'fallback' | 'reloading'>,
+  ): PendingDirective<
     Handlers,
-    PendingBlockHandlerChildren<
+    PendingHandlerChildren<
       Handlers[keyof Handlers]
     > extends CraftNodeChildren
-      ? PendingBlockHandlerChildren<Handlers[keyof Handlers]>
+      ? PendingHandlerChildren<Handlers[keyof Handlers]>
       : CraftNodeChildren
   >;
 }
 
-export const pendingBlock: PendingBlockFactory = Object.assign(
-  (options: PendingBlockOptions = {}) =>
-    createPendingBlockDirective(
+export const pendingNode: PendingFactory = Object.assign(
+  (options: PendingOptions = {}) =>
+    createPendingDirective(
       undefined,
       options.fallback,
       options.reloading,
@@ -248,10 +248,10 @@ export const pendingBlock: PendingBlockFactory = Object.assign(
     ),
   {
     exhaustive: (
-      handlers: PendingBlockHandlers,
-      options: Omit<PendingBlockOptions, 'fallback' | 'reloading'> = {},
+      handlers: PendingHandlers,
+      options: Omit<PendingOptions, 'fallback' | 'reloading'> = {},
     ) =>
-      createPendingBlockDirective(
+      createPendingDirective(
         handlers,
         undefined,
         undefined,
@@ -259,12 +259,12 @@ export const pendingBlock: PendingBlockFactory = Object.assign(
         options.ssr,
       ),
   },
-) as PendingBlockFactory;
+) as PendingFactory;
 
-export function isPendingBlockDirective(
+export function isPendingDirective(
   value: unknown,
-): value is PendingBlockDirective<PendingBlockHandlers | undefined> {
+): value is PendingDirective<PendingHandlers | undefined> {
   return (
-    typeof value === 'function' && PENDING_BLOCK_DIRECTIVE in (value as object)
+    typeof value === 'function' && PENDING_NODE_DIRECTIVE in (value as object)
   );
 }

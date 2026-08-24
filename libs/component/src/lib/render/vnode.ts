@@ -23,27 +23,27 @@ import type {
 import { isCraftDirective, type CraftDirective } from '../types';
 import type { CssVarContract, EmptyCssVarContract } from '../css-vars.type';
 import {
-  CATCH_BLOCK_DIRECTIVE,
-  type CatchBlockDirective,
-  type CatchBlockHandlerChildren,
-  type CatchBlockHandlers,
-  type CatchBlockPosition,
-} from '../block';
+  CATCH_NODE_DIRECTIVE,
+  type CatchDirective,
+  type CatchHandlerChildren,
+  type CatchHandlers,
+  type CatchPosition,
+} from '../catch-node';
 import {
-  PENDING_BLOCK_DIRECTIVE,
-  type PendingBlockDirective,
-  type PendingBlockHandlers,
-  type PendingBlockPosition,
+  PENDING_NODE_DIRECTIVE,
+  type PendingDirective,
+  type PendingHandlers,
+  type PendingPosition,
   type PendingFallback,
-  type PendingBlockExhaustiveCheck,
-  type PendingBlockResidualSources,
-} from '../pending-block';
+  type PendingExhaustiveCheck,
+  type PendingResidualSources,
+} from '../pending-node';
 import {
-  FIELD_EXCEPTION_BLOCK_DIRECTIVE,
-  type FieldExceptionBlockDirective,
-  type FieldExceptionBlockExhaustiveCheck,
-  type FieldExceptionBlockPartialCheck,
-  type FieldExceptionBlockOptions,
+  FIELD_ERROR_NODE_DIRECTIVE,
+  type FieldErrorDirective,
+  type FieldErrorExhaustiveCheck,
+  type FieldErrorPartialCheck,
+  type FieldErrorOptions,
   type FieldExceptionHandlerFieldExceptions,
   type FieldExceptionHandlerChildren,
   type FieldExceptionHandlers,
@@ -51,15 +51,15 @@ import {
   type FieldValidationHandledIdentitiesCarrier,
   type ResidualFieldValidationCases,
   type UnhandledFieldValidationCases,
-} from '../field-exception-block';
+} from '../field-error-node';
 import type {
-  EachSchedulePolicy,
-  ScheduleEachDirective,
-} from '../each-scheduling';
+  ForSchedulePolicy,
+  ScheduleForDirective,
+} from '../for-scheduling';
 import {
-  SCHEDULE_EACH_DIRECTIVE,
-  isScheduleEachDirective,
-} from '../each-scheduling';
+  SCHEDULE_FOR_DIRECTIVE,
+  isScheduleForDirective,
+} from '../for-scheduling';
 
 export type CraftHostInjector = unknown;
 type HostInjector = CraftHostInjector & any;
@@ -125,7 +125,7 @@ export type CraftNodeFieldExceptionsCarrier<Cases = never> = {
  * `yield* settled(...)`).
  *
  * It is the pending twin of {@link CraftNodeExceptionsCarrier}: sources bubble up
- * from children to parents until a `pendingBlock` boundary clears them, and any
+ * from children to parents until a `pendingNode` boundary clears them, and any
  * source still uncovered when the template reaches `craftComponent(...)` is a
  * compile error.
  */
@@ -141,8 +141,8 @@ export type CraftNodePendingCarrier<Sources extends string = string> = {
  * They travel apart from {@link CraftNodeExceptionsCarrier} on purpose:
  * `RequireCaughtComponentExceptions` fires on the children of the tag helper
  * that receives them, and a text binding has no place to host a boundary
- * (`span(userName)` would demand a `catchBlock` inside `span`'s own children).
- * These bubble silently instead, are cleared by any ancestor `catchBlock`, and
+ * (`span(userName)` would demand a `catchNode` inside `span`'s own children).
+ * These bubble silently instead, are cleared by any ancestor `catchNode`, and
  * are checked once at `craftComponent(...)`.
  */
 export type CraftNodeSettledExceptionsCarrier<Codes extends string = string> = {
@@ -279,7 +279,7 @@ type ElementNodeExceptions<
     : CraftNodeChildrenExceptions<Children>;
 
 /**
- * The async sources an element still needs a `pendingBlock` for: the ones read
+ * The async sources an element still needs a `pendingNode` for: the ones read
  * by its children, the ones bound to its own props, plus any inherited from a
  * node it was piped from.
  */
@@ -379,15 +379,15 @@ type PipedNode<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
 > =
-  Directive extends PendingBlockDirective<
-    infer Handlers extends PendingBlockHandlers | undefined,
+  Directive extends PendingDirective<
+    infer Handlers extends PendingHandlers | undefined,
     infer FallbackChildren extends CraftNodeChildren
   >
-    ? PendingBlockNode<
+    ? PendingNode<
         Dependencies | CraftNodeChildrenDependencies<FallbackChildren>,
         Exceptions | CraftNodeChildrenExceptions<FallbackChildren>,
         FieldExceptions | CraftNodeChildrenRawFieldExceptions<FallbackChildren>,
-        | PendingBlockResidualSources<PendingSources, Handlers>
+        | PendingResidualSources<PendingSources, Handlers>
         // A fallback that suspends in turn needs a boundary of its own.
         | CraftNodeChildrenPendingSources<FallbackChildren>,
         // A pending boundary is not an exception boundary: settled exceptions
@@ -411,11 +411,11 @@ type PipedNodeWithoutPending<
   PendingSources extends string,
   SettledExceptions extends string,
 > =
-  Directive extends FieldExceptionBlockDirective<
+  Directive extends FieldErrorDirective<
     infer FieldHandlers extends FieldExceptionHandlers,
     boolean
   >
-    ? FieldExceptionBlockNode<
+    ? FieldErrorNode<
         Dependencies | CraftDirectiveTemplateDependencies<Directive>,
         | Exceptions
         | CraftNodeChildrenExceptions<
@@ -440,27 +440,27 @@ type PipedNodeWithoutPending<
             FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
           >
       >
-    : Directive extends CatchBlockDirective<
-          infer Handlers extends CatchBlockHandlers
+    : Directive extends CatchDirective<
+          infer Handlers extends CatchHandlers
         >
-      ? CatchBlockNode<
+      ? CatchNode<
           Dependencies | CraftDirectiveTemplateDependencies<Directive>,
           | Exclude<Exceptions, Extract<keyof Handlers, string>>
           | CraftNodeChildrenExceptions<
-              CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+              CatchHandlerChildren<Handlers[keyof Handlers]>
             >,
           Handlers,
-          Directive[typeof CATCH_BLOCK_DIRECTIVE]['position'],
+          Directive[typeof CATCH_NODE_DIRECTIVE]['position'],
           FieldExceptions,
           | PendingSources
           | CraftNodeChildrenPendingSources<
-              CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+              CatchHandlerChildren<Handlers[keyof Handlers]>
             >,
           // The boundary clears the settled codes it handles, and inherits any
           // its own handlers reach.
           | Exclude<SettledExceptions, Extract<keyof Handlers, string>>
           | CraftNodeChildrenSettledExceptions<
-              CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+              CatchHandlerChildren<Handlers[keyof Handlers]>
             >
         >
       : CraftDirectiveNode<
@@ -500,35 +500,35 @@ export type CraftNodePipe<
   SettledExceptions extends string = never,
 > = {
   <Directive extends CraftDirective>(
-    directive: (Directive extends ScheduleEachDirective ? never : Directive) &
-      (Directive extends PendingBlockDirective<
-        infer PendingHandlers extends PendingBlockHandlers | undefined,
+    directive: (Directive extends ScheduleForDirective ? never : Directive) &
+      (Directive extends PendingDirective<
+        infer Handlers extends PendingHandlers | undefined,
         CraftNodeChildren
       >
-        ? PendingHandlers extends PendingBlockHandlers
-          ? PendingBlockExhaustiveCheck<PendingSources, PendingHandlers>
+        ? Handlers extends PendingHandlers
+          ? PendingExhaustiveCheck<PendingSources, Handlers>
           : unknown
-        : Directive extends CatchBlockDirective<
-              infer Handlers extends CatchBlockHandlers
+        : Directive extends CatchDirective<
+              infer Handlers extends CatchHandlers
             >
           ? CatchTagExhaustiveCodesCheck<
               Exceptions | SettledExceptions,
               Record<Extract<keyof Handlers, string>, unknown>
             >
-          : Directive extends FieldExceptionBlockDirective<
+          : Directive extends FieldErrorDirective<
                 infer FieldHandlers extends FieldExceptionHandlers,
                 infer Exhaustive extends boolean
               >
             ? Exhaustive extends true
               ? [UnhandledFieldValidationCases<FieldExceptions>] extends [never]
                 ? unknown
-                : FieldExceptionBlockExhaustiveCheck<
+                : FieldErrorExhaustiveCheck<
                     UnhandledFieldValidationCases<FieldExceptions>,
                     FieldHandlers
                   >
               : [UnhandledFieldValidationCases<FieldExceptions>] extends [never]
                 ? unknown
-                : FieldExceptionBlockPartialCheck<
+                : FieldErrorPartialCheck<
                     UnhandledFieldValidationCases<FieldExceptions>,
                     FieldHandlers
                   >
@@ -554,7 +554,7 @@ export type CraftNodePipe<
   (directive: CraftHostType<unknown>): CraftNode;
 };
 
-export type EachNodePipe<
+export type ForNodePipe<
   Dependencies extends object = {},
   Exceptions extends string = string,
   FieldExceptions = never,
@@ -565,8 +565,8 @@ export type EachNodePipe<
   SourceName extends string | undefined = string | undefined,
   ItemChildren extends CraftNodeChildren = CraftNodeChildren,
   EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
-  Schedule extends EachSchedulePolicy | undefined =
-    | EachSchedulePolicy
+  Schedule extends ForSchedulePolicy | undefined =
+    | ForSchedulePolicy
     | undefined,
 > = CraftNodePipe<
   Dependencies,
@@ -575,9 +575,9 @@ export type EachNodePipe<
   PendingSources,
   SettledExceptions
 > & {
-  <Policy extends EachSchedulePolicy>(
-    directive: ScheduleEachDirective<Policy>,
-  ): EachNode<
+  <Policy extends ForSchedulePolicy>(
+    directive: ScheduleForDirective<Policy>,
+  ): ForNode<
     Item,
     Key,
     Dependencies,
@@ -694,11 +694,11 @@ export interface ComponentNode<
   >;
 }
 
-export interface CatchBlockNode<
+export interface CatchNode<
   Dependencies extends object = {},
   Exceptions extends string = string,
-  Handlers extends CatchBlockHandlers = CatchBlockHandlers,
-  Position extends CatchBlockPosition = CatchBlockPosition,
+  Handlers extends CatchHandlers = CatchHandlers,
+  Position extends CatchPosition = CatchPosition,
   FieldExceptions = unknown,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
@@ -708,13 +708,13 @@ export interface CatchBlockNode<
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
-  readonly kind: 'catch-block';
+  readonly kind: 'catch';
   readonly source: CraftNode;
   readonly handlers: Handlers;
   readonly position: Position;
 }
 
-export interface FieldExceptionBlockNode<
+export interface FieldErrorNode<
   Dependencies extends object = {},
   Exceptions extends string = string,
   FieldExceptions = never,
@@ -726,14 +726,14 @@ export interface FieldExceptionBlockNode<
     CraftNodePendingCarrier<PendingSources>,
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
-  readonly kind: 'field-exception-block';
+  readonly kind: 'field-error';
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]: FieldExceptions;
   readonly source: CraftNodeChildren;
   readonly handlers: Handlers;
   readonly options: Required<
-    Pick<FieldExceptionBlockOptions, 'mode' | 'position'>
+    Pick<FieldErrorOptions, 'mode' | 'position'>
   > &
-    Pick<FieldExceptionBlockOptions, 'visibility'>;
+    Pick<FieldErrorOptions, 'visibility'>;
   readonly pipe: CraftNodePipe<
     Dependencies,
     Exceptions,
@@ -743,7 +743,7 @@ export interface FieldExceptionBlockNode<
   >;
 }
 
-export interface MatchBlockNode<
+export interface MatchNode<
   Dependencies extends object = {},
   Source extends ((...args: any[]) => unknown) | object = () =>
     | object
@@ -756,21 +756,21 @@ export interface MatchBlockNode<
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Children>
     > {
-  readonly kind: 'match-block';
+  readonly kind: 'match';
   readonly source: Source;
   readonly key: PropertyKey;
   readonly handlers: Record<string, (exception: AnyCraftException) => Children>;
 }
 
-export interface EachNode<
+export interface ForNode<
   Item = unknown,
   Key = unknown,
   Dependencies extends object = {},
   SourceName extends string | undefined = string | undefined,
   ItemChildren extends CraftNodeChildren = CraftNodeChildren,
   EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
-  Schedule extends EachSchedulePolicy | undefined =
-    | EachSchedulePolicy
+  Schedule extends ForSchedulePolicy | undefined =
+    | ForSchedulePolicy
     | undefined,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeCssVarsCarrier<
@@ -792,7 +792,7 @@ export interface EachNode<
       | CraftNodeChildrenRawFieldExceptions<ItemChildren>
       | CraftNodeChildrenRawFieldExceptions<EmptyChildren>
     > {
-  readonly kind: 'each';
+  readonly kind: 'for';
   readonly source:
     | readonly Item[]
     | null
@@ -807,7 +807,7 @@ export interface EachNode<
     item: InputValue<Item>,
     index: number,
   ) => ItemChildren;
-  readonly pipe: EachNodePipe<
+  readonly pipe: ForNodePipe<
     Dependencies,
     CraftNodeChildrenExceptions<ItemChildren | EmptyChildren>,
     CraftNodeChildrenRawFieldExceptions<ItemChildren | EmptyChildren>,
@@ -823,7 +823,7 @@ export interface EachNode<
   >;
 }
 
-export interface IfBlockNode<
+export interface IfNode<
   ConditionName extends string = string,
   Dependencies extends object = {},
   TrueChildren extends CraftNodeChildren = CraftNodeChildren,
@@ -939,7 +939,7 @@ export interface DeferNode<
  * A suspension boundary. Its source subtree stays mounted while it is pending —
  * hidden, not destroyed — and the fallback is inserted next to it.
  */
-export interface PendingBlockNode<
+export interface PendingNode<
   Dependencies extends object = {},
   Exceptions extends string = string,
   FieldExceptions = unknown,
@@ -951,12 +951,12 @@ export interface PendingBlockNode<
     CraftNodeSettledExceptionsCarrier<SettledExceptions>,
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
   readonly [CRAFT_NODE_EXCEPTIONS]: Exceptions;
-  readonly kind: 'pending-block';
+  readonly kind: 'pending';
   readonly source: CraftNode;
-  readonly handlers: PendingBlockHandlers | undefined;
+  readonly handlers: PendingHandlers | undefined;
   readonly fallback: PendingFallback | undefined;
   readonly reloading: PendingFallback | undefined;
-  readonly position: PendingBlockPosition;
+  readonly position: PendingPosition;
   readonly ssr: SsrMode | undefined;
   readonly pipe: CraftNodePipe<
     Dependencies,
@@ -973,15 +973,15 @@ export type CraftNode =
   | ReactiveTextNode
   | ComponentNode<any, any, any, any, any, any>
   | CraftDirectiveNode<any>
-  | EachNode<any, any, any, any, any, any>
-  | IfBlockNode<any, any, any, any>
+  | ForNode<any, any, any, any, any, any>
+  | IfNode<any, any, any, any>
   | HeadingNode<any, any, any>
   | HeadingSectionNode<any, any>
   | DeferNode<any, any, any>
-  | CatchBlockNode<any, any>
-  | PendingBlockNode<any, any, any, any>
-  | FieldExceptionBlockNode<any, any, any>
-  | MatchBlockNode<any, any>
+  | CatchNode<any, any>
+  | PendingNode<any, any, any, any>
+  | FieldErrorNode<any, any, any>
+  | MatchNode<any, any>
   | ProjectionNode<any, any>
   | TemplateNode<any, any, any>;
 
@@ -1083,8 +1083,8 @@ type ChildBindingYielded<Value> = Value extends (
 // NOTE — the exceptions a settled read may raise are deliberately NOT folded in
 // here. `RequireCaughtComponentExceptions` fires on the children of the tag
 // helper that receives them, and a text binding has no place to put a boundary:
-// `span(userName)` would demand a `catchBlock` inside `span`'s own children.
-// They are routed at runtime instead (to the nearest `catchBlock`, else
+// `span(userName)` would demand a `catchNode` inside `span`'s own children.
+// They are routed at runtime instead (to the nearest `catchNode`, else
 // `CraftUnhandledExceptionError`); a deferred compile-time channel for them,
 // checked at `craftComponent` like the pending one, is the next iteration.
 type CraftNodeDirectExceptions<Value> =
@@ -1204,7 +1204,7 @@ type RequireCaughtInitializationExceptions<Children extends CraftNodeChildren> =
     : [CraftNodeChildrenExceptions<Children>] extends [never]
       ? unknown
       : {
-          'catchTag.exhaustive or catchBlock.exhaustive is required before rendering component exceptions': CraftNodeChildrenExceptions<Children>;
+          'catchTag.exhaustive or catchNode.exhaustive is required before rendering component exceptions': CraftNodeChildrenExceptions<Children>;
         };
 
 type DirectComponentFieldExceptions<Value> =
@@ -1231,7 +1231,7 @@ type RequireHandledComponentFieldExceptions<
     : [ComponentFieldExceptionsInChildren<Children>] extends [never]
       ? unknown
       : {
-          'fieldExceptionBlock.exhaustive is required before rendering component field exceptions': ComponentFieldExceptionsInChildren<Children>;
+          'fieldErrorNode.exhaustive is required before rendering component field exceptions': ComponentFieldExceptionsInChildren<Children>;
         };
 
 export type RequireCaughtComponentExceptions<
@@ -1250,15 +1250,15 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'component' ||
     value.kind === 'angular' ||
     value.kind === 'directive' ||
-    value.kind === 'each' ||
+    value.kind === 'for' ||
     value.kind === 'if' ||
     value.kind === 'heading' ||
     value.kind === 'heading-section' ||
     value.kind === 'defer' ||
-    value.kind === 'catch-block' ||
-    value.kind === 'pending-block' ||
-    value.kind === 'field-exception-block' ||
-    value.kind === 'match-block' ||
+    value.kind === 'catch' ||
+    value.kind === 'pending' ||
+    value.kind === 'field-error' ||
+    value.kind === 'match' ||
     value.kind === 'projection' ||
     value.kind === 'template'
   );
@@ -1271,7 +1271,7 @@ function withPipe(node: any): any {
       directive:
         | CraftDirective
         | CraftNodeDirective<any>
-        | ScheduleEachDirective
+        | ScheduleForDirective
         | CraftHostType<unknown>,
     ) => pipeCraftNode(node as CraftNode, directive)) as CraftNodePipe,
   };
@@ -1282,18 +1282,18 @@ export function pipeCraftNode(
   directive:
     | CraftDirective
     | CraftNodeDirective<any>
-    | ScheduleEachDirective
+    | ScheduleForDirective
     | CraftHostType<unknown>,
 ): CraftNode {
-  if (isScheduleEachDirective(directive)) {
-    if (node.kind !== 'each') {
+  if (isScheduleForDirective(directive)) {
+    if (node.kind !== 'for') {
       throw new TypeError(
-        'scheduleEach(...) can only be piped onto an each(...) block.',
+        'scheduleFor(...) can only be piped onto a forNode(...) block.',
       );
     }
     return withPipe({
       ...node,
-      schedule: directive[SCHEDULE_EACH_DIRECTIVE],
+      schedule: directive[SCHEDULE_FOR_DIRECTIVE],
     });
   }
 
@@ -1317,60 +1317,60 @@ export function pipeCraftNode(
     return node;
   }
 
-  const catchBlockDefinition = (
-    directive as Partial<Record<typeof CATCH_BLOCK_DIRECTIVE, unknown>>
-  )[CATCH_BLOCK_DIRECTIVE];
-  if (catchBlockDefinition) {
-    const definition = catchBlockDefinition as {
-      readonly handlers: CatchBlockHandlers;
-      readonly position: CatchBlockPosition;
+  const catchNodeDefinition = (
+    directive as Partial<Record<typeof CATCH_NODE_DIRECTIVE, unknown>>
+  )[CATCH_NODE_DIRECTIVE];
+  if (catchNodeDefinition) {
+    const definition = catchNodeDefinition as {
+      readonly handlers: CatchHandlers;
+      readonly position: CatchPosition;
     };
     return {
-      kind: 'catch-block',
+      kind: 'catch',
       source: node,
       handlers: definition.handlers,
       position: definition.position,
-    } as CatchBlockNode;
+    } as CatchNode;
   }
 
-  const pendingBlockDefinition = (
-    directive as Partial<Record<typeof PENDING_BLOCK_DIRECTIVE, unknown>>
-  )[PENDING_BLOCK_DIRECTIVE];
-  if (pendingBlockDefinition) {
-    const definition = pendingBlockDefinition as {
-      readonly handlers: PendingBlockHandlers | undefined;
+  const pendingNodeDefinition = (
+    directive as Partial<Record<typeof PENDING_NODE_DIRECTIVE, unknown>>
+  )[PENDING_NODE_DIRECTIVE];
+  if (pendingNodeDefinition) {
+    const definition = pendingNodeDefinition as {
+      readonly handlers: PendingHandlers | undefined;
       readonly fallback: PendingFallback | undefined;
       readonly reloading: PendingFallback | undefined;
-      readonly position: PendingBlockPosition;
+      readonly position: PendingPosition;
       readonly ssr: SsrMode | undefined;
     };
     return withPipe({
-      kind: 'pending-block',
+      kind: 'pending',
       source: node,
       handlers: definition.handlers,
       fallback: definition.fallback,
       reloading: definition.reloading,
       position: definition.position,
       ssr: definition.ssr,
-    } as PendingBlockNode);
+    } as PendingNode);
   }
 
-  const fieldExceptionBlockDefinition = (
+  const fieldErrorNodeDefinition = (
     directive as Partial<
-      Record<typeof FIELD_EXCEPTION_BLOCK_DIRECTIVE, unknown>
+      Record<typeof FIELD_ERROR_NODE_DIRECTIVE, unknown>
     >
-  )[FIELD_EXCEPTION_BLOCK_DIRECTIVE];
-  if (fieldExceptionBlockDefinition) {
-    const definition = fieldExceptionBlockDefinition as {
+  )[FIELD_ERROR_NODE_DIRECTIVE];
+  if (fieldErrorNodeDefinition) {
+    const definition = fieldErrorNodeDefinition as {
       readonly handlers: FieldExceptionHandlers;
-      readonly options: FieldExceptionBlockNode['options'];
+      readonly options: FieldErrorNode['options'];
     };
     return withPipe({
-      kind: 'field-exception-block',
+      kind: 'field-error',
       source: node,
       handlers: definition.handlers,
       options: definition.options,
-    } as FieldExceptionBlockNode);
+    } as FieldErrorNode);
   }
 
   if (node.kind === 'directive') {

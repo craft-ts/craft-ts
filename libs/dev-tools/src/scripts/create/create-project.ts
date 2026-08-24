@@ -582,7 +582,7 @@ const plainHomePageTs = `import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   span,
 } from '@craft-ts/component';
@@ -611,8 +611,8 @@ export const HomePage = craftComponent(
     div({ class: 'card' }, [
       heading('Welcome to CraftTS'),
       p('A framework-independent starter with a typed API boundary.'),
-      ifBlock(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
-      ifBlock(welcomeQuery.hasWelcome, () =>
+      ifNode(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
+      ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
             return 'API title: ' + (yield* welcomeQuery.value()).title;
@@ -622,7 +622,7 @@ export const HomePage = craftComponent(
           }),
         ]),
       ),
-      ifBlock(welcomeQuery.hasException, () =>
+      ifNode(welcomeQuery.hasException, () =>
         p({ class: 'error' }, [span('The API request failed. Check the network tab.')]),
       ),
     ]),
@@ -674,7 +674,7 @@ const effectHomePageTs = `import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   span,
 } from '@craft-ts/component';
@@ -706,8 +706,8 @@ export const HomePage = craftComponent(
     div({ class: 'card' }, [
       heading('Welcome to CraftTS + Effect v4'),
       p('The page uses queryEffect over a typed repository Layer.'),
-      ifBlock(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
-      ifBlock(welcomeQuery.hasWelcome, () =>
+      ifNode(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
+      ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
             return 'API title: ' + (yield* welcomeQuery.value()).title;
@@ -717,7 +717,7 @@ export const HomePage = craftComponent(
           }),
         ]),
       ),
-      ifBlock(welcomeQuery.hasException, () =>
+      ifNode(welcomeQuery.hasException, () =>
         p({ class: 'error' }, [
           span(function* () {
             return 'API error: ' + (yield* welcomeQuery.errorMessage());

@@ -4,8 +4,8 @@ import {
   catchTag,
   craftComponent,
   div,
-  ifBlock,
-  matchBlock,
+  ifNode,
+  matchNode,
   p,
   span,
   strong,
@@ -187,7 +187,7 @@ const ExceptionsComponent = craftComponent(
           'Access forbidden',
         ),
       ]),
-      ifBlock(
+      ifNode(
         userQuery.userIsLoading,
         () =>
           div(
@@ -202,7 +202,7 @@ const ExceptionsComponent = craftComponent(
             ],
           ),
       ),
-      ifBlock(
+      ifNode(
         userQuery.hasUser,
         () =>
           div([
@@ -226,20 +226,20 @@ const ExceptionsComponent = craftComponent(
             ]),
           ]),
         () => [
-          matchBlock.exhaustive(
+          matchNode.exhaustive(
             function* () {
               return yield* userQuery.typedUserExceptionLoader();
             },
             '_tag',
             {
               UserNotFoundException: () =>
-                p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
+                p('⚠️ User not found (rendered by matchNode.exhaustive)'),
               UserConsentMissingException: () =>
                 p(
-                  '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
+                  '⚠️ User consent is required (rendered by matchNode.exhaustive)',
                 ),
               UserAccessForbiddenException: () =>
-                p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
+                p('⚠️ Access forbidden (rendered by matchNode.exhaustive)'),
             },
           ),
         ],
@@ -249,7 +249,7 @@ const ExceptionsComponent = craftComponent(
 ).pipe(
   catchTag.exhaustive({
     // The query exposes these exceptions as a signal; template rendering is
-    // handled by matchBlock.exhaustive above.
+    // handled by matchNode.exhaustive above.
     UserNotFoundException: function* () {
       return;
     },

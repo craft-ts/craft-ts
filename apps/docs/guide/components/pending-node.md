@@ -1,4 +1,4 @@
-# settledValue & pendingBlock
+# settledValue & pendingNode
 
 Reading an async value in a template without ever handling `undefined` — and
 being told at **compile time** when the loading state has nowhere to go.
@@ -11,7 +11,7 @@ being told at **compile time** when the loading state has nowhere to go.
 
 ```typescript
 import { settled } from '@craft-ts/core';
-import { pendingBlock } from '@craft-ts/component';
+import { pendingNode } from '@craft-ts/component';
 ```
 
 ## Overview
@@ -26,12 +26,12 @@ users.settledValue(); // User[]        — the wait is handled for you
 
 `settledValue` never returns `undefined` and never returns a value while the
 source carries an exception. When there is nothing to show it **suspends**: it
-throws a `CraftNotSettled` that the nearest `pendingBlock` turns into a
+throws a `CraftNotSettled` that the nearest `pendingNode` turns into a
 fallback. A business exception throws through the existing channel instead, and
-lands in the nearest `catchBlock`.
+lands in the nearest `catchNode`.
 
 Because the dependency is visible in the types, a template that renders a
-suspending value with no `pendingBlock` around it does not compile.
+suspending value with no `pendingNode` around it does not compile.
 
 ## Reading a settled value in a computed
 
@@ -56,7 +56,7 @@ The boundary is piped onto any node above the reads:
 
 ```typescript
 div([span(teams), span(total)]).pipe(
-  pendingBlock({ fallback: () => p('Chargement…') }),
+  pendingNode({ fallback: () => p('Chargement…') }),
 );
 ```
 
@@ -67,7 +67,7 @@ for a source that never suspends here) is a compile error:
 
 ```typescript
 div([...]).pipe(
-  pendingBlock.exhaustive({
+  pendingNode.exhaustive({
     users: () => SkeletonList(),
     orders: () => SkeletonRows(),
   }),
@@ -91,7 +91,7 @@ craftComponent(
     });
     return { teams };
   },
-  // ERROR_async_source_rendered_outside_a_pendingBlock: "users"
+  // ERROR_async_source_rendered_outside_a_pendingNode: "users"
   ({ teams }) => div([span(teams)]),
 );
 ```
@@ -104,7 +104,7 @@ the sources that have nowhere to show their loading state. Several suspending
 computeds in one template are all covered by the same rule: every one of them
 needs a boundary above it.
 
-The obligation travels through `each`, `ifBlock`, `defer`, projected content and
+The obligation travels through `forNode`, `ifNode`, `deferNode`, projected content and
 nested elements — anywhere a node can carry children.
 
 ## Stale-while-revalidate
@@ -120,7 +120,7 @@ its `reloading` slot to report it, rendered **next to the still-visible
 subtree**:
 
 ```typescript
-pendingBlock.exhaustive({
+pendingNode.exhaustive({
   issue: {
     pending: () => p('Waiting for an invoice…'),
     reloading: () => p('Re-issuing…'),
@@ -128,7 +128,7 @@ pendingBlock.exhaustive({
 });
 
 // or, for the catch-all form
-pendingBlock({ fallback: () => Skeleton(), reloading: () => Spinner() });
+pendingNode({ fallback: () => Skeleton(), reloading: () => Spinner() });
 ```
 
 ## Runtime behaviour
@@ -142,7 +142,7 @@ Two escapes are reported rather than silently swallowed:
 
 - a settled read that suspends with no boundary above it throws
   `CraftUnhandledPendingError`;
-- a settled read whose source carries an exception with no `catchBlock` above it
+- a settled read whose source carries an exception with no `catchNode` above it
   throws `CraftUnhandledExceptionError`.
 
 The first is the runtime backstop for what the types cannot see — typically a
@@ -156,11 +156,11 @@ A settled read has two exits and each one has its own boundary:
 
 | Exit | Thrown | Boundary | Checked at |
 | ---- | ------ | -------- | ---------- |
-| nothing to show yet | `CraftNotSettled` | `pendingBlock` | `craftComponent(...)` |
-| the source carries an exception | `CraftGenShortCircuit` | `catchBlock` | `craftComponent(...)` |
+| nothing to show yet | `CraftNotSettled` | `pendingNode` | `craftComponent(...)` |
+| the source carries an exception | `CraftGenShortCircuit` | `catchNode` | `craftComponent(...)` |
 
 Both bubble up the node tree until a boundary clears them, and both fail the
-`craftComponent` template argument when uncovered. A `pendingBlock` is not an
+`craftComponent` template argument when uncovered. A `pendingNode` is not an
 exception boundary — settled exceptions pass straight through it, and vice
 versa.
 
@@ -173,12 +173,12 @@ observable.
 
 ```typescript
 div([span(summary)])
-  .pipe(pendingBlock.exhaustive({ issue: () => Skeleton() }))
-  .pipe(catchBlock.exhaustive({ INVOICE_REJECTED: () => Rejected() }));
+  .pipe(pendingNode.exhaustive({ issue: () => Skeleton() }))
+  .pipe(catchNode.exhaustive({ INVOICE_REJECTED: () => Rejected() }));
 ```
 
-A `catchBlock` handler receives the exception as `AnyCraftException`: its `code`
-is known, its payload is not. Reach for `matchBlock` when the fallback needs the
+A `catchNode` handler receives the exception as `AnyCraftException`: its `code`
+is known, its payload is not. Reach for `matchNode` when the fallback needs the
 payload itself.
 
 ## Current limits

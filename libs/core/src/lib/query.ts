@@ -499,7 +499,7 @@ export type ResourceLikeQueryRef<
         hasValue(): boolean;
         /**
          * The settled read: never `undefined`, never a value while an exception
-         * is carried — it suspends instead, to the nearest `pendingBlock`. The
+         * is carried — it suspends instead, to the nearest `pendingNode`. The
          * primitive's declared name is the source a boundary handles.
          */
         readonly settledValue: CraftSettledSignal<

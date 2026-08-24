@@ -19,13 +19,13 @@ import {
   CraftRouterOutlet,
   craftComponent,
   div,
-  each,
+  forNode,
   hydrateCraft,
   p,
-  ifBlock,
+  ifNode,
   li,
   loadCraftComponent,
-  pendingBlock,
+  pendingNode,
   provideCraftRootComponent,
   renderCraft,
   startCraft,
@@ -121,7 +121,7 @@ describe('Craft SSR and hydration', () => {
           span({ class: 'name' }, firstName),
           button({ class: 'action', click: () => undefined }, 'action'),
         ]).pipe(
-          pendingBlock({
+          pendingNode({
             ssr: 'block',
             fallback: () => p('loading'),
           }),
@@ -207,7 +207,7 @@ describe('Craft SSR and hydration', () => {
             return String(yield* text());
           }),
         ).pipe(
-          pendingBlock({ ssr: 'fallback', fallback: () => p('skeleton') }),
+          pendingNode({ ssr: 'fallback', fallback: () => p('skeleton') }),
         ),
     );
     const fallback = await renderCraft({
@@ -234,7 +234,7 @@ describe('Craft SSR and hydration', () => {
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(pendingBlock({ fallback: () => p('waiting') })),
+        ).pipe(pendingNode({ fallback: () => p('waiting') })),
     );
     await expect(
       renderCraft({ config: configFor(withoutPolicy), timeoutMs: 20 }),
@@ -260,7 +260,7 @@ describe('Craft SSR and hydration', () => {
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(pendingBlock({ fallback: () => p('waiting') })),
+        ).pipe(pendingNode({ fallback: () => p('waiting') })),
     );
     const config = {
       providers: [
@@ -311,7 +311,7 @@ describe('Craft SSR and hydration', () => {
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(pendingBlock({ fallback: () => p('route shell') })),
+        ).pipe(pendingNode({ fallback: () => p('route shell') })),
     );
     const routeResult = await renderCraft({
       config: {
@@ -347,7 +347,7 @@ describe('Craft SSR and hydration', () => {
             return String(yield* text());
           }),
         ).pipe(
-          pendingBlock({ ssr: 'client', fallback: () => p('client shell') }),
+          pendingNode({ ssr: 'client', fallback: () => p('client shell') }),
         ),
     );
     const clientResult = await renderCraft({
@@ -384,7 +384,7 @@ describe('Craft SSR and hydration', () => {
       ({ text }) =>
         p({ class: 'lazy-page' }, function* () {
           return String(yield* text());
-        }).pipe(pendingBlock({ fallback: () => p('lazy pending') })),
+        }).pipe(pendingNode({ fallback: () => p('lazy pending') })),
     );
     const { ssrRoutes } = craftRoutes('ssr', [
       {
@@ -502,7 +502,7 @@ describe('Craft SSR and hydration', () => {
       ({ text }) =>
         p(function* () {
           return String(yield* text());
-        }).pipe(pendingBlock({ fallback: () => p('pending') })),
+        }).pipe(pendingNode({ fallback: () => p('pending') })),
     );
     const { missingPolicyRoutes } = craftRoutes('missing-policy', [
       {
@@ -571,7 +571,7 @@ describe('Craft SSR and hydration', () => {
       () =>
         div([
           ul(
-            each(items, { track: (item) => item }, (item) =>
+            forNode(items, { track: (item) => item }, (item) =>
               li(
                 {
                   'data-item': function* () {
@@ -584,7 +584,7 @@ describe('Craft SSR and hydration', () => {
               ),
             ),
           ),
-          ifBlock(
+          ifNode(
             show,
             () => div({ class: 'true-branch' }, 'yes'),
             () => span({ class: 'false-branch' }, 'no'),

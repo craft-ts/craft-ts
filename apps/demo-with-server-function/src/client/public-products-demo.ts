@@ -3,11 +3,11 @@ import {
   article,
   craftComponent,
   div,
-  each,
+  forNode,
   footer,
   heading,
   header,
-  ifBlock,
+  ifNode,
   main,
   p,
   section,
@@ -185,13 +185,13 @@ const PublicProductsDemo = craftComponent(
             }),
           ]),
         ]),
-        ifBlock(productsQuery.isLoading, () =>
+        ifNode(productsQuery.isLoading, () =>
           p({ class: 'loading' }, '⏳ Loading public products…'),
         ),
-        ifBlock(productsQuery.hasProducts, () =>
+        ifNode(productsQuery.hasProducts, () =>
           ul(
             { class: 'results' },
-            each(
+            forNode(
               productsQuery.value,
               { track: (product) => product.id },
               (product) =>
@@ -216,7 +216,7 @@ const PublicProductsDemo = craftComponent(
             ),
           ),
         ),
-        ifBlock(productsQuery.isEmpty, () =>
+        ifNode(productsQuery.isEmpty, () =>
           div({ class: 'empty' }, [
             strong('No products loaded'),
             span('The public server function returned no products.'),

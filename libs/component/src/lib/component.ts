@@ -74,7 +74,7 @@ type IsAny<Value> = 0 extends 1 & Value ? true : false;
 /**
  * A template may only render an async source (`settledValue`, or a
  * `craftComputed` that consumed one with `yield* settled(...)`) from inside a
- * `pendingBlock` boundary. Anything left uncovered fails here, on the template
+ * `pendingNode` boundary. Anything left uncovered fails here, on the template
  * argument, naming the sources that have nowhere to show their loading state.
  */
 type ValidPendingSources<Template> =
@@ -87,12 +87,12 @@ type ValidPendingSources<Template> =
       : [TemplatePendingSources<Template>] extends [never]
         ? unknown
         : {
-            readonly ERROR_async_source_rendered_outside_a_pendingBlock: TemplatePendingSources<Template>;
+            readonly ERROR_async_source_rendered_outside_a_pendingNode: TemplatePendingSources<Template>;
           };
 
 /**
  * A template may only render a value whose settled read can raise an exception
- * from inside a `catchBlock`. Anything left uncovered fails here, on the
+ * from inside a `catchNode`. Anything left uncovered fails here, on the
  * template argument, naming the codes with nowhere to be handled.
  */
 type ValidSettledExceptions<Template> =
@@ -103,13 +103,13 @@ type ValidSettledExceptions<Template> =
       : [TemplateSettledExceptions<Template>] extends [never]
         ? unknown
         : {
-            readonly ERROR_settled_read_exception_not_caught_by_a_catchBlock: TemplateSettledExceptions<Template>;
+            readonly ERROR_settled_read_exception_not_caught_by_a_catchNode: TemplateSettledExceptions<Template>;
           };
 
 /**
  * A reusable child may render `heading()` without a local `headingSection` —
  * the need bubbles. The *parent* that calls that child must wrap the call in
- * `headingSection` (same DNA as `pendingBlock` on the parent, not the child).
+ * `headingSection` (same DNA as `pendingNode` on the parent, not the child).
  */
 type ValidHeadingNeed<Template> =
   IsAny<TemplateHeadingNeed<Template>> extends true
@@ -398,8 +398,8 @@ function mergeComponentComposition(
   ];
   const catchHandlers = next?.catchHandlers ?? existing?.catchHandlers;
   const catchTagHandlers = next?.catchTagHandlers ?? existing?.catchTagHandlers;
-  const catchBlockPosition =
-    next?.catchBlockPosition ?? existing?.catchBlockPosition;
+  const catchNodePosition =
+    next?.catchNodePosition ?? existing?.catchNodePosition;
   const fieldExceptionHandlers =
     next?.fieldExceptionHandlers ?? existing?.fieldExceptionHandlers;
   const fieldExceptionOptions =
@@ -409,7 +409,7 @@ function mergeComponentComposition(
     ...(providers.length ? { providers } : {}),
     ...(catchHandlers ? { catchHandlers } : {}),
     ...(catchTagHandlers ? { catchTagHandlers } : {}),
-    ...(catchBlockPosition ? { catchBlockPosition } : {}),
+    ...(catchNodePosition ? { catchNodePosition } : {}),
     ...(fieldExceptionHandlers ? { fieldExceptionHandlers } : {}),
     ...(fieldExceptionOptions ? { fieldExceptionOptions } : {}),
   };

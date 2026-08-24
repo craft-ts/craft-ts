@@ -116,7 +116,7 @@ export interface CssVarToken<
 export interface VariantContract {
   /** axe → points de coupure réellement utilisés (jamais tous les points de l'axe). */
   readonly axes: Readonly<Record<string, string>>;
-  /** conditions d'ifBlock qui gouvernent le sous-arbre. */
+  /** conditions d'ifNode qui gouvernent le sous-arbre. */
   readonly guards: Readonly<Record<string, boolean>>;
   readonly unknownCss: boolean;
   readonly unproven: string;
@@ -171,7 +171,7 @@ export interface VisualScenario {
 
 **Notes:** le défaut `EmptyChannels` doit rendre le paramètre **invisible** dans les types affichés des composants existants.
 
-- [ ] **Step 1: Implémenter** — paramètre de canal sur les nœuds, propagation dans `h()`, `ifBlock` (les deux branches), `each`, `craftTemplate` et à la frontière de composant.
+- [ ] **Step 1: Implémenter** — paramètre de canal sur les nœuds, propagation dans `h()`, `ifNode` (les deux branches), `forNode`, `craftTemplate` et à la frontière de composant.
 - [ ] **Step 2: Vérifier la non-régression** — `npx nx build demo`, puis comparer la signature imprimée par `tsc` d'un composant existant avant/après : elle ne doit pas avoir changé.
 - [ ] **Step 3: Écrire les tests** — un canal posé sur un enfant remonte à travers chacun des cinq points ci-dessus ; un composant sans style expose `EmptyChannels`.
 - [ ] **Step 4: Lancer** — `npx vitest run libs/component/src/lib/channels.spec.ts && npx nx test component`
@@ -450,22 +450,22 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 - [ ] **Step 3: Lancer**
 - [ ] **Step 4: Commit**
 
-### Task 16: Tag de branche sur `ifBlock` — somme, pas produit
+### Task 16: Tag de branche sur `ifNode` — somme, pas produit
 
 **Files:**
-- Modify: `libs/component/src/lib/if-block.ts`, `match-block.ts`
+- Modify: `libs/component/src/lib/if-node.ts`, `match-node.ts`
 - Create: `libs/component/src/lib/branch-variants.spec.ts`
 
 **Interfaces:**
 - Produces: contrat de la branche vraie tagué `{ [Name]: true }`, fausse `{ [Name]: false }` ; le contrat du nœud `if` est leur **somme**.
 
-**Notes:** `ifBlock` porte déjà le nom de sa condition dans son type (`Condition<Name>`) — le mécanisme s'accroche là, sans changer la signature publique. Meilleur ratio valeur/coût du plan : elle divise le nombre de captures.
+**Notes:** `ifNode` porte déjà le nom de sa condition dans son type (`Condition<Name>`) — le mécanisme s'accroche là, sans changer la signature publique. Meilleur ratio valeur/coût du plan : elle divise le nombre de captures.
 
 - [ ] **Step 1: Implémenter**
-- [ ] **Step 2: Écrire les tests** — une variante déclarée uniquement dans la branche vraie n'apparaît jamais croisée avec `false` ; deux `ifBlock` imbriqués produisent une somme de sommes ; `matchBlock` se comporte comme un `if` n-aire.
+- [ ] **Step 2: Écrire les tests** — une variante déclarée uniquement dans la branche vraie n'apparaît jamais croisée avec `false` ; deux `ifNode` imbriqués produisent une somme de sommes ; `matchNode` se comporte comme un `if` n-aire.
 - [ ] **Step 3: Vérifier la falsifiabilité** — remplacer la somme par un produit : le compte attendu doit diverger et le test rougir. Remettre.
 - [ ] **Step 4: Lancer**
-- [ ] **Step 5: Commit** — `feat(component): tag branch variants so if-blocks sum instead of multiply`
+- [ ] **Step 5: Commit** — `feat(component): tag branch variants so if-nodes sum instead of multiply`
 
 ### Task 17: Matrice et identifiants stables
 
@@ -548,7 +548,7 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 - Create: `apps/demo/src/app/ui/card.style.ts`, `card.component.ts`, `card.visual.spec.ts`
 - Create: `apps/demo/e2e/card-visual.spec.ts`
 
-**Notes:** le composant doit exercer viewport, `colorScheme`, un axe d'état, `descendant.userInvalid` et un `ifBlock` — donc produire une matrice où la somme sur la branche est visible dans le compte.
+**Notes:** le composant doit exercer viewport, `colorScheme`, un axe d'état, `descendant.userInvalid` et un `ifNode` — donc produire une matrice où la somme sur la branche est visible dans le compte.
 
 - [ ] **Step 1: Implémenter le composant**
 - [ ] **Step 2: Relever le cardinal** — calculer à la main le nombre de scénarios attendu, le comparer à `visualMatrix()`, et **consigner le chiffre ici** : c'est la première des deux mesures qui décideront de la vague 5.
@@ -749,4 +749,4 @@ Vérification agent, à la fin de la vague 4 : demander à un agent neuf « ajou
 - **Un brand mal posé annule tout, sans bruit.** `string & { __length?: true }` accepte `'blabla'` : le phantom optionnel sur une base primitive ne brande rien. C'est la panne la plus coûteuse du plan parce qu'elle laisse tous les tests verts et toutes les garanties écrites. D'où le test de brand explicite en tâche 5 et le test de conformance générique en tâche 7 — les deux doivent exister, l'un vérifie le type de base, l'autre vérifie que chaque helper l'utilise vraiment.
 - **L'étanchéité partielle donne 0 % de garantie, pas 90 %.** D'où les règles lint livrées **dans la même vague** que le mécanisme qu'elles scellent, jamais après.
 - **Le CSS externe reste hors du modèle.** Une feuille globale, un thème tiers ou un `stylesUrl` peuvent contredire n'importe quelle preuve. Le chemin `ParsedContract` doit rester `unknownCss: true` et le graphe doit compter ces composants comme non couverts.
-- **Le coût de la CI visuelle est le vrai budget.** Les milliers de captures sont le poste dominant, pas le typecheck ni le runtime. C'est pourquoi la tâche 16 (somme sur `ifBlock`) et la tâche 29 (analyse d'impact) valent économiquement plus que toute la vague 5.
+- **Le coût de la CI visuelle est le vrai budget.** Les milliers de captures sont le poste dominant, pas le typecheck ni le runtime. C'est pourquoi la tâche 16 (somme sur `ifNode`) et la tâche 29 (analyse d'impact) valent économiquement plus que toute la vague 5.

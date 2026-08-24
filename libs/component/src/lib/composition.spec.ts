@@ -13,10 +13,10 @@ import {
   craftService,
   query, craftUse } from '@craft-ts/core';
 import {
-  catchBlock,
+  catchNode,
   catchTag,
   craftComponent,
-  matchBlock,
+  matchNode,
   p,
   section,
   withProviders,
@@ -56,7 +56,7 @@ describe('component composition', () => {
       },
     });
 
-    // @ts-expect-error — catchTag is a logic boundary; template children belong to catchBlock.
+    // @ts-expect-error — catchTag is a logic boundary; template children belong to catchNode.
     catchTag.exhaustive({ NO_ACCESS: () => p('No access') });
   });
 
@@ -134,11 +134,11 @@ describe('component composition', () => {
     destroy();
   });
 
-  it('does not bubble a query exception already handled by matchBlock', async () => {
+  it('does not bubble a query exception already handled by matchNode', async () => {
     const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     let factoryRuns = 0;
     const source = craftComponent(
-      'queryCatchBlockRuntime',
+      'queryCatchRuntime',
       {},
       function* () {
         factoryRuns += 1;
@@ -151,7 +151,7 @@ describe('component composition', () => {
       ({ value }) =>
         section([
           p('source'),
-          matchBlock.exhaustive(
+          matchNode.exhaustive(
             () => craftUse(value.exceptions()).loader,
             '_tag',
             {
@@ -166,8 +166,8 @@ describe('component composition', () => {
       >
     >().toEqualTypeOf<'FAILED_TO_LOAD'>();
     const caughtWithSource = source.pipe(
-      // @ts-expect-error — FAILED_TO_LOAD is already consumed by matchBlock in the template.
-      catchBlock.exhaustive(
+      // @ts-expect-error — FAILED_TO_LOAD is already consumed by matchNode in the template.
+      catchNode.exhaustive(
         {
           FAILED_TO_LOAD: {
             render: () => p('query fallback'),
@@ -194,7 +194,7 @@ describe('component composition', () => {
     const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
     const shouldFail = signal(false);
     const source = craftComponent(
-      'queryMatchBlockEmptyBucket',
+      'queryMatchEmptyBucket',
       {},
       function* () {
         const value = yield* query('value', {
@@ -207,7 +207,7 @@ describe('component composition', () => {
       ({ value }) =>
         section([
           p(() => craftUse(value.value())?.id ?? ''),
-          matchBlock.exhaustive(
+          matchNode.exhaustive(
             () => craftUse(value.exceptions()).loader,
             '_tag',
             {

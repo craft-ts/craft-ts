@@ -81,7 +81,7 @@ export default [
 
 What each rule does:
 
-- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
+- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifNode(...)`, `matchNode.exhaustive(...)`, `forNode(...)`, or `deferNode(...)`
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
@@ -152,13 +152,13 @@ values and business decisions in the component's state/query layer, then make
 the template express visibility explicitly:
 
 ```ts
-ifBlock(
+ifNode(
   isReady,
   () => p('Ready'),
   () => p('Loading…'),
 );
 
-matchBlock.exhaustive(query.exceptions, '_tag', {
+matchNode.exhaustive(query.exceptions, '_tag', {
   NOT_FOUND: () => p('Not found'),
   FORBIDDEN: () => p('Forbidden'),
 });
@@ -219,7 +219,7 @@ const typedStep = machine.stepState as unknown as () => { step: Step };
 return { typedStep };
 
 // Template: no cast and no craftUse.
-matchBlock.exhaustive(typedStep, 'step', steps);
+matchNode.exhaustive(typedStep, 'step', steps);
 ```
 
 `no-craft-use` applies to Craft TypeScript files, not only the fourth

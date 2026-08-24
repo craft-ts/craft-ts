@@ -7,7 +7,7 @@ do need to adopt Craft's UI model: a component is a function with a generator
 logic factory and a typed template:
 
 ```typescript
-import { craftComponent, div, h1, li, ul, each } from '@craft-ts/component';
+import { craftComponent, div, h1, li, ul, forNode } from '@craft-ts/component';
 import { state } from '@craft-ts/core';
 
 type Task = { readonly id: string; readonly title: string; readonly done: boolean };
@@ -26,7 +26,7 @@ export const Tasks = craftComponent(
   ({ tasks }) => [ // template: turns the context into rendered nodes
     h1('Tasks'),
     ul(
-      each(
+      forNode(
         tasks, // source: the reactive collection to render
         { track: (task) => task.id }, // options: stable identity for each item
         (task) => li(task.title), // render: creates one node per task

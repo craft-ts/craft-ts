@@ -184,7 +184,7 @@ function renderAttributes(
     if (name.startsWith('*') || name.startsWith('@')) {
       diagnostics.push({
         code: 'UNSUPPORTED_ANGULAR_SYNTAX',
-        message: `Structural Angular syntax '${name}' needs a manual ifBlock/each conversion.`,
+        message: `Structural Angular syntax '${name}' needs a manual ifNode/forNode conversion.`,
       });
       continue;
     }

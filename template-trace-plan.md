@@ -70,7 +70,7 @@ Il sera appelé autour de chaque rendu effectif :
 
 - template principal d’un composant ;
 - mises à jour réactives ;
-- blocs `if`, `each`, `match`, `defer` ;
+- blocs `if`, `forNode`, `match`, `deferNode` ;
 - projections et templates imbriqués ;
 - callbacks qui produisent des nœuds ;
 - patchs de fragments lorsque le DOM rendu est effectivement réconcilié.

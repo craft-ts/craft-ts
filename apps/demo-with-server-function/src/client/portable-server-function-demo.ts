@@ -4,12 +4,12 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   footer,
   form,
   heading,
   header,
-  ifBlock,
+  ifNode,
   input,
   label,
   main,
@@ -274,7 +274,7 @@ const PortableServerFunctionDemo = craftComponent(
             ]),
             span({ class: 'count-badge' }, resultCount),
           ]),
-          ifBlock(usersQuery.isLoading, () =>
+          ifNode(usersQuery.isLoading, () =>
             p({ class: 'loading' }, '⏳ Promise program is running…'),
           ),
           // Une ligne par couche : ce qu'elle a ajouté au contexte, tel que le
@@ -296,10 +296,10 @@ const PortableServerFunctionDemo = craftComponent(
               span({ class: 'payload-value' }, scannedCount),
             ]),
           ]),
-          ifBlock(hasUsers, () =>
+          ifNode(hasUsers, () =>
             ul(
               { class: 'results' },
-              each(portableUsers, { track: (user) => user.id }, (user) =>
+              forNode(portableUsers, { track: (user) => user.id }, (user) =>
                 article({ class: 'user-row' }, [
                   div({ class: 'avatar' }, function* () {
                     return (yield* user()).name.slice(0, 1);
@@ -319,7 +319,7 @@ const PortableServerFunctionDemo = craftComponent(
               ),
             ),
           ),
-          ifBlock(isEmpty, () =>
+          ifNode(isEmpty, () =>
             div({ class: 'empty' }, [
               strong('No results loaded'),
               span('Run a search to display users.'),

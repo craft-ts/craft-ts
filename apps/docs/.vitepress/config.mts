@@ -173,8 +173,8 @@ const guideSidebar = [
         link: '/guide/components/directives',
       },
       {
-        text: 'settledValue & pendingBlock',
-        link: '/guide/components/pending-block',
+        text: 'settledValue & pendingNode',
+        link: '/guide/components/pending-node',
       },
       { text: 'Accessibility', link: '/guide/components/accessibility' },
       { text: 'Customization', link: '/guide/components/customization' },

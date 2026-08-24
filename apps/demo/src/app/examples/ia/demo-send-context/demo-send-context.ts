@@ -1,7 +1,7 @@
 import {
   craftComponent,
   div,
-  each,
+  forNode,
   heading,
   headingSection,
 } from '@craft-ts/component';
@@ -15,7 +15,7 @@ const DemoSendContextComponent = craftComponent(
     div([
       heading('Demo send context'),
       headingSection(
-        each(counters, { track: (index) => index }, () =>
+        forNode(counters, { track: (index) => index }, () =>
           SendContextCounterComponent({
             initialValue: function* () {
               return 1;

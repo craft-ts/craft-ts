@@ -29,7 +29,7 @@ v1 **n’utilise pas** le checker TypeScript pendant le rewrite. Règles syntaxi
 - Dev (`vite serve`, Vitest) : **aucune** passe prod. Strip-types only.
 - Le JS non compilé reste sémantiquement correct. Le compilateur est un accélérateur, pas une VM.
 - Ne pas typer, ne pas résoudre les modules, ne pas bundler (Vite/Rolldown s’en chargent).
-- Ne pas compiler `each` / `ifBlock` / `matchBlock` / `defer` en v1 (structure déjà scopée).
+- Ne pas compiler `forNode` / `ifNode` / `matchNode` / `deferNode` en v1 (structure déjà scopée).
 - Ne pas faire bindings spécialisés, DI AOT, matcher, SSR (plan suivant).
 - Golden tests : `packages/craft-compiler/fixtures/<name>/input.ts` → `output.js`. Un diff inattendu = fail.
 - `erasableSyntaxOnly` déjà vrai sur le source auteur (plan sortie Angular). Le compilateur n’a pas à downleveler des décorateurs.
@@ -228,7 +228,7 @@ Règles (syntaxiques, conservatrices) :
    - `button({ disabled: isZero() }, 'x')` → `button({ disabled: () => isZero() }, 'x')`
 3. **Ne pas** lifter :  
    - handlers `click` / `submit` / `input` / `change` / …  
-   - arguments de `ifBlock` / `each` / `matchBlock` / `defer` (structure)  
+   - arguments de `ifNode` / `forNode` / `matchNode` / `deferNode` (structure)
    - ce qui est **déjà** une arrow / `function*`  
    - `p(counter)` (déjà un lecteur)  
    - appels avec arguments `foo(1)` (ce n’est pas un lecteur Craft)

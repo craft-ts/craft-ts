@@ -107,8 +107,8 @@ introducing an HTML wrapper.
 `withProviders` configures the provider scope of a component before it is
 invoked. `catchTag.exhaustive` is a logic boundary: each handler is a
 generator that can call a service or perform another logic operation. It must
-not return template children. Use `catchBlock.exhaustive` or
-`matchBlock.exhaustive` when the exception should produce DOM.
+not return template children. Use `catchNode.exhaustive` or
+`matchNode.exhaustive` when the exception should produce DOM.
 
 ```ts
 import { abstract, craftException, craftService } from '@craft-ts/core';
@@ -153,7 +153,7 @@ Restricted();
 Providers are evaluated before the component template. If a provider reads a
 signal, changing that signal recreates the composed rendering, including the
 provider scope. The handler generator runs for the exception state. Since
-`catchTag` does not render a template, use `catchBlock` or `matchBlock` for a
+`catchTag` does not render a template, use `catchNode` or `matchNode` for a
 visual fallback.
 
 The component adapter reuses the exhaustive `catchTag` rules from the core and
@@ -170,15 +170,15 @@ Craft exposes three complementary utilities. The important distinction is
 whether the exception is handled in logic or rendered in a template:
 
 - `catchTag.exhaustive` handles component initialization exceptions in logic;
-- `catchBlock.exhaustive` creates a template boundary and can insert a fallback
+- `catchNode.exhaustive` creates a template boundary and can insert a fallback
   before or after its source block;
-- `matchBlock.exhaustive` renders a fallback from an exception value or signal.
+- `matchNode.exhaustive` renders a fallback from an exception value or signal.
 
 ### `catchTag.exhaustive`: logic only
 
 Handlers are generator functions. They can call services and yield other Craft
 operations, but they cannot return `p(...)`, an element, or any other template
-children. A DOM fallback belongs to `catchBlock` or `matchBlock`.
+children. A DOM fallback belongs to `catchNode` or `matchNode`.
 
 ```ts
 const SafeComponent = MyRestrictedCraftComponent.pipe(
@@ -195,7 +195,7 @@ const SafeComponent = MyRestrictedCraftComponent.pipe(
 );
 ```
 
-### `catchBlock.exhaustive`: preserve a source block
+### `catchNode.exhaustive`: preserve a source block
 
 Apply it to a rendered VNode when the source subtree may throw. The source is
 kept and the fallback is inserted at the requested position. Applying it to a
@@ -204,7 +204,7 @@ removes the handled codes from the component and route contracts.
 
 ```ts
 const view = SourceComponent({}).pipe(
-  catchBlock.exhaustive(
+  catchNode.exhaustive(
     {
       UserNotFoundException: () => p('User not found'),
     },
@@ -214,14 +214,14 @@ const view = SourceComponent({}).pipe(
 ```
 
 For a template boundary, the source block remains visible by default. When
-`catchBlock` is piped onto a component and the exception comes from its
+`catchNode` is piped onto a component and the exception comes from its
 composed scope, a function handler keeps the existing component behavior and
 replaces the source. A handler can keep that source visible by using the object
 form and setting `showSource: true`:
 
 ```ts
 const view = SourceComponent({}).pipe(
-  catchBlock.exhaustive({
+  catchNode.exhaustive({
     UserNotFoundException: {
       render: () => p('User not found'),
       showSource: true,
@@ -239,7 +239,7 @@ handlers keep their previous behavior. If the component factory or a provider
 fails before the template is created, there is no source block to preserve, so
 the fallback is rendered alone.
 
-### `matchBlock.exhaustive`: render a resource exception
+### `matchNode.exhaustive`: render a resource exception
 
 Use it when a query, mutation, or another primitive exposes an exception as a
 signal instead of throwing from the template subtree. The block renders no
@@ -247,7 +247,7 @@ children while the source is empty and switches reactively to the matching
 handler when an exception appears.
 
 ```ts
-matchBlock.exhaustive(() => userQuery.exceptions().loader, '_tag', {
+matchNode.exhaustive(() => userQuery.exceptions().loader, '_tag', {
   UserNotFoundException: () => p('User not found'),
   UserConsentMissingException: () => p('Consent is required'),
 });

@@ -84,19 +84,19 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
   {
-    path: 'pending-block',
+    path: 'pending-node',
     ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/component/pending-block-demo')).then(
+      withRetry(import('./examples/component/pending-node-demo')).then(
         ({ default: component }) => component,
       ),
     ),
   },
   craftRoute(
-    'pending-block/exception',
+    'pending-node/exception',
     {
       ...loadCraftComponent(({ withRetry }) =>
         withRetry(
-          import('./examples/component/pending-block-exception-demo'),
+          import('./examples/component/pending-node-exception-demo'),
         ).then(({ default: component }) => component),
       ),
     },
@@ -420,8 +420,8 @@ type DemoRoutePath =
   | 'view-transitions/:photoId'
   | 'component-composition'
   | 'content-projection'
-  | 'pending-block'
-  | 'pending-block/exception'
+  | 'pending-node'
+  | 'pending-node/exception'
   | 'css-vars'
   | 'css-vars/required'
   | 'css-vars/inheritance'
@@ -551,17 +551,17 @@ type _CanRunComponentComposition = CanRun<
 
 type _CanRunPendingBlock = CanRun<
   DemoRouteCheckedDI<
-    (typeof import('./examples/component/pending-block-demo'))['default'],
+    (typeof import('./examples/component/pending-node-demo'))['default'],
     never,
-    'path: "pending-block"'
+    'path: "pending-node"'
   >
 >;
 
 type _CanRunPendingBlockException = CanRun<
   DemoRouteCheckedDI<
-    (typeof import('./examples/component/pending-block-exception-demo'))['default'],
+    (typeof import('./examples/component/pending-node-exception-demo'))['default'],
     never,
-    'path: "pending-block/exception"'
+    'path: "pending-node/exception"'
   >
 >;
 

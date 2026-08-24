@@ -21,8 +21,8 @@ Functional, selectorless components rendered from typed hyperscript.
 | [Functional Components](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/component-demo.ts&initialpath=/) | `craftComponent`, inputs and outputs as factory parameters, hyperscript templates |
 | [Reactive Composition](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/component-composition-demo.ts&initialpath=/component-composition) | Composing components and directives with `.pipe(...)` |
 | [Content Projection](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/content-projection-demo.ts&initialpath=/content-projection) | Free DOM content, typed DOM contracts, and logical projection by contract |
-| [Pending Block](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/pending-block-demo.ts&initialpath=/pending-block) | Type-safe async suspension with `settledValue`, `settled(...)` and `pendingBlock` |
-| [Pending Block — Exception](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/pending-block-exception-demo.ts&initialpath=/pending-block/exception) | Coordinating pending, reloading and business-exception fallbacks with `pendingBlock` and `catchBlock` |
+| [Pending Block](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/pending-node-demo.ts&initialpath=/pending-node) | Type-safe async suspension with `settledValue`, `settled(...)` and `pendingNode` |
+| [Pending Block — Exception](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/component/pending-node-exception-demo.ts&initialpath=/pending-node/exception) | Coordinating pending, reloading and business-exception fallbacks with `pendingNode` and `catchNode` |
 
 ## Primitives
 
@@ -39,7 +39,7 @@ with no service layer.
 | [Login Form](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/forms/login-form.ts&initialpath=/login-form) | `insertForm`, validators, and a typed submit wired to a mutation |
 | [Pixel Art](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/pixel-art/pixel-art.ts&initialpath=/pixel-art) | `state` + `insertSelect` over a flat array |
 | [Pixel Art Matrix](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts&initialpath=/pixel-art-matrix) | Nested `insertSelect` and internal `source$` between rows and cells |
-| [Exceptions](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/exceptions/exceptions.ts&initialpath=/exceptions) | Business exceptions on `query()`, rendered per code with `matchBlock.exhaustive` |
+| [Exceptions](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/exceptions/exceptions.ts&initialpath=/exceptions) | Business exceptions on `query()`, rendered per code with `matchNode.exhaustive` |
 | [Exception QueryParams](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/exceptions/exception-query-params.ts&initialpath=/exception-query-params) | `queryParams` decode failures through `hasException()` and `exceptions().parse` |
 
 ## Services

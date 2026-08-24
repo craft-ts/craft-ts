@@ -1,7 +1,7 @@
 import type { AnyCraftException } from '@craft-ts/core';
 import {
   CRAFT_DIRECTIVE,
-  COMPONENT_CATCH_BLOCK,
+  COMPONENT_CATCH_NODE,
   type ComponentOperator,
   type ComponentExceptionHandler,
   type ComponentExceptionHandlerDefinition,
@@ -11,9 +11,9 @@ import {
 } from './types';
 import type { CraftNodeChildren } from './render/vnode';
 
-export const CATCH_BLOCK_DIRECTIVE = Symbol('craft-catch-block-directive');
+export const CATCH_NODE_DIRECTIVE = Symbol('craft-catch-node-directive');
 
-export type CatchBlockPosition = 'before' | 'after';
+export type CatchPosition = 'before' | 'after';
 
 export class CraftUnhandledExceptionError extends Error {
   readonly _tag: string;
@@ -27,12 +27,12 @@ export class CraftUnhandledExceptionError extends Error {
   }
 }
 
-export type CatchBlockHandler = ComponentExceptionHandler;
-export type CatchBlockHandlerOptions = ComponentExceptionHandlerOptions;
-export type CatchBlockHandlerDefinition = ComponentExceptionHandlerDefinition;
-export type CatchBlockHandlerEntry = ComponentExceptionHandlerEntry;
-export type CatchBlockHandlers = Record<string, CatchBlockHandlerEntry>;
-export type CatchBlockHandlerChildren<Handler> =
+export type CatchHandler = ComponentExceptionHandler;
+export type CatchHandlerOptions = ComponentExceptionHandlerOptions;
+export type CatchHandlerDefinition = ComponentExceptionHandlerDefinition;
+export type CatchHandlerEntry = ComponentExceptionHandlerEntry;
+export type CatchHandlers = Record<string, CatchHandlerEntry>;
+export type CatchHandlerChildren<Handler> =
   Handler extends ComponentExceptionHandlerEntry
     ? Handler extends (...args: any[]) => infer Children
       ? Children
@@ -41,15 +41,15 @@ export type CatchBlockHandlerChildren<Handler> =
         : never
     : never;
 
-export function resolveCatchBlockHandler(
-  handler: CatchBlockHandlerEntry,
+export function resolveCatchHandler(
+  handler: CatchHandlerEntry,
   exception: AnyCraftException,
   defaultShowSource: boolean,
-  defaultPosition: CatchBlockPosition,
+  defaultPosition: CatchPosition,
 ): {
   readonly children: CraftNodeChildren;
   readonly showSource: boolean;
-  readonly position: CatchBlockPosition;
+  readonly position: CatchPosition;
 } {
   if (typeof handler === 'function') {
     return {
@@ -66,44 +66,44 @@ export function resolveCatchBlockHandler(
   };
 }
 
-export type CatchBlockDirective<Handlers extends CatchBlockHandlers> =
+export type CatchDirective<Handlers extends CatchHandlers> =
   CraftDirective &
     ComponentOperator<readonly [], Extract<keyof Handlers, string>> & {
-      readonly [COMPONENT_CATCH_BLOCK]: true;
-      readonly [CATCH_BLOCK_DIRECTIVE]: {
+      readonly [COMPONENT_CATCH_NODE]: true;
+      readonly [CATCH_NODE_DIRECTIVE]: {
         readonly handlers: Handlers;
-        readonly position: CatchBlockPosition;
+        readonly position: CatchPosition;
       };
     };
 
 /** A template boundary which keeps its source block and inserts a fallback. */
-export const catchBlock = {
-  exhaustive<const Handlers extends CatchBlockHandlers>(
+export const catchNode = {
+  exhaustive<const Handlers extends CatchHandlers>(
     handlers: Handlers,
-    options: { readonly position?: CatchBlockPosition } = {},
-  ): CatchBlockDirective<Handlers> {
+    options: { readonly position?: CatchPosition } = {},
+  ): CatchDirective<Handlers> {
     const position = options.position ?? 'after';
     const directive = (() =>
-      undefined) as unknown as CatchBlockDirective<Handlers>;
+      undefined) as unknown as CatchDirective<Handlers>;
     Object.defineProperty(directive, CRAFT_DIRECTIVE, {
       value: {
-        name: 'catchBlock.exhaustive',
+        name: 'catchNode.exhaustive',
         meta: {},
         logic: (baseLogic: (...args: any[]) => any) => baseLogic,
         template: (baseTemplate: (context: any) => any) => baseTemplate,
         componentOperator: {
-          kind: 'catchBlock',
+          kind: 'catchNode',
           catchHandlers: handlers,
-          catchBlockPosition: position,
+          catchNodePosition: position,
         },
       },
       enumerable: false,
     });
-    Object.defineProperty(directive, CATCH_BLOCK_DIRECTIVE, {
+    Object.defineProperty(directive, CATCH_NODE_DIRECTIVE, {
       value: { handlers, position },
       enumerable: false,
     });
-    Object.defineProperty(directive, COMPONENT_CATCH_BLOCK, {
+    Object.defineProperty(directive, COMPONENT_CATCH_NODE, {
       value: true,
       enumerable: false,
     });

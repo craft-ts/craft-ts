@@ -45,7 +45,7 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   required, and `hydrateCraft` when hydration must be forced or customized.
 - Use `renderCraft` for one isolated SSR request. Create a new render per
   request; never reuse its injector, platform, primitive registry, or history.
-- Keep SSR data behavior explicit with `pendingBlock({ ssr: 'block' | 'fallback' | 'client' })`
+- Keep SSR data behavior explicit with `pendingNode({ ssr: 'block' | 'fallback' | 'client' })`
   or a route-level `ssr` policy. Do not let a suspended source reach SSR
   without a policy.
 - Run existing architecture tests. Do not add an architecture rule for the feature.

@@ -5,7 +5,7 @@ import {
   div,
   heading,
   input,
-  matchBlock,
+  matchNode,
   p,
   section,
   span,
@@ -133,7 +133,7 @@ const TextEditorStateMachine = craftComponent(
         span({ class: machine.editingClass }, 'editing'),
       ]),
 
-      matchBlock.exhaustive(machine.currentStep, {
+      matchNode.exhaustive(machine.currentStep, {
         reading: () =>
           div({ class: 'panel' }, [
             p(['Committed value: ', machine.committedValue]),

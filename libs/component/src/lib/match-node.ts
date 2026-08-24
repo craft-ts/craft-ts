@@ -6,7 +6,7 @@ import { craftUse } from '@craft-ts/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
-  MatchBlockNode,
+  MatchNode,
 } from './render/vnode';
 
 type ExceptionCode<Value extends object, Key extends keyof Value> = Extract<
@@ -20,7 +20,7 @@ type ExceptionHandlerMap<Value extends object, Key extends keyof Value> = {
   ) => CraftNodeChildren;
 };
 
-type MatchBlockDependencies<Handlers> =
+type MatchDependencies<Handlers> =
   Handlers extends Record<string, (...args: any[]) => infer Output>
     ? CraftNodeChildrenDependencies<Output>
     : Record<never, never>;
@@ -61,8 +61,8 @@ function exhaustive<
   source: Source,
   key: Key,
   handlers: Handlers,
-): MatchBlockNode<
-  MatchBlockDependencies<Handlers>,
+): MatchNode<
+  MatchDependencies<Handlers>,
   NonNullable<Source>,
   ReturnType<Handlers[ExceptionCode<Value, Key>]>,
   Extract<ExceptionCode<Value, Key>, string>
@@ -76,8 +76,8 @@ function exhaustive<
   source: YieldableReactiveValue<Value>,
   key: Key,
   handlers: Handlers,
-): MatchBlockNode<
-  MatchBlockDependencies<Handlers>,
+): MatchNode<
+  MatchDependencies<Handlers>,
   YieldableReactiveValue<Value>,
   ReturnType<Handlers[ExceptionCode<Value, Key>]>,
   Extract<ExceptionCode<Value, Key>, string>
@@ -90,8 +90,8 @@ function exhaustive<
   source: (() => Value | undefined) | Value,
   key: Key,
   handlers: Handlers,
-): MatchBlockNode<
-  MatchBlockDependencies<Handlers>,
+): MatchNode<
+  MatchDependencies<Handlers>,
   (() => Value | undefined) | Value,
   ReturnType<Handlers[ExceptionCode<Value, Key>]>,
   Extract<ExceptionCode<Value, Key>, string>
@@ -102,8 +102,8 @@ function exhaustive<
 >(
   source: YieldableReactiveValue<Value>,
   handlers: Handlers,
-): MatchBlockNode<
-  MatchBlockDependencies<Handlers>,
+): MatchNode<
+  MatchDependencies<Handlers>,
   YieldableReactiveValue<{ value: Value }>,
   ReturnType<Handlers[Extract<Value, string | number>]>,
   Extract<Value, string>
@@ -114,8 +114,8 @@ function exhaustive<
 >(
   source: (() => Value | Generator<unknown, Value, unknown>) | Value,
   handlers: Handlers,
-): MatchBlockNode<
-  MatchBlockDependencies<Handlers>,
+): MatchNode<
+  MatchDependencies<Handlers>,
   (() => { value: Value }) | { value: Value },
   ReturnType<Handlers[Extract<Value, string | number>]>,
   Extract<Value, string>
@@ -141,7 +141,7 @@ function exhaustive(
         : { value: source };
 
     return {
-      kind: 'match-block' as const,
+      kind: 'match' as const,
       source: scalarSource,
       key: 'value',
       handlers: Object.fromEntries(
@@ -154,7 +154,7 @@ function exhaustive(
   }
 
   return {
-    kind: 'match-block' as const,
+    kind: 'match' as const,
     source,
     key: keyOrHandlers,
     handlers: maybeHandlers,
@@ -162,4 +162,4 @@ function exhaustive(
 }
 
 /** Reactive template counterpart of discriminated-union matching. */
-export const matchBlock = { exhaustive };
+export const matchNode = { exhaustive };

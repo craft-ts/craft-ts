@@ -187,7 +187,7 @@ type VisitContentNode<
                 [...Depth, unknown]
               >
             : Node extends {
-                  readonly kind: 'each';
+                  readonly kind: 'for';
                   readonly itemTemplate: (...args: any[]) => infer ItemChildren;
                   readonly empty?: () => infer EmptyChildren;
                 }
@@ -289,7 +289,7 @@ type VisitOptionalTag<
                   [...Depth, unknown]
                 >
               : Node extends {
-                    readonly kind: 'each';
+                    readonly kind: 'for';
                     readonly itemTemplate: (...args: any[]) => infer ItemChildren;
                     readonly empty?: () => infer EmptyChildren;
                   }
@@ -395,7 +395,7 @@ type VisitNode<
               Seen
             >
           : Node extends {
-              readonly kind: 'each';
+              readonly kind: 'for';
               readonly itemTemplate: (...args: any[]) => infer ItemChildren;
               readonly empty?: () => infer EmptyChildren;
             }
@@ -728,7 +728,7 @@ function runtimeTemplateMatches(
             : []),
         );
         break;
-      case 'each':
+      case 'for':
         matches.push(
           ...runtimeTemplateMatches(
             node.itemTemplate(undefined as never, 0),

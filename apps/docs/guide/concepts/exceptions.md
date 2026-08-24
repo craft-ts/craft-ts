@@ -167,12 +167,12 @@ When a component's factory — or one of its providers — can raise a
 exceptions**. It stays attached to the component until something handles it.
 
 Most of the time what you want is a **fallback to render**, which is
-`catchBlock.exhaustive`:
+`catchNode.exhaustive`:
 
 ```typescript
 const Restricted = MyRestrictedComponent.pipe(
   withProviders([provideRestrictedData(/* … */)]),
-  catchBlock.exhaustive({
+  catchNode.exhaustive({
     NO_ACCESS: () => p('You do not have access to this data.'),
   }),
 );
@@ -183,7 +183,7 @@ no source block to preserve and the fallback renders alone. When the source
 *does* exist and should stay visible, use the object form:
 
 ```typescript
-catchBlock.exhaustive({
+catchNode.exhaustive({
   NO_ACCESS: { render: () => p('Restricted'), showSource: true, position: 'after' },
 });
 ```
@@ -232,8 +232,8 @@ result is logic or DOM:
 
 | Utility                 | Handles in | Produces                                      |
 | ----------------------- | ---------- | --------------------------------------------- |
-| `catchBlock.exhaustive` | template   | a fallback around a source block — **the default choice** |
-| `matchBlock.exhaustive` | template   | a fallback rendered from an exception value or signal |
+| `catchNode.exhaustive` | template   | a fallback around a source block — **the default choice** |
+| `matchNode.exhaustive` | template   | a fallback rendered from an exception value or signal |
 | `catchTag.exhaustive`   | logic      | nothing renderable — call a service, log, …   |
 
 Details on [Customization](/guide/components/customization#choosing-an-exception-utility).

@@ -3,7 +3,7 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   span,
 } from '@craft-ts/component';
@@ -49,13 +49,13 @@ const QuickstartTaskPage = craftComponent(
         return `EffectTS + CraftTS (${yield* taskQuery.status()})`;
       }),
       p('One Effect domain operation, one Layer, one Craft query.'),
-      ifBlock(taskQuery.isLoading, () => p('Loading task…')),
-      ifBlock(taskQuery.hasTask, () =>
+      ifNode(taskQuery.isLoading, () => p('Loading task…')),
+      ifNode(taskQuery.hasTask, () =>
         p(function* () {
           return `Task: ${yield* taskQuery.title()}`;
         }),
       ),
-      ifBlock(taskQuery.hasTaskException, () =>
+      ifNode(taskQuery.hasTaskException, () =>
         p([
           'Business error: ',
           span({ class: 'error' }, function* () {

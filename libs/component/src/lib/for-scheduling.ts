@@ -2,31 +2,31 @@ import { InjectionToken } from './host-runtime';
 import { craftDirective } from './directive';
 import type { CraftDirective } from './types';
 
-export type EachScheduleStrategy = 'sync' | 'frame';
+export type ForScheduleStrategy = 'sync' | 'frame';
 
-export interface EachScheduleOptions {
+export interface ForScheduleOptions {
   readonly enabled?: boolean;
-  readonly strategy?: EachScheduleStrategy;
+  readonly strategy?: ForScheduleStrategy;
   readonly frameBudgetMs?: number;
 }
 
-export interface EachSchedulePolicy {
+export interface ForSchedulePolicy {
   readonly enabled: boolean;
-  readonly strategy: EachScheduleStrategy;
+  readonly strategy: ForScheduleStrategy;
   readonly frameBudgetMs: number;
 }
 
-export const SCHEDULE_EACH_DIRECTIVE = Symbol('schedule-each-directive');
+export const SCHEDULE_FOR_DIRECTIVE = Symbol('schedule-for-directive');
 
-export type ScheduleEachDirective<
-  Policy extends EachSchedulePolicy = EachSchedulePolicy,
+export type ScheduleForDirective<
+  Policy extends ForSchedulePolicy = ForSchedulePolicy,
 > = CraftDirective & {
-  readonly [SCHEDULE_EACH_DIRECTIVE]: Policy;
+  readonly [SCHEDULE_FOR_DIRECTIVE]: Policy;
 };
 
-type NormalizedPolicy<Options extends EachScheduleOptions> = {
+type NormalizedPolicy<Options extends ForScheduleOptions> = {
   readonly enabled: Options['enabled'] extends false ? false : true;
-  readonly strategy: Options['strategy'] extends EachScheduleStrategy
+  readonly strategy: Options['strategy'] extends ForScheduleStrategy
     ? Options['strategy']
     : 'frame';
   readonly frameBudgetMs: Options['frameBudgetMs'] extends number
@@ -42,9 +42,9 @@ type NormalizedPolicy<Options extends EachScheduleOptions> = {
  * before the generic directive path, so its identity does not imply a DOM
  * wrapper or a CraftDirectiveRenderedNode.
  */
-export function scheduleEach<const Options extends EachScheduleOptions>(
+export function scheduleFor<const Options extends ForScheduleOptions>(
   options: Options = {} as Options,
-): ScheduleEachDirective<NormalizedPolicy<Options>> {
+): ScheduleForDirective<NormalizedPolicy<Options>> {
   const frameBudgetMs =
     typeof options.frameBudgetMs === 'number' && options.frameBudgetMs > 0
       ? options.frameBudgetMs
@@ -56,12 +56,12 @@ export function scheduleEach<const Options extends EachScheduleOptions>(
   } as NormalizedPolicy<Options>;
 
   const directive = craftDirective(
-    'scheduleEach',
+    'scheduleFor',
     {},
     (baseLogic) => baseLogic,
     (baseTemplate) => baseTemplate,
-  ) as ScheduleEachDirective<NormalizedPolicy<Options>>;
-  Object.defineProperty(directive, SCHEDULE_EACH_DIRECTIVE, {
+  ) as ScheduleForDirective<NormalizedPolicy<Options>>;
+  Object.defineProperty(directive, SCHEDULE_FOR_DIRECTIVE, {
     value: Object.freeze(policy),
     enumerable: false,
   });
@@ -72,18 +72,18 @@ export interface CancelHandle {
   cancel(): void;
 }
 
-export interface EachScheduler {
+export interface ForScheduler {
   schedule(task: () => void): CancelHandle;
 }
 
 /** Injectable override used by deterministic tests and host integrations. */
-export const EACH_SCHEDULER = new InjectionToken<EachScheduler>(
-  'EACH_SCHEDULER',
+export const FOR_SCHEDULER = new InjectionToken<ForScheduler>(
+  'FOR_SCHEDULER',
 );
 
 const NOOP_CANCEL: CancelHandle = { cancel: () => undefined };
 
-export class SyncEachScheduler implements EachScheduler {
+export class SyncForScheduler implements ForScheduler {
   schedule(task: () => void): CancelHandle {
     task();
     return NOOP_CANCEL;
@@ -95,7 +95,7 @@ type QueuedTask = {
   cancelled: boolean;
 };
 
-export class FrameEachScheduler implements EachScheduler {
+export class FrameForScheduler implements ForScheduler {
   private readonly queue: QueuedTask[] = [];
   private frame: number | ReturnType<typeof setTimeout> | undefined;
   private destroyed = false;
@@ -173,21 +173,21 @@ function now(): number {
     : Date.now();
 }
 
-export function createEachScheduler(
-  policy: EachSchedulePolicy,
-): EachScheduler & { destroy?(): void } {
+export function createForScheduler(
+  policy: ForSchedulePolicy,
+): ForScheduler & { destroy?(): void } {
   if (!policy.enabled || policy.strategy === 'sync') {
-    return new SyncEachScheduler();
+    return new SyncForScheduler();
   }
-  return new FrameEachScheduler(policy.frameBudgetMs);
+  return new FrameForScheduler(policy.frameBudgetMs);
 }
 
-export function isScheduleEachDirective(
+export function isScheduleForDirective(
   value: unknown,
-): value is ScheduleEachDirective {
+): value is ScheduleForDirective {
   return (
     (typeof value === 'function' ||
       (typeof value === 'object' && value !== null)) &&
-    SCHEDULE_EACH_DIRECTIVE in value
+    SCHEDULE_FOR_DIRECTIVE in value
   );
 }

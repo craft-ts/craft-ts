@@ -24,7 +24,7 @@ custom tags become `customElement('my-element', ...)`.
 Adapt them to your Craft context.
 
 **Control-flow directives are not converted.** Rewrite conditional and repeated
-sections with `ifBlock` or `each`.
+sections with `ifNode` or `forNode`.
 
 ## See Also
 

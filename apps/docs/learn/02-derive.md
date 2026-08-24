@@ -30,7 +30,7 @@ records the read.
 import {
   button,
   craftComponent,
-  each,
+  forNode,
   h1,
   input,
   li,
@@ -61,7 +61,7 @@ export const Tasks = craftComponent(
     }),
 
     ul(
-      each(
+      forNode(
         tasks,
         { track: (task) => task.id, empty: () => li('Nothing to do 🎉') },
         (task) =>
@@ -86,7 +86,7 @@ export const Tasks = craftComponent(
 );
 ```
 
-Two template things worth noting. `each(source, options, render)` takes a
+Two template things worth noting. `forNode(source, options, render)` takes a
 `track` — the stable identity the renderer uses to reuse, move and remove
 nodes — and an optional `empty` branch. Pass the reader itself (`tasks`) rather
 than `() => tasks()`. When a binding must format or call a method, use a
@@ -102,16 +102,16 @@ syntax. Each block is a typed function with an explicit contract:
 
 | Block | Purpose |
 | --- | --- |
-| `each` | Renders a collection with stable tracking and an optional empty branch |
-| `ifBlock` | Preserves a conditional branch in the render contract |
-| `matchBlock.exhaustive` | Matches every member of a discriminated union |
-| `defer` | Loads a branch lazily |
+| `forNode` | Renders a collection with stable tracking and an optional empty branch |
+| `ifNode` | Preserves a conditional branch in the render contract |
+| `matchNode.exhaustive` | Matches every member of a discriminated union |
+| `deferNode` | Loads a branch lazily |
 
-`matchBlock.exhaustive` matches on a **discriminant key** of a union and the
+`matchNode.exhaustive` matches on a **discriminant key** of a union and the
 handler map must cover every member — a missing case is a compile error.
 
 ```typescript
-matchBlock.exhaustive(() => tasksQuery.exceptions().loader, '_tag', {
+matchNode.exhaustive(() => tasksQuery.exceptions().loader, '_tag', {
   TASK_NOT_FOUND: () => p('This task no longer exists.'),
   TASK_FORBIDDEN: () => p('You do not have access to it.'),
 });
@@ -127,7 +127,7 @@ holding the *result* of the branch, not the fact that a branch existed:
 tasks.isEmpty() ? p('Nothing to do') : ul(/* … */);
 ```
 
-`ifBlock` and `matchBlock` keep the condition **and both branches** in the node
+`ifNode` and `matchNode` keep the condition **and both branches** in the node
 contract. That is what lets you assert, at compile time, that an element renders
 *only* when a condition holds, or that a label renders for every item of a
 non-empty list — see [Type-level tests](/guide/testing/type-level). With a
@@ -139,10 +139,10 @@ rebuilding the subtree.
 ::: tip When a ternary is fine
 For a leaf value — a class name, a piece of text, an attribute — a ternary is
 the right tool. The rule concerns **structure**: whenever a branch decides
-whether an element exists, reach for `ifBlock` or `matchBlock`.
+whether an element exists, reach for `ifNode` or `matchNode`.
 :::
 
-`ifBlock` takes a **named** reactive value as its condition (a primitive ref, or
+`ifNode` takes a **named** reactive value as its condition (a primitive ref, or
 a value marked with `markYieldableValue`), because that name is what the
 visibility contract records.
 
@@ -180,13 +180,13 @@ be dealt with, and the compiler is the one that says so:
 
 ```typescript
 export const Restricted = MyComponent.pipe(
-  catchBlock.exhaustive({
+  catchNode.exhaustive({
     NO_ACCESS: () => p('You do not have access to this data.'),
   }),
 );
 ```
 
-`catchBlock.exhaustive` is the one you want most of the time: it renders a
+`catchNode.exhaustive` is the one you want most of the time: it renders a
 **fallback**. When the failure happens in the factory or a provider — before the
 template exists — the fallback simply renders alone.
 
@@ -207,7 +207,7 @@ The whole rule is on [An unhandled exception doesn't just
 disappear](/guide/concepts/exceptions).
 :::
 
-`matchBlock.exhaustive` is the sibling for rendering from an exception *value*
+`matchNode.exhaustive` is the sibling for rendering from an exception *value*
 or signal. Reach for `catchTag.exhaustive` only when the reaction is pure
 logic — a toast, a log — and produces no DOM.
 

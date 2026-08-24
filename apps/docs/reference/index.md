@@ -74,7 +74,7 @@ already receive those methods as arguments — see
 | `insertFormSubmit`                                                          | Wires submission to a mutation             | [Submitting](/guide/forms/submit)     |
 | `insertNoopTypingAnchor`                                                    | Type anchor required per field tree        | [Forms](/guide/forms/)                |
 | `CraftFieldDirective`                                                       | Binds a typed field to a Craft DOM node    | [Forms](/guide/forms/)                |
-| `fieldExceptionBlock.exhaustive` / `.partial`                               | Exhaustive or partial validation rendering | [Forms](/guide/forms/)                |
+| `fieldErrorNode.exhaustive` / `.partial`                               | Exhaustive or partial validation rendering | [Forms](/guide/forms/)                |
 | `cRequired`, `cEmail`, `cMin`/`cMax`, `cMinLength`/`cMaxLength`, `cPattern` | Built-in validators                        | [Validators](/guide/forms/validation) |
 | `cValidate`, `cAsyncValidate`                                               | Custom and async validators                | [Validators](/guide/forms/validation) |
 
@@ -118,7 +118,7 @@ already receive those methods as arguments — see
 | `renderCraft`, `renderToString`                            | Renders an isolated request to HTML, CSS, and a transfer snapshot       | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `startCraft`                                               | Hydrates an SSR host or mounts a fresh client application automatically | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM          | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `pendingBlock({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `pendingNode({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                          | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `CraftUnhandledSsrResolutionError`, `CraftSsrTimeoutError` | Reports missing policies and timed-out blocking sources                 | [SSR and hydration](/guide/advanced/ssr-hydration) |
 

@@ -103,9 +103,9 @@ describe('craft-ts a11y', () => {
       expect(result.messages).toEqual([]);
     });
 
-    it('allows a button whose name is an ifBlock', async () => {
+    it('allows a button whose name is an ifNode', async () => {
       const [result] = await lint(
-        `button({ type: 'button' }, ifBlock(loading, () => 'Saving', () => 'Save'));`,
+        `button({ type: 'button' }, ifNode(loading, () => 'Saving', () => 'Save'));`,
         'control-has-accessible-name',
       );
       expect(result.messages).toEqual([]);

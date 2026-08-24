@@ -30,8 +30,8 @@ export const architectureCatalog = {
     "list-with-pagination",
     "login-form",
     "mutation/:userId",
-    "pending-block",
-    "pending-block/exception",
+    "pending-node",
+    "pending-node/exception",
     "pixel-art",
     "pixel-art-matrix",
     "playground",
@@ -151,8 +151,8 @@ export const architectureCatalog = {
     "craftPending",
     "dialog",
     "lazyMessage",
-    "pendingBlockDemo",
-    "pendingBlockExceptionDemo",
+    "pendingNodeDemo",
+    "pendingNodeExceptionDemo",
     "restrictedContent",
     "toolbar",
     "toolbarAction",
@@ -568,11 +568,11 @@ export const architectureCatalog = {
         "apps/demo/src/app/app.routes.runtime.ts",
         "apps/demo/src/app/app.routes.ts"
       ],
-      "pending-block": [
+      "pending-node": [
         "apps/demo/src/app/app.routes.runtime.ts",
         "apps/demo/src/app/app.routes.ts"
       ],
-      "pending-block/exception": [
+      "pending-node/exception": [
         "apps/demo/src/app/app.routes.runtime.ts",
         "apps/demo/src/app/app.routes.ts"
       ],

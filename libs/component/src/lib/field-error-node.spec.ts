@@ -24,7 +24,7 @@ import {
 import {
   craftComponent,
   div,
-  fieldExceptionBlock,
+  fieldErrorNode,
   input,
   loadCraftComponent,
   p,
@@ -33,7 +33,7 @@ import { renderCraftComponent } from './testing';
 import type { CraftNodeChildrenFieldExceptions } from './render/vnode';
 import type { ComponentFieldExceptionsOf } from './types';
 
-describe('fieldExceptionBlock', () => {
+describe('fieldErrorNode', () => {
   beforeEach(() => {
     document.body.replaceChildren();
   });
@@ -59,7 +59,7 @@ describe('fieldExceptionBlock', () => {
         CraftNodeChildrenFieldExceptions<typeof field>
       >().not.toEqualTypeOf<never>();
       const partial = field.pipe(
-        fieldExceptionBlock.partial({
+        fieldErrorNode.partial({
           required: () => p('Required'),
         }),
       );
@@ -67,7 +67,7 @@ describe('fieldExceptionBlock', () => {
         CraftNodeChildrenFieldExceptions<typeof partial>
       >().not.toEqualTypeOf<never>();
       const _caught = partial.pipe(
-        fieldExceptionBlock.exhaustive({
+        fieldErrorNode.exhaustive({
           email: () => p('Invalid email'),
         }),
       );
@@ -77,19 +77,19 @@ describe('fieldExceptionBlock', () => {
 
       field.pipe(
         // @ts-expect-error unreachable partial handler: minLength
-        fieldExceptionBlock.partial({
+        fieldErrorNode.partial({
           minLength: () => p('Impossible'),
         }),
       );
       field.pipe(
         // @ts-expect-error missing local handler: email
-        fieldExceptionBlock.exhaustive({
+        fieldErrorNode.exhaustive({
           required: () => p('Required'),
         }),
       );
       field.pipe(
         // @ts-expect-error unreachable local handler: minLength
-        fieldExceptionBlock.exhaustive({
+        fieldErrorNode.exhaustive({
           required: () => p('Required'),
           email: () => p('Invalid email'),
           minLength: () => p('Impossible'),
@@ -118,12 +118,12 @@ describe('fieldExceptionBlock', () => {
           input({ id: 'partial-password' })
             .pipe(CraftFieldDirective(form))
             .pipe(
-              fieldExceptionBlock.partial({
+              fieldErrorNode.partial({
                 required: () => p('Local required'),
               }),
             ),
         ]).pipe(
-          fieldExceptionBlock.exhaustive({
+          fieldErrorNode.exhaustive({
             minLength: ({ exception }) =>
               p(`Parent minimum ${exception.payload}`),
           }),
@@ -181,7 +181,7 @@ describe('fieldExceptionBlock', () => {
         input({ id: 'email' })
           .pipe(CraftFieldDirective(form))
           .pipe(
-            fieldExceptionBlock.exhaustive({
+            fieldErrorNode.exhaustive({
               required: () => p('Email is required.'),
             }),
           ),
@@ -236,7 +236,7 @@ describe('fieldExceptionBlock', () => {
         })
           .pipe(CraftFieldDirective(form))
           .pipe(
-            fieldExceptionBlock.exhaustive(
+            fieldErrorNode.exhaustive(
               { required: () => p('Touched error') },
               { visibility: { anyOf: ['touched'] } },
             ),
@@ -308,7 +308,7 @@ describe('fieldExceptionBlock', () => {
     );
 
     const safe = unsafe.pipe(
-      fieldExceptionBlock.exhaustive(
+      fieldErrorNode.exhaustive(
         {
           email: {
             required: () => p('Email required'),
@@ -426,7 +426,7 @@ describe('fieldExceptionBlock', () => {
     loadCraftComponent(async () => unsafe);
 
     const safeAtComponentBoundary = unsafe.pipe(
-      fieldExceptionBlock.exhaustive({
+      fieldErrorNode.exhaustive({
         credentials: {
           passwordMismatch: () => p('Passwords do not match.'),
         },
@@ -449,7 +449,7 @@ describe('fieldExceptionBlock', () => {
             CraftFieldDirective(credentials.confirmation),
           ),
         ]).pipe(
-          fieldExceptionBlock.exhaustive({
+          fieldErrorNode.exhaustive({
             credentials: {
               passwordMismatch: () => p('Passwords do not match.'),
             },

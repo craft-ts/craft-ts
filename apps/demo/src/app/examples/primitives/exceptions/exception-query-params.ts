@@ -3,7 +3,7 @@ import {
   button,
   craftComponent,
   div,
-  ifBlock,
+  ifNode,
   p,
   section,
   strong,
@@ -144,7 +144,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           return String((yield* modeQueryParams()).mode);
         },
       ]),
-      ifBlock(
+      ifNode(
         modeQueryParams.hasParseException,
         () =>
           p([

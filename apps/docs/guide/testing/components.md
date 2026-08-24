@@ -146,14 +146,14 @@ test.destroy();
 
 
 
-This template has no `ifBlock`, `each`, or `defer`, so
+This template has no `ifNode`, `forNode`, or `deferNode`, so
 `brandedStatusElement` is an `HTMLSpanElement`, never `undefined`; optional
 chaining is not needed here.
 
 The brand name is part of the template type. An unknown value such as
 `{ content: 'missing' }` is rejected by TypeScript. The return type is the
-inferred DOM type when the element is always rendered. Under `ifBlock`, `each`,
-or `defer`, it is `MaybeDefined<HTMLSpanElement>` (equivalent to
+inferred DOM type when the element is always rendered. Under `ifNode`, `forNode`,
+or `deferNode`, it is `MaybeDefined<HTMLSpanElement>` (equivalent to
 `HTMLSpanElement | undefined`), so callers must handle the absent branch.
 
 Use static, discriminating markers for locators. A literal class or attribute

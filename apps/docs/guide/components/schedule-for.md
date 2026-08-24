@@ -1,17 +1,17 @@
-# Progressive rendering with `scheduleEach`
+# Progressive rendering with `scheduleFor`
 
-`each` renders synchronously by default. That is the right choice for short
+`forNode` renders synchronously by default. That is the right choice for short
 lists and keeps the initial behavior predictable. For a large collection,
-`scheduleEach` lets Craft spread fragment creation and updates over animation
+`scheduleFor` lets Craft spread fragment creation and updates over animation
 frames.
 
 ## Basic usage
 
 ```ts
-import { each, scheduleEach } from '@craft-ts/component';
+import { forNode, scheduleFor } from '@craft-ts/component';
 
-each(cells, { track: (cell) => cell.id }, (cell) => renderCell(cell)).pipe(
-  scheduleEach({
+forNode(cells, { track: (cell) => cell.id }, (cell) => renderCell(cell)).pipe(
+  scheduleFor({
     enabled: true,
     strategy: 'frame',
     frameBudgetMs: 4,
@@ -19,7 +19,7 @@ each(cells, { track: (cell) => cell.id }, (cell) => renderCell(cell)).pipe(
 );
 ```
 
-The directive is attached to the `each` node. It does not add a DOM wrapper and
+The directive is attached to the `forNode` node. It does not add a DOM wrapper and
 does not change the `item`, `index`, dependency, exception, or pending-source
 contracts of the block.
 
@@ -33,12 +33,12 @@ the list sooner but can occupy the main thread for longer.
 Disable it explicitly when a screen needs the synchronous behavior:
 
 ```ts
-each(items, { track: (item) => item.id }, renderItem).pipe(
-  scheduleEach({ enabled: false, strategy: 'frame' }),
+forNode(items, { track: (item) => item.id }, renderItem).pipe(
+  scheduleFor({ enabled: false, strategy: 'frame' }),
 );
 ```
 
-`each` without `scheduleEach` is already synchronous. The first delivery
+`forNode` without `scheduleFor` is already synchronous. The first delivery
 supports `sync` and `frame`; `idle` will be added with its fallback policy in a
 later delivery.
 
@@ -59,11 +59,11 @@ combined.
 The demo's Pixel Art Workshop uses frame scheduling for its 256-cell grid:
 
 ```ts
-each(INDEXES, { track: (index) => index }, renderCell).pipe(
-  scheduleEach({ strategy: 'frame', frameBudgetMs: 4 }),
+forNode(INDEXES, { track: (index) => index }, renderCell).pipe(
+  scheduleFor({ strategy: 'frame', frameBudgetMs: 4 }),
 );
 ```
 
 The production benchmark can compare the synchronous baseline and frame mode
 with 256, 1,000, and 10,000 cells. Its commands and metrics are documented in
-`docs/benchmarks/schedule-each-pixel-art.md` in the repository.
+`docs/benchmarks/schedule-for-pixel-art.md` in the repository.

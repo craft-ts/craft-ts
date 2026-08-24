@@ -36,15 +36,15 @@ import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
 import { content, renderContent } from '../project';
-import { defer } from '../defer';
-import { each } from '../each';
+import { deferNode } from '../defer-node';
+import { forNode } from '../for-node';
 import {
-  EACH_SCHEDULER,
-  scheduleEach,
-  type EachScheduler,
-} from '../each-scheduling';
-import { ifBlock } from '../if-block';
-import { catchBlock } from '../block';
+  FOR_SCHEDULER,
+  scheduleFor,
+  type ForScheduler,
+} from '../for-scheduling';
+import { ifNode } from '../if-node';
+import { catchNode } from '../catch-node';
 import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
@@ -82,7 +82,7 @@ function childListMutationNodes(records: readonly MutationRecord[]): Node[] {
   ]);
 }
 
-class VirtualEachScheduler implements EachScheduler {
+class VirtualForScheduler implements ForScheduler {
   private readonly tasks = new Set<{
     readonly task: () => void;
     cancelled: boolean;
@@ -273,7 +273,7 @@ describe('functional component interpreter', () => {
     const binding = vi.fn(() => value());
     const branch = vi.fn(() => p(binding));
     const condition = markYieldableValue(() => visible(), 'visible');
-    const template = vi.fn(() => ifBlock(condition, branch));
+    const template = vi.fn(() => ifNode(condition, branch));
     const component = craftComponent(
       'granularConditional',
       {},
@@ -311,7 +311,7 @@ describe('functional component interpreter', () => {
       'stableIfBranch',
       {},
       () => ({}),
-      () => ifBlock(condition, () => p('stable')),
+      () => ifNode(condition, () => p('stable')),
     );
     const {
       nativeElement: element,
@@ -349,7 +349,7 @@ describe('functional component interpreter', () => {
       }),
     );
     const template = vi.fn(() =>
-      ul(each(items, { track: (item) => item.id }, itemTemplate)),
+      ul(forNode(items, { track: (item) => item.id }, itemTemplate)),
     );
     const component = craftComponent(
       'granularEachBindings',
@@ -398,7 +398,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({ items }),
       ({ items }) =>
-        ul(each(items, { track: (item) => item.id }, itemTemplate)),
+        ul(forNode(items, { track: (item) => item.id }, itemTemplate)),
     );
     const {
       nativeElement: element,
@@ -433,7 +433,7 @@ describe('functional component interpreter', () => {
       () => ({ items }),
       ({ items }) =>
         ul(
-          each(items, { track: (item) => item.id }, (item) =>
+          forNode(items, { track: (item) => item.id }, (item) =>
             li(
               {
                 'data-id': function* () {
@@ -500,7 +500,7 @@ describe('functional component interpreter', () => {
       () => ({ items }),
       ({ items }) =>
         ul(
-          each(items, { track: (item) => item.id }, (item) =>
+          forNode(items, { track: (item) => item.id }, (item) =>
             li(function* () {
               return (yield* item()).label;
             }),
@@ -522,7 +522,7 @@ describe('functional component interpreter', () => {
         kind: 'block',
         phase: 'update',
         componentName: 'granularEachTrace',
-        name: 'each',
+        name: 'for',
         renderCount: 2,
       },
     ]);
@@ -776,7 +776,7 @@ describe('functional component interpreter', () => {
       'stableProjection',
       {},
       () => ({}),
-      () => ifBlock(condition, () => section(renderContent('body', projected))),
+      () => ifNode(condition, () => section(renderContent('body', projected))),
     );
     const {
       nativeElement: element,
@@ -836,7 +836,7 @@ describe('functional component interpreter', () => {
       ({ actions }) =>
         div(
           { role: 'toolbar' },
-          each(actions, { track: (item) => item.key }, (item) =>
+          forNode(actions, { track: (item) => item.key }, (item) =>
             renderContent(item),
           ),
         ),
@@ -1017,7 +1017,7 @@ describe('functional component interpreter', () => {
       () => ({}),
       () =>
         ul(
-          each(['Ada', 'Lin'], { track: (value) => value }, (value, index) =>
+          forNode(['Ada', 'Lin'], { track: (value) => value }, (value, index) =>
             renderTemplate(row, { $implicit: value, index }),
           ),
         ),
@@ -1045,7 +1045,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        ifBlock(condition, () =>
+        ifNode(condition, () =>
           renderTemplate(row, { label: `revision-${revision()}` }),
         ),
     );
@@ -1135,7 +1135,7 @@ describe('functional component interpreter', () => {
           button({ click: () => add.mutate('new todo') }, 'Add'),
         ]),
     ).pipe(
-      catchBlock.exhaustive({
+      catchNode.exhaustive({
         FAILED_TO_LOAD: {
           render: () => p('failed'),
           showSource: true,
@@ -1312,8 +1312,8 @@ describe('functional component interpreter', () => {
           span({ class: 'value' }, function* () {
             return yield* counter.doubled();
           }),
-          ifBlock(counter.doubled, () => p({ class: 'visible' }, 'visible')),
-          each(counter.items, { track: (item) => item }, (item) =>
+          ifNode(counter.doubled, () => p({ class: 'visible' }, 'visible')),
+          forNode(counter.items, { track: (item) => item }, (item) =>
             li(String(item)),
           ),
           button(
@@ -1394,7 +1394,7 @@ describe('functional component interpreter', () => {
         };
       },
       ({ enabled }) =>
-        ifBlock(
+        ifNode(
           enabled,
           () =>
             button(
@@ -1821,10 +1821,10 @@ describe('functional component interpreter', () => {
     expect(destroyRefCleanups).toHaveBeenCalledTimes(2);
   });
 
-  it('recovers an ifBlock after its true branch throws', async () => {
+  it('recovers an ifNode after its true branch throws', async () => {
     const explode = signal(true);
     const component = craftComponent(
-      'ifBlockRecoversAfterThrow',
+      'ifNodeRecoversAfterThrow',
       {},
       function* () {
         const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
@@ -1845,7 +1845,7 @@ describe('functional component interpreter', () => {
             },
             'toggle',
           ),
-          ifBlock(
+          ifNode(
             navOpen,
             () => {
               if (explode()) {
@@ -1998,7 +1998,7 @@ describe('functional component interpreter', () => {
     expect(picked).toHaveBeenCalledWith('Grace');
   });
 
-  it('reconciles each() blocks by key and renders the empty block', async () => {
+  it('reconciles forNode() blocks by key and renders the empty block', async () => {
     const users = signal([
       { id: 1, name: 'Ada' },
       { id: 2, name: 'Grace' },
@@ -2009,7 +2009,7 @@ describe('functional component interpreter', () => {
       () => ({ users }),
       ({ users }) =>
         div(
-          each(
+          forNode(
             users,
             {
               track: (user) => user.id,
@@ -2061,14 +2061,14 @@ describe('functional component interpreter', () => {
 
   it('renders a scheduled each block progressively and keeps keyed DOM identity', async () => {
     const values = signal([1, 2, 3]);
-    const scheduler = new VirtualEachScheduler();
+    const scheduler = new VirtualForScheduler();
     const list = craftComponent(
       'scheduled-list',
       {},
       () => ({ values }),
       ({ values }) =>
         div(
-          each(values, { track: (value) => value }, (value) =>
+          forNode(values, { track: (value) => value }, (value) =>
             button(
               {
                 'data-value': function* () {
@@ -2079,7 +2079,7 @@ describe('functional component interpreter', () => {
                 return String(yield* value());
               },
             ),
-          ).pipe(scheduleEach({ enabled: true, strategy: 'frame' })),
+          ).pipe(scheduleFor({ enabled: true, strategy: 'frame' })),
         ),
     );
     const {
@@ -2087,7 +2087,7 @@ describe('functional component interpreter', () => {
       flush,
       destroy,
     } = await renderCraftComponent(list, {
-      providers: [{ provide: EACH_SCHEDULER, useValue: scheduler }],
+      providers: [{ provide: FOR_SCHEDULER, useValue: scheduler }],
     });
 
     expect(element.querySelectorAll('[data-value]')).toHaveLength(0);
@@ -2115,18 +2115,18 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  it('keeps scheduleEach synchronous when disabled', async () => {
+  it('keeps scheduleFor synchronous when disabled', async () => {
     const list = craftComponent(
       'disabled-scheduled-list',
       {},
       () => ({}),
       () =>
         div(
-          each([1, 2, 3], { track: (value) => value }, (value) =>
+          forNode([1, 2, 3], { track: (value) => value }, (value) =>
             p(function* () {
               return String(yield* value());
             }),
-          ).pipe(scheduleEach({ enabled: false, strategy: 'frame' })),
+          ).pipe(scheduleFor({ enabled: false, strategy: 'frame' })),
         ),
     );
     const { nativeElement: element, destroy } =
@@ -2138,14 +2138,14 @@ describe('functional component interpreter', () => {
 
   it('cancels obsolete scheduled work when the collection changes or the node is destroyed', async () => {
     const values = signal([1, 2, 3]);
-    const scheduler = new VirtualEachScheduler();
+    const scheduler = new VirtualForScheduler();
     const list = craftComponent(
       'cancelled-scheduled-list',
       {},
       () => ({ values }),
       ({ values }) =>
         div(
-          each(values, { track: (value) => value }, (value) =>
+          forNode(values, { track: (value) => value }, (value) =>
             p(
               {
                 'data-value': function* () {
@@ -2156,7 +2156,7 @@ describe('functional component interpreter', () => {
                 return String(yield* value());
               },
             ),
-          ).pipe(scheduleEach({ strategy: 'frame' })),
+          ).pipe(scheduleFor({ strategy: 'frame' })),
         ),
     );
     const {
@@ -2164,7 +2164,7 @@ describe('functional component interpreter', () => {
       flush,
       destroy,
     } = await renderCraftComponent(list, {
-      providers: [{ provide: EACH_SCHEDULER, useValue: scheduler }],
+      providers: [{ provide: FOR_SCHEDULER, useValue: scheduler }],
     });
 
     expect(scheduler.pendingCount).toBe(3);
@@ -2193,7 +2193,7 @@ describe('functional component interpreter', () => {
       () => ({ users }),
       ({ users }) =>
         div(
-          each(
+          forNode(
             () => users(),
             {
               track: (user) => user.id,
@@ -2245,7 +2245,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        defer(() => loaded, {
+        deferNode(() => loaded, {
           trigger: 'immediate',
           resolve: (value) => p({ class: 'loaded' }, value),
           placeholder: () => p('Placeholder'),
@@ -2269,7 +2269,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        defer(() => Promise.reject(new Error('boom')), {
+        deferNode(() => Promise.reject(new Error('boom')), {
           trigger: 'immediate',
           resolve: () => p('unreachable'),
           error: (error) =>
@@ -2298,7 +2298,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        defer(
+        deferNode(
           ({ withRetry }) =>
             withRetry(
               calls++ === 0
@@ -2330,7 +2330,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        defer(() => Promise.resolve('Interacted'), {
+        deferNode(() => Promise.resolve('Interacted'), {
           trigger: 'interaction',
           resolve: (value) => p({ class: 'interaction-loaded' }, value),
           placeholder: () => button({ class: 'interaction-trigger' }, 'Start'),
@@ -2362,7 +2362,7 @@ describe('functional component interpreter', () => {
       {},
       () => ({}),
       () =>
-        defer(loader, {
+        deferNode(loader, {
           trigger: 'interaction',
           resolve: (value) => p({ class: 'detached-loaded' }, value),
         }),

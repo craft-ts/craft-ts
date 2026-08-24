@@ -3,7 +3,7 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   span,
   strong,
@@ -71,7 +71,7 @@ const EffectLayerScopeComponent = craftComponent(
       ),
       div({ class: 'panel' }, [
         p({ class: 'panel-title' }, 'Active team'),
-        ifBlock(teamOverviewQuery.isLoading, () => p('Loading team overview…')),
+        ifNode(teamOverviewQuery.isLoading, () => p('Loading team overview…')),
         p({ class: 'row' }, [strong('Team: '), teamOverviewQuery.teamName]),
         p({ class: 'row' }, [
           strong('Signed-in user: '),

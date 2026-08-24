@@ -50,7 +50,7 @@ client-side Effect CurrentUser service
 It contains a real CraftTS front-end page. The server file owns its Effect input
 schema, and the client file imports only the server function type with
 `import type`. The component uses the `craftComponent`, `state`, `queryEffect`,
-`craftComputed`, `each`, and `ifBlock` helpers.
+`craftComputed`, `forNode`, and `ifNode` helpers.
 Its form calls the client facade in the browser; the Vite server plugin then
 wires `/__server-functions` to the server function registry.
 

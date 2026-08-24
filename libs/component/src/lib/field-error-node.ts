@@ -12,8 +12,8 @@ import type {
 } from '@craft-ts/core';
 import {
   CRAFT_DIRECTIVE,
-  COMPONENT_FIELD_EXCEPTION_BLOCK,
-  FIELD_EXCEPTION_BLOCK_DIRECTIVE,
+  COMPONENT_FIELD_ERROR_NODE,
+  FIELD_ERROR_NODE_DIRECTIVE,
   type CraftDirective,
 } from './types';
 import type {
@@ -21,15 +21,15 @@ import type {
   CraftNodeChildrenFieldExceptions,
 } from './render/vnode';
 
-export { FIELD_EXCEPTION_BLOCK_DIRECTIVE } from './types';
+export { FIELD_ERROR_NODE_DIRECTIVE } from './types';
 
-export type FieldExceptionBlockMode = 'first' | 'all';
-export type FieldExceptionBlockPosition = 'before' | 'after';
+export type FieldErrorMode = 'first' | 'all';
+export type FieldErrorPosition = 'before' | 'after';
 
-export type FieldExceptionBlockOptions = {
+export type FieldErrorOptions = {
   readonly visibility?: FieldExceptionVisibility;
-  readonly mode?: FieldExceptionBlockMode;
-  readonly position?: FieldExceptionBlockPosition;
+  readonly mode?: FieldErrorMode;
+  readonly position?: FieldErrorPosition;
 };
 
 export type FieldExceptionHandlerContext<
@@ -182,7 +182,7 @@ type ProvidedHandlerKeys<Handlers> =
     ? HandlerIdentity<Handlers>
     : HandlerIdentity<Handlers>;
 
-export type FieldExceptionBlockExhaustiveCheck<Cases, Handlers> = [
+export type FieldErrorExhaustiveCheck<Cases, Handlers> = [
   Exclude<ReachableHandlerKeys<Cases, Handlers>, ProvidedHandlerKeys<Handlers>>,
 ] extends [never]
   ? [
@@ -193,24 +193,24 @@ export type FieldExceptionBlockExhaustiveCheck<Cases, Handlers> = [
     ] extends [never]
     ? unknown
     : {
-        'fieldExceptionBlock.exhaustive has handlers for unreachable field exceptions': Exclude<
+        'fieldErrorNode.exhaustive has handlers for unreachable field exceptions': Exclude<
           ProvidedHandlerKeys<Handlers>,
           ReachableHandlerKeys<Cases, Handlers>
         >;
       }
   : {
-      'fieldExceptionBlock.exhaustive is missing handlers for field exceptions': Exclude<
+      'fieldErrorNode.exhaustive is missing handlers for field exceptions': Exclude<
         ReachableHandlerKeys<Cases, Handlers>,
         ProvidedHandlerKeys<Handlers>
       >;
     };
 
-export type FieldExceptionBlockPartialCheck<Cases, Handlers> = [
+export type FieldErrorPartialCheck<Cases, Handlers> = [
   Exclude<ProvidedHandlerKeys<Handlers>, ReachableHandlerKeys<Cases, Handlers>>,
 ] extends [never]
   ? unknown
   : {
-      'fieldExceptionBlock.partial has handlers for unreachable field exceptions': Exclude<
+      'fieldErrorNode.partial has handlers for unreachable field exceptions': Exclude<
         ProvidedHandlerKeys<Handlers>,
         ReachableHandlerKeys<Cases, Handlers>
       >;
@@ -250,30 +250,30 @@ export type FieldExceptionHandlerFieldExceptions<Handlers> =
     FieldExceptionHandlerChildren<Handlers[keyof Handlers]>
   >;
 
-export type FieldExceptionBlockDirective<
+export type FieldErrorDirective<
   Handlers extends FieldExceptionHandlers,
   Exhaustive extends boolean = boolean,
 > = CraftDirective & {
-  readonly [COMPONENT_FIELD_EXCEPTION_BLOCK]: true;
-  readonly [FIELD_EXCEPTION_BLOCK_DIRECTIVE]: {
+  readonly [COMPONENT_FIELD_ERROR_NODE]: true;
+  readonly [FIELD_ERROR_NODE_DIRECTIVE]: {
     readonly handlers: Handlers;
     readonly exhaustive: Exhaustive;
     readonly options: Required<
-      Pick<FieldExceptionBlockOptions, 'mode' | 'position'>
+      Pick<FieldErrorOptions, 'mode' | 'position'>
     > &
-      Pick<FieldExceptionBlockOptions, 'visibility'>;
+      Pick<FieldErrorOptions, 'visibility'>;
   };
 };
 
-function createFieldExceptionBlockDirective<
+function createFieldErrorDirective<
   Handlers extends FieldExceptionHandlers,
   Exhaustive extends boolean,
 >(
-  name: `fieldExceptionBlock.${'exhaustive' | 'partial'}`,
+  name: `fieldErrorNode.${'exhaustive' | 'partial'}`,
   handlers: Handlers,
-  options: FieldExceptionBlockOptions,
+  options: FieldErrorOptions,
   exhaustive: Exhaustive,
-): FieldExceptionBlockDirective<Handlers, Exhaustive> {
+): FieldErrorDirective<Handlers, Exhaustive> {
   const definition = {
     handlers,
     exhaustive,
@@ -284,7 +284,7 @@ function createFieldExceptionBlockDirective<
     },
   } as const;
   const directive = (() =>
-    undefined) as unknown as FieldExceptionBlockDirective<Handlers, Exhaustive>;
+    undefined) as unknown as FieldErrorDirective<Handlers, Exhaustive>;
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: {
       name,
@@ -298,11 +298,11 @@ function createFieldExceptionBlockDirective<
     },
     enumerable: false,
   });
-  Object.defineProperty(directive, FIELD_EXCEPTION_BLOCK_DIRECTIVE, {
+  Object.defineProperty(directive, FIELD_ERROR_NODE_DIRECTIVE, {
     value: definition,
     enumerable: false,
   });
-  Object.defineProperty(directive, COMPONENT_FIELD_EXCEPTION_BLOCK, {
+  Object.defineProperty(directive, COMPONENT_FIELD_ERROR_NODE, {
     value: true,
     enumerable: false,
   });
@@ -311,18 +311,18 @@ function createFieldExceptionBlockDirective<
 
 function exhaustive<const Handlers extends LocalHandlerMap>(
   handlers: Handlers & ContextualLocalHandlers<Handlers>,
-  options?: FieldExceptionBlockOptions,
-): FieldExceptionBlockDirective<Handlers, true>;
+  options?: FieldErrorOptions,
+): FieldErrorDirective<Handlers, true>;
 function exhaustive<const Handlers extends GroupedHandlerMap>(
   handlers: Handlers & ContextualGroupedHandlers<Handlers>,
-  options?: FieldExceptionBlockOptions,
-): FieldExceptionBlockDirective<Handlers, true>;
+  options?: FieldErrorOptions,
+): FieldErrorDirective<Handlers, true>;
 function exhaustive(
   handlers: FieldExceptionHandlers,
-  options: FieldExceptionBlockOptions = {},
-): FieldExceptionBlockDirective<FieldExceptionHandlers, true> {
-  return createFieldExceptionBlockDirective(
-    'fieldExceptionBlock.exhaustive',
+  options: FieldErrorOptions = {},
+): FieldErrorDirective<FieldExceptionHandlers, true> {
+  return createFieldErrorDirective(
+    'fieldErrorNode.exhaustive',
     handlers,
     options,
     true,
@@ -331,22 +331,22 @@ function exhaustive(
 
 function partial<const Handlers extends LocalHandlerMap>(
   handlers: Handlers & ContextualLocalHandlers<Handlers>,
-  options?: FieldExceptionBlockOptions,
-): FieldExceptionBlockDirective<Handlers, false>;
+  options?: FieldErrorOptions,
+): FieldErrorDirective<Handlers, false>;
 function partial<const Handlers extends GroupedHandlerMap>(
   handlers: Handlers & ContextualGroupedHandlers<Handlers>,
-  options?: FieldExceptionBlockOptions,
-): FieldExceptionBlockDirective<Handlers, false>;
+  options?: FieldErrorOptions,
+): FieldErrorDirective<Handlers, false>;
 function partial(
   handlers: FieldExceptionHandlers,
-  options: FieldExceptionBlockOptions = {},
-): FieldExceptionBlockDirective<FieldExceptionHandlers, false> {
-  return createFieldExceptionBlockDirective(
-    'fieldExceptionBlock.partial',
+  options: FieldErrorOptions = {},
+): FieldErrorDirective<FieldExceptionHandlers, false> {
+  return createFieldErrorDirective(
+    'fieldErrorNode.partial',
     handlers,
     options,
     false,
   );
 }
 
-export const fieldExceptionBlock = { exhaustive, partial };
+export const fieldErrorNode = { exhaustive, partial };

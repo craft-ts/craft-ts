@@ -106,7 +106,7 @@ export const appConfig = craftAppConfig({
           return yield* factory.apply(thisArg, args);
         } catch (error) {
           // Control flow, not failure: a short-circuit is on its way to a
-          // `catchBlock`, a `CraftNotSettled` to a `pendingBlock`. Converting
+          // `catchNode`, a `CraftNotSettled` to a `pendingNode`. Converting
           // them to an `UNEXPECTED_ERROR` strands them — the boundary never
           // sees them and the fabricated exception renders in their place.
           if (isCraftGenShortCircuit(error) || isCraftNotSettled(error)) {

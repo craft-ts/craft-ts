@@ -29,7 +29,7 @@ reste bien sûr nécessaire pour produire le bundle serveur.
 - Le serveur et le client créent chacun leurs propres signaux.
 - Seules les valeurs sérialisables sont transférées.
 - L’identité DOM est déterministe et indépendante d’un compteur global.
-- La politique SSR est déclarée au niveau du `pendingBlock` ou de la route,
+- La politique SSR est déclarée au niveau du `pendingNode` ou de la route,
   jamais implicitement par la query.
 - Un mismatch ne doit pas invalider toute la page : le sous-arbre concerné est
   remonté en mode normal.
@@ -42,7 +42,7 @@ Définir les règles de rendu côté serveur et l’endroit où elles sont décl
 
 La décision appartient à la frontière qui possède le rendu de l’attente :
 
-- un `pendingBlock` pour une sous-partie précise du template ;
+- un `pendingNode` pour une sous-partie précise du template ;
 - une route pour la politique par défaut de toute la page.
 
 La query décrit ses données et son loader. Elle ne décide pas si le serveur doit
@@ -55,7 +55,7 @@ type SsrMode = 'block' | 'fallback' | 'client';
 Comportement attendu :
 
 - `block` : attendre la résolution avant d’envoyer le HTML ;
-- `fallback` : rendre le fallback du `pendingBlock` ou de la route ;
+- `fallback` : rendre le fallback du `pendingNode` ou de la route ;
 - `client` : ne pas exécuter la query côté serveur et rendre le shell/fallback
   prévu par la frontière.
 
@@ -67,7 +67,7 @@ L’API exacte reste à définir, mais le contrat cible ressemble à ceci :
 div([
   UserList(),
 ]).pipe(
-  pendingBlock({
+  pendingNode({
     ssr: 'block',
     fallback: () => UserListSkeleton(),
   }),
@@ -80,7 +80,7 @@ différents aux sources, mais la politique SSR reste attachée à la frontière 
 
 ```ts
 div([...]).pipe(
-  pendingBlock.exhaustive(
+  pendingNode.exhaustive(
     {
       users: () => UsersSkeleton(),
       orders: () => OrdersSkeleton(),
@@ -97,7 +97,7 @@ produire une structure hydratable et stable.
 ### Déclaration au niveau de la route
 
 La route fournit la politique par défaut lorsque la query est lue hors d’un
-`pendingBlock` local :
+`pendingNode` local :
 
 ```ts
 craftRoute('dashboard', {
@@ -108,11 +108,11 @@ craftRoute('dashboard', {
 });
 ```
 
-Une politique locale de `pendingBlock` est plus spécifique et surcharge la
+Une politique locale de `pendingNode` est plus spécifique et surcharge la
 politique de route. La priorité est donc :
 
 ```text
-pendingBlock local
+pendingNode local
   ↓
 pending boundary de route
   ↓
@@ -129,13 +129,13 @@ reloading avec une ancienne valeur continue à rendre cette valeur.
 
 Si une source suspend pendant le SSR sans trouver de politique applicable, le
 rendu échoue avec une erreur explicite, sur le même principe que
-`CraftUnhandledPendingError` lorsqu’une source échappe à un `pendingBlock` :
+`CraftUnhandledPendingError` lorsqu’une source échappe à un `pendingNode` :
 
 ```text
 CraftUnhandledSsrResolutionError
   source: usersQuery
   route: dashboard
-  reason: no pendingBlock or route SSR policy
+  reason: no pendingNode or route SSR policy
 ```
 
 Cela évite qu’un loader soit silencieusement ignoré ou qu’un serveur attende
@@ -176,13 +176,13 @@ Exemples :
 ```text
 App/0
 App/0/Dashboard/0
-App/0/Dashboard/0/each:users/user:42
+App/0/Dashboard/0/for:users/user:42
 ```
 
 Règles :
 
 - les composants statiques utilisent leur position logique ;
-- `each` utilise sa clé métier ;
+- `forNode` utilise sa clé métier ;
 - les blocs utilisent un identifiant stable ;
 - aucun compteur global ne participe à la clé ;
 - aucun UUID aléatoire n’est généré pendant le rendu.
@@ -202,7 +202,7 @@ host tags.
 - identité portée par le contexte de rendu ;
 - propagation dans les injecteurs enfants ;
 - prise en charge des composants imbriqués ;
-- prise en charge des `each` avec clés ;
+- prise en charge des `forNode` avec clés ;
 - tests de stabilité serveur/client.
 
 ## Phase 2 — Abstraction de plateforme
@@ -396,8 +396,8 @@ Cas à traiter :
 
 - élément absent ;
 - mauvais tag ;
-- mauvaise branche `ifBlock` ;
-- clé `each` différente ;
+- mauvaise branche `ifNode` ;
+- clé `forNode` différente ;
 - texte non compatible ;
 - nombre d’enfants différent.
 
@@ -419,7 +419,7 @@ fallback automatique local.
 ### Livrables
 
 - mismatch de texte ;
-- mismatch de `each` ;
+- mismatch de `forNode` ;
 - mismatch de branche conditionnelle ;
 - remontage local ;
 - test sans double listener.
@@ -431,7 +431,7 @@ Ajouter l’intégration avec :
 - la route initiale ;
 - les paramètres de route ;
 - `loadComponent` ;
-- `pendingBlock` ;
+- `pendingNode` ;
 - `craftUntilSettled` ;
 - les erreurs de query ;
 - les server functions.
@@ -463,7 +463,7 @@ de produire les hydration keys.
 
 - route avec query bloquante ;
 - route avec fallback pending ;
-- `pendingBlock` qui surcharge la politique de sa route ;
+- `pendingNode` qui surcharge la politique de sa route ;
 - erreur explicite pour une source suspendue sans politique SSR ;
 - query `client` rendue uniquement côté navigateur ;
 - route lazy ;
@@ -526,7 +526,7 @@ Critères d’acceptation :
 - la valeur du compteur est restaurée ;
 - la query ne repart pas inutilement ;
 - le clic utilise le DOM existant ;
-- `each` conserve les bons éléments ;
+- `forNode` conserve les bons éléments ;
 - un mismatch remonte seulement son sous-arbre ;
 - deux requêtes serveur restent isolées.
 

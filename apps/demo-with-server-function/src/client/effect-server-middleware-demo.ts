@@ -4,10 +4,10 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   form,
   heading,
-  ifBlock,
+  ifNode,
   input,
   label,
   main,
@@ -243,22 +243,22 @@ const EffectServerMiddlewareDemo = craftComponent(
         div({ class: 'panel' }, [
           span({ class: 'panel-kicker' }, 'Response'),
           heading('Users'),
-          ifBlock(hasServerError, () =>
+          ifNode(hasServerError, () =>
             div({ class: 'error' }, [
               strong('Server error · '),
               span(serverErrorText),
             ]),
           ),
-          ifBlock(usersQuery.isLoading, () =>
+          ifNode(usersQuery.isLoading, () =>
             p(
               { class: 'copy' },
               'Waiting for the Effect runtime and database…',
             ),
           ),
-          ifBlock(hasUsers, () =>
+          ifNode(hasUsers, () =>
             ul(
               { class: 'results' },
-              each(usersQuery.value, { track: (user) => user.id }, (user) =>
+              forNode(usersQuery.value, { track: (user) => user.id }, (user) =>
                 article({ class: 'user-row' }, [
                   div({ class: 'avatar' }, function* () {
                     return (yield* user()).name.slice(0, 1);
@@ -278,7 +278,7 @@ const EffectServerMiddlewareDemo = craftComponent(
               ),
             ),
           ),
-          ifBlock(isEmpty, () =>
+          ifNode(isEmpty, () =>
             div({ class: 'empty' }, [
               strong('No results loaded'),
               span('Run a search to see the Effect response.'),

@@ -71,7 +71,7 @@ describe('demo: profile lookup with Effect', () => {
     await clickScenario('Profile not found', element);
 
     // The template matched on the discriminant — proof the _tag survived the
-    // whole trip from the Effect error to matchBlock.
+    // whole trip from the Effect error to matchNode.
     await vi.waitFor(() => {
       expect(element.textContent).toContain('UserNotFound');
     });

@@ -1,8 +1,8 @@
-# `scheduleEach` Pixel Art benchmark
+# `scheduleFor` Pixel Art benchmark
 
 This opt-in Playwright benchmark measures the production build of the Pixel Art
 demo for 256, 1,000, and 10,000 cells. It compares the synchronous baseline
-with `scheduleEach({ strategy: 'frame' })` and reports:
+with `scheduleFor({ strategy: 'frame' })` and reports:
 
 - time to the first cell;
 - time to the complete grid;

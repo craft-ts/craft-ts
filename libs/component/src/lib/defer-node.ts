@@ -46,7 +46,7 @@ type DeferOptionsDependencies<Options> = Options extends object
         >
   : {};
 
-export function defer<
+export function deferNode<
   Loaded,
   Options extends DeferOptions<Loaded> & {
     readonly resolve: (loaded: Loaded) => CraftNodeChildren;
@@ -55,7 +55,7 @@ export function defer<
   loader: DeferLoader<Loaded>,
   options: Options,
 ): DeferNode<Loaded, DeferOptionsDependencies<Options>>;
-export function defer<
+export function deferNode<
   Component extends CraftComponent<any>,
   Options extends Omit<DeferOptions<Component>, 'resolve'> & {
     readonly props?: PropsOf<Component>;
@@ -69,7 +69,7 @@ export function defer<
   Component,
   ComponentDepsOf<Component> | DeferOptionsDependencies<Options>
 >;
-export function defer<Loaded>(
+export function deferNode<Loaded>(
   loader: DeferLoader<Loaded>,
   options: DeferOptions<Loaded> & { readonly props?: object } = {},
 ): DeferNode<Loaded> {
