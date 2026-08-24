@@ -1,8 +1,7 @@
 import {
   flattenMiddlewareGraph,
-  type MergeSchemaOutputs,
+  type CraftMiddlewareResult,
   type MiddlewareContext,
-  type MiddlewareResult,
 } from './middleware-schema-shared';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import { CraftGenShortCircuit } from './craft-gen';
@@ -11,33 +10,11 @@ import type { CraftHandshakeSchema } from './craft-handshake';
 import { craftHandshakeName } from './craft-handshake';
 import type { CraftSchema, SchemaInput } from './schema-validation';
 
-/**
- * Middleware **client** d'une server function : le pendant navigateur du
- * middleware serveur, déclaré par `craftMiddleware(id).client(run)`.
- *
- * Deux différences assumées avec la famille serveur :
- *
- * - `run` est un **générateur craft nu** (`function* ({ next }) { ... }`), pas
- *   un Effect : c'est la même famille que les guards `canActivate`/`canMatch`,
- *   et le core reste sans dépendance runtime sur Effect côté client comme côté
- *   serveur. Un `yield* someEffect` reste possible si le pont Effect est
- *   installé dans l'application ;
- * - ce qu'il publie n'est **pas** de la donnée de confiance : le contexte est
- *   transporté au serveur, revalidé par schéma, et atterrit dans un champ
- *   distinct (`clientContext`) pour que le handler ne le confonde jamais avec
- *   le contexte produit par la chaîne serveur.
- */
-export type ClientMiddlewareNext = <Context extends MiddlewareContext>(patch: {
-  readonly context: Context;
-}) => Generator<unknown, MiddlewareResult<Context>, unknown>;
-
 export type ClientMiddlewareRunContext<
   ContextIn extends MiddlewareContext = MiddlewareContext,
 > = {
-  /** L'input passé à la façade client, tel quel : il n'est pas validé ici. */
   readonly input: unknown;
   readonly context: ContextIn;
-  readonly next: ClientMiddlewareNext;
 };
 
 export interface CraftClientMiddleware<
@@ -47,80 +24,52 @@ export interface CraftClientMiddleware<
 > {
   readonly kind: 'client-function-middleware';
   readonly id: Id;
-  /** Schémas déclarés par `.provides(...)`, dépendances comprises. */
   readonly provides: Provides;
   readonly dependencies: readonly AnyCraftClientMiddleware[];
   readonly run: (
     context: ClientMiddlewareRunContext,
-  ) => Generator<unknown, unknown, unknown>;
-  /** Porteur type-only du contexte publié, dépendances transitives comprises. */
+  ) => Generator<unknown, ContextOut, unknown>;
+  readonly [Symbol.iterator]: () => Generator<unknown, ContextOut, unknown>;
   readonly __clientContextOut?: ContextOut;
 }
 
-export type AnyCraftClientMiddleware = CraftClientMiddleware<
-  string,
-  readonly CraftSchema[],
-  any
->;
+export type AnyCraftClientMiddleware = CraftClientMiddleware<string, readonly CraftSchema[], any>;
 
-export type ClientMiddlewareProvidesOf<Middleware> =
-  Middleware extends CraftClientMiddleware<any, infer Provides, any>
-    ? Provides
-    : readonly [];
+export type ClientMiddlewareProvidesOf<Middleware> = Middleware extends CraftClientMiddleware<any, infer Provides, any>
+  ? Provides
+  : readonly [];
 
-export type ClientMiddlewareContextOf<Middleware> =
-  Middleware extends CraftClientMiddleware<any, any, infer Context>
-    ? Context
-    : never;
+export type ClientMiddlewareContextOf<Middleware> = Middleware extends CraftClientMiddleware<any, any, infer Context>
+  ? Context
+  : never;
 
-/** Concatène les schémas `.provides(...)` d'une liste de middleware client. */
-export type ClientMiddlewareProvidesOfAll<
-  Middlewares extends readonly AnyCraftClientMiddleware[],
-> = Middlewares extends readonly [
+export type ClientMiddlewareProvidesOfAll<Middlewares extends readonly AnyCraftClientMiddleware[]> = Middlewares extends readonly [
   infer Head extends AnyCraftClientMiddleware,
   ...infer Tail extends readonly AnyCraftClientMiddleware[],
 ]
-  ? readonly [
-      ...ClientMiddlewareProvidesOf<Head>,
-      ...ClientMiddlewareProvidesOfAll<Tail>,
-    ]
+  ? readonly [...ClientMiddlewareProvidesOf<Head>, ...ClientMiddlewareProvidesOfAll<Tail>]
   : readonly [];
 
-/** Contexte publié par une liste de middleware client, fusionné dans l'ordre. */
-export type MergedClientMiddlewareContext<
-  Middlewares extends readonly AnyCraftClientMiddleware[],
-> = Middlewares extends readonly [
+export type MergedClientMiddlewareContext<Middlewares extends readonly AnyCraftClientMiddleware[]> = Middlewares extends readonly [
   infer Head extends AnyCraftClientMiddleware,
   ...infer Tail extends readonly AnyCraftClientMiddleware[],
 ]
   ? ClientMiddlewareContextOf<Head> & MergedClientMiddlewareContext<Tail>
   : Record<never, never>;
 
-export function isCraftClientMiddleware(
-  value: unknown,
-): value is AnyCraftClientMiddleware {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (value as { kind?: unknown }).kind === 'client-function-middleware'
-  );
+export function isCraftClientMiddleware(value: unknown): value is AnyCraftClientMiddleware {
+  return typeof value === 'object' && value !== null &&
+    (value as { kind?: unknown }).kind === 'client-function-middleware';
 }
 
-export function flattenClientMiddlewares(
-  middlewares: readonly AnyCraftClientMiddleware[],
-): readonly AnyCraftClientMiddleware[] {
+export function flattenClientMiddlewares(middlewares: readonly AnyCraftClientMiddleware[]): readonly AnyCraftClientMiddleware[] {
   return flattenMiddlewareGraph(middlewares);
 }
 
-/** Schémas `.provides(...)` collectés le long de la chaîne, dédupliqués. */
-export function collectClientMiddlewareSchemas(
-  middlewares: readonly AnyCraftClientMiddleware[],
-): readonly CraftSchema[] {
+export function collectClientMiddlewareSchemas(middlewares: readonly AnyCraftClientMiddleware[]): readonly CraftSchema[] {
   const schemas: CraftSchema[] = [];
   for (const middleware of flattenClientMiddlewares(middlewares)) {
-    for (const schema of middleware.provides) {
-      if (!schemas.includes(schema)) schemas.push(schema);
-    }
+    for (const schema of middleware.provides) if (!schemas.includes(schema)) schemas.push(schema);
   }
   return schemas;
 }
@@ -129,120 +78,124 @@ export class ClientFunctionContextError extends Error {
   readonly code = 'CRAFT_CLIENT_FUNCTION_CONTEXT_INVALID';
   readonly id: string;
   readonly issues: readonly { readonly message: string }[];
-
   constructor(id: string, issues: readonly { readonly message: string }[]) {
-    super(
-      `CRAFT_CLIENT_FUNCTION_CONTEXT_INVALID: client middleware chain of "${id}" produced an invalid context: ${issues
-        .map((issue) => issue.message)
-        .join(', ')}`,
-    );
+    super(`CRAFT_CLIENT_FUNCTION_CONTEXT_INVALID: client middleware chain of "${id}" produced an invalid context: ${issues.map((issue) => issue.message).join(', ')}`);
     this.id = id;
     this.issues = issues;
     this.name = 'ClientFunctionContextError';
   }
 }
 
-/**
- * Compose la chaîne client en oignon, comme `runMiddlewareChain` côté serveur,
- * mais en pilotant des générateurs craft : le générateur retourné relaie les
- * `yield` de chaque étape à l'hôte (`craftUse`, un loader, un guard…) et
- * résout au contexte accumulé.
- *
- * Le brand `MiddlewareResult` reste purement type-level : à l'exécution, la
- * valeur qui remonte est déjà le contexte final, qu'un middleware peut donc
- * observer — voire remplacer — après l'appel à `next()`.
- */
+type ClientScope = {
+  readonly execute: (middleware: AnyCraftClientMiddleware) => Generator<unknown, MiddlewareContext, unknown>;
+};
+
+let activeClientScope: ClientScope | undefined;
+
+function createClientScope(input: unknown): ClientScope {
+  const cache = new Map<string, MiddlewareContext>();
+  const running = new Set<string>();
+  let context: MiddlewareContext = {};
+  const execute = (middleware: AnyCraftClientMiddleware): Generator<unknown, MiddlewareContext, unknown> => {
+    const cached = cache.get(middleware.id);
+    if (cached) return (function* () { return cached; })();
+    if (running.has(middleware.id)) throw new Error(`Cyclic middleware execution involving "${middleware.id}".`);
+    return (function* () {
+      running.add(middleware.id);
+      try {
+        const fragment = yield* middleware.run({ input, context });
+        const value = (fragment && typeof fragment === 'object' && 'value' in fragment)
+          ? (fragment as CraftMiddlewareResult<unknown, MiddlewareContext>).context ?? {}
+          : fragment as MiddlewareContext;
+        cache.set(middleware.id, value);
+        context = { ...context, ...value };
+        return value;
+      } finally {
+        running.delete(middleware.id);
+      }
+    })();
+  };
+  return { execute };
+}
+
+function* yieldClientMiddleware(middleware: AnyCraftClientMiddleware): Generator<unknown, MiddlewareContext, unknown> {
+  if (!activeClientScope) throw new Error(`Client middleware "${middleware.id}" was yielded outside a client middleware invocation.`);
+  return yield* activeClientScope.execute(middleware);
+}
+
 export function runClientMiddlewareChain(
   middlewares: readonly AnyCraftClientMiddleware[],
   input: unknown,
 ): Generator<unknown, MiddlewareContext, unknown> {
   const chain = flattenClientMiddlewares(middlewares);
-
-  function* step(
-    index: number,
-    context: MiddlewareContext,
-  ): Generator<unknown, MiddlewareContext, unknown> {
-    const middleware = chain[index];
-    if (!middleware) return context;
-    const result = yield* middleware.run({
-      input,
-      context,
-      next: ((patch: { readonly context: MiddlewareContext }) =>
-        step(index + 1, { ...context, ...patch.context })) as never,
-    });
-    return result as MiddlewareContext;
-  }
-
-  return step(0, {});
+  const scope = createClientScope(input);
+  const invocation = (function* () {
+    let context: MiddlewareContext = {};
+    for (const middleware of chain) {
+      const fragment = yield* scope.execute(middleware);
+      context = { ...context, ...fragment };
+    }
+    return context;
+  })();
+  return bindClientScope(invocation, scope);
 }
 
-/**
- * Implémente un handshake côté navigateur, en une déclaration.
- *
- * Le corps est un générateur craft ordinaire — il se lit comme un service :
- * on `yield*` ce dont on a besoin et on retourne le fragment de contexte. Le
- * nom et le schéma ne sont pas répétés ici : ils viennent du handshake, donc le
- * serveur et le client ne peuvent pas en dire deux choses différentes.
- *
- * @example
- * ```ts
- * // shared/claimed-user.ts
- * export const claimedUser = craftHandshake(
- *   'demo.claimed-user',
- *   Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
- * );
- *
- * // côté navigateur
- * export const claimedUserContext = craftHandshakeMiddleware(
- *   claimedUser,
- *   function* () {
- *     return { userId: yield* ClaimedUserId() };
- *   },
- * );
- *
- * // côté serveur — la même valeur, l'autre bout
- * craftMiddleware('demo.matching-user')
- *   .pipe(clientContext(claimedUser))
- *   .server(…)
- * ```
- */
-export function craftHandshakeMiddleware<
-  Name extends string,
-  Schema extends CraftSchema,
->(
+function bindClientScope<Yield, Return, Next>(
+  iterator: Generator<Yield, Return, Next>,
+  scope: ClientScope,
+): Generator<Yield, Return, Next> {
+  const withScope = <Result>(run: () => Result): Result => {
+    const previous = activeClientScope;
+    activeClientScope = scope;
+    try {
+      return run();
+    } finally {
+      activeClientScope = previous;
+    }
+  };
+  return {
+    next(value?: Next) {
+      return withScope(() => iterator.next(value as Next));
+    },
+    return(value?: Return) {
+      return withScope(() => iterator.return?.(value as Return) ?? {
+        done: true,
+        value: value as Return,
+      });
+    },
+    throw(error?: unknown) {
+      return withScope(() => iterator.throw?.(error) ?? (() => { throw error; })());
+    },
+    [Symbol.iterator]() {
+      return this;
+    },
+  } as Generator<Yield, Return, Next>;
+}
+
+export function createClientMiddlewareYieldable<ContextOut extends MiddlewareContext>(
+  middleware: AnyCraftClientMiddleware,
+): Generator<unknown, ContextOut, unknown> {
+  return yieldClientMiddleware(middleware) as Generator<unknown, ContextOut, unknown>;
+}
+
+export function craftHandshakeMiddleware<Name extends string, Schema extends CraftSchema>(
   handshake: CraftHandshakeSchema<Name, Schema>,
   run: () => Generator<unknown, SchemaInput<Schema>, unknown>,
 ): CraftClientMiddleware<Name, readonly [Schema], SchemaInput<Schema>> {
   const name = craftHandshakeName(handshake);
-  if (name === undefined) {
-    throw new Error(
-      'craftHandshakeMiddleware(handshake, run) expects a craftHandshake(name, schema) as its first argument.',
-    );
-  }
+  if (name === undefined) throw new Error('craftHandshakeMiddleware(handshake, run) expects a craftHandshake(name, schema).');
   return Object.freeze({
     kind: 'client-function-middleware' as const,
     id: name as Name,
     provides: [handshake] as unknown as readonly [Schema],
     dependencies: [],
-    *run({ next }: ClientMiddlewareRunContext) {
-      const fragment = yield* run();
-      return yield* next({ context: fragment as never });
-    },
-  }) as CraftClientMiddleware<Name, readonly [Schema], SchemaInput<Schema>>;
+    *run() { return yield* run(); },
+    *[Symbol.iterator]() { return yield* run(); },
+  });
 }
 
-const INVALID_YIELD_ERROR_MESSAGE =
-  'A client function middleware can only yield craft dependencies, craft primitives, or — with the Effect bridge installed — an Effect.';
+const INVALID_YIELD_ERROR_MESSAGE = 'A client function middleware can only yield craft dependencies, craft primitives, or — with the Effect bridge installed — an Effect.';
 
-/**
- * Drive la chaîne sur la pompe **asynchrone** de craft.
- *
- * Le choix est délibéré : un middleware client lit typiquement une session, un
- * profil, une préférence — des choses qu'un pont (l'adaptateur Effect, par
- * exemple) résout de façon asynchrone. La pompe async restaure le contexte
- * d'injection après chaque `await`, ce qu'un `craftUse` synchrone ne peut pas
- * faire.
- */
 export async function runClientMiddlewareChainAsync(
   middlewares: readonly AnyCraftClientMiddleware[],
   input: unknown,
@@ -255,29 +208,13 @@ export async function runClientMiddlewareChainAsync(
     args: [],
     invalidYieldErrorMessage: INVALID_YIELD_ERROR_MESSAGE,
   });
-  if (settled.kind === 'shortCircuit') {
-    throw new CraftGenShortCircuit(settled.exception);
-  }
+  if (settled.kind === 'shortCircuit') throw new CraftGenShortCircuit(settled.exception);
   return (settled.value ?? {}) as MiddlewareContext;
 }
 
-/**
- * Vérifie que la chaîne a bien produit ce que ses `.provides(...)` annoncent.
- *
- * C'est un garde-fou de développement, pas la garantie de sécurité : la vraie
- * validation est celle du serveur, qui ne fait jamais confiance au navigateur.
- */
-export async function validateClientContext(
-  id: string,
-  schemas: readonly CraftSchema[],
-  context: MiddlewareContext,
-): Promise<void> {
+export async function validateClientContext(id: string, schemas: readonly CraftSchema[], context: MiddlewareContext): Promise<void> {
   for (const schema of schemas) {
     const result = await schema['~standard'].validate(context);
     if (result.issues) throw new ClientFunctionContextError(id, result.issues);
   }
 }
-
-export type ClientMiddlewareContextOfSchemas<
-  Schemas extends readonly CraftSchema[],
-> = MergeSchemaOutputs<Schemas>;

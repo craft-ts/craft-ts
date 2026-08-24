@@ -1,4 +1,4 @@
-import { craftHandshake } from '@craft-ts/core';
+import { craftHandshake, craftRequestContext } from '@craft-ts/core';
 import { Schema } from 'effect';
 
 /**
@@ -15,3 +15,6 @@ export const requestLocaleHandshake = craftHandshake(
   'demo.request-locale',
   Schema.toStandardSchemaV1(Schema.Struct({ locale: Schema.String })),
 );
+
+export const RequestedByContext = craftRequestContext(requestedByHandshake);
+export const RequestLocaleContext = craftRequestContext(requestLocaleHandshake);

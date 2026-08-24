@@ -52,29 +52,20 @@ export type MergeOptionalSchemaInputs<
   Schemas extends readonly CraftSchema[],
 > = Schemas extends readonly [] ? Record<never, never> : MergeSchemaInputs<Schemas>;
 
-declare const MIDDLEWARE_RESULT: unique symbol;
-declare const MIDDLEWARE_DOWNSTREAM_ERROR: unique symbol;
-
 /**
- * Résultat opaque de `next()`, porteur du contexte que le middleware ajoute.
+ * Valeur produite par un middleware serveur.
  *
- * C'est le pivot de l'inférence : TypeScript ne peut rien déduire de l'argument
- * passé à un paramètre, mais il déduit sans peine depuis le type de retour. Le
- * contexte voyage donc dans le type retourné par `next()`.
- *
- * Conséquence utile : ce type n'est constructible que par `next()`. La chaîne
- * serveur propose en parallèle une forme directe `{ context }` pour les
- * enrichissements synchrones ou Promise, qui fait avancer la chaîne
- * automatiquement.
+ * `value` est la valeur métier yieldée par `yield* middleware`. `context` est
+ * un fragment optionnel, fusionné uniquement lorsqu'un middleware est
+ * branché avec `.use(...)`.
  */
-export interface MiddlewareResult<Context extends MiddlewareContext> {
-  readonly [MIDDLEWARE_RESULT]: Context;
-}
-
-/** Échec produit par la suite de la chaîne : observable, non inspectable. */
-export interface MiddlewareDownstreamError {
-  readonly [MIDDLEWARE_DOWNSTREAM_ERROR]: true;
-}
+export type CraftMiddlewareResult<
+  Value,
+  ContextOut extends MiddlewareContext = Record<never, never>,
+> = {
+  readonly value: Value;
+  readonly context?: ContextOut;
+};
 
 /** Le minimum commun aux deux familles pour être aplati et dédupliqué. */
 export type MiddlewareNode = {
@@ -93,9 +84,13 @@ export function flattenMiddlewareGraph<Middleware extends MiddlewareNode>(
   middlewares: readonly Middleware[],
 ): readonly Middleware[] {
   const seen = new Map<string, Middleware>();
+  const visiting = new Set<string>();
   const ordered: Middleware[] = [];
 
   const visit = (middleware: Middleware): void => {
+    if (visiting.has(middleware.id)) {
+      throw new Error(`Cyclic middleware dependency involving "${middleware.id}".`);
+    }
     const known = seen.get(middleware.id);
     if (known) {
       if (known !== middleware) {
@@ -105,10 +100,12 @@ export function flattenMiddlewareGraph<Middleware extends MiddlewareNode>(
       }
       return;
     }
+    visiting.add(middleware.id);
     seen.set(middleware.id, middleware);
     for (const dependency of middleware.dependencies) {
       visit(dependency as Middleware);
     }
+    visiting.delete(middleware.id);
     ordered.push(middleware);
   };
 

@@ -47,6 +47,7 @@ export * from './lib/stacked-source';
 export * from './lib/state';
 export * from './lib/schema-validation';
 export * from './lib/craft-handshake';
+export * from './lib/craft-request-context';
 export * from './lib/server-function-contract';
 export * from './lib/client-di-requirement';
 export * from './lib/server-function';
@@ -56,9 +57,8 @@ export {
   type MergeSchemaInputs,
   type MergeSchemaOutputs,
   type MiddlewareContext,
-  type MiddlewareDownstreamError,
   type MiddlewareNode,
-  type MiddlewareResult,
+  type CraftMiddlewareResult,
   type OverwriteContext,
   type Simplify as MiddlewareSimplify,
 } from './lib/middleware-schema-shared';

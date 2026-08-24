@@ -85,9 +85,6 @@ export const { appRoutes } = craftRoutes('app', [
       ),
     },
     {
-      DemoHandlerFailure: craftExceptionHandler(function* ({ globalError }) {
-        return globalError();
-      }),
       HttpError: craftExceptionHandler(function* ({ globalError }) {
         return globalError();
       }),

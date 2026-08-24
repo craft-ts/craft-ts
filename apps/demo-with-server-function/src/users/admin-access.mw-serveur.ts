@@ -1,7 +1,7 @@
 import { clientContext, craftMiddleware } from '@craft-ts/core';
 import { Data, Effect } from 'effect';
 import { requireAdmin } from '../shared/authenticated-user';
-import { claimedUserHandshake } from '../shared/claimed-user-id';
+import { claimedUserHandshake, ClaimedUserContext as ClaimedUser } from '../shared/claimed-user-id';
 
 export class AuthenticatedUserMismatch extends Data.TaggedError(
   'AuthenticatedUserMismatch',
@@ -13,13 +13,12 @@ export class AuthenticatedUserMismatch extends Data.TaggedError(
 
 /**
  * Exige une session admin et publie l'utilisateur authentifié dans le contexte.
- * `next()` reste explicite ici : `requireAdmin` est un programme Effect qui
- * peut échouer et ce middleware conserve ce canal d'erreur typé.
+ * Le middleware produit directement la valeur métier yieldable.
  */
-export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
+export const adminOnly = craftMiddleware('demo.admin-only').server(() =>
   Effect.gen(function* () {
     const authenticatedUser = yield* requireAdmin;
-    return yield* next({ context: { authenticatedUser } });
+    return { value: authenticatedUser, context: { authenticatedUser } };
   }),
 );
 
@@ -35,15 +34,17 @@ export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
  */
 export const matchingUser = craftMiddleware('demo.matching-user')
   .pipe(adminOnly, clientContext(claimedUserHandshake))
-  .server(({ clientContext, context, next }) =>
+  .server(() =>
     Effect.gen(function* () {
-      if (clientContext.userId !== context.authenticatedUser.id) {
+      const authenticatedUser = yield* adminOnly;
+      const claimed = yield* ClaimedUser;
+      if (claimed.userId !== authenticatedUser.id) {
         return yield* new AuthenticatedUserMismatch({
-          message: `AuthenticatedUserMismatch: authenticated user "${context.authenticatedUser.id}" cannot access user "${clientContext.userId}".`,
-          requestedUserId: clientContext.userId,
-          authenticatedUserId: context.authenticatedUser.id,
+          message: `AuthenticatedUserMismatch: authenticated user "${authenticatedUser.id}" cannot access user "${claimed.userId}".`,
+          requestedUserId: claimed.userId,
+          authenticatedUserId: authenticatedUser.id,
         });
       }
-      return yield* next({ context: {} });
+      return { value: authenticatedUser };
     }),
   );

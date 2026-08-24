@@ -67,7 +67,7 @@ declare const LAYER_RESULT: unique symbol;
 /**
  * Résultat opaque de `next()`, porteur du contexte que la couche ajoute.
  *
- * Même pivot d'inférence que `MiddlewareResult` : TypeScript ne déduit rien de
+ * Même pivot d'inférence que les résultats yieldables : TypeScript ne déduit rien de
  * l'argument passé à un paramètre, mais tout du type retourné. Conséquence
  * utile : ce type n'est constructible que par `next()`, donc une couche ne peut
  * pas réussir sans avoir appelé la suite de la chaîne.

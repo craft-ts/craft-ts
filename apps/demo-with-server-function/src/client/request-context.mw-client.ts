@@ -14,9 +14,9 @@ import { ClientSession } from './client-session';
  */
 export const requestedByContext = craftMiddleware('demo.requested-by')
   .provides(requestedByHandshake)
-  .client(function* ({ next }) {
+  .client(function* () {
     const session = yield* ClientSession();
-    return yield* next({ context: { requestedBy: session.userId } });
+    return { requestedBy: session.userId };
   });
 
 /**
@@ -26,7 +26,7 @@ export const requestedByContext = craftMiddleware('demo.requested-by')
 export const requestContext = craftMiddleware('demo.request-context')
   .pipe(requestedByContext)
   .provides(requestLocaleHandshake)
-  .client(function* ({ next }) {
+  .client(function* () {
     const session = yield* ClientSession();
-    return yield* next({ context: { locale: session.locale } });
+    return { requestedBy: session.userId, locale: session.locale };
   });
