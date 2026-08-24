@@ -29,6 +29,7 @@ import type {
 import type { AnyServerLayer } from './server-layer';
 import type { CraftSchema } from './schema-validation';
 import type * as Effect from 'effect/Effect';
+import { provideCraftRequestContexts } from './craft-request-context';
 
 /** Résout un token dans le DI **du serveur**, via le `runtime` du registre. */
 export type ServerFunctionRequired = <Value>(
@@ -357,16 +358,17 @@ function createDefinition<
   middlewares: Middlewares,
   handler: ServerFunctionHandler<Contract, Pipes, Output, Middlewares>,
 ): ServerFunctionDefinition<Contract, Pipes, Output, Middlewares> {
+  const clientContextSchemas = collectMiddlewareClientContextSchemas(
+    contract.clientContext as CraftSchema | undefined,
+    middlewares,
+  );
   return {
     kind: 'server-function',
     contract,
     pipes,
     middlewares,
     inputSchemas: collectMiddlewareSchemas(contract.input, middlewares),
-    clientContextSchemas: collectMiddlewareClientContextSchemas(
-      contract.clientContext as CraftSchema | undefined,
-      middlewares,
-    ),
+    clientContextSchemas,
     handler,
     invoke(input, runtime, clientContext) {
       const required: ServerFunctionRequired = (token) => {
@@ -389,12 +391,17 @@ const call = (context: Record<string, unknown>): Output =>
         });
 
       if (middlewares.length === 0) return call({});
-      return runMiddlewareChain(
+      const program = runMiddlewareChain(
         middlewares,
         input,
         ({ context }) => call(context),
         clientContext ?? {},
         required,
+      );
+      return provideCraftRequestContexts(
+        program,
+        clientContextSchemas,
+        (clientContext ?? {}) as Record<string, unknown>,
       ) as Output;
     },
   };

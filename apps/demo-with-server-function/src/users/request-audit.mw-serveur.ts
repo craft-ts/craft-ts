@@ -1,4 +1,5 @@
 import { clientContext, craftMiddleware } from '@craft-ts/core';
+import { RequestLocaleContext, RequestedByContext } from '../shared/request-context';
 import { Effect } from 'effect';
 import {
   requestedByHandshake,
@@ -17,11 +18,13 @@ export const auditedRequest = craftMiddleware('demo.request-audit')
     clientContext(requestedByHandshake),
     clientContext(requestLocaleHandshake),
   )
-  .server(({ clientContext, next }) =>
+  .server(() =>
     Effect.gen(function* () {
+      const requestedBy = yield* RequestedByContext;
+      const locale = yield* RequestLocaleContext;
       yield* Effect.log(
-        `demo.request-audit requestedBy=${clientContext.requestedBy} locale=${clientContext.locale}`,
+        `demo.request-audit requestedBy=${requestedBy.requestedBy} locale=${locale.locale}`,
       );
-      return yield* next({ context: { requestLocale: clientContext.locale } });
+      return { value: undefined, context: { requestLocale: locale.locale } };
     }),
   );

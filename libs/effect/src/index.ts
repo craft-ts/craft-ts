@@ -42,7 +42,6 @@ export {
   composeEffect,
   effectServerMiddleware,
   executeEffect,
-  type EffectMiddlewareNext,
   type EffectServerMiddleware,
   type EffectServerMiddlewareContext,
 } from './lib/server-function-middleware';

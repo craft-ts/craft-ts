@@ -82,23 +82,25 @@ Both server-side checks live in a middleware chain, in
 `users/admin-access.mw-serveur.ts`, not in the handler:
 
 ```ts
-export const adminOnly = craftMiddleware('demo.admin-only').server(({ next }) =>
+export const adminOnly = craftMiddleware('demo.admin-only').server(() =>
   Effect.gen(function* () {
     const authenticatedUser = yield* requireAdmin;
-    return yield* next({ context: { authenticatedUser } });
+    return { value: authenticatedUser, context: { authenticatedUser } };
   }),
 );
 
 export const matchingUser = craftMiddleware('demo.matching-user')
   .pipe(adminOnly, clientContext(claimedUserHandshake))
-  .server(({ clientContext, context, next }) =>
+  .server(() =>
     Effect.gen(function* () {
-      if (clientContext.userId !== context.authenticatedUser.id) {
+      const authenticatedUser = yield* adminOnly;
+      const claimed = yield* ClaimedUserContext;
+      if (claimed.userId !== authenticatedUser.id) {
         return yield* new AuthenticatedUserMismatch({
           /* … */
         });
       }
-      return yield* next({ context: {} });
+      return { value: authenticatedUser };
     }),
   );
 ```
@@ -136,8 +138,7 @@ Three things are inferred, with no manual declaration:
 - **the input** — every middleware `.input(...)` schema is merged into the
   server function input, on the handler side _and_ on the client facade side;
 - **the context** — `context.authenticatedUser` is what the middleware published
-  through `next({ context })`, or through a direct `{ context }` return for a
-  simple synchronous enrichment;
+  through `{ value, context }` when it was attached with `.use(...)`;
 - **the client context** — `clientContext.userId` and the audit fields are
   produced by client middleware and validated for shape on the server; server
   middleware checks sensitive claims before publishing trusted values into
@@ -146,26 +147,21 @@ Three things are inferred, with no manual declaration:
   raised by the middleware and end up in the `Effect` error channel of the
   server function, then in the client facade return type.
 
-Middleware run as an onion: each one may act before and after `next()`, and
-dependencies declared with `.use(...)` run first and are deduplicated by id.
-When a middleware only adds context, it can return the patch directly; the
-runtime merges it and continues automatically:
+Middleware execute as yieldable programs. Dependencies declared with
+`.pipe(...)` run first and are deduplicated by id. When a middleware adds
+context, it returns a `CraftMiddlewareResult`:
 
 ```ts
 export const requestMetadata = craftMiddleware('demo.request-metadata').server(
-  () => ({
+  () => Effect.succeed({
+    value: undefined,
     context: { source: 'authenticated-list' },
   }),
 );
 ```
 
-The direct form also accepts a `Promise` of that envelope. An Effect middleware
-keeps `next()`: the core deliberately does not interpret Effect programs, so
-`next()` is still the bridge that composes an Effect with the rest of the
-chain. It is also the form to use for typed failures, DI, or before/after hooks.
-Returning an error or a failed Effect never invokes the next middleware: the
-chain short-circuits. An Effect error can be transformed with
-`Effect.catchTag(...)` around `next(...)`.
+`yield* myMiddleware` returns its métier value directly. A middleware failure
+short-circuits the invocation; there is no continuation or after-hook.
 
 Because the input is validated once, ahead of the chain, a middleware input
 schema **must ignore unknown keys** — the default behaviour of `Schema.Struct`.
@@ -183,9 +179,10 @@ handler logic must consume the verified server `context`, not a client claim.
 
 ## Portable layers composed with `.pipe(...)`
 
-`craftMiddleware(...).server(...)` speaks Effect. The portable example does not,
-and composes its chain with `.pipe(...)` instead — same onion, same short
-circuit, same after-hooks, but the program stays whatever the application chose.
+This is a separate API from yieldable `craftMiddleware`: the portable example
+uses `serverLayer` and keeps its own program protocol. Its `.pipe(...)` chain
+retains the layer semantics (including onion/after behavior); those semantics do
+not apply to `craftMiddleware`.
 See `users/portable-list.fn-serveur.ts`:
 
 ```ts
@@ -278,15 +275,11 @@ portableServerFunction(/* … */)
   .handler(/* … */);
 ```
 
-### `.use(...)` is still there
+### Portable versus yieldable composition
 
-`.use(portableServerMiddleware(...))` keeps working and is not deprecated in
-code, but it is legacy for portable functions: a middleware publishes its
-context as `MiddlewareContext`, so downstream steps read `unknown` and cast.
-That is exactly what `.pipe(...)` fixes — before the migration the demo handler
-had to write `String(context.auditId)`; it now reads a `string`. The three
-Effect examples (`list`, `authenticated-list`, `effect-middleware-list`) keep
-their `.use(...)` chains: they are the point of comparison.
+`.use(...)` on `serverFunction` is the yieldable form documented above. Portable
+functions compose their `serverLayer` chain with `.pipe(...)`; the old
+`portableServerMiddleware(...)` constructor is not part of the new contract.
 
 ## Client context
 
@@ -342,17 +335,17 @@ bridge (the Effect adapter, for instance) can suspend inside it:
 ```ts
 export const requestedByContext = craftMiddleware('demo.requested-by')
   .provides(requestedByHandshake)
-  .client(function* ({ next }) {
+  .client(function* () {
     const session = yield* ClientSession();
-    return yield* next({ context: { requestedBy: session.userId } });
+    return { requestedBy: session.userId };
   });
 
 export const requestContext = craftMiddleware('demo.request-context')
   .pipe(requestedByContext)
   .provides(requestLocaleHandshake)
-  .client(function* ({ next }) {
+  .client(function* () {
     const session = yield* ClientSession();
-    return yield* next({ context: { locale: session.locale } });
+    return { locale: session.locale };
   });
 ```
 

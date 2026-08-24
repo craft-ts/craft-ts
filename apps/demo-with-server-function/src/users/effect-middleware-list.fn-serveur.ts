@@ -1,4 +1,4 @@
-import { portableServerFunction } from '@craft-ts/core';
+import { serverFunction } from '@craft-ts/core';
 import { craftException } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
 import { UserRepository, UserSchema } from '../server/database';
@@ -17,7 +17,7 @@ const inputSchema = Schema.toStandardSchemaV1(
 const outputSchema = Schema.toStandardSchemaV1(Schema.Array(UserSchema));
 
 /** End-to-end Effect middleware example, exposed through the normal registry. */
-export const effectMiddlewareListUsers = portableServerFunction(
+export const effectMiddlewareListUsers = serverFunction(
   'demo.users.effect-middleware-list',
   inputSchema,
   { exposure: 'client', output: outputSchema },

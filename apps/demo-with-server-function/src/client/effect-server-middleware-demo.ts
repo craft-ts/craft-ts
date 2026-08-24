@@ -176,7 +176,7 @@ const EffectServerMiddlewareDemo = craftComponent(
         { class: 'flow', attrs: { 'aria-label': 'Effect middleware flow' } },
         [
           flowStep('01', 'Client', 'getEffectMiddlewareUsers'),
-          flowStep('02', 'Middleware', 'before → next → after'),
+          flowStep('02', 'Middleware', 'yieldable audit'),
           flowStep('03', 'Adapter', 'executeEffect(Layer)'),
           flowStep('04', 'Handler', 'UserRepository + DB'),
         ],
@@ -187,7 +187,7 @@ const EffectServerMiddlewareDemo = craftComponent(
           heading('Run the pipeline'),
           p(
             { class: 'copy' },
-            'The middleware reads CurrentUser, logs before and after the handler, and runs inside the same Effect runtime as the server function.',
+            'The middleware reads CurrentUser, runs before the handler, and stays inside the same Effect runtime as the server function.',
           ),
           form('effectMiddlewareSearchForm', { submit }, [
             label({ htmlFor: 'effectMiddlewareFilterInput' }, 'Filter'),

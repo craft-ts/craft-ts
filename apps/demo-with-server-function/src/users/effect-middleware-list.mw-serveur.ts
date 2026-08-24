@@ -1,12 +1,12 @@
 import { Effect } from 'effect';
-import { craftException } from '@craft-ts/core';
+import { craftException, craftMiddleware } from '@craft-ts/core';
 import { effectServerMiddleware } from '@craft-ts/effect';
 import { CurrentUser } from '../server/authentication';
 
-/** Effect middleware: before/after hooks and server DI stay in the Effect adapter. */
+/** Effect middleware: its value is yieldable and has no continuation hook. */
 export const effectAudit = effectServerMiddleware(
   'demo.effect-audit',
-  ({ next, input }) =>
+  ({ input }) =>
     Effect.gen(function* () {
       const user = yield* CurrentUser;
       if (
@@ -26,10 +26,6 @@ export const effectAudit = effectServerMiddleware(
         );
       }
       yield* Effect.log(`effect middleware before user=${user.id}`);
-      const result = yield* Effect.exit(next());
-      yield* Effect.log(
-        `effect middleware after success=${result._tag === 'Success'}`,
-      );
-      return yield* result;
+      return { value: undefined };
     }),
 );

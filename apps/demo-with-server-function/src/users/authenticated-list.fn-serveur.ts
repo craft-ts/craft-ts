@@ -34,11 +34,12 @@ export const getAuthenticatedUsers = serverFunction(
   .use(auditedRequest)
   .handler(({ input, context, clientContext }) =>
     Effect.gen(function* () {
+      const authenticatedUser = yield* matchingUser;
       // Intentional latency to make the frontend loading cycle visible.
       yield* Effect.sleep('600 millis');
       const users = yield* UserRepository;
       yield* Effect.log(
-        `demo.users.authenticated-list actor=${context.authenticatedUser.id} claimed=${clientContext.userId} locale=${context.requestLocale}`,
+        `demo.users.authenticated-list actor=${authenticatedUser.id} claimed=${clientContext.userId} locale=${context.requestLocale}`,
       );
       const result = yield* users.list(input.filter);
       if (result.length === 0) {

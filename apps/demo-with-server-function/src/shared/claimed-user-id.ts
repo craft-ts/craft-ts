@@ -1,4 +1,4 @@
-import { abstract, craftHandshake, craftService } from '@craft-ts/core';
+import { abstract, craftHandshake, craftRequestContext, craftService } from '@craft-ts/core';
 import { Schema } from 'effect';
 
 /**
@@ -25,6 +25,9 @@ export const claimedUserHandshake = craftHandshake(
   'demo.claimed-user',
   Schema.toStandardSchemaV1(Schema.Struct({ userId: Schema.String })),
 );
+
+/** Validated browser claim, injected only for the current server invocation. */
+export const ClaimedUserContext = craftRequestContext(claimedUserHandshake);
 
 /**
  * D'où le navigateur tient cette identité : un contrat de service craft, que
