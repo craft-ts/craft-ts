@@ -308,7 +308,7 @@ const guideSidebar = [
     ],
   },
   {
-    text: 'Deployment',
+    text: 'Deployment (experimental)',
     collapsed: true,
     items: [
       { text: 'Overview', link: '/guide/deployment/' },

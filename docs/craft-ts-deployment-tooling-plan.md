@@ -27,6 +27,11 @@ en production d'une application concrète.
 
 ## État d'implémentation — 24 août 2026
 
+**Statut : expérimental.** La surface de commandes, les champs du manifest, les
+codes de diagnostic et le contrat provider peuvent encore bouger d'une version
+mineure à l'autre. La documentation le dit sur chaque page
+(`apps/docs/guide/deployment/`), et un test le vérifie.
+
 Les phases 0, 1 et 3 sont livrées. La phase 2 (`init`, `build`, `deploy init`,
 templates) reste à faire.
 

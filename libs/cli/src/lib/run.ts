@@ -6,6 +6,9 @@ import { processIo, type CraftCliIo } from './io.js';
 
 export const CRAFT_CLI_HELP = `craft-ts — deployment tooling for CraftTS applications
 
+Experimental: the command surface, the manifest fields and the diagnostic codes
+can still change between minor versions. Pin the version in a pipeline.
+
 Usage: craft-ts <command> [options]
 
 Commands:

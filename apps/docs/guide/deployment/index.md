@@ -1,5 +1,17 @@
 # Deploying a CraftTS application
 
+::: warning Experimental
+The deployment tooling is the newest part of CraftTS and it is **not settled**.
+What is written here works and is covered by tests, but the CLI surface, the
+manifest fields and the diagnostic codes can still change between minor
+versions. Pin the version if you build a pipeline on it.
+
+Concretely, as of today: `craft-ts check`, `manifest`, `providers`,
+`deploy preview` and `deploy` exist; `init`, `build` and `deploy init` do not
+yet. One provider implementation ships, [Alchemy](./alchemy.md), and no real
+deployment has been run from the CraftTS repository itself.
+:::
+
 A CraftTS application describes its deployment once, in a typed manifest, and
 that description is enough to check it, to build it and to hand it to a
 provider. Nothing in the manifest names a hosting company, so moving from a

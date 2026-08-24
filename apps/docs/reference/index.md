@@ -181,6 +181,12 @@ already receive those methods as arguments — see
 
 ## Deployment
 
+::: warning Experimental
+The deployment tooling is not settled: these symbols and commands can still
+change between minor versions. See the
+[deployment guide](/guide/deployment/) for what exists today.
+:::
+
 | Symbol / command                                                                                     | What it does                                                   | Page                                             |
 | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------ |
 | `defineCraftDeployment`                                                                              | Declares the deployment of an application in `craft.deploy.ts` | [Manifest reference](/guide/deployment/manifest) |

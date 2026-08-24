@@ -1,5 +1,17 @@
 # Alchemy provider
 
+::: warning Experimental — never run against a live account
+This provider is the least validated part of the deployment tooling. The
+presets, the plan, the credential checks and the refusal paths are covered by
+tests through a runtime port, so what CraftTS _decides_ is verified.
+
+What is **not** verified is the last hop: the adapter that calls Alchemy itself
+has never run against a real Cloudflare or AWS account from this repository.
+Treat your first deployment as the validation of that adapter — run
+`deploy preview` first, read the plan, and expect to adjust
+`ALCHEMY_RESOURCE_EXPORTS` if the installed Alchemy renamed a resource.
+:::
+
 `@craft-ts/deploy-alchemy` deploys a CraftTS manifest to Cloudflare or AWS
 through [Alchemy](https://alchemy.run). It is an optional package: Alchemy
 never appears in the dependencies of a CraftTS application, and a project that
@@ -144,10 +156,8 @@ table, not to the presets or the manifest.
 
 ## Limits
 
-- The adapter over the Alchemy API is exercised through a runtime port in the
-  test suite; it has not been run against a live Cloudflare or AWS account in
-  this repository, so treat the first real deployment of a project as the
-  validation of the adapter.
+- The adapter over the Alchemy API has never run against a live account, as
+  stated at the top of this page.
 - The Fargate fallback runs the artefact as a container: the image build stays
   outside CraftTS.
 - Alchemy has no preset here for the platforms a publication provider already

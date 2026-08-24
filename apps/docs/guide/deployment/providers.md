@@ -1,5 +1,11 @@
 # Deployment providers
 
+::: warning Experimental
+The provider contract is not settled: the method signatures below, the
+capability list and the plan shape can still change between minor versions. A
+provider written today may need a small update to keep up.
+:::
+
 A provider is the integration that builds, publishes or provisions a platform.
 It is never a runtime of CraftTS, and never a dependency of the application
 bundle: the CLI owns the manifest and delegates every mutation to a provider

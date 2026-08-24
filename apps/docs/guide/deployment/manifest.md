@@ -1,5 +1,12 @@
 # Manifest reference
 
+::: warning Experimental
+Manifest fields can still be added, renamed or removed between minor versions.
+The serialised form carries `protocolVersion: '1'`, and a manifest produced by
+another protocol is refused rather than reinterpreted — so a change here breaks
+loudly, at the check, and comes with migration notes.
+:::
+
 The manifest is what an application writes in `craft.deploy.ts`. It describes
 only the facts a build and a deployment need, and it stays provider-neutral:
 the provider is chosen when deploying, never to produce the artefact.

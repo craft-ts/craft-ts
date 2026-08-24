@@ -2,6 +2,10 @@
 
 Deployment CLI of CraftTS.
 
+> **Experimental.** The command surface is not settled. `check`, `manifest`,
+> `providers`, `deploy preview` and `deploy` exist today; `init`, `build` and
+> `deploy init` do not yet.
+
 ```bash
 npx craft-ts check --provider docker
 npx craft-ts manifest --out dist/apps/demo-ssr/craft-deployment-manifest.json

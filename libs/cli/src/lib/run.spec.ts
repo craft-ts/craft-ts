@@ -37,6 +37,13 @@ describe('runCraftCli', () => {
     expect(io.output.join('\n')).toContain('craft-ts <command>');
   });
 
+  it('says in the help that the tooling is experimental', async () => {
+    const io = captureIo(workspace.root);
+    await runCraftCli(['help'], io);
+
+    expect(io.output.join('\n')).toContain('Experimental:');
+  });
+
   it('lists every command it can actually run', async () => {
     const io = captureIo(workspace.root);
     await runCraftCli(['help'], io);

@@ -2,6 +2,12 @@
 
 Provider-neutral deployment contract for CraftTS applications.
 
+> **Experimental.** Manifest fields, diagnostic codes and the provider contract
+> can still change between minor versions. The serialised manifest carries
+> `protocolVersion: '1'`, and one produced by another protocol is refused rather
+> than reinterpreted, so a change breaks loudly at the check. Pin the version if
+> you build a pipeline on it.
+
 The package holds the typed manifest an application writes in
 `craft.deploy.ts`, the checks that run before a build, and the capability
 matrix of the deployment providers. It never deploys anything: publishing and

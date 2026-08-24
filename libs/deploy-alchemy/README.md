@@ -2,6 +2,12 @@
 
 Optional Alchemy provider for CraftTS deployments.
 
+> **Experimental — never run against a live account.** The presets, the plan,
+> the credential checks and the refusal paths are covered by tests through a
+> runtime port. The adapter that calls Alchemy itself has never run against a
+> real Cloudflare or AWS account from the CraftTS repository: treat your first
+> deployment as its validation, and run `deploy preview` first.
+
 It consumes the manifest produced by `@craft-ts/deploy` and turns it into
 Cloudflare or AWS resources. It never rebuilds routes, contracts or layers, and
 it is never a dependency of a CraftTS application bundle.

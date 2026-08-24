@@ -24,6 +24,44 @@ const diagnostics = readDoc('../guide/deployment/diagnostics.md');
 const providers = readDoc('../guide/deployment/providers.md');
 const alchemy = readDoc('../guide/deployment/alchemy.md');
 
+/**
+ * The deployment tooling is not settled yet, and a reader has to learn that
+ * from the page rather than from a release note.
+ */
+describe('experimental status', () => {
+  const pages = {
+    overview,
+    manifest,
+    diagnostics,
+    providers,
+    alchemy,
+  };
+
+  it('warns on every deployment page', () => {
+    for (const [name, page] of Object.entries(pages)) {
+      expect(page, `${name} carries no experimental notice`).toContain(
+        '::: warning Experimental',
+      );
+    }
+  });
+
+  it('warns before saying anything else', () => {
+    for (const [name, page] of Object.entries(pages)) {
+      const lines = page.split('\n').filter((line) => line.trim().length > 0);
+      expect(lines[1], `${name} buries its notice`).toContain(
+        '::: warning Experimental',
+      );
+    }
+  });
+
+  it('names the commands that do not exist yet', () => {
+    for (const command of ['init', 'build', 'deploy init']) {
+      expect(overview).toContain(`\`${command}\``);
+    }
+    expect(overview).toContain('do not\nyet');
+  });
+});
+
 describe('deployment overview', () => {
   it('keeps runtime, platform and provider distinct', () => {
     expect(overview).toContain('**runtime**');
@@ -200,7 +238,7 @@ describe('Alchemy provider guide', () => {
 
   it('says plainly that the adapter has never run against a live account', () => {
     expect(alchemy).toContain(
-      'has not been run against a live Cloudflare or AWS account',
+      'has never run against a real Cloudflare or AWS account',
     );
   });
 

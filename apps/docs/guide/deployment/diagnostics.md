@@ -1,5 +1,11 @@
 # Deployment diagnostics
 
+::: warning Experimental
+Codes can be added, and their messages can change, between minor versions. Do
+not match on a message in a CI script: match on the `code` field of the `--json`
+report, which is the part meant to be stable.
+:::
+
 Every problem `craft-ts check` reports carries a code, the concerned runtime or
 platform, a location, what is wrong and what to change. This page is the
 reference for the codes; it is verified against the checker, so a code cannot
