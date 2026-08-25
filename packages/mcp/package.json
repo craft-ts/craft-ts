@@ -35,6 +35,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@craft-ts/dev-tools": "^0.7.0-beta.0",
     "@modelcontextprotocol/sdk": "1.26.0",
     "zod": "4.3.6"
   },

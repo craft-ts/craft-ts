@@ -14,6 +14,10 @@
     "strict": true,
     "isolatedModules": true,
     "customConditions": [],
+    // This package builds and publishes on its own: workspace path mappings
+    // would pull library *sources* into its program, under its own stricter
+    // resolution. It resolves its dependencies the way a consumer does.
+    "paths": {},
     "importHelpers": false
   },
   "include": ["src/**/*.ts"],

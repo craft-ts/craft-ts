@@ -32,6 +32,9 @@
       "@craft-ts/component/testing": ["./libs/component/testing/public-api.ts"],
       "test-type": ["./libs/test-type/src/index.ts"],
       "@craft-ts/dev-tools": ["./libs/dev-tools/src/index.ts"],
+      "@craft-ts/dev-tools/style-report": [
+        "./libs/dev-tools/src/scripts/style-report.ts"
+      ],
       "@craft-ts/dev-tools/*": ["./libs/dev-tools/src/*"],
       "@craft-ts/dev-tools/testing": ["./libs/dev-tools/src/testing.ts"],
       "@craft-ts/dev-tools/template-migration": [

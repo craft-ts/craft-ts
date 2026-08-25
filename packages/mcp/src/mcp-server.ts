@@ -178,9 +178,124 @@ export function createCraftMcpServer(resources: CraftMcpResources): McpServer {
       }),
   );
 
+  registerStyleTools(server);
+
   return server;
 }
 
+const DEFAULT_STYLE_DUMP = 'tmp/craft-style-graph.json';
+
+/**
+ * The shape of `@craft-ts/dev-tools/style-report`, declared here rather than
+ * imported.
+ *
+ * This package builds and publishes on its own, and does not resolve workspace
+ * libraries at build time; a type import would tie its build to a sibling's
+ * sources. What is declared is three signatures — the *logic* still lives in one
+ * place and is called, never copied. The results are serialised to JSON, so
+ * describing them further would buy nothing.
+ */
+interface StyleReportModule {
+  styleImpact(dump: unknown, changed: readonly string[]): unknown;
+  styleMatrix(dump: unknown): unknown;
+  styleDebt(dump: unknown): unknown;
+}
+
+const STYLE_REPORT_MODULE = '@craft-ts/dev-tools/style-report';
+
+const styleReport = async (): Promise<StyleReportModule> => {
+  // Resolved at call time, through a specifier this package's own build does
+  // not need to see: `@craft-ts/dev-tools` is a peer of the workspace, not of
+  // the published bundle. An installation without it fails here, with a
+  // message, rather than failing to start.
+  const loaded = (await import(/* @vite-ignore */ STYLE_REPORT_MODULE).catch(
+    () => {
+      throw new Error(
+        `The style tools need '${STYLE_REPORT_MODULE}'. Install @craft-ts/dev-tools alongside this server, or use \`craft-graph --style-matrix\` from the repository instead.`,
+      );
+    },
+  )) as StyleReportModule;
+  return loaded;
+};
+
+const DUMP_INPUT = {
+  dumpPath: z
+    .string()
+    .optional()
+    .describe(
+      `Path to the style dump the build plugin writes. Defaults to ${DEFAULT_STYLE_DUMP}.`,
+    ),
+};
+
+/**
+ * The style questions, read-only, answered from the emitted dump.
+ *
+ * They call the same functions the CLI calls rather than reimplementing the
+ * queries: one question must not have two answers depending on who asked. The
+ * import is dynamic so that opening the server does not pull the graph
+ * machinery into memory for an agent that only wanted the documentation.
+ */
+function registerStyleTools(server: McpServer): void {
+  const loadDump = async (dumpPath?: string) => {
+    const path = dumpPath ?? DEFAULT_STYLE_DUMP;
+    const { readFile } = await import('node:fs/promises');
+    try {
+      return JSON.parse(await readFile(path, 'utf8'));
+    } catch {
+      throw new Error(
+        `No style dump at '${path}'. It is written by the build plugin: give craftStyle({ dumpPath }) a path and run a build, or pass dumpPath.`,
+      );
+    }
+  };
+
+  server.registerTool(
+    'style_impact',
+    {
+      description:
+        'Which sheet classes a change to one or more CSS custom properties can be seen in. Use it before rerunning a visual suite: changing one token should recapture what reaches it, not everything. Answers `narrowed: false` when a name is unknown to the graph, in which case the answer is the whole application on purpose.',
+      inputSchema: {
+        changed: z
+          .array(z.string().min(1))
+          .min(1)
+          .describe('Custom property names, e.g. --ds-accent'),
+        ...DUMP_INPUT,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ changed, dumpPath }) => {
+      const { styleImpact } = await styleReport();
+      return toolResult(styleImpact(await loadDump(dumpPath), changed));
+    },
+  );
+
+  server.registerTool(
+    'style_matrix',
+    {
+      description:
+        'What the application costs to capture: the number of visual states per sheet class, the total, the median and the largest. The median and the largest are the two numbers that decide whether matrix reduction is worth opening at all.',
+      inputSchema: { ...DUMP_INPUT },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ dumpPath }) => {
+      const { styleMatrix } = await styleReport();
+      return toolResult(styleMatrix(await loadDump(dumpPath)));
+    },
+  );
+
+  server.registerTool(
+    'style_debt',
+    {
+      description:
+        'What the style system is owed: escape hatches taken with their stated reason, context obligations required and discharged nowhere, variables declared and never read, and the components no sheet is known to style. Read `extractionGaps` first — the rest is only worth its answer on a complete graph.',
+      inputSchema: { ...DUMP_INPUT },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ dumpPath }) => {
+      const { styleDebt } = await styleReport();
+      return toolResult(styleDebt(await loadDump(dumpPath)));
+    },
+  );
+}
 
 function serializePage(page: DocPage) {
   return {
@@ -195,9 +310,7 @@ function serializePage(page: DocPage) {
 
 function toolResult(result: unknown) {
   return {
-    content: [
-      { type: 'text' as const, text: JSON.stringify(result, null, 2) },
-    ],
+    content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
     structuredContent: { result },
   };
 }

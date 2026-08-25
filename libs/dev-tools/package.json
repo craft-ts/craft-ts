@@ -24,6 +24,10 @@
       "types": "./src/eslint-rules/index.d.cts",
       "default": "./src/eslint-rules/index.cjs"
     },
+    "./style-report": {
+      "types": "./src/scripts/style-report.d.ts",
+      "default": "./src/scripts/style-report.js"
+    },
     "./template-migration": {
       "types": "./src/template-migration.d.ts",
       "default": "./src/template-migration.js"
