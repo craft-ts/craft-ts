@@ -7,8 +7,8 @@ plan et le dépôt réel.
 
 ## État
 
-Dernière mise à jour : **2026-08-25**. Vagues 1 à 4 dans `main`, sauf la tâche 29
-(exposition MCP). La vague 5 reste fermée.
+Dernière mise à jour : **2026-08-25**. **Les vagues 1 à 4 sont dans `main`.**
+La vague 5 reste fermée : médiane 1, maximum 18, seuil 24.
 
 | Vague                           | Tâches      | État                                                  |
 | ------------------------------- | ----------- | ----------------------------------------------------- |
@@ -18,7 +18,7 @@ Dernière mise à jour : **2026-08-25**. Vagues 1 à 4 dans `main`, sauf la tâc
 | **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
 | 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite**                                             |
 | 3 — niveau 3 : obligations      | 23 → 26     | **faite** (moitié visuelle non vérifiée)              |
-| 4 — graphe et architecture      | 27 → 30     | **faite sauf 29** (MCP non exposé)                    |
+| 4 — graphe et architecture      | 27 → 30     | **faite**                                             |
 | 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
 
 Hors plan et fait : l'esquisse `libs/style` (promue fichier par fichier en vague 1)
@@ -488,7 +488,7 @@ Deux trouvailles de la tentative, qui tiennent quelle que soit la cause :
   taille nulle n'a rien à quoi coller, donc l'état qui la révélerait ne peut pas
   se produire. `visibility` conserve la taille de l'ancre.
 
-### Vague 4 — graphe et architecture : faite sauf la tâche 29
+### Vague 4 — graphe et architecture : faite
 
 | tâche                        | livré                                                                                                                                                                                           |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -523,11 +523,26 @@ Attention en revanche à ne pas comparer 11,08 M au 10,14 M du 24 août : la dem
 gagné le design system, le témoin de scellage et leurs specs entre-temps. Le seul
 delta valable est celui du tableau ci-dessus, mesuré sur le même arbre.
 
-#### Reste de la vague 4
+#### Deux décisions d'empaquetage, à contester si besoin
 
-- [ ] **29 — `craft graph --impacted <paths>` et les outils MCP** (`style_impact`,
-      `style_matrix`, `style_debt`). Le prédicat existe et est testé ; ce qui
-      manque est la CLI et l'exposition read-only côté `packages/mcp`.
+1. **`packages/mcp` pose `"paths": {}`.** Ce paquet se construit et se publie
+   seul, et les `paths` du workspace tiraient les **sources** des libs dans son
+   programme, sous sa résolution plus stricte. Il résout maintenant ses
+   dépendances comme le ferait un consommateur.
+2. **Du coup les outils de style résolvent `@craft-ts/dev-tools/style-report` à
+   l'appel** et le décrivent par trois signatures locales. La logique reste à un
+   seul endroit et est _appelée_, jamais copiée ; ce qui est dupliqué, ce sont
+   trois signatures. L'alternative était d'ajouter `libs/dev-tools` aux
+   workspaces npm — remodeler le dépôt pour un outil.
+
+#### Ce que la CLI répond aujourd'hui
+
+```
+craft-graph --style-matrix   → total 53, médiane 1, plus grand dsButton-root (18)
+craft-graph --impacted --ds-accent
+                             → dsAlert-root, dsButton-root, dsMeter-fill, dsTheme-root
+craft-graph --style-debt     → 0 dette, 0 obligation ouverte, 2 variables non lues
+```
 
 ### Vague 5 — réduction de matrice (tâches 31 → 32, CONDITIONNELLE)
 
