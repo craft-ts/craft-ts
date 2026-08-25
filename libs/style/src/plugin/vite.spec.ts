@@ -8,7 +8,7 @@
  */
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { emitStyles, findStyleModules } from './vite.ts';
+import { craftStyle, emitStyles, findStyleModules } from './vite.ts';
 
 const root = join(process.cwd(), 'libs/style/example');
 const alias = {
@@ -57,4 +57,42 @@ describe('the plugin evaluates the style modules and emits the sheet', () => {
 
     expect(first.css).toBe(second.css);
   }, 60_000);
+});
+
+describe('the plugin refreshes the virtual sheet during development', () => {
+  it('requests a full reload when a style module changes', () => {
+    const plugin = craftStyle();
+    const messages: unknown[] = [];
+
+    plugin.handleHotUpdate?.({
+      file: join(root, 'back-to-top.style.ts'),
+      server: {
+        ws: {
+          send(message) {
+            messages.push(message);
+          },
+        },
+      },
+    });
+
+    expect(messages).toEqual([{ type: 'full-reload', path: '*' }]);
+  });
+
+  it('ignores non-style module changes', () => {
+    const plugin = craftStyle();
+    const messages: unknown[] = [];
+
+    plugin.handleHotUpdate?.({
+      file: join(root, 'back-to-top.ts'),
+      server: {
+        ws: {
+          send(message) {
+            messages.push(message);
+          },
+        },
+      },
+    });
+
+    expect(messages).toEqual([]);
+  });
 });

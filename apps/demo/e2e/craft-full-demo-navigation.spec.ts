@@ -47,6 +47,9 @@ test('shows the beta documentation and feedback banner', async ({ page }) => {
   await expect(
     banner.getByRole('link', { name: 'Read the documentation' }),
   ).toHaveAttribute('href', 'https://craft-ts.github.io/craft/');
+  await expect(
+    banner.getByRole('link', { name: 'Your feedback is welcome' }),
+  ).toHaveAttribute('href', 'https://github.com/craft-ts/craft-ts/issues');
 });
 
 test('does not activate Guard demo after its guard redirects', async ({

@@ -19,12 +19,10 @@ describe('a class states what it needs from its ancestors', () => {
   it('asks for a scroll port where the sticking happens', () => {
     // `requires` is attached to the class, not the sheet: the error then names
     // a rule rather than a file. The anchor is what sticks, so it is the anchor
-    // that needs a scroll port — and the anchor that declares the scroll-state
-    // container the button reads.
+    // that needs a scroll port. The scroll port itself declares the
+    // scroll-state container the button reads.
     expect(classOf('backToTop-anchor')?.requires).toEqual(['scrollPort.block']);
-    expect(classOf('backToTop-anchor')?.provides).toEqual([
-      'containerType.scrollState',
-    ]);
+    expect(classOf('backToTop-anchor')?.provides).toEqual([]);
     expect(classOf('backToTop-button')?.requires).toEqual([]);
   });
 
@@ -44,13 +42,17 @@ describe('the layout answers, and the answer is inseparable from its CSS', () =>
   it('lays down the overflow it claims to provide', () => {
     const main = classOf('appShell-main');
 
-    expect(main?.provides).toEqual(['scrollPort.block']);
+    expect(main?.provides).toEqual([
+      'scrollPort.block',
+      'containerType.scrollState',
+    ]);
     // `overflow` is not in the property table. `provides` returning the effect
     // and the discharge in the same object is the only road to it, so claiming
     // to provide without laying the CSS is not something anyone can write.
     expect(main?.rules.map((rule) => rule.property)).toEqual([
       'overflow-block',
       'min-block-size',
+      'container-type',
       'display',
       'block-size',
     ]);
@@ -77,11 +79,11 @@ describe('what the compiler says when the answer is missing', () => {
 describe('the button varies on the scroll state, and on nothing else', () => {
   it('keeps its budget to one axis', () => {
     expect(Object.keys(classOf('backToTop-button')?.axes ?? {})).toEqual([
-      'scrollState.stuck',
+      'scrollState.scrollable',
     ]);
     expect(visualMatrix(backToTop).map((scenario) => scenario.id)).toEqual([
       'base',
-      'scrollState.stuck=blockEnd',
+      'scrollState.scrollable=blockStart',
     ]);
     // And the shell has no axis at all: it is layout, not appearance.
     expect(visualMatrix(shell)).toHaveLength(1);

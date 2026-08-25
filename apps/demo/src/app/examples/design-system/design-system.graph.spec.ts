@@ -74,7 +74,7 @@ describe('the obligations of the real application', () => {
 
   it('names who answers, and it is the layout', () => {
     // The rule the plan wants enforced per route: only layout discharges.
-    expect(dischargers(graph())).toEqual(['appShell-main', 'backToTop-anchor']);
+    expect(dischargers(graph())).toEqual(['appShell-main']);
   });
 });
 
@@ -92,10 +92,7 @@ describe('what the graph finds that nobody was looking for', () => {
   it('reports the theme variables nothing reads', () => {
     // Real dead weight in this design system: declared by the theme, read by
     // no component. Not an error — but a reader takes them for a real hook.
-    expect(danglingVars(graph()).unread).toEqual([
-      '--ds-onAccent',
-      '--ds-surface',
-    ]);
+    expect(danglingVars(graph()).unread).toEqual(['--ds-surface']);
     expect(danglingVars(graph()).undeclared).toEqual([]);
   });
 
@@ -113,6 +110,7 @@ describe('what the graph finds that nobody was looking for', () => {
 describe('impact analysis', () => {
   it('names only what a changed variable reaches', () => {
     expect(impactedClasses(graph(), ['--ds-accent'])).toEqual([
+      'backToTop-button',
       'dsAlert-root',
       'dsButton-root',
       'dsMeter-fill',

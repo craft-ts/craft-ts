@@ -13,19 +13,17 @@
  *
  * **The visual half is verified in the browser.** The emitted CSS is right —
  * `overflow-block: auto` and `container-type: scroll-state` compute on the
- * real elements — and the button is hidden while the anchor is stuck at the
- * block end, then becomes visible after the scroll port reaches its end. The
- * E2E witness drives the same `scrollState.stuck` scenario as the style
- * matrix.
+ * real elements — and the button stays visible while its anchor sticks at the
+ * block start as the scroll port moves. The E2E witness drives the same
+ * `scrollState.scrollable` scenario as the style matrix.
  *
  * Two details are worth keeping in the example:
  *
- * - `scroll-state(stuck: …)` asks about the **container**, so the element that
- *   sticks has to be the one declaring it. Making the scroll port the container
- *   parses, applies, and never matches.
- * - Gating on `display` cannot work: a zero-size sticky box has nothing to
- *   stick, so the state that would reveal it can never happen. `visibility`
- *   keeps the anchor's size.
+ * - `scroll-state(scrollable: …)` asks about the **container**, so the scroll
+ *   port declares it: that is the element whose scrollability the button reads.
+ * - `scrollable: block-start` is false at the top and true after the user has
+ *   moved down. `visibility` hides the button without removing its sticky
+ *   anchor from the layout.
  *
  * What is proven here is both halves of the guarantee: the compiler checks the
  * context demand, and the browser observes the state change it controls.
@@ -70,8 +68,8 @@ export type BackToTop = typeof BackToTop;
 
 /**
  * Twenty rows, so the box actually scrolls. The shell adds a typed tail after
- * the anchor; without that room, a last-child block-end sticky is stuck even
- * at the end of the scroll range and the query cannot produce a transition.
+ * the content to leave room for the sticky container to finish its scroll
+ * range.
  *
  * Kept in a wrapper below rather than spread into the scroll port's children:
  * an `Array.from` result is a homogeneous array, not a tuple, and spreading one
@@ -106,14 +104,14 @@ export const ScrollDemo = craftComponent(
         ),
         div({ class: card.root, 'data-scroll-port': 'true' }, [
           div({ class: shell.main }, [
-            div(filler(20)),
             BackToTop({}),
+            div(filler(20)),
             div({ class: shell.tail }, []),
           ]),
         ]),
         span(
           { class: card.body },
-          'The button is hidden while its sticky anchor is held at block-end and appears once the scroll port reaches its end.',
+          'The button is hidden at the top, then stays sticky at the top of the scroll port while the rows move underneath it; its fill changes when the scroll-state query detects that the port can scroll back.',
         ),
       ]),
     ]),

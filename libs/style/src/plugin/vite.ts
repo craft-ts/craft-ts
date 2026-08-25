@@ -172,7 +172,17 @@ export interface CraftStylePlugin {
   configResolved?(config: { readonly root: string }): void;
   resolveId?(id: string): string | undefined;
   load?(id: string): Promise<string | undefined>;
-  handleHotUpdate?(context: { readonly file: string }): void;
+  handleHotUpdate?(context: {
+    readonly file: string;
+    readonly server: {
+      readonly ws: {
+        send(message: {
+          readonly type: 'full-reload';
+          readonly path: '*';
+        }): void | Promise<void>;
+      };
+    };
+  }): void;
 }
 
 /**
@@ -212,9 +222,12 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
     handleHotUpdate(context) {
       // A style module changed: the whole sheet is re-derived rather than
       // patched. Atomic output is small and the emission is one bundle away —
-      // an incremental path here would be a second source of truth.
+      // an incremental path here would be a second source of truth. The
+      // stylesheet is a virtual module imported once by the app entry, so
+      // invalidating the cache alone would leave the browser on old CSS.
       if (context.file.endsWith(options.suffix ?? '.style.ts')) {
         cached = undefined;
+        context.server.ws.send({ type: 'full-reload', path: '*' });
       }
     },
   };

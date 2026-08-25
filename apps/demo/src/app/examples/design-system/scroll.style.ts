@@ -4,8 +4,8 @@
  * A back-to-top button is `position: sticky` and reads its scroll state through
  * a container query. Both need something it cannot provide itself: a scroll
  * port on the block axis, and an element declaring `container-type:
- * scroll-state`. Get either wrong and the button silently never changes, or
- * sticks to the wrong box.
+ * scroll-state`. The scroll port owns the latter because it is the element
+ * whose scrollability the button needs to observe.
  *
  * `requires(...)` is attached to the class that depends on it, not to the sheet:
  * the error then names a rule rather than a file.
@@ -23,6 +23,7 @@ import {
   display,
   font,
   insetBlockEnd,
+  insetBlockStart,
   lineWidth,
   position,
   provides,
@@ -45,34 +46,27 @@ export const backToTop = craftStyles(
   'backToTop',
   {
     /**
-     * The sticky box, and the scroll-state container in one. The tail owned by
-     * the shell gives it room to release at the end of the scroll range: a
-     * last child with only `inset-block-end` is already stuck at the start and
-     * remains stuck when its natural position reaches that inset.
+     * The sticky box. The anchor is the first child of the scroll port, so a
+     * block-start inset keeps it visible while the rows below it move past.
      *
-     * `scroll-state(stuck: …)` asks about the **container**, so the element
-     * that sticks has to be the one that declares the container — the button
-     * inside then reads its state. Making the scroll port the container
-     * instead parses, applies, and never matches: the port is not what sticks.
+     * The scroll-state query is declared on the scroll port below, not here:
+     * `scrollable: block-start` describes whether this port can scroll back
+     * toward its start, while `stuck: …` would describe this anchor.
      */
     anchor: [
       requires(scrollPort.block),
-      provides(containerType.scrollState),
       position.sticky,
-      insetBlockEnd(space(4)),
+      insetBlockStart(space(4)),
       display.block,
     ],
 
     /**
-     * Visible by default, hidden with `visibility` while the anchor is stuck.
-     *
-     * The anchor is the last meaningful item, so `stuck: block-end` is the
-     * transient state before the scroll range is exhausted. Inverting the
-     * paint condition makes the button appear at the end, when the anchor has
-     * released, while keeping its size available for sticky layout.
+     * Hidden at the top, then visible as soon as the scroll port can scroll
+     * back toward its block start. `visibility` keeps the anchor's size, so
+     * hiding the button does not disable the sticky layout.
      */
     button: [
-      visibility.visible,
+      visibility.hidden,
       px(space(4)),
       py(space(2)),
       radius(radii.full),
@@ -84,12 +78,15 @@ export const backToTop = craftStyles(
       font(text.sm),
       cursor.pointer,
 
-      // Do not paint the transient block-end-stuck state; paint the released
-      // state at the end of the scroll range.
-      when(scrollState.stuck.blockEnd, [visibility.hidden]),
+      when(scrollState.scrollable.blockStart, [
+        visibility.visible,
+        bg(theme.accent),
+        borderColor(theme.accent),
+        color(theme.onAccent),
+      ]),
     ],
   },
-  { axes: [scrollState.stuck] },
+  { axes: [scrollState.scrollable] },
 );
 
 /**
@@ -104,6 +101,7 @@ export const backToTop = craftStyles(
 export const shell = craftStyles('appShell', {
   main: [
     provides(scrollPort.block),
+    provides(containerType.scrollState),
     display.block,
     // `provides(scrollPort.block)` already sets `min-block-size: 0` — writing
     // it again here would collapse into one atom anyway, and reading it as a
@@ -112,9 +110,8 @@ export const shell = craftStyles('appShell', {
   ],
 
   /**
-   * A typed trailing space lets the sticky anchor release at scroll end. It
-   * must be larger than the anchor's block-end inset; otherwise the natural
-   * position lands exactly on the sticky threshold and still reports stuck.
+   * A typed trailing space leaves room for the sticky anchor to finish its
+   * containing block at scroll end instead of colliding with the edge.
    */
   tail: [display.block, blockSize(space(8))],
 });
