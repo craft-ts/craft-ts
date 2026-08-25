@@ -61,6 +61,16 @@ export const { demoRoutes } = craftRoutes('demo', [
       ).then((module) => module.viewTransitionsRoutes),
   },
 
+  /* demo-route-end */ /* demo-route: i18n */
+  {
+    path: 'i18n',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/i18n/type-safe-i18n-demo')).then(
+        ({ TypeSafeI18nDemo }) => TypeSafeI18nDemo,
+      ),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: home */
   {
     path: '',
@@ -485,6 +495,7 @@ export const demoEnabledRoutePaths: ReadonlySet<string> = new Set(
 // the selected runtime collection.
 type DemoRoutePath =
   | ''
+  | 'i18n'
   | 'query/:userId'
   | 'debounced-web-search'
   | 'slow-page'
@@ -569,6 +580,13 @@ declare module '@craft-ts/core' {
         'UNEXPECTED_ERROR'
       >;
     };
+    'pending-block/exception': {
+      INVOICE_REJECTED: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'pending-block/exception',
+        'INVOICE_REJECTED'
+      >;
+    };
   }
 }
 /* demo-check-end */
@@ -599,6 +617,15 @@ type _CanRunDebouncedWebSearch = CanRun<
     (typeof import('./examples/primitives/debounced-web-search/debounced-web-search'))['default'],
     never,
     'path: "debounced-web-search"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: i18n */
+type _CanRunTypeSafeI18nDemo = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/i18n/type-safe-i18n-demo'))['TypeSafeI18nDemo'],
+    never,
+    'path: "i18n"'
   >
 >;
 /* demo-check-end */

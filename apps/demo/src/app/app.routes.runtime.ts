@@ -60,6 +60,14 @@ export const { demoRoutes } = craftRoutes('demo', [
       ).then((module) => module.viewTransitionsRoutes),
   },
   {
+    path: 'i18n',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/i18n/type-safe-i18n-demo')).then(
+        ({ TypeSafeI18nDemo }) => TypeSafeI18nDemo,
+      ),
+    ),
+  },
+  {
     path: '',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/component/component-demo')).then(
@@ -413,6 +421,7 @@ export const demoEnabledRoutePaths: ReadonlySet<string> = new Set(
 // the selected runtime collection.
 type DemoRoutePath =
   | ''
+  | 'i18n'
   | 'query/:userId'
   | 'debounced-web-search'
   | 'slow-page'
@@ -495,6 +504,13 @@ declare module '@craft-ts/core' {
         'UNEXPECTED_ERROR'
       >;
     };
+    'pending-block/exception': {
+      INVOICE_REJECTED: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'pending-block/exception',
+        'INVOICE_REJECTED'
+      >;
+    };
   }
 }
 
@@ -522,6 +538,14 @@ type _CanRunDebouncedWebSearch = CanRun<
     (typeof import('./examples/primitives/debounced-web-search/debounced-web-search'))['default'],
     never,
     'path: "debounced-web-search"'
+  >
+>;
+
+type _CanRunTypeSafeI18nDemo = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/i18n/type-safe-i18n-demo'))['TypeSafeI18nDemo'],
+    never,
+    'path: "i18n"'
   >
 >;
 

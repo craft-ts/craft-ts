@@ -32,6 +32,8 @@ describe('createCraftProject', () => {
 
     expect(result.mode).toBe('plain');
     expect(packageJson.dependencies['@craft-ts/core']).toBeDefined();
+    expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
+    expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeUndefined();
     expect(packageJson.dependencies.effect).toBeUndefined();
     expect(packageJson.devDependencies?.typescript).toBe('^7.0.2');
     expect(packageJson.scripts).toMatchObject({
@@ -63,6 +65,9 @@ describe('createCraftProject', () => {
     );
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain('craftRoutes');
     expect(await readFile(join(result.directory, 'src/app/api.ts'), 'utf8')).toContain('CraftHttpClient');
+    expect(await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).toContain('baseCatalog');
+    expect(await readFile(join(result.directory, 'src/i18n/typography.ts'), 'utf8')).toContain('lineHeight');
+    expect(await readFile(join(result.directory, 'e2e/i18n.spec.ts'), 'utf8')).toContain('document.fonts.ready');
     expect(await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8')).toContain(
       'craftRules.configs.recommended.rules',
     );
@@ -80,6 +85,8 @@ describe('createCraftProject', () => {
 
     expect(packageJson.dependencies.effect).toBe('^4.0.0-rc.110');
     expect(packageJson.dependencies['@craft-ts/effect']).toBeDefined();
+    expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
+    expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeDefined();
     expect(packageJson.devDependencies?.typescript).toBe('^7.0.2');
     expect(await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8')).toContain('Layer.succeed');
     expect(await readFile(join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'), 'utf8')).toContain('Effect v4');
@@ -90,6 +97,30 @@ describe('createCraftProject', () => {
     expect(await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8')).toContain(
       'craftRules.configs.effect.rules',
     );
+  });
+
+  it('generates explicit locale parity and strict i18n scripts', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-i18n-'));
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      mode: 'plain',
+      agents: [],
+      locales: ['en-US', 'fr-FR'],
+      defaultLocale: 'fr-FR',
+      i18n: 'strict',
+    });
+    const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    expect(packageJson.scripts).toMatchObject({
+      'i18n:check': 'craft i18n check',
+      'i18n:test': 'craft i18n test',
+    });
+    expect(await readFile(join(result.directory, 'index.html'), 'utf8')).toContain('<html lang="fr-FR"');
+    expect(await readFile(join(result.directory, 'src/i18n/locales/fr-FR.ts'), 'utf8')).toContain('defineLocaleLike');
+    expect(await readFile(join(result.directory, '.github/workflows/ci.yml'), 'utf8')).toContain('npm run i18n:check');
   });
 });
 

@@ -34,6 +34,7 @@ const NAV_GROUPS = [
     label: 'Components',
     links: [
       ['Functional Components', { to: '' }],
+      ['Type-safe i18n', { to: 'i18n' }],
       ['Reactive Composition', { to: 'component-composition' }],
       ['Content Projection', { to: 'content-projection' }],
       ['Pending Block', { to: 'pending-block' }],
@@ -182,7 +183,7 @@ export const App = craftComponent(
   ({ clearCache, navOpen, toggleNav, closeNav, router }) =>
     div([
         skipLink('main', 'Skip to content'),
-        div({ class: 'demo-banner', click: closeNav }, [
+        div('demo-banner', { class: 'demo-banner', click: closeNav }, [
           div({ class: 'demo-banner__main' }, [
             strong('Beta demo'),
             span(' — the API and documentation may still evolve.'),

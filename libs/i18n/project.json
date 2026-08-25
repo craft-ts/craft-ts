@@ -1,0 +1,29 @@
+{
+  "name": "i18n",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/i18n/src",
+  "projectType": "library",
+  "tags": ["scope:i18n", "independent:effect"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/i18n",
+        "main": "libs/i18n/src/index.ts",
+        "tsConfig": "libs/i18n/tsconfig.lib.prod.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/i18n/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": { "maxWarnings": -1 }
+    }
+  }
+}

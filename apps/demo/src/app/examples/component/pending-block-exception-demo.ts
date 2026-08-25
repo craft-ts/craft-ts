@@ -12,7 +12,7 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import type { CraftDirective, CraftNodeChildren } from '@craft-ts/component';
+import type { CraftNodeChildren } from '@craft-ts/component';
 import {
   craftComputed,
   craftException,
@@ -159,7 +159,7 @@ export const pendingBlockExceptionDemo = craftComponent(
         .pipe(
           // The mutation exposes this code at runtime, while its current
           // settled-value type only carries the pending source.
-          (catchBlock.exhaustive({
+          catchBlock.exhaustive({
             // A catchBlock handler receives the exception as `AnyCraftException`:
             // its `code` is known, its payload is not. Reach for `matchBlock`
             // when the fallback needs the payload itself.
@@ -170,7 +170,7 @@ export const pendingBlockExceptionDemo = craftComponent(
                 { class: 'pending-exception__error' },
                 'Invoice rejected (INVOICE_REJECTED)',
               ),
-          }) as unknown as CraftDirective),
+          }),
         )
     ]),
 );
