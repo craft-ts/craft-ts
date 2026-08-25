@@ -67,12 +67,57 @@ const BASE = 'base';
 const keysOf = (input: MatrixInput): readonly string[] => {
   if (typeof input === 'string') return [classKeyOf(input) ?? input];
   if (Array.isArray(input)) return input.flatMap((entry) => keysOf(entry));
+  if (isBranch(input)) return [];
   return Object.values(input as StyleSheetClasses).flatMap(
     (className) => classKeyOf(className) ?? [],
   );
 };
 
-export type MatrixInput = string | StyleSheetClasses | readonly MatrixInput[];
+const branchesOf = (input: MatrixInput): readonly Branch[] => {
+  if (Array.isArray(input)) return input.flatMap((entry) => branchesOf(entry));
+  return isBranch(input) ? [input] : [];
+};
+
+declare const BRANCH: unique symbol;
+
+/**
+ * Two sets of sheets that are never on screen at the same time.
+ *
+ * An `ifBlock` renders one side or the other, so the states of the two branches
+ * **add up** — they do not multiply. Told nothing, the matrix would cross a
+ * footer's three tones with a header's two breakpoints and ask for six captures
+ * of pages that cannot exist.
+ *
+ * This is the single highest-leverage reduction in the whole system, and the
+ * only one that is exactly true rather than probably true: the branches are
+ * mutually exclusive by construction, not by analysis.
+ *
+ * The plan infers it from the `ifBlock` node's own type. It is declared here,
+ * for the same reason the matrix takes sheets rather than components — and the
+ * cost of that choice is stated plainly: a branch nobody declares is counted as
+ * co-present, which over-captures rather than under-captures.
+ */
+export interface Branch {
+  readonly [BRANCH]: true;
+  readonly name: string;
+  readonly whenTrue: MatrixInput;
+  readonly whenFalse: MatrixInput;
+}
+
+export const branch = (
+  name: string,
+  whenTrue: MatrixInput,
+  whenFalse: MatrixInput = [],
+): Branch => ({ name, whenTrue, whenFalse }) as Branch;
+
+const isBranch = (input: MatrixInput | Branch): input is Branch =>
+  typeof input === 'object' && input !== null && 'whenTrue' in input;
+
+export type MatrixInput =
+  | string
+  | StyleSheetClasses
+  | Branch
+  | readonly MatrixInput[];
 
 const pointsByAxis = (
   classes: readonly RegisteredClass[],
@@ -114,6 +159,48 @@ const driverIndex = (
 export function visualMatrix(
   input: MatrixInput,
   options: MatrixOptions = {},
+): readonly VisualScenario[] {
+  const branches = branchesOf(input);
+  if (branches.length) {
+    // Each branch is a sum, not a factor: the shared sheets are crossed with
+    // *one* side at a time, and the two sides are concatenated. Nesting two
+    // branches therefore gives a sum of sums, which is what keeps an if-block
+    // from doubling the bill of everything above it.
+    const [first, ...rest] = branches;
+    // Every branch is stripped from the shared part, then `rest` is put back
+    // once. Stripping only `first` would leave the others in twice — inside
+    // the shared input and in `rest` — and the count would explode instead of
+    // shrinking.
+    const shared = stripBranches(input);
+    return [
+      ...visualMatrix([shared, first.whenTrue, ...rest], options).map(
+        (scenario) => tagBranch(scenario, first.name, true),
+      ),
+      ...visualMatrix([shared, first.whenFalse, ...rest], options).map(
+        (scenario) => tagBranch(scenario, first.name, false),
+      ),
+    ];
+  }
+  return unfold(input, options);
+}
+
+const stripBranches = (input: MatrixInput): MatrixInput => {
+  if (Array.isArray(input)) return input.map(stripBranches);
+  return isBranch(input) ? [] : input;
+};
+
+const tagBranch = (
+  scenario: VisualScenario,
+  name: string,
+  taken: boolean,
+): VisualScenario => {
+  const axes = { ...scenario.axes, [name]: taken ? 'true' : 'false' };
+  return { ...scenario, axes, id: identify(axes, scenario.content) };
+};
+
+function unfold(
+  input: MatrixInput,
+  options: MatrixOptions,
 ): readonly VisualScenario[] {
   const wanted = new Set(keysOf(input));
   const classes = registeredClasses().filter((registered) =>

@@ -204,6 +204,12 @@ export interface RegisteredClass {
   readonly requires: readonly string[];
   readonly provides: readonly string[];
   readonly violates: readonly string[];
+  /**
+   * Axes the sheet declared and never used. Not an error — a budget is an
+   * upper bound — but it is dead weight a reader takes for a real variation,
+   * so the graph reports it in wave 4.
+   */
+  readonly unusedAxes: readonly string[];
 }
 
 const classes = new Map<string, RegisteredClass>();
@@ -360,10 +366,83 @@ function walk(
   }
 }
 
-export function craftStyles<const Sheet extends StyleSheet>(
+/**
+ * A budget of axes, declared by the sheet that spends it.
+ *
+ * Without it a component can multiply the matrix of every page that composes
+ * it, and nobody decided that: an axis added deep in a leaf shows up as a
+ * doubled capture bill three levels up. Declaring the axes makes the cost a
+ * choice rather than a consequence.
+ *
+ * The plan puts the budget on `craftComponent(..., { axes })`. It lives on the
+ * sheet here for the same reason the matrix takes sheets rather than
+ * components: a component's classes are only knowable by rendering it, and a
+ * budget that silently missed a child's sheet would read as a guarantee while
+ * being none.
+ */
+export type AxisSet = Readonly<Record<string, AnyAxisPoint>>;
+
+/**
+ * Distributes over the union of declared sets on purpose.
+ *
+ * `Budget[number]` is a union, and `keyof` a union is the keys the members
+ * share — none, for two different axes. Read without distributing, a budget of
+ * two axes therefore declares nothing at all, and every sheet using it reports
+ * every axis as out of budget. The naked parameter is what makes it distribute.
+ */
+type AxesOfSet<Set> = Set extends AxisSet ? Set[keyof Set]['axis'] : never;
+
+export type DeclaredAxes<Budget extends readonly AxisSet[]> = AxesOfSet<
+  Budget[number]
+>;
+
+/** The axes a sheet actually varies on, read off its declaration. */
+export type PointsUsedIn<Sheet extends StyleSheet> = PointsIn<
+  Sheet[keyof Sheet][number]
+>['axis'];
+
+export type WithinBudget<
+  Sheet extends StyleSheet,
+  Budget extends readonly AxisSet[],
+> = [Budget] extends [never]
+  ? // No budget declared: the sheet is unbudgeted, and nothing is checked.
+    // `axes: []` is not the same thing — that declares a budget of nothing,
+    // and any axis the sheet uses is then out of it.
+    unknown
+  : [Exclude<PointsUsedIn<Sheet>, DeclaredAxes<Budget>>] extends [never]
+    ? unknown
+    : {
+        readonly [Axis in Exclude<
+          PointsUsedIn<Sheet>,
+          DeclaredAxes<Budget>
+        > as `ERROR_axis_${Axis}_is_not_in_this_sheet_s_budget`]: 'Add it to the axes option, or stop varying on it. Every axis a sheet uses multiplies the visual matrix of every page that composes it.';
+      };
+
+export interface StyleSheetOptions<Budget extends readonly AxisSet[]> {
+  /** The axes this sheet is allowed to vary on. */
+  readonly axes?: Budget;
+}
+
+export function craftStyles<
+  const Sheet extends StyleSheet,
+  const Budget extends readonly AxisSet[] = never,
+>(
   prefix: string,
   sheet: Sheet,
+  // The budget check rides on the **third** parameter, not the second: on the
+  // sheet it would be evaluated while `Budget` is still being inferred from
+  // `options`, and would check nothing. Same inference-order trap as the axis
+  // write constraint, and the same fix — check where both are known.
+  options: StyleSheetOptions<Budget> &
+    WithinBudget<Sheet, Budget> = {} as never,
 ): CraftStyles<Sheet> {
+  const budget = options.axes
+    ? new Set(
+        options.axes.flatMap((set) =>
+          Object.values(set).map((point) => point.axis),
+        ),
+      )
+    : undefined;
   const entries = Object.entries(sheet).map(([key, items]) => {
     const classKey = `${prefix}-${key}`;
     if (classes.has(classKey)) {
@@ -394,6 +473,16 @@ export function craftStyles<const Sheet extends StyleSheet>(
       kept.set(`${scope}|${rule.property}`, rule);
     }
     const rules = [...kept.values()];
+    if (budget) {
+      for (const axis of walked.axes.keys()) {
+        if (!budget.has(axis)) {
+          throw new Error(
+            `craftStyles: '${classKey}' varies on the axis '${axis}', which is not in its budget. Every axis a sheet uses multiplies the visual matrix of every page that composes it, so the cost has to be a decision: add '${axis}' to the axes option, or stop varying on it.`,
+          );
+        }
+      }
+    }
+
     const className = rules.map((rule) => rule.className).join(' ');
     classes.set(classKey, {
       key: classKey,
@@ -406,6 +495,9 @@ export function craftStyles<const Sheet extends StyleSheet>(
       requires: walked.requires,
       provides: walked.provides,
       violates: walked.violates,
+      unusedAxes: budget
+        ? [...budget].filter((axis) => !walked.axes.has(axis)).sort()
+        : [],
     });
     byClassName.set(className, classKey);
     return [key, className] as const;

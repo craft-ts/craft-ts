@@ -11,9 +11,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertExhaustiveVisualMatrix,
+  branch,
   contentCases,
   visualMatrix,
 } from '@craft-ts/style-testing';
+import { registeredClasses } from '@craft-ts/style';
 import { alert, button, card, meter, stack } from './components.style.ts';
 import { dsTheme } from './foundation.style.ts';
 
@@ -66,6 +68,44 @@ describe('what each component can look like', () => {
       },
       { kind: 'resize', minInlineSize: '48rem' },
     ]);
+  });
+});
+
+describe('a sheet declares the axes it is allowed to spend', () => {
+  it('records the budget the button opted into', () => {
+    const root = registeredClasses().find(
+      (registered) => registered.key === 'dsButton-root',
+    );
+
+    // The sheet declared tone and size; it uses both, so nothing is idle.
+    // An axis added to this sheet without widening the budget stops the build.
+    expect(root?.unusedAxes).toEqual([]);
+    expect(Object.keys(root?.axes ?? {}).sort()).toEqual(['size', 'tone']);
+  });
+});
+
+describe('a branch adds instead of multiplying', () => {
+  it('keeps the absent branch free of the states it cannot show', () => {
+    // The footer of a card is behind an `ifBlock`: when it is not rendered,
+    // its tones cannot be on screen. Crossed, the matrix asks for captures of
+    // pages that cannot exist.
+    const crossed = visualMatrix([dsTheme, card, alert]);
+    const summed = visualMatrix([dsTheme, card, branch('footer', alert)]);
+
+    // 2 viewports × 2 schemes × 6 tones = 24 crossed.
+    // Summed: 4 shared cells × 6 tones with the alert, plus 4 without it.
+    expect(crossed).toHaveLength(24);
+    expect(summed).toHaveLength(28);
+    // The count is not the point — the shared axes are crossed with each side,
+    // so a sum can be larger. What matters is which states exist: with the
+    // branch, no scenario has the alert's tone while the alert is absent.
+    const absent = summed.filter(
+      (scenario) => scenario.axes['footer'] === 'false',
+    );
+    expect(absent).toHaveLength(4);
+    for (const scenario of absent) {
+      expect(scenario.axes['tone']).toBeUndefined();
+    }
   });
 });
 

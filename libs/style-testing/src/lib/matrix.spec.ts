@@ -20,7 +20,7 @@ import {
   unit,
   when,
 } from '@craft-ts/style';
-import { contentCases, visualMatrix } from './matrix.ts';
+import { branch, contentCases, visualMatrix } from './matrix.ts';
 import { orderedDrivers, toPixels } from './drivers.ts';
 import {
   assertExhaustiveVisualMatrix,
@@ -153,6 +153,67 @@ describe('every scenario carries what reaches it', () => {
       'base',
       'viewport=md',
     ]);
+  });
+});
+
+describe('a branch adds, it does not multiply', () => {
+  it('crosses the shared sheets with one side at a time', () => {
+    const shell = craftStyles('shell', { root: [when(bp.md, [p(space(4))])] });
+    const footer = craftStyles('footer', {
+      root: [
+        when(tone.danger, [p(space(2))]),
+        when(tone.success, [p(space(1))]),
+      ],
+    });
+
+    // The count is not the point — 8 against 6 here, because the shared axis is
+    // crossed with each side. What matters is *which* states are produced: with
+    // the sum, the side where the footer is absent never carries the footer's
+    // tone axis. Those would be captures of pages that cannot exist.
+    const summed = visualMatrix([shell, branch('footer', footer)]);
+    const crossed = visualMatrix([shell, footer]);
+
+    expect(crossed).toHaveLength(6);
+    expect(summed).toHaveLength(8);
+    // What matters is that the false side never carries the footer's axis:
+    // those are pages that cannot exist.
+    const absent = summed.filter(
+      (scenario) => scenario.axes['footer'] === 'false',
+    );
+    expect(absent).toHaveLength(2);
+    for (const scenario of absent)
+      expect(scenario.axes['tone']).toBeUndefined();
+  });
+
+  it('names the branch in the identifier, on both sides', () => {
+    const shell = craftStyles('shell', { root: [when(bp.md, [p(space(4))])] });
+    const footer = craftStyles('footer', {
+      root: [when(tone.danger, [p(space(2))])],
+    });
+
+    const ids = visualMatrix([shell, branch('footer', footer)]).map(
+      (scenario) => scenario.id,
+    );
+    expect(ids).toContain('footer=true+tone=danger+viewport=md');
+    expect(ids).toContain('footer=false');
+  });
+
+  it('keeps two branches independent of each other', () => {
+    const header = craftStyles('header', {
+      root: [when(tone.danger, [p(space(1))])],
+    });
+    const footer = craftStyles('footer', {
+      root: [when(bp.md, [p(space(2))])],
+    });
+
+    // The sum applies *within* a branch — its two sides never coexist — not
+    // between branches, which do. Header contributes 2 + 1 states, footer the
+    // same, and the two conditions are independent: 3 × 3.
+    const matrix = visualMatrix([
+      branch('header', header),
+      branch('footer', footer),
+    ]);
+    expect(matrix).toHaveLength(9);
   });
 });
 

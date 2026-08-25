@@ -161,6 +161,7 @@ describe('the dump the graph consumes', () => {
           requires: [],
           provides: ['scrollPort.block'],
           violates: [],
+          unusedAxes: [],
         },
       ],
       registeredAtoms(),

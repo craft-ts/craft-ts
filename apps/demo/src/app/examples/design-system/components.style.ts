@@ -78,63 +78,70 @@ const buttonVars = cssVars('dsButton', {
   padBlock: kind.length(unit.px(8)),
 });
 
-export const button = craftStyles('dsButton', {
-  root: [
-    display.inlineFlex,
-    alignItems.center,
-    justifyContent.center,
-    gap(space(2)),
-    px(buttonVars.padInline),
-    py(buttonVars.padBlock),
-    radius(radii.md),
-    borderWidth(lineWidth.hairline),
-    borderStyle.solid,
-    borderColor(theme.border),
-    font(text.sm),
-    fontWeight(num(600)),
-    bg(buttonVars.bg),
-    color(buttonVars.ink),
-    cursor.pointer,
+export const button = craftStyles(
+  'dsButton',
+  {
+    root: [
+      display.inlineFlex,
+      alignItems.center,
+      justifyContent.center,
+      gap(space(2)),
+      px(buttonVars.padInline),
+      py(buttonVars.padBlock),
+      radius(radii.md),
+      borderWidth(lineWidth.hairline),
+      borderStyle.solid,
+      borderColor(theme.border),
+      font(text.sm),
+      fontWeight(num(600)),
+      bg(buttonVars.bg),
+      color(buttonVars.ink),
+      cursor.pointer,
 
-    // One rule per tone, and the rule writes a variable rather than a colour on
-    // a property: the base rule that reads it never has to be repeated.
-    when(tone.neutral, [set(buttonVars.bg, theme.accent)]),
-    when(tone.info, [set(buttonVars.bg, ui.accent.info)]),
-    when(tone.success, [set(buttonVars.bg, ui.accent.success)]),
-    when(tone.warning, [set(buttonVars.bg, ui.accent.warning)]),
-    when(tone.danger, [set(buttonVars.bg, ui.accent.danger)]),
+      // One rule per tone, and the rule writes a variable rather than a colour on
+      // a property: the base rule that reads it never has to be repeated.
+      when(tone.neutral, [set(buttonVars.bg, theme.accent)]),
+      when(tone.info, [set(buttonVars.bg, ui.accent.info)]),
+      when(tone.success, [set(buttonVars.bg, ui.accent.success)]),
+      when(tone.warning, [set(buttonVars.bg, ui.accent.warning)]),
+      when(tone.danger, [set(buttonVars.bg, ui.accent.danger)]),
 
-    when(size.sm, [
-      set(buttonVars.padInline, space(3)),
-      set(buttonVars.padBlock, space(1)),
-      font(text.xs),
-    ]),
-    when(size.lg, [
-      set(buttonVars.padInline, space(6)),
-      set(buttonVars.padBlock, space(3)),
-      font(text.base),
-    ]),
-  ],
+      when(size.sm, [
+        set(buttonVars.padInline, space(3)),
+        set(buttonVars.padBlock, space(1)),
+        font(text.xs),
+      ]),
+      when(size.lg, [
+        set(buttonVars.padInline, space(6)),
+        set(buttonVars.padBlock, space(3)),
+        font(text.base),
+      ]),
+    ],
 
-  /** The quiet variant: same geometry, no fill. */
-  ghost: [
-    display.inlineFlex,
-    alignItems.center,
-    justifyContent.center,
-    gap(space(2)),
-    px(space(3)),
-    py(space(2)),
-    radius(radii.md),
-    borderWidth(lineWidth.hairline),
-    borderStyle.solid,
-    borderColor(theme.border),
-    font(text.sm),
-    fontWeight(num(600)),
-    bg(theme.raised),
-    color(theme.ink),
-    cursor.pointer,
-  ],
-});
+    /** The quiet variant: same geometry, no fill. */
+    ghost: [
+      display.inlineFlex,
+      alignItems.center,
+      justifyContent.center,
+      gap(space(2)),
+      px(space(3)),
+      py(space(2)),
+      radius(radii.md),
+      borderWidth(lineWidth.hairline),
+      borderStyle.solid,
+      borderColor(theme.border),
+      font(text.sm),
+      fontWeight(num(600)),
+      bg(theme.raised),
+      color(theme.ink),
+      cursor.pointer,
+    ],
+  },
+  // The budget: this sheet may vary on tone and size, and on nothing else.
+  // An axis added here would multiply the matrix of every page that renders a
+  // button — the cost has to be a decision, not a side effect.
+  { axes: [tone, size] },
+);
 
 // ─── card ───────────────────────────────────────────────────────────────────
 
