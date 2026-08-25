@@ -3,8 +3,8 @@
 ## Statut
 
 Vagues 1 et 2 livrées (`7e6f935a`, `8f134944`, `0aded2d3`). Les surcharges
-`params` / `method` restent à faire — voir « Reste à faire », qui contient le
-piège d’inférence à ne pas retraverser.
+`params` / `method` restent à faire — « Reste à faire » consigne le seul écueil
+d’inférence confirmé, et rétracte celui que j’avais supposé à tort.
 
 ## Objectif
 
