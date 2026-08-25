@@ -9,6 +9,8 @@ const provideHostNameMatchComponent = require('./provide-host-name-match-compone
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
 const noCraftServiceComponentSameFile = require('./no-craft-service-component-same-file.cjs');
 const noRawCssValue = require('./no-raw-css-value.cjs');
+const noRawClass = require('./no-raw-class.cjs');
+const noFreeHas = require('./no-free-has.cjs');
 const styleFileBoundary = require('./style-file-boundary.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
@@ -105,6 +107,8 @@ const plugin = {
     'prefer-craft-http-transport': preferCraftHttpTransport,
     'no-craft-service-component-same-file': noCraftServiceComponentSameFile,
     'no-raw-css-value': noRawCssValue,
+    'no-raw-class': noRawClass,
+    'no-free-has': noFreeHas,
     'style-file-boundary': styleFileBoundary,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,

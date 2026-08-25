@@ -20,6 +20,8 @@ module.exports = {
   'craft-ts/prefer-craft-http-transport': 'error',
   'craft-ts/no-craft-service-component-same-file': 'warn',
   'craft-ts/no-raw-css-value': 'error',
+  'craft-ts/no-raw-class': 'error',
+  'craft-ts/no-free-has': 'error',
   'craft-ts/style-file-boundary': 'error',
   'craft-ts/no-imperative-craft-resource-trigger': 'error',
   'craft-ts/no-transition-actions': 'error',
