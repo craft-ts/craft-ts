@@ -27,7 +27,7 @@ import {
 import { demoEnabledRoutePaths } from './app.routes';
 
 const DOCS_URL = 'https://craft-ts.github.io/craft/';
-const FEEDBACK_URL = 'https://github.com/craft-ts/craft-ts/discussions';
+const FEEDBACK_URL = 'https://github.com/craft-ts/craft-ts/issues';
 
 const NAV_GROUPS = [
   {
