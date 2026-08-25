@@ -267,6 +267,11 @@ export {
 export {
   provideServiceYieldWrapper,
   SERVICE_YIELD_WRAPPER,
+  // Synchronous counterpart of the foreign-yield bridge below: a claimed yield
+  // is answered in place, which is the only thing a synchronous host can use.
+  setForeignSyncYieldBridge,
+  type ForeignSyncYieldBridge,
+  type ForeignSyncYieldContext,
   type ServiceYieldContext,
   type ServiceYieldWrapper,
 } from './lib/craft-generator-runtime';

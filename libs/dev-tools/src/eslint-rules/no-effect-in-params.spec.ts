@@ -19,7 +19,7 @@ describe('no-effect-outside-loaders', () => {
     `);
 
     expect(messages).toEqual([
-      'Effect values and Effect service reads are only allowed in an Effect loader. Keep params, methods, craftComputed(...) and craftEffect(...) synchronous.',
+      'Effect values and Effect service reads are only allowed in an Effect loader. Keep params, methods, craftComputed(...) and craftEffect(...) synchronous, or run a declared-synchronous Effect (SyncOp) through syncEffect(...).',
     ]);
   });
 
@@ -69,6 +69,27 @@ describe('no-effect-outside-loaders', () => {
     `);
 
     expect(messages).toHaveLength(2);
+  });
+
+  it('allows a declared-synchronous Effect run through syncEffect', async () => {
+    const messages = await lint(`
+      import { queryEffect, syncEffect } from '@craft-ts/effect';
+      import { craftComputed } from '@craft-ts/core';
+      import { Effect } from 'effect';
+
+      queryEffect('profile', {
+        params: function* () {
+          return yield* syncEffect(cartWeight([]));
+        },
+        loader: ({ params }) => Effect.succeed(params),
+      });
+
+      craftComputed('total', function* () {
+        return yield* syncEffect(cartTotal([]));
+      });
+    `);
+
+    expect(messages).toEqual([]);
   });
 
   it('allows Effect values in loaders and Craft reads in params', async () => {

@@ -19,7 +19,7 @@ requirements, and Craft adapters expose those programs as reactive resources.
 | [0. Effect users: start here](/learn-effect/00-start-here) | boundary, quickstart and adapter choice |
 | [1. Start with a Craft component](/learn-effect/01-first-component) | `craftComponent`, templates, native Craft state |
 | [2. Derive UI state](/learn-effect/02-derive) | `craftComputed`, `yield*`, precise dependencies |
-| [3. Put the domain in Effect](/learn-effect/03-effect-domain) | `Effect`, tagged errors, `Context.Service`, `Layer` |
+| [3. Put the domain in Effect](/learn-effect/03-effect-domain) | `Effect`, tagged errors, `Context.Service`, `Layer`, `SyncOp` |
 | [4. Load data with Effect](/learn-effect/04-load-data) | `queryEffect`, typed errors and defects |
 | [5. Write data with Effect](/learn-effect/05-write-data) | `mutationEffect`, `asyncProcessEffect`, reactive updates |
 | [6. Provide Layers and route the app](/learn-effect/06-layers-routing) | app/route Layers, DI proofs, type-safe routes |

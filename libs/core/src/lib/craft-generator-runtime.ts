@@ -28,6 +28,58 @@ export const SERVICE_TRACKED_DEPS_REQUEST_MARKER = Symbol(
 );
 export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
 
+// ---------------------------------------------------------------------------
+// Foreign SYNCHRONOUS yields.
+//
+// The counterpart of the async foreign bridge in `craft-program-runtime`, and
+// deliberately a separate hook: that one always answers with a promise, which
+// is precisely what a synchronous host (`craftComputed`, `craftMethod`, a
+// resource's `params`) cannot wait for.
+//
+// A bridge registered here claims a yield and answers IN PLACE, so the value
+// travels back into the generator on the same tick. `@craft-ts/effect` uses it
+// for `syncEffect(...)`, whose argument is an Effect the caller declared
+// synchronous; core keeps no dependency on `effect` and only knows that
+// *something* may claim a yield it does not understand.
+// ---------------------------------------------------------------------------
+
+/** The context a synchronous bridge needs to resolve a foreign yield. */
+export type ForeignSyncYieldContext = {
+  /** The injector of the host that yielded — a bridge resolves its runtime from it. */
+  readonly injector: Injector;
+};
+
+/**
+ * Returns `{ handled: true, value }` for yields it recognises and resolved,
+ * `undefined` for everything else (which then falls through to the usual
+ * invalid-yield error). A bridge that recognises a yield but cannot honour it
+ * synchronously must throw, not return: there is no suspension available here.
+ */
+export type ForeignSyncYieldBridge = (
+  yielded: unknown,
+  context: ForeignSyncYieldContext,
+) => { handled: true; value: unknown } | undefined;
+
+let foreignSyncYieldBridge: ForeignSyncYieldBridge | undefined;
+
+/** Registers the synchronous bridge; returns a disposer restoring the previous one. */
+export function setForeignSyncYieldBridge(
+  bridge: ForeignSyncYieldBridge,
+): () => void {
+  const previous = foreignSyncYieldBridge;
+  foreignSyncYieldBridge = bridge;
+  return () => {
+    foreignSyncYieldBridge = previous;
+  };
+}
+
+function resolveForeignSyncYield(
+  yielded: unknown,
+  injector: Injector,
+): { handled: true; value: unknown } | undefined {
+  return foreignSyncYieldBridge?.(yielded, { injector });
+}
+
 export type ServiceYieldContext = Readonly<{
   name: string;
   providedIn: ConcreteServiceScope;
@@ -244,6 +296,14 @@ export function runCraftGenerator({
       throw new Error(guardAwaitNotSupportedErrorMessage);
     }
 
+    // Last chance before the invalid-yield error: a foreign yield a bridge can
+    // resolve without suspending (see `setForeignSyncYieldBridge`).
+    const bridged = resolveForeignSyncYield(yielded, injector);
+    if (bridged) {
+      current = iterator.next(bridged.value);
+      continue;
+    }
+
     throw new Error(invalidYieldErrorMessage);
   }
 
@@ -352,6 +412,11 @@ export function resolveCraftGeneratorYield(
 
   if (isServiceTrackedDepsRequest(yielded)) {
     return { handled: true, value: undefined };
+  }
+
+  const bridged = resolveForeignSyncYield(yielded, injector);
+  if (bridged) {
+    return bridged;
   }
 
   return { handled: false };

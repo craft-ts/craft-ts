@@ -70,6 +70,7 @@ const targetBlankNoopener = require('./target-blank-noopener.cjs');
 const requireFocusVisible = require('./require-focus-visible.cjs');
 const requireReducedMotion = require('./require-reduced-motion.cjs');
 const requireEffectAdapters = require('./require-effect-adapters.cjs');
+const syncEffectBody = require('./sync-effect-body.cjs');
 const serverFunctionClientMatch = require('./server-function-client-match.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
@@ -168,6 +169,7 @@ const plugin = {
     'require-focus-visible': requireFocusVisible,
     'require-reduced-motion': requireReducedMotion,
     'require-effect-adapters': requireEffectAdapters,
+    'sync-effect-body': syncEffectBody,
     'server-function-client-match': serverFunctionClientMatch,
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
@@ -225,6 +227,7 @@ plugin.configs = {
       ...recommendedRules,
       ...securityRules,
       'craft-ts/require-effect-adapters': 'error',
+      'craft-ts/sync-effect-body': 'error',
       'craft-ts/no-effect-outside-loaders': 'error',
       'craft-ts/no-explicit-effect-type': 'error',
       'craft-ts/prefer-inline-effect-insertion': 'error',

@@ -1,4 +1,5 @@
 import type { Effect } from 'effect';
+import type { SyncOp } from './sync-op';
 
 // ---------------------------------------------------------------------------
 // Task 2.5 — checking `R` at the yield site.
@@ -26,15 +27,28 @@ export type MissingRequirements<R> = {
 };
 
 /**
+ * Requirements that no layer provides and none ever will: they are type-only
+ * declarations about an Effect, not services to build. `SyncOp` — "this Effect
+ * never suspends" — is the first of them. They must be filtered out of every
+ * requirement check, otherwise declaring a member synchronous would make it
+ * unusable everywhere, loaders included.
+ */
+export type CraftPhantomRequirement = SyncOp;
+
+/** The requirements a level actually has to provide. */
+export type RealRequirements<R> = Exclude<R, CraftPhantomRequirement>;
+
+/**
  * `Effect<A, E, never>` passes through unchanged; anything with leftover
  * requirements resolves to {@link MissingRequirements}, which is not assignable
- * to an Effect and therefore errors AT THE YIELD.
+ * to an Effect and therefore errors AT THE YIELD. Phantom requirements
+ * ({@link CraftPhantomRequirement}) are ignored — nothing provides them.
  */
 export type AssertNoRequirements<Self> =
   Self extends Effect.Effect<infer _A, infer _E, infer R>
-    ? [R] extends [never]
+    ? [RealRequirements<R>] extends [never]
       ? Self
-      : MissingRequirements<R>
+      : MissingRequirements<RealRequirements<R>>
     : Self;
 
 /**
@@ -46,7 +60,9 @@ export type AssertNoRequirements<Self> =
  * const user = yield* assertNoRequirements(loadUser(id));
  */
 export function assertNoRequirements<A, E>(
-  effect: Effect.Effect<A, E, never>,
+  effect: Effect.Effect<A, E, CraftPhantomRequirement>,
 ): Effect.Effect<A, E, never> {
-  return effect;
+  // Phantom requirements are erased on the way out: nothing provides them, so
+  // an Effect that only carries them is, for every runner, requirement-free.
+  return effect as Effect.Effect<A, E, never>;
 }

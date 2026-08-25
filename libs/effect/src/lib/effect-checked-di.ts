@@ -2,7 +2,10 @@ import type {
   CraftRouteAdditionalProvidersOf,
   NamedBrandedServiceProvider,
 } from '@craft-ts/core';
-import type { MissingRequirements } from './requirements';
+import type {
+  MissingRequirements,
+  RealRequirements,
+} from './requirements';
 
 // ---------------------------------------------------------------------------
 // `assertNoRequirements`/`runEffect` (requirements.ts) check `R` at the yield
@@ -44,9 +47,11 @@ import type { MissingRequirements } from './requirements';
  * type _CanRun = CanRun<_Check>;
  */
 export type EffectRequirementsCheckedDI<Requirements, AvailableValues> =
-  [Exclude<Requirements, AvailableValues>] extends [never]
+  [Exclude<RealRequirements<Requirements>, AvailableValues>] extends [never]
     ? true
-    : MissingRequirements<Exclude<Requirements, AvailableValues>>;
+    : MissingRequirements<
+        Exclude<RealRequirements<Requirements>, AvailableValues>
+      >;
 
 type IsAny<Input> = 0 extends 1 & Input ? true : false;
 

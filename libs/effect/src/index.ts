@@ -13,8 +13,17 @@ export {
 export {
   assertNoRequirements,
   type AssertNoRequirements,
+  type CraftPhantomRequirement,
   type MissingRequirements,
+  type RealRequirements,
 } from './lib/requirements';
+export {
+  CraftEffectNotSynchronous,
+  installCraftSyncEffectBridge,
+  SyncOp,
+  syncEffect,
+  type NotDeclaredSynchronous,
+} from './lib/sync-op';
 export {
   type EffectRequirementsCheckedDI,
   type ProvidedEffectServicesOf,

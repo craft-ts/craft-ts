@@ -130,6 +130,66 @@ The chain is: `queryEffect` runs `checkUserAccess`, the active `Layer` provides
 `AccessPolicyService`, and `accessLabel` reacts to the query's Craft value. The
 computed does not call the Effect service or start an Effect itself.
 
+## Declare a synchronous member
+
+That last sentence used to be a hard rule: no Effect at all inside `params`,
+`craftComputed(...)` or `craftMethod(...)`. Those run on Craft's **synchronous**
+driver, which completes on one tick and cannot wait — and `Effect<A, E, R>` does
+not say whether running it will suspend.
+
+It is worse than it looks for a service member. A `Layer` closes over the
+member's dependencies when it builds the service, so a member that calls the
+network and a member that adds two numbers *both* surface as `R = never`:
+
+<<< @/tests/snippets/learn-effect/sync-members.spec.ts#domain
+
+The information does not exist in the type, so you write it there. `SyncOp` is a
+phantom requirement — never provided, no runtime cost — and `R` is the one
+channel Effect accumulates across composition. An Effect that requires `SyncOp`
+is one its author declares never suspends.
+
+Requirements union through `Effect.gen`, so the declaration propagates on its
+own. A standalone program that only calls declared-synchronous members inherits
+the marker; one that calls nothing marked spells it out with `yield* SyncOp`:
+
+<<< @/tests/snippets/learn-effect/sync-members.spec.ts#standalone
+
+`CartPricing` in `R` is not a problem: the level in force satisfies it, exactly
+as it does for a loader. The only thing checked is that `SyncOp` is among the
+requirements.
+
+## Run it with syncEffect
+
+`syncEffect(...)` is the door. It runs the program in place — no suspension, no
+promise — so it can go where `runEffect` cannot:
+
+<<< @/tests/snippets/learn-effect/sync-members.spec.ts#component
+
+Anything nobody declared synchronous is refused at the call, before anything
+runs:
+
+<<< @/tests/snippets/learn-effect/sync-members.spec.ts#refused
+
+::: tip Three lines of defence
+
+`SyncOp` is a claim, not a proof — nothing stops a body from declaring itself
+synchronous and awaiting anyway. Three mechanisms check it, and none is
+redundant:
+
+1. **the type** — `syncEffect(...)` refuses an Effect nobody declared, at the
+   call site;
+2. **`craft-ts/sync-effect-body`** — reads the body, every branch at once, and
+   rejects a declared-synchronous body that yields something async. A unit test
+   cannot do this: it only proves the inputs it was given;
+3. **the runtime** — `syncEffect` runs through `Effect.runSyncExitWith`, which
+   cannot suspend. A broken declaration throws `CraftEffectNotSynchronous`
+   immediately, at the first call, instead of freezing the UI.
+
+:::
+
+Keep asynchronous work where it belongs: a loader. `SyncOp` opens one narrow,
+explicit door for business calculations, not a way around the adapters.
+
 ## Run a standalone Effect
 
 For a low-level bridge, `runEffect` lets a Craft generator yield an Effect while

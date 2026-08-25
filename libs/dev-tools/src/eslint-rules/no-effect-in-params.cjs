@@ -22,7 +22,7 @@ module.exports = {
     schema: [],
     messages: {
       effect:
-        'Effect values and Effect service reads are only allowed in an Effect loader. Keep params, methods, craftComputed(...) and craftEffect(...) synchronous.',
+        'Effect values and Effect service reads are only allowed in an Effect loader. Keep params, methods, craftComputed(...) and craftEffect(...) synchronous, or run a declared-synchronous Effect (SyncOp) through syncEffect(...).',
     },
   },
 
@@ -35,6 +35,11 @@ module.exports = {
     const reportedNodes = new WeakSet();
     const primitiveBindings = new Map();
     const effectBindings = new Set();
+    // `syncEffect(...)` is the one sanctioned way through: its argument is an
+    // Effect whose `R` carries `SyncOp`, so the type already proved someone
+    // declared it synchronous. Reporting it would ban the very API that makes
+    // a business calculation reusable from a computation.
+    const syncEffectBindings = new Set();
 
     return {
       ImportDeclaration(node) {
@@ -60,6 +65,10 @@ module.exports = {
 
           if (source === EFFECT_RUNTIME_PACKAGE && imported === 'Effect') {
             effectBindings.add(specifier.local.name);
+          }
+
+          if (source === EFFECT_PACKAGE && imported === 'syncEffect') {
+            syncEffectBindings.add(specifier.local.name);
           }
         }
 
@@ -213,8 +222,27 @@ module.exports = {
       return tsNode ? checker.getTypeAtLocation(tsNode) : undefined;
     }
 
+    function isInsideSyncEffectCall(node) {
+      for (let current = node?.parent; current; current = current.parent) {
+        if (
+          current.type === 'CallExpression' &&
+          current.callee.type === 'Identifier' &&
+          syncEffectBindings.has(current.callee.name)
+        ) {
+          return true;
+        }
+        if (
+          ['FunctionDeclaration', 'Program'].includes(current.type)
+        ) {
+          return false;
+        }
+      }
+      return false;
+    }
+
     function report(node) {
       if (!node || reportedNodes.has(node)) return;
+      if (isInsideSyncEffectCall(node)) return;
       reportedNodes.add(node);
       context.report({ node, messageId: 'effect' });
     }

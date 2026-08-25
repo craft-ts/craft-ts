@@ -7,6 +7,8 @@ import {
 import { Cause, Effect, Exit, Option } from 'effect';
 import { resolveEffectLevel } from './effect-level';
 import type { CraftEffectGen } from './effect-exceptions';
+import type { CraftPhantomRequirement } from './requirements';
+import { installCraftSyncEffectBridge } from './sync-op';
 
 // ---------------------------------------------------------------------------
 // Tasks 2.3 to 2.6 — running a yielded Effect on the craft pump.
@@ -98,7 +100,11 @@ export function runYieldedEffect(
  * which forced a dependency on `effect/Utils`; that is gone.
  */
 export function installCraftEffectBridge(): () => void {
-  return setForeignYieldBridge((yielded, context) => {
+  // Two bridges, two hosts: the pump suspends on a promise, the synchronous
+  // driver cannot — so `syncEffect(...)` gets its own, installed together with
+  // this one so a single call at bootstrap covers both.
+  const disposeSync = installCraftSyncEffectBridge();
+  const disposeAsync = setForeignYieldBridge((yielded, context) => {
     if (!Effect.isEffect(yielded)) {
       return undefined;
     }
@@ -107,6 +113,11 @@ export function installCraftEffectBridge(): () => void {
       context,
     );
   });
+
+  return () => {
+    disposeAsync();
+    disposeSync();
+  };
 }
 
 /**
@@ -128,7 +139,7 @@ export function installCraftEffectBridge(): () => void {
  * })
  */
 export function runEffect<A, E>(
-  effect: Effect.Effect<A, E, never>,
+  effect: Effect.Effect<A, E, CraftPhantomRequirement>,
 ): CraftEffectGen<A, E> {
   return (function* () {
     // The bridge recognises the Effect and feeds back its success value.

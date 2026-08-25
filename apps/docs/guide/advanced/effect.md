@@ -344,6 +344,51 @@ The selection narrows the graph and keeps generic member signatures intact. It
 does not replace `Layer`; the service still comes from the nearest
 `provideLayer(...)`.
 
+## Run a synchronous member from a computed
+
+`params`, `craftComputed(...)` and `craftMethod(...)` run on Craft's synchronous
+driver: they complete on one tick and cannot wait. `Effect<A, E, R>` does not say
+whether running an Effect will suspend, and a service member makes it worse — a
+`Layer` closes over its dependencies at construction, so a network call and a
+pure calculation both surface as `R = never`.
+
+Declare the difference in `R`, the one channel Effect accumulates:
+
+```typescript
+export type CartPricingShape = {
+  readonly fetchCatalog: (skus: readonly string[]) => Effect.Effect<Catalog>;
+  readonly lineTotal: (line: CartLine) => Effect.Effect<number, never, SyncOp>;
+};
+```
+
+`SyncOp` is a phantom requirement: nothing provides it, it costs nothing at
+runtime, and `Effect<A, E, never>` is assignable to `Effect<A, E, SyncOp>` — so
+declaring it in the shape is enough, the implementation needs no ceremony. Where
+`R` is inferred (a standalone `Effect.gen` calling nothing already marked), add
+`yield* SyncOp` to the body.
+
+Run it with `syncEffect(...)`, which resolves in place instead of suspending:
+
+```typescript
+const totalLabel = craftComputed('totalLabel', function* () {
+  const cents = yield* syncEffect(cartTotal(yield* lines()));
+  return yield* syncEffect(formatPrice(cents));
+});
+```
+
+Requirements other than `SyncOp` travel through untouched — the level in force
+satisfies them exactly as it does for a loader. The only thing checked at the
+type level is that `SyncOp` is among them.
+
+The declaration is a claim, and three independent mechanisms check it: the type
+refuses an undeclared Effect at the call; `craft-ts/sync-effect-body` reads the
+body, every branch at once, and rejects one that yields something async; and at
+runtime `syncEffect` goes through `Effect.runSyncExitWith`, which cannot suspend
+— a broken promise throws `CraftEffectNotSynchronous` at the first call rather
+than freezing the UI.
+
+Full walkthrough: [Declare a synchronous member](/learn-effect/03-effect-domain#declare-a-synchronous-member).
+
 ## Testing
 
 Use `mockEffectService` for a focused Layer:
@@ -410,6 +455,9 @@ integration to change before this becomes a stable feature.
   verify it on the server.
 - **Using a bare `yield* effect` in a route program:** use `runEffect` so Craft
   sees the typed exception union.
+- **Declaring a member `SyncOp` to get it into a computed:** the marker states a
+  fact, it does not create one. If the member can suspend, move the work to a
+  loader — the runtime will refuse it anyway.
 
 ## See also
 

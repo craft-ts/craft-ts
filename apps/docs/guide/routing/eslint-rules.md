@@ -91,6 +91,7 @@ What each rule does:
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ts/no-effect-outside-loaders`: keeps `params`, methods, `craftComputed(...)`, and `craftEffect(...)` synchronous by allowing Effect values and Effect service reads only in Effect loaders; `no-effect-in-params` remains as a compatibility alias
+- `craft-ts/sync-effect-body`: keeps a body declared synchronous (`SyncOp` in its requirements) free of anything that may suspend — async constructors such as `Effect.sleep`/`Effect.promise`, and members nothing declares synchronous. Type-aware: the ESLint parser must use `projectService: true` or a TypeScript `project`
 - `craft-ts/no-explicit-effect-type`: lets `Effect.gen` infer its complete type instead of repeating an explicit Effect annotation; contracts declared in interfaces and type aliases remain allowed
 - `craft-ts/prefer-inline-effect-insertion`: keeps the `queryEffect` insertion factory inline so its resource and exception types are inferred without a separate `InsertionParams` context alias
 - `craft-ts/prefer-inline-route-providers`: inlines a route provider tuple used only once by `loadCraftComponent(...)`, preserving the route-level type proof
@@ -274,6 +275,46 @@ Literal and otherwise static values are still allowed, as are reads performed
 from DOM events and `onXxx` output callbacks. Because the rule is type-aware,
 the ESLint parser must use `projectService: true` or a TypeScript `project`.
 
+### Pass simple yieldable callbacks directly
+
+`prefer-direct-yieldable-callback` removes a generator wrapper when the
+template only delegates one zero-argument callback. It handles both a value
+binding and a generator method:
+
+```ts
+// Before: redundant wrappers around the callbacks.
+button(
+  {
+    *click() {
+      yield* press();
+    },
+  },
+  function* () {
+    return yield* label();
+  },
+);
+
+// After `eslint --fix`.
+button({ click: press }, label);
+```
+
+Member callbacks are supported as well when the access is static and has no
+arguments:
+
+```ts
+// Before.
+span(function* () {
+  return yield* counter.increment();
+});
+
+// After.
+span(counter.increment);
+```
+
+The rule leaves callbacks with parameters, extra statements, or additional
+computation unchanged. In those cases the generator contains behavior that
+cannot be represented by passing the callback reference alone.
+
 ### Yield insertion writes from generator methods
 
 `require-yieldable-insertion-write` requires `set(...)`, `patch(...)`, and
@@ -295,13 +336,13 @@ insertion wrapper consumes that result for them.
 Three rules do more than complain — they write code you would otherwise
 maintain by hand:
 
-| Rule                                         | Generates                                                  |
-| -------------------------------------------- | ---------------------------------------------------------- |
-| `require-cascade-route-di-check`             | the same-file DI proof for a `craftRoutes(...)` collection |
-| `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                 |
-| `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import      |
-| `require-lazy-load-with-retry`               | the `withRetry(...)` wrapper on lazy route imports         |
-| `prefer-direct-yieldable-callback`           | removes redundant template generators                      |
+| Rule                                         | Generates                                                     |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| `require-cascade-route-di-check`             | the same-file DI proof for a `craftRoutes(...)` collection    |
+| `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                    |
+| `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import         |
+| `require-lazy-load-with-retry`               | the `withRetry(...)` wrapper on lazy route imports            |
+| `prefer-direct-yieldable-callback`           | replaces redundant generators with direct callback references |
 
 ## Adopting them progressively
 
