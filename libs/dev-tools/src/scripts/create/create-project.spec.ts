@@ -63,6 +63,12 @@ describe('createCraftProject', () => {
     expect(await readFile(join(result.directory, 'scripts/typecheck.mjs'), 'utf8')).toContain(
       'typecheck-status.json',
     );
+    expect(await readFile(join(result.directory, 'src/dev-typecheck-indicator.ts'), 'utf8')).toContain(
+      'Type checking failed — app is still running',
+    );
+    expect(await readFile(join(result.directory, 'src/styles.css'), 'utf8')).toContain(
+      ".craft-typecheck-indicator[data-status='failed']",
+    );
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain('craftRoutes');
     expect(await readFile(join(result.directory, 'src/app/api.ts'), 'utf8')).toContain('CraftHttpClient');
     expect(await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).toContain('baseCatalog');

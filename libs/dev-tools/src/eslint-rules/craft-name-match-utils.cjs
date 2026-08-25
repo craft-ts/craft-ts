@@ -10,8 +10,10 @@ function createNameMatchRule({
       fixable: 'code',
       schema: [],
       messages: {
-        missingName: `${calleeName} must be called with a string literal name matching '{{declaredName}}' as the first argument.`,
-        mismatchedName: `${calleeName} first argument '{{actual}}' must match the declared name '{{declaredName}}'.`,
+        missingName:
+          "{{calleeName}} must be called with a string literal name matching '{{declaredName}}' as the first argument.",
+        mismatchedName:
+          "{{calleeName}} first argument '{{actual}}' must match the declared name '{{declaredName}}'.",
       },
     },
     create(context) {
@@ -37,7 +39,7 @@ function createNameMatchRule({
             context.report({
               node,
               messageId: 'missingName',
-              data: { declaredName },
+              data: { calleeName, declaredName },
               fix(fixer) {
                 const openParen = sourceCode.getTokenAfter(
                   node.callee,
@@ -50,7 +52,10 @@ function createNameMatchRule({
             return;
           }
 
-          if (supportsObjectConfigForm && firstArg.type === 'ObjectExpression') {
+          if (
+            supportsObjectConfigForm &&
+            firstArg.type === 'ObjectExpression'
+          ) {
             const nameProp = firstArg.properties.find(
               (p) =>
                 p.type === 'Property' &&
@@ -62,7 +67,7 @@ function createNameMatchRule({
               context.report({
                 node: firstArg,
                 messageId: 'missingName',
-                data: { declaredName },
+                data: { calleeName, declaredName },
               });
               return;
             }
@@ -75,7 +80,7 @@ function createNameMatchRule({
               context.report({
                 node: nameValue,
                 messageId: 'mismatchedName',
-                data: { declaredName, actual },
+                data: { calleeName, declaredName, actual },
                 fix(fixer) {
                   return fixer.replaceText(nameValue, `'${declaredName}'`);
                 },
@@ -84,7 +89,11 @@ function createNameMatchRule({
               context.report({
                 node: nameValue,
                 messageId: 'mismatchedName',
-                data: { declaredName, actual: sourceCode.getText(nameValue) },
+                data: {
+                  calleeName,
+                  declaredName,
+                  actual: sourceCode.getText(nameValue),
+                },
               });
             }
             return;
@@ -98,7 +107,7 @@ function createNameMatchRule({
             context.report({
               node: firstArg,
               messageId: 'mismatchedName',
-              data: { declaredName, actual },
+              data: { calleeName, declaredName, actual },
               fix(fixer) {
                 return fixer.replaceText(firstArg, `'${declaredName}'`);
               },
@@ -109,7 +118,7 @@ function createNameMatchRule({
           context.report({
             node: firstArg,
             messageId: 'missingName',
-            data: { declaredName },
+            data: { calleeName, declaredName },
             fix(fixer) {
               return fixer.insertTextBefore(firstArg, `'${declaredName}', `);
             },

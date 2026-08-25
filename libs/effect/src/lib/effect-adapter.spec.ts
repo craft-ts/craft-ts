@@ -208,6 +208,24 @@ describe('Effect-aware Craft adapters', () => {
     });
   });
 
+  it('supports an unnamed computedEffect in an insertion result', () => {
+    TestBed.runInInjectionContext(() => {
+      const input = craftUse(
+        state('computed-effect-insertion-input', 'Ada', ({ state }) => ({
+          greeting: computedEffect(function* () {
+            const name = yield* state();
+            return Effect.gen(function* () {
+              yield* SyncOp;
+              return `Hello ${name}`;
+            });
+          }),
+        })),
+      );
+
+      expect(craftUse(input.greeting())).toBe('Hello Ada');
+    });
+  });
+
   it('short-circuits on a typed failure — failing is not suspending', () => {
     TestBed.runInInjectionContext(() => {
       const value = computedEffect('computed-effect-failure', () =>

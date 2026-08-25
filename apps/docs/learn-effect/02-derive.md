@@ -3,20 +3,26 @@
 **Goal:** calculate UI state from the source of truth, and understand the
 `yield*` rule that Craft and Effect share.
 
-Use `craftComputed` for synchronous derivations. Its factory is a generator when
-it reads a Craft value:
+Use `computedEffect` for synchronous Effect-backed derivations. Its factory is a
+generator when it reads a Craft value and returns the Effect to run:
 
 ```typescript
-import { craftComputed, state } from '@craft-ts/core';
+import { Effect } from 'effect';
+import { state } from '@craft-ts/core';
+import { computedEffect } from '@craft-ts/effect';
 
 const tasks = yield* state('tasks', [] as Task[]);
-const remaining = craftComputed('remaining', function* () {
-  return (yield* tasks()).filter((task) => !task.done).length;
+const remaining = computedEffect('remaining', function* () {
+  const currentTasks = yield* tasks();
+  return Effect.succeed(
+    currentTasks.filter((task) => !task.done).length,
+  );
 });
 ```
 
-The template can bind `remaining` directly. Craft re-runs only the binding that
-depends on it.
+The template can bind `remaining` directly. `computedEffect` runs the returned
+synchronous Effect in place, and Craft re-runs only the binding that depends on
+it.
 
 ## The shared dependency vocabulary
 

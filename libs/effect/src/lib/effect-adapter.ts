@@ -154,15 +154,27 @@ type EffectAsyncProcessConfig<
  *
  * // p({ class: 'result' }, totalLabel) — read like any craftComputed
  */
+export function computedEffect<Value, Error, Requirements>(
+  factory: EffectComputedFactory<Value, Error, Requirements> &
+    AssertDeclaredSync<Requirements>,
+): YieldableReactiveValue<Value, 'computed'>;
 export function computedEffect<Name extends string, Value, Error, Requirements>(
   name: Name,
   factory: EffectComputedFactory<Value, Error, Requirements> &
     AssertDeclaredSync<Requirements>,
 ): YieldableReactiveValue<Value, Name>;
 export function computedEffect(
-  name: string,
-  factory: EffectComputedFactory<unknown, unknown, unknown>,
+  nameOrFactory: string | EffectComputedFactory<unknown, unknown, unknown>,
+  maybeFactory?: EffectComputedFactory<unknown, unknown, unknown>,
 ): unknown {
+  const hasName = typeof nameOrFactory === 'string';
+  const name = hasName ? nameOrFactory : 'computed';
+  const factory = (hasName ? maybeFactory : nameOrFactory) as EffectComputedFactory<
+    unknown,
+    unknown,
+    unknown
+  >;
+
   return craftComputed(name, function* () {
     const produced = (
       factory as () =>

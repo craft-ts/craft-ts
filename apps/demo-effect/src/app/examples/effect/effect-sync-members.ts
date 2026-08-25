@@ -49,6 +49,10 @@ const EffectSyncMembersComponent = craftComponent(
       .panel { padding: 1rem 1.1rem; border: 1px solid #99f6e4; border-radius: 8px; background: #fff; }
       .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
       .result { margin: 0; color: #042f2e; font-size: 1.35rem; font-weight: 600; }
+      .shipping-loading { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; margin: 0; color: #0f766e; font-size: 0.95rem; }
+      .shipping-spinner { width: 0.8rem; height: 0.8rem; flex: 0 0 auto; border: 2px solid #99f6e4; border-top-color: #0f766e; border-radius: 50%; animation: EffectSyncMembersComponent-shipping-spin 0.7s linear infinite; }
+      @keyframes EffectSyncMembersComponent-shipping-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .shipping-spinner { animation: none; } }
       .hint { margin: 0.5rem 0 0; color: #475569; font-size: 0.8rem; line-height: 1.5; }
       .note { margin-top: 1.25rem; color: #115e59; font-size: 0.85rem; line-height: 1.6; }
       .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ccfbf1; font-family: ui-monospace, monospace; font-size: 0.8rem; }
@@ -90,7 +94,7 @@ const EffectSyncMembersComponent = craftComponent(
       'shippingQuery',
       {
         params: function* () {
-          return yield* syncEffect(cartWeightGrams(yield* qty.lines()));
+          return yield* cartWeightGrams(yield* qty.lines());
         },
         loader: ({ params }) => quoteShipping(params),
       },
@@ -148,19 +152,30 @@ const EffectSyncMembersComponent = craftComponent(
           ]),
         ]).pipe(
           pendingBlock({
-            fallback: () => p({ class: 'result' }, 'Asking the carrier…'),
+            fallback: () =>
+              div(
+                {
+                  class: 'shipping-loading',
+                  role: 'status',
+                  'aria-live': 'polite',
+                },
+                [
+                  span({ class: 'shipping-spinner', 'aria-hidden': 'true' }),
+                  span('Asking the carrier…'),
+                ],
+              ),
           }),
         ),
       ]),
       p({ class: 'note' }, [
         'Remove ',
-        span({ class: 'mono' }, 'SyncOp' ),
+        span({ class: 'mono' }, 'SyncOp'),
         ' from a member and the ',
-        span({ class: 'mono' }, 'syncEffect' ),
+        span({ class: 'mono' }, 'syncEffect'),
         ' call stops compiling; declare it on a member that suspends and the ',
-        span({ class: 'mono' }, 'craft-ts/sync-effect-body' ),
+        span({ class: 'mono' }, 'craft-ts/sync-effect-body'),
         ' rule reports the body — and, at runtime, the call throws ',
-        span({ class: 'mono' }, 'CraftEffectNotSynchronous' ),
+        span({ class: 'mono' }, 'CraftEffectNotSynchronous'),
         ' instead of freezing the page.',
       ]),
     ]),

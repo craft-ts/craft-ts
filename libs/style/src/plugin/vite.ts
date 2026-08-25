@@ -25,6 +25,12 @@ import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
 import { renderCss, styleDump, validateAtoms, type StyleDump } from './emit.ts';
 
+/**
+ * Re-exported so a consumer can build the graph dump without running a build —
+ * a test that already imported the sheets has the registry in hand.
+ */
+export { renderCss, styleDump, validateAtoms, type StyleDump } from './emit.ts';
+
 export const VIRTUAL_CSS_ID = 'virtual:craft-style.css';
 const RESOLVED_CSS_ID = '\0' + VIRTUAL_CSS_ID;
 

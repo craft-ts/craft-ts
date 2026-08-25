@@ -15,6 +15,7 @@ export default defineConfig({
   },
   server: {
     port: 4202,
+    forwardConsole: true,
     fs: { allow: [path.resolve(root, '../..')] },
   },
   build: craftProductionBuildOptions(

@@ -11,7 +11,7 @@
       "dependsOn": ["build-local-types"],
       "options": {
         "cwd": "apps/demo-effect",
-        "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
+        "command": "node ../../tools/demo-typecheck.mjs --project=demo-effect"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
@@ -83,8 +83,17 @@
       "executor": "nx:run-commands",
       "dependsOn": ["build-local-types"],
       "options": {
-        "command": "npx vite --config apps/demo-effect/vite.config.ts",
-        "forwardAllArgs": true
+        "commands": [
+          {
+            "command": "npx vite --config apps/demo-effect/vite.config.ts",
+            "forwardAllArgs": true
+          },
+          {
+            "command": "node tools/demo-typecheck.mjs --project=demo-effect --non-blocking",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": true
       }
     },
     "lint": {

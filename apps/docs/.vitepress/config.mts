@@ -164,6 +164,11 @@ const guideSidebar = [
     collapsed: false,
     items: [
       { text: 'Components', link: '/guide/components/' },
+      { text: 'Typed styles', link: '/guide/style/' },
+      { text: 'Tokens and variables', link: '/guide/style/tokens' },
+      { text: 'Axes and the matrix', link: '/guide/style/variants' },
+      { text: 'Context obligations', link: '/guide/style/obligations' },
+      { text: 'Testing visual states', link: '/guide/style/testing' },
       {
         text: 'Fine-grained reactivity',
         link: '/guide/components/fine-grained-reactivity',

@@ -3,7 +3,14 @@ const { createNameMatchRule } = require('./craft-name-match-utils.cjs');
 const namedRule = createNameMatchRule({
   calleeName: 'craftComputed',
   description:
-    'Require a matching craftComputed name outside insertion result objects; insertion keys provide the runtime name automatically.',
+    'Require a matching craftComputed or computedEffect name outside insertion result objects; insertion keys provide the runtime name automatically.',
+  supportsObjectConfigForm: false,
+});
+
+const computedEffectNamedRule = createNameMatchRule({
+  calleeName: 'computedEffect',
+  description:
+    'Require a matching computedEffect name outside insertion result objects; insertion keys provide the runtime name automatically.',
   supportsObjectConfigForm: false,
 });
 
@@ -11,11 +18,18 @@ module.exports = {
   ...namedRule,
   create(context) {
     const listeners = namedRule.create(context);
+    const computedEffectListeners = computedEffectNamedRule.create(context);
     return {
       ...listeners,
       CallExpression(node) {
         if (isInsertionResultProperty(node)) return;
-        listeners.CallExpression?.(node);
+        if (node.callee.type !== 'Identifier') return;
+        if (node.callee.name === 'craftComputed') {
+          listeners.CallExpression?.(node);
+        }
+        if (node.callee.name === 'computedEffect') {
+          computedEffectListeners.CallExpression?.(node);
+        }
       },
     };
   },
@@ -51,9 +65,16 @@ function isInsertionResultProperty(node) {
         name &&
           (name.startsWith('insert') ||
             name === 'craftPipe' ||
-            ['state', 'query', 'mutation', 'asyncProcess', 'queryParams'].includes(
-              name,
-            )),
+            [
+              'state',
+              'query',
+              'mutation',
+              'asyncProcess',
+              'queryParams',
+              'queryEffect',
+              'mutationEffect',
+              'asyncProcessEffect',
+            ].includes(name)),
       );
     }
     if (current.type === 'Program') break;

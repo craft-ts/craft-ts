@@ -57,6 +57,9 @@ export default defineConfig({
     // `virtual:craft-style.css`. The aliases are the workspace ones: outside
     // the monorepo, node resolution finds the packages on its own.
     craftStyle({
+      // The dump is the style half of the dependency graph. Written on every
+      // emission so the graph never reads a picture older than the CSS.
+      dumpPath: path.resolve(root, '../../tmp/craft-style-graph.json'),
       alias: {
         '@craft-ts/style': path.resolve(root, '../../libs/style/src/index.ts'),
         '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'),

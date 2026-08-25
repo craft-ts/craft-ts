@@ -9,8 +9,17 @@
       "continuous": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx vite --config apps/demo-ssr/vite.config.ts",
-        "forwardAllArgs": true
+        "commands": [
+          {
+            "command": "npx vite --config apps/demo-ssr/vite.config.ts",
+            "forwardAllArgs": true
+          },
+          {
+            "command": "node tools/demo-typecheck.mjs --project=demo-ssr --config=tsconfig.json --non-blocking",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": true
       }
     },
     "build": {
@@ -39,7 +48,7 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx tsc -p apps/demo-ssr/tsconfig.json --noEmit --pretty false"
+        "command": "node tools/demo-typecheck.mjs --project=demo-ssr --config=tsconfig.json"
       }
     },
     "lint": {

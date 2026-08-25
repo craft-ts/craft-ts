@@ -71,6 +71,7 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
     const { element, injector, mounted } = mount();
 
     expect(element.textContent).toContain('Asking the carrier…');
+    expect(element.querySelector('[role="status"] .shipping-spinner')).not.toBeNull();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Craft Express');

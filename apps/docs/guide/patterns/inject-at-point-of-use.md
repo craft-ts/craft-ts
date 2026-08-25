@@ -12,28 +12,31 @@ intermediary method to a component just to forward the call.
 
 ## The forwarding shape to avoid
 
-A component should not own dependency resolution, request orchestration, state
-storage, and loading/error handling in one method:
+Even with Craft, do not resolve an API in the component factory only to forward
+it into a query:
 
 ```typescript
-export class TasksComponent {
-  constructor(private readonly api: TaskApi) {}
+export const Tasks = craftComponent(
+  'Tasks',
+  {},
+  function* () {
+    const api = yield* TaskApi();
+    const tasks = yield* query('tasks', {
+      params: () => true,
+      loader: function* () {
+        return yield* api.list();
+      },
+    });
 
-  readonly tasks = signal<Task[]>([]);
-
-  loadTasks() {
-    this.api.list().subscribe((tasks) => this.tasks.set(tasks));
-  }
-}
+    return { tasks };
+  },
+  ({ tasks }) => /* … */,
+);
 ```
 
-This shape gives the component several different responsibilities: it resolves
-the API, starts the request, stores the result, and usually reproduces loading
-and error handling as well.
-
-The actual dependency is also hidden from the outside. Looking at the public
-type of `TasksComponent` does not tell the compiler, a route, or a test that
-`TaskApi` is required.
+The loader closes over `api`, so the query itself does not declare the operation
+it uses. The dependency is attached to the component factory instead of to the
+smallest factory that performs the request.
 
 ## Craft puts the dependency next to the work
 
@@ -74,16 +77,16 @@ export const Tasks = craftComponent(
 );
 ```
 
-`TaskApi` is used directly from the `query` loader. The query owns the server
-state, while the template owns only the rendering of that state. There is no
-`loadTasks()` method, and no extra service whose only job is to forward this
-request.
+`TaskApi.list()` is yielded directly from the `query` loader. The query owns the
+server state, while the template owns only the rendering of that state. There
+is no `loadTasks()` method, no subscription, and no extra service whose only
+job is to forward this request.
 
 ## Why this is useful
 
 ### The dependency graph is explicit
 
-`yield* TaskApi.list()` is part of the factory's dependency type. Craft can use
+`yield* TaskApi.list()` is part of the loader's dependency type. Craft can use
 the same information for route DI checks, test registers, and dependency
 snapshots. A missing provider or mock is found at the boundary where it matters.
 
@@ -93,7 +96,7 @@ When a consumer needs one operation, yield that operation instead of the whole
 service:
 
 ```typescript
-const list = yield * TaskApi.list();
+const list = yield* TaskApi.list();
 ```
 
 The graph records the property that was used. Tests only need to provide

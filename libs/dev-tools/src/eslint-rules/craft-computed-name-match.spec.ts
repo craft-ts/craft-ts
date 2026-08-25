@@ -60,6 +60,49 @@ describe('craft-computed-name-match', () => {
     expect(messages).toEqual([]);
   });
 
+  it('accepts an unnamed computedEffect in an Effect insertion result', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { state } from '@craft-ts/core';
+        import { computedEffect } from '@craft-ts/effect';
+
+        const insertion = state('counter', 0, ({ state }) => ({
+          total: computedEffect(function* () { return state(); }),
+        }));
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('accepts an unnamed computedEffect in a queryEffect insertion result', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { computedEffect, queryEffect } from '@craft-ts/effect';
+
+        const insertion = queryEffect('data', { loader: () => value }, ({ resource }) => ({
+          total: computedEffect(function* () { return resource.value(); }),
+        }));
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('requires a name for computedEffect outside an insertion', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { computedEffect } from '@craft-ts/effect';
+
+        const total = computedEffect(function* () { return 42; });
+      `,
+    });
+
+    expect(messages).toEqual([
+      "computedEffect must be called with a string literal name matching 'total' as the first argument.",
+    ]);
+  });
+
   it('still requires a name in a plain object outside an insertion', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
@@ -182,6 +225,11 @@ async function lintFixture(
     'src/craft-core.d.ts': `
       declare module '@craft-ts/core' {
         export declare function craftComputed(...args: unknown[]): unknown;
+      }
+    `,
+    'src/craft-effect.d.ts': `
+      declare module '@craft-ts/effect' {
+        export declare function computedEffect(...args: unknown[]): unknown;
       }
     `,
     ...files,

@@ -32,6 +32,7 @@ export default defineConfig({
   plugins: [craftTextLoaderPlugin(), serverFunctionsPlugin()],
   server: {
     port: 4202,
+    forwardConsole: true,
     fs: {
       allow: [path.resolve(root, '../..')],
     },

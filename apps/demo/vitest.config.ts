@@ -19,10 +19,21 @@ export default defineConfig({
         workspaceRoot,
         'libs/component/src/index.ts',
       ),
-      '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
+
       '@craft-ts/style-testing': path.join(
         workspaceRoot,
         'libs/style-testing/src/index.ts',
+      ),
+      // More specific first: a bare '@craft-ts/style' alias matches this
+      // specifier as a prefix and would swallow it.
+      '@craft-ts/style/vite': path.join(
+        workspaceRoot,
+        'libs/style/src/plugin/vite.ts',
+      ),
+      '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
+      '@craft-ts/dev-tools': path.join(
+        workspaceRoot,
+        'libs/dev-tools/src/index.ts',
       ),
       'test-type': path.join(workspaceRoot, 'libs/test-type/src/index.ts'),
     },
