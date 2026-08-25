@@ -7,7 +7,7 @@ import { craftTextLoaderPlugin } from '../../tools/vite-text-loader-plugin.mjs';
 // Imported by path, like the other plugins in this config: a Vite config file
 // is loaded by Node before any alias exists, so a workspace package specifier
 // would not resolve here.
-import { craftStyle } from '../../libs/style/src/plugin/vite';
+import { craftStyle } from '../../libs/style/src/plugin/vite.ts';
 import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));

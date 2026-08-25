@@ -10,7 +10,7 @@
  * qu'un axe absent : la matrice énumérerait des scénarios inatteignables et
  * rendrait des captures identiques, donc une fausse couverture.
  */
-import type { LengthValue } from './tokens/units';
+import type { LengthValue } from './tokens/units.ts';
 
 export type Driver =
   | { readonly kind: 'none' }

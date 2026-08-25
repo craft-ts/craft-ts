@@ -1,3 +1,3 @@
-export * from './units';
-export * from './scales';
-export * from './palette';
+export * from './units.ts';
+export * from './scales.ts';
+export * from './palette.ts';

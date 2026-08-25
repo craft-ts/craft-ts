@@ -20,12 +20,12 @@ import {
   EXCLUSIONS,
   EXPECTED_COVERED,
 } from '../../../../../tools/css-props.data.mjs';
-import { global, type Declaration } from './factory';
-import * as generated from './generated';
-import { bg, font, p, px, radius } from './index';
-import { palette } from '../tokens/palette';
-import { radii, space, text } from '../tokens/scales';
-import { num, unit } from '../tokens/units';
+import { global, type Declaration } from './factory.ts';
+import * as generated from './generated.ts';
+import { bg, font, p, px, radius } from './index.ts';
+import { palette } from '../tokens/palette.ts';
+import { radii, space, text } from '../tokens/scales.ts';
+import { num, unit } from '../tokens/units.ts';
 
 // ─── the conformance check ──────────────────────────────────────────────────
 

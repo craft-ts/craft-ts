@@ -7,7 +7,7 @@
  * `overflow: auto`. Le mauvais correctif — poser un `overflow` au hasard sur le
  * parent le plus proche — n'est pas découragé, il est inexprimable.
  */
-import type { Declaration } from './props/factory';
+import type { Declaration } from './props/factory.ts';
 
 declare const OBLIGATION: unique symbol;
 

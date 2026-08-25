@@ -22,13 +22,13 @@ import type {
   CraftChannelsCarrier,
   MergeChannelUnion,
 } from '@craft-ts/core';
-import type { AnyAxisPoint, AxisPoint } from './axes';
-import type { Declaration } from './props/factory';
+import type { AnyAxisPoint, AxisPoint } from './axes.ts';
+import type { Declaration } from './props/factory.ts';
 import type {
   Obligation,
   ObligationEntry,
   ObligationSpec,
-} from './obligations';
+} from './obligations.ts';
 
 declare const VARIANTS: unique symbol;
 

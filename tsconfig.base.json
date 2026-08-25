@@ -14,6 +14,12 @@
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false,
     "customConditions": ["@craft-ts/source"],
+    // A relative import may carry its `.ts` extension, and is rewritten to
+    // `.js` on emit. Permissive, not prescriptive: extensionless imports keep
+    // working everywhere. It exists because code Node loads directly — a Vite
+    // plugin, in this workspace and once published — needs real specifiers.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "paths": {
       "@craft-ts/core": ["./libs/core/src/index.ts"],
       "@craft-ts/i18n": ["./libs/i18n/src/index.ts"],

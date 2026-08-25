@@ -8,7 +8,7 @@
  * 477 properties covered, 5 not. `overflow` and its longhands are
  * excluded by construction — see `tools/css-props.data.mjs`.
  */
-import { keywordProp, propertyName, valueProp } from './factory';
+import { keywordProp, propertyName, valueProp } from './factory.ts';
 
 export const accentColor = /* @__PURE__ */ valueProp(
   'accent-color',

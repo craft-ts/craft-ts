@@ -30,7 +30,7 @@ import {
   text,
   unit,
   when,
-} from '../src';
+} from '../src/index.ts';
 
 export const bp = defineBreakpoints({
   sm: at.minInlineSize(unit.rem(40)),

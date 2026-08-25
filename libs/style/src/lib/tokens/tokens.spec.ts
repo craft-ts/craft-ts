@@ -13,9 +13,16 @@
  * green, and every guarantee written in the docs is false.
  */
 import { describe, expect, it } from 'vitest';
-import { darkOf, definePalette, palette } from './palette';
-import { lineWidth, radii, space, text, type SpaceStep } from './scales';
-import { ident, int, num, unit, unsafeLength, type LengthValue } from './units';
+import { darkOf, definePalette, palette } from './palette.ts';
+import { lineWidth, radii, space, text, type SpaceStep } from './scales.ts';
+import {
+  ident,
+  int,
+  num,
+  unit,
+  unsafeLength,
+  type LengthValue,
+} from './units.ts';
 
 const takesLength = (value: LengthValue): string => value.css;
 

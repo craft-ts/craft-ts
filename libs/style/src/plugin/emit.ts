@@ -11,17 +11,17 @@
  * validating that every property about to be written is one the vocabulary
  * actually owns.
  */
-import type { AnyAxisPoint } from '../lib/axes';
-import type { AtomicRule, RegisteredClass } from '../lib/styles';
-import type { CssVarDeclaration } from '../lib/css-vars';
-import { propertyRule } from '../lib/css-vars';
-import { prop } from '../lib/props/generated';
+import type { AnyAxisPoint } from '../lib/axes.ts';
+import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
+import type { CssVarDeclaration } from '../lib/css-vars.ts';
+import { propertyRule } from '../lib/css-vars.ts';
+import { prop } from '../lib/props/generated.ts';
 import {
   clipOverflow,
   containerType,
   noClipping,
   scrollPort,
-} from '../lib/obligations';
+} from '../lib/obligations.ts';
 
 /** The layer order is fixed here so that no import order can change it. */
 export const LAYERS = [

@@ -21,9 +21,9 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { AtomicRule, RegisteredClass } from '../lib/styles';
-import type { CssVarDeclaration } from '../lib/css-vars';
-import { renderCss, styleDump, validateAtoms, type StyleDump } from './emit';
+import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
+import type { CssVarDeclaration } from '../lib/css-vars.ts';
+import { renderCss, styleDump, validateAtoms, type StyleDump } from './emit.ts';
 
 export const VIRTUAL_CSS_ID = 'virtual:craft-style.css';
 const RESOLVED_CSS_ID = '\0' + VIRTUAL_CSS_ID;

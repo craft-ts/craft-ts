@@ -22,10 +22,10 @@ import {
   space,
   unit,
   unsafeLength,
-} from '../src';
-import type { Obligation, VariantsOf } from '../src';
-import { badge, bp, tone, v } from './badge.style';
-import { backToTop, shell } from './back-to-top.style';
+} from '../src/index.ts';
+import type { Obligation, VariantsOf } from '../src/index.ts';
+import { badge, bp, tone, v } from './badge.style.ts';
+import { backToTop, shell } from './back-to-top.style.ts';
 
 describe('niveau 1 — aucune valeur n’est une chaîne', () => {
   it('refuse tout ce qui n’est pas une valeur du design system', () => {

@@ -6,20 +6,20 @@
  * does not own" goes green. Confirmed red before this file was committed.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { at, defineBreakpoints, defineStateAxis, scheme } from '../lib/axes';
+import { at, defineBreakpoints, defineStateAxis, scheme } from '../lib/axes.ts';
 import {
   craftStyles,
   registeredAtoms,
   resetStyleRegistry,
   when,
-} from '../lib/styles';
-import { cssVars, resetCssVarRegistry } from '../lib/css-vars';
-import { kind } from '../lib/kinds';
-import { provides, scrollPort } from '../lib/obligations';
-import { bg, display, p, px } from '../lib/props';
-import { palette } from '../lib/tokens/palette';
-import { space } from '../lib/tokens/scales';
-import { unit } from '../lib/tokens/units';
+} from '../lib/styles.ts';
+import { cssVars, resetCssVarRegistry } from '../lib/css-vars.ts';
+import { kind } from '../lib/kinds.ts';
+import { provides, scrollPort } from '../lib/obligations.ts';
+import { bg, display, p, px } from '../lib/props/index.ts';
+import { palette } from '../lib/tokens/palette.ts';
+import { space } from '../lib/tokens/scales.ts';
+import { unit } from '../lib/tokens/units.ts';
 import {
   LAYERS,
   UnknownCssError,
@@ -27,7 +27,7 @@ import {
   renderCss,
   styleDump,
   validateAtoms,
-} from './emit';
+} from './emit.ts';
 
 const bp = defineBreakpoints({ md: at.minInlineSize(unit.rem(64)) });
 const tone = defineStateAxis('tone', ['danger']);

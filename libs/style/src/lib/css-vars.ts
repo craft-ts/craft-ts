@@ -6,7 +6,7 @@
  * `assign(v.x, …)`, never through a concatenated class string. That split is
  * what keeps the visual matrix finite — a variable is not an axis.
  */
-import type { AnyKind, CssVarRole, CssVarSpec, ValueOf } from './kinds';
+import type { AnyKind, CssVarRole, CssVarSpec, ValueOf } from './kinds.ts';
 
 export interface CssVarDeclaration {
   readonly name: `--${string}`;

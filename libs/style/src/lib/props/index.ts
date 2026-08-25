@@ -10,9 +10,9 @@
  * `overflow: auto` is `provides(scrollPort.block)`, which lays down the CSS
  * effect and the discharge in the same object.
  */
-import type { FontSizeToken } from '../tokens/scales';
-import { rawLength } from '../tokens/units';
-import type { Declaration } from './factory';
+import type { FontSizeToken } from '../tokens/scales.ts';
+import { rawLength } from '../tokens/units.ts';
+import type { Declaration } from './factory.ts';
 import {
   borderRadius,
   fontSize,
@@ -22,16 +22,16 @@ import {
   paddingBlock,
   paddingInline,
   backgroundColor,
-} from './generated';
+} from './generated.ts';
 
-export * from './generated';
+export * from './generated.ts';
 export {
   global,
   declaration,
   propertyName,
   type Declaration,
   type PropertyToken,
-} from './factory';
+} from './factory.ts';
 
 /** `padding`. */
 export const p = padding;

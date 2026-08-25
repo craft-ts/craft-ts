@@ -9,7 +9,7 @@
  * meaningful, and what lets the graph answer "which surfaces does this token
  * paint?" without parsing CSS.
  */
-import type { ColorRole, ColorValue } from './units';
+import type { ColorRole, ColorValue } from './units.ts';
 
 export interface PaletteEntry {
   readonly light: string;

@@ -3,12 +3,12 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
-import { at, defineBreakpoints, defineStateAxis, scheme } from './axes';
-import { provides, requires, scrollPort } from './obligations';
-import { bg, display, p, px } from './props';
-import { palette } from './tokens/palette';
-import { space } from './tokens/scales';
-import { unit } from './tokens/units';
+import { at, defineBreakpoints, defineStateAxis, scheme } from './axes.ts';
+import { provides, requires, scrollPort } from './obligations.ts';
+import { bg, display, p, px } from './props/index.ts';
+import { palette } from './tokens/palette.ts';
+import { space } from './tokens/scales.ts';
+import { unit } from './tokens/units.ts';
 import {
   classKeyOf,
   craftStyles,
@@ -18,7 +18,7 @@ import {
   scenarios,
   when,
   type VariantsOf,
-} from './styles';
+} from './styles.ts';
 
 const bp = defineBreakpoints({
   sm: at.minInlineSize(unit.rem(40)),

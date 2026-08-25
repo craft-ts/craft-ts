@@ -9,10 +9,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
-import { csv, kind, many, oneOf, type Assignable } from './kinds';
-import { palette } from './tokens/palette';
-import { space } from './tokens/scales';
-import { unit } from './tokens/units';
+import { csv, kind, many, oneOf, type Assignable } from './kinds.ts';
+import { palette } from './tokens/palette.ts';
+import { space } from './tokens/scales.ts';
+import { unit } from './tokens/units.ts';
 
 describe('the syntax strings are the ones @property registers', () => {
   it('spells each kind exactly as CSS does', () => {

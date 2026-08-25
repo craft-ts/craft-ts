@@ -31,7 +31,7 @@ import type {
   PercentValue,
   TimeValue,
   UrlValue,
-} from './tokens/units';
+} from './tokens/units.ts';
 
 export type CssVarRole = ColorRole;
 

@@ -6,12 +6,17 @@
  * goes green. Confirmed red before this file was committed, then put back.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { assign, cssVars, propertyRule, resetCssVarRegistry } from './css-vars';
-import { kind } from './kinds';
-import { palette } from './tokens/palette';
-import { space } from './tokens/scales';
-import { unit } from './tokens/units';
-import { bg, color, p } from './props';
+import {
+  assign,
+  cssVars,
+  propertyRule,
+  resetCssVarRegistry,
+} from './css-vars.ts';
+import { kind } from './kinds.ts';
+import { palette } from './tokens/palette.ts';
+import { space } from './tokens/scales.ts';
+import { unit } from './tokens/units.ts';
+import { bg, color, p } from './props/index.ts';
 
 beforeEach(resetCssVarRegistry);
 

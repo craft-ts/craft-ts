@@ -8,7 +8,7 @@
  */
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { emitStyles, findStyleModules } from './vite';
+import { emitStyles, findStyleModules } from './vite.ts';
 
 const root = join(process.cwd(), 'libs/style/example');
 const alias = {

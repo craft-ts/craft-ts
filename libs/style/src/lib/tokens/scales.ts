@@ -6,7 +6,7 @@
  * of a scale, and the reason `unsafeLength` exists as the marked alternative
  * rather than an arbitrary-value syntax.
  */
-import { rawLength, type LengthValue } from './units';
+import { rawLength, type LengthValue } from './units.ts';
 
 export type SpaceStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
 
