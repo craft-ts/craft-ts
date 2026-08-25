@@ -7,8 +7,8 @@ plan et le dépôt réel.
 
 ## État
 
-Dernière mise à jour : **2026-08-25**. Vagues 1, 2 et 3 dans `main` ; reste la
-vague 4.
+Dernière mise à jour : **2026-08-25**. Vagues 1 à 4 dans `main`, sauf la tâche 29
+(exposition MCP). La vague 5 reste fermée.
 
 | Vague                           | Tâches      | État                                                  |
 | ------------------------------- | ----------- | ----------------------------------------------------- |
@@ -18,7 +18,7 @@ vague 4.
 | **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
 | 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite**                                             |
 | 3 — niveau 3 : obligations      | 23 → 26     | **faite** (moitié visuelle non vérifiée)              |
-| 4 — graphe et architecture      | 27 → 30     | non commencée                                         |
+| 4 — graphe et architecture      | 27 → 30     | **faite sauf 29** (MCP non exposé)                    |
 | 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
 
 Hors plan et fait : l'esquisse `libs/style` (promue fichier par fichier en vague 1)
@@ -488,16 +488,46 @@ Deux trouvailles de la tentative, qui tiennent quelle que soit la cause :
   taille nulle n'a rien à quoi coller, donc l'état qui la révélerait ne peut pas
   se produire. `visibility` conserve la taille de l'ancre.
 
-### Vague 4 — graphe et règles d'architecture (tâches 27 → 30)
+### Vague 4 — graphe et architecture : faite sauf la tâche 29
 
-- [ ] **27 — nœuds de style dans le graphe.**
-      `libs/dev-tools/src/scripts/dependency-graph.ts` existe.
-- [ ] **28 — prédicats d'architecture.** `architecture-graph.ts` existe. Écrire
-      **d'abord** la règle de complétude d'extraction : une règle verte sur un graphe
-      incomplet donne la même fausse confiance qu'une matrice non étanche.
-- [ ] **29 — analyse d'impact et MCP.** `packages/mcp/src/mcp-server.ts` existe et
-      reste read-only.
-- [ ] **30 — documentation des trois niveaux** dans `apps/docs/guide/style/`.
+| tâche                        | livré                                                                                                                                                                                           |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 27 — nœuds de style          | `mergeStyleDump` : un seul graphe, deux producteurs, jointure sur l'identité de classe                                                                                                          |
+| 28 — prédicats               | `extractionGaps` **en premier**, puis `matrixSizeByComponent`, `undischargedObligations`, `dischargers`, `varsWrittenBy` / `propertiesWrittenBy`, `danglingVars`, `unproven`, `impactedClasses` |
+| 29 — analyse d'impact et MCP | `impactedClasses` fait ; **`craft graph --impacted` et les outils MCP ne sont pas faits**                                                                                                       |
+| 30 — documentation           | `apps/docs/guide/style/` : les trois niveaux et leur granularité d'adoption                                                                                                                     |
+
+#### Ce que le graphe répond sur la vraie application
+
+161 nœuds, 230 arêtes. Rien d'exigé et non déchargé. `dsButton-root` à 18
+scénarios — **le même nombre que le paquet de matrice atteint par un chemin
+complètement différent**, ce qui est désormais asservi par un test : si les deux
+producteurs divergent, l'un des deux ment sur ce que l'application affiche.
+
+Il a aussi trouvé deux variables de thème que personne ne lit (`--ds-onAccent`,
+`--ds-surface`) — que personne ne cherchait.
+
+#### Re-mesure du coût de typecheck (le point que la vague 3 devait trancher)
+
+|                                       | instantiations |
+| ------------------------------------- | -------------- |
+| `apps/demo` avec le check de scellage | 11 082 893     |
+| sans le check de scellage             | 11 076 920     |
+| **delta**                             | **+0,054 %**   |
+
+**Le contrôle ne coûte rien.** Ce qui coûte, c'est la _propagation_ des canaux —
+posée en vague 0, pas le fait de les lire. Le seuil de 15 % de la tâche 3b n'est
+donc pas menacé par les vagues 2→4.
+
+Attention en revanche à ne pas comparer 11,08 M au 10,14 M du 24 août : la demo a
+gagné le design system, le témoin de scellage et leurs specs entre-temps. Le seul
+delta valable est celui du tableau ci-dessus, mesuré sur le même arbre.
+
+#### Reste de la vague 4
+
+- [ ] **29 — `craft graph --impacted <paths>` et les outils MCP** (`style_impact`,
+      `style_matrix`, `style_debt`). Le prédicat existe et est testé ; ce qui
+      manque est la CLI et l'exposition read-only côté `packages/mcp`.
 
 ### Vague 5 — réduction de matrice (tâches 31 → 32, CONDITIONNELLE)
 
