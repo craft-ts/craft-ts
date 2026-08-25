@@ -17,16 +17,40 @@ export interface CssVarDeclaration {
 }
 
 declare const VAR_VALUE: unique symbol;
+declare const VAR_SYNTAX: unique symbol;
+export declare const VAR_WRITE: unique symbol;
+
+/**
+ * A declaration that writes a custom property, carrying the kind it writes.
+ *
+ * The syntax rides on the type so that an axis constrained to `<color>` can be
+ * checked at the call site of `when`, instead of by reading the emitted CSS
+ * afterwards and hoping.
+ */
+export type VarWrite<Syntax extends string = string> = {
+  readonly property: string;
+  readonly value: string;
+  readonly unproven: string;
+  /**
+   * **Required**, not optional. An optional marker brands nothing: a plain
+   * declaration would satisfy `VarWrite<'<color>'>` structurally, and an axis
+   * constrained to colours would accept `p(space(6))` while looking correct.
+   * The same trap as an optional phantom on a primitive base, one level up.
+   */
+  readonly [VAR_WRITE]: Syntax;
+};
 
 /**
  * A variable token **carries its kind's brand**: the token of a `<color>`
  * variable is a `ColorValue`, so `color(v.ink)` needs no conversion and
  * `p(v.ink)` does not compile. It is not a generic bag of strings.
  */
-export type CssVarToken<Value> = Value & {
+export type CssVarToken<Value, Syntax extends string = string> = Value & {
   readonly declaration: CssVarDeclaration;
   /** Inference site for `assign`; nothing reads it at runtime. */
   readonly [VAR_VALUE]?: Value;
+  /** Inference site for the axis write constraint. */
+  readonly [VAR_SYNTAX]?: Syntax;
   /** The fallback is typed against the same kind: `.or(space(4))` will not compile. */
   or(fallback: Value): Value;
 };
@@ -34,7 +58,10 @@ export type CssVarToken<Value> = Value & {
 export type AnySpec = CssVarSpec<string, any>;
 
 export type CssVarTokens<Specs extends Readonly<Record<string, AnySpec>>> = {
-  readonly [Key in keyof Specs]: CssVarToken<Specs[Key]['initial']>;
+  readonly [Key in keyof Specs]: CssVarToken<
+    Specs[Key]['initial'],
+    Specs[Key]['syntax']
+  >;
 };
 
 /**
@@ -132,22 +159,21 @@ export const propertyRule = (declaration: CssVarDeclaration): string =>
  * that reads it never changes. The alternative — a class per tone per property —
  * multiplies the atoms by the number of tones for no gain.
  */
-export function set<Value>(
+export function set<Value, Syntax extends string>(
   token: {
     readonly [VAR_VALUE]?: Value;
+    readonly [VAR_SYNTAX]?: Syntax;
     readonly declaration: CssVarDeclaration;
   },
   value: Value & { readonly css: string; readonly unproven?: string },
-): {
-  readonly property: string;
-  readonly value: string;
-  readonly unproven: string;
-} {
+): VarWrite<Syntax> {
+  // The marker is a declared symbol: nothing is written at runtime, and the
+  // object stays an ordinary declaration the sheet walker already understands.
   return {
     property: token.declaration.name,
     value: value.css,
     unproven: value.unproven ?? '',
-  };
+  } as unknown as VarWrite<Syntax>;
 }
 
 /**

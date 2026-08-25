@@ -11,7 +11,7 @@
  * validating that every property about to be written is one the vocabulary
  * actually owns.
  */
-import type { AnyAxisPoint } from '../lib/axes.ts';
+import type { AnyAxisPoint } from '../lib/axes/index.ts';
 import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
 import { propertyRule } from '../lib/css-vars.ts';

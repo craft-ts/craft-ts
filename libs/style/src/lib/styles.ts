@@ -22,7 +22,8 @@ import type {
   CraftChannelsCarrier,
   MergeChannelUnion,
 } from '@craft-ts/core';
-import type { AnyAxisPoint, AxisPoint } from './axes.ts';
+import type { AnyAxisPoint, AxisPoint, WritesSyntaxOf } from './axes/index.ts';
+import type { VarWrite } from './css-vars.ts';
 import type { Declaration } from './props/factory.ts';
 import type {
   Obligation,
@@ -47,12 +48,61 @@ export type SheetItem =
   | ObligationEntry
   | Conditional<AnyAxisPoint, readonly any[]>;
 
+/**
+ * What an axis is allowed to contain.
+ *
+ * An unconstrained axis takes anything a sheet takes. An axis declared with
+ * `writes: onlyVarsOfKind(kind.color)` takes **only** writes of that kind —
+ * no properties, and no nesting, because an axis that may only repaint has
+ * nothing to conjoin with. That constraint is what makes such an axis provably
+ * orthogonal to the axes that move boxes, without analysing any CSS.
+ */
+export type AllowedItems<Point> = [WritesSyntaxOf<Point>] extends [never]
+  ? readonly SheetItem[]
+  : readonly VarWrite<WritesSyntaxOf<Point>>[];
+
 /** Applies declarations under a condition. Nestable, and nothing else. */
 export function when<
   const Point extends AnyAxisPoint,
   const Items extends readonly SheetItem[],
->(at: Point, items: Items): Conditional<Point, Items> {
+>(
+  at: Point,
+  // The constraint is intersected on the parameter rather than placed on the
+  // type parameter: as a constraint it is resolved while `Point` is still being
+  // inferred, so `AllowedItems<Point>` falls back to the unconstrained branch
+  // and checks nothing. On the parameter it is checked once `Point` is known.
+  items: Items & AllowedItems<Point>,
+): Conditional<Point, Items> {
+  assertLive(at, items as readonly SheetItem[]);
   return { kind: 'when', at, items };
+}
+
+/**
+ * An intersection that no viewport can satisfy is a rule that will never apply.
+ *
+ * `when(above(bp.lg), [when(below(bp.sm), […])])` asks for "at least lg and
+ * under sm" — dead CSS that no test will ever catch, because there is nothing
+ * to see. It throws at sheet registration, which under the build plugin is a
+ * build failure: the plugin imports every `*.style.ts` in Node before emitting.
+ *
+ * The check is a runtime one rather than a type-level one because comparing two
+ * breakpoint positions in the type system needs their order as literals, and
+ * `defineBreakpoints` cannot hand those back — object key order is not a tuple.
+ */
+function assertLive(at: AnyAxisPoint, items: readonly SheetItem[]): void {
+  if (at.order === undefined) return;
+  for (const item of items) {
+    if (!isConditional(item)) continue;
+    const inner = item.at;
+    if (inner.axis !== at.axis || inner.order === undefined) continue;
+    const outerFloor = at.bound === 'above';
+    const innerCeiling = inner.bound === 'below';
+    if (outerFloor && innerCeiling && inner.order <= at.order) {
+      throw new Error(
+        `craftStyles: '${at.axis}' is asked for at least '${at.point}' and below '${inner.point}' at once, which no viewport satisfies. The rule inside would never apply; drop it, or widen one of the two bounds.`,
+      );
+    }
+  }
 }
 
 // ─── contract inference ─────────────────────────────────────────────────────

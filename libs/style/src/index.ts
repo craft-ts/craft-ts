@@ -12,6 +12,6 @@ export * from './lib/tokens/index.ts';
 export * from './lib/kinds.ts';
 export * from './lib/css-vars.ts';
 export * from './lib/props/index.ts';
-export * from './lib/axes.ts';
+export * from './lib/axes/index.ts';
 export * from './lib/obligations.ts';
 export * from './lib/styles.ts';

@@ -3,7 +3,12 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
-import { at, defineBreakpoints, defineStateAxis, scheme } from './axes.ts';
+import {
+  at,
+  defineBreakpoints,
+  defineStateAxis,
+  scheme,
+} from './axes/index.ts';
 import { provides, requires, scrollPort } from './obligations.ts';
 import { bg, display, p, px } from './props/index.ts';
 import { palette } from './tokens/palette.ts';

@@ -22,15 +22,20 @@ export const v = cssVars('badge', {
 
 export const badge = craftStyles('badge', {
   root: [
-    display.inlineFlex, align.center, gap(space(2)),
-    px(space(3)), py(space(1)),
-    radius(radii.full), font(text.sm),
-    bg(v.bg), color(v.ink),
+    display.inlineFlex,
+    align.center,
+    gap(space(2)),
+    px(space(3)),
+    py(space(1)),
+    radius(radii.full),
+    font(text.sm),
+    bg(v.bg),
+    color(v.ink),
 
     when(bp.md, [px(space(4)), font(text.base)]),
     when(scheme.dark, [
       color(palette.text.muted),
-      when(bp.md, [fontWeight.bold]),   // conjonction = imbrication, point final
+      when(bp.md, [fontWeight.bold]), // conjonction = imbrication, point final
     ]),
     when(tone.danger, [bg(palette.accent.danger)]),
   ],
@@ -41,7 +46,7 @@ export const badge = craftStyles('badge', {
 ```ts
 // back-to-top.style.ts — le cas qui a motivé le dispositif
 export const backToTop = craftStyles('backToTop', {
-  button: [requires(scrollPort.block), position.sticky, /* … */],
+  button: [requires(scrollPort.block), position.sticky /* … */],
 });
 
 export const shell = craftStyles('appShell', {
@@ -51,7 +56,7 @@ export const shell = craftStyles('appShell', {
 
 ## Les quatre choses que l'exemple prouve
 
-**Aucune valeur n'est une chaîne.** `p('12px')`, `` p(`${4}px`) ``, `bg('red')`,
+**Aucune valeur n'est une chaîne.** `p('12px')`, ``p(`${4}px`)``, `bg('red')`,
 `p(space(5))`, `p(palette.text.strong)` — cinq erreurs de compilation. Les valeurs sont
 des **objets nominaux** à `unique symbol`, pas des `string & { __length?: true }` : avec
 un phantom optionnel sur une base primitive, `'blabla'` reste assignable et toute la

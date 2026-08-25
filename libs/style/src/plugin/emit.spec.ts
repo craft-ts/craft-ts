@@ -6,7 +6,12 @@
  * does not own" goes green. Confirmed red before this file was committed.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { at, defineBreakpoints, defineStateAxis, scheme } from '../lib/axes.ts';
+import {
+  at,
+  defineBreakpoints,
+  defineStateAxis,
+  scheme,
+} from '../lib/axes/index.ts';
 import {
   craftStyles,
   registeredAtoms,
