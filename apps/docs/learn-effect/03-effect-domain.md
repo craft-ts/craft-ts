@@ -158,10 +158,11 @@ the marker; one that calls nothing marked spells it out with `yield* SyncOp`:
 as it does for a loader. The only thing checked is that `SyncOp` is among the
 requirements.
 
-## Run it with syncEffect
+## Use it: computedEffect, then syncEffect
 
-`syncEffect(...)` is the door. It runs the program in place — no suspension, no
-promise — so it can go where `runEffect` cannot:
+For a derived value, reach for `computedEffect` — the Effect counterpart of
+`craftComputed`. The factory reads Craft dependencies and **returns** the
+Effect; the adapter runs it in place, so you get a plain reactive value:
 
 <<< @/tests/snippets/learn-effect/sync-members.spec.ts#component
 
@@ -170,18 +171,33 @@ runs:
 
 <<< @/tests/snippets/learn-effect/sync-members.spec.ts#refused
 
+Everywhere a Craft adapter does not reach — a `params`, a `craftMethod`, a
+`state` updater — `syncEffect(...)` is the same door, opened by hand:
+
+```typescript
+queryEffect('shippingQuote', {
+  params: function* () {
+    return yield* syncEffect(cartWeightGrams(yield* lines()));
+  },
+  loader: ({ params }) => quoteShipping(params),
+});
+```
+
+The relationship mirrors the asynchronous side: `computedEffect` is to
+`syncEffect` what `queryEffect` is to `runEffect`.
+
 ::: tip Three lines of defence
 
 `SyncOp` is a claim, not a proof — nothing stops a body from declaring itself
 synchronous and awaiting anyway. Three mechanisms check it, and none is
 redundant:
 
-1. **the type** — `syncEffect(...)` refuses an Effect nobody declared, at the
-   call site;
+1. **the type** — `computedEffect` and `syncEffect(...)` refuse an Effect nobody
+   declared, at the call site;
 2. **`craft-ts/sync-effect-body`** — reads the body, every branch at once, and
    rejects a declared-synchronous body that yields something async. A unit test
    cannot do this: it only proves the inputs it was given;
-3. **the runtime** — `syncEffect` runs through `Effect.runSyncExitWith`, which
+3. **the runtime** — both run through `Effect.runSyncExitWith`, which
    cannot suspend. A broken declaration throws `CraftEffectNotSynchronous`
    immediately, at the first call, instead of freezing the UI.
 

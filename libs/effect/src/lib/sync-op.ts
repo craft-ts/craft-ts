@@ -91,7 +91,7 @@ export type NotDeclaredSynchronous<R> = {
  * {@link NotDeclaredSynchronous} otherwise — which is not assignable to an
  * Effect and therefore errors AT THE CALL, naming what is missing.
  */
-type AssertDeclaredSync<R> = [SyncOp] extends [R]
+export type AssertDeclaredSync<R> = [SyncOp] extends [R]
   ? unknown
   : NotDeclaredSynchronous<R>;
 

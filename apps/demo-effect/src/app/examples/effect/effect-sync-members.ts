@@ -10,7 +10,8 @@ import {
   strong,
 } from '@craft-ts/component';
 import { craftComputed, settled, state } from '@craft-ts/core';
-import { queryEffect, syncEffect } from '@craft-ts/effect';
+import { computedEffect, queryEffect, syncEffect } from '@craft-ts/effect';
+import { Effect } from 'effect';
 import {
   cartTotalLabel,
   cartWeightGrams,
@@ -67,15 +68,18 @@ const EffectSyncMembersComponent = craftComponent(
         decrement: () => update((value) => Math.max(0, value - 1)),
         lines,
 
-        // `syncEffect` runs the program in place, so the label is ready before
-        // this computation returns. No pending state, no flash.
-        totalLabel: craftComputed('totalLabel', function* () {
-          return yield* syncEffect(cartTotalLabel(yield* lines()));
+        // `computedEffect` is the Effect counterpart of `craftComputed`: the
+        // factory RETURNS the Effect, the adapter runs it in place. The value
+        // is ready before the computation returns — no pending state, no flash.
+        totalLabel: computedEffect('totalLabel', function* () {
+          return cartTotalLabel(yield* lines());
         }),
 
-        weightLabel: craftComputed('weightLabel', function* () {
-          const grams = yield* syncEffect(cartWeightGrams(yield* lines()));
-          return `${(grams / 1_000).toFixed(2)} kg`;
+        weightLabel: computedEffect('weightLabel', function* () {
+          return Effect.map(
+            cartWeightGrams(yield* lines()),
+            (grams) => `${(grams / 1_000).toFixed(2)} kg`,
+          );
         }),
       };
     });

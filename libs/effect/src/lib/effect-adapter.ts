@@ -8,9 +8,11 @@ import {
   type MutationOutput,
   type NamedCraftPrimitiveGen,
   type QueryOutput,
+  type YieldableReactiveValue,
 } from '@craft-ts/core';
 import { Effect } from 'effect';
 import { runEffect } from './run-effect';
+import { syncEffect, type AssertDeclaredSync } from './sync-op';
 import type { EffectExceptionOf } from './effect-exceptions';
 
 /** The context passed to an Effect-aware Craft resource loader. */
@@ -126,85 +128,60 @@ type EffectAsyncProcessConfig<
  * query: loading, cancellation, typed Effect exceptions, and the active
  * `provideLayer(...)` are all handled by the existing query runtime.
  */
+/**
+ * Derives a reactive value from an Effect — the Effect counterpart of
+ * `craftComputed`, and that symmetry is the contract:
+ *
+ *     craftComputed : computedEffect  ::  query : queryEffect
+ *
+ * The factory reads Craft dependencies with `yield*` and RETURNS an Effect; it
+ * never runs it. The adapter runs it in place, so the result is a plain
+ * reactive value — no loading state, no `settled(...)`, no `pendingBlock`.
+ *
+ * Which is why the Effect must be declared synchronous: a computation is asked
+ * for its value now, and cannot suspend to produce it. An Effect whose `R` does
+ * not carry `SyncOp` is refused at the call site. That is not a gap — the
+ * suspending case is what `queryEffect` exists for, and routing it here would
+ * mean silently handing back a resource where the caller asked for a value.
+ *
+ * A typed failure is fine: failing is not suspending. It travels on craft's
+ * exception channel exactly as `syncEffect`'s does.
+ *
+ * @example
+ * const totalLabel = computedEffect('totalLabel', function* () {
+ *   return cartTotalLabel(yield* lines());
+ * });
+ *
+ * // p({ class: 'result' }, totalLabel) — read like any craftComputed
+ */
 export function computedEffect<Name extends string, Value, Error, Requirements>(
   name: Name,
-  factory: EffectComputedFactory<Value, Error, Requirements>,
-): NamedCraftPrimitiveGen<
-  Name,
-  QueryOutput<
-    Value,
-    Effect.Effect<Value, Error, Requirements>,
-    unknown,
-    Effect.Effect<Value, Error, Requirements>,
-    unknown,
-    Record<never, never>,
-    EffectExceptions<Error>,
-    Record<never, never>,
-    false,
-    never,
-    Name
-  >
->;
-export function computedEffect<
-  Name extends string,
-  Value,
-  Error,
-  Requirements,
-  Insertion extends (...args: any[]) => any,
->(
-  name: Name,
-  factory: EffectComputedFactory<Value, Error, Requirements>,
-  insertion: Insertion,
-): NamedCraftPrimitiveGen<
-  Name,
-  QueryOutput<
-    Value,
-    Effect.Effect<Value, Error, Requirements>,
-    unknown,
-    Effect.Effect<Value, Error, Requirements>,
-    unknown,
-    EffectInsertionResult<Insertion>,
-    EffectExceptions<Error>,
-    Record<never, never>,
-    false,
-    never,
-    Name
-  >
->;
+  factory: EffectComputedFactory<Value, Error, Requirements> &
+    AssertDeclaredSync<Requirements>,
+): YieldableReactiveValue<Value, Name>;
 export function computedEffect(
   name: string,
   factory: EffectComputedFactory<unknown, unknown, unknown>,
-  ...insertions: readonly unknown[]
 ): unknown {
-  const effectSource = craftComputed(
-    `${name}EffectFactory`,
-    factory as (...args: never[]) => unknown,
-  );
+  return craftComputed(name, function* () {
+    const produced = (
+      factory as () =>
+        | Effect.Effect<unknown, unknown, unknown>
+        | Generator<unknown, Effect.Effect<unknown, unknown, unknown>, unknown>
+    )();
 
-  return (
-    craftQuery as unknown as (
-      name: string,
-      config: unknown,
-      ...insertions: readonly unknown[]
-    ) => unknown
-  )(
-    name,
-    {
-      params: () => effectSource(),
-      loader: function* ({ params }: { params: unknown }) {
-        if (!Effect.isEffect(params)) {
-          throw new TypeError(
-            `computedEffect('${name}') factory must return an Effect.`,
-          );
-        }
+    const effect = Effect.isEffect(produced) ? produced : yield* produced;
 
-        return yield* runEffect(
-          params as Effect.Effect<unknown, unknown, never>,
-        );
-      },
-    },
-    ...insertions,
-  );
+    if (!Effect.isEffect(effect)) {
+      throw new TypeError(
+        `computedEffect('${name}') factory must return an Effect.`,
+      );
+    }
+
+    return yield* syncEffect(effect as never, {
+      label: `computedEffect('${name}')`,
+    });
+  });
 }
 
 /**

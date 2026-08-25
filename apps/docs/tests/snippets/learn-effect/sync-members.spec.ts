@@ -74,8 +74,8 @@ export function cartWeight(lines: readonly CartLine[]) {
 
 // #region component
 import { craftComponent, p } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
-import { syncEffect } from '@craft-ts/effect';
+import { state } from '@craft-ts/core';
+import { computedEffect } from '@craft-ts/effect';
 
 export const CartTotal = craftComponent(
   'LearnEffectCartTotal',
@@ -86,8 +86,9 @@ export const CartTotal = craftComponent(
       { sku: 'sku-2', qty: 1, unitCents: 1_000 },
     ] as CartLine[]);
 
-    const totalLabel = craftComputed('totalLabel', function* () {
-      return yield* syncEffect(cartTotalLabel(yield* lines()));
+    // The factory RETURNS the Effect; `computedEffect` runs it in place.
+    const totalLabel = computedEffect('totalLabel', function* () {
+      return cartTotalLabel(yield* lines());
     });
 
     return { totalLabel };
@@ -102,13 +103,19 @@ const catalogProgram = Effect.gen(function* () {
   return yield* pricing.fetchCatalog(['sku-1']);
 });
 
-function* _refused() {
+export function cartSummary() {
   // ✅ declared synchronous — `SyncOp` is in its requirements.
-  yield* syncEffect(cartWeight([]));
+  const weightLabel = computedEffect('weightLabel', () => cartWeight([]));
 
-  // ❌ nobody declared `fetchCatalog` synchronous: refused at the call.
-  // @ts-expect-error NotDeclaredSynchronous
-  yield* syncEffect(catalogProgram);
+  // ❌ `fetchCatalog` suspends and nobody declared otherwise: a computation
+  //    cannot run it. Use queryEffect.
+  const catalogLabel = computedEffect(
+    'catalogLabel',
+    // @ts-expect-error NotDeclaredSynchronous
+    () => catalogProgram,
+  );
+
+  return { weightLabel, catalogLabel };
 }
 // #endregion refused
 
@@ -146,6 +153,5 @@ describe('Effect synchronous members snippet', () => {
 
     mounted.destroy();
     injector.destroy();
-    void _refused;
   });
 });

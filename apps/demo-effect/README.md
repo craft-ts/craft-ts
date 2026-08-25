@@ -34,10 +34,14 @@ provides its in-memory Layer. The demo intentionally delays and fails the connec
 the template shows `pendingBlock` first, then renders the typed
 `DatabaseConnectionError`.
 
-Use `computedEffect`, `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
-between an Effect domain and a Craft primitive. `params` and `method` remain
-synchronous; only `loader` returns an Effect. The Effect ESLint rule prevents
-Effect services and Effect values from entering synchronous Craft callbacks.
+Use `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
+between an Effect domain and a Craft primitive whose work **suspends**: only
+`loader` may run a suspending Effect.
+
+For business calculations that never suspend, declare the member with `SyncOp`
+and use `computedEffect` (a value, like `craftComputed`) or `syncEffect(...)` in
+a `params`, a `craftMethod` or a `state` updater. See the `sync-members` route.
+The Effect ESLint rule keeps every undeclared Effect out of those callbacks.
 There is intentionally no `stateEffect`.
 Direct
 `runEffect(effect)` remains available for low-level cases and allows an

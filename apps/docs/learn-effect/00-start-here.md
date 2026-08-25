@@ -116,7 +116,7 @@ architecture checks that a new Effect frontend should adopt.
 | Local toggle, draft or selection | `state` |
 | Server or domain read | `queryEffect` |
 | Explicit write | `mutationEffect` |
-| Reactive Effect derived from Craft state | `computedEffect` |
+| Synchronous business calculation from an Effect service | `computedEffect` |
 | Export, refresh or other explicit command | `asyncProcessEffect` |
 | One Effect in a guard or resolver | `runEffect` |
 | URL filters and pagination state | native Craft `queryParams` |

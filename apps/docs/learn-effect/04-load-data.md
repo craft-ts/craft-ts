@@ -126,33 +126,53 @@ does not advertise `E` to Craft's compile-time route exception analysis.
 
 ## Reactive Effect computations
 
-When the Effect itself is the value derived from Craft dependencies, use
-`computedEffect`:
+When the derived value comes from an Effect that **cannot suspend**, use
+`computedEffect`. It is the Effect counterpart of `craftComputed`, and the
+symmetry is the contract:
+
+```
+craftComputed : computedEffect  ::  query : queryEffect
+```
 
 ```typescript
 import { computedEffect } from '@craft-ts/effect';
 
-const profile =
-  yield *
-  computedEffect('profile', function* () {
-    const userId = yield* currentUserId();
-    return loadUserProfile(userId);
-  });
+const totalLabel = computedEffect('totalLabel', function* () {
+  const lines = yield* cartLines();
+  return cartTotalLabel(lines); // returns the Effect, never runs it
+});
 ```
 
-`computedEffect` reruns the factory when a Craft dependency changes, executes
-the returned Effect with the nearest `provideLayer(...)`, and exposes the same
-resource lifecycle as a query: `value`, `status`, `isLoading`, cancellation and
-typed exceptions. It is useful for a derived Effect value; use `queryEffect`
-when the input/loader boundary and query cache semantics are the important
-part of the feature.
+The factory reads Craft dependencies with `yield*` and **returns** an Effect;
+`computedEffect` runs it in place against the nearest `provideLayer(...)`. The
+result is a plain reactive value — no `value`, no `isLoading`, no `settled(...)`,
+no `pendingBlock`. Read it like any `craftComputed`.
+
+Which is why the Effect must be declared synchronous with
+[`SyncOp`](/learn-effect/03-effect-domain#declare-a-synchronous-member). A
+computation is asked for its value now and cannot suspend to produce it, so an
+Effect whose `R` does not carry `SyncOp` is refused at the call site:
+
+```typescript
+computedEffect('profile', function* () {
+  const userId = yield* currentUserId();
+  return loadUserProfile(userId); // ✗ hits the network
+  //     ^ Argument of type 'Effect<Profile, …, UserRepository>' is not
+  //       assignable to '… & NotDeclaredSynchronous<UserRepository>'
+});
+```
+
+That is not a gap: the suspending case is what `queryEffect` is for. A typed
+failure remains fine — failing is not suspending, and it travels on Craft's
+exception channel.
 
 ## Synchronous params and methods
 
-The `params` factory remains synchronous: it may read Craft dependencies, but it
-must not construct an Effect or yield an Effect service. Use `computedEffect`
-for an asynchronous derivation. A `method` only maps its arguments to params;
-the loader is the only Effect-aware callback:
+The `params` factory remains synchronous: it may read Craft dependencies, and it
+may run a declared-synchronous Effect through `syncEffect(...)`, but it must
+never construct a suspending Effect — move that to the loader. A `method` only
+maps its arguments to params; the loader is the only callback allowed to
+suspend:
 
 ```typescript
 const profile =

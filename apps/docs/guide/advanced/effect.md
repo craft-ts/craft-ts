@@ -27,7 +27,8 @@ boundary.
 | ------------------------------------------------ | -------------------------------- | ---------------------------------------------------------------- |
 | Toggle, draft, selection or other local UI value | `state`                          | Craft owns reactive UI state                                     |
 | Read data with an Effect loader                  | `queryEffect`                    | loading, caching, cancellation and exceptions are Craft concerns |
-| Derive a reactive value with an Effect           | `computedEffect`                 | reruns an Effect factory when Craft dependencies change          |
+| Derive a reactive value from a synchronous Effect | `computedEffect`                 | runs a `SyncOp` Effect in place — a value, not a resource        |
+| Run a synchronous Effect anywhere else            | `syncEffect`                     | `craftMethod`, a `params`, a `state` updater — the low-level door |
 | Write data with an Effect loader                 | `mutationEffect`                 | explicit writes and mutation reactions                           |
 | Run an explicit command                          | `asyncProcessEffect`             | export, refresh, share action or other non-resource process      |
 | Provide Effect services                          | `provideLayer`                   | app and route injectors own Layer scope                          |
@@ -183,9 +184,9 @@ const users =
   });
 ```
 
-The Effect ESLint rule enforces this boundary. For an asynchronous derived
-input, use `computedEffect` and feed its resolved Craft value to a synchronous
-`params` function.
+The Effect ESLint rule enforces this boundary. A **declared-synchronous** Effect
+is allowed here through `syncEffect(...)`; for an input that has to suspend, use
+a `queryEffect` and feed its settled value to this one.
 
 ### `mutationEffect`: Effect-backed writes
 

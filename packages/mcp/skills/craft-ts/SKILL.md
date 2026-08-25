@@ -19,7 +19,8 @@ required and must not be introduced just to solve a Craft problem.
    - `craft-ts-routes` — type-safe routes and DI checks
    - `craft-ts-service-migration` — Angular services → `craftService`
    - `migrate-to-craft-ts` — run `craft-migrate`, then finish diagnostics
-   - `craft-ts-effect-v4` — use Effect v4 services, Layers and `queryEffect`
+   - `craft-ts-effect-v4` — use Effect v4 services, Layers, `queryEffect`, and
+     the synchronous-member declaration (`SyncOp` / `computedEffect`)
 
 For a project created by `craft create`, keep the generated development
 surface enabled. Run `npm run logs:server` for the local JSONL ingestion

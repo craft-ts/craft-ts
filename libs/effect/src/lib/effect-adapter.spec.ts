@@ -2,6 +2,7 @@ import {
   craftUse,
   createCraftInjector,
   executeGeneratorCompatibleFactoryAsync,
+  isCraftGenShortCircuit,
   state,
   TestBed,
 } from '@craft-ts/core';
@@ -16,6 +17,7 @@ import {
 } from './effect-adapter';
 import { CraftEffectInterrupted, installCraftEffectBridge } from './run-effect';
 import { provideLayer } from './effect-level';
+import { SyncOp } from './sync-op';
 
 class InvalidRequest extends Data.TaggedError('InvalidRequest')<{
   readonly reason: string;
@@ -181,42 +183,50 @@ describe('Effect-aware Craft adapters', () => {
     });
   });
 
-  it('reactively runs computedEffect factories against the active Effect layer', async () => {
-    await TestBed.runInInjectionContext(async () => {
+  it('derives a reactive value on the tick, like craftComputed', () => {
+    TestBed.runInInjectionContext(() => {
       const input = craftUse(
         state('computed-effect-input', 'Ada', ({ set }) => ({
           setValue: set,
         })),
       );
-      const value = craftUse(
-        computedEffect('computed-effect-value', function* () {
-          const name = yield* input();
-          return Effect.succeed({ name });
-        }),
-      );
+      const value = computedEffect('computed-effect-value', function* () {
+        const name = yield* input();
+        return Effect.gen(function* () {
+          yield* SyncOp;
+          return { name };
+        });
+      });
 
-      await expect.poll(() => craftUse(value.value())).toEqual({ name: 'Ada' });
+      // The absence of `expect.poll` is the assertion: a computation settles on
+      // the tick, which is exactly what SyncOp buys.
+      expect(craftUse(value())).toEqual({ name: 'Ada' });
 
       input.setValue('Grace');
 
-      await expect
-        .poll(() => craftUse(value.value()))
-        .toEqual({ name: 'Grace' });
+      expect(craftUse(value())).toEqual({ name: 'Grace' });
     });
   });
 
-  it('maps computedEffect failures to typed Craft exceptions', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const value = craftUse(
-        computedEffect('computed-effect-failure', () =>
-          Effect.fail(new InvalidRequest({ reason: 'invalid input' })),
-        ),
+  it('short-circuits on a typed failure — failing is not suspending', () => {
+    TestBed.runInInjectionContext(() => {
+      const value = computedEffect('computed-effect-failure', () =>
+        Effect.gen(function* () {
+          yield* SyncOp;
+          return yield* Effect.fail(new InvalidRequest({ reason: 'invalid input' }));
+        }),
       );
 
-      await expect.poll(() => craftUse(value.hasException())).toBe(true);
-      expect(craftUse(value.exception())).toMatchObject({
+      let caught: unknown;
+      try {
+        craftUse(value());
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(isCraftGenShortCircuit(caught)).toBe(true);
+      expect((caught as { exception: { _tag: string } }).exception).toMatchObject({
         _tag: 'InvalidRequest',
-        payload: { reason: 'invalid input' },
       });
     });
   });
@@ -227,30 +237,30 @@ describe('Effect-aware Craft adapters', () => {
     ]);
 
     await injector.run(async () => {
-      const value = craftUse(
-        computedEffect('computed-effect-layer', () =>
-          Effect.gen(function* () {
-            const config = yield* ComputedConfig;
-            return config.label;
-          }),
-        ),
+      const value = computedEffect('computed-effect-layer', () =>
+        Effect.gen(function* () {
+          yield* SyncOp;
+          const config = yield* ComputedConfig;
+          return config.label;
+        }),
       );
 
-      await expect.poll(() => craftUse(value.value())).toBe('from-layer');
+      expect(craftUse(value())).toBe('from-layer');
     });
 
     injector.destroy();
   });
 
-  it('supports primitive computed values', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const value = craftUse(
-        computedEffect('computed-effect-primitive', () =>
-          Effect.succeed('ready'),
-        ),
+  it('supports primitive computed values', () => {
+    TestBed.runInInjectionContext(() => {
+      const value = computedEffect('computed-effect-primitive', () =>
+        Effect.gen(function* () {
+          yield* SyncOp;
+          return 'ready';
+        }),
       );
 
-      await expect.poll(() => craftUse(value.value())).toBe('ready');
+      expect(craftUse(value())).toBe('ready');
     });
   });
 });

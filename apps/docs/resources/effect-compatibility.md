@@ -28,7 +28,8 @@ application's compatibility surface.
 | Capability | What is covered today | Adoption guidance |
 | --- | --- | --- |
 | Effect domain programs | `Effect`, tagged errors, `Context.Service`, `Layer` | Good candidate for a pilot |
-| Effect-backed reads and writes | `queryEffect`, `mutationEffect`, `computedEffect`, `asyncProcessEffect` | Pilot with real tests and a narrow feature |
+| Effect-backed reads and writes | `queryEffect`, `mutationEffect`, `asyncProcessEffect` | Pilot with real tests and a narrow feature |
+| Synchronous Effect members in a computation | `SyncOp`, `computedEffect`, `syncEffect` | Declare the members that never suspend, then reuse them in `craftComputed` and `params` |
 | Layer scoping | application, route, component and primitive providers | Use after the basic boundary is understood |
 | Typed error mapping | `E` becomes Craft exceptions; defects stay technical errors | Suitable for explicit UI error handling |
 | Effect service mocks | `mockEffectService` plus Craft registers | Suitable for focused tests |
