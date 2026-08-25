@@ -57,6 +57,24 @@ export function definePalette<const Spec extends PaletteSpec>(
   ) as Palette<Spec>;
 }
 
+/**
+ * The dark side of a token, as a value.
+ *
+ * A token carries both of its values; this is how a sheet reaches the other
+ * one. Written once, at the theme level — `when(scheme.dark, [set(theme.ink,
+ * darkOf(palette.text.strong))])` — rather than at every use site, which is
+ * what keeps dark mode from becoming a second design system to maintain.
+ *
+ * The role travels with it: the dark side of a surface is still a surface.
+ */
+export const darkOf = (token: ColorValue): ColorValue =>
+  ({
+    css: token.dark,
+    dark: token.dark,
+    role: token.role,
+    unproven: token.unproven,
+  }) as ColorValue;
+
 export const palette = definePalette({
   surface: {
     page: { light: '#ffffff', dark: '#0b0d11' },

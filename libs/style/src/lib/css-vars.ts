@@ -37,6 +37,22 @@ export type CssVarTokens<Specs extends Readonly<Record<string, AnySpec>>> = {
   readonly [Key in keyof Specs]: CssVarToken<Specs[Key]['initial']>;
 };
 
+/**
+ * Units a registered `initial-value` may not use.
+ *
+ * `@property` requires the initial value to be **computationally independent**:
+ * it must not depend on the font size or the viewport. `initial-value: 1rem`
+ * therefore makes the whole `@property` rule invalid, and the browser drops it
+ * *silently* — the variable stops being registered, `var(--x)` resolves to
+ * nothing, and the declaration that reads it computes to zero. Every test stays
+ * green because nothing threw.
+ *
+ * Found the hard way on the design-system demo: the colours were registered and
+ * the lengths were not, and the only symptom was buttons with no padding.
+ */
+const RELATIVE_UNIT =
+  /\d\s*(r?em|ex|ch|cap|ic|r?lh|[sld]?v(w|h|i|b|min|max))\b/i;
+
 const declared = new Map<string, CssVarDeclaration>();
 const prefixes = new Set<string>();
 
@@ -72,13 +88,19 @@ export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
 
   const tokens = Object.entries(specs).map(([key, spec]) => {
     const name = `--${prefix}-${key}` as `--${string}`;
+    const initialValue = String(
+      (spec.initial as { readonly css?: unknown }).css ?? spec.initial,
+    );
+    if (spec.syntax.includes('length') && RELATIVE_UNIT.test(initialValue)) {
+      throw new Error(
+        `cssVars: '${name}' registers a <length> with the initial value '${initialValue}', which is not computationally independent. @property refuses relative units there, and the browser drops the whole registration without a word — the variable then resolves to nothing wherever it is read. Give the initial value an absolute unit (unit.px(...)) and keep the relative one for what writes the variable.`,
+      );
+    }
     const declaration: CssVarDeclaration = {
       name,
       syntax: spec.syntax,
       inherits: spec.inherits,
-      initialValue: String(
-        (spec.initial as { readonly css?: unknown }).css ?? spec.initial,
-      ),
+      initialValue,
       role: spec.role,
     };
     declared.set(name, declaration);
@@ -139,7 +161,10 @@ export function assign<Value>(
     readonly declaration: CssVarDeclaration;
   },
   value: Value & { readonly css: string },
-): Readonly<Record<string, string>> {
+): Readonly<Record<`--${string}`, string>> {
+  // The key type is narrow on purpose: the renderer's `style:` binding accepts
+  // a record of custom properties, and a plain `Record<string, string>` would
+  // widen into "any CSS property", which is not what this returns.
   return { [token.declaration.name]: value.css };
 }
 

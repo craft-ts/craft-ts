@@ -140,7 +140,7 @@ describe('the last net under the escape hatches', () => {
 
 describe('the dump the graph consumes', () => {
   it('carries the sheet key, its atoms, its axes and its obligations', () => {
-    const v = cssVars('shell', { pad: kind.length(space(4)) });
+    const v = cssVars('shell', { pad: kind.length(unit.px(16)) });
     craftStyles('shell', {
       main: [provides(scrollPort.block), when(bp.md, [p(v.pad)])],
     });

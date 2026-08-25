@@ -10,6 +10,7 @@ import { assign, cssVars, propertyRule, resetCssVarRegistry } from './css-vars';
 import { kind } from './kinds';
 import { palette } from './tokens/palette';
 import { space } from './tokens/scales';
+import { unit } from './tokens/units';
 import { bg, color, p } from './props';
 
 beforeEach(resetCssVarRegistry);
@@ -18,13 +19,14 @@ describe('a variable declares itself the way @property does', () => {
   it('emits syntax, inherits and initial-value', () => {
     const v = cssVars('card', {
       ink: kind.color(palette.text.strong),
-      pad: kind.length(space(4)),
+      pad: kind.length(unit.px(16)),
     });
 
     expect(propertyRule(v.ink.declaration)).toBe(
       '@property --card-ink { syntax: "<color>"; inherits: false; initial-value: #111318; }',
     );
     expect(propertyRule(v.pad.declaration)).toContain('syntax: "<length>"');
+    expect(propertyRule(v.pad.declaration)).toContain('initial-value: 16px');
   });
 
   it('derives the name instead of retyping it', () => {
@@ -37,7 +39,7 @@ describe('a variable declares itself the way @property does', () => {
   it('carries the kind, so a token is usable where its values are', () => {
     const v = cssVars('card', {
       ink: kind.color(palette.text.strong),
-      pad: kind.length(space(4)),
+      pad: kind.length(unit.px(16)),
     });
 
     color(v.ink);
@@ -61,6 +63,33 @@ describe('a variable declares itself the way @property does', () => {
 
     // @ts-expect-error the fallback is typed against the same kind
     v.ink.or(space(4));
+  });
+});
+
+describe('a registered initial value must be computationally independent', () => {
+  it('refuses a relative unit instead of letting the browser drop the rule', () => {
+    // `@property` rejects `initial-value: 1rem` and drops the *whole*
+    // registration without a word. The variable then resolves to nothing
+    // wherever it is read, and the declaration computes to zero — with every
+    // test still green. Found on the design-system demo, where the colours were
+    // registered and the lengths were not.
+    expect(() => cssVars('bad', { pad: kind.length(space(4)) })).toThrow(
+      /computationally independent/,
+    );
+    // The message has to say what to do instead, not only what is wrong.
+    expect(() => cssVars('bad2', { pad: kind.length(unit.rem(1)) })).toThrow(
+      /unit\.px/,
+    );
+  });
+
+  it('leaves colours and percentages alone', () => {
+    expect(() =>
+      cssVars('fine', {
+        ink: kind.color(palette.text.strong),
+        ratio: kind.percentage(unit.pct(0)),
+        pad: kind.length(unit.px(8)),
+      }),
+    ).not.toThrow();
   });
 });
 

@@ -13,7 +13,7 @@
  * green, and every guarantee written in the docs is false.
  */
 import { describe, expect, it } from 'vitest';
-import { definePalette, palette } from './palette';
+import { darkOf, definePalette, palette } from './palette';
 import { lineWidth, radii, space, text, type SpaceStep } from './scales';
 import { ident, int, num, unit, unsafeLength, type LengthValue } from './units';
 
@@ -62,6 +62,15 @@ describe('a palette token carries both values and its role', () => {
     expect(palette.surface.raised.role).toBe('surface');
     expect(palette.accent.danger.role).toBe('accent');
     expect(palette.accent.danger.dark).toBe('#ff6b6b');
+  });
+
+  it('hands back the dark side as a value, role included', () => {
+    const inverted = darkOf(palette.surface.page);
+
+    expect(inverted.css).toBe('#0b0d11');
+    // The dark side of a surface is still a surface: an axis constrained to
+    // colours of a given role must not lose the role on the way.
+    expect(inverted.role).toBe('surface');
   });
 
   it('says "unknown role" rather than guessing one', () => {

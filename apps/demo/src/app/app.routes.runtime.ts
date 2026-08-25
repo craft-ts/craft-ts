@@ -60,6 +60,14 @@ export const { demoRoutes } = craftRoutes('demo', [
       ).then((module) => module.viewTransitionsRoutes),
   },
   {
+    path: 'design-system',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/design-system/design-system-demo')).then(
+        ({ designSystemDemo }) => designSystemDemo,
+      ),
+    ),
+  },
+  {
     path: '',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/component/component-demo')).then(
@@ -291,9 +299,9 @@ export const { demoRoutes } = craftRoutes('demo', [
   {
     path: 'state-machine-text',
     ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/primitives/state-machine/text-editor'),
-      ).then(({ default: component }) => component),
+      withRetry(import('./examples/primitives/state-machine/text-editor')).then(
+        ({ default: component }) => component,
+      ),
     ),
   },
   {
@@ -413,6 +421,7 @@ export const demoEnabledRoutePaths: ReadonlySet<string> = new Set(
 // the selected runtime collection.
 type DemoRoutePath =
   | ''
+  | 'design-system'
   | 'query/:userId'
   | 'debounced-web-search'
   | 'slow-page'
@@ -522,6 +531,14 @@ type _CanRunDebouncedWebSearch = CanRun<
     (typeof import('./examples/primitives/debounced-web-search/debounced-web-search'))['default'],
     never,
     'path: "debounced-web-search"'
+  >
+>;
+
+type _CanRunDesignSystem = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/design-system/design-system-demo'))['designSystemDemo'],
+    never,
+    'path: "design-system"'
   >
 >;
 
