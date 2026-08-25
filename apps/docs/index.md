@@ -16,7 +16,7 @@ hero:
       text: Start the tutorial
       link: /learn/
     - theme: alt
-      text: Start with Effect
+      text: Start
       link: /learn-effect/
     - theme: alt
       text: Guide

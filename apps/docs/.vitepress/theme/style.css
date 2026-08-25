@@ -217,6 +217,49 @@ html.dark {
   opacity: 25%;
 }
 
+.VPHomeHero .actions a[href$="/learn-effect/"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: #fff;
+  color: #111;
+  border-color: #d7d7dc;
+}
+
+.VPHomeHero .actions a[href$="/learn-effect/"]::after {
+  content: '';
+  display: block;
+  width: 4rem;
+  height: 1.25rem;
+  flex: 0 0 4rem;
+  transform: translateY(-0.1rem);
+  background: url('/assets/effect-logo-black.png') center / contain no-repeat;
+}
+
+.VPHomeHero .actions a[href$="/learn-effect/"]:hover {
+  background: #f7f7f8;
+  color: #111;
+  border-color: #bdbdc5;
+}
+
+.effect-logo-lockup {
+  display: flex;
+  width: min(100%, 23rem);
+  margin: 1.5rem 0 2rem;
+  padding: 1rem 1.25rem;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.75rem;
+}
+
+.effect-logo-lockup img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .VPHome .author-note {
   display: flex;
   align-items: center;

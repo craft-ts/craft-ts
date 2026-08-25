@@ -1,5 +1,9 @@
 # Learn CraftTS with Effect
 
+<div class="effect-logo-lockup">
+  <img src="/assets/effect-logo-black.png" alt="Effect" />
+</div>
+
 This is the guided path for teams that already use [Effect](https://effect.website/)
 and want CraftTS to own the UI, reactivity and application graph.
 
