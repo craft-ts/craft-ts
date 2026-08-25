@@ -1,0 +1,30 @@
+{
+  "name": "craft-ts-style-testing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/style-testing/src",
+  "prefix": "craft",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/style-testing",
+        "main": "libs/style-testing/src/index.ts",
+        "tsConfig": "libs/style-testing/tsconfig.lib.json"
+      }
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": { "executor": "@nx/eslint:lint", "options": { "maxWarnings": -1 } }
+  }
+}

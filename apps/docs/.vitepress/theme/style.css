@@ -4,9 +4,12 @@
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
 html.effect-route {
   --vp-font-family-base: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', 'JetBrains Mono fallback: Courier New',
+    ui-monospace, 'SFMono-Regular', monospace;
 }
 
 html.effect-route .VPNavBar,
