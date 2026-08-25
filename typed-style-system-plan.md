@@ -7,8 +7,8 @@ plan et le dépôt réel.
 
 ## État
 
-Dernière mise à jour : **2026-08-25**. Vagues 1 et 2 dans `main` ; il reste
-les tâches 15 et 16 de la vague 2, puis les vagues 3 et 4.
+Dernière mise à jour : **2026-08-25**. Vagues 1 et 2 dans `main` ; restent les
+vagues 3 et 4.
 
 | Vague                           | Tâches      | État                                                  |
 | ------------------------------- | ----------- | ----------------------------------------------------- |
@@ -16,7 +16,7 @@ les tâches 15 et 16 de la vague 2, puis les vagues 3 et 4.
 | 0 — mesure et point de décision | 3, 3b       | mesurée deux fois, **3b jamais déclenchée**           |
 | 0 — migration `CssVars`         | 3 steps 2–4 | **écartée** — voir « Tâche 3 » dans « Reste à faire » |
 | **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
-| 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite sauf 15 et 16**                               |
+| 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite**                                             |
 | 3 — niveau 3 : obligations      | 23 → 26     | non commencée                                         |
 | 4 — graphe et architecture      | 27 → 30     | non commencée                                         |
 | 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
@@ -374,7 +374,7 @@ vague 3 montre que les deux mécanismes divergent.
 
 Les deux ont été remis en état après vérification.
 
-### Vague 2 — niveau 2 : faite, sauf les tâches 15 et 16
+### Vague 2 — niveau 2 : faite
 
 | tâche                    | livré                                                                                                                                                                                    |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -418,17 +418,29 @@ La seconde mesure — temps de capture CI — n'existe pas : rien ne capture enc
 - **`colorScheme` s'appelle `scheme`** : quatrième collision avec la table
   générée, tranchée comme les trois autres.
 
-#### Reste de la vague 2
+#### Tâches 15 et 16 : déclarées, pas inférées
 
-- [ ] **15 — budget d'axes par composant** (`axes: [...]` dans le meta de
-      `craftComponent`, axe non déclaré = erreur). Touche le typage de
-      `libs/component`.
-- [ ] **16 — somme sur `ifBlock` au lieu du produit.** Le plan la désigne comme
-      le meilleur ratio valeur/coût du document : elle divise le nombre de
-      captures. Touche `if-block.ts` / `match-block.ts` et les types de nœuds.
+Le plan les place dans `libs/component` — budget sur le meta de `craftComponent`,
+somme lue sur le type du nœud `ifBlock`. Elles vivent ici dans le vocabulaire de
+style, pour la même raison que la matrice prend des feuilles et pas un composant :
+les classes d'un composant ne sont connaissables qu'en le rendant.
 
-Les deux sont dans `libs/component`, pas dans `libs/style` — c'est pourquoi elles
-sont restées de côté : elles ne se vérifient pas sur la seule suite de style.
+Le coût de ce choix, énoncé plutôt que sous-entendu : **une branche que personne
+ne déclare est comptée comme co-présente**. Le mode de défaillance est donc le
+sur-échantillonnage — des captures d'états qui ne peuvent pas exister — et jamais
+le sous-échantillonnage. C'est le bon sens pour une garantie de couverture.
+
+Trois façons dont la vérification du budget s'est retrouvée silencieusement vide
+pendant son écriture, chacune attrapée par le cas négatif et non par la relecture :
+
+1. `Budget` défauté à `[]` mettait **toutes** les feuilles du dépôt hors budget.
+   Le défaut est `never`, ce qui rend le budget opt-in.
+2. Posée sur le paramètre `sheet`, la contrainte est évaluée pendant que `Budget`
+   s'infère encore du troisième paramètre : elle ne vérifiait rien. Même piège que
+   la contrainte `writes`, même correctif — vérifier là où les deux sont connus.
+3. `Budget[number][string]` lit les axes déclarés sur une **union**, et `keyof`
+   d'une union ce sont les clés communes à ses membres — aucune. Un budget de deux
+   axes ne déclarait donc rien du tout. Il faut un paramètre nu qui distribue.
 
 ### Vague 3 — niveau 3 : obligations de contexte (tâches 23 → 26)
 
