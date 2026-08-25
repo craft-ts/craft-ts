@@ -7,8 +7,8 @@ plan et le dépôt réel.
 
 ## État
 
-Dernière mise à jour : **2026-08-25**. Vagues 1 et 2 dans `main` ; restent les
-vagues 3 et 4.
+Dernière mise à jour : **2026-08-25**. Vagues 1, 2 et 3 dans `main` ; reste la
+vague 4.
 
 | Vague                           | Tâches      | État                                                  |
 | ------------------------------- | ----------- | ----------------------------------------------------- |
@@ -17,7 +17,7 @@ vagues 3 et 4.
 | 0 — migration `CssVars`         | 3 steps 2–4 | **écartée** — voir « Tâche 3 » dans « Reste à faire » |
 | **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
 | 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite**                                             |
-| 3 — niveau 3 : obligations      | 23 → 26     | non commencée                                         |
+| 3 — niveau 3 : obligations      | 23 → 26     | **faite** (moitié visuelle non vérifiée)              |
 | 4 — graphe et architecture      | 27 → 30     | non commencée                                         |
 | 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
 
@@ -442,22 +442,51 @@ pendant son écriture, chacune attrapée par le cas négatif et non par la relec
    d'une union ce sont les clés communes à ses membres — aucune. Un budget de deux
    axes ne déclarait donc rien du tout. Il faut un paramètre nu qui distribue.
 
-### Vague 3 — niveau 3 : obligations de contexte (tâches 23 → 26)
+### Vague 3 — niveau 3 : faite, sauf la vérification visuelle
 
-- [ ] **23 — vocabulaire d'obligations.** `obligations.ts` a `scrollPort.{block,inline}`,
-      `noClipping.{block,inline}`, `containerType.*`, `requires`/`provides`/`declares`,
-      `clipOverflow.{block,inline}` et `unsafeAssume`. Manquent les specs dédiées et
-      leur falsifiabilité — la couverture actuelle vient de `styles.spec.ts` et de
-      l'exemple.
-- [ ] **24 — propagation et scellage.** `seal()` doit passer de fonction libre à
-      `craftComponent(..., { seals })`. **Dériver depuis `Template`, jamais depuis
-      `CraftComponent`** — la tâche 2 a déjà payé ce TS2589, voir la section « Tâche 2 ».
-      Prévoir aussi que le message d'erreur sorte en **clé** et non en valeur : dans
-      l'esquisse il arrive en ligne 2 d'une erreur de douze lignes.
-- [ ] **25 — axes de conteneur et élagage prouvé.**
-- [ ] **26 — composant témoin niveau 3.** L'esquisse couvre déjà le cas
-      (`example/back-to-top.style.ts`) ; reste à en faire de vrais composants de la demo
-      et un E2E.
+| tâche                        | livré                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| 23 — vocabulaire             | obligations complètes ; la charge transporte son **explication** (`Obligation<Id, Explain>`) |
+| 24 — propagation et scellage | `craftComponent(name, { seals: [...] }, …)` ; message composé depuis la charge               |
+| 25 — axe de conteneur        | fermé au composant qui nomme le conteneur (`resolves`), plus l'élagage par `unreachable`     |
+| 26 — témoin                  | `apps/demo/.../scroll.{style,}.ts`, route `/design-system/scroll`                            |
+
+#### Le protocole, et la frontière qu'il respecte
+
+Le core gagne `CraftRequirement<Id, Explain>` : **un identifiant et une phrase,
+deux chaînes opaques qu'il n'interprète jamais**. Il ne connaît toujours aucun
+nom CSS ; ce qu'il gagne, c'est de pouvoir **citer** une charge au lieu
+d'imprimer un type anonyme. Toute la sémantique reste dans `@craft-ts/style`.
+
+#### La preuve, textuellement
+
+Retirer `provides(scrollPort.block)` de `shell.main` fait échouer
+`npx tsc -p apps/demo/tsconfig.app.json` avec :
+
+> `ERROR_unmet_context_requirement: "'scrollPort.block' is required by this
+subtree and nothing above it provides one. declare it on the layout component
+that owns the scrollable area. An overflow on the direct parent would create a
+second scroll port, and the sticky element would stick to the wrong container."`
+
+Les trois parties demandées par le plan y sont : ce qui manque, où le déclarer,
+et ce que ferait le mauvais correctif évident.
+
+#### Ce qui n'est PAS vérifié
+
+**La moitié visuelle.** Le CSS émis est correct — `overflow-block: auto` et
+`container-type: scroll-state` calculent bien sur les vrais éléments, et la règle
+`@container scroll-state(stuck: block-end)` est dans la feuille — mais le bouton
+n'a **jamais été observé** en train d'apparaître dans le navigateur. Le fichier
+témoin le dit dans son propre en-tête plutôt que de laisser croire l'inverse.
+
+Deux trouvailles de la tentative, qui tiennent quelle que soit la cause :
+
+- `scroll-state(stuck: …)` interroge le **conteneur**, donc l'élément qui colle
+  doit être celui qui le déclare. Faire du scroll port le conteneur parse,
+  s'applique, et ne matche jamais.
+- Conditionner sur `display` ne peut pas se résoudre : une boîte collante de
+  taille nulle n'a rien à quoi coller, donc l'état qui la révélerait ne peut pas
+  se produire. `visibility` conserve la taille de l'ancre.
 
 ### Vague 4 — graphe et règles d'architecture (tâches 27 → 30)
 
