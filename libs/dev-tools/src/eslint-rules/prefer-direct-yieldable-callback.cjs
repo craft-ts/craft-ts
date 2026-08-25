@@ -3,7 +3,7 @@ module.exports = {
     type: 'suggestion',
     docs: {
       description:
-        'Prefer passing a yieldable callback directly when a template generator only delegates to it.',
+        'Prefer passing a yieldable callback directly when a template generator or method only delegates to it.',
     },
     fixable: 'code',
     schema: [],
@@ -41,14 +41,20 @@ module.exports = {
         }
 
         context.report({
-          node,
+          node: getReportNode(node),
           messageId: 'preferDirect',
           fix(fixer) {
-            const delegatedCall = node.body.body[0].argument.argument;
-            return fixer.replaceText(
-              node,
-              sourceCode.getText(delegatedCall.callee),
-            );
+            const delegatedCall = getDelegatedCall(node);
+            const directCallback = sourceCode.getText(delegatedCall.callee);
+
+            if (isMethodProperty(node)) {
+              return fixer.replaceText(
+                node.parent,
+                `${sourceCode.getText(node.parent.key)}: ${directCallback}`,
+              );
+            }
+
+            return fixer.replaceText(node, directCallback);
           },
         });
       });
@@ -66,17 +72,54 @@ module.exports = {
         return false;
       }
 
-      const statement = node.body.body[0];
-      const delegatedCall = statement.argument?.argument;
+      const delegatedCall = getDelegatedCall(node);
 
       return Boolean(
-        statement.type === 'ReturnStatement' &&
-          statement.argument?.type === 'YieldExpression' &&
-          statement.argument.delegate &&
-          delegatedCall?.type === 'CallExpression' &&
+        delegatedCall?.type === 'CallExpression' &&
           delegatedCall.arguments.length === 0 &&
-          delegatedCall.callee.type === 'Identifier',
+          isDirectCallbackCallee(delegatedCall.callee),
       );
+    }
+
+    function isDirectCallbackCallee(callee) {
+      if (callee.type === 'Identifier') {
+        return true;
+      }
+
+      return (
+        callee.type === 'MemberExpression' &&
+        !callee.computed &&
+        !callee.optional &&
+        callee.property.type === 'Identifier' &&
+        isDirectCallbackCallee(callee.object)
+      );
+    }
+
+    function getDelegatedCall(node) {
+      const statement = node.body.body[0];
+      const yieldExpression =
+        statement.type === 'ReturnStatement'
+          ? statement.argument
+          : statement.type === 'ExpressionStatement'
+            ? statement.expression
+            : undefined;
+
+      return yieldExpression?.type === 'YieldExpression' &&
+        yieldExpression.delegate
+        ? yieldExpression.argument
+        : undefined;
+    }
+
+    function isMethodProperty(node) {
+      return (
+        node.parent?.type === 'Property' &&
+        node.parent.value === node &&
+        node.parent.method
+      );
+    }
+
+    function getReportNode(node) {
+      return isMethodProperty(node) ? node.parent : node;
     }
 
     function isNestedCraftComponent(node) {

@@ -30,6 +30,49 @@ describe('prefer-direct-yieldable-callback', () => {
     expect(fixed.output).toContain("span({ class: 'badge' }, role)");
   });
 
+  it('reports and autofixes a generator method that only delegates to a callback', async () => {
+    const source = `
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function button(...args: unknown[]): unknown;
+      declare const press: () => Generator<unknown, void, unknown>;
+
+      craftComponent('Demo', {}, () => ({}), () =>
+        button({ *click() {
+          yield* press();
+        } }),
+      );
+    `;
+
+    const result = await lintFixture(source);
+    expect(result.messages).toEqual([
+      'Pass the yieldable callback directly instead of wrapping it in a generator.',
+    ]);
+
+    const fixed = await lintFixture(source, true);
+    expect(fixed.messages).toEqual([]);
+    expect(fixed.output).toContain('button({ click: press })');
+  });
+
+  it('reports and autofixes a generator that delegates to a member callback', async () => {
+    const source = `
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function span(...args: unknown[]): unknown;
+      declare const counter: {
+        increment: () => Generator<unknown, void, unknown>;
+      };
+
+      craftComponent('Demo', {}, () => ({}), () =>
+        span(function* () {
+          return yield* counter.increment();
+        }),
+      );
+    `;
+
+    const fixed = await lintFixture(source, true);
+    expect(fixed.messages).toEqual([]);
+    expect(fixed.output).toContain('span(counter.increment)');
+  });
+
   it('does not report generators with parameters, arguments, or extra logic', async () => {
     const result = await lintFixture(`
       declare function craftComponent(...args: unknown[]): unknown;
@@ -46,6 +89,17 @@ describe('prefer-direct-yieldable-callback', () => {
         function* () {
           const value = 'admin';
           return yield* role(value);
+        },
+        {
+          *click() {
+            yield* role('admin');
+          },
+        },
+        {
+          *click() {
+            yield* role();
+            console.log('extra logic');
+          },
         },
       ));
     `);

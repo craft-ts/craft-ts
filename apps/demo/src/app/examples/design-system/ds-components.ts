@@ -47,19 +47,11 @@ export const DsButton = craftComponent(
       {
         type: 'button',
         class: button.root,
-        'data-tone': function* () {
-          return yield* tone();
-        },
-        'data-size': function* () {
-          return yield* size();
-        },
-        *click() {
-          yield* press();
-        },
+        'data-tone': tone,
+        'data-size': size,
+        click: press,
       },
-      function* () {
-        return yield* label();
-      },
+      label,
     ),
 );
 
@@ -76,13 +68,9 @@ export const DsGhostButton = craftComponent(
       {
         type: 'button',
         class: button.ghost,
-        *click() {
-          yield* press();
-        },
+        click: press,
       },
-      function* () {
-        return yield* label();
-      },
+      label,
     ),
 );
 
@@ -98,13 +86,9 @@ export const DsAlert = craftComponent(
       {
         class: alert.root,
         role: 'status',
-        'data-tone': function* () {
-          return yield* tone();
-        },
+        'data-tone': tone,
       },
-      function* () {
-        return yield* message();
-      },
+      message,
     ),
 );
 
@@ -131,12 +115,8 @@ export const DsMeter = craftComponent(
           role: 'progressbar',
           'aria-valuemin': 0,
           'aria-valuemax': 100,
-          'aria-valuenow': function* () {
-            return yield* value();
-          },
-          'aria-label': function* () {
-            return yield* label();
-          },
+          'aria-valuenow': value,
+          'aria-label': label,
         },
         [
           div({
