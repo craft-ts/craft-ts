@@ -164,12 +164,26 @@ de canal, puis retour à la branche.
 
 Deux choses à retenir quand même :
 
-- **La marge a fondu.** Le coût des canaux est passé de +3,0 % à +8,1 % d'instantiations
-  sans qu'une ligne de canal ne bouge : c'est la surface applicative qui a rétréci
-  autour d'eux, donc leur part relative qui a grossi. Il reste 7 points avant le seuil,
-  et les vagues 1→3 vont mettre une charge réelle sur des canaux aujourd'hui vides.
-  **Re-mesurer à la fin de la vague 3**, quand `obligations` transporte enfin quelque
-  chose — c'est là que le point de décision de la tâche 3b se jouera vraiment.
+- **La marge a fondu, et pas pour la raison qu'on croit.** Le coût des canaux est passé
+  de +3,0 % à +8,1 % d'instantiations sans qu'une ligne de canal ne bouge. Ce n'est
+  **pas** un effet de dénominateur : la baseline a _grossi_ elle aussi (5,50 M → 9,38 M).
+  En absolu, le coût des canaux est passé de **165 218** à **759 038** instantiations,
+  soit ×4,6, quand la baseline ne faisait que ×1,7. Les canaux coûtent donc plus cher
+  _par rapport à l'application_, pas seulement en proportion.
+
+  Explication la plus plausible, **non mesurée** : sans Angular, les types de nœuds de
+  CraftTS font tout le travail eux-mêmes, donc le programme de `apps/demo` contient plus
+  de types de nœuds et des arbres génériques plus profonds — et le canal se dérive sur
+  chacun d'eux, depuis ses props et ses enfants. À vérifier avant d'en tirer une
+  conclusion : mesurer sur un projet de taille fixe plutôt que sur la demo, qui a changé
+  de contenu en même temps que de socle.
+
+  Il reste 7 points avant le seuil, et les vagues 2→3 vont mettre une charge réelle sur
+  des canaux aujourd'hui vides. **Re-mesurer à la fin de la vague 3**, quand
+  `obligations` transporte enfin quelque chose — c'est là que le point de décision de la
+  tâche 3b se jouera vraiment, et l'hypothèse « ça croît avec le nombre de nœuds » veut
+  dire que le seuil peut être franchi par une application plus grosse que la demo.
+
 - **Le piège des 3 runs s'est reproduit, en pire.** Une première médiane sur 3 runs a
   donné **+132 %** de temps mur pour le même +8,1 % d'instantiations ; sur 5 runs le
   temps retombe à +8,7 %. C'est exactement l'avertissement déjà consigné en août :
