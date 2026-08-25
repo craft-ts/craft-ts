@@ -16,6 +16,8 @@
     "customConditions": ["@craft-ts/source"],
     "paths": {
       "@craft-ts/core": ["./libs/core/src/index.ts"],
+      "@craft-ts/i18n": ["./libs/i18n/src/index.ts"],
+      "@craft-ts/i18n-effect": ["./libs/i18n-effect/src/index.ts"],
       "@craft-ts/core/dev-tools": ["./libs/core/src/lib/dev-tools.ts"],
       "@craft-ts/component": ["./libs/component/src/index.ts"],
       "@craft-ts/style": ["./libs/style/src/index.ts"],

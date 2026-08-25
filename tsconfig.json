@@ -13,6 +13,12 @@
       "path": "./libs/core"
     },
     {
+      "path": "./libs/i18n"
+    },
+    {
+      "path": "./libs/i18n-effect"
+    },
+    {
       "path": "./libs/test-type"
     },
     {

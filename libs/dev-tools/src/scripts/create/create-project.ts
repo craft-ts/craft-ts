@@ -15,6 +15,9 @@ export type CreateProjectOptions = {
   readonly mode?: CreateMode;
   readonly agents?: readonly CreateAgent[];
   readonly force?: boolean;
+  readonly locales?: readonly string[];
+  readonly defaultLocale?: string;
+  readonly i18n?: 'strict' | 'loose';
 };
 
 export type CreateProjectResult = {
@@ -44,9 +47,13 @@ bootstrapCraft.
    for transport. Yield every Craft reader.
 3. Use craftComponent, craftRoutes, componentDeps and the route DI proof;
    do not introduce Angular decorators or inject().
-4. Run the focused test, then npm run lint, npm run typecheck,
+4. Keep translations in src/i18n/catalog.ts. Add locales with
+   defineLocaleLike and project-specific tokens in project-tokens.ts.
+   @craft-ts/i18n is framework-independent; do not import Effect for plain
+   translations. Run npm run i18n:check and npm run i18n:test after changes.
+5. Run the focused test, then npm run lint, npm run typecheck,
    npm run architecture, and npm run e2e when the browser flow changed.
-5. Keep the generated development surface enabled: 'npm run logs:server'
+6. Keep the generated development surface enabled: 'npm run logs:server'
    stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
    to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
    Do not replace 'Console.*' with raw 'console.*' when an entry must be
@@ -91,7 +98,8 @@ const AGENTS_MD = (mode: CreateMode): string => `# CraftTS project
 This project was created with \`craft create\` in **${mode === 'effect' ? 'Effect v4' : 'plain CraftTS'}** mode.
 
 Read \`.agents/skills/craft-ts-project/SKILL.md\` before changing application
-code. ${mode === 'effect' ? 'Effect-specific guidance is in `.agents/skills/craft-ts-effect-v4/SKILL.md`.' : ''}
+code. The type-safe i18n contract lives in \`src/i18n/\`; run \`npm run i18n:check\`
+and \`npm run i18n:test\` when changing it. ${mode === 'effect' ? 'Effect-specific guidance is in `.agents/skills/craft-ts-effect-v4/SKILL.md`.' : ''}
 
 The architecture suite is a graph contract. Run \`npm run architecture\`;
 do not add a test per feature. Add a rule only for a recurring product-level
@@ -101,6 +109,9 @@ dependency smell not already covered by the baseline helpers.
 type TemplateContext = {
   readonly projectName: string;
   readonly mode: CreateMode;
+  readonly locales: readonly string[];
+  readonly defaultLocale: string;
+  readonly i18nStrict: boolean;
 };
 
 function json(value: unknown): string {
@@ -120,6 +131,8 @@ function packageJson(context: TemplateContext): string {
       lint: 'eslint .',
       typecheck: 'node scripts/typecheck.mjs',
       'typecheck-spec': 'tsc -p tsconfig.spec.json --noEmit',
+      'i18n:check': 'craft i18n check',
+      'i18n:test': 'craft i18n test',
       test: 'vitest run --config vitest.config.ts',
       e2e: 'playwright test',
       'logs:server': 'craft-ts-log-server',
@@ -138,6 +151,8 @@ function packageJson(context: TemplateContext): string {
     dependencies: {
       '@craft-ts/component': CRAFT_TS_STARTER_VERSION,
       '@craft-ts/core': CRAFT_TS_STARTER_VERSION,
+      '@craft-ts/i18n': CRAFT_TS_STARTER_VERSION,
+      ...(effect ? { '@craft-ts/i18n-effect': CRAFT_TS_STARTER_VERSION } : {}),
       ...(effect ? { '@craft-ts/effect': CRAFT_TS_STARTER_VERSION, effect: EFFECT_V4_VERSION } : {}),
     },
     devDependencies: {
@@ -385,8 +400,9 @@ export default tseslint.config(
 );
 `;
 
-const indexHtml = `<!doctype html>
-<html lang="en">
+function indexHtml(locale: string): string {
+  return `<!doctype html>
+<html lang="${locale}" dir="${/^ar|he|fa|ur/.test(locale) ? 'rtl' : 'ltr'}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -398,8 +414,22 @@ const indexHtml = `<!doctype html>
   </body>
 </html>
 `;
+}
 
-const styles = `:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172033; background: #f7f8fb; }
+const styles = `:root {
+  --craft-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --craft-font-size-heading: 2rem;
+  --craft-font-size-body: 1rem;
+  --craft-font-size-label: .875rem;
+  --craft-font-size-button: .9375rem;
+  --craft-font-size-caption: .75rem;
+  --craft-line-height-heading: 1.2;
+  --craft-line-height-body: 1.5;
+  --craft-line-height-label: 1.35;
+  --craft-line-height-button: 1.35;
+  --craft-line-height-caption: 1.35;
+  font-family: var(--craft-font-family); color: #172033; background: #f7f8fb;
+}
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
 a { color: #2457d6; }
@@ -409,8 +439,148 @@ nav { display: flex; gap: 1rem; padding: 1rem 1.25rem; background: white; border
 .muted { color: #5c677d; }
 .error { color: #b42318; }
 button:focus-visible, a:focus-visible { outline: 3px solid #7aa2ff; outline-offset: 3px; }
+.heading { font-size: var(--craft-font-size-heading); line-height: var(--craft-line-height-heading); font-weight: 700; }
+body, .body { font-size: var(--craft-font-size-body); line-height: var(--craft-line-height-body); }
+label, .label { font-size: var(--craft-font-size-label); line-height: var(--craft-line-height-label); font-weight: 600; }
+button, .button { font: inherit; font-size: var(--craft-font-size-button); line-height: var(--craft-line-height-button); }
+.caption { font-size: var(--craft-font-size-caption); line-height: var(--craft-line-height-caption); }
 .craft-typecheck-indicator { position: fixed; top: .75rem; right: .75rem; z-index: 9999; padding: .4rem .6rem; border: 1px solid #bfdbfe; border-radius: .45rem; color: #1e3a8a; background: #eff6ff; box-shadow: 0 4px 12px #1e3a8a1f; font-size: .75rem; font-weight: 600; }
 .craft-typecheck-indicator[data-status='failed'] { border-color: #fecaca; color: #991b1b; background: #fef2f2; }
+`;
+
+const projectTokensTs = `import { dateLong, money, number } from '@craft-ts/i18n';
+
+export const orderCount = number('count');
+export const orderAmount = money('amount', undefined, { currency: 'EUR', minimumFractionDigits: 2 });
+export const orderDate = dateLong('date');
+`;
+
+const typographyTs = `export const typography = {
+  family: 'Inter, ui-sans-serif, system-ui, sans-serif',
+  fallback: 'system-ui, sans-serif',
+  roles: {
+    heading: { fontSize: '2rem', lineHeight: '1.2', fontWeight: 700 },
+    body: { fontSize: '1rem', lineHeight: '1.5', fontWeight: 400 },
+    label: { fontSize: '.875rem', lineHeight: '1.35', fontWeight: 600 },
+    button: { fontSize: '.9375rem', lineHeight: '1.35', fontWeight: 600 },
+    caption: { fontSize: '.75rem', lineHeight: '1.35', fontWeight: 400 },
+  },
+} as const;
+
+export type TypographyRole = keyof typeof typography.roles;
+`;
+
+const STARTER_PLURAL_CATEGORIES: Record<string, readonly string[]> = {
+  ar: ['zero', 'one', 'two', 'few', 'many', 'other'],
+  cy: ['zero', 'one', 'two', 'few', 'many', 'other'],
+  ga: ['one', 'two', 'few', 'many', 'other'],
+  pl: ['one', 'few', 'many', 'other'],
+  ru: ['one', 'few', 'many', 'other'],
+  uk: ['one', 'few', 'many', 'other'],
+  cs: ['one', 'few', 'many', 'other'],
+  sk: ['one', 'few', 'many', 'other'],
+  sl: ['one', 'two', 'few', 'other'],
+  ja: ['other'],
+  zh: ['other'],
+  fr: ['one', 'other'],
+  en: ['one', 'other'],
+};
+
+function starterPluralCategories(locales: readonly string[]): readonly string[] {
+  return [...new Set(locales.flatMap((locale) => STARTER_PLURAL_CATEGORIES[locale.toLowerCase().split('-')[0] ?? ''] ?? ['one', 'other']))];
+}
+
+function i18nCatalogTs(locales: readonly string[]): string {
+  const categories = starterPluralCategories(locales);
+  const branches = categories.map((category) => `      ${category}: msg\`\${orderCount} ${category === 'one' ? 'item' : 'items'}\`,`).join('\n');
+  return `import { defineCatalog, msg, plural } from '@craft-ts/i18n';
+import { orderAmount, orderCount, orderDate } from './project-tokens';
+
+// Add application keys here. Every locale is checked against this shape.
+export const baseCatalog = defineCatalog({
+  order: {
+    summary: msg\`Order ${'${'}orderAmount} on ${'${'}orderDate}: ${'${'}orderCount} item(s).\`,
+    items: plural(orderCount, {
+${branches}
+    }),
+  },
+});
+`;
+}
+
+function i18nLocaleTs(locale: string, index: number, locales: readonly string[]): string {
+  const isFrench = locale.toLowerCase().startsWith('fr');
+  const categories = starterPluralCategories(locales);
+  const branches = categories.map((category) => {
+    const word = isFrench ? (category === 'one' ? 'article' : 'articles') : (category === 'one' ? 'item' : 'items');
+    return `      ${category}: msg\`\${orderCount} ${word}\`,`;
+  }).join('\n');
+  if (index === 0) {
+    return `import { defineLocale } from '@craft-ts/i18n';
+import { baseCatalog } from '../catalog';
+
+export const ${locale.replace(/[^a-zA-Z0-9]/g, '')} = defineLocale('${locale}', baseCatalog);
+`;
+  }
+  const summary = isFrench
+    ? 'Le ${orderDate}, la commande contient ${orderCount} article(s) pour ${orderAmount}.'
+    : 'Order ${orderAmount} on ${orderDate}: ${orderCount} item(s).';
+  return `import { defineLocaleLike, msg, plural } from '@craft-ts/i18n';
+import { orderAmount, orderCount, orderDate } from '../project-tokens';
+import { ${locales[0].replace(/[^a-zA-Z0-9]/g, '')} } from './${locales[0]}';
+
+export const ${locale.replace(/[^a-zA-Z0-9]/g, '')} = defineLocaleLike(${locales[0].replace(/[^a-zA-Z0-9]/g, '')}, '${locale}', {
+  order: {
+    summary: msg\`${summary}\`,
+    items: plural(orderCount, {
+${branches}
+    }),
+  },
+});
+`;
+}
+
+function i18nRuntimeTs(context: TemplateContext): string {
+  const localeImports = context.locales.map((locale) => `import { ${locale.replace(/[^a-zA-Z0-9]/g, '')} } from './locales/${locale}';`).join('\n');
+  const localeValues = context.locales.map((locale) => locale.replace(/[^a-zA-Z0-9]/g, '')).join(', ');
+  return `import { createI18nRuntime } from '@craft-ts/i18n';
+${localeImports}
+
+export const i18n = createI18nRuntime({
+  locales: [${localeValues}],
+  defaultLocale: '${context.defaultLocale}',
+  strict: ${context.i18nStrict},
+});
+
+export function setLocale(locale: typeof i18n.locale extends () => infer Id ? Id : never): void {
+  i18n.setLocale(locale);
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = /^ar|he|fa|ur/.test(locale) ? 'rtl' : 'ltr';
+  }
+}
+
+const requestedLocale = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('locale') : null;
+if (requestedLocale && [${context.locales.map((locale) => `'${locale}'`).join(', ')}].includes(requestedLocale)) {
+  setLocale(requestedLocale as Parameters<typeof setLocale>[0]);
+}
+`;
+}
+
+const i18nIndexTs = `export * from './catalog';
+export * from './project-tokens';
+export * from './runtime';
+export * from './typography';
+`;
+
+const effectI18nTs = `import { translateEffect } from '@craft-ts/i18n-effect';
+export { translateEffect };
+`;
+
+const effectLayerTs = `import { provideI18nRuntime } from '@craft-ts/i18n-effect';
+import { i18n } from './runtime';
+
+export const i18nLayer = provideI18nRuntime(i18n);
 `;
 
 const mainTs = `import { bootstrapCraft } from '@craft-ts/component';
@@ -587,6 +757,7 @@ const plainHomePageTs = `import {
   span,
 } from '@craft-ts/component';
 import { craftComputed, query } from '@craft-ts/core';
+import { i18n } from '../i18n';
 import { loadWelcome } from './api';
 
 export const HomePage = craftComponent(
@@ -611,6 +782,7 @@ export const HomePage = craftComponent(
     div({ class: 'card' }, [
       heading('Welcome to CraftTS'),
       p('A framework-independent starter with a typed API boundary.'),
+      p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),
       ifBlock(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
       ifBlock(welcomeQuery.hasWelcome, () =>
         div([
@@ -680,6 +852,7 @@ const effectHomePageTs = `import {
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
+import { i18n } from '../i18n';
 import { loadWelcome, type WelcomeApiError } from './domain';
 
 export const HomePage = craftComponent(
@@ -706,6 +879,7 @@ export const HomePage = craftComponent(
     div({ class: 'card' }, [
       heading('Welcome to CraftTS + Effect v4'),
       p('The page uses queryEffect over a typed repository Layer.'),
+      p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),
       ifBlock(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
       ifBlock(welcomeQuery.hasWelcome, () =>
         div([
@@ -746,11 +920,12 @@ import {
 } from '@craft-ts/effect';
 import { App } from './app';
 import { appRoutes } from './app.routes';
+import { i18nLayer } from '../i18n/effect-layer';
 import {
   WelcomeRepositoryLive,
 } from './domain';
 
-const effectProviders = [provideLayer(WelcomeRepositoryLive)] as const;
+const effectProviders = [provideLayer(WelcomeRepositoryLive), provideLayer(i18nLayer)] as const;
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
@@ -830,6 +1005,33 @@ test('loads the API page and navigates to About', async ({ page }) => {
 });
 `;
 
+function i18nE2eTestTs(context: TemplateContext): string {
+  return `import { expect, test } from '@playwright/test';
+
+const locales = ${JSON.stringify(context.locales)} as const;
+
+for (const locale of locales) {
+  test(\`renders the real starter page without layout overflow in \${locale}\`, async ({ page }) => {
+    await page.goto('/?locale=' + locale);
+    await page.evaluate(async () => { await document.fonts.ready; });
+    await expect(page.locator('html')).toHaveAttribute('lang', locale);
+    await expect(page.getByText('i18n:')).toBeVisible();
+    const layout = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      body: document.body.scrollWidth,
+      rootFont: getComputedStyle(document.documentElement).fontSize,
+      bodyFont: getComputedStyle(document.body).fontFamily,
+      bodyLineHeight: getComputedStyle(document.body).lineHeight,
+    }));
+    expect(layout.body).toBeLessThanOrEqual(layout.viewport);
+    expect(layout.rootFont).toBeTruthy();
+    expect(layout.bodyFont).toContain('system-ui');
+    expect(layout.bodyLineHeight).not.toBe('normal');
+  });
+}
+`;
+}
+
 const playwrightConfig = `import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
@@ -876,6 +1078,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run typecheck-spec
+      - run: npm run i18n:check
+      - run: npm run i18n:test
 ${effect ? '      - run: npm run effect-check\n' : ''}      - run: npm test
       - run: npm run architecture
       - run: npm run typecheck-architecture
@@ -898,6 +1102,7 @@ function readme(context: TemplateContext): string {
     '- MCP configuration for Craft guidance, logs and the browser page surface;',
     '- flat-config ESLint with Craft rules;',
     '- unit tests, graph-wide architecture tests and a Playwright E2E flow.',
+    '- a type-safe i18n catalogue with locale parity, semantic tokens and strict plural checks.',
     '',
     '## Start',
     '',
@@ -921,12 +1126,23 @@ function readme(context: TemplateContext): string {
     'npm run lint',
     'npm run typecheck',
     'npm run typecheck-spec',
+    'npm run i18n:check',
+    'npm run i18n:test',
     ...(effect ? ['npm run effect-check'] : []),
     'npm test',
     'npm run architecture',
     'npm run typecheck-architecture',
     'npm run e2e',
     'npm run build',
+    '',
+    '## i18n',
+    '',
+    'Add or change translation keys in src/i18n/catalog.ts. Add a locale under',
+    'src/i18n/locales/ with defineLocaleLike so keys, parameters and token kinds',
+    'stay aligned. Define application tokens in project-tokens.ts with',
+    'defineToken or defineTokenFactory; the plain i18n package does not require',
+    'Effect. Strict plural categories and locale parity are checked by',
+    'npm run i18n:check. Use npm run i18n:test for runtime and page fixtures.',
     '',
     '### Architecture tests',
     '',
@@ -983,6 +1199,12 @@ function agentFiles(
 
 function templates(context: TemplateContext): Record<string, string> {
   const effect = context.mode === 'effect';
+  const localeFiles = Object.fromEntries(
+    context.locales.map((locale, index) => [
+      `src/i18n/locales/${locale}.ts`,
+      i18nLocaleTs(locale, index, context.locales),
+    ]),
+  );
   return {
     'package.json': packageJson(context),
     'tsconfig.json': tsconfig(context),
@@ -996,13 +1218,22 @@ function templates(context: TemplateContext): Record<string, string> {
     'vitest.config.ts': vitestConfig,
     'eslint.config.mjs': eslintConfig(effect),
     'playwright.config.ts': playwrightConfig,
-    'index.html': indexHtml,
+    'index.html': indexHtml(context.defaultLocale),
     '.mcp.json': mcpConfig,
     '.github/workflows/ci.yml': githubWorkflow(effect),
     'README.md': readme(context),
     'src/main.ts': mainTs,
     'src/dev-typecheck-indicator.ts': typecheckIndicatorTs,
     'src/styles.css': styles,
+    'src/i18n/catalog.ts': i18nCatalogTs(context.locales),
+    'src/i18n/project-tokens.ts': projectTokensTs,
+    'src/i18n/runtime.ts': i18nRuntimeTs(context),
+    'src/i18n/typography.ts': typographyTs,
+    'src/i18n/index.ts': i18nIndexTs,
+    ...localeFiles,
+    ...(effect
+      ? { 'src/i18n/effect.ts': effectI18nTs, 'src/i18n/effect-layer.ts': effectLayerTs }
+      : {}),
     'src/types.d.ts': '/// <reference types="vite/client" />\n',
     'src/app/app.ts': appTs,
     'src/app/app.config.ts': effect ? effectAppConfig : plainAppConfig,
@@ -1012,6 +1243,7 @@ function templates(context: TemplateContext): Record<string, string> {
     'src/app/about-page.ts': aboutPageTs,
     'src/app/home-page.spec.ts': unitTestTs(context),
     'e2e/starter.spec.ts': e2eTestTs,
+    'e2e/i18n.spec.ts': i18nE2eTestTs(context),
   };
 }
 
@@ -1041,13 +1273,20 @@ export async function createCraftProject(
     ?.replace(/[^a-zA-Z0-9._-]/g, '-') || 'craft-app';
   const mode = options.mode ?? 'plain';
   const agents = options.agents ?? DEFAULT_AGENTS;
+  const locales = [...new Set(options.locales ?? ['en-US'])];
+  if (locales.length === 0) throw new Error('At least one i18n locale is required.');
+  const defaultLocale = options.defaultLocale ?? locales[0];
+  if (!locales.includes(defaultLocale)) {
+    throw new Error(`Default locale "${defaultLocale}" is not in --locales.`);
+  }
+  const i18nStrict = options.i18n !== 'loose';
 
   if (existsSync(directory) && !options.force && (await readdir(directory)).length > 0) {
     throw new Error(`Refusing to create in non-empty directory: ${directory}. Use --force to merge.`);
   }
 
   const files = {
-    ...templates({ projectName, mode }),
+    ...templates({ projectName, mode, locales, defaultLocale, i18nStrict }),
     ...agents.reduce<Record<string, string>>(
       (all, agent) => Object.assign(all, agentFiles(mode, agent)),
       {},

@@ -21,6 +21,7 @@ import {
   parseCreateAgents,
 } from '../scripts/create/create-project.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
+import { spawnSync } from 'node:child_process';
 
 type CommonOptions = {
   rootDir?: string;
@@ -68,6 +69,9 @@ async function main(argv: string[]): Promise<number> {
       console.error(`Craft security check failed with ${errors} error(s).`);
     }
     return result.passed ? 0 : 1;
+  }
+  if (argv[0] === 'i18n' && ['check', 'test'].includes(argv[1] ?? '')) {
+    return runI18nCommand(argv[1] as 'check' | 'test');
   }
   if (argv[0] !== 'route' || !['add', 'split', 'verify'].includes(argv[1] ?? '')) {
     printHelp();
@@ -224,6 +228,9 @@ type CreateArgs = {
   directory?: string;
   effect?: string;
   agents?: string;
+  locales?: string;
+  defaultLocale?: string;
+  i18n?: 'strict' | 'loose';
   flags: Set<string>;
   help: boolean;
 };
@@ -240,13 +247,17 @@ function parseCreateArgs(argv: string[]): CreateArgs {
       result.effect = 'none';
       continue;
     }
-    if (argument === '--effect' || argument === '--agents') {
+    if (argument === '--effect' || argument === '--agents' || argument === '--locales' || argument === '--default-locale' || argument === '--i18n') {
       const value = argv[++index];
       if (!value || value.startsWith('--')) {
         throw new Error(`Missing value for ${argument}.`);
       }
       if (argument === '--effect') result.effect = value;
-      else result.agents = value;
+      else if (argument === '--agents') result.agents = value;
+      else if (argument === '--locales') result.locales = value;
+      else if (argument === '--default-locale') result.defaultLocale = value;
+      else if (value === 'strict' || value === 'loose') result.i18n = value;
+      else throw new Error(`Unknown i18n mode "${value}". Use strict or loose.`);
       continue;
     }
     if (argument.startsWith('--effect=')) {
@@ -255,6 +266,20 @@ function parseCreateArgs(argv: string[]): CreateArgs {
     }
     if (argument.startsWith('--agents=')) {
       result.agents = argument.slice('--agents='.length);
+      continue;
+    }
+    if (argument.startsWith('--locales=')) {
+      result.locales = argument.slice('--locales='.length);
+      continue;
+    }
+    if (argument.startsWith('--default-locale=')) {
+      result.defaultLocale = argument.slice('--default-locale='.length);
+      continue;
+    }
+    if (argument.startsWith('--i18n=')) {
+      const value = argument.slice('--i18n='.length);
+      if (value !== 'strict' && value !== 'loose') throw new Error(`Unknown i18n mode "${value}". Use strict or loose.`);
+      result.i18n = value;
       continue;
     }
     if (argument === '--yes' || argument === '--force' || argument === '--json') {
@@ -303,6 +328,9 @@ async function runCreate(argv: string[]): Promise<number> {
       directory,
       mode,
       agents,
+      locales: parsed.locales?.split(',').map((locale) => locale.trim()).filter(Boolean),
+      defaultLocale: parsed.defaultLocale,
+      i18n: parsed.i18n ?? 'strict',
       force: parsed.flags.has('force'),
     });
     if (parsed.flags.has('json')) {
@@ -316,6 +344,22 @@ async function runCreate(argv: string[]): Promise<number> {
   } finally {
     readline.close();
   }
+}
+
+function runI18nCommand(command: 'check' | 'test'): number {
+  const executable = command === 'check' ? 'tsc' : 'vitest';
+  const args = command === 'check'
+    ? ['-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false']
+    : ['run', '--config', 'vitest.config.ts'];
+  const result = spawnSync(`node_modules/.bin/${executable}`, args, {
+    cwd: process.cwd(),
+    stdio: 'inherit',
+  });
+  if (result.error) {
+    console.error(`Unable to run i18n ${command}: ${result.error.message}`);
+    return 1;
+  }
+  return result.status ?? 1;
 }
 
 function printResult(result: RouteCommandResult, json: boolean): void {
@@ -358,6 +402,7 @@ function printVerificationResult(
 function printHelp(): void {
   console.log(`Usage:
   craft create [directory] [options]
+  craft i18n check|test
   craft graph [options]
   craft security check [--strict] [--root <dir>]
   craft route add [path] [options]
@@ -368,6 +413,9 @@ Options:
   --effect <v4|none>           Select the Effect v4 or plain CraftTS starter
   --no-effect                  Alias for --effect none
   --agents <list>              codex,cursor,claude-code,cloud-code (or none)
+  --locales <list>             Comma-separated locales (default: en-US)
+  --default-locale <locale>    Initial locale (must be in --locales)
+  --i18n <strict|loose>        Plural/catalogue validation mode (default: strict)
   --force                      Merge into a non-empty destination directory
   --json                       Emit the creation result as JSON
   --root <dir>                 Workspace root (defaults to cwd)

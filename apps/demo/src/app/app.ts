@@ -34,6 +34,7 @@ const NAV_GROUPS = [
     label: 'Components',
     links: [
       ['Functional Components', { to: '' }],
+      ['Type-safe i18n', { to: 'i18n' }],
       ['Reactive Composition', { to: 'component-composition' }],
       ['Content Projection', { to: 'content-projection' }],
       ['Pending Block', { to: 'pending-block' }],
@@ -185,107 +186,105 @@ export const App = craftComponent(
   },
   ({ clearCache, navOpen, toggleNav, closeNav, router }) =>
     div([
-      skipLink('main', 'Skip to content'),
-      div({ class: 'demo-banner', click: closeNav }, [
-        div({ class: 'demo-banner__main' }, [
-          strong('Beta demo'),
-          span(' — the API and documentation may still evolve.'),
-          a(
-            'docs',
-            {
-              href: DOCS_URL,
-              target: '_blank',
-              rel: 'noreferrer',
-            },
-            'Read the documentation',
-          ),
-          span(' · '),
-          a(
-            'feedback',
-            {
-              href: FEEDBACK_URL,
-              target: '_blank',
-              rel: 'noreferrer',
-            },
-            'Your feedback is welcome',
-          ),
-        ]),
-        div({ class: 'demo-banner__hint' }, [
-          'Tip: read ',
-          strong('`yield*`'),
-          ' as “I need…”: each primitive or service becomes an explicit dependency.',
-        ]),
-      ]),
-      nav({ class: 'demo-nav' }, [
-        button(
-          'navToggle',
-          {
-            class: 'demo-nav__toggle',
-            type: 'button',
-            click: toggleNav,
-            'aria-expanded': navOpen,
-          },
-          navOpen.navToggleLabel,
-        ),
-        ifBlock(
-          navOpen,
-          () =>
-            div(
-              'navPanel',
+        skipLink('main', 'Skip to content'),
+        div('demo-banner', { class: 'demo-banner', click: closeNav }, [
+          div({ class: 'demo-banner__main' }, [
+            strong('Beta demo'),
+            span(' — the API and documentation may still evolve.'),
+            a('docs',
               {
-                class: 'demo-nav__panel',
+                href: DOCS_URL,
+                target: '_blank',
+                rel: 'noreferrer',
               },
-              each(
-                VISIBLE_NAV_GROUPS,
-                { track: (group) => group.label },
-                (group) =>
-                  div({ class: 'demo-nav__group' }, [
-                    strong(function* () {
-                      return (yield* group()).label;
-                    }),
-                    div(
-                      { class: 'demo-nav__links' },
-                      each(
-                        function* () {
-                          return (yield* group()).links;
-                        },
-                        { track: ([, link]) => link.to },
-                        (entry) =>
-                          a(
-                            'navLink',
-                            {
-                              *click(event: MouseEvent) {
-                                event.preventDefault();
-                                yield* closeNav();
-                                void router.navigate((yield* entry())[1]);
-                              },
-                              craftRouterLink: function* () {
-                                return (yield* entry())[1];
-                              },
-                            },
-                            function* () {
-                              return (yield* entry())[0];
-                            },
-                          ).pipe(CraftRouterLink),
-                      ),
-                    ),
-                  ]),
-              ),
+              'Read the documentation',
             ),
-          () => [],
-        ),
-      ]),
-      main({ id: 'main', class: 'content', tabIndex: -1 }, CraftRouterOutlet()),
-      button(
-        'clearCache',
-        {
-          class: 'clear-cache-btn',
-          type: 'button',
-          *click() {
-            yield* clearCache();
+            span(' · '),
+            a('feedback',
+              {
+                href: FEEDBACK_URL,
+                target: '_blank',
+                rel: 'noreferrer',
+              },
+              'Your feedback is welcome',
+            ),
+          ]),
+          div({ class: 'demo-banner__hint' }, [
+            'Tip: read ',
+            strong('`yield*`'),
+            ' as “I need…”: each primitive or service becomes an explicit dependency.',
+          ]),
+        ]),
+        nav({ class: 'demo-nav' }, [
+          button(
+            'navToggle',
+            {
+              class: 'demo-nav__toggle',
+              type: 'button',
+              click: toggleNav,
+              'aria-expanded': navOpen,
+            },
+            navOpen.navToggleLabel,
+          ),
+          ifBlock(
+            navOpen,
+            () =>
+              div(
+                'navPanel',
+                {
+                  class: 'demo-nav__panel',
+                },
+                each(
+                  VISIBLE_NAV_GROUPS,
+                  { track: (group) => group.label },
+                  (group) =>
+                    div({ class: 'demo-nav__group' }, [
+                      strong(function* () {
+                        return (yield* group()).label;
+                      }),
+                      div(
+                        { class: 'demo-nav__links' },
+                        each(
+                          function* () {
+                            return (yield* group()).links;
+                          },
+                          { track: ([, link]) => link.to },
+                          (entry) =>
+                            a(
+                              'navLink',
+                              {
+                                *click(event: MouseEvent) {
+                                  event.preventDefault();
+                                  yield* closeNav();
+                                  void router.navigate((yield* entry())[1]);
+                                },
+                                craftRouterLink: function* () {
+                                  return (yield* entry())[1];
+                                },
+                              },
+                              function* () {
+                                return (yield* entry())[0];
+                              },
+                            ).pipe(CraftRouterLink),
+                        ),
+                      ),
+                    ]),
+                ),
+              ),
+            () => [],
+          ),
+        ]),
+        main({ id: 'main', class: 'content', tabIndex: -1 }, CraftRouterOutlet()),
+        button('clearCache',
+          {
+            class: 'clear-cache-btn',
+            type: 'button',
+            *click() {
+              yield* clearCache();
+            },
           },
-        },
-        '🗑️ Clear Cache',
-      ),
-    ]),
+          '🗑️ Clear Cache',
+        ),
+      ],
+    ),
 );
