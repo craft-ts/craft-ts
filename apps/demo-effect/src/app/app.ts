@@ -17,6 +17,7 @@ const EXAMPLE_LINKS = [
   ['Check access rights', { to: 'access' }],
   ['Team overview', { to: 'team' }],
   ['Run an Effect function', { to: 'effect-function' }],
+  ['Sync vs async members', { to: 'sync-members' }],
 ] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
 export const App = craftComponent(

@@ -64,3 +64,19 @@ export type CraftEffectGen<A, E> = Generator<
   A,
   unknown
 >;
+
+/**
+ * What `syncEffect` returns. Same exception advertisement, but the Effect is
+ * NOT in the yielded union: the synchronous bridge is handed a request object
+ * that carries the Effect, never the Effect itself.
+ *
+ * Keeping the two apart is not cosmetic. `Effect` in a Yielded type is what
+ * `no-effect-outside-loaders` looks for to reject asynchronous work in a
+ * `params` or a `craftComputed` — and those are exactly the places
+ * `syncEffect` is built for.
+ */
+export type CraftSyncEffectGen<A, E> = Generator<
+  EffectExceptionMarkers<E>,
+  A,
+  unknown
+>;

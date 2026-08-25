@@ -223,7 +223,9 @@ module.exports = {
     }
 
     function isInsideSyncEffectCall(node) {
-      for (let current = node?.parent; current; current = current.parent) {
+      // Starts at the node itself: `syncEffect(...)` is exempt, and so is
+      // everything it wraps.
+      for (let current = node; current; current = current.parent) {
         if (
           current.type === 'CallExpression' &&
           current.callee.type === 'Identifier' &&

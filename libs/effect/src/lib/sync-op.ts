@@ -7,7 +7,7 @@ import {
 } from '@craft-ts/core';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { resolveEffectLevel } from './effect-level';
-import type { CraftEffectGen } from './effect-exceptions';
+import type { CraftSyncEffectGen } from './effect-exceptions';
 
 // ---------------------------------------------------------------------------
 // Declaring an Effect synchronous.
@@ -146,7 +146,7 @@ export class CraftEffectNotSynchronous extends Error {
 export function syncEffect<A, E, R>(
   effect: Effect.Effect<A, E, R> & AssertDeclaredSync<R>,
   options: Readonly<{ label?: string }> = {},
-): CraftEffectGen<A, E> {
+): CraftSyncEffectGen<A, E> {
   return (function* () {
     const request: SyncEffectRequest = {
       [SYNC_EFFECT_REQUEST]: true,
@@ -155,7 +155,7 @@ export function syncEffect<A, E, R>(
     };
 
     return (yield request) as A;
-  })() as CraftEffectGen<A, E>;
+  })() as CraftSyncEffectGen<A, E>;
 }
 
 /**

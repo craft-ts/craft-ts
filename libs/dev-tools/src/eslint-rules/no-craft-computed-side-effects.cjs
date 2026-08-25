@@ -22,17 +22,24 @@ const WRITE_METHODS = new Set([
   'update',
 ]);
 
+// `settled(...)` reads an already-resolved async source; `syncEffect(...)` runs
+// an Effect whose `R` carries `SyncOp`, so the type already proved it cannot
+// suspend. Both are reads, not asynchronous work.
+// Module scope on purpose: the visitors below run before any `const` declared
+// inside `create()` past its `return` would be initialised.
+const ALLOWED_COMPUTED_CALLS = new Set(['settled', 'syncEffect']);
+
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'Disallow writes and asynchronous work inside craftComputed callbacks; only reactive reads and settled(...) are allowed.',
+        'Disallow writes and asynchronous work inside craftComputed callbacks; only reactive reads, settled(...) and syncEffect(...) are allowed.',
     },
     schema: [],
     messages: {
       forbidden:
-        'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `{{call}}` is not allowed because it can write or perform asynchronous work.',
+        'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `{{call}}` is not allowed because it can write or perform asynchronous work.',
       missingTypeInfo:
         'This rule requires TypeScript type information to identify reactive reads and asynchronous Craft calls.',
     },
@@ -124,10 +131,10 @@ module.exports = {
     }
 
     function isAllowedSettledCall(node) {
+      if (node.callee.type !== 'Identifier') return false;
       return (
-        node.callee.type === 'Identifier' &&
-        (node.callee.name === 'settled' ||
-          importedNames.get(node.callee.name) === 'settled')
+        ALLOWED_COMPUTED_CALLS.has(node.callee.name) ||
+        ALLOWED_COMPUTED_CALLS.has(importedNames.get(node.callee.name))
       );
     }
 

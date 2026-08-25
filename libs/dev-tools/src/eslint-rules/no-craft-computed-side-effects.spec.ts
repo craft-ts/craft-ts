@@ -41,6 +41,26 @@ describe('no-craft-computed-side-effects', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('allows a declared-synchronous Effect run through syncEffect', async () => {
+    const result = await lintFixture(`
+      declare const RAW_REACTIVE_VALUE: unique symbol;
+      type Read<T> = (() => Generator<never, T, unknown>) & {
+        readonly [RAW_REACTIVE_VALUE]: true;
+      };
+      declare const state: Read<number>;
+      declare function cartTotal(qty: number): unknown;
+      declare function syncEffect(effect: unknown): Generator<never, string, unknown>;
+      declare function craftComputed(name: string, factory: Function): unknown;
+
+      craftComputed('totalLabel', function* () {
+        const qty = yield* state();
+        return yield* syncEffect(cartTotal(qty));
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('allows component input reads as reactive dependencies', async () => {
     const result = await lintFixture(`
       declare const INPUT_BRAND: unique symbol;
@@ -79,10 +99,10 @@ describe('no-craft-computed-side-effects', () => {
     `);
 
     expect(result.messages).toEqual([
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `state.unset()` is not allowed because it can write or perform asynchronous work.',
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `CraftHttpClient.get()` is not allowed because it can write or perform asynchronous work.',
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `craftSleep()` is not allowed because it can write or perform asynchronous work.',
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `load()` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `state.unset()` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `CraftHttpClient.get()` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `craftSleep()` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `load()` is not allowed because it can write or perform asynchronous work.',
     ]);
   });
 
@@ -98,8 +118,8 @@ describe('no-craft-computed-side-effects', () => {
     `);
 
     expect(result.messages).toEqual([
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `state.update()` is not allowed because it can write or perform asynchronous work.',
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `state.unset()` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `state.update()` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `state.unset()` is not allowed because it can write or perform asynchronous work.',
     ]);
   });
 
@@ -111,7 +131,7 @@ describe('no-craft-computed-side-effects', () => {
     `);
 
     expect(result.messages).toEqual([
-      'Craft computed callbacks may only read reactive Craft values or use `settled(...)`; `await` is not allowed because it can write or perform asynchronous work.',
+      'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `await` is not allowed because it can write or perform asynchronous work.',
     ]);
   });
 

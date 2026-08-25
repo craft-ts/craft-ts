@@ -4,8 +4,8 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
   p,
+  pendingBlock,
   span,
   strong,
 } from '@craft-ts/component';
@@ -55,25 +55,29 @@ const EffectSyncMembersComponent = craftComponent(
     `,
   },
   function* () {
-    const qty = yield* state('qty', 2, ({ update }) => ({
-      increment: () => update((value) => Math.min(20, value + 1)),
-      decrement: () => update((value) => Math.max(0, value - 1)),
-    }));
+    // Everything derived from the quantity alone lives in its insertion.
+    const qty = yield* state('qty', 2, ({ state: read, update }) => {
+      const lines = craftComputed('lines', function* () {
+        const currentQty = yield* read();
+        return CATALOG.map((item) => ({ ...item, qty: currentQty }));
+      });
 
-    const lines = craftComputed('lines', function* () {
-      const currentQty = yield* qty();
-      return CATALOG.map((item) => ({ ...item, qty: currentQty }));
-    });
+      return {
+        increment: () => update((value) => Math.min(20, value + 1)),
+        decrement: () => update((value) => Math.max(0, value - 1)),
+        lines,
 
-    // Synchronous: `syncEffect` runs the program in place, so the label is ready
-    // before this computation returns. No pending state, no flash.
-    const totalLabel = craftComputed('totalLabel', function* () {
-      return yield* syncEffect(cartTotalLabel(yield* lines()));
-    });
+        // `syncEffect` runs the program in place, so the label is ready before
+        // this computation returns. No pending state, no flash.
+        totalLabel: craftComputed('totalLabel', function* () {
+          return yield* syncEffect(cartTotalLabel(yield* lines()));
+        }),
 
-    const weightLabel = craftComputed('weightLabel', function* () {
-      const grams = yield* syncEffect(cartWeightGrams(yield* lines()));
-      return `${(grams / 1_000).toFixed(2)} kg`;
+        weightLabel: craftComputed('weightLabel', function* () {
+          const grams = yield* syncEffect(cartWeightGrams(yield* lines()));
+          return `${(grams / 1_000).toFixed(2)} kg`;
+        }),
+      };
     });
 
     // Asynchronous: the carrier call belongs to a loader. Its params, however,
@@ -82,7 +86,7 @@ const EffectSyncMembersComponent = craftComponent(
       'shippingQuery',
       {
         params: function* () {
-          return yield* syncEffect(cartWeightGrams(yield* lines()));
+          return yield* syncEffect(cartWeightGrams(yield* qty.lines()));
         },
         loader: ({ params }) => quoteShipping(params),
       },
@@ -94,9 +98,9 @@ const EffectSyncMembersComponent = craftComponent(
       }),
     );
 
-    return { qty, totalLabel, weightLabel, shippingQuery };
+    return { qty, shippingQuery };
   },
-  ({ qty, totalLabel, weightLabel, shippingQuery }) =>
+  ({ qty, shippingQuery }) =>
     div([
       heading('Synchronous and asynchronous members of one Effect service'),
       p(
@@ -119,30 +123,30 @@ const EffectSyncMembersComponent = craftComponent(
       div({ class: 'panels' }, [
         div({ class: 'panel' }, [
           p({ class: 'panel-title' }, 'Cart total — synchronous'),
-          p({ class: 'result' }, totalLabel),
+          p({ class: 'result' }, qty.totalLabel),
           p({ class: 'hint' }, [
             'Computed by ',
             span({ class: 'mono' }, 'craftComputed'),
             ' through ',
             span({ class: 'mono' }, 'syncEffect'),
             '. Weight: ',
-            weightLabel,
+            qty.weightLabel,
             '.',
           ]),
         ]),
         div({ class: 'panel' }, [
           p({ class: 'panel-title' }, 'Shipping — asynchronous'),
-          ifBlock(
-            shippingQuery.isLoading,
-            () => p({ class: 'result' }, 'Asking the carrier…'),
-            () => p({ class: 'result' }, shippingQuery.quoteLabel),
-          ),
+          p({ class: 'result' }, shippingQuery.quoteLabel),
           p({ class: 'hint' }, [
             'Loaded by ',
             span({ class: 'mono' }, 'queryEffect'),
             ', whose params still use a synchronous member.',
           ]),
-        ]),
+        ]).pipe(
+          pendingBlock({
+            fallback: () => p({ class: 'result' }, 'Asking the carrier…'),
+          }),
+        ),
       ]),
       p({ class: 'note' }, [
         'Remove ',

@@ -1,11 +1,12 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "539a1bd85f69b862",
+  "graphHash": "df45f30105b9ca7b",
   "routes": [
     "",
     "access",
     "effect-function",
+    "sync-members",
     "team"
   ],
   "services": [
@@ -17,8 +18,10 @@ export const architectureCatalog = {
     "BrowserNavigatorService",
     "BrowserPerformanceService",
     "BrowserWindowService",
+    "CartPricing",
     "ConsoleService",
     "CookiesService",
+    "CraftLogServerUrl",
     "Database",
     "GlobalPersisterHandlerService",
     "HostName",
@@ -42,6 +45,7 @@ export const architectureCatalog = {
     "EffectFunctionComponent",
     "EffectLayerScopeComponent",
     "EffectSharedServiceComponent",
+    "EffectSyncMembersComponent",
     "EffectYieldComponent",
     "craftPending"
   ],
@@ -55,18 +59,24 @@ export const architectureCatalog = {
     "hasDecision",
     "hasProfile",
     "instruction",
+    "lines",
     "memberNames",
     "profileName",
     "profileQuery",
+    "qty",
+    "quoteLabel",
     "setCopied",
     "setInstruction",
+    "shippingQuery",
     "showUnknown",
     "summary",
     "teamName",
     "teamOverviewQuery",
+    "totalLabel",
     "userName",
     "viewerAccess",
-    "viewerName"
+    "viewerName",
+    "weightLabel"
   ],
   "sources": [
     "signalSource (signalSource)",
@@ -84,6 +94,10 @@ export const architectureCatalog = {
       "AccessPolicyService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",
         "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "CartPricing": [
+        "apps/demo-effect/src/app/examples/effect/effect-pricing-domain.ts",
+        "apps/demo-effect/src/app/examples/effect/effect-pricing-domain.ts"
       ],
       "Database": [
         "apps/demo-effect/src/app/examples/effect/effect-database.ts",
