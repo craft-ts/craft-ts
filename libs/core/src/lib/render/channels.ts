@@ -85,8 +85,46 @@ export type PathViolations<C extends CraftChannels> = Extract<
 >;
 
 /** Obligations that reach a sealing boundary without ever being answered. */
-export type UndischargedObligations<C extends CraftChannels> =
-  C['obligations'];
+export type UndischargedObligations<C extends CraftChannels> = C['obligations'];
+
+export declare const CRAFT_REQUIREMENT: unique symbol;
+
+/**
+ * The shape a channel payload takes when it wants to explain itself.
+ *
+ * The core still knows nothing about CSS: an id and a sentence, both opaque
+ * strings it never interprets. What it gains is the ability to *quote* a
+ * payload in an error message instead of printing an anonymous type — which is
+ * the difference between "something in this subtree is unsatisfied" and a
+ * message that says which thing, and what to do about it.
+ *
+ * Required, not optional. An optional marker would match every payload and hand
+ * back the constraint, so every message would be built from `string`.
+ */
+export interface CraftRequirement<
+  Id extends string = string,
+  Explain extends string = string,
+> {
+  readonly [CRAFT_REQUIREMENT]: { readonly id: Id; readonly explain: Explain };
+}
+
+/**
+ * One payload, rendered as a sentence.
+ *
+ * The bare parameter matters: a conditional distributes only over a naked type
+ * parameter, and `never extends CraftRequirement<infer Id, …>` is **true** —
+ * `Id` then falls back to its constraint and the message talks about a
+ * requirement named `string`. A tree with nothing open would fail to seal.
+ */
+export type RequirementMessage<Payload> =
+  Payload extends CraftRequirement<infer Id, infer Explain>
+    ? `'${Id}' is required by this subtree and nothing above it provides one. ${Explain}`
+    : never;
+
+/** Every unmet requirement of a channel set, as sentences. */
+export type UnmetRequirements<C extends CraftChannels> = RequirementMessage<
+  C['obligations']
+>;
 
 /** Reads a channel set off a carrier, falling back to the neutral element. */
 export type ChannelsOf<Value> = [HasChannels<Value>] extends [never]

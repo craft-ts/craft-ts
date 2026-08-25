@@ -81,6 +81,16 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: design-system-scroll */
+  {
+    path: 'design-system/scroll',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/design-system/scroll')).then(
+        ({ ScrollDemo }) => ScrollDemo,
+      ),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: home */
   {
     path: '',
@@ -366,9 +376,9 @@ export const { demoRoutes } = craftRoutes('demo', [
   {
     path: 'state-machine-text',
     ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/primitives/state-machine/text-editor'),
-      ).then(({ default: component }) => component),
+      withRetry(import('./examples/primitives/state-machine/text-editor')).then(
+        ({ default: component }) => component,
+      ),
     ),
   },
 
@@ -506,6 +516,7 @@ export const demoEnabledRoutePaths: ReadonlySet<string> = new Set(
 type DemoRoutePath =
   | ''
   | 'design-system'
+  | 'design-system/scroll'
   | 'i18n'
   | 'query/:userId'
   | 'debounced-web-search'
@@ -646,6 +657,15 @@ type _CanRunDesignSystem = CanRun<
     (typeof import('./examples/design-system/design-system-demo'))['designSystemDemo'],
     never,
     'path: "design-system"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: design-system-scroll */
+type _CanRunDesignSystemScroll = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/design-system/scroll'))['ScrollDemo'],
+    never,
+    'path: "design-system/scroll"'
   >
 >;
 /* demo-check-end */

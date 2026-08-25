@@ -1,6 +1,7 @@
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftComponentDependencies,
+  type UnmetRequirements,
 } from '@craft-ts/core';
 import {
   CRAFT_COMPONENT,
@@ -26,7 +27,7 @@ import {
 import type { CssVarsContractOfMeta } from './css-vars.type';
 import { forwardedCssVarStyles } from './css-vars';
 import type { HostProps } from './hyperscript';
-import type { ComponentNode } from './render/vnode';
+import type { ComponentNode, ComponentTemplateChannels } from './render/vnode';
 import {
   applyHostPropsToChildren,
   currentCraftRenderContext,
@@ -111,6 +112,24 @@ type ValidSettledExceptions<Template> =
  * the need bubbles. The *parent* that calls that child must wrap the call in
  * `headingSection` (same DNA as `pendingBlock` on the parent, not the child).
  */
+/**
+ * A sealing component must leave no context requirement open.
+ *
+ * The message is composed from the payload itself — an id and a sentence the
+ * vocabulary wrote — so this layer names the thing precisely while knowing
+ * nothing about what it is. The requester is named because the id is the
+ * requester's own, and the sentence says where to declare the answer.
+ */
+type ValidSeals<Meta, Template> = Meta extends { readonly seals: unknown }
+  ? [UnmetRequirements<ComponentTemplateChannels<Template>>] extends [never]
+    ? unknown
+    : {
+        readonly ERROR_unmet_context_requirement: UnmetRequirements<
+          ComponentTemplateChannels<Template>
+        >;
+      }
+  : unknown;
+
 type ValidHeadingNeed<Template> =
   IsAny<TemplateHeadingNeed<Template>> extends true
     ? unknown
@@ -151,7 +170,8 @@ export function craftComponent<
     ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &
     ValidSettledExceptions<NoInfer<Template>> &
-    ValidHeadingNeed<NoInfer<Template>>,
+    ValidHeadingNeed<NoInfer<Template>> &
+    ValidSeals<Meta, NoInfer<Template>>,
 ): CraftComponent<
   PropsFromFactory<Factory>,
   CraftComponentDependencies<

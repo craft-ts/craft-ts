@@ -11,6 +11,7 @@ import {
   at,
   craftStyles,
   defineBreakpoints,
+  defineContainer,
   defineStateAxis,
   display,
   p,
@@ -214,6 +215,38 @@ describe('a branch adds, it does not multiply', () => {
       branch('footer', footer),
     ]);
     expect(matrix).toHaveLength(9);
+  });
+});
+
+describe('a container axis stops at the component that owns the container', () => {
+  const panel = defineContainer(
+    { name: 'panel', type: 'inline-size' },
+    { wide: at.minInlineSize(unit.rem(24)) },
+  );
+
+  it('belongs to the component that names the container', () => {
+    const sheet = craftStyles('panel', {
+      root: [when(panel.wide, [p(space(6))])],
+    });
+
+    expect(
+      visualMatrix(sheet, { resolves: ['panel'] }).map(
+        (scenario) => scenario.id,
+      ),
+    ).toEqual(['base', 'container.panel=wide']);
+  });
+
+  it('is dropped for every caller above it', () => {
+    const sheet = craftStyles('panel', {
+      root: [when(panel.wide, [p(space(6))]), when(bp.md, [p(space(4))])],
+    });
+
+    // An ancestor cannot change how wide that box is. Handing it those
+    // scenarios would ask for captures of something it has no way to affect.
+    expect(visualMatrix(sheet).map((scenario) => scenario.id)).toEqual([
+      'base',
+      'viewport=md',
+    ]);
   });
 });
 

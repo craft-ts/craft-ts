@@ -594,6 +594,19 @@ export interface ComponentMeta<
   readonly cssVars?: CssVarsMetaDeclaration;
   /** Styles exposed explicitly to opted-in projected fragments, by slot. */
   readonly contentStyles?: ContentStyles<SlotName>;
+  /**
+   * Closes the tree for context requirements: from here up, nobody will answer.
+   *
+   * Until a component seals, an unmet requirement travels — an ancestor still
+   * has the right to satisfy it, and complaining early would be wrong. Sealing
+   * is what turns "still open" into an error, and it belongs on the component
+   * that owns the region, which is the only one that knows nothing above it
+   * will help.
+   *
+   * The value is opaque here on purpose: what a requirement *means* is written
+   * in the vocabulary that produced it, never in the component layer.
+   */
+  readonly seals?: readonly unknown[];
 }
 
 export interface DirectiveMeta {

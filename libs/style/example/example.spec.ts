@@ -118,11 +118,12 @@ describe('niveau 3 — les obligations remontent l’arbre', () => {
     const page = div([span({ class: backToTop.button })]);
 
     // La demande a traversé le span puis le div : personne ne l'a satisfaite.
-    // C'est nommément celle-là qui reste ouverte, pas « quelque chose ».
+    // C'est nommément celle-là qui reste ouverte, pas « quelque chose » — et
+    // elle transporte son explication, pour que le scellage puisse la citer.
     type _stillOpen = Expect<
       Equal<
         ChannelsOf<typeof page>['obligations'],
-        Obligation<'scrollPort.block'>
+        Obligation<'scrollPort.block', typeof scrollPort.block.explain>
       >
     >;
 

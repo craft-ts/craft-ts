@@ -7,30 +7,35 @@
  * `overflow: auto`. Le mauvais correctif — poser un `overflow` au hasard sur le
  * parent le plus proche — n'est pas découragé, il est inexprimable.
  */
+import type { CraftRequirement } from '@craft-ts/core';
 import type { Declaration } from './props/factory.ts';
 
-declare const OBLIGATION: unique symbol;
-
 /**
- * La charge transportée par le canal. Obligation et décharge partagent le
- * **même** type : c'est ce qui fait que `Exclude` les annule dans le core.
+ * The payload the channel carries. An obligation and its discharge share the
+ * **same** type — that is what makes `Exclude` cancel them in the core.
+ *
+ * It is a `CraftRequirement`, so the id and the explanation travel with it and
+ * the sealing error can quote both. The core reads two opaque strings; every
+ * word of CSS meaning in them is written here.
  */
-export interface Obligation<Id extends string> {
-  readonly [OBLIGATION]: Id;
-}
+export interface Obligation<Id extends string, Explain extends string = string>
+  extends CraftRequirement<Id, Explain> {}
 
-export interface ObligationSpec<Id extends string> {
+export interface ObligationSpec<
+  Id extends string,
+  Explain extends string = string,
+> {
   readonly id: Id;
-  /** Le CSS qu'un fournisseur doit poser, indissociable de la décharge. */
+  /** The CSS a provider must lay down, inseparable from the discharge. */
   readonly effect: readonly Declaration[];
-  readonly explain: string;
+  readonly explain: Explain;
 }
 
-const obligation = <const Id extends string>(
+const obligation = <const Id extends string, const Explain extends string>(
   id: Id,
   effect: readonly Declaration[],
-  explain: string,
-): ObligationSpec<Id> => ({ id, effect, explain });
+  explain: Explain,
+): ObligationSpec<Id, Explain> => ({ id, effect, explain });
 
 const d = (property: string, value: string): Declaration => ({
   property,
@@ -90,16 +95,18 @@ export const containerType = {
  * feuille entière : c'est la classe précise qui porte la demande, sinon
  * l'erreur désigne un fichier au lieu d'une règle.
  */
-export const requires = <const Id extends string>(spec: ObligationSpec<Id>) =>
-  ({ kind: 'requires', spec }) as const;
+export const requires = <const Id extends string, const Explain extends string>(
+  spec: ObligationSpec<Id, Explain>,
+) => ({ kind: 'requires', spec }) as const;
 
 /**
  * Ce qu'un ancêtre **fournit**. Émet l'effet CSS ET la décharge. Il n'existe
  * pas de constructeur littéral de décharge : on ne peut pas prétendre avoir
  * fourni sans poser le CSS correspondant.
  */
-export const provides = <const Id extends string>(spec: ObligationSpec<Id>) =>
-  ({ kind: 'provides', spec }) as const;
+export const provides = <const Id extends string, const Explain extends string>(
+  spec: ObligationSpec<Id, Explain>,
+) => ({ kind: 'provides', spec }) as const;
 
 /**
  * Rogne l'overflow — et **déclare le faire**. Une classe qui clippe traverse
@@ -133,8 +140,12 @@ export const clipOverflow = {
  * the graph counts it as debt. An escape hatch that did not bubble up would be
  * a design bug, not a convenience.
  */
-export const unsafeAssume = <const Id extends string, Reason extends string>(
-  spec: ObligationSpec<Id>,
+export const unsafeAssume = <
+  const Id extends string,
+  const Explain extends string,
+  Reason extends string,
+>(
+  spec: ObligationSpec<Id, Explain>,
   reason: Reason,
 ) =>
   ({

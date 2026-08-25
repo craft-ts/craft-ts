@@ -129,9 +129,12 @@ type EntriesIn<Item, Kind extends string> =
       ? EntriesIn<Child, Kind>
       : Item extends {
             readonly kind: Kind;
-            readonly spec: { readonly id: infer Id extends string };
+            readonly spec: {
+              readonly id: infer Id extends string;
+              readonly explain: infer Explain extends string;
+            };
           }
-        ? Obligation<Id>
+        ? Obligation<Id, Explain>
         : never;
 
 /**

@@ -209,8 +209,19 @@ function unfold(
   const points = driverIndex(classes);
   const unreachable = new Set(options.unreachable ?? []);
 
+  const resolves = new Set(options.resolves ?? []);
   const axes = [...pointsByAxis(classes)]
     .filter(([axis]) => !unreachable.has(axis))
+    // A container axis belongs to the component that declares the container,
+    // and to nobody above it: an ancestor cannot change how wide that box is,
+    // so handing it those scenarios would ask for captures it cannot affect.
+    // Naming the container is how a component claims the axis; every other
+    // caller drops it.
+    .filter(
+      ([axis]) =>
+        !axis.startsWith('container.') ||
+        resolves.has(axis.slice('container.'.length)),
+    )
     .sort(([left], [right]) => left.localeCompare(right));
 
   let combinations: Record<string, string>[] = [{}];
