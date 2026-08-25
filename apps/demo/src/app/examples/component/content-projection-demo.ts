@@ -4,9 +4,9 @@ import {
   craftComponent,
   craftTemplate,
   div,
-  each,
+  forNode,
   footer,
-  ifBlock,
+  ifNode,
   li,
   p,
   renderContent,
@@ -95,7 +95,7 @@ const toolbar = craftComponent(
   ({ actions }) =>
     div(
       { class: 'projection-demo__toolbar', role: 'toolbar' },
-      each(actions, { track: (action) => action.key }, (action) =>
+      forNode(actions, { track: (action) => action.key }, (action) =>
         renderContent(action),
       ),
     ),
@@ -116,7 +116,7 @@ const dialog = craftComponent(
       renderContent(body),
       footer(
         { class: 'projection-demo__dialog-actions' },
-        each(actions, { track: (action) => action.key }, (action) =>
+        forNode(actions, { track: (action) => action.key }, (action) =>
           renderContent(action),
         ),
       ),
@@ -225,7 +225,7 @@ export const contentProjectionDemo = craftComponent(
             ),
             ul(
               { class: 'projection-demo__list' },
-              each(users, { track: (user) => user.id }, (user, index) =>
+              forNode(users, { track: (user) => user.id }, (user, index) =>
                 renderTemplate(userRow, {
                   $implicit: user,
                   index,
@@ -255,13 +255,13 @@ export const contentProjectionDemo = craftComponent(
             type: 'button',
             click: toggleToolbar,
           },
-          ifBlock(
+          ifNode(
             showToolbar,
             () => 'Hide the toolbar',
             () => 'Show the toolbar',
           ),
         ),
-        ifBlock(
+        ifNode(
           showToolbar,
           () =>
             toolbar({
@@ -301,7 +301,7 @@ export const contentProjectionDemo = craftComponent(
           'Open the projected dialog',
         ),
       ]),
-      ifBlock(
+      ifNode(
         dialogOpen,
         () =>
           dialog({

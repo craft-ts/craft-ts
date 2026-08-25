@@ -82,7 +82,7 @@ export default [
 
 What each rule does:
 
-- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
+- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifNode(...)`, `matchNode.exhaustive(...)`, `forNode(...)`, or `deferNode(...)`
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
@@ -117,6 +117,13 @@ What each rule does:
 - `craft-ts/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
 - `craft-ts/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
 - `craft-ts/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
+- `craft-ts/no-raw-class`: forbids a `class:` binding that is a string, a template literal or a function, in any file that imports `@craft-ts/style`. A class assembled at render time is a visual state nothing recorded, so the [visual matrix](/guide/style/testing) would enumerate what the sheets declare while the DOM shows something else. Move the rule into the sheet and bind the class it returns; make the variation an axis and set a `data-*` attribute
+- `craft-ts/no-raw-css-value`: forbids a string or number literal as an argument to a `@craft-ts/style` helper — `p('12px')`, `bg('red')`. If the scale is missing the step, add it to the scale; if the value genuinely cannot be proven, `unsafeLength('13px', reason)` compiles and makes the debt countable in the [graph](/guide/style/testing#what-the-graph-adds)
+- `craft-ts/no-free-has`: forbids a hand-written `:has()` in styles. It reaches across the component boundary, so what a component looks like depends on markup it does not own — a state the matrix cannot enumerate. Use the `descendant` axis, which is a closed set and carries its own test driver
+- `craft-ts/style-file-boundary`: restricts a `*.style.ts` to style-vocabulary imports. The [build plugin](/guide/style/setup) imports the file in Node to read what it registered, so an application import would run application code at build time
+- `craft-ts/craft-css-token-registry`: reports a custom property registered with `@property` by two different components. A custom property may have only one owner; two silently fight over its syntax and initial value
+- `craft-ts/require-effect-adapters`: requires the Effect-aware adapters — `queryEffect`, `mutationEffect`, `asyncProcessEffect` — instead of the plain primitives in an Effect application. See [Choose the right adapter](/guide/advanced/effect#choose-the-right-adapter)
+- `craft-ts/craft-signal-source-name-match`: requires `signalSource(name, ...)` to take a string literal matching the variable, class property or object property it is assigned to, so the name in a trace is the name in the source. A computed name defeats the [architecture graph](/guide/testing/architecture), which reads these names statically
 - `craft-ts/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
 - `craft-ts/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
 - `craft-ts/require-cascade-route-di-check`: rejects any `craftRoutes(...)` collection without a same-file `ValidateCascadeRoutesFile + CanRun` proof; its autofix adds the conservative `<never, Router>` context, which should be adjusted when the mount inherits providers
@@ -155,13 +162,13 @@ values and business decisions in the component's state/query layer, then make
 the template express visibility explicitly:
 
 ```ts
-ifBlock(
+ifNode(
   isReady,
   () => p('Ready'),
   () => p('Loading…'),
 );
 
-matchBlock.exhaustive(query.exceptions, '_tag', {
+matchNode.exhaustive(query.exceptions, '_tag', {
   NOT_FOUND: () => p('Not found'),
   FORBIDDEN: () => p('Forbidden'),
 });
@@ -225,7 +232,7 @@ const typedStep = machine.stepState as unknown as () => { step: Step };
 return { typedStep };
 
 // Template: no cast and no craftUse.
-matchBlock.exhaustive(typedStep, 'step', steps);
+matchNode.exhaustive(typedStep, 'step', steps);
 ```
 
 `no-craft-use` applies to Craft TypeScript files, not only the fourth
@@ -357,6 +364,14 @@ On an existing codebase, enable them in waves rather than all at once:
    `require-yieldable-template-method`, `require-yieldable-insertion-write`.
    These ask for real refactors.
 
+The four style rules — `no-raw-class`, `no-raw-css-value`, `no-free-has`,
+`style-file-boundary` — are in `craftRules.configs.recommended` at `'error'`,
+and they are **gated on the import**: they fire only in files that import
+`@craft-ts/style`. A component you have not migrated is not claiming the
+guarantee, so nothing reports it. The day a file starts using the design system
+is the day it starts being held to it — which is why enabling them on an
+unmigrated codebase costs nothing.
+
 The two migration rules also expose a VS Code quick fix that inserts a temporary
 local disable comment with the intended migration note, so you can unblock a
 file before doing the full refactor.
@@ -366,3 +381,4 @@ file before doing the full refactor.
 - [Routing setup](/guide/routing/setup) — where these rules are installed
 - [CLI automation](/guide/routing/automation) — the codemods they complement
 - [Architecture rules](/guide/testing/architecture) — graph-wide constraints ESLint cannot see
+- [Activating the style system](/guide/style/setup) — what the four style rules are guarding

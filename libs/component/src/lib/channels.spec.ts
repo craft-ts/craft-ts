@@ -3,8 +3,8 @@ import type { Equal, Expect } from 'test-type';
 import type { ChannelsOf, CraftChannelsCarrier } from '@craft-ts/core';
 import { YIELDABLE_VALUE } from '@craft-ts/core';
 import { div, span } from './hyperscript';
-import { each } from './each';
-import { ifBlock } from './if-block';
+import { forNode } from './for-node';
+import { ifNode } from './if-node';
 import { craftTemplate, renderTemplate } from './template';
 import { craftComponent } from './component';
 import type { ComponentTemplateChannels } from './render/vnode';
@@ -72,11 +72,11 @@ describe('channels through the render tree', () => {
     expect(tree.kind).toBe('element');
   });
 
-  it('bubbles from both branches of an ifBlock', () => {
+  it('bubbles from both branches of an ifNode', () => {
     const condition = Object.assign(() => true, {
       [YIELDABLE_VALUE]: 'open' as const,
     });
-    const block = ifBlock(
+    const block = ifNode(
       condition as never,
       () => span({ class: needsPort }),
       () => span({ class: needsRoom }),
@@ -92,7 +92,7 @@ describe('channels through the render tree', () => {
   });
 
   it('bubbles from an each item template and its empty branch', () => {
-    const block = each(
+    const block = forNode(
       [1, 2, 3],
       {
         track: (item: number) => item,
@@ -107,7 +107,7 @@ describe('channels through the render tree', () => {
         'scroll-port' | 'no-clipping'
       >
     >;
-    expect(block.kind).toBe('each');
+    expect(block.kind).toBe('for');
   });
 
   it('bubbles through a craftTemplate fragment', () => {

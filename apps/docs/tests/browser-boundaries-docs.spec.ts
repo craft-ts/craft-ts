@@ -118,8 +118,8 @@ describe('forms overview', () => {
       'The group itself does not need a\n`CraftFieldDirective`',
     );
     expect(exceptions).toContain('`credentials.passwordMismatch`');
-    expect(exceptions).toContain('fieldExceptionBlock.partial');
-    expect(exceptions).toContain('fieldExceptionBlock.exhaustive');
+    expect(exceptions).toContain('fieldErrorNode.partial');
+    expect(exceptions).toContain('fieldErrorNode.exhaustive');
     expect(exceptions).toContain(
       'loadCraftComponent(async () => BaseRegistrationForm)',
     );

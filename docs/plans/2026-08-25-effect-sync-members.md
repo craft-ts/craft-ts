@@ -129,7 +129,7 @@ membre déclaré synchrone devenait inutilisable **partout**, loaders compris.
 3. **Liste blanche en portée module.** Un `const` déclaré dans `create()` après
    le `return` explose en TDZ : les visiteurs tournent avant.
 4. **`settled` ne bloque pas, il jette** (`CraftNotSettled`), et le
-   `pendingBlock` rattrape pendant la passe de rendu. Donc `settled` n’a pas sa
+   `pendingNode` rattrape pendant la passe de rendu. Donc `settled` n’a pas sa
    place dans un `craftEffect` : personne n’y rattrape le throw.
 
 ## Reste à faire

@@ -2,10 +2,10 @@
 import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
-  catchBlock,
+  catchNode,
   craftComponent,
   div,
-  each,
+  forNode,
   input,
   li,
   p,
@@ -149,7 +149,7 @@ const FullDemoCraft = craftComponent(
         ),
       ]),
       ul(
-        each(
+        forNode(
           store.todos.value,
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
@@ -173,9 +173,9 @@ const FullDemoCraft = craftComponent(
     ]);
   },
 ).pipe(
-  catchBlock.exhaustive({
+  catchNode.exhaustive({
     FAILED_TO_LOAD: {
-      render: () => p('⚠️ FAILED_TO_LOAD (handled by catchBlock.exhaustive)'),
+      render: () => p('⚠️ FAILED_TO_LOAD (handled by catchNode.exhaustive)'),
       showSource: true,
       position: 'after',
     },

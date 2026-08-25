@@ -13,7 +13,7 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   p,
   type Input,
   type Output,
@@ -35,7 +35,7 @@ export const userList = craftComponent(
   (users: Input<User[]>) => ({ users }),
   ({ users }) =>
     div(
-      each(
+      forNode(
         users,
         {
           track: (user) => user.id,
@@ -53,7 +53,7 @@ export const userList = craftComponent(
 
 The renderer separates structural effects from binding effects. Explicit text,
 attribute, property, class, and style callbacks update only their existing DOM
-node; `ifBlock`, `each`, projections, and templates own their structural
+node; `ifNode`, `forNode`, projections, and templates own their structural
 effects. DOM is patched through the public renderer contract, without generated
 instructions or private runtime APIs.
 

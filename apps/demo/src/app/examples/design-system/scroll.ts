@@ -11,11 +11,14 @@
  * naming the requirement and saying where to declare the answer. That half is
  * verified.
  *
- * **The visual half is not.** The emitted CSS is right — `overflow-block: auto`
- * and `container-type: scroll-state` compute on the real elements, and the
- * `@container scroll-state(stuck: block-end)` rule is in the stylesheet — but
- * the button was never observed toggling in the browser. Two things were found
- * on the way and are worth keeping whatever the cause turns out to be:
+ * **The visual half is verified in the browser.** The emitted CSS is right —
+ * `overflow-block: auto` and `container-type: scroll-state` compute on the
+ * real elements — and the button is hidden while the anchor is stuck at the
+ * block end, then becomes visible after the scroll port reaches its end. The
+ * E2E witness drives the same `scrollState.stuck` scenario as the style
+ * matrix.
+ *
+ * Two details are worth keeping in the example:
  *
  * - `scroll-state(stuck: …)` asks about the **container**, so the element that
  *   sticks has to be the one declaring it. Making the scroll port the container
@@ -24,8 +27,8 @@
  *   stick, so the state that would reveal it can never happen. `visibility`
  *   keeps the anchor's size.
  *
- * What is proven here is the compile-time guarantee. Treat the runtime as
- * unverified until someone confirms it.
+ * What is proven here is both halves of the guarantee: the compiler checks the
+ * context demand, and the browser observes the state change it controls.
  */
 import {
   button,
@@ -66,7 +69,9 @@ export const BackToTop = craftComponent(
 export type BackToTop = typeof BackToTop;
 
 /**
- * Twenty rows, so the box actually scrolls.
+ * Twenty rows, so the box actually scrolls. The shell adds a typed tail after
+ * the anchor; without that room, a last-child block-end sticky is stuck even
+ * at the end of the scroll range and the query cannot produce a transition.
  *
  * Kept in a wrapper below rather than spread into the scroll port's children:
  * an `Array.from` result is a homogeneous array, not a tuple, and spreading one
@@ -100,11 +105,15 @@ export const ScrollDemo = craftComponent(
           'The button below asks its ancestors for a scroll port. This component provides one and seals; remove the provider and the build fails.',
         ),
         div({ class: card.root, 'data-scroll-port': 'true' }, [
-          div({ class: shell.main }, [div(filler(20)), BackToTop({})]),
+          div({ class: shell.main }, [
+            div(filler(20)),
+            BackToTop({}),
+            div({ class: shell.tail }, []),
+          ]),
         ]),
         span(
           { class: card.body },
-          'The emitted CSS is a scroll-state container query; whether it lights up here has not been confirmed in a browser — see the note at the top of this file.',
+          'The button is hidden while its sticky anchor is held at block-end and appears once the scroll port reaches its end.',
         ),
       ]),
     ]),

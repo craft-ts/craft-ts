@@ -60,8 +60,8 @@ declare function settled(...args: unknown[]): unknown;
 declare function div(...args: unknown[]): unknown;
 declare function span(...args: unknown[]): unknown;
 declare function button(...args: unknown[]): unknown;
-declare function ifBlock(...args: unknown[]): unknown;
-declare function each(...args: unknown[]): unknown;
+declare function ifNode(...args: unknown[]): unknown;
+declare function forNode(...args: unknown[]): unknown;
 `;
 
 function nodeByLabel(
@@ -254,7 +254,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
           },
           ({ count, label, bump }) =>
             div([
-              ifBlock(label, () => span(function* () { return yield* label(); })),
+              ifNode(label, () => span(function* () { return yield* label(); })),
               span(function* () { return yield* count.doubled(); }),
               button({ *click() { yield* bump(); } }, ['+']),
               button({ *click() { yield* count.increment(); } }, ['inc']),

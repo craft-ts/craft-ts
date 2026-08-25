@@ -8,6 +8,8 @@ in the app to change.
 Every value is a **nominal object**, not a branded string:
 
 ```ts
+import { bg, p, palette, space, unit } from '@craft-ts/style';
+
 p(space(4)); // ✅
 p(unit.rem(1.5)); // ✅
 p('12px'); // ❌ a length is not a string
@@ -28,6 +30,8 @@ is no `[17px]` arbitrary-value syntax on purpose.
 The one way out is marked:
 
 ```ts
+import { unsafeLength } from '@craft-ts/style';
+
 unsafeLength('13px', 'aligns with a legacy image');
 ```
 
@@ -41,6 +45,8 @@ entirely; with it unmarked, it bypasses it in silence.
 was invented. A closed keyword set is a namespace, never a string:
 
 ```ts
+import { display, position } from '@craft-ts/style';
+
 display.inlineFlex; // ✅
 display.inlineFlexx; // ❌ Property 'inlineFlexx' does not exist
 position('sticky'); // ❌ a keyword is not something you pass in
@@ -59,6 +65,8 @@ Two consequences worth knowing:
 ## Typed custom properties
 
 ```ts
+import { color, cssVars, kind, p, palette, unit } from '@craft-ts/style';
+
 export const v = cssVars('badge', {
   ink: kind.color(palette.text.strong),
   pad: kind.length(unit.px(16)),

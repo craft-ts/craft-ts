@@ -223,6 +223,37 @@ the loader owns the asynchronous Effect program.
 Use it for an operation with a lifecycle but without a query cache or mutation
 relationship.
 
+### `computedEffect`: a derived value, not a resource
+
+`computedEffect` runs a **synchronous** Effect in place and hands back a value.
+It is the adapter for a derivation — a formatted price, a validity flag — where
+`queryEffect` would wrap the answer in a resource with a loading state nothing
+can ever be in:
+
+```typescript
+import { computedEffect } from '@craft-ts/effect';
+
+const totalLabel = computedEffect('totalLabel', function* () {
+  const lines = yield* cartLines();
+  return cartTotalLabel(lines); // returns the Effect, never runs it
+});
+```
+
+The factory reads Craft dependencies with `yield*` and **returns** an Effect;
+the adapter runs it in place against the nearest `provideLayer(...)`. Read the
+result like any `craftComputed` — no `value`, no `isLoading`, no
+`pendingNode`.
+
+The Effect it returns must be declared synchronous — `Effect<A, E, SyncOp>` —
+for the same reason `syncEffect` requires it: a computation is asked for its
+value now and cannot suspend to produce it, so one whose `R` does not carry
+`SyncOp` is refused at the call site. See [Run a synchronous member from a
+computed](#run-a-synchronous-member-from-a-computed) for what `SyncOp` is and
+the three mechanisms that check the claim.
+
+Use `syncEffect` instead when the synchronous Effect is not the whole
+derivation — inside a `craftMethod`, a `params`, or a `state` updater.
+
 ### `runEffect`: the low-level form
 
 Use `runEffect` when an Effect is yielded directly by a guard, resolver or Craft
@@ -287,14 +318,14 @@ The bridge keeps Effect's distinctions intact:
 | Effect outcome             | Craft outcome                         | Handle it with                           |
 | -------------------------- | ------------------------------------- | ---------------------------------------- |
 | `Effect.succeed(value)`    | resource value / generator result     | normal rendering                         |
-| typed `Effect.fail(error)` | Craft exception keyed by `error._tag` | `matchBlock`, `catchTag`, route handlers |
+| typed `Effect.fail(error)` | Craft exception keyed by `error._tag` | `matchNode`, `catchTag`, route handlers |
 | `Effect.die(defect)`       | technical error                       | error boundary / monitoring              |
 | interruption               | cancellation                          | normally no user-facing handler          |
 
 Use exhaustive matching for business errors:
 
 ```typescript
-matchBlock.exhaustive(resource.exception, '_tag', {
+matchNode.exhaustive(resource.exception, '_tag', {
   UserNotFound: () => p('No user was found.'),
   Unauthorized: () => p('Your session has expired.'),
 });
@@ -415,6 +446,7 @@ boundaries](/guide/testing/browser-boundaries).
 | `@craft-ts/component` | functional Craft components and typed templates                                                                  |
 | `@craft-ts/core`      | Craft primitives, services, routing, forms, testing and the current server-function registry                     |
 | `@craft-ts/effect`    | Effect bridge, `Layer` providers, Effect-aware primitives, service selection, mocks and server execution helpers |
+| `@craft-ts/i18n-effect` | the Effect adapter over an `@craft-ts/i18n` runtime: `provideI18nRuntime`, `translateEffect`, `I18nEffectService` — see [i18n with Effect](/guide/i18n/effect) |
 | `effect`              | `Effect`, `Context.Service`, `Layer`, `Schema`, tagged errors and the Effect runtime                             |
 | `@effect/platform-*`  | Effect-native platform adapters; used by the current server-function experiment                                  |
 | `@craft-ts/dev-tools` | generators, migration tools, graph and architecture checks                                                       |

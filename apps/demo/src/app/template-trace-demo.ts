@@ -77,7 +77,7 @@ function logTemplateTrace(context: TemplateTraceContext): void {
 
 /**
  * Control-flow signals, not failures: a `CraftGenShortCircuit` is on its way to
- * a `catchBlock`, a `CraftNotSettled` to a `pendingBlock`. Turning them into an
+ * a `catchNode`, a `CraftNotSettled` to a `pendingNode`. Turning them into an
  * `UNEXPECTED_ERROR` here would strand them — the boundary never sees them and
  * the fabricated exception renders in their place.
  */

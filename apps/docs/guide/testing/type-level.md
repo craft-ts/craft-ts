@@ -102,7 +102,7 @@ type CounterTemplateTest = SetupTestComponentTemplate<
 >;
 ```
 
-The resolver traverses elements, directives, `each`, `defer`, and child
+The resolver traverses elements, directives, `forNode`, `deferNode`, and child
 components. A component reference missing from the tuple becomes a type
 diagnostic. Visited components are tracked so recursive templates do not create
 a resolution loop.
@@ -204,7 +204,7 @@ DOM.
 `computed` remains a synchronous signal when called directly
 (`counter.disabled()`) and in a template context.
 
-Templates supplied to `each` and `defer` are also resolved. When a `defer`
+Templates supplied to `forNode` and `deferNode` are also resolved. When a `deferNode`
 directly loads a Craft component, that component must appear in the registry.
 Under this contract, DOM and output callbacks must be generators or branded
 Craft methods; ordinary imperative callbacks produce a diagnostic.
@@ -224,14 +224,14 @@ button(
 ```
 
 The renderer executes these callbacks with the Craft driver. Render callbacks
-(text, classes, styles, `each`, `defer`) remain synchronous.
+(text, classes, styles, `forNode`, `deferNode`) remain synchronous.
 
 ## Conditional visibility and named elements
 
 Reactive values exposed by Craft primitives and services keep their property
 name in the template type. They remain synchronously readable in templates,
-while their name brand is available to `ifBlock` and the visibility contract.
-Use `ifBlock` to retain the condition and its branches in the VNode contract:
+while their name brand is available to `ifNode` and the visibility contract.
+Use `ifNode` to retain the condition and its branches in the VNode contract:
 
 <<< @/tests/snippets/guide/testing/type-level/counter-auth.spec.ts#counter-auth
 
@@ -261,7 +261,7 @@ type CanIncrement = Expect<
 ```
 
 When the element is truly unconditional, omit `when` (or use an empty object).
-An element inside an `ifBlock` or `each` requires its visibility condition;
+An element inside an `ifNode` or `forNode` requires its visibility condition;
 omitting `when` deliberately returns `false` for such an element. Keep the
 complete `ComponentTemplateOf` type if you want editor completion for the
 component prefix of the identity. Using `ReturnType<...>`
@@ -286,7 +286,7 @@ When editing the second argument, the available identities are proposed from
 the template, for example `FullDemoCraft:input:TodoNameToAddInput` and
 `FullDemoCraft:button:AddTodoButton`. `{ when: {} }` is equivalent to omitting
 the third argument: both assert that the element is unconditional. For an
-element inside an `ifBlock` named `isAuth`, use `{ when: { isAuth: true } }`.
+element inside an `ifNode` named `isAuth`, use `{ when: { isAuth: true } }`.
 
 The same visibility contract can identify an element through branded direct
 content. Here, `brandedStatus` is not selected by its text; its brand proves that the
@@ -327,14 +327,14 @@ same locator returns `undefined` while the branch is absent.
 
 ### Proving a binding renders for every item of a non-empty list
 
-`each` contributes `<listName>: 'nonEmpty'` to the visibility path, so you can
+`forNode` contributes `<listName>: 'nonEmpty'` to the visibility path, so you can
 assert what every item renders — here a translated label exposed by an
 `insertSelect` insertion:
 
 ```typescript
 import { craftComputed as computed } from '@craft-ts/core';
 import { insertSelect, state } from '@craft-ts/core';
-import { craftComponent, each, span } from '@craft-ts/component';
+import { craftComponent, forNode, span } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
   TemplateRendersNamedElementWhen,
@@ -358,7 +358,7 @@ const ItemList = craftComponent(
     return { items };
   },
   ({ items }) =>
-    each(items, { track: (item) => item.key }, (_item, index) =>
+    forNode(items, { track: (item) => item.key }, (_item, index) =>
       span(
         'itemLabel',
         { 'aria-label': items.selectItem(index)?.translatedLabel },
@@ -402,7 +402,7 @@ reads as "the `click` action on the element named `increment`":
 
 ```typescript
 import { craftMethod, state } from '@craft-ts/core';
-import { button, craftComponent, ifBlock } from '@craft-ts/component';
+import { button, craftComponent, ifNode } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
   TemplateRenderAvailableActionWhen,
@@ -423,7 +423,7 @@ const Counter = craftComponent(
     return { isAuth, isAdult, increment };
   },
   ({ isAuth, isAdult, increment }) =>
-    ifBlock(
+    ifNode(
       isAuth,
       () => button('increment', { click: increment }, () => isAdult()),
       () => [],
@@ -463,7 +463,7 @@ text or other render bindings such as `class` and `style`. Both assertions
 return `false` when the state or action exists only under a visibility branch
 that is incompatible with `when`.
 
-`each` adds `<listName>: 'nonEmpty'` for its item template and
+`forNode` adds `<listName>: 'nonEmpty'` for its item template and
 `<listName>: 'empty'` for its empty template. Interactive helpers must use the
 named form (`button('increment', {}, '+')`): ESLint
 `craft-ts/require-interactive-local-name` requires the literal first argument,
@@ -562,7 +562,7 @@ there is no identity to assert on.
 callbacks must be generators or branded Craft methods; an ordinary function
 produces a diagnostic.
 
-**A `defer` that loads a Craft component** requires that component to be present
+**A `deferNode` that loads a Craft component** requires that component to be present
 in the registry tuple.
 
 **The ergonomics are known to be rough.** `Expect<Equal<Helper<ReturnType<

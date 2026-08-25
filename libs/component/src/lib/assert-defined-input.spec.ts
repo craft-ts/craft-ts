@@ -9,7 +9,7 @@ import {
 } from 'vitest';
 import {
   assertDefinedInput,
-  catchBlock,
+  catchNode,
   catchInput,
   craftComponent,
   CraftUnhandledExceptionError,
@@ -55,7 +55,7 @@ describe('assertDefinedInput', () => {
     >().toEqualTypeOf<'CraftUndefinedPropertyException'>();
 
     const caught = source.pipe(
-      catchBlock.exhaustive({
+      catchNode.exhaustive({
         CraftUndefinedPropertyException: {
           render: () => span('fallback'),
           showSource: true,
@@ -92,7 +92,7 @@ describe('assertDefinedInput', () => {
               return value();
             }),
           }).pipe(
-            catchBlock.exhaustive({
+            catchNode.exhaustive({
               CraftUndefinedPropertyException: {
                 render: (exception) => {
                   expect(exception._tag).toBe(

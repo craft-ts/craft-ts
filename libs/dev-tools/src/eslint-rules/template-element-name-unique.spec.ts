@@ -25,7 +25,7 @@ describe('template-element-name-unique', () => {
   it('reports duplicate names across conditional branches', async () => {
     const [result] = await lint(`
       const component = craftComponent('Demo', {}, () => ({}), () =>
-        ifBlock(condition, () => button('save', {}, 'a'), () => button('save', {}, 'b'))
+        ifNode(condition, () => button('save', {}, 'a'), () => button('save', {}, 'b'))
       );
     `);
 

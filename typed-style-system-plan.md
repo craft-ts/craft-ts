@@ -10,6 +10,12 @@ plan et le dépôt réel.
 Dernière mise à jour : **2026-08-25**. **Les vagues 1 à 4 sont dans `main`.**
 La vague 5 reste fermée : médiane 1, maximum 18, seuil 24.
 
+La moitié visuelle du témoin de niveau 3 n'est plus une réserve : le
+2026-08-25, `npx playwright test --config apps/demo/playwright.config.ts
+--project=chromium e2e/scroll-state-witness.spec.ts` passe dans Chromium — le
+bouton est masqué au départ, puis visible après le driver
+`{ kind: 'scroll', to: 'end' }` appliqué par `applyScenario`.
+
 | Vague                           | Tâches      | État                                                  |
 | ------------------------------- | ----------- | ----------------------------------------------------- |
 | 0 — mécanisme de canaux         | 1, 2        | faites                                                |
@@ -17,7 +23,7 @@ La vague 5 reste fermée : médiane 1, maximum 18, seuil 24.
 | 0 — migration `CssVars`         | 3 steps 2–4 | **écartée** — voir « Tâche 3 » dans « Reste à faire » |
 | **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
 | 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite**                                             |
-| 3 — niveau 3 : obligations      | 23 → 26     | **faite** (moitié visuelle non vérifiée)              |
+| 3 — niveau 3 : obligations      | 23 → 26     | **faite**, moitié visuelle comprise                   |
 | 4 — graphe et architecture      | 27 → 30     | **faite**                                             |
 | 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
 
@@ -39,7 +45,7 @@ n'existent pas tels quels :
   `libs/core/src/lib/render/` comme prévu : l'algèbre est dans le core, le câblage
   dans component.
 - `libs/component/src/lib/css-vars.type.ts` existe bien (tâche 3).
-- `libs/component/src/lib/if-block.ts` et `match-block.ts` existent (tâche 16).
+- `libs/component/src/lib/if-node.ts` et `match-node.ts` existent (tâche 16).
 - `packages/mcp/src/mcp-server.ts` (tâche 29) : **vérifié le 2026-08-24**, existe.
 - `libs/dev-tools/src/scripts/dependency-graph.ts` et `architecture-graph.ts`
   (tâches 27–28) : vérifiés, existent.
@@ -101,7 +107,7 @@ Les deux « préexistants » ont été prouvés, pas supposés : les 5 specs cor
 (`state`, `insert-select`, `craft-control-flow`, `yieldable-insertion-method`) portent
 sur des fichiers **identiques au byte près** à ceux de `main` — la branche n'ajoute
 qu'un export et deux fichiers neufs dans `libs/core`. Et l'erreur TS2345 de
-`apps/demo/src/app/examples/component/pending-block-exception-demo.ts` se reproduit
+`apps/demo/src/app/examples/component/pending-node-exception-demo.ts` se reproduit
 avec les `vnode.ts` / `types.ts` de `main` remis en place.
 
 Note d'environnement : le `.nvmrc` demande node 24.19.0 ; la reprise a tourné sous node
@@ -212,7 +218,7 @@ Falsifiabilité vérifiée : `Exclude` remplacé par une union simple dans `Merg
 
 ## Tâche 2 — branchement sur le vnode
 
-Points de propagation couverts : `h()`, les deux branches d'`ifBlock`, `each`
+Points de propagation couverts : `h()`, les deux branches d'`ifNode`, `forNode`
 (item + empty), `craftTemplate`/`renderTemplate`, la frontière de composant. Plus les
 nœuds pipés (catch, pending, field-exception, directive) — une frontière d'exception
 n'est pas une frontière de style, et un canal qui disparaîtrait là serait exactement
@@ -421,7 +427,7 @@ La seconde mesure — temps de capture CI — n'existe pas : rien ne capture enc
 #### Tâches 15 et 16 : déclarées, pas inférées
 
 Le plan les place dans `libs/component` — budget sur le meta de `craftComponent`,
-somme lue sur le type du nœud `ifBlock`. Elles vivent ici dans le vocabulaire de
+somme lue sur le type du nœud `ifNode`. Elles vivent ici dans le vocabulaire de
 style, pour la même raison que la matrice prend des feuilles et pas un composant :
 les classes d'un composant ne sont connaissables qu'en le rendant.
 
@@ -442,7 +448,7 @@ pendant son écriture, chacune attrapée par le cas négatif et non par la relec
    d'une union ce sont les clés communes à ses membres — aucune. Un budget de deux
    axes ne déclarait donc rien du tout. Il faut un paramètre nu qui distribue.
 
-### Vague 3 — niveau 3 : faite, sauf la vérification visuelle
+### Vague 3 — niveau 3 : faite, compilation et rendu vérifiés
 
 | tâche                        | livré                                                                                        |
 | ---------------------------- | -------------------------------------------------------------------------------------------- |
@@ -473,20 +479,19 @@ et ce que ferait le mauvais correctif évident.
 
 #### Ce qui n'est PAS vérifié
 
-**La moitié visuelle.** Le CSS émis est correct — `overflow-block: auto` et
-`container-type: scroll-state` calculent bien sur les vrais éléments, et la règle
-`@container scroll-state(stuck: block-end)` est dans la feuille — mais le bouton
-n'a **jamais été observé** en train d'apparaître dans le navigateur. Le fichier
-témoin le dit dans son propre en-tête plutôt que de laisser croire l'inverse.
+Rien pour ce témoin, et ce n'est plus une affirmation sur parole : l'e2e a été
+lancé le 2026-08-25 et passe. La compilation et le rendu sont couverts : retirer
+`provides(scrollPort.block)` de `shell.main` fait échouer `tsc` avec le nom de
+l'obligation, et `apps/demo/e2e/scroll-state-witness.spec.ts` vérifie dans
+Chromium que le bouton est masqué au départ puis visible après le driver
+`{ kind: 'scroll', to: 'end' }` de l'axe `scrollState.stuck`.
 
-Deux trouvailles de la tentative, qui tiennent quelle que soit la cause :
-
-- `scroll-state(stuck: …)` interroge le **conteneur**, donc l'élément qui colle
-  doit être celui qui le déclare. Faire du scroll port le conteneur parse,
-  s'applique, et ne matche jamais.
-- Conditionner sur `display` ne peut pas se résoudre : une boîte collante de
-  taille nulle n'a rien à quoi coller, donc l'état qui la révélerait ne peut pas
-  se produire. `visibility` conserve la taille de l'ancre.
+Le détail de layout est important : l'ancre sticky reste un conteneur
+`container-type: scroll-state`, tandis que le shell lui ajoute un espace final
+typé. Sans cet espace, l'ancre dernier enfant reste collée au `block-end` même
+à la limite de défilement ; le témoin ne change alors jamais d'état. La règle
+utilise `visibility` pour conserver la taille nécessaire au collage, et masque
+le seul état transitoire `stuck: block-end`.
 
 ### Vague 4 — graphe et architecture : faite
 
@@ -554,7 +559,7 @@ craft-graph --style-debt     → 0 dette, 0 obligation ouverte, 2 variables non 
 
 - 5 specs `craft-ts-core` échouent (`state`, `insert-select`, `craft-control-flow`,
   `yieldable-insertion-method`) : présentes sur `main`, fichiers identiques.
-- `apps/demo/src/app/examples/component/pending-block-exception-demo.ts` : TS2345,
+- `apps/demo/src/app/examples/component/pending-node-exception-demo.ts` : TS2345,
   présente sur `main`, reproduite avec les fichiers de `main` remis en place.
 - 14 specs `demo` rouges (`granular-mutation`, `state-machine-list`, `state-machine`) :
   compte identique avec la migration du composant témoin annulée.

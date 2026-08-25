@@ -93,42 +93,42 @@ import {
   type CraftNodeChildren,
   type CraftTextBinding,
   type DeferNode,
-  type EachNode,
-  type IfBlockNode,
+  type ForNode,
+  type IfNode,
   type HeadingNode,
   type HeadingSectionNode,
   type ElementNodeBase,
-  type CatchBlockNode,
-  type MatchBlockNode,
+  type CatchNode,
+  type MatchNode,
   type ProjectionNode,
   type TemplateNode,
-  type FieldExceptionBlockNode,
-  type PendingBlockNode,
+  type FieldErrorNode,
+  type PendingNode,
   withCraftRenderContext,
   CRAFT_NODE_DIRECTIVES,
 } from './vnode';
 import {
   CraftUnhandledPendingError,
-  resolvePendingBlockHandler,
-  type PendingBlockHandler,
-  type PendingBlockPosition,
-} from '../pending-block';
+  resolvePendingHandler,
+  type PendingHandler,
+  type PendingPosition,
+} from '../pending-node';
 import {
   CraftUnhandledExceptionError,
-  resolveCatchBlockHandler,
-  type CatchBlockPosition,
-} from '../block';
+  resolveCatchHandler,
+  type CatchPosition,
+} from '../catch-node';
 import type {
   FieldExceptionHandler,
   FieldExceptionHandlers,
-} from '../field-exception-block';
+} from '../field-error-node';
 import {
-  EACH_SCHEDULER,
-  createEachScheduler,
+  FOR_SCHEDULER,
+  createForScheduler,
   type CancelHandle,
-  type EachSchedulePolicy,
-  type EachScheduler,
-} from '../each-scheduling';
+  type ForSchedulePolicy,
+  type ForScheduler,
+} from '../for-scheduling';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
   CRAFT_STYLE_REGISTRY,
@@ -177,7 +177,7 @@ interface RenderContext {
   /** Marker applied to ordinary nodes in an opted-in projection. */
   readonly contentScope?: string;
   /**
-   * Reports an exception to the nearest `catchBlock`. `token` identifies the
+   * Reports an exception to the nearest `catchNode`. `token` identifies the
    * reporter: the boundary keeps its fallback up until every reporter has
    * either recovered or been destroyed, so a re-render between the failure and
    * the recovery cannot strand it.
@@ -187,9 +187,9 @@ interface RenderContext {
     token?: object,
   ) => boolean;
   readonly exceptionBoundaryResolved?: (token?: object) => void;
-  /** Nearest `pendingBlock` boundary, notified by any binding that suspends. */
+  /** Nearest `pendingNode` boundary, notified by any binding that suspends. */
   readonly pendingBoundary?: PendingBoundaryRegistration;
-  /** Nearest `pendingBlock` boundary, notified by every settled read below it. */
+  /** Nearest `pendingNode` boundary, notified by every settled read below it. */
   readonly settledReadObserver?: CraftSettledReadObserver;
   readonly handledResourceExceptionCodes?: Set<string>;
   readonly fieldExceptionBoundary?: FieldExceptionBoundaryRegistration;
@@ -241,8 +241,8 @@ function childNodeContext(
   const segments: readonly (string | number)[] =
     node.kind === 'component'
       ? [node.component[CRAFT_COMPONENT].name, index]
-      : node.kind === 'each'
-        ? [`each:${node.sourceName ?? index}`]
+      : node.kind === 'for'
+        ? [`for:${node.sourceName ?? index}`]
         : node.kind === 'if'
           ? [`if:${node.conditionName}`]
           : [index];
@@ -614,7 +614,7 @@ function createRenderEffect(
       if (!isCraftGenShortCircuit(error)) throw error;
 
       // A settled read whose source carries a business exception: route it to
-      // the nearest catchBlock, exactly like a component initialization one.
+      // the nearest catchNode, exactly like a component initialization one.
       context.pendingBoundary?.resume(token);
       if (!context.exceptionBoundary?.(error.exception, token)) {
         throw new CraftUnhandledExceptionError(error.exception);
@@ -2387,7 +2387,7 @@ function createFragment(
   return new FragmentRenderedNode(parent, start, end, context, children);
 }
 
-interface EachRenderedEntry {
+interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
   index: number;
@@ -2397,28 +2397,28 @@ interface EachRenderedEntry {
   rendered: boolean;
 }
 
-class EachRenderedNode implements RenderedNode {
-  readonly kind = 'each';
-  private entries = new Map<unknown, EachRenderedEntry>();
+class ForRenderedNode implements RenderedNode {
+  readonly kind = 'for';
+  private entries = new Map<unknown, ForRenderedEntry>();
   private ordered: FragmentRenderedNode[] = [];
   private emptyView: FragmentRenderedNode | undefined;
   private readonly descriptor;
   private readonly effectRef: EffectRef;
 
-  private node: EachNode<unknown, unknown>;
+  private node: ForNode<unknown, unknown>;
   private readonly parent: NativeParent;
   private readonly start: Comment;
   private readonly end: Comment;
   private readonly context: RenderContext;
-  private scheduler: EachScheduler & { destroy?(): void };
+  private scheduler: ForScheduler & { destroy?(): void };
   private ownsScheduler = false;
-  private schedulePolicy: EachSchedulePolicy | undefined;
+  private schedulePolicy: ForSchedulePolicy | undefined;
   private schedulerConfigured = false;
   private readonly pendingTasks = new Set<CancelHandle>();
   private reconcileVersion = 0;
 
   constructor(
-    node: EachNode<unknown, unknown>,
+    node: ForNode<unknown, unknown>,
     parent: NativeParent,
     start: Comment,
     end: Comment,
@@ -2429,14 +2429,14 @@ class EachRenderedNode implements RenderedNode {
     this.start = start;
     this.end = end;
     this.context = context;
-    this.scheduler = createEachScheduler({
+    this.scheduler = createForScheduler({
       enabled: false,
       strategy: 'sync',
       frameBudgetMs: 4,
     });
     this.configureScheduler(node.schedule);
     this.descriptor = signal(node);
-    this.effectRef = createRenderEffect(context, 'each-block', () => {
+    this.effectRef = createRenderEffect(context, 'for-node', () => {
       const previousItemTemplate = this.node.itemTemplate;
       this.node = this.descriptor();
       this.configureScheduler(this.node.schedule);
@@ -2453,7 +2453,7 @@ class EachRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'each') {
+    if (node.kind !== 'for') {
       return false;
     }
     this.descriptor.set(node);
@@ -2471,7 +2471,7 @@ class EachRenderedNode implements RenderedNode {
     const seenKeys = new Set<unknown>();
     keys.forEach((key) => {
       if (seenKeys.has(key)) {
-        throw new Error(`each() received the duplicate key "${String(key)}".`);
+        throw new Error(`forNode() received the duplicate key "${String(key)}".`);
       }
       seenKeys.add(key);
     });
@@ -2515,10 +2515,10 @@ class EachRenderedNode implements RenderedNode {
     this.emptyView = undefined;
 
     const previous = this.entries;
-    const next = new Map<unknown, EachRenderedEntry>();
+    const next = new Map<unknown, ForRenderedEntry>();
     const nextOrdered: FragmentRenderedNode[] = [];
 
-    const entriesToRender: EachRenderedEntry[] = [];
+    const entriesToRender: ForRenderedEntry[] = [];
     collection.forEach((item, index) => {
       const key = keys[index];
       let entry = previous.get(key);
@@ -2552,7 +2552,7 @@ class EachRenderedNode implements RenderedNode {
             this.end,
             entryContext,
             [],
-            `craft-each:${String(key)}`,
+            `craft-for:${String(key)}`,
           ),
         };
         entriesToRender.push(entry);
@@ -2584,7 +2584,7 @@ class EachRenderedNode implements RenderedNode {
     entriesToRender.forEach((entry) => this.scheduleEntryRender(entry));
   }
 
-  private configureScheduler(policy: EachSchedulePolicy | undefined): void {
+  private configureScheduler(policy: ForSchedulePolicy | undefined): void {
     if (this.schedulerConfigured && this.schedulePolicy === policy) return;
 
     if (this.ownsScheduler) this.scheduler.destroy?.();
@@ -2592,20 +2592,20 @@ class EachRenderedNode implements RenderedNode {
     this.schedulerConfigured = true;
     this.cancelPendingTasks();
 
-    const injected = this.context.injector.get(EACH_SCHEDULER, null);
+    const injected = this.context.injector.get(FOR_SCHEDULER, null);
     if (injected) {
       this.scheduler = injected;
       this.ownsScheduler = false;
       return;
     }
 
-    this.scheduler = createEachScheduler(
+    this.scheduler = createForScheduler(
       policy ?? { enabled: false, strategy: 'sync', frameBudgetMs: 4 },
     );
     this.ownsScheduler = true;
   }
 
-  private scheduleEntryRender(entry: EachRenderedEntry): void {
+  private scheduleEntryRender(entry: ForRenderedEntry): void {
     const version = this.reconcileVersion;
     const scheduled = {
       completed: false,
@@ -2618,7 +2618,7 @@ class EachRenderedNode implements RenderedNode {
         return;
       }
       entry.renderEffect?.destroy();
-      entry.renderEffect = createRenderEffect(this.context, 'each-item', () =>
+      entry.renderEffect = createRenderEffect(this.context, 'for-item', () =>
         entry.view.patchChildren(
           this.renderItem(entry.traceState, entry.item, entry.index, entry.key),
         ),
@@ -2649,7 +2649,7 @@ class EachRenderedNode implements RenderedNode {
           `item:${String(key)}`,
         ),
       }),
-      'each',
+      'for',
       this.node.itemTemplate,
       [
         function* () {
@@ -2675,18 +2675,18 @@ class EachRenderedNode implements RenderedNode {
   }
 }
 
-class IfBlockRenderedNode implements RenderedNode {
+class IfRenderedNode implements RenderedNode {
   readonly kind = 'if';
   private readonly view: FragmentRenderedNode;
   private active: boolean | undefined;
   private readonly descriptor;
   private readonly effectRef: EffectRef;
 
-  private node: IfBlockNode;
+  private node: IfNode;
   private readonly context: RenderContext;
 
   constructor(
-    node: IfBlockNode,
+    node: IfNode,
     parent: NativeParent,
     before: NativeNode | null,
     context: RenderContext,
@@ -2701,7 +2701,7 @@ class IfBlockRenderedNode implements RenderedNode {
       [],
       `craft-if:${node.conditionName}`,
     );
-    this.effectRef = createRenderEffect(context, 'if-block', () => {
+    this.effectRef = createRenderEffect(context, 'if-node', () => {
       this.node = this.descriptor();
       this.active = this.isTrue();
       this.view.patchChildren(this.children());
@@ -2750,18 +2750,18 @@ class IfBlockRenderedNode implements RenderedNode {
   }
 }
 
-class MatchBlockRenderedNode implements RenderedNode {
-  readonly kind = 'match-block';
+class MatchRenderedNode implements RenderedNode {
+  readonly kind = 'match';
   private readonly view: FragmentRenderedNode;
   private handledExceptionCode: string | undefined;
   private readonly descriptor;
   private readonly effectRef: EffectRef;
 
-  private node: MatchBlockNode;
+  private node: MatchNode;
   private readonly context: RenderContext;
 
   constructor(
-    node: MatchBlockNode,
+    node: MatchNode,
     parent: NativeParent,
     before: NativeNode | null,
     context: RenderContext,
@@ -2774,9 +2774,9 @@ class MatchBlockRenderedNode implements RenderedNode {
       before,
       context,
       [],
-      'craft-match-block',
+      'craft-match-node',
     );
-    this.effectRef = createRenderEffect(context, 'match-block', () => {
+    this.effectRef = createRenderEffect(context, 'match-node', () => {
       this.node = this.descriptor();
       this.view.patchChildren(this.children());
     });
@@ -2791,7 +2791,7 @@ class MatchBlockRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'match-block' || node.key !== this.node.key) {
+    if (node.kind !== 'match' || node.key !== this.node.key) {
       return false;
     }
     this.descriptor.set(node);
@@ -2890,25 +2890,25 @@ function reattachRange(
 /** Stands in for reporters that do not identify themselves (component renders). */
 const ANONYMOUS_EXCEPTION_REPORTER: object = {};
 
-class CatchBlockRenderedNode implements RenderedNode {
-  readonly kind = 'catch-block';
+class CatchRenderedNode implements RenderedNode {
+  readonly kind = 'catch';
   private readonly start: Comment;
   private readonly end: Comment;
   private readonly sourceView: FragmentRenderedNode;
   private readonly fallbackView: FragmentRenderedNode;
   private handling = false;
   private fallbackVisible = false;
-  private fallbackPosition: CatchBlockPosition;
+  private fallbackPosition: CatchPosition;
   private detached: DocumentFragment | undefined;
   /** Reporters still failing. The fallback stays up until this empties. */
   private readonly failing = new Set<object>();
 
-  private node: CatchBlockNode<any, any, any, any, any>;
+  private node: CatchNode<any, any, any, any, any>;
   private readonly parent: NativeParent;
   private readonly context: RenderContext;
 
   constructor(
-    node: CatchBlockNode<any, any, any, any, any>,
+    node: CatchNode<any, any, any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
     context: RenderContext,
@@ -2919,11 +2919,11 @@ class CatchBlockRenderedNode implements RenderedNode {
     this.fallbackPosition = node.position;
     this.start = mountComment(
       parent,
-      'craft-catch-block:start',
+      'craft-catch-node:start',
       before,
       context,
     );
-    this.end = mountComment(parent, 'craft-catch-block:end', before, context);
+    this.end = mountComment(parent, 'craft-catch-node:end', before, context);
 
     // The fallback renders in the OUTER context: an exception thrown by a
     // fallback belongs to the next boundary up, never to this one.
@@ -2969,7 +2969,7 @@ class CatchBlockRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'catch-block' || node.position !== this.node.position) {
+    if (node.kind !== 'catch' || node.position !== this.node.position) {
       return false;
     }
     this.node = node;
@@ -3014,7 +3014,7 @@ class CatchBlockRenderedNode implements RenderedNode {
     this.handling = true;
     this.fallbackVisible = true;
     try {
-      const resolved = resolveCatchBlockHandler(
+      const resolved = resolveCatchHandler(
         handler,
         exception,
         true,
@@ -3046,7 +3046,7 @@ class CatchBlockRenderedNode implements RenderedNode {
     this.restoreSource();
   }
 
-  private applyPosition(position: CatchBlockPosition): void {
+  private applyPosition(position: CatchPosition): void {
     if (position === this.fallbackPosition) return;
     this.fallbackPosition = position;
     this.fallbackView.moveBefore(
@@ -3233,7 +3233,7 @@ function hasLiveRegion(children: CraftNodeChildren): boolean {
 }
 
 /**
- * The `pendingBlock` boundary.
+ * The `pendingNode` boundary.
  *
  * Layout is fixed at construction — a fallback fragment and a source fragment,
  * ordered by `position` — so showing or hiding the fallback never reconciles
@@ -3245,13 +3245,13 @@ function hasLiveRegion(children: CraftNodeChildren): boolean {
  * the suspended bindings stay subscribed to their source's `status`, so they
  * re-run — and release their token — the moment the data arrives.
  */
-class PendingBlockRenderedNode implements RenderedNode {
-  readonly kind = 'pending-block';
+class PendingRenderedNode implements RenderedNode {
+  readonly kind = 'pending';
   private readonly start: Comment;
   private readonly end: Comment;
   private readonly sourceView: FragmentRenderedNode;
   private readonly fallbackView: FragmentRenderedNode;
-  private readonly position: PendingBlockPosition;
+  private readonly position: PendingPosition;
   /** Held tokens, by the binding that suspended, in suspension order. */
   private readonly held = new Map<object, string>();
   /** Sources seen below this boundary, by name — the reload watch reads them. */
@@ -3264,12 +3264,12 @@ class PendingBlockRenderedNode implements RenderedNode {
   /** A fallback render asked for while the source range was mid-render. */
   private renderDeferred = false;
 
-  private node: PendingBlockNode<any, any, any, any>;
+  private node: PendingNode<any, any, any, any>;
   private readonly parent: NativeParent;
   private readonly context: RenderContext;
 
   constructor(
-    node: PendingBlockNode<any, any, any, any>,
+    node: PendingNode<any, any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
     context: RenderContext,
@@ -3285,7 +3285,7 @@ class PendingBlockRenderedNode implements RenderedNode {
       !node.fallback
     ) {
       throw new Error(
-        'pendingBlock({ ssr: "client" }) requires an explicit fallback or shell.',
+        'pendingNode({ ssr: "client" }) requires an explicit fallback or shell.',
       );
     }
     this.start = mountComment(parent, 'craft-pending:start', before, context);
@@ -3353,10 +3353,10 @@ class PendingBlockRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'pending-block') {
+    if (node.kind !== 'pending') {
       return false;
     }
-    const next = node as PendingBlockNode<any, any, any, any>;
+    const next = node as PendingNode<any, any, any, any>;
     if (next.position !== this.position) {
       return false;
     }
@@ -3494,9 +3494,9 @@ class PendingBlockRenderedNode implements RenderedNode {
       );
     }
 
-    const handler: PendingBlockHandler | undefined = handlers[source];
+    const handler: PendingHandler | undefined = handlers[source];
     const inner = handler
-      ? resolvePendingBlockHandler(handler, suspended ? 'pending' : 'reloading')
+      ? resolvePendingHandler(handler, suspended ? 'pending' : 'reloading')
       : [];
     return this.announceFallback(inner, true);
   }
@@ -3594,8 +3594,8 @@ class PendingBlockRenderedNode implements RenderedNode {
   }
 }
 
-class FieldExceptionBlockRenderedNode implements RenderedNode {
-  readonly kind = 'field-exception-block';
+class FieldErrorRenderedNode implements RenderedNode {
+  readonly kind = 'field-error';
   private readonly boundaryId = nextFieldExceptionBoundaryId++;
   private readonly descriptor;
   private readonly sourcesVersion = signal(0);
@@ -3604,11 +3604,11 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
 
-  private node: FieldExceptionBlockNode<any, any, any, any>;
+  private node: FieldErrorNode<any, any, any, any>;
   private readonly context: RenderContext;
 
   constructor(
-    node: FieldExceptionBlockNode<any, any, any, any>,
+    node: FieldErrorNode<any, any, any, any>,
     parent: NativeParent,
     before: NativeNode | null,
     context: RenderContext,
@@ -3621,14 +3621,14 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
       before,
       this.boundaryContext(),
       [node.source],
-      'craft-field-exception-block',
+      'craft-field-error-node',
     );
     this.componentSourceCleanups = componentFieldExceptionSources(
       context.componentContext,
     ).map((source) => this.register(source));
     this.effectRef = createRenderEffect(
       context,
-      'field-exception-block',
+      'field-error-node',
       () => {
         this.node = this.descriptor();
         this.sourcesVersion();
@@ -3651,7 +3651,7 @@ class FieldExceptionBlockRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'field-exception-block') return false;
+    if (node.kind !== 'field-error') return false;
     this.descriptor.set(node);
     return true;
   }
@@ -4145,7 +4145,7 @@ class ComponentRenderedNode implements RenderedNode {
       'then' in factoryContext
     ) {
       throw new Error(
-        'Async component factories are not renderable directly. Move asynchronous work behind defer().',
+        'Async component factories are not renderable directly. Move asynchronous work behind deferNode().',
       );
     }
     this.factoryContext = factoryContext;
@@ -4330,7 +4330,7 @@ class ComponentRenderedNode implements RenderedNode {
     let factoryContext: unknown;
     let renderContext: RenderContext;
     const handledResourceExceptionCodes = new Set<string>();
-    const componentBoundary = composition.catchBlockPosition
+    const componentBoundary = composition.catchNodePosition
       ? (exception: AnyCraftException): boolean => {
           if (!composition.catchHandlers?.[exception._tag]) {
             return context.exceptionBoundary?.(exception) ?? false;
@@ -4402,7 +4402,7 @@ class ComponentRenderedNode implements RenderedNode {
         'then' in factoryContext
       ) {
         throw new Error(
-          'Async component factories are not renderable directly. Move asynchronous work behind defer().',
+          'Async component factories are not renderable directly. Move asynchronous work behind deferNode().',
         );
       }
       this.registerRuntimeTargets(definition, factoryContext, renderInjector);
@@ -4450,7 +4450,7 @@ class ComponentRenderedNode implements RenderedNode {
             hostTarget,
           );
           if (
-            composition.catchBlockPosition &&
+            composition.catchNodePosition &&
             !this.componentExceptionEffect
           ) {
             this.installComponentExceptionEffect(
@@ -4489,7 +4489,7 @@ class ComponentRenderedNode implements RenderedNode {
     this.componentExceptionEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
         craftEffect(
-          'component-catch-block-resource-exceptions',
+          'component-catch-node-resource-exceptions',
           () => {
             const exception = findResourceException(factoryContext);
             if (exception) {
@@ -4596,7 +4596,7 @@ class ComponentRenderedNode implements RenderedNode {
         factoryContext,
         renderContext,
       );
-      const children = this.withComponentFieldExceptionBlock(
+      const children = this.withComponentFieldError(
         definition,
         rendered.children,
       );
@@ -4654,7 +4654,7 @@ class ComponentRenderedNode implements RenderedNode {
     };
   }
 
-  private withComponentFieldExceptionBlock(
+  private withComponentFieldError(
     definition: (typeof this.component)[typeof CRAFT_COMPONENT],
     children: CraftNodeChildren,
   ): CraftNodeChildren {
@@ -4662,11 +4662,11 @@ class ComponentRenderedNode implements RenderedNode {
     const options = definition.composition?.fieldExceptionOptions;
     if (!handlers || !options) return children;
     return {
-      kind: 'field-exception-block',
+      kind: 'field-error',
       source: children,
       handlers,
       options,
-    } as FieldExceptionBlockNode<any, any, any, any>;
+    } as FieldErrorNode<any, any, any, any>;
   }
 
   private renderComposedException(
@@ -4714,11 +4714,11 @@ class ComponentRenderedNode implements RenderedNode {
       this.view.patchChildren([]);
     } else {
       const resolved = runInInjectionContext(environmentInjector, () =>
-        resolveCatchBlockHandler(
+        resolveCatchHandler(
           blockHandler!,
           exception,
           false,
-          definition.composition?.catchBlockPosition ?? 'after',
+          definition.composition?.catchNodePosition ?? 'after',
         ),
       );
       if (preserveFactoryContext && resolved.showSource) {
@@ -4734,13 +4734,13 @@ class ComponentRenderedNode implements RenderedNode {
             resolved.position === 'before'
               ? [
                   resolved.children,
-                  this.withComponentFieldExceptionBlock(
+                  this.withComponentFieldError(
                     definition,
                     source.children,
                   ),
                 ]
               : [
-                  this.withComponentFieldExceptionBlock(
+                  this.withComponentFieldError(
                     definition,
                     source.children,
                   ),
@@ -5287,13 +5287,13 @@ function mountNode(
       );
     case 'directive':
       return new CraftDirectiveRenderedNode(node, parent, before, context);
-    case 'each': {
-      const start = mountComment(parent, 'craft-each:start', before, context);
-      const end = mountComment(parent, 'craft-each:end', before, context);
-      return new EachRenderedNode(node, parent, start, end, context);
+    case 'for': {
+      const start = mountComment(parent, 'craft-for:start', before, context);
+      const end = mountComment(parent, 'craft-for:end', before, context);
+      return new ForRenderedNode(node, parent, start, end, context);
     }
     case 'if': {
-      return new IfBlockRenderedNode(node, parent, before, context);
+      return new IfRenderedNode(node, parent, before, context);
     }
     case 'heading': {
       return new HeadingRenderedNode(node, parent, before, context);
@@ -5301,17 +5301,17 @@ function mountNode(
     case 'heading-section': {
       return new HeadingSectionRenderedNode(node, parent, before, context);
     }
-    case 'pending-block': {
-      return new PendingBlockRenderedNode(node, parent, before, context);
+    case 'pending': {
+      return new PendingRenderedNode(node, parent, before, context);
     }
-    case 'catch-block': {
-      return new CatchBlockRenderedNode(node, parent, before, context);
+    case 'catch': {
+      return new CatchRenderedNode(node, parent, before, context);
     }
-    case 'field-exception-block': {
-      return new FieldExceptionBlockRenderedNode(node, parent, before, context);
+    case 'field-error': {
+      return new FieldErrorRenderedNode(node, parent, before, context);
     }
-    case 'match-block': {
-      return new MatchBlockRenderedNode(node, parent, before, context);
+    case 'match': {
+      return new MatchRenderedNode(node, parent, before, context);
     }
     case 'defer':
       return new DeferRenderedNode(node, parent, before, context);

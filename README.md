@@ -34,6 +34,8 @@ It is designed to keep application behavior close to where it is used while maki
 - **Derived forms** — form state, validation, submission, and interdependent logic remain reactive and declarative.
 - **Deterministic testing** — tests describe the real dependency graph and can isolate browser or platform boundaries explicitly.
 - **Observability by design** — exceptions, correlations, and application state can be captured where failures occur.
+- **A typed design system** — `@craft-ts/style` makes a component's visual surface derivable rather than guessed: no value is a string, no class is built at run time, and the exhaustive set of visual states is something you can enumerate and capture. The CSS is emitted at build time by a Vite plugin.
+- **Type-safe internationalisation** — `@craft-ts/i18n` closes the key set, checks every locale for parity, types each message parameter by its token, and requires the plural categories the locale actually needs. It imports no framework and no Effect.
 
 ## Installation
 
@@ -119,16 +121,32 @@ This repository is an npm workspace managed with Nx.
 
 ```text
 apps/
-├── demo/          Craft application used for examples and integration checks
-│                  (`architecture/` — static graph Vitest suite)
-├── demo-effect/   Dedicated EffectTS + CraftTS examples application
-├── quickstart-effect/  Minimal executable EffectTS + CraftTS starter
-└── docs/          VitePress documentation and documentation tests
+├── demo/                       examples and integration checks
+│                               (`architecture/` — static graph Vitest suite)
+├── demo-effect/                dedicated EffectTS + CraftTS examples
+├── demo-ssr/                   server-side rendering and hydration
+├── demo-with-server-function/  the server-function proof of concept
+├── quickstart-effect/          minimal executable EffectTS starter
+├── log-server/                 local JSONL log ingestion (@craft-ts/log-server)
+└── docs/                       VitePress documentation and its tests
 libs/
-├── core/          Published @craft-ts/core package
-├── component/     Published @craft-ts/component package
-├── dev-tools/     Published codemods and ESLint tooling
-└── test-type/     Compile-time type test utilities
+├── core/            @craft-ts/core — primitives, services, routing, forms
+├── component/       @craft-ts/component — the renderer and typed templates
+├── effect/          @craft-ts/effect — the Effect v4 bridge and adapters
+├── style/           @craft-ts/style — the typed design system
+├── style-testing/   @craft-ts/style-testing — the visual scenario matrix
+├── i18n/            @craft-ts/i18n — type-safe, framework-independent i18n
+├── i18n-effect/     @craft-ts/i18n-effect — the Effect adapter for i18n
+├── dev-tools/       @craft-ts/dev-tools — codemods, ESLint rules, the graph
+├── cli/             @craft-ts/cli — the `craft-ts` binary
+├── deploy/          @craft-ts/deploy — the deployment manifest and checks
+├── deploy-alchemy/  @craft-ts/deploy-alchemy — the Alchemy provider
+└── test-type/       compile-time type test utilities (not published)
+packages/
+├── mcp/                    @craft-ts/mcp — docs and skills for coding agents
+├── log-mcp/                @craft-ts/log-mcp — reads the local log store
+├── function-registry-mcp/  @craft-ts/function-registry-mcp — the page surface
+└── post-devto/             internal publishing helper
 tools/
 └── generators/    Nx generators and type-stress fixtures
 ```
@@ -264,11 +282,12 @@ When documenting a public API:
 
 ## Releases
 
-`@craft-ts/core`, `@craft-ts/component`, `@craft-ts/effect`,
-`@craft-ts/dev-tools`, and `@craft-ts/mcp` are released together with one local
-command. It versions and builds the packages, publishes npm, deploys the built
-documentation, and synchronizes the main StackBlitz demo plus the dedicated
-frontend EffectTS demo:
+Every `@craft-ts/*` package listed above is released together, from one local
+command, under a single version and Git tag. `releasePackages` in
+[`tools/release.mjs`](tools/release.mjs) is the source of truth for that list;
+see [RELEASING.md](RELEASING.md).The command versions and builds the packages, publishes to npm, deploys the
+built documentation, and synchronizes the main StackBlitz demo plus the
+dedicated frontend EffectTS demo:
 
 ```bash
 npm run release:local -- patch

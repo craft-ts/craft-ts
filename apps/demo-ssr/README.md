@@ -5,7 +5,7 @@ Mini-application pédagogique qui montre plusieurs frontières de rendu :
 - `/static` : HTML utile rendu entièrement par le serveur ;
 - `/request?name=Ada` : personnalisation via URL ;
 - `/data` : données attendues côté serveur avant la réponse ;
-- `/fallback` : shell SSR puis bloc différé dans un `pendingBlock` ;
+- `/fallback` : shell SSR puis bloc différé dans un `pendingNode` ;
 - `/client-only` : viewport et `localStorage`, disponibles seulement dans le navigateur ;
 - toute route inconnue : réponse 404 rendue par le serveur.
 
@@ -17,7 +17,7 @@ par le routeur CraftTS et deviennent des navigations SPA.
 Les routes montrent trois décisions distinctes :
 
 - `data` : `ssr: { mode: 'block' }`, la query est résolue avant la réponse ;
-- `fallback` : `ssr: { mode: 'fallback' }`, le shell et le `pendingBlock` partent immédiatement ;
+- `fallback` : `ssr: { mode: 'fallback' }`, le shell et le `pendingNode` partent immédiatement ;
 - `client-only` : `ssr: { mode: 'client' }`, la query ne démarre qu'après hydratation.
 
 ## Lancer

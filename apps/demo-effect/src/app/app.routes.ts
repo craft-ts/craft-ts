@@ -23,6 +23,8 @@ import { TodoStoreLive } from './examples/effect/effect-playground-domain';
 import type { listTodos } from './examples/effect/effect-playground-domain';
 import { CartPricingLive } from './examples/effect/effect-pricing-domain';
 import type { cartTotalLabel } from './examples/effect/effect-pricing-domain';
+import { I18nLive } from './shared/i18n-domain';
+import type { renderReceipt } from './shared/i18n-domain';
 
 export const { demoEffectRoutes } = craftRoutes('demo-effect', [
   {
@@ -82,6 +84,16 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
           ({ default: component }) => component,
         ),
       [provideLayer(CartPricingLive)] as const,
+    ),
+  },
+  {
+    path: 'i18n',
+    ...loadCraftComponent(
+      ({ withRetry }) =>
+        withRetry(import('./examples/effect/effect-i18n')).then(
+          ({ default: component }) => component,
+        ),
+      [provideLayer(I18nLive)] as const,
     ),
   },
   {
@@ -176,6 +188,14 @@ type _CheckEffectSyncMembersDI = RouteCheckedDI<
 >;
 type _CanRunEffectSyncMembers = CanRun<_CheckEffectSyncMembersDI>;
 
+type _CheckEffectI18nDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./examples/effect/effect-i18n'))['default']>,
+  'CraftRouter',
+  never,
+  'component: effect-i18n'
+>;
+type _CanRunEffectI18n = CanRun<_CheckEffectI18nDI>;
+
 type _CheckEffectFunctionDI = RouteCheckedDI<
   ComponentDepsOf<
     (typeof import('./examples/effect/effect-function'))['default']
@@ -240,3 +260,13 @@ type _CheckCartPricingRequirements = EffectRequirementsCheckedDI<
     >
 >;
 type _CanRunCartPricingRequirements = CanRun<_CheckCartPricingRequirements>;
+
+// `/i18n` resolves I18nEffectService from its own route-scoped Layer. Remove
+// `provideLayer(I18nLive)` above and this proof fails, rather than the page
+// throwing when the loader first runs.
+type _CheckReceiptRequirements = EffectRequirementsCheckedDI<
+  Effect.Services<ReturnType<typeof renderReceipt>>,
+  | AppProvidedEffectServices
+  | ProvidedEffectServicesOfRoute<typeof demoEffectRoutes._routes, 'i18n'>
+>;
+type _CanRunReceiptRequirements = CanRun<_CheckReceiptRequirements>;

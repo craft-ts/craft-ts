@@ -32,7 +32,7 @@
     "bundle-docs": "node scripts/bundle-docs.mjs",
     "build": "node scripts/build.mjs",
     "start": "npm run build && node dist/main.js",
-    "test": "vitest run"
+    "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
     "@craft-ts/dev-tools": "^0.7.0-beta.0",

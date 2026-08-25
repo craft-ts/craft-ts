@@ -23,16 +23,16 @@ export type {
   CssVarsAfterCall,
 } from './lib/css-vars.type';
 export * from './lib/composition';
-export * from './lib/block';
-export * from './lib/pending-block';
-export * from './lib/field-exception-block';
-export * from './lib/match-block';
+export * from './lib/catch-node';
+export * from './lib/pending-node';
+export * from './lib/field-error-node';
+export * from './lib/match-node';
 export * from './lib/directive';
 export * from './lib/craft-router-outlet';
-export * from './lib/defer';
-export * from './lib/each';
-export * from './lib/each-scheduling';
-export * from './lib/if-block';
+export * from './lib/defer-node';
+export * from './lib/for-node';
+export * from './lib/for-scheduling';
+export * from './lib/if-node';
 export * from './lib/project';
 export * from './lib/template';
 export * from './lib/hyperscript';
@@ -110,9 +110,9 @@ export type {
   CraftNode,
   CraftNodeChild,
   CraftNodeChildren,
-  IfBlockNode,
-  CatchBlockNode,
-  MatchBlockNode,
+  IfNode,
+  CatchNode,
+  MatchNode,
   TemplateNode,
   CraftNodeCssVarsCarrier,
 } from './lib/render/vnode';

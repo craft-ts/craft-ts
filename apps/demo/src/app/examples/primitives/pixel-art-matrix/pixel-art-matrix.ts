@@ -4,7 +4,7 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   header,
   p,
   section,
@@ -125,7 +125,7 @@ const PixelArtMatrix = craftComponent(
       ]),
       div(
         { class: 'matrix-palette' },
-        each(COLORS, { track: (color) => color }, (color) =>
+        forNode(COLORS, { track: (color) => color }, (color) =>
           button('color', { type: 'button',
             class: 'matrix-color',
             style: function* () {
@@ -143,9 +143,9 @@ const PixelArtMatrix = craftComponent(
       button('reset', { type: 'button', click: grid.reset }, 'Reset'),
       div(
         { class: 'matrix-grid' },
-        each(grid, { track: trackGridRow }, (row, rowIndex) =>
+        forNode(grid, { track: trackGridRow }, (row, rowIndex) =>
           div({ class: 'matrix-row' }, [
-            each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
+            forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
               button('cell', { type: 'button',
                 class: 'matrix-cell',
                 style: function* () {

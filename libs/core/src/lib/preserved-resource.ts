@@ -60,7 +60,7 @@ export function preservedResource<T, R>(
     value,
     // `resource.hasValue()` becomes false as soon as a reload starts, even
     // though `preserved` still exposes the last resolved value to consumers.
-    // Reflect the public value here so guards such as `ifBlock(hasValue)` do
+    // Reflect the public value here so guards such as `ifNode(hasValue)` do
     // not hide preserved content during a reload.
     hasValue,
     snapshot: original.snapshot,

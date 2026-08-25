@@ -19,7 +19,7 @@ const CRAFT_NOT_SETTLED = Symbol('craft-not-settled');
  *
  * It is the pending twin of {@link CraftGenShortCircuit}: both are native
  * `throw`s raised during a render pass and caught by the nearest boundary — a
- * `catchBlock` for the exception, a `pendingBlock` for this one. The dependency
+ * `catchNode` for the exception, a `pendingNode` for this one. The dependency
  * on the source's `status` signal is established *before* the throw, so the
  * reading computation re-runs on its own once the source settles.
  */
@@ -30,7 +30,7 @@ export class CraftNotSettled extends Error {
 
   constructor(source: string) {
     super(
-      `Craft async source "${source}" is not settled yet. Wrap the reading template in a pendingBlock(...).`,
+      `Craft async source "${source}" is not settled yet. Wrap the reading template in a pendingNode(...).`,
     );
     this.name = 'CraftNotSettled';
     this.source = source;
@@ -50,8 +50,8 @@ declare const CRAFT_SETTLED_BRAND: unique symbol;
  * async source the reader depends on and **which** exception codes that source
  * may raise, so both requirements can be enforced by the template type-checker:
  *
- * - `Source` must be covered by a `pendingBlock` boundary;
- * - `Codes` must be covered by a `catchBlock` boundary.
+ * - `Source` must be covered by a `pendingNode` boundary;
+ * - `Codes` must be covered by a `catchNode` boundary.
  *
  * The brand survives passing the signal by reference (`span(users.settledValue)`)
  * and travels through `craftComputed` via the marker yielded by {@link settled}.
@@ -155,7 +155,7 @@ export type ExtractCraftPendingSources<Yielded> = [
 
 /**
  * What a settled read reports about its source to whoever is listening — today
- * a `pendingBlock` boundary, which needs a handle on the source's liveness to
+ * a `pendingNode` boundary, which needs a handle on the source's liveness to
  * render a reload indicator.
  *
  * A suspension is announced by a `throw`, but a **reload** is not: the stale
@@ -203,9 +203,9 @@ export type SettleableResource = {
  * Builds the `settledValue` signal of a craft primitive. Reading it:
  *
  * - throws {@link CraftGenShortCircuit} when the source carries a business
- *   exception — routed to the nearest `catchBlock`;
+ *   exception — routed to the nearest `catchNode`;
  * - throws {@link CraftNotSettled} while the source has no value to show yet —
- *   routed to the nearest `pendingBlock`;
+ *   routed to the nearest `pendingNode`;
  * - otherwise returns the resolved value, never `undefined`.
  *
  * A reload that preserves its previous value does **not** suspend: the stale
@@ -273,9 +273,9 @@ type SettledReaderOf<Ref> = Ref extends {
  * generator runtime. The additional yielded markers are type-only and make the
  * enclosing `craftComputed`:
  *
- * - depend on the source's pending state — a `pendingBlock` becomes mandatory in
+ * - depend on the source's pending state — a `pendingNode` becomes mandatory in
  *   any template rendering it;
- * - carry the source's exceptions — a `catchBlock` becomes mandatory too.
+ * - carry the source's exceptions — a `catchNode` becomes mandatory too.
  */
 export function* settled<
   const Ref extends {

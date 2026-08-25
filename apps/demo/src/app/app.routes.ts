@@ -121,23 +121,23 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
 
-  /* demo-route-end */ /* demo-route: pending-block */
+  /* demo-route-end */ /* demo-route: pending-node */
   {
-    path: 'pending-block',
+    path: 'pending-node',
     ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/component/pending-block-demo')).then(
+      withRetry(import('./examples/component/pending-node-demo')).then(
         ({ default: component }) => component,
       ),
     ),
   },
 
-  /* demo-route-end */ /* demo-route: pending-block-exception */
+  /* demo-route-end */ /* demo-route: pending-node-exception */
   craftRoute(
-    'pending-block/exception',
+    'pending-node/exception',
     {
       ...loadCraftComponent(({ withRetry }) =>
         withRetry(
-          import('./examples/component/pending-block-exception-demo'),
+          import('./examples/component/pending-node-exception-demo'),
         ).then(({ default: component }) => component),
       ),
     },
@@ -525,8 +525,8 @@ type DemoRoutePath =
   | 'view-transitions/:photoId'
   | 'component-composition'
   | 'content-projection'
-  | 'pending-block'
-  | 'pending-block/exception'
+  | 'pending-node'
+  | 'pending-node/exception'
   | 'css-vars'
   | 'css-vars/required'
   | 'css-vars/inheritance'
@@ -602,10 +602,10 @@ declare module '@craft-ts/core' {
         'UNEXPECTED_ERROR'
       >;
     };
-    'pending-block/exception': {
+    'pending-node/exception': {
       INVOICE_REJECTED: CraftRouteExceptionType<
         typeof demoRoutes,
-        'pending-block/exception',
+        'pending-node/exception',
         'INVOICE_REJECTED'
       >;
     };
@@ -696,21 +696,21 @@ type _CanRunComponentComposition = CanRun<
   >
 >;
 /* demo-check-end */
-/* demo-check: pending-block */
+/* demo-check: pending-node */
 type _CanRunPendingBlock = CanRun<
   DemoRouteCheckedDI<
-    (typeof import('./examples/component/pending-block-demo'))['default'],
+    (typeof import('./examples/component/pending-node-demo'))['default'],
     never,
-    'path: "pending-block"'
+    'path: "pending-node"'
   >
 >;
 /* demo-check-end */
-/* demo-check: pending-block-exception */
+/* demo-check: pending-node-exception */
 type _CanRunPendingBlockException = CanRun<
   DemoRouteCheckedDI<
-    (typeof import('./examples/component/pending-block-exception-demo'))['default'],
+    (typeof import('./examples/component/pending-node-exception-demo'))['default'],
     never,
-    'path: "pending-block/exception"'
+    'path: "pending-node/exception"'
   >
 >;
 /* demo-check-end */

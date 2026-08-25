@@ -227,7 +227,7 @@ const Toolbar = craftComponent(
   ({ actions }) =>
     div(
       { role: 'toolbar' },
-      each(
+      forNode(
         actions,
         { track: (action) => action.key },
         (action) => renderContent(action),
@@ -380,7 +380,7 @@ const Dialog = craftComponent(
       [
         body ? renderContent(body) : [],
         footer(
-          each(
+          forNode(
             actions,
             { track: (action) => action.key },
             (action) => renderContent(action),
@@ -444,9 +444,9 @@ Ces utilitaires ne sont pas spécifiques à la projection et restent utiles :
 
 - `craftTemplate(...)` ;
 - `renderTemplate(...)` ;
-- `each(...)` ;
-- `ifBlock(...)` ;
-- `defer(...)` ;
+- `forNode(...)` ;
+- `ifNode(...)` ;
+- `deferNode(...)` ;
 - les locators génériques et leurs contraintes DOM ;
 - `contentStyles`, avec une nouvelle liaison typée aux noms des slots ;
 - l’opt-in `allowContainerStyles`, porté par `content(...)` ;

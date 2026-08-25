@@ -51,9 +51,19 @@ bootstrapCraft.
    defineLocaleLike and project-specific tokens in project-tokens.ts.
    @craft-ts/i18n is framework-independent; do not import Effect for plain
    translations. Run npm run i18n:check and npm run i18n:test after changes.
-5. Run the focused test, then npm run lint, npm run typecheck,
+5. Keep visual rules in a *.style.ts sheet under src/app/ui/. A sheet may
+   import @craft-ts/style vocabulary and nothing else; the build plugin
+   evaluates it in Node. Static variation goes to a class the emitter wrote
+   at build time; dynamic variation goes through a typed custom property.
+   Never build a class string at render time and never bind class to a
+   template literal or a function: the template sets one constant class and a
+   data-* attribute, and the variant is an axis. A class assembled in the
+   browser is a visual state nothing recorded, which is what no-raw-class,
+   no-free-has, no-raw-css-value and style-file-boundary exist to prevent.
+   Components read theme variables, never palette tokens directly.
+6. Run the focused test, then npm run lint, npm run typecheck,
    npm run architecture, and npm run e2e when the browser flow changed.
-6. Keep the generated development surface enabled: 'npm run logs:server'
+7. Keep the generated development surface enabled: 'npm run logs:server'
    stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
    to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
    Do not replace 'Console.*' with raw 'console.*' when an entry must be
@@ -152,6 +162,7 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/component': CRAFT_TS_STARTER_VERSION,
       '@craft-ts/core': CRAFT_TS_STARTER_VERSION,
       '@craft-ts/i18n': CRAFT_TS_STARTER_VERSION,
+      '@craft-ts/style': CRAFT_TS_STARTER_VERSION,
       ...(effect ? { '@craft-ts/i18n-effect': CRAFT_TS_STARTER_VERSION } : {}),
       ...(effect ? { '@craft-ts/effect': CRAFT_TS_STARTER_VERSION, effect: EFFECT_V4_VERSION } : {}),
     },
@@ -161,6 +172,7 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/function-registry-mcp': CRAFT_TS_STARTER_VERSION,
       '@craft-ts/log-mcp': CRAFT_TS_STARTER_VERSION,
       '@craft-ts/log-server': CRAFT_TS_STARTER_VERSION,
+      '@craft-ts/style-testing': CRAFT_TS_STARTER_VERSION,
       '@playwright/test': '^1.52.0',
       '@types/node': '^22.0.0',
       ...(effect
@@ -228,6 +240,7 @@ const tsconfigEffect = `{
 
 const viteConfig = `import { readFileSync } from 'node:fs';
 import { defineConfig, type ViteDevServer } from 'vite';
+import { craftStyle } from '@craft-ts/style/vite';
 
 const typecheckStatusPath = new URL('./.craft/typecheck-status.json', import.meta.url);
 
@@ -258,7 +271,18 @@ function craftTypecheckStatusPlugin() {
 }
 
 export default defineConfig({
-  plugins: [craftTypecheckStatusPlugin()],
+  plugins: [
+    craftTypecheckStatusPlugin(),
+    // Evaluates every *.style.ts in Node and serves the whole sheet as
+    // 'virtual:craft-style.css'. Without it the design system typechecks and
+    // emits nothing: no plugin, no CSS.
+    craftStyle({
+      // The style half of the dependency graph. It is what the style_impact,
+      // style_matrix and style_debt MCP tools read; drop it and they answer
+      // with nothing.
+      dumpPath: '.craft/style-graph.json',
+    }),
+  ],
   server: {
     host: '127.0.0.1',
     port: 4173,
@@ -416,6 +440,16 @@ function indexHtml(locale: string): string {
 `;
 }
 
+/**
+ * What has to stay global, and nothing else.
+ *
+ * The card, the muted note and the error message moved to
+ * src/app/ui/ui.style.ts, where they are typed and enumerable. What is left is
+ * the part a sheet cannot own: element defaults, the focus ring, the
+ * locale-driven typography variables the i18n harness writes, and the dev-only
+ * type-check indicator, which is built imperatively and never renders through a
+ * component.
+ */
 const styles = `:root {
   --craft-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   --craft-font-size-heading: 2rem;
@@ -435,9 +469,6 @@ body { margin: 0; min-width: 320px; }
 a { color: #2457d6; }
 main { max-width: 860px; margin: 0 auto; padding: 3rem 1.25rem; }
 nav { display: flex; gap: 1rem; padding: 1rem 1.25rem; background: white; border-bottom: 1px solid #e3e7ef; }
-.card { padding: 1.5rem; background: white; border: 1px solid #e3e7ef; border-radius: .75rem; box-shadow: 0 8px 30px #1720330d; }
-.muted { color: #5c677d; }
-.error { color: #b42318; }
 button:focus-visible, a:focus-visible { outline: 3px solid #7aa2ff; outline-offset: 3px; }
 .heading { font-size: var(--craft-font-size-heading); line-height: var(--craft-line-height-heading); font-weight: 700; }
 body, .body { font-size: var(--craft-font-size-body); line-height: var(--craft-line-height-body); }
@@ -583,10 +614,138 @@ import { i18n } from './runtime';
 export const i18nLayer = provideI18nRuntime(i18n);
 `;
 
+/**
+ * The starter's design system, in one sheet.
+ *
+ * It is deliberately small — a palette, one state axis, one set of typed
+ * variables, three classes — but it is the real thing: every value is a token,
+ * the variant is an attribute rather than a class string, and the whole file is
+ * evaluated in Node by the build plugin.
+ *
+ * A `*.style.ts` may import vocabulary and nothing else. `style-file-boundary`
+ * enforces it, and that is exactly what makes importing this file in Node safe:
+ * there is no application code in it to run.
+ */
+const uiStyleTs = `import {
+  bg,
+  borderColor,
+  borderStyle,
+  borderWidth,
+  color,
+  craftStyles,
+  cssVars,
+  darkOf,
+  defineStateAxis,
+  definePalette,
+  display,
+  kind,
+  lineWidth,
+  p,
+  radii,
+  radius,
+  scheme,
+  set,
+  space,
+  when,
+} from '@craft-ts/style';
+
+// ─── palette ────────────────────────────────────────────────────────────────
+// Every token carries both of its values; the group it sits in gives it a role.
+
+export const ui = definePalette({
+  surface: {
+    page: { light: '#f7f8fb', dark: '#0b0d11' },
+    raised: { light: '#ffffff', dark: '#151922' },
+  },
+  text: {
+    strong: { light: '#172033', dark: '#f2f4f8' },
+    muted: { light: '#5c677d', dark: '#98a2b3' },
+  },
+  border: {
+    subtle: { light: '#e3e7ef', dark: '#232936' },
+  },
+  accent: {
+    info: { light: '#2457d6', dark: '#7aa2ff' },
+    danger: { light: '#b42318', dark: '#ff6b6b' },
+  },
+});
+
+// ─── axes ───────────────────────────────────────────────────────────────────
+// A component may only vary along an axis declared here. The point carries the
+// driver that reaches it, so a state the matrix enumerates is a state a test
+// can produce.
+
+/** Drives \`data-tone\` on the element that carries it. */
+export const tone = defineStateAxis('tone', ['neutral', 'danger']);
+
+// ─── theme ──────────────────────────────────────────────────────────────────
+
+/**
+ * \`inherits: true\` belongs to theme variables and to nothing else: they are
+ * set once on a wrapper and read by everything below. The default, \`false\`,
+ * is right for a variable an element both sets and reads on itself.
+ */
+const themed = { inherits: true } as const;
+
+export const theme = cssVars('app', {
+  ink: kind.color(ui.text.strong, themed),
+  inkMuted: kind.color(ui.text.muted, themed),
+  raised: kind.color(ui.surface.raised, themed),
+  border: kind.color(ui.border.subtle, themed),
+  accent: kind.color(ui.accent.info, themed),
+});
+
+/** Dark mode is one rule, here — not one rule per component. */
+export const appTheme = craftStyles('appTheme', {
+  root: [
+    set(theme.ink, ui.text.strong),
+    set(theme.inkMuted, ui.text.muted),
+    set(theme.raised, ui.surface.raised),
+    set(theme.border, ui.border.subtle),
+    set(theme.accent, ui.accent.info),
+    when(scheme.dark, [
+      set(theme.ink, darkOf(ui.text.strong)),
+      set(theme.inkMuted, darkOf(ui.text.muted)),
+      set(theme.raised, darkOf(ui.surface.raised)),
+      set(theme.border, darkOf(ui.border.subtle)),
+      set(theme.accent, darkOf(ui.accent.info)),
+    ]),
+  ],
+});
+
+// ─── classes ────────────────────────────────────────────────────────────────
+// A component reads theme variables, never palette tokens: that indirection is
+// what keeps dark mode above, in one place.
+
+export const surface = craftStyles('appSurface', {
+  card: [
+    display.block,
+    p(space(5)),
+    bg(theme.raised),
+    color(theme.ink),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.border),
+    radius(radii.md),
+  ],
+  note: [color(theme.inkMuted)],
+  /**
+   * One class, two states. The template sets \`data-tone\`; nothing here
+   * produces a name a template has to assemble.
+   */
+  message: [
+    color(theme.accent),
+    when(tone.danger, [set(theme.accent, ui.accent.danger)]),
+  ],
+});
+`;
+
 const mainTs = `import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app/app.config';
 import { startCraftTypecheckIndicator } from './dev-typecheck-indicator';
 import './styles.css';
+// Emitted by craftStyle from every *.style.ts. One import, the whole sheet.
+import 'virtual:craft-style.css';
 
 startCraftTypecheckIndicator();
 bootstrapCraft({ config: appConfig });
@@ -636,13 +795,16 @@ const appTs = `import {
   nav,
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
+import { appTheme } from './ui/ui.style';
 
 export const App = craftComponent(
   'App',
   {},
   () => ({}),
   () =>
-    div([
+    // The theme is set once, here. Everything below reads the variables it
+    // writes, which is why dark mode is one rule in ui.style.ts.
+    div({ class: appTheme.root }, [
       nav([
         a('home', { craftRouterLink: { to: '' } }, 'Home').pipe(CraftRouterLink),
         a('about', { craftRouterLink: { to: 'about' } }, 'About').pipe(CraftRouterLink),
@@ -733,13 +895,14 @@ export function* loadWelcome() {
 `;
 
 const aboutPageTs = `import { craftComponent, div, heading, p } from '@craft-ts/component';
+import { surface } from './ui/ui.style';
 
 export const AboutPage = craftComponent(
   'AboutPage',
   {},
   () => ({}),
   () =>
-    div({ class: 'card' }, [
+    div({ class: surface.card }, [
       heading('About this starter'),
       p('This page proves that Craft routing and lazy component loading are wired.'),
     ]),
@@ -752,13 +915,14 @@ const plainHomePageTs = `import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   span,
 } from '@craft-ts/component';
 import { craftComputed, query } from '@craft-ts/core';
 import { i18n } from '../i18n';
 import { loadWelcome } from './api';
+import { surface } from './ui/ui.style';
 
 export const HomePage = craftComponent(
   'HomePage',
@@ -779,12 +943,12 @@ export const HomePage = craftComponent(
     return { welcomeQuery };
   },
   ({ welcomeQuery }) =>
-    div({ class: 'card' }, [
+    div({ class: surface.card }, [
       heading('Welcome to CraftTS'),
       p('A framework-independent starter with a typed API boundary.'),
       p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),
-      ifBlock(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
-      ifBlock(welcomeQuery.hasWelcome, () =>
+      ifNode(welcomeQuery.isLoading, () => p({ class: surface.note }, 'Loading API…')),
+      ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
             return 'API title: ' + (yield* welcomeQuery.value()).title;
@@ -794,8 +958,10 @@ export const HomePage = craftComponent(
           }),
         ]),
       ),
-      ifBlock(welcomeQuery.hasException, () =>
-        p({ class: 'error' }, [span('The API request failed. Check the network tab.')]),
+      ifNode(welcomeQuery.hasException, () =>
+        p({ class: surface.message, 'data-tone': 'danger' }, [
+          span('The API request failed. Check the network tab.'),
+        ]),
       ),
     ]),
 );
@@ -846,7 +1012,7 @@ const effectHomePageTs = `import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   span,
 } from '@craft-ts/component';
@@ -854,6 +1020,7 @@ import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { i18n } from '../i18n';
 import { loadWelcome, type WelcomeApiError } from './domain';
+import { surface } from './ui/ui.style';
 
 export const HomePage = craftComponent(
   'HomePage',
@@ -876,12 +1043,12 @@ export const HomePage = craftComponent(
     return { welcomeQuery };
   },
   ({ welcomeQuery }) =>
-    div({ class: 'card' }, [
+    div({ class: surface.card }, [
       heading('Welcome to CraftTS + Effect v4'),
       p('The page uses queryEffect over a typed repository Layer.'),
       p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),
-      ifBlock(welcomeQuery.isLoading, () => p({ class: 'muted' }, 'Loading API…')),
-      ifBlock(welcomeQuery.hasWelcome, () =>
+      ifNode(welcomeQuery.isLoading, () => p({ class: surface.note }, 'Loading API…')),
+      ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
             return 'API title: ' + (yield* welcomeQuery.value()).title;
@@ -891,8 +1058,8 @@ export const HomePage = craftComponent(
           }),
         ]),
       ),
-      ifBlock(welcomeQuery.hasException, () =>
-        p({ class: 'error' }, [
+      ifNode(welcomeQuery.hasException, () =>
+        p({ class: surface.message, 'data-tone': 'danger' }, [
           span(function* () {
             return 'API error: ' + (yield* welcomeQuery.errorMessage());
           }),
@@ -1234,7 +1401,11 @@ function templates(context: TemplateContext): Record<string, string> {
     ...(effect
       ? { 'src/i18n/effect.ts': effectI18nTs, 'src/i18n/effect-layer.ts': effectLayerTs }
       : {}),
-    'src/types.d.ts': '/// <reference types="vite/client" />\n',
+    'src/types.d.ts':
+      '/// <reference types="vite/client" />\n\n' +
+      "// Served by the craftStyle plugin; it has no file on disk to resolve.\n" +
+      "declare module 'virtual:craft-style.css';\n",
+    'src/app/ui/ui.style.ts': uiStyleTs,
     'src/app/app.ts': appTs,
     'src/app/app.config.ts': effect ? effectAppConfig : plainAppConfig,
     'src/app/app.routes.ts': routesTs,

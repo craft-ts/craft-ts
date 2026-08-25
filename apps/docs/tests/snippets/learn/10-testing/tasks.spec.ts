@@ -25,7 +25,7 @@ const { TaskList } = craftService(
 );
 
 // #region tasks-component
-import { craftComponent, each, h1, li, ul } from '@craft-ts/component';
+import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
 
 export const Tasks = craftComponent(
   'Tasks',
@@ -39,7 +39,7 @@ export const Tasks = craftComponent(
       return `Tasks — ${yield* tasks.remaining()} left`;
     }),
     ul(
-      each(
+      forNode(
         tasks,
         { track: (task) => task.id },
         (task) => li(task.title),

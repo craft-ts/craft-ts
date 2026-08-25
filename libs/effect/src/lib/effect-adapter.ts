@@ -136,7 +136,7 @@ type EffectAsyncProcessConfig<
  *
  * The factory reads Craft dependencies with `yield*` and RETURNS an Effect; it
  * never runs it. The adapter runs it in place, so the result is a plain
- * reactive value — no loading state, no `settled(...)`, no `pendingBlock`.
+ * reactive value — no loading state, no `settled(...)`, no `pendingNode`.
  *
  * Which is why the Effect must be declared synchronous: a computation is asked
  * for its value now, and cannot suspend to produce it. An Effect whose `R` does

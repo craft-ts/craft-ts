@@ -34,7 +34,7 @@ An exhaustive block must provide exactly one handler for every reachable code:
 input({ id: 'email', type: 'email' })
   .pipe(CraftFieldDirective(loginForm.form.selectEmail()))
   .pipe(
-    fieldExceptionBlock.exhaustive({
+    fieldErrorNode.exhaustive({
       required: () => p('Email is required.'),
       email: () => p('Enter a valid email.'),
     }),
@@ -52,7 +52,7 @@ cases should continue to an enclosing boundary:
 input({ id: 'password', type: 'password' })
   .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
   .pipe(
-    fieldExceptionBlock.partial({
+    fieldErrorNode.partial({
       required: () => p('Password is required.'),
     }),
   );
@@ -68,7 +68,7 @@ static path. Identical codes on different fields remain separate obligations:
 
 ```ts
 const SafeLoginForm = BaseLoginForm.pipe(
-  fieldExceptionBlock.exhaustive({
+  fieldErrorNode.exhaustive({
     email: {
       required: () => p('Email is required.'),
       email: () => p('Enter a valid email.'),
@@ -138,7 +138,7 @@ A grouped handler on an enclosing VNode consumes the logic-level obligation:
       CraftFieldDirective(credentials.confirmation),
     ),
   ]).pipe(
-    fieldExceptionBlock.exhaustive({
+    fieldErrorNode.exhaustive({
       credentials: {
         passwordMismatch: () => p('Passwords do not match.'),
       },
@@ -156,7 +156,7 @@ boundary handle it:
 
 ```ts
 const SafeRegistrationForm = BaseRegistrationForm.pipe(
-  fieldExceptionBlock.exhaustive({
+  fieldErrorNode.exhaustive({
     credentials: {
       passwordMismatch: () => p('Passwords do not match.'),
     },

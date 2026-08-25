@@ -4,7 +4,7 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   heading,
   input,
   li,
@@ -244,7 +244,7 @@ const TaskBoardStateMachineList = craftComponent(
       ),
       ul(
         { class: 'rows' },
-        each(TASKS, { track: (task) => task.id }, (task) =>
+        forNode(TASKS, { track: (task) => task.id }, (task) =>
           TaskRow({
             task: task,
           }),

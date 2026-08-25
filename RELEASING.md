@@ -1,7 +1,28 @@
 # Releasing CraftTS
 
-`@craft-ts/core`, `@craft-ts/component`, `@craft-ts/effect`,
-`@craft-ts/dev-tools`, and `@craft-ts/mcp` share one version and one Git tag.
+Fifteen packages share one version and one Git tag. `releasePackages` in
+[`tools/release.mjs`](tools/release.mjs) is the source of truth for that list —
+`nx.json` (`release.projects`) is aligned on it, and every step below is derived
+from it rather than from a hand-kept enumeration.
+
+| npm package                       | nx project                | built from                       |
+| --------------------------------- | ------------------------- | -------------------------------- |
+| `@craft-ts/core`                  | `craft-ts-core`           | `libs/core`                      |
+| `@craft-ts/component`             | `craft-ts-component`      | `libs/component`                 |
+| `@craft-ts/effect`                | `craft-ts-effect`         | `libs/effect`                    |
+| `@craft-ts/dev-tools`             | `dev-tools`               | `libs/dev-tools`                 |
+| `@craft-ts/deploy`                | `craft-ts-deploy`         | `libs/deploy`                    |
+| `@craft-ts/cli`                   | `craft-ts-cli`            | `libs/cli`                       |
+| `@craft-ts/deploy-alchemy`        | `craft-ts-deploy-alchemy` | `libs/deploy-alchemy`            |
+| `@craft-ts/style`                 | `craft-ts-style`          | `libs/style`                     |
+| `@craft-ts/style-testing`         | `craft-ts-style-testing`  | `libs/style-testing`             |
+| `@craft-ts/i18n`                  | `craft-ts-i18n`           | `libs/i18n`                      |
+| `@craft-ts/i18n-effect`           | `craft-ts-i18n-effect`    | `libs/i18n-effect`               |
+| `@craft-ts/mcp`                   | `mcp`                     | `packages/mcp`                   |
+| `@craft-ts/log-server`            | `log-server`              | `apps/log-server`                |
+| `@craft-ts/log-mcp`               | `log-mcp`                 | `packages/log-mcp`               |
+| `@craft-ts/function-registry-mcp` | `function-registry-mcp`   | `packages/function-registry-mcp` |
+
 For now, releases are run locally from the four Git workspaces: this repository,
 the documentation repository, the main demo repository, and the frontend Effect
 demo repository.
@@ -62,24 +83,25 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 
 Before changing files, the command checks that all four workspaces are clean,
 on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
-the release tooling, builds all five packages, builds the frontend Effect demo,
-and builds the documentation.
+the release tooling, builds every package in `releasePackages`, builds the
+frontend Effect demo, and builds the documentation.
 
 After showing the resolved version, it asks for confirmation and:
 
-1. updates the five package manifests and `CHANGELOG.md`;
-2. rebuilds the five npm packages and VitePress documentation;
+1. updates the fifteen package manifests and `CHANGELOG.md`;
+2. rebuilds the fifteen npm packages and VitePress documentation;
 3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`;
 4. pins the three CraftTS packages used by the demo (`core`, `component`, and
    `dev-tools`) to the exact release version;
 5. mirrors `apps/demo-effect/src` into `craft-ts-demo-effect`;
 6. pins `@craft-ts/core`, `@craft-ts/component`, and `@craft-ts/effect` to the
-   release version, and sets `effect` to the workspace-compatible version range
-   in the frontend Effect demo;
+   release version, moves `@craft-ts/dev-tools` to `devDependencies`, and sets
+   `effect` to the workspace-compatible version range in the frontend Effect
+   demo;
 7. removes and ignores the `package-lock.json` files in both demos;
 8. replaces the published documentation with the VitePress build;
 9. commits the four workspaces;
-10. publishes all five packages to npm;
+10. publishes all fifteen packages to npm;
 11. pushes `main`, creates and pushes `v<version>`, and creates the GitHub Release;
 12. pushes the documentation and both StackBlitz demo repositories.
 
@@ -106,10 +128,9 @@ npm login
 gh auth login
 ```
 
-The npm account must be allowed to publish `@craft-ts/core`,
-`@craft-ts/component`, `@craft-ts/effect`, `@craft-ts/dev-tools`, and
-`@craft-ts/mcp`. The GitHub account must be allowed to push all four
-repositories and create releases.
+The npm account must be allowed to publish every package in the table above —
+in practice, the whole `@craft-ts` scope. The GitHub account must be allowed to
+push all four repositories and create releases.
 
 ## Safe preview
 
@@ -126,13 +147,14 @@ For a non-interactive real release, add `--yes` to skip the confirmation prompt.
 ## Verification
 
 ```bash
-npm view @craft-ts/core dist-tags --json
-npm view @craft-ts/component dist-tags --json
-npm view @craft-ts/effect dist-tags --json
-npm view @craft-ts/dev-tools dist-tags --json
-npm view @craft-ts/mcp dist-tags --json
+node -e "import('./tools/release.mjs').then(({releasePackages})=>{for(const{name}of releasePackages)console.log(name)})" \
+  | xargs -n1 -I{} npm view {} dist-tags --json
 gh release view v0.6.0 --repo craft-ts/craft-ts
 ```
+
+Reading the names from `releasePackages` keeps this check correct when a package
+is added; a hand-written list is how the previous five-package version of this
+file went stale.
 
 Then open the published documentation and both StackBlitz examples. If a failure
 happens after local commits were created, inspect the four workspaces before

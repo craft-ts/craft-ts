@@ -337,7 +337,7 @@ export const AiSendDialog = craftComponent(
               writeInstruction((event.target as HTMLTextAreaElement).value),
           }),
 
-          // Toggled by style rather than `ifBlock`, which needs a *named* craft
+          // Toggled by style rather than `ifNode`, which needs a *named* craft
           // value and would leak the same internal symbols into the type.
           liveRegion(
             { politeness: 'polite' },

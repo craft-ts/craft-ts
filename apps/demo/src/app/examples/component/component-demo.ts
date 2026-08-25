@@ -1,9 +1,9 @@
 import {
   button,
   craftComponent,
-  defer,
+  deferNode,
   div,
-  each,
+  forNode,
   p,
   section,
   span,
@@ -92,7 +92,7 @@ export const componentDemo = craftComponent(
       ),
       div(
         { class: 'component-demo__list' },
-        each(
+        forNode(
           users.items,
           {
             track: (user) => user.id,
@@ -106,7 +106,7 @@ export const componentDemo = craftComponent(
               }),
         ),
       ),
-      defer(
+      deferNode(
         ({ withRetry }) =>
           withRetry(import('./lazy-message')).then(
             (module) => module.lazyMessage,

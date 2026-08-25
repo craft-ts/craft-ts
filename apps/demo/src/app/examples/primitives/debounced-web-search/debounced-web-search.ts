@@ -5,8 +5,8 @@ import {
   catchTag,
   craftComponent,
   div,
-  each,
-  ifBlock,
+  forNode,
+  ifNode,
   img,
   input,
   p,
@@ -271,19 +271,19 @@ const DebouncedWebSearch = craftComponent(
           StatusComponent({ status: searchQuery.status }),
         ]),
       ]),
-      ifBlock(searchInput.tooShort, () =>
+      ifNode(searchInput.tooShort, () =>
         p({ class: 'hint' }, 'Enter at least two characters to search.'),
       ),
-      ifBlock(showDebouncing, () =>
+      ifNode(showDebouncing, () =>
         p({ class: 'hint' }, 'Waiting for the debounce window…'),
       ),
-      ifBlock(searchQuery.hasSearchError, () =>
+      ifNode(searchQuery.hasSearchError, () =>
         p(
           { class: 'error' },
           'The search failed. Transient HTTP errors are retried up to three times.',
         ),
       ),
-      ifBlock(searchQuery.showResults, () => [
+      ifNode(searchQuery.showResults, () => [
         heading([
           searchQuery.resultCount,
           ' results for “',
@@ -292,7 +292,7 @@ const DebouncedWebSearch = craftComponent(
         ]),
         ul(
           { class: 'results' },
-          each(
+          forNode(
             searchQuery.resultBooks,
             { track: (book) => book.key },
             (book) =>
@@ -326,7 +326,7 @@ const DebouncedWebSearch = craftComponent(
           ),
         ),
       ]),
-      ifBlock(searchQuery.showEmpty, () =>
+      ifNode(searchQuery.showEmpty, () =>
         p({ class: 'hint' }, 'No books found.'),
       ),
     ]);

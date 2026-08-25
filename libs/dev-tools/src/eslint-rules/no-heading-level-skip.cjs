@@ -3,12 +3,12 @@
 const { parseHyperscriptCall } = require('./hyperscript-walk.cjs');
 
 const TRANSPARENT = new Set([
-  'ifBlock',
-  'each',
-  'matchBlock',
-  'catchBlock',
-  'pendingBlock',
-  'defer',
+  'ifNode',
+  'forNode',
+  'matchNode',
+  'catchNode',
+  'pendingNode',
+  'deferNode',
   'craftTemplate',
 ]);
 

@@ -5,7 +5,7 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   p,
   pre,
   type Input,
@@ -82,7 +82,7 @@ const CraftGlobalQuery = craftComponent(
       div({ class: 'query-result' }, [
         'User ',
         StatusComponent({ status: user.status }),
-        ifBlock(hasUser, () =>
+        ifNode(hasUser, () =>
           pre('QueryValue', {}, function* () {
             return JSON.stringify(yield* user.value(), null, 2);
           }),

@@ -83,7 +83,7 @@ declare const BRANCH: unique symbol;
 /**
  * Two sets of sheets that are never on screen at the same time.
  *
- * An `ifBlock` renders one side or the other, so the states of the two branches
+ * An `ifNode` renders one side or the other, so the states of the two branches
  * **add up** — they do not multiply. Told nothing, the matrix would cross a
  * footer's three tones with a header's two breakpoints and ask for six captures
  * of pages that cannot exist.
@@ -92,7 +92,7 @@ declare const BRANCH: unique symbol;
  * only one that is exactly true rather than probably true: the branches are
  * mutually exclusive by construction, not by analysis.
  *
- * The plan infers it from the `ifBlock` node's own type. It is declared here,
+ * The plan infers it from the `ifNode` node's own type. It is declared here,
  * for the same reason the matrix takes sheets rather than components — and the
  * cost of that choice is stated plainly: a branch nobody declares is counted as
  * co-present, which over-captures rather than under-captures.
@@ -164,7 +164,7 @@ export function visualMatrix(
   if (branches.length) {
     // Each branch is a sum, not a factor: the shared sheets are crossed with
     // *one* side at a time, and the two sides are concatenated. Nesting two
-    // branches therefore gives a sum of sums, which is what keeps an if-block
+    // branches therefore gives a sum of sums, which is what keeps an if-node
     // from doubling the bill of everything above it.
     const [first, ...rest] = branches;
     // Every branch is stripped from the shared part, then `rest` is put back

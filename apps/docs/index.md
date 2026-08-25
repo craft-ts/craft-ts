@@ -51,7 +51,7 @@ features:
   - title: Assert what a template renders, at compile time
     details: Type-level tests prove an element only appears under a condition, that a binding is the one you think, that a list item renders its label — no TestBed, no DOM, no fixture.
   - title: Templates are functions, not a dialect
-    details: 'Markup is typed hyperscript: each, ifBlock, matchBlock and defer instead of @for, @if, @switch and @defer. No template compiler, no parse errors — your editor refactors a template exactly like it refactors code.'
+    details: 'Markup is typed hyperscript: forNode, ifNode, matchNode and deferNode instead of @for, @if, @switch and @defer. No template compiler, no parse errors — your editor refactors a template exactly like it refactors code.'
   - title: Built for observability
     details: 'Declarative code is instrumentable code: one provider adds structured logs, correlation ids, per-service timing or a snapshot of the live dependency graph — across the whole app, without touching a single call site. Fast to debug, easy to trace and monitor.'
   - title: Architecture as a graph

@@ -1,5 +1,5 @@
 {
-  "name": "i18n-effect",
+  "name": "craft-ts-i18n-effect",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/i18n-effect/src",
   "projectType": "library",
@@ -11,7 +11,12 @@
       "options": {
         "outputPath": "dist/libs/i18n-effect",
         "main": "libs/i18n-effect/src/index.ts",
-        "tsConfig": "libs/i18n-effect/tsconfig.lib.prod.json"
+        "tsConfig": "libs/i18n-effect/tsconfig.lib.json"
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
       }
     },
     "test": {
@@ -21,9 +26,22 @@
         "forwardAllArgs": true
       }
     },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/i18n-effect/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts"
+      ]
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
-      "options": { "maxWarnings": -1 }
+      "options": {
+        "maxWarnings": -1
+      }
     }
   }
 }

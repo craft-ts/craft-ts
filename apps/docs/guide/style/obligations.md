@@ -11,6 +11,17 @@ simply never appears, or sticks to the wrong box, and you find out in a
 screenshot weeks later.
 
 ```ts
+import {
+  craftStyles,
+  display,
+  insetBlockEnd,
+  position,
+  provides,
+  requires,
+  scrollPort,
+  space,
+} from '@craft-ts/style';
+
 export const backToTop = craftStyles('backToTop', {
   anchor: [
     requires(scrollPort.block),
@@ -35,6 +46,8 @@ laying the CSS is not something anyone can write.
 Nowhere, until a component seals:
 
 ```ts
+import { craftComponent } from '@craft-ts/component';
+
 craftComponent('AppShell', { seals: [true] }, factory, template);
 ```
 
@@ -63,6 +76,8 @@ for a route once the route is migrated, and not before. The dependency graph
 reports which components are not covered rather than reporting a clean bill:
 
 ```ts
+import { extractionGaps, undischargedObligations } from '@craft-ts/dev-tools';
+
 extractionGaps(graph); // components no sheet is known to style
 undischargedObligations(graph); // required somewhere, discharged nowhere
 ```
@@ -70,6 +85,8 @@ undischargedObligations(graph); // required somewhere, discharged nowhere
 ## The marked way out
 
 ```ts
+import { scrollPort, unsafeAssume } from '@craft-ts/style';
+
 unsafeAssume(scrollPort.block, 'the host page owns the scroll port');
 ```
 

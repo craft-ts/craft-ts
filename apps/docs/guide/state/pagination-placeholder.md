@@ -116,7 +116,7 @@ The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderDa
 ::: details A full paginated component
 
 ```typescript
-import { button, craftComponent, div, each, ifBlock, span } from '@craft-ts/component';
+import { button, craftComponent, div, forNode, ifNode, span } from '@craft-ts/component';
 import { craftComputed, query, state } from '@craft-ts/core';
 
 export const UsersList = craftComponent(
@@ -159,7 +159,7 @@ export const UsersList = craftComponent(
             : 'users-list';
         },
       },
-      each(
+      forNode(
         userQuery.currentPageData,
         { track: (user) => user.id },
         (user) => UserCard({ user }),
@@ -172,7 +172,7 @@ export const UsersList = craftComponent(
       button({ click: page.next }, 'Next'),
     ]),
 
-    ifBlock(userQuery.isPlaceHolderData, () =>
+    ifNode(userQuery.isPlaceHolderData, () =>
       div({ class: 'loading-indicator' }, 'Loading new page…'),
     ),
   ],

@@ -3,9 +3,9 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   heading,
-  ifBlock,
+  ifNode,
   input,
   p,
   span,
@@ -171,17 +171,17 @@ const EffectPlaygroundComponent = craftComponent(
             disabled: addTodo.isLoading,
             click: add,
           },
-          ifBlock(addTodo.isLoading, () => 'Adding…', () => 'Add'),
+          ifNode(addTodo.isLoading, () => 'Adding…', () => 'Add'),
         ),
       ]),
-      ifBlock(
+      ifNode(
         todosQuery.isLoading,
         () => p({ class: 'status' }, 'Loading todos…'),
         () => p({ class: 'status' }, 'The list is loaded by queryEffect.'),
       ),
       div(
         { class: 'list' },
-        each(
+        forNode(
           todosQuery.value,
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>

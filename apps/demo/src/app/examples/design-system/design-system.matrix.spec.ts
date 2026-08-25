@@ -86,7 +86,7 @@ describe('a sheet declares the axes it is allowed to spend', () => {
 
 describe('a branch adds instead of multiplying', () => {
   it('keeps the absent branch free of the states it cannot show', () => {
-    // The footer of a card is behind an `ifBlock`: when it is not rendered,
+    // The footer of a card is behind an `ifNode`: when it is not rendered,
     // its tones cannot be on screen. Crossed, the matrix asks for captures of
     // pages that cannot exist.
     const crossed = visualMatrix([dsTheme, card, alert]);

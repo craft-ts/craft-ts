@@ -3,7 +3,7 @@ import {
   craftComponent,
   div,
   h,
-  ifBlock,
+  ifNode,
   option,
   p,
   select,
@@ -120,7 +120,7 @@ const CraftServiceUserDetailComponent = craftComponent(
         ),
       ]),
       div({ class: 'card' }, [
-        ifBlock(
+        ifNode(
           hasValue,
           () =>
             h('dl', [
@@ -132,7 +132,7 @@ const CraftServiceUserDetailComponent = craftComponent(
               h('dd', userEmail),
             ]),
           () =>
-            ifBlock(
+            ifNode(
               user.hasException,
               () => p({ class: 'error' }, 'Failed to load user.'),
               () => p({ class: 'loading' }, 'Loading user…'),

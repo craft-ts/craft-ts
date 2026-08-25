@@ -5,7 +5,7 @@ import { craftUse } from '@craft-ts/core';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // #region tasks-component
-import { craftComponent, each, h1, li, ul } from '@craft-ts/component';
+import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
 import { state } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
@@ -23,7 +23,7 @@ export const Tasks = craftComponent(
   ({ tasks }) => [ // template: turns the context into rendered nodes
     h1('Tasks'),
     ul(
-      each(
+      forNode(
         tasks, // source: the reactive collection to render
         { track: (task) => task.id }, // options: stable identity for each item
         (task) => li(task.title), // render: creates one node per task

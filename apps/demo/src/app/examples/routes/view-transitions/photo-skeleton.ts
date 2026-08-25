@@ -7,7 +7,7 @@ import {
   craftComponent,
   div,
   img,
-  ifBlock,
+  ifNode,
   span,
   type Input,
 } from '@craft-ts/component';
@@ -64,7 +64,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
           },
         },
         [
-          ifBlock(
+          ifNode(
             hasImage,
             () =>
               img({

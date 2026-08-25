@@ -164,22 +164,32 @@ const guideSidebar = [
     collapsed: false,
     items: [
       { text: 'Components', link: '/guide/components/' },
+      { text: 'Activating the style system', link: '/guide/style/setup' },
       { text: 'Typed styles', link: '/guide/style/' },
+      { text: 'Defining a design system', link: '/guide/style/define' },
       { text: 'Tokens and variables', link: '/guide/style/tokens' },
       { text: 'Axes and the matrix', link: '/guide/style/variants' },
       { text: 'Context obligations', link: '/guide/style/obligations' },
       { text: 'Testing visual states', link: '/guide/style/testing' },
       {
+        text: 'Component CSS variables',
+        link: '/guide/components/css-variables',
+      },
+      {
         text: 'Fine-grained reactivity',
         link: '/guide/components/fine-grained-reactivity',
+      },
+      {
+        text: 'Progressive rendering',
+        link: '/guide/components/schedule-for',
       },
       {
         text: 'Directives and .pipe(...)',
         link: '/guide/components/directives',
       },
       {
-        text: 'settledValue & pendingBlock',
-        link: '/guide/components/pending-block',
+        text: 'settledValue & pendingNode',
+        link: '/guide/components/pending-node',
       },
       { text: 'Accessibility', link: '/guide/components/accessibility' },
       { text: 'Customization', link: '/guide/components/customization' },
@@ -248,6 +258,10 @@ const guideSidebar = [
             link: '/guide/testing/architecture/route-di-proofs',
           },
           {
+            text: 'Route component files',
+            link: '/guide/testing/architecture/route-component-files',
+          },
+          {
             text: 'Path boundaries',
             link: '/guide/testing/architecture/path-boundaries',
           },
@@ -313,6 +327,17 @@ const guideSidebar = [
     ],
   },
   {
+    text: 'Internationalisation',
+    collapsed: true,
+    items: [
+      { text: 'Type-safe i18n', link: '/guide/i18n/' },
+      { text: 'The catalogue', link: '/guide/i18n/catalog' },
+      { text: 'Tokens', link: '/guide/i18n/tokens' },
+      { text: 'The runtime', link: '/guide/i18n/runtime' },
+      { text: 'With Effect', link: '/guide/i18n/effect' },
+    ],
+  },
+  {
     text: 'Deployment (experimental)',
     collapsed: true,
     items: [
@@ -346,6 +371,10 @@ const resourcesSidebar = [
       { text: 'Coding agents', link: '/resources/ai-agents' },
       { text: 'Migration', link: '/resources/migration' },
       {
+        text: 'Renames: _tag and providedIn',
+        link: '/guide/migration/wave-1-tag-and-provided-in',
+      },
+      {
         text: 'Effect compatibility & maturity',
         link: '/resources/effect-compatibility',
       },
@@ -365,6 +394,11 @@ export default defineConfig({
   title: '@craft-ts',
   base: '/craft/',
   description: 'Type-safe Craft applications, by construction',
+  // Repository files, not pages. Without this they are published, unreachable
+  // from the sidebar and the nav — the state every `.md` under apps/docs is
+  // meant to be out of. Every other page has a sidebar entry; see the
+  // architecture rule in the plan of 2026-08-25.
+  srcExclude: ['README.md', 'public/assets/README.md'],
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/assets/favicon.png',
@@ -415,6 +449,22 @@ export default defineConfig({
           {
             text: '@craft-ts/effect',
             link: 'https://www.npmjs.com/package/@craft-ts/effect',
+          },
+          {
+            text: '@craft-ts/style',
+            link: 'https://www.npmjs.com/package/@craft-ts/style',
+          },
+          {
+            text: '@craft-ts/style-testing',
+            link: 'https://www.npmjs.com/package/@craft-ts/style-testing',
+          },
+          {
+            text: '@craft-ts/i18n',
+            link: 'https://www.npmjs.com/package/@craft-ts/i18n',
+          },
+          {
+            text: '@craft-ts/i18n-effect',
+            link: 'https://www.npmjs.com/package/@craft-ts/i18n-effect',
           },
           {
             text: '@craft-ts/mcp',

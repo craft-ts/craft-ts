@@ -1,5 +1,20 @@
 # Typed CSS variables and design tokens
 
+::: warning Two things named `cssVars`
+This page is `meta.cssVars` on `craftComponent`: one component's **per-instance**
+styling API, applied as custom properties on that instance's root.
+
+`cssVars(prefix, specs)` from
+[`@craft-ts/style`](../style/define.md#the-theme) is a different mechanism under
+the same name: it declares **design-system-wide** custom properties, registered
+through `@property` and typed by kind, shared by every component that reads
+them.
+
+Nothing is being renamed — both are legitimate and the migration cost would be
+real. Use this one to let a caller restyle one instance; use the other one to
+declare a theme.
+:::
+
 CSS custom properties are the public styling API of a Craft component. Craft
 extracts a contract from inline `meta.styles`, propagates unsatisfied variables
 through component templates, and applies supplied values to the component root.
@@ -10,7 +25,6 @@ The browser's native inheritance then carries them to descendants.
 An unguarded use is required. A declaration or inline fallback is optional:
 
 <<< @/tests/snippets/guide/components/css-variables/card.spec.ts#card
-
 
 `--card-ink` is required, while `--card-bg` and `--card-radius` are optional.
 Styles supplied through `cssVars` are written as custom properties on the
@@ -36,8 +50,6 @@ craftComponent(
   template,
 );
 ```
-
-
 
 The `craft-css-vars-contract` lint rule resolves the CSS import and checks that
 the explicit contract and file remain synchronized.

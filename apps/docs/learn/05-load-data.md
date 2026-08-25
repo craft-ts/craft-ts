@@ -32,13 +32,13 @@ tasksQuery.exception(); // craftException | undefined
 
 ## In the template
 
-`ifBlock` / `matchBlock` are the structural conditionals (see [step
+`ifNode` / `matchNode` are the structural conditionals (see [step
 2](/learn/02-derive#control-flow)). For a first pass a
 ternary chain reads fine — just remember it makes the branch invisible to the
 [type-level assertions](/guide/testing/type-level):
 
 ```typescript
-import { craftComponent, each, li, p, ul } from '@craft-ts/component';
+import { craftComponent, forNode, li, p, ul } from '@craft-ts/component';
 
 export const Tasks = craftComponent(
   'Tasks',
@@ -53,7 +53,7 @@ export const Tasks = craftComponent(
       : tasks.hasException()
         ? p('Could not load tasks.')
         : ul(
-            each(
+            forNode(
               () => tasks.value() ?? [],
               { track: (task) => task.id },
               (task) => li(task.title),
@@ -63,11 +63,11 @@ export const Tasks = craftComponent(
 ```
 
 When the branches depend on an exception **code** rather than a boolean, reach
-for `matchBlock.exhaustive(...)` — the compiler then checks you covered every
+for `matchNode.exhaustive(...)` — the compiler then checks you covered every
 code:
 
 ```typescript
-matchBlock.exhaustive(() => tasks.exceptions().loader, '_tag', {
+matchNode.exhaustive(() => tasks.exceptions().loader, '_tag', {
   TASKS_FORBIDDEN: () => p('You do not have access to this list.'),
   TASKS_NOT_FOUND: () => p('This list no longer exists.'),
 });

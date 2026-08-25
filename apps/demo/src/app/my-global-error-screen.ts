@@ -2,7 +2,7 @@
 import {
   craftComponent,
   div,
-  ifBlock,
+  ifNode,
   p,
   heading,
 } from '@craft-ts/component';
@@ -26,10 +26,10 @@ export const MyGlobalErrorScreen = craftComponent(
     return div([
       heading([
         '⚠️ ',
-        ifBlock(disabled, () => 'Account disabled', () => 'Something went wrong'),
+        ifNode(disabled, () => 'Account disabled', () => 'Something went wrong'),
       ]),
       p(
-        ifBlock(
+        ifNode(
           disabled,
           () => 'This account has been disabled. Contact support to restore access.',
           () => 'An unexpected error occurred while loading this page.',

@@ -134,7 +134,7 @@ type PageControl = {
 
 `id` est le littéral du helper (`input('email', …)` → `"email"`). Il est
 unique **statiquement** dans l’app (`assertInteractiveElementNamed`). Au
-runtime, un `each` peut répéter le même `id` : `index` (et `track` si
+runtime, un `forNode` peut répéter le même `id` : `index` (et `track` si
 disponible) départage. `act` sans `match` sur un id répété est une erreur
 d’ambiguïté ; le retour liste les `index` / `track` possibles.
 
@@ -245,7 +245,7 @@ Messages stables, actionnables, sans dump interne :
   stop-on-error.
 - Ready : `page` pendant un reload simulé (close socket, `hello` + surface)
   réussit sans sleep côté client MCP.
-- `each` : `act` sans `match` → ambiguïté ; avec `index` → la bonne ligne.
+- `forNode` : `act` sans `match` → ambiguïté ; avec `index` → la bonne ligne.
 - `dom-styles` : whitelist respectée ; nœud `display:none` présent ; défaut
   `controls` ne contient pas d’arbre DOM.
 - E2E demo login : `fill` email + password + `submit`, sans reload de page,

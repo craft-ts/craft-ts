@@ -4,11 +4,11 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   main,
   option,
   select,
-  pendingBlock,
+  pendingNode,
   span,
   table,
   thead,
@@ -126,7 +126,7 @@ const GranularMutation = craftComponent(
                 StatusComponent({
                   status: usersQuery.currentPageStatus,
                 }),
-              ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
+              ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
             ]),
             div({ class: 'table-container' }, [
               table( { class: 'table' }, [
@@ -134,7 +134,7 @@ const GranularMutation = craftComponent(
                   tr( [th( 'ID'), th( 'Name'), th( 'Action')]),
                 ]),
                 tbody(
-                  each(
+                  forNode(
                     usersQuery.currentPageData,
                     { track: (user) => user.id },
                     (user) =>

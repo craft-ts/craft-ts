@@ -1,5 +1,18 @@
 # Typed styles
 
+::: tip Two style systems, and which to pick
+This section is `@craft-ts/style`: typed values, CSS emitted at build time, and
+a visual matrix you can enumerate. It costs a Vite plugin — see
+[Activating the style system](./setup.md) — and a design system to declare.
+
+[`meta.styles`](../components/styles.md) is the other one: a string of CSS
+shipped with the component and scoped with `@scope`, with no build step. It is
+the shortest path to a component's own appearance.
+
+Pick `meta.styles` for a component whose look is settled and local. Pick this
+one when the variants are a matrix you need to prove you covered. They coexist.
+:::
+
 `@craft-ts/style` makes a component's visual surface **derivable** instead of
 guessed. For any component you can ask what the exhaustive set of visual states
 is, which of them are impossible, and whether the context it needs exists — and
@@ -42,6 +55,11 @@ That split is what keeps the set of visual states finite, and therefore
 enumerable. A class built from a signal is a state nothing recorded.
 
 ## Where to go next
+
+Start with [Activating `@craft-ts/style`](./setup.md): the system is a build
+step, and none of the pages below produce a single byte of CSS until the Vite
+plugin is wired. Then [Define your design system](./define.md), which is where
+`bp`, `palette` and the theme variables the other pages spend come from.
 
 - [Tokens and typed variables](./tokens.md) — level 1.
 - [Axes and the visual matrix](./variants.md) — level 2.

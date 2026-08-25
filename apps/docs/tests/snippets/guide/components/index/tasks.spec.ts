@@ -5,7 +5,7 @@ import { craftUse } from '@craft-ts/core';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // #region tasks
-import { craftComponent, each, h1, li, ul } from '@craft-ts/component';
+import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
 import { state } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
@@ -19,7 +19,7 @@ export const Tasks = craftComponent(
   },
   ({ tasks }) => [
     h1('Tasks'),
-    ul(each(tasks, { track: (task) => task.id }, (task) => li(task.title))),
+    ul(forNode(tasks, { track: (task) => task.id }, (task) => li(task.title))),
   ],
 );
 // #endregion tasks

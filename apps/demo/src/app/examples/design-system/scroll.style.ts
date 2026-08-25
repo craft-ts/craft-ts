@@ -1,11 +1,11 @@
 /**
  * The case that motivated the whole thing.
  *
- * A back-to-top button is `position: sticky` and asks its scroll state — "am I
- * stuck at the end?" — through a container query. Both need something it cannot
- * provide itself: a scroll port on the block axis, and an element declaring
- * `container-type: scroll-state`. Get either wrong and the button silently
- * never appears, or sticks to the wrong box.
+ * A back-to-top button is `position: sticky` and reads its scroll state through
+ * a container query. Both need something it cannot provide itself: a scroll
+ * port on the block axis, and an element declaring `container-type:
+ * scroll-state`. Get either wrong and the button silently never changes, or
+ * sticks to the wrong box.
  *
  * `requires(...)` is attached to the class that depends on it, not to the sheet:
  * the error then names a rule rather than a file.
@@ -45,7 +45,10 @@ export const backToTop = craftStyles(
   'backToTop',
   {
     /**
-     * The sticky box, and the scroll-state container in one.
+     * The sticky box, and the scroll-state container in one. The tail owned by
+     * the shell gives it room to release at the end of the scroll range: a
+     * last child with only `inset-block-end` is already stuck at the start and
+     * remains stuck when its natural position reaches that inset.
      *
      * `scroll-state(stuck: …)` asks about the **container**, so the element
      * that sticks has to be the one that declares the container — the button
@@ -61,14 +64,15 @@ export const backToTop = craftStyles(
     ],
 
     /**
-     * Hidden with `visibility`, not `display`.
+     * Visible by default, hidden with `visibility` while the anchor is stuck.
      *
-     * A zero-size sticky box can never be stuck — there is nothing to stick —
-     * so gating layout on the very state that layout produces never resolves.
-     * `visibility` keeps the anchor's size and only changes what is painted.
+     * The anchor is the last meaningful item, so `stuck: block-end` is the
+     * transient state before the scroll range is exhausted. Inverting the
+     * paint condition makes the button appear at the end, when the anchor has
+     * released, while keeping its size available for sticky layout.
      */
     button: [
-      visibility.hidden,
+      visibility.visible,
       px(space(4)),
       py(space(2)),
       radius(radii.full),
@@ -80,8 +84,9 @@ export const backToTop = craftStyles(
       font(text.sm),
       cursor.pointer,
 
-      // Only painted once the box it lives in is actually stuck at the end.
-      when(scrollState.stuck.blockEnd, [visibility.visible]),
+      // Do not paint the transient block-end-stuck state; paint the released
+      // state at the end of the scroll range.
+      when(scrollState.stuck.blockEnd, [visibility.hidden]),
     ],
   },
   { axes: [scrollState.stuck] },
@@ -105,4 +110,11 @@ export const shell = craftStyles('appShell', {
     // separate decision would hide that the pair travels together.
     blockSize(unit.vh(60)),
   ],
+
+  /**
+   * A typed trailing space lets the sticky anchor release at scroll end. It
+   * must be larger than the anchor's block-end inset; otherwise the natural
+   * position lands exactly on the sticky threshold and still reports stuck.
+   */
+  tail: [display.block, blockSize(space(8))],
 });

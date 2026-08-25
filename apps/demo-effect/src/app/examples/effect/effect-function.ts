@@ -3,9 +3,9 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
-  matchBlock,
-  pendingBlock,
+  ifNode,
+  matchNode,
+  pendingNode,
   p,
   span,
   strong,
@@ -70,15 +70,15 @@ const EffectFunctionComponent = craftComponent(
       ),
       div({ class: 'panel' }, [
         p({ class: 'panel-title' }, 'Database result'),
-        ifBlock(
+        ifNode(
           dataQuery.isLoading,
           () => p({ class: 'result' }, 'Connecting to the in-memory database…'),
           () =>
-            ifBlock(
+            ifNode(
               hasData,
               () => p({ class: 'result' }, [strong('Rows: '), summary]),
               () =>
-                matchBlock.exhaustive(dataQuery.exceptions.loader, '_tag', {
+                matchNode.exhaustive(dataQuery.exceptions.loader, '_tag', {
                   DatabaseConnectionError: () =>
                     p(
                       { class: 'result' },
@@ -88,7 +88,7 @@ const EffectFunctionComponent = craftComponent(
             ),
         ),
       ]).pipe(
-        pendingBlock({
+        pendingNode({
           fallback: () =>
             p({ class: 'result' }, 'Connecting to the in-memory database…'),
         }),
@@ -99,9 +99,9 @@ const EffectFunctionComponent = craftComponent(
         '. The loader only yields ',
         span({ class: 'mono' }, 'getData'),
         ', and the typed Effect failure is rendered by ',
-        span({ class: 'mono' }, 'matchBlock'),
+        span({ class: 'mono' }, 'matchNode'),
         ' after the ',
-        span({ class: 'mono' }, 'pendingBlock'),
+        span({ class: 'mono' }, 'pendingNode'),
         ' has shown the connection state.',
       ]),
     ]),

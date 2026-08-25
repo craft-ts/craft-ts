@@ -4,7 +4,7 @@
 
 **Goal:** Ajouter des helpers hyperscript qui injectent ARIA, IDs liés et `data-*` d’état, une live region montable vide, des locators `getByRole` / `getByLabel` dans les tests template, et deux opt-in P2 (`lang`/`dir` document, `clickFocus`).
 
-**Architecture:** Pas de widget visuel, pas de `toView` Foldkit, pas de TEA. Les helpers retournent des **objets de props à merger** sur `label()` / `input()` / `button()` existants — même ADN que `heading()`. `data-disabled` / `data-invalid` / `data-open` naissent avec les helpers (P1 convention pliée dans P0). `aria-disabled` à la place de `disabled` est **opt-in** (`keepFocusable`). `fieldExceptionBlock` fusionne déjà `aria-describedby` avec un hint existant : le `descriptionId` de `fieldControl` doit survivre à ce merge.
+**Architecture:** Pas de widget visuel, pas de `toView` Foldkit, pas de TEA. Les helpers retournent des **objets de props à merger** sur `label()` / `input()` / `button()` existants — même ADN que `heading()`. `data-disabled` / `data-invalid` / `data-open` naissent avec les helpers (P1 convention pliée dans P0). `aria-disabled` à la place de `disabled` est **opt-in** (`keepFocusable`). `fieldErrorNode` fusionne déjà `aria-describedby` avec un hint existant : le `descriptionId` de `fieldControl` doit survivre à ce merge.
 
 **Tech Stack:** TypeScript, hyperscript `@craft-ng/component`, Vitest + jsdom, Angular TestBed / Renderer2, Nx `ng-craft-component` et `ng-craft-core`.
 
@@ -35,7 +35,7 @@
 | Modify `apps/docs/reference/index.md` | Ligne tableau des nouveaux symboles |
 | Modify `apps/demo/src/app/examples/primitives/forms/login-form.ts` | Adopter `fieldControl` (preuve d’usage) |
 
-`fieldExceptionBlock` / `CraftFieldDirective` : **ne pas modifier**. Le merge `aria-describedby` existe déjà (`interpreter.ts` conserve `originalAriaDescribedBy`).
+`fieldErrorNode` / `CraftFieldDirective` : **ne pas modifier**. Le merge `aria-describedby` existe déjà (`interpreter.ts` conserve `originalAriaDescribedBy`).
 
 ---
 
@@ -1100,7 +1100,7 @@ Live region : **ne jamais** gater le nœud sur le message.
 liveRegion({ label: 'Notifications' }, copied() ? 'Copied' : '');
 
 // incorrect — SR never subscribes
-ifBlock(copied, () => liveRegion('Copied'));
+ifNode(copied, () => liveRegion('Copied'));
 ```
 
 `getByRole` / `getByLabel` dans la section Tests, à côté de `toBeAccessible()`.
@@ -1133,7 +1133,7 @@ label(email.label, 'Email'),
 input({ ...email.input, type: 'email' }).pipe(CraftFieldDirective(loginForm.form.selectEmail())),
 ```
 
-Idem password. Ne pas retirer `fieldExceptionBlock` : le merge `aria-describedby` doit continuer à fonctionner (le hint d’erreur s’ajoute à `email-description` si un `p(email.description)` est rendu ; s’il n’y a pas de hint statique, ne pas rendre `description` vide — omettre le `p` si pas de texte).
+Idem password. Ne pas retirer `fieldErrorNode` : le merge `aria-describedby` doit continuer à fonctionner (le hint d’erreur s’ajoute à `email-description` si un `p(email.description)` est rendu ; s’il n’y a pas de hint statique, ne pas rendre `description` vide — omettre le `p` si pas de texte).
 
 - [ ] **Step 4: Run targeted tests + demo typecheck**
 

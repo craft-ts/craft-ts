@@ -100,9 +100,13 @@ describe('architecture', () => {
             target.kind === 'service' && target.details?.['runtime'] === 'effect',
         },
       ],
-      // This example intentionally demonstrates a pure Effect value without
-      // an injected service requirement.
-      allow: ['effectFunctionQuery', 'profileQuery'],
+      // The first two intentionally demonstrate a pure Effect value without an
+      // injected service requirement. `receiptQuery` is a different case: its
+      // Effect service, `I18nEffectService`, is declared by
+      // `@craft-ts/i18n-effect` rather than by this application, so it can
+      // never appear as a node of this app's graph. The route still proves the
+      // requirement — through `EffectRequirementsCheckedDI` in app.routes.ts.
+      allow: ['effectFunctionQuery', 'profileQuery', 'receiptQuery'],
     });
   });
 

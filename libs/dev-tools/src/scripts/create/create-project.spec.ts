@@ -82,6 +82,53 @@ describe('createCraftProject', () => {
     expect(await readFile(join(result.directory, 'GEMINI.md'), 'utf8')).toContain('CraftTS project');
   });
 
+  it('ships a design system the build plugin can actually emit', async () => {
+    const result = await createFixture('plain', ['codex']);
+    const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+
+    // The vocabulary ships to the browser; the scenario matrix never does.
+    expect(packageJson.dependencies['@craft-ts/style']).toBeDefined();
+    expect(packageJson.devDependencies['@craft-ts/style-testing']).toBeDefined();
+
+    // Without the plugin the sheet below typechecks and emits nothing at all,
+    // which is the failure mode this assertion exists to catch.
+    const viteConfig = await readFile(join(result.directory, 'vite.config.ts'), 'utf8');
+    expect(viteConfig).toContain("from '@craft-ts/style/vite'");
+    expect(viteConfig).toContain('craftStyle(');
+    expect(viteConfig).toContain('dumpPath');
+    expect(await readFile(join(result.directory, 'src/main.ts'), 'utf8')).toContain(
+      "import 'virtual:craft-style.css'",
+    );
+    expect(await readFile(join(result.directory, 'src/types.d.ts'), 'utf8')).toContain(
+      "declare module 'virtual:craft-style.css'",
+    );
+
+    const sheet = await readFile(join(result.directory, 'src/app/ui/ui.style.ts'), 'utf8');
+    expect(sheet).toContain('definePalette(');
+    expect(sheet).toContain("defineStateAxis('tone'");
+    expect(sheet).toContain("cssVars('app'");
+
+    // The variant travels as an attribute; the class stays constant. A starter
+    // that shipped `class: 'error'` would teach the opposite on day one.
+    const homePage = await readFile(join(result.directory, 'src/app/home-page.ts'), 'utf8');
+    expect(homePage).toContain('class: surface.card');
+    expect(homePage).toContain("'data-tone': 'danger'");
+    expect(homePage).not.toContain("class: '");
+
+    // The three moved rules must not also survive as global CSS.
+    const styles = await readFile(join(result.directory, 'src/styles.css'), 'utf8');
+    expect(styles).not.toContain('.card {');
+    expect(styles).not.toContain('.muted {');
+    expect(styles).not.toContain('.error {');
+
+    expect(
+      await readFile(join(result.directory, '.agents/skills/craft-ts-project/SKILL.md'), 'utf8'),
+    ).toContain('no-raw-class');
+  });
+
   it('creates an Effect v4 starter with a separate Effect skill and Layer boundary', async () => {
     const result = await createFixture('effect', ['codex']);
     const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {

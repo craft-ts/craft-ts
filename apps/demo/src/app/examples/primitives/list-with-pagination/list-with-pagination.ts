@@ -4,10 +4,10 @@ import {
   button,
   craftComponent,
   div,
-  each,
-  ifBlock,
+  forNode,
+  ifNode,
   option,
-  pendingBlock,
+  pendingNode,
   select,
   span,
   heading,
@@ -105,19 +105,19 @@ const ListWithPagination = craftComponent(
           StatusComponent({
             status: usersQuery.currentPageStatus,
           }),
-        ]).pipe(pendingBlock({ fallback: () => span({}, '⏳') })),
+        ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
       ]),
       table(
         { class: 'table' },
         tbody(
-          each(
+          forNode(
             usersQuery.currentPageData,
             {
               track: (user) => user.id,
               empty: () =>
                 tr(
                   td(
-                    ifBlock(
+                    ifNode(
                       usersQuery.isCurrentPageResolved,
                       () => 'No users found',
                       () => 'Loading…',
@@ -139,7 +139,7 @@ const ListWithPagination = craftComponent(
       // Only reached on the very first load: once a page has been shown, the
       // placeholder keeps `currentPageData` non-empty, so the empty slot (and
       // the settled read inside it) never runs again.
-      ).pipe(pendingBlock({ fallback: () => div('⏳ Loading users…') })),
+      ).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
       div({ class: 'pagination' }, [
         select(
           'PageSize',

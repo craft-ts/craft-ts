@@ -76,7 +76,7 @@ toolchain entière au dépôt, qui n'a aujourd'hui aucune dépendance Stylelint.
   `#id`, `[data-craft-name]`). Les sélecteurs de type sont l'affaire de la
   règle 1 ; les vérifier deux fois produirait des messages redondants.
 - Les pseudo-classes structurelles (`:nth-of-type`, `:first-child`) ne sont
-  jamais « prouvées » : on vérifie seulement le hook porteur. `each()` rend le
+  jamais « prouvées » : on vérifie seulement le hook porteur. `forNode()` rend le
   nombre d'éléments indécidable, exactement comme `@for` côté Angular.
 - `contentStyles` est **hors périmètre** des deux règles : ces styles ciblent
   un fragment projeté par l'appelant, pas le template du composant
@@ -170,8 +170,8 @@ hyperscript (`div`, `span`, `button`, … ainsi que `h(...)` et
 | helper nommé `button('save', …)` | `[data-craft-name="save"]` |
 | `meta.host: { class: 'demo-host' }` | classe `demo-host` sur la racine |
 
-Les corps de `ifBlock`, `each`, `matchBlock`, `catchBlock`,
-`fieldExceptionBlock`, `defer` et les `craftTemplate(...)` du fichier sont
+Les corps de `ifNode`, `forNode`, `matchNode`, `catchNode`,
+`fieldErrorNode`, `deferNode` et les `craftTemplate(...)` du fichier sont
 parcourus comme le reste : un hook n'y est pas moins utilisé.
 
 Comme `template-element-name-unique.cjs`, le parcours **s'arrête** en entrant
@@ -212,7 +212,7 @@ cinq valeurs — n'est pas requis pour la première version.
 Version 1 : `.card .title` est considéré utilisé dès lors que `.card` et
 `.title` existent chacun dans le fichier. La vérification d'ascendance
 (descendant / enfant direct) demandée par le document source est une extension
-possible — l'arbre hyperscript la rend faisable, mais `ifBlock`/`each` et les
+possible — l'arbre hyperscript la rend faisable, mais `ifNode`/`forNode` et les
 fragments extraits en constantes la rendent bruyante. À traiter dans une phase
 ultérieure derrière une option `checkCombinators: boolean` (défaut `false`).
 

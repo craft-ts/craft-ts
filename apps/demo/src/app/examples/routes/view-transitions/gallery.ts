@@ -2,7 +2,7 @@
 import {
   a,
   craftComponent,
-  each,
+  forNode,
   header,
   li,
   p,
@@ -45,7 +45,7 @@ const ViewTransitionsGalleryComponent = craftComponent(
     ]),
     ul(
       { class: 'vt-grid' },
-      each(PHOTOS, { track: (photo) => photo.id }, (photo) =>
+      forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
         li(
           a('photo',
             {

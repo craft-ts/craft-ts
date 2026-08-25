@@ -72,7 +72,14 @@
       "craft-ts-deploy",
       "craft-ts-cli",
       "craft-ts-deploy-alchemy",
-      "mcp"
+      "craft-ts-style",
+      "craft-ts-style-testing",
+      "craft-ts-i18n",
+      "craft-ts-i18n-effect",
+      "mcp",
+      "log-server",
+      "log-mcp",
+      "function-registry-mcp"
     ],
     "projectsRelationship": "fixed",
     "releaseTag": {

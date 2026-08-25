@@ -7,7 +7,7 @@ import {
   section,
   span,
 } from '@craft-ts/component';
-import { pendingBlock } from '@craft-ts/component';
+import { pendingNode } from '@craft-ts/component';
 import {
   BrowserWindow,
   LocalStorage,
@@ -59,7 +59,7 @@ export const ClientOnlyPage = craftComponent(
           ),
         ]),
       ]).pipe(
-        pendingBlock({
+        pendingNode({
           ssr: 'client',
           fallback: () =>
             div({ class: 'pending-box' }, [

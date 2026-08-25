@@ -143,14 +143,14 @@ without a helper:
 ({ tasks }) => [
   h1('Tasks'),
   ul(
-    each(tasks, { track: (task) => task.id }, (task) => li(task.title)),
+    forNode(tasks, { track: (task) => task.id }, (task) => li(task.title)),
   ),
 ];
 ```
 
 Pass the reader (`tasks`) to the binding that consumes it. The renderer drives
 the read; wrapping `() => tasks()` is a synchronous call the yield rules reject.
-Use `each(...)` when the collection controls a node per item. No `*ngFor`, no
+Use `forNode(...)` when the collection controls a node per item. No `*ngFor`, no
 change detection to think about.
 
 ## Writing to it

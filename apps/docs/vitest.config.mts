@@ -21,6 +21,26 @@ export default defineConfig(() => ({
         workspaceRoot,
         'libs/component/src/index.ts',
       ),
+      // Longest specifier first: a Vite alias key matches by prefix, so a bare
+      // '@craft-ts/style' placed above would swallow '/vite' and '-testing'.
+      '@craft-ts/style/vite': path.join(
+        workspaceRoot,
+        'libs/style/src/plugin/vite.ts',
+      ),
+      '@craft-ts/style-testing': path.join(
+        workspaceRoot,
+        'libs/style-testing/src/index.ts',
+      ),
+      '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
+      '@craft-ts/i18n-effect': path.join(
+        workspaceRoot,
+        'libs/i18n-effect/src/index.ts',
+      ),
+      '@craft-ts/i18n/testing': path.join(
+        workspaceRoot,
+        'libs/i18n/src/testing.ts',
+      ),
+      '@craft-ts/i18n': path.join(workspaceRoot, 'libs/i18n/src/index.ts'),
       '@craft-ts/effect': path.join(
         workspaceRoot,
         'libs/effect/src/index.ts',

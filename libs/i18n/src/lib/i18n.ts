@@ -282,7 +282,11 @@ export function defineLocale<const Id extends string, const T extends Catalog>(
   id: Id,
   catalog: T & ValidateCatalog<Id, T>,
 ): LocaleDefinition<Id, T> {
-  validateCatalog(catalog, id, { strictPlural: true });
+  // Asserts rather than validates: `validateCatalog` only *returns*
+  // diagnostics, so calling it here computed the answer and dropped it. The
+  // type-level check covers a catalogue written by hand; this one covers the
+  // rest — a catalogue built dynamically, deserialised, or cast.
+  assertValidCatalog(catalog, id);
   return { id, catalog };
 }
 
@@ -295,7 +299,7 @@ export function defineLocaleLike<
   id: Id,
   catalog: T & CompatibleCatalog<Id, T, Reference['catalog']>,
 ): LocaleDefinition<Id, T> {
-  validateCatalog(catalog, id, { strictPlural: true });
+  assertValidCatalog(catalog, id);
   assertLocaleParity(_reference.catalog, catalog);
   return { id, catalog };
 }

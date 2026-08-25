@@ -191,9 +191,9 @@ function hasDynamicAccessibleName(children) {
   if (children.type === 'CallExpression') {
     if (
       children.callee.type === 'Identifier' &&
-      (children.callee.name === 'ifBlock' ||
-        children.callee.name === 'matchBlock' ||
-        children.callee.name === 'each')
+      (children.callee.name === 'ifNode' ||
+        children.callee.name === 'matchNode' ||
+        children.callee.name === 'forNode')
     ) {
       return true;
     }

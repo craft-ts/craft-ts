@@ -25,7 +25,7 @@ import { fromEventToSource$ } from '@craft-ts/core';
 The component examples below also use the hyperscript helpers:
 
 ```typescript
-import { button, craftComponent, div, each, form, input, p } from '@craft-ts/component';
+import { button, craftComponent, div, forNode, form, input, p } from '@craft-ts/component';
 ```
 
 ## Signature
@@ -325,7 +325,7 @@ export const Dynamic = craftComponent(
     return { items, attachListener };
   },
   ({ items, attachListener }) =>
-    each(
+    forNode(
       () => items(),
       { track: (item) => item.id },
       (item) =>

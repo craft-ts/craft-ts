@@ -57,6 +57,34 @@ export const releasePackages = [
     distRoot: 'dist/libs/deploy-alchemy',
   },
   {
+    key: 'style',
+    name: '@craft-ts/style',
+    project: 'craft-ts-style',
+    sourceManifest: 'libs/style/package.json',
+    distRoot: 'dist/libs/style',
+  },
+  {
+    key: 'style_testing',
+    name: '@craft-ts/style-testing',
+    project: 'craft-ts-style-testing',
+    sourceManifest: 'libs/style-testing/package.json',
+    distRoot: 'dist/libs/style-testing',
+  },
+  {
+    key: 'i18n',
+    name: '@craft-ts/i18n',
+    project: 'craft-ts-i18n',
+    sourceManifest: 'libs/i18n/package.json',
+    distRoot: 'dist/libs/i18n',
+  },
+  {
+    key: 'i18n_effect',
+    name: '@craft-ts/i18n-effect',
+    project: 'craft-ts-i18n-effect',
+    sourceManifest: 'libs/i18n-effect/package.json',
+    distRoot: 'dist/libs/i18n-effect',
+  },
+  {
     key: 'mcp',
     name: '@craft-ts/mcp',
     project: 'mcp',
@@ -335,7 +363,9 @@ function assertChangedFiles(base, head, allowSubset = false) {
 
 function assertFileNames(actual, allowSubset = false) {
   actual = [...new Set(actual)].sort();
-  const unexpected = actual.filter((path) => !releaseTrackedFiles.includes(path));
+  const unexpected = actual.filter(
+    (path) => !releaseTrackedFiles.includes(path),
+  );
   if (unexpected.length > 0) {
     throw new Error(
       `Release changes contain unexpected files: ${unexpected.join(', ')}.`,

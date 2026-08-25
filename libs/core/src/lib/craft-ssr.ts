@@ -7,7 +7,7 @@ export type CraftSsrPolicy = Readonly<{
   timeoutMs?: number;
 }>;
 
-/** Nearest route-level default, overridden by a local pendingBlock policy. */
+/** Nearest route-level default, overridden by a local pendingNode policy. */
 export const CRAFT_SSR_POLICY = craftToken<CraftSsrPolicy>('CraftSsrPolicy');
 
 /** Request-scoped bridge used by core async work such as lazy route loading. */
@@ -20,16 +20,16 @@ export const CRAFT_SSR_RUNTIME = craftToken<CraftSsrRuntime>('CraftSsrRuntime');
 export class CraftUnhandledSsrResolutionError extends Error {
   readonly source: string;
   readonly route?: string;
-  readonly reason: 'no pendingBlock or route SSR policy';
+  readonly reason: 'no pendingNode or route SSR policy';
 
   constructor(source: string, route?: string) {
     super(
-      `Craft async source "${source}" suspended during SSR without a pendingBlock or route SSR policy${route ? ` (route: ${route})` : ''}.`,
+      `Craft async source "${source}" suspended during SSR without a pendingNode or route SSR policy${route ? ` (route: ${route})` : ''}.`,
     );
     this.name = 'CraftUnhandledSsrResolutionError';
     this.source = source;
     this.route = route;
-    this.reason = 'no pendingBlock or route SSR policy';
+    this.reason = 'no pendingNode or route SSR policy';
   }
 }
 

@@ -5,7 +5,7 @@
  * Docs mix two things under the same word. Only the first is renamed:
  *
  *   1. the API surface in code samples — `craftException({ code })`,
- *      `exception()?.code`, `matchBlock.exhaustive(x, 'code', …)`,
+ *      `exception()?.code`, `matchNode.exhaustive(x, 'code', …)`,
  *      `AnyCraftException & { code }`;
  *   2. prose that says "code" as an ordinary English word — "source code",
  *      "existing code", "declarative code is instrumentable code".

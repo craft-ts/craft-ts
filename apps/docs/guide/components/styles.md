@@ -1,5 +1,20 @@
 # Encapsulated styles
 
+::: tip Two style systems, and which to pick
+This page is `meta.styles`: a **string** of CSS shipped with the component and
+scoped with `@scope`. It is the shortest path to a component's own appearance,
+and it needs no build step.
+
+[`@craft-ts/style`](../style/) is the other one: values are typed objects, the
+CSS is emitted at build time, and the exhaustive set of a component's visual
+states becomes something you can enumerate and test. It costs a Vite plugin and
+a design system to declare.
+
+Pick this page for a component whose look is settled and local. Pick
+`@craft-ts/style` when the variants are a matrix you need to prove you covered.
+They coexist: a component can carry `meta.styles` and bind a sheet class.
+:::
+
 Styles declared in `craftComponent(name, meta, factory, template)` are shared by
 every instance of the component and encapsulated with CSS `@scope`. The registry
 keeps a single sheet per component and removes it when the last instance is

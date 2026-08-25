@@ -76,7 +76,7 @@ describes data and its loader.
 
 ```ts
 div(UserList()).pipe(
-  pendingBlock({
+  pendingNode({
     ssr: 'block',
     fallback: () => UserListSkeleton(),
   }),
@@ -104,7 +104,7 @@ craftRoute('dashboard', {
 });
 ```
 
-The nearest local `pendingBlock` wins over the route policy. A read that
+The nearest local `pendingNode` wins over the route policy. A read that
 suspends without either policy fails with
 `CraftUnhandledSsrResolutionError`; Craft never silently skips the loader or
 waits forever. Reloading queries keep rendering their previous value and do
@@ -114,9 +114,9 @@ not suspend.
 
 Hydration keys come from the component and template path, not from a global
 counter or random id. Static children use their logical position, blocks use a
-stable boundary segment, and `each` entries use the declared business key.
+stable boundary segment, and `forNode` entries use the declared business key.
 Server and client must therefore execute the same template structure and use
-stable `each` keys.
+stable `forNode` keys.
 
 If a key is absent, a tag differs, text changed, or a dynamic branch no longer
 matches, Craft recreates that local subtree and keeps compatible siblings. In
@@ -139,7 +139,7 @@ the browser.
 ## Current scope
 
 This first runtime release covers full-page hydration, deterministic HTML,
-CSS collection, state/query transfer, async boundary policies, keyed `each`
+CSS collection, state/query transfer, async boundary policies, keyed `forNode`
 recovery, and local mismatch remounts. Streaming, resumability, islands,
 cross-boundary event replay, compiler-generated renderers, and a direct
 server-function transport are later work.

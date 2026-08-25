@@ -40,7 +40,7 @@ type RequireHandledMountFieldExceptions<Component> =
       : [ComponentFieldExceptionsOf<Component>] extends [never]
         ? unknown
         : {
-            'fieldExceptionBlock.exhaustive is required before mounting component field exceptions': ComponentFieldExceptionsOf<Component>;
+            'fieldErrorNode.exhaustive is required before mounting component field exceptions': ComponentFieldExceptionsOf<Component>;
           };
 
 export function mountCraftComponent<Component extends CraftComponent<any>>(
@@ -89,7 +89,7 @@ type RequireHandledRouteFieldExceptions<Component> =
       : [ComponentFieldExceptionsOf<Component>] extends [never]
         ? unknown
         : {
-            'fieldExceptionBlock.exhaustive is required before routing component field exceptions': ComponentFieldExceptionsOf<Component>;
+            'fieldErrorNode.exhaustive is required before routing component field exceptions': ComponentFieldExceptionsOf<Component>;
           };
 
 export type CraftRouteCssVarsCarrier<

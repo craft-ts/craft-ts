@@ -5,7 +5,7 @@ import {
   div,
   heading,
   p,
-  pendingBlock,
+  pendingNode,
   span,
   strong,
 } from '@craft-ts/component';
@@ -94,7 +94,7 @@ const EffectSyncMembersComponent = craftComponent(
       'shippingQuery',
       {
         params: function* () {
-          return yield* cartWeightGrams(yield* qty.lines());
+          return yield* syncEffect(cartWeightGrams(yield* qty.lines()));
         },
         loader: ({ params }) => quoteShipping(params),
       },
@@ -151,7 +151,7 @@ const EffectSyncMembersComponent = craftComponent(
             ', whose params still use a synchronous member.',
           ]),
         ]).pipe(
-          pendingBlock({
+          pendingNode({
             fallback: () =>
               div(
                 {

@@ -50,8 +50,8 @@ userQuery.exception(); // craftException | undefined
 ## Reading only settled data
 
 Use `settledValue` when a template or derived computation requires a real
-value. It suspends to the nearest `pendingBlock` while the first value is
-unavailable, propagates query exceptions to a `catchBlock`, and keeps the
+value. It suspends to the nearest `pendingNode` while the first value is
+unavailable, propagates query exceptions to a `catchNode`, and keeps the
 previous value during a reload.
 
 ```typescript

@@ -17,8 +17,8 @@ import type {
   CraftDirectiveNode,
   CraftNodeChildren,
   DeferNode,
-  EachNode,
-  IfBlockNode,
+  ForNode,
+  IfNode,
   ElementNodeBase,
 } from './render/vnode';
 
@@ -165,7 +165,7 @@ type VisitChildren<
           | VisitComponent<ComponentOfNode<Children>, Registry, Seen>
       : Children extends CraftDirectiveNode<any>
         ? VisitChildren<Children['node'], Registry, Seen>
-        : Children extends EachNode<
+        : Children extends ForNode<
               infer _Item,
               infer _Key,
               infer _Dependencies
@@ -266,7 +266,7 @@ type FindElement<
       ? FindElement<Children['node'], Tag, Props>
       : Children extends ComponentNode<any, any, infer Component>
         ? FindElement<ReturnType<ComponentTemplateOf<Component>>, Tag, Props>
-        : Children extends EachNode<any, any>
+        : Children extends ForNode<any, any>
           ? FindElement<
               | ReturnType<Children['itemTemplate']>
               | (Children['empty'] extends (...args: any[]) => infer Empty
@@ -275,7 +275,7 @@ type FindElement<
               Tag,
               Props
             >
-          : Children extends IfBlockNode<
+          : Children extends IfNode<
                 infer ConditionName,
                 any,
                 infer True,
@@ -333,7 +333,7 @@ type VisitProperty<
             Property,
             Value
           >
-        : Children extends EachNode<any, any>
+        : Children extends ForNode<any, any>
           ? VisitProperty<
               (
                 | ReturnType<Children['itemTemplate']>
@@ -402,7 +402,7 @@ type VisitYieldableProperty<
             Property,
             Result
           >
-        : Children extends EachNode<any, any>
+        : Children extends ForNode<any, any>
           ? VisitYieldableProperty<
               (
                 | ReturnType<Children['itemTemplate']>
@@ -477,7 +477,7 @@ type VisitContextUse<
             Property,
             ContextMethod
           >
-        : Children extends EachNode<any, any>
+        : Children extends ForNode<any, any>
           ? VisitContextUse<
               (
                 | ReturnType<Children['itemTemplate']>
@@ -570,7 +570,7 @@ type VisitOutput<
               Name,
               Handler
             >
-        : Children extends EachNode<any, any>
+        : Children extends ForNode<any, any>
           ? VisitOutput<
               | ReturnType<Children['itemTemplate']>
               | (Children['empty'] extends (...args: any[]) => infer Empty
@@ -669,7 +669,7 @@ export type TemplateUsesComponent<
       ? TemplateUsesComponent<Nested, Component>
       : Children extends CraftDirectiveNode<any>
         ? TemplateUsesComponent<Children['node'], Component>
-        : Children extends EachNode<any, any>
+        : Children extends ForNode<any, any>
           ? TemplateUsesComponent<
               (
                 | ReturnType<Children['itemTemplate']>
@@ -819,7 +819,7 @@ type VisitRenderedState<
                 [...Seen, Component],
                 [...Depth, unknown]
               >
-          : Children extends EachNode<
+          : Children extends ForNode<
                 any,
                 any,
                 any,
@@ -856,7 +856,7 @@ type VisitRenderedState<
                     Seen,
                     [...Depth, unknown]
                   >
-            : Children extends IfBlockNode<
+            : Children extends IfNode<
                   infer ConditionName,
                   any,
                   infer True,
@@ -994,7 +994,7 @@ type VisitAvailableAction<
                 [...Seen, Component],
                 [...Depth, unknown]
               >
-          : Children extends EachNode<
+          : Children extends ForNode<
                 any,
                 any,
                 any,
@@ -1033,7 +1033,7 @@ type VisitAvailableAction<
                     Seen,
                     [...Depth, unknown]
                   >
-            : Children extends IfBlockNode<
+            : Children extends IfNode<
                   infer ConditionName,
                   any,
                   infer True,
@@ -1188,7 +1188,7 @@ type VisitNamedElementIdentities<
                     [...Seen, Component],
                     [...Depth, unknown]
                   >
-            : Children extends EachNode<
+            : Children extends ForNode<
                   any,
                   any,
                   any,
@@ -1202,7 +1202,7 @@ type VisitNamedElementIdentities<
                   Seen,
                   [...Depth, unknown]
                 >
-              : Children extends IfBlockNode<any, any, infer True, infer False>
+              : Children extends IfNode<any, any, infer True, infer False>
                 ? VisitNamedElementIdentities<
                     True | False,
                     Owner,
@@ -1331,7 +1331,7 @@ type NamedElementPropsOf<
                   [...Seen, Component],
                   [...Depth, unknown]
                 >
-            : Children extends EachNode<
+            : Children extends ForNode<
                   any,
                   any,
                   any,
@@ -1346,7 +1346,7 @@ type NamedElementPropsOf<
                   Seen,
                   [...Depth, unknown]
                 >
-              : Children extends IfBlockNode<any, any, infer True, infer False>
+              : Children extends IfNode<any, any, infer True, infer False>
                 ? NamedElementPropsOf<
                     True | False,
                     Identity,
@@ -1462,7 +1462,7 @@ type NamedElementDelegatesToContextOf<
                 [...Seen, Component],
                 [...Depth, unknown]
               >
-          : Children extends EachNode<
+          : Children extends ForNode<
                 any,
                 any,
                 any,
@@ -1479,7 +1479,7 @@ type NamedElementDelegatesToContextOf<
                 Seen,
                 [...Depth, unknown]
               >
-            : Children extends IfBlockNode<any, any, infer True, infer False>
+            : Children extends IfNode<any, any, infer True, infer False>
               ? NamedElementDelegatesToContextOf<
                   True | False,
                   Identity,
@@ -1600,7 +1600,7 @@ type NamedElementRendersStateWhenOf<
                 [...Seen, Component],
                 [...Depth, unknown]
               >
-          : Children extends EachNode<
+          : Children extends ForNode<
                 any,
                 any,
                 any,
@@ -1643,7 +1643,7 @@ type NamedElementRendersStateWhenOf<
                     Seen,
                     [...Depth, unknown]
                   >
-            : Children extends IfBlockNode<
+            : Children extends IfNode<
                   infer ConditionName,
                   any,
                   infer True,
@@ -1775,7 +1775,7 @@ type VisitNamedElement<
                 [...Seen, Component],
                 [...Depth, unknown]
               >
-          : Children extends EachNode<
+          : Children extends ForNode<
                 any,
                 any,
                 any,
@@ -1814,7 +1814,7 @@ type VisitNamedElement<
                     Seen,
                     [...Depth, unknown]
                   >
-            : Children extends IfBlockNode<
+            : Children extends IfNode<
                   infer ConditionName,
                   any,
                   infer True,

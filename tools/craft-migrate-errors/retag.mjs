@@ -173,7 +173,7 @@ function discriminantIdentifiers(node) {
       return;
     }
     // The discriminant passed as an ARGUMENT:
-    // `matchBlock.exhaustive(value, 'code', handlers)` and its craftMatch twin.
+    // `matchNode.exhaustive(value, 'code', handlers)` and its craftMatch twin.
     // Narrow on purpose — second argument of a `.exhaustive` call and nothing
     // else — so `{ source: 'code' }` and other string uses stay untouched.
     if (

@@ -113,31 +113,31 @@ h2(craftUse(user()).displayName);
 Bindings update an existing node. Blocks own changes to the shape of the tree:
 
 ```ts
-ifBlock(
+ifNode(
   hasItems,
   () => CartItems({ items: () => items() }),
   () => p('Your cart is empty.'),
 );
 
-each(items, { track: (item) => item.id }, (item) => p(item.name));
+forNode(items, { track: (item) => item.id }, (item) => p(item.name));
 ```
 
-`ifBlock`, `each`, `matchBlock.exhaustive`, and `defer` isolate their own
+`ifNode`, `forNode`, `matchNode.exhaustive`, and `deferNode` isolate their own
 structural work. A branch or list can change without making the parent
 component rebuild unrelated siblings. Use these helpers for structure and
 binding callbacks for values on existing nodes.
 
-### Progressive `each` rendering
+### Progressive `forNode` rendering
 
-See the dedicated [Progressive `each` rendering](/guide/components/schedule-each)
+See the dedicated [Progressive `forNode` rendering](/guide/components/schedule-for)
 guide for the complete usage and trade-offs.
 
-`each` is synchronous by default. For a large collection, opt into frame-based
-batching on the `each` node itself:
+`forNode` is synchronous by default. For a large collection, opt into frame-based
+batching on the `forNode` node itself:
 
 ```ts
-each(items, { track: (item) => item.id }, (item) => p(item.name)).pipe(
-  scheduleEach({
+forNode(items, { track: (item) => item.id }, (item) => p(item.name)).pipe(
+  scheduleFor({
     enabled: true,
     strategy: 'frame',
     frameBudgetMs: 4,
@@ -230,8 +230,8 @@ the DOM they served.
    `title`.
 4. Return complete reactive class and style readers from the primitive.
 5. Pass changing component inputs as yieldable readers.
-6. Express structural changes with `ifBlock`, `each`,
-   `matchBlock.exhaustive`, or `defer`.
+6. Express structural changes with `ifNode`, `forNode`,
+   `matchNode.exhaustive`, or `deferNode`.
 7. Enable the two ESLint rules and remove every direct reactive template read.
 
 Continue with [Components](/guide/components/) for the complete

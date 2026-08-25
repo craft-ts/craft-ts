@@ -9,8 +9,10 @@ describe('loadCraftMcpResources', () => {
       'craft-ts',
       'craft-ts-architecture-tests',
       'craft-ts-effect-v4',
+      'craft-ts-i18n',
       'craft-ts-routes',
       'craft-ts-service-migration',
+      'craft-ts-style',
       'migrate-to-craft-ts',
       'translate-spec-to-craft-ts',
     ]);

@@ -7,7 +7,7 @@ const strategies: readonly BenchmarkStrategy[] = ['sync', 'frame'];
 
 test.skip(
   process.env['RUN_PIXEL_ART_BENCHMARK'] !== '1',
-  'Opt-in production benchmark; see docs/benchmarks/schedule-each-pixel-art.md.',
+  'Opt-in production benchmark; see docs/benchmarks/schedule-for-pixel-art.md.',
 );
 
 test('measures Pixel Art sync/frame rendering', async ({ page }) => {

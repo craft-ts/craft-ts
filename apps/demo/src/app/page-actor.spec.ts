@@ -2,7 +2,7 @@
 import {
   button,
   craftComponent,
-  each,
+  forNode,
   input,
   mountCraftComponent,
 } from '@craft-ts/component';
@@ -175,7 +175,7 @@ describe('page actor', () => {
         ],
       }),
       ({ items }) =>
-        each(items, { track: (item) => item.id }, (item) =>
+        forNode(items, { track: (item) => item.id }, (item) =>
           button(
             'remove',
             {

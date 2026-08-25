@@ -60,6 +60,9 @@ describe('craft-ts MCP server', () => {
       'list_skills',
       'get_skill',
       'get_llms_txt',
+      'style_impact',
+      'style_matrix',
+      'style_debt',
     ]);
   });
 

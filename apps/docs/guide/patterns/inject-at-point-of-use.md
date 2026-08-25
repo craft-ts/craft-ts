@@ -45,7 +45,7 @@ exactly the API operation it needs. In this example, `TaskApi` is a crafted
 service (or a small boundary adapter):
 
 ```typescript
-import { craftComponent, each, ifBlock, li, p, ul } from '@craft-ts/component';
+import { craftComponent, forNode, ifNode, li, p, ul } from '@craft-ts/component';
 import { query } from '@craft-ts/core';
 
 export const Tasks = craftComponent(
@@ -62,12 +62,12 @@ export const Tasks = craftComponent(
     return { tasks };
   },
   ({ tasks }) =>
-    ifBlock(
+    ifNode(
       tasks.isLoading,
       () => p('Loading…'),
       () =>
         ul(
-          each(
+          forNode(
             () => tasks.value() ?? [],
             { track: (task) => task.id },
             (task) => li(task.title),

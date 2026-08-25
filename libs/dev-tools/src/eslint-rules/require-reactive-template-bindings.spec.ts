@@ -70,7 +70,7 @@ describe('require-reactive-template-bindings', () => {
       declare function craftComponent(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, () => ({}), () =>
-        ifBlock(condition,
+        ifNode(condition,
           () => p(value()),
           () => p(() => value()),
         ),
@@ -91,7 +91,7 @@ describe('require-reactive-template-bindings', () => {
 
       craftComponent('Demo', {}, () => ({}), () => [
         [1].map((item) => option({ selected: item === value() }, item)),
-        matchBlock.exhaustive(() => value(), 'code', {
+        matchNode.exhaustive(() => value(), 'code', {
           failure: () => p(value()),
         }),
       ]);

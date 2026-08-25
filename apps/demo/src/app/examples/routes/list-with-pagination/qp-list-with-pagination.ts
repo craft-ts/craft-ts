@@ -3,9 +3,9 @@ import {
   button,
   craftComponent,
   div,
-  each,
+  forNode,
   option,
-  pendingBlock,
+  pendingNode,
   select,
   span,
   heading,
@@ -87,14 +87,14 @@ const QpListWithPagination = craftComponent(
           status: usersQuery.currentPageStatus,
         }),
       ]).pipe(
-        pendingBlock({
+        pendingNode({
           fallback: () => heading('Route QueryParams pagination: Loading…'),
         }),
       ),
       table(
         { class: 'table' },
         tbody(
-          each(
+          forNode(
             usersQuery.currentPageData,
             { track: (user) => user.id },
                     (user) =>

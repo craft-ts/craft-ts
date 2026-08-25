@@ -5,7 +5,7 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
+  ifNode,
   input,
   p,
   pre,
@@ -123,7 +123,7 @@ const MutationCraft = craftComponent(
       div([
         'User ',
         StatusComponent({ status: store.user.status }),
-        ifBlock(hasUser, () =>
+        ifNode(hasUser, () =>
           pre('UserValue', {}, function* () {
             return JSON.stringify(yield* store.user.value(), null, 2);
           }),

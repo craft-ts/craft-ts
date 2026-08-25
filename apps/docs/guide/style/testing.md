@@ -28,6 +28,12 @@ depend on which axis someone wrote first.
 ## Exhaustiveness
 
 ```ts
+import {
+  assertExhaustiveVisualMatrix,
+  baselinesIn,
+  visualMatrix,
+} from '@craft-ts/style-testing';
+
 assertExhaustiveVisualMatrix(visualMatrix(card), baselinesIn(files));
 ```
 
@@ -46,6 +52,8 @@ empty list and the seven-figure price are what break layouts most often. No type
 can derive them, so they are declared:
 
 ```ts
+import { contentCases, visualMatrix } from '@craft-ts/style-testing';
+
 contentCases(visualMatrix(card), { longTitle: 'x'.repeat(80), empty: '' });
 ```
 
@@ -57,9 +65,19 @@ two colour schemes.
 ## What the graph adds
 
 The style dump joins the dependency graph, so the questions that cross layers
-have answers:
+have answers. `graph` is the dependency graph the dev tools build; the dump half
+of it is what [`craftStyle({ dumpPath })`](./setup.md#what-the-plugin-produces)
+writes, so these queries return nothing useful until that option is set.
 
 ```ts
+import {
+  danglingVars,
+  impactedClasses,
+  matrixSizeByComponent,
+  unproven,
+  varsWrittenBy,
+} from '@craft-ts/dev-tools';
+
 matrixSizeByComponent(graph); // what a component costs to capture
 impactedClasses(graph, ['--ds-accent']); // what one token change can be seen in
 varsWrittenBy(graph); // proves a colour axis only repaints
@@ -69,3 +87,17 @@ unproven(graph); // every escape hatch, with its reason
 
 `impactedClasses` is the one that pays for the visual CI: changing a colour
 should recapture what reaches it, not the whole suite.
+
+### The same questions, from an agent
+
+Three of these are exposed as MCP tools by `@craft-ts/mcp`, so an agent can ask
+them without writing a script:
+
+| MCP tool       | answers                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
+| `style_impact` | which classes and components one token or variable change is visible in |
+| `style_matrix` | how many scenarios each component costs to capture                      |
+| `style_debt`   | every escape hatch — `unsafeLength`, `unsafeAssume` — with its reason   |
+
+They read the same dump. A `style_matrix` that answers with nothing is the
+signature of a missing `dumpPath`, and the server says so.

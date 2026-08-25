@@ -572,7 +572,7 @@ export type ResourceLikeMutationRef<
         hasValue(): boolean;
         /**
          * The settled read: never `undefined`, never a value while an exception
-         * is carried — it suspends instead, to the nearest `pendingBlock`.
+         * is carried — it suspends instead, to the nearest `pendingNode`.
          */
         readonly settledValue: CraftSettledSignal<
           Exclude<Value, undefined>,

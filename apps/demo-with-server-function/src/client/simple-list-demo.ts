@@ -2,10 +2,10 @@
 import {
   article,
   button,
-  catchBlock,
+  catchNode,
   craftComponent,
   div,
-  each,
+  forNode,
   footer,
   form,
   heading,
@@ -14,7 +14,7 @@ import {
   label,
   main,
   p,
-  pendingBlock,
+  pendingNode,
   section,
   small,
   span,
@@ -285,7 +285,7 @@ const SimpleListDemo = craftComponent(
           div([
             ul(
               { class: 'results' },
-              each(users, { track: (user) => user.id }, (user) =>
+              forNode(users, { track: (user) => user.id }, (user) =>
                 article({ class: 'user-row' }, [
                   div({ class: 'avatar' }, function* () {
                     return (yield* user()).name.slice(0, 1);
@@ -306,7 +306,7 @@ const SimpleListDemo = craftComponent(
             ),
           ])
             .pipe(
-              pendingBlock({
+              pendingNode({
                 fallback: () =>
                   p({ class: 'loading' }, '⏳ The Effect backend is working…'),
               }),
@@ -314,7 +314,7 @@ const SimpleListDemo = craftComponent(
             .pipe(
               // Server-function transport exceptions are handled at runtime;
               // this client query currently exposes them through exceptions().
-              (catchBlock.exhaustive({
+              (catchNode.exhaustive({
               UsersNotFound: {
                 showSource: false,
                 render: (exception) =>

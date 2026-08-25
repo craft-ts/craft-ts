@@ -1,11 +1,12 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "aec021ef0c852399",
+  "graphHash": "abaef0f297f27856",
   "routes": [
     "",
     "access",
     "effect-function",
+    "i18n",
     "playground",
     "sync-members",
     "team"
@@ -26,6 +27,7 @@ export const architectureCatalog = {
     "Database",
     "GlobalPersisterHandlerService",
     "HostName",
+    "I18nEffectService",
     "LocalStoragePersister",
     "LocalStorageService",
     "ServerFunctionTransport",
@@ -45,6 +47,7 @@ export const architectureCatalog = {
     "App",
     "CraftRouterOutlet",
     "EffectFunctionComponent",
+    "EffectI18nComponent",
     "EffectLayerScopeComponent",
     "EffectPlaygroundComponent",
     "EffectSharedServiceComponent",
@@ -56,20 +59,27 @@ export const architectureCatalog = {
     "accessLabel",
     "accessQuery",
     "accessReason",
+    "add",
     "addTodo",
     "copied",
     "effectFunctionQuery",
+    "englishPressed",
+    "frenchPressed",
     "hasData",
     "hasDecision",
     "hasProfile",
+    "heading",
     "headingText",
     "instruction",
     "lines",
+    "locale",
     "memberNames",
+    "placed",
     "profileName",
     "profileQuery",
     "qty",
     "quoteLabel",
+    "receiptQuery",
     "removeTodo",
     "setCopied",
     "setInstruction",
@@ -81,11 +91,11 @@ export const architectureCatalog = {
     "titleInput",
     "todos",
     "toggleTodo",
+    "total",
     "totalLabel",
     "userName",
     "viewerAccess",
     "viewerName",
-    "visibleTodos",
     "weightLabel"
   ],
   "sources": [
@@ -112,6 +122,10 @@ export const architectureCatalog = {
       "Database": [
         "apps/demo-effect/src/app/examples/effect/effect-database.ts",
         "apps/demo-effect/src/app/examples/effect/effect-database.ts"
+      ],
+      "I18nEffectService": [
+        "libs/i18n-effect/src/lib/i18n-effect.ts",
+        "libs/i18n-effect/src/lib/i18n-effect.ts"
       ],
       "SessionService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",

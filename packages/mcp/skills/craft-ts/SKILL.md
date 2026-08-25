@@ -21,6 +21,9 @@ required and must not be introduced just to solve a Craft problem.
    - `migrate-to-craft-ts` — run `craft-migrate`, then finish diagnostics
    - `craft-ts-effect-v4` — use Effect v4 services, Layers, `queryEffect`, and
      the synchronous-member declaration (`SyncOp` / `computedEffect`)
+   - `craft-ts-style` — the typed design system: sheets, axes, the visual
+     matrix, context obligations
+   - `craft-ts-i18n` — typed catalogues, locale parity, semantic tokens
 
 For a project created by `craft create`, keep the generated development
 surface enabled. Run `npm run logs:server` for the local JSONL ingestion
@@ -46,9 +49,20 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   required, and `hydrateCraft` when hydration must be forced or customized.
 - Use `renderCraft` for one isolated SSR request. Create a new render per
   request; never reuse its injector, platform, primitive registry, or history.
-- Keep SSR data behavior explicit with `pendingBlock({ ssr: 'block' | 'fallback' | 'client' })`
+- Keep SSR data behavior explicit with `pendingNode({ ssr: 'block' | 'fallback' | 'client' })`
   or a route-level `ssr` policy. Do not let a suspended source reach SSR
   without a policy.
+- Visual rules live in a `*.style.ts` sheet. Static variation becomes a class
+  the emitter wrote; dynamic variation goes through a typed custom property.
+  Never assemble a class string at render time — the template sets one constant
+  class and a `data-*` attribute. `@craft-ts/style` is a **build step**: without
+  `craftStyle()` from `@craft-ts/style/vite` in the Vite config, the sheets
+  typecheck and emit nothing. Load `craft-ts-style` before touching one.
+- Translations live in a `@craft-ts/i18n` catalogue: `defineCatalog` + `msg` for
+  the reference locale, `defineLocaleLike` for every other one, so a missing key
+  is a compile error. `@craft-ts/i18n` has no framework and no Effect import;
+  use `@craft-ts/i18n-effect` only inside an Effect program. Load
+  `craft-ts-i18n` before adding a key, a locale or a token.
 - Run existing architecture tests. Do not add an architecture rule for the feature.
 - Keep `npm run typecheck` in the project CI; for generated projects this is
   already wired into `.github/workflows/ci.yml` alongside the architecture

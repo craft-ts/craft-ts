@@ -147,7 +147,7 @@ When a docs-content `toContain('yield* …')` would break after extraction, the 
 - `button({ type: 'button', … })` (or `button('name', { type: 'button', … })`) — `craft-ts/button-has-type`.
 - No `signal()` / `computed()` / `inject()` in authored Craft.
 - Service changing inputs: `CraftServiceInput<T>` + `yield* inputs.x()`. Pass a reader at the call site (`startAt` from `state`), not a bare `5`, if the factory `yield*`s the input.
-- Template structure: `ifBlock` / `matchBlock` / `each`, not a ternary that creates nodes.
+- Template structure: `ifNode` / `matchNode` / `forNode`, not a ternary that creates nodes.
 - Unique region names per page. `#endregion <same-name>`.
 
 ## Workflow checklist

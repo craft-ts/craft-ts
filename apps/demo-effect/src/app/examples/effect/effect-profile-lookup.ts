@@ -6,8 +6,8 @@ import {
   craftComponent,
   div,
   heading,
-  ifBlock,
-  matchBlock,
+  ifNode,
+  matchNode,
   p,
   span,
   strong,
@@ -112,8 +112,8 @@ const EffectYieldComponent = craftComponent(
       ]),
       div({ class: 'panel' }, [
         p({ class: 'panel-title' }, 'Lookup result'),
-        ifBlock(profileQuery.isLoading, () => p('Looking up…')),
-        ifBlock(
+        ifNode(profileQuery.isLoading, () => p('Looking up…')),
+        ifNode(
           profileQuery.hasProfile,
           () =>
             p({ class: 'outcome' }, [
@@ -121,7 +121,7 @@ const EffectYieldComponent = craftComponent(
               profileQuery.profileName,
             ]),
           () =>
-            matchBlock.exhaustive(profileQuery.exceptions.loader, '_tag', {
+            matchNode.exhaustive(profileQuery.exceptions.loader, '_tag', {
               UserNotFound: () =>
                 p({ class: 'outcome' }, [
                   strong('Profile not found: '),

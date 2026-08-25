@@ -7,7 +7,7 @@ import {
   section,
   span,
 } from '@craft-ts/component';
-import { pendingBlock } from '@craft-ts/component';
+import { pendingNode } from '@craft-ts/component';
 import { craftComputed, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 
@@ -53,7 +53,7 @@ export const FallbackPage = craftComponent(
           ),
         ]),
       ]).pipe(
-        pendingBlock({
+        pendingNode({
           ssr: 'fallback',
           fallback: () =>
             div({ class: 'pending-box' }, [

@@ -75,7 +75,7 @@ remplacent pas des signaux (pas de propagation sans glitch, pas d'intégration
 au change detection, pas de granularité `computed`).
 
 - *Compromis si rebase* : on perdrait la machine à états de `resource()`
-  (`status`, `exception`, `pendingBlock`, `settledValue`) ou il faudrait la
+  (`status`, `exception`, `pendingNode`, `settledValue`) ou il faudrait la
   réimplémenter au-dessus de `Stream`, pour un résultat strictement inférieur
   côté Angular.
 - *Alternative* : ponts explicites et documentés — `fromStream(stream)` →

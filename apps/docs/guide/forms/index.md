@@ -136,18 +136,18 @@ functional directive directly.
 
 ### Render validation exceptions exhaustively
 
-`fieldExceptionBlock.exhaustive` turns validation cases carried by
+`fieldErrorNode.exhaustive` turns validation cases carried by
 `CraftFieldDirective` or exposed by the component logic into compile-time UI
 obligations. Every reachable code must have one handler, and an unreachable
 handler is also rejected.
 
 ```ts
-import { fieldExceptionBlock, input, p } from '@craft-ts/component';
+import { fieldErrorNode, input, p } from '@craft-ts/component';
 
 input({ id: 'email', type: 'email' })
   .pipe(CraftFieldDirective(loginForm.form.selectEmail()))
   .pipe(
-    fieldExceptionBlock.exhaustive({
+    fieldErrorNode.exhaustive({
       required: () => p('Email is required.'),
       email: () => p('Enter a valid email.'),
     }),
@@ -158,7 +158,7 @@ The field stays mounted and invalid while a message is visible. The block adds
 and merges `aria-invalid` and `aria-describedby`; it does not throw an
 exception or feed route `handleExceptions`.
 
-Use `fieldExceptionBlock.partial` when only some codes belong near the field.
+Use `fieldErrorNode.partial` when only some codes belong near the field.
 Handled codes are removed from its contract and the remaining codes continue
 to the next field-exception boundary:
 
@@ -166,7 +166,7 @@ to the next field-exception boundary:
 input({ id: 'password', type: 'password' })
   .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
   .pipe(
-    fieldExceptionBlock.partial({
+    fieldErrorNode.partial({
       required: () => p('Password is required.'),
     }),
   );
@@ -182,7 +182,7 @@ on different fields remain separate obligations:
 
 ```ts
 const SafeLoginForm = BaseLoginForm.pipe(
-  fieldExceptionBlock.exhaustive({
+  fieldErrorNode.exhaustive({
     email: {
       required: () => p('Email is required.'),
       email: () => p('Enter a valid email.'),
@@ -207,7 +207,7 @@ return { registration, credentials };
 Its cases, for example `credentials.passwordMismatch`, are part of the
 component contract even when the group itself is not passed to
 `CraftFieldDirective`. Handle the grouped path on an enclosing template VNode
-or with `BaseComponent.pipe(fieldExceptionBlock.exhaustive(...))`. If it remains
+or with `BaseComponent.pipe(fieldErrorNode.exhaustive(...))`. If it remains
 unhandled, rendering, mounting, and `loadCraftComponent` reject the component
 at compile time. See [Form exception handling](/guide/forms/exceptions) for the
 complete group example.

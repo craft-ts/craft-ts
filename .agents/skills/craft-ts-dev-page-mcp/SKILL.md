@@ -29,7 +29,7 @@ Cursor loads skills from `.cursor/skills/`. This file is mirrored at `.cursor/sk
 
 - `goto` is in-app (Craft router). The WebSocket stays up. Paths like `/login-form` and full URLs both work.
 - `fill` is not key-by-key typing. Click is `act` with only `id`.
-- Repeated `id` inside `each`: pass `match.index` or `match.track`. An unambiguous id needs no `match`.
+- Repeated `id` inside `forNode`: pass `match.index` or `match.track`. An unambiguous id needs no `match`.
 - Default `detail` is `"controls"`. Use `"dom-styles"` only for a visual/CSS bug.
 - `page` waits through `ng serve` reload (`reloading` → `ready`). Do not poll through `reloading`. Timeout looks like `page reloading since 12s, last url /login-form, generation 4 → still 4`.
 - Closing the tab sends `page/goodbye`; the card is dropped. Opening a new tab is a new id. Duplicating a tab copies `sessionStorage`; the broker assigns a new id (`hello/ok`) so the two tabs do not fight. Closing without goodbye (crash) looks like reload for up to 20s.
