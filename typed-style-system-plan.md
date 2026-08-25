@@ -7,7 +7,8 @@ plan et le dépôt réel.
 
 ## État
 
-Dernière mise à jour : **2026-08-25**. La vague 1 est mergée dans `main`.
+Dernière mise à jour : **2026-08-25**. Vagues 1 et 2 dans `main` ; il reste
+les tâches 15 et 16 de la vague 2, puis les vagues 3 et 4.
 
 | Vague                           | Tâches      | État                                                  |
 | ------------------------------- | ----------- | ----------------------------------------------------- |
@@ -15,7 +16,7 @@ Dernière mise à jour : **2026-08-25**. La vague 1 est mergée dans `main`.
 | 0 — mesure et point de décision | 3, 3b       | mesurée deux fois, **3b jamais déclenchée**           |
 | 0 — migration `CssVars`         | 3 steps 2–4 | **écartée** — voir « Tâche 3 » dans « Reste à faire » |
 | **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
-| 2 — niveau 2 : axes et matrice  | 12 → 22     | non commencée                                         |
+| 2 — niveau 2 : axes et matrice  | 12 → 22     | **faite sauf 15 et 16**                               |
 | 3 — niveau 3 : obligations      | 23 → 26     | non commencée                                         |
 | 4 — graphe et architecture      | 27 → 30     | non commencée                                         |
 | 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
@@ -373,29 +374,61 @@ vague 3 montre que les deux mécanismes divergent.
 
 Les deux ont été remis en état après vérification.
 
-### Vague 2 — niveau 2 : axes, matrice, exhaustivité (tâches 12 → 22)
+### Vague 2 — niveau 2 : faite, sauf les tâches 15 et 16
 
-- [ ] **12–13 — axes standard et axes définis.** `libs/style/src/lib/axes.ts` porte
-      `scheme`, `motion`, `at.minInlineSize`, `defineBreakpoints`, `defineStateAxis` et
-      les drivers ; manquent `forcedColors`, `scrollState.*`, `descendant.*`,
-      `defineAxis(..., { writes })` et `defineContainer`. À éclater en
-      `axes/standard.ts` + `axes/define.ts`, table générée depuis la spec.
-- [ ] **14 — `when()` et contrat de variantes.** Le contrat inféré marche dans
-      l'esquisse ; manquent la détection de règle morte et la forme `{ vars }`.
-- [ ] **15 — budget d'axes** dans le meta de `craftComponent`
-      (`libs/component/src/lib/component.ts`).
-- [ ] **16 — somme sur `ifBlock`.** `if-block.ts` et `match-block.ts` existent. Meilleur
-      ratio valeur/coût du plan : c'est cette tâche qui décide du budget de CI visuelle.
-- [ ] **17–20 — `@craft-ts/style-testing`.** Nouveau package (donc `project.json` à
-      créer aussi) : matrice, drivers, exhaustivité post-inférence, cas de contenu.
-      `scenarios()` dans `styles.ts` compte déjà juste et se prend une **clé de
-      feuille** ; `classKeyOf()` fait le chemin depuis la classe rendue. C'est le point
-      de départ de la tâche 17, à déménager dans le nouveau package.
-- [ ] **21 — lint niveau 2** (`no-raw-class`, `no-free-has`), même point d'ancrage que
-      la tâche 10.
-- [ ] **22 — composant témoin niveau 2** : `apps/demo/e2e/` et
-      `apps/demo/playwright.config.ts` existent. **Consigner le cardinal ici** — c'est
-      la première des deux mesures qui décident de la vague 5.
+| tâche                    | livré                                                                                                                                                                                    |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 12 — axes standard       | `axes/standard.ts` : `scheme`, `motion`, `forcedColors`, `contrast`, `scrollState.{stuck,snapped,scrollable}`, `descendant.*` (unique porte vers `:has()`), chaque point avec son driver |
+| 13 — axes définis        | `axes/define.ts` : `defineBreakpoints` ordonnés, `above`/`below`, `defineAxis(..., { writes })`, `onlyVarsOfKind`, `defineStateAxis`, `defineContainer`                                  |
+| 14 — `when()` et contrat | contrainte `writes` vérifiée au site d'appel, détection de règle morte                                                                                                                   |
+| 17 — matrice             | `@craft-ts/style-testing` : `visualMatrix(sheets)`, identifiants stables                                                                                                                 |
+| 18 — drivers             | `applyScenario(page, scenario)`, `orderedDrivers` comme source unique de l'ordre                                                                                                         |
+| 19 — exhaustivité        | `assertExhaustiveVisualMatrix`, échoue dans les deux sens                                                                                                                                |
+| 20 — cas de contenu      | `contentCases`, croisement complet seulement sur les axes d'espace                                                                                                                       |
+| 21 — étanchéité          | `no-raw-class`, `no-free-has`                                                                                                                                                            |
+| 22 — témoin              | matrice du design system, cardinaux consignés                                                                                                                                            |
+
+#### Cardinaux relevés (première des deux mesures de la vague 5)
+
+| feuille                  | scénarios |
+| ------------------------ | --------- |
+| `dsTheme`                | 4         |
+| `dsStack`                | 1         |
+| `dsButton`               | 18        |
+| `dsCard`                 | 2         |
+| `dsAlert`                | 6         |
+| `dsMeter`                | 1         |
+| la page entière composée | 72        |
+
+Médiane 3, maximum 18, contre un déclencheur à 24 : **la vague 5 ne s'ouvre pas**.
+La seconde mesure — temps de capture CI — n'existe pas : rien ne capture encore.
+
+#### Écarts assumés
+
+- **Pas de `visualMatrix(Component)`.** Les classes d'un composant ne sont
+  connaissables qu'en le rendant, et une matrice qui raterait silencieusement la
+  feuille d'un enfant serait le pire résultat possible. On nomme les feuilles.
+- **Règle morte : throw à l'enregistrement, pas erreur de compilation.** Comparer
+  deux positions de breakpoint au niveau des types demande leur ordre en
+  littéraux, et l'ordre des clés d'un objet n'est pas un tuple. Sous le plugin,
+  le throw _est_ un échec de build.
+- **`no-raw-class` ne se déclenche que dans les fichiers qui importent
+  `@craft-ts/style`.** Un composant non migré ne réclame pas la garantie ; le
+  signaler apprendrait à désactiver la règle.
+- **`colorScheme` s'appelle `scheme`** : quatrième collision avec la table
+  générée, tranchée comme les trois autres.
+
+#### Reste de la vague 2
+
+- [ ] **15 — budget d'axes par composant** (`axes: [...]` dans le meta de
+      `craftComponent`, axe non déclaré = erreur). Touche le typage de
+      `libs/component`.
+- [ ] **16 — somme sur `ifBlock` au lieu du produit.** Le plan la désigne comme
+      le meilleur ratio valeur/coût du document : elle divise le nombre de
+      captures. Touche `if-block.ts` / `match-block.ts` et les types de nœuds.
+
+Les deux sont dans `libs/component`, pas dans `libs/style` — c'est pourquoi elles
+sont restées de côté : elles ne se vérifient pas sur la seule suite de style.
 
 ### Vague 3 — niveau 3 : obligations de contexte (tâches 23 → 26)
 
