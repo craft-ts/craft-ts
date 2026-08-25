@@ -16,6 +16,7 @@ const EXAMPLE_LINKS = [
   ['View a profile', { to: '' }],
   ['Check access rights', { to: 'access' }],
   ['Team overview', { to: 'team' }],
+  ['Effect playground', { to: 'playground' }],
   ['Run an Effect function', { to: 'effect-function' }],
   ['Sync vs async members', { to: 'sync-members' }],
 ] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];

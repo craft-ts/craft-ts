@@ -3,6 +3,20 @@
  * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html.effect-route {
+  --vp-font-family-base: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+html.effect-route .VPNavBar,
+html.effect-route .VPSidebar,
+html.effect-route .VPLocalNav,
+html.effect-route .VPContent,
+html.effect-route .VPFooter {
+  font-family: var(--vp-font-family-base);
+}
+
 /**
  * Colors
  *
@@ -220,6 +234,7 @@ html.dark {
 .VPHomeHero .actions a[href$="/learn-effect/"] {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.65rem;
   background: #fff;
   color: #111;
@@ -232,14 +247,22 @@ html.dark {
   width: 4rem;
   height: 1.25rem;
   flex: 0 0 4rem;
-  transform: translateY(-0.1rem);
   background: url('/assets/effect-logo-black.png') center / contain no-repeat;
 }
 
-.VPHomeHero .actions a[href$="/learn-effect/"]:hover {
-  background: #f7f7f8;
-  color: #111;
-  border-color: #bdbdc5;
+html.dark .VPHomeHero .actions a[href$="/learn-effect/"]::after {
+  background-color: #fff;
+  border-radius: 0.2rem;
+}
+
+.VPHomeHero:has(.actions a[href$="/learn-effect/"]:hover)
+  .craft-agent-prompt__logo--default {
+  opacity: 0;
+}
+
+.VPHomeHero:has(.actions a[href$="/learn-effect/"]:hover)
+  .craft-agent-prompt__logo--effect {
+  opacity: 1;
 }
 
 .effect-logo-lockup {

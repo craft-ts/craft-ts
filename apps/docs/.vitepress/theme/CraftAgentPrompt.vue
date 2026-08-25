@@ -40,11 +40,19 @@ async function copyPrompt(): Promise<void> {
 
 <template>
   <div class="craft-agent-prompt">
-    <img
-      class="craft-agent-prompt__logo"
-      src="/assets/craft-ts-logo.png"
-      alt="CraftTS logo"
-    />
+    <div class="craft-agent-prompt__logo-frame">
+      <img
+        class="craft-agent-prompt__logo craft-agent-prompt__logo--default"
+        src="/assets/craft-ts-logo.png"
+        alt="CraftTS logo"
+      />
+      <img
+        class="craft-agent-prompt__logo craft-agent-prompt__logo--effect"
+        src="/assets/effect-craft-mark-hover.png"
+        alt=""
+        aria-hidden="true"
+      />
+    </div>
 
     <div class="craft-agent-prompt__card">
       <div class="craft-agent-prompt__header">
@@ -94,10 +102,26 @@ async function copyPrompt(): Promise<void> {
 
 .craft-agent-prompt__logo {
   display: block;
-  width: min(165px, 48vw);
-  height: auto;
-  max-height: 140px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+}
+
+.craft-agent-prompt__logo-frame {
+  position: relative;
+  width: min(165px, 48vw);
+  aspect-ratio: 1;
+}
+
+.craft-agent-prompt__logo--default,
+.craft-agent-prompt__logo--effect {
+  position: absolute;
+  inset: 0;
+  transition: opacity 320ms ease;
+}
+
+.craft-agent-prompt__logo--effect {
+  opacity: 0;
 }
 
 .craft-agent-prompt__card {

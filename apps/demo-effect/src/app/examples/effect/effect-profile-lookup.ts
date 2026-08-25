@@ -51,20 +51,19 @@ const EffectYieldComponent = craftComponent(
         profileName: craftComputed('profileName', function* () {
           return (yield* resource.value())?.name ?? '…';
         }),
+        headingText: craftComputed('headingText', function* () {
+          return `View a profile (${yield* resource.status()})`;
+        }),
       }),
     );
 
     yield* profileQuery.call('success'); // trigger first call
 
-    return { profileQuery };
+    return { headingText: profileQuery.headingText, profileQuery };
   },
-  ({ profileQuery }) =>
+  ({ headingText, profileQuery }) =>
     div([
-      heading(function* () {
-        // `heading` is the reactive binding boundary for this title.
-        // eslint-disable-next-line craft-ts/require-reactive-template-bindings
-        return `View a profile (${yield* profileQuery.status()})`;
-      }),
+      heading(headingText),
       p(
         { class: 'intro' },
         'A support team looks up a user profile. The four buttons represent the possible outcomes of a business operation: profile found, profile missing, session expired, or a technical outage.',

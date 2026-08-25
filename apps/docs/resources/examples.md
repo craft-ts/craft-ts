@@ -1,7 +1,7 @@
 # Examples
 
-Every example below is a real route of the demo application. Each opens in
-StackBlitz on the relevant file, already navigated to the page.
+Every example below is a real route of one of the demo applications. Each
+opens in StackBlitz on the relevant file, already navigated to the page.
 
 The demo groups them the way you would meet them: **components** first, then the
 **primitives** on their own, then the same features **behind services**, then
@@ -57,6 +57,17 @@ The same features, packaged behind `craftService`.
 | [craftService User Detail](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft-service/craft-service-user-detail.ts&initialpath=/craft-service/user-detail) | Service inputs, and exposing only part of a dependency |
 | [craftRegisterFor](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft-service/register-for.ts&initialpath=/craft-service/register-for) | A parent driving live children through a typed registry |
 
+## Effect
+
+Concrete EffectTS integration examples, using the dedicated Effect demo.
+
+| Example | What it shows |
+| --- | --- |
+| [Profile Lookup](https://stackblitz.com/github/craft-ts/craft-demo-effect/tree/main/?file=src/app/examples/effect/effect-profile-lookup.ts&initialpath=/) | `queryEffect`, typed business errors, and pending / exception rendering |
+| [Access Check](https://stackblitz.com/github/craft-ts/craft-demo-effect/tree/main/?file=src/app/examples/effect/effect-access-check-shared-service.ts&initialpath=/access) | An Effect service provided by the application Layer |
+| [Team Overview](https://stackblitz.com/github/craft-ts/craft-demo-effect/tree/main/?file=src/app/examples/effect/effect-team-overview-layer-scope.ts&initialpath=/team) | Combining application-wide and route-scoped Effect Layers |
+| [Effect Playground](https://stackblitz.com/github/craft-ts/craft-demo-effect/tree/main/?file=src/app/examples/effect/effect-playground.ts&initialpath=/playground) | A shareable todo sandbox with `queryEffect`, `mutationEffect`, and a route-provided Effect service |
+
 ## Routing
 
 | Example | What it shows |
@@ -81,3 +92,6 @@ route works standalone.
 
 Source repository:
 [craft-ts-demo](https://github.com/craft-ts/craft-ts-demo).
+
+Effect demo source repository:
+[craft-demo-effect](https://github.com/craft-ts/craft-demo-effect).

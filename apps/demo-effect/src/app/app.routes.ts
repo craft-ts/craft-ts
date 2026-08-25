@@ -19,6 +19,8 @@ import { SupportTeamLive } from './shared/access-domain';
 import type { checkUserAccess, loadTeamOverview } from './shared/access-domain';
 import { InMemoryDatabaseLive } from './examples/effect/effect-database';
 import type { getData } from './examples/effect/effect-function';
+import { TodoStoreLive } from './examples/effect/effect-playground-domain';
+import type { listTodos } from './examples/effect/effect-playground-domain';
 import { CartPricingLive } from './examples/effect/effect-pricing-domain';
 import type { cartTotalLabel } from './examples/effect/effect-pricing-domain';
 
@@ -60,6 +62,16 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
           import('./examples/effect/effect-team-overview-layer-scope'),
         ).then(({ default: component }) => component),
       [provideLayer(SupportTeamLive)] as const,
+    ),
+  },
+  {
+    path: 'playground',
+    ...loadCraftComponent(
+      ({ withRetry }) =>
+        withRetry(import('./examples/effect/effect-playground')).then(
+          ({ default: component }) => component,
+        ),
+      [provideLayer(TodoStoreLive)] as const,
     ),
   },
   {
@@ -144,6 +156,16 @@ type _CheckEffectLayerScopeDI = RouteCheckedDI<
 >;
 type _CanRunEffectLayerScope = CanRun<_CheckEffectLayerScopeDI>;
 
+type _CheckEffectPlaygroundDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./examples/effect/effect-playground'))['default']
+  >,
+  'CraftRouter',
+  never,
+  'component: effect-playground'
+>;
+type _CanRunEffectPlayground = CanRun<_CheckEffectPlaygroundDI>;
+
 type _CheckEffectSyncMembersDI = RouteCheckedDI<
   ComponentDepsOf<
     (typeof import('./examples/effect/effect-sync-members'))['default']
@@ -182,6 +204,16 @@ type _CheckTeamOverviewRequirements = EffectRequirementsCheckedDI<
   | ProvidedEffectServicesOfRoute<typeof demoEffectRoutes._routes, 'team'>
 >;
 type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;
+
+// `/playground` resolves its local TodoStore from the route-scoped Layer.
+type _CheckTodoPlaygroundRequirements = EffectRequirementsCheckedDI<
+  Effect.Services<typeof listTodos>,
+  | AppProvidedEffectServices
+  | ProvidedEffectServicesOfRoute<typeof demoEffectRoutes._routes, 'playground'>
+>;
+type _CanRunTodoPlaygroundRequirements = CanRun<
+  _CheckTodoPlaygroundRequirements
+>;
 
 // `/effect-function` resolves Database from its own route-scoped in-memory
 // Layer. The operation itself remains a standalone Effect program, so its

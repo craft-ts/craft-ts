@@ -1,11 +1,12 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "df45f30105b9ca7b",
+  "graphHash": "aec021ef0c852399",
   "routes": [
     "",
     "access",
     "effect-function",
+    "playground",
     "sync-members",
     "team"
   ],
@@ -34,6 +35,7 @@ export const architectureCatalog = {
     "StoragePersister",
     "StorageService",
     "TeamContextService",
+    "TodoStore",
     "api"
   ],
   "components": [
@@ -44,6 +46,7 @@ export const architectureCatalog = {
     "CraftRouterOutlet",
     "EffectFunctionComponent",
     "EffectLayerScopeComponent",
+    "EffectPlaygroundComponent",
     "EffectSharedServiceComponent",
     "EffectSyncMembersComponent",
     "EffectYieldComponent",
@@ -53,11 +56,13 @@ export const architectureCatalog = {
     "accessLabel",
     "accessQuery",
     "accessReason",
+    "addTodo",
     "copied",
     "effectFunctionQuery",
     "hasData",
     "hasDecision",
     "hasProfile",
+    "headingText",
     "instruction",
     "lines",
     "memberNames",
@@ -65,6 +70,7 @@ export const architectureCatalog = {
     "profileQuery",
     "qty",
     "quoteLabel",
+    "removeTodo",
     "setCopied",
     "setInstruction",
     "shippingQuery",
@@ -72,10 +78,14 @@ export const architectureCatalog = {
     "summary",
     "teamName",
     "teamOverviewQuery",
+    "titleInput",
+    "todos",
+    "toggleTodo",
     "totalLabel",
     "userName",
     "viewerAccess",
     "viewerName",
+    "visibleTodos",
     "weightLabel"
   ],
   "sources": [
@@ -110,6 +120,10 @@ export const architectureCatalog = {
       "TeamContextService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",
         "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "TodoStore": [
+        "apps/demo-effect/src/app/examples/effect/effect-playground-domain.ts",
+        "apps/demo-effect/src/app/examples/effect/effect-playground-domain.ts"
       ]
     },
     "components": {},
