@@ -7,21 +7,26 @@ plan et le dépôt réel.
 
 ## État
 
-Dernière reprise : **2026-08-24**, merge de `main` (177 commits). Voir
-« Reprise du 2026-08-24 » plus bas — le dépôt a changé de socle entre-temps.
+Dernière mise à jour : **2026-08-25**. La vague 1 est mergée dans `main`.
 
-| Vague                           | Tâches                | État                                                     |
-| ------------------------------- | --------------------- | -------------------------------------------------------- |
-| 0 — mécanisme de canaux         | 1, 2                  | faites                                                   |
-| 0 — mesure et point de décision | 3 (steps 1 et 5), 3b  | re-mesurée le 2026-08-24, **3b toujours non déclenchée** |
-| 0 — migration `CssVars`         | 3 (steps 2–4)         | non commencée                                            |
-| 1 à 5                           | 4 → 32                | non commencées                                           |
-| —                               | esquisse `libs/style` | hors plan, faite (voir `libs/style/README.md`)           |
+| Vague                           | Tâches      | État                                                  |
+| ------------------------------- | ----------- | ----------------------------------------------------- |
+| 0 — mécanisme de canaux         | 1, 2        | faites                                                |
+| 0 — mesure et point de décision | 3, 3b       | mesurée deux fois, **3b jamais déclenchée**           |
+| 0 — migration `CssVars`         | 3 steps 2–4 | **écartée** — voir « Tâche 3 » dans « Reste à faire » |
+| **1 — niveau 1**                | **4 → 11**  | **faite**                                             |
+| 2 — niveau 2 : axes et matrice  | 12 → 22     | non commencée                                         |
+| 3 — niveau 3 : obligations      | 23 → 26     | non commencée                                         |
+| 4 — graphe et architecture      | 27 → 30     | non commencée                                         |
+| 5 — réduction de matrice        | 31 → 32     | conditionnelle, non ouverte                           |
 
-L'esquisse a été **promue fichier par fichier** plutôt que réécrite à côté, et
-`libs/style/example/example.spec.ts` a servi de filet de régression pendant toute la
-vague. Ce qui reste de l'esquisse : `axes.ts` et `obligations.ts`, à éclater en vague 2
-et à compléter en vague 3.
+Hors plan et fait : l'esquisse `libs/style` (promue fichier par fichier en vague 1)
+et un **mini design system de démonstration** dans
+`apps/demo/src/app/examples/design-system/` — la référence « à quoi ça ressemble en
+vrai », avec son README.
+
+Ce qui reste de l'esquisse : `axes.ts` et `obligations.ts`, à éclater en vague 2 et à
+compléter en vague 3.
 
 ## Écarts entre la file map du plan et le dépôt
 
