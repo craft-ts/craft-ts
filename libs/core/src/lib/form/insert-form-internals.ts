@@ -204,7 +204,6 @@ function createExposedInsertions(
 ): Record<string, unknown> {
   return Object.entries(rawInsertionsOutput).reduce(
     (acc, [key, value]) => {
-      if (isSource(value)) return acc;
       if (isSource$(value)) {
         const localSource = value;
         const sourceInjector = ɵcreateHostTaggedInjector(
@@ -225,6 +224,7 @@ function createExposedInsertions(
         );
         return acc;
       }
+      if (isSource(value)) return acc;
       if (
         typeof value === 'function' &&
         !isSignal(value) &&

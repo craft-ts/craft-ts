@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import {
+  provideStorageService,
+  SessionStorageService,
+  TestBed,
+  ɵInjector as Injector,
+} from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileEditorStateMachine from './profile-editor';
@@ -15,6 +20,16 @@ function mount() {
   TestBed.tick();
 
   return { element, mounted };
+}
+
+function configureStorageService() {
+  TestBed.configureTestingModule({
+    providers: [
+      provideStorageService(function* () {
+        return yield* SessionStorageService();
+      }),
+    ],
+  });
 }
 
 async function mountLoaded() {
@@ -62,6 +77,7 @@ describe('ProfileEditorStateMachine', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    configureStorageService();
     // The machine persists its history in session storage, so a fresh test
     // starts from a fresh one.
     sessionStorage.clear();
@@ -167,6 +183,7 @@ describe('ProfileEditorStateMachine history', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    configureStorageService();
     // The machine persists its history in session storage, so a fresh test
     // starts from a fresh one.
     sessionStorage.clear();
@@ -204,6 +221,7 @@ describe('ProfileEditorStateMachine persisted history', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    configureStorageService();
     sessionStorage.clear();
   });
 
@@ -219,6 +237,7 @@ describe('ProfileEditorStateMachine persisted history', () => {
     // session storage survives.
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    configureStorageService();
     const after = await mountLoaded();
 
     expect(after.element.textContent).toContain('of 4');

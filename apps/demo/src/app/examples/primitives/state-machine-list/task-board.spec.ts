@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import {
+  provideStorageService,
+  SessionStorageService,
+  TestBed,
+  ɵInjector as Injector,
+} from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { beforeEach, describe, expect, it } from 'vitest';
 import TaskBoardStateMachineList from './task-board';
@@ -14,6 +19,16 @@ function mount() {
   );
   TestBed.tick();
   return { element, mounted };
+}
+
+function configureStorageService() {
+  TestBed.configureTestingModule({
+    providers: [
+      provideStorageService(function* () {
+        return yield* SessionStorageService();
+      }),
+    ],
+  });
 }
 
 function rows(element: HTMLElement) {
@@ -52,6 +67,7 @@ describe('TaskBoardStateMachineList', () => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
     sessionStorage.clear();
+    configureStorageService();
   });
 
   it('gives each row its own machine', () => {
@@ -121,6 +137,7 @@ describe('TaskBoardStateMachineList', () => {
     // survives, and each history finds its own row again by task id.
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+    configureStorageService();
     const after = mount();
     const [firstAfter, secondAfter] = rows(after.element);
 

@@ -45,9 +45,11 @@ describe('isCraftControlFlow', () => {
       throw new CraftNotSettled('issue');
     }
 
-    expect(() => wrapper(throwExpected, undefined, []).next()).toThrow(
-      CraftNotSettled,
-    );
+    expect(() =>
+      runInInjectionContext(TestBed.inject(Injector), () =>
+        wrapper(throwExpected, undefined, []).next(),
+      ),
+    ).toThrow(CraftNotSettled);
     expect(trigger).not.toHaveBeenCalled();
   });
 

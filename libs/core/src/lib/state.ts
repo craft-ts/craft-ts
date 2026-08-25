@@ -702,10 +702,6 @@ function createStateRef<StateType>(
 
       const nextExposedInsertions = Object.entries(nextRawInsertions).reduce(
         (exposedAcc, [key, value]) => {
-          if (isSource(value)) {
-            return exposedAcc;
-          }
-
           if (isSource$(value)) {
             const localSource = value;
             const sourceInjector = ɵcreateHostTaggedInjector(
@@ -727,6 +723,10 @@ function createStateRef<StateType>(
                   STATE_APP_START_ERROR_MESSAGE,
               },
             );
+            return exposedAcc;
+          }
+
+          if (isSource(value)) {
             return exposedAcc;
           }
 

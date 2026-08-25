@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "57fa500d3c69684a",
+  "graphHash": "573372ba9f587acb",
   "routes": [
     "",
     "authenticated-list",
@@ -21,6 +21,7 @@ export const architectureCatalog = {
     "ClientSession",
     "ConsoleService",
     "CookiesService",
+    "CraftLogServerUrl",
     "CurrentUser",
     "GlobalPersisterHandlerService",
     "HostName",

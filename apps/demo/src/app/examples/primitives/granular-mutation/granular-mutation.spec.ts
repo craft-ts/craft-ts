@@ -138,6 +138,10 @@ function createTemplateContext(
     },
   }));
   const updateUserName = { mutate, select, selectOrCreate };
+  function* isUpdatePending(user: User) {
+    const pending = updateUserName.select(user.id);
+    return pending ? yield* pending.isLoading() : false;
+  }
   const usersQuery = {
     currentPageData: markYieldableValue(vi.fn(() => users), 'currentPageData'),
     currentPageStatus: markYieldableValue(
@@ -151,6 +155,7 @@ function createTemplateContext(
       pagination,
       updateUserName,
       usersQuery,
+      isUpdatePending,
       updatePageSize: (event: Event) => {
         pagination.updatePageSize(
           Number((event.target as HTMLSelectElement).value),

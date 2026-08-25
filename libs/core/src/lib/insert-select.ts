@@ -388,10 +388,6 @@ function createInsertSelectItemRuntime(
               nextRawInsertions,
             ).reduce(
               (exposedAcc, [key, value]) => {
-                if (isSource(value)) {
-                  return exposedAcc;
-                }
-
                 if (isSource$(value)) {
                   const localSource = value;
                   const sourceInjector = ɵcreateHostTaggedInjector(
@@ -417,6 +413,10 @@ function createInsertSelectItemRuntime(
                         INSERT_SELECT_APP_START_ERROR_MESSAGE,
                     },
                   );
+                  return exposedAcc;
+                }
+
+                if (isSource(value)) {
                   return exposedAcc;
                 }
 
@@ -692,10 +692,6 @@ function createInsertSelectPropertyRuntime(
               nextRawInsertions,
             ).reduce(
               (exposedAcc, [key, value]) => {
-                if (isSource(value)) {
-                  return exposedAcc;
-                }
-
                 if (isSource$(value)) {
                   const localSource = value;
                   const crossLayerSource = getOrCreateCrossLayerSource(key);
@@ -744,6 +740,10 @@ function createInsertSelectPropertyRuntime(
                         INSERT_SELECT_APP_START_ERROR_MESSAGE,
                     },
                   );
+                  return exposedAcc;
+                }
+
+                if (isSource(value)) {
                   return exposedAcc;
                 }
 
