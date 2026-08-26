@@ -91,6 +91,7 @@ const noRawUserUrl = require('./no-raw-user-url.cjs');
 const noUnsafeTransferState = require('./no-unsafe-transfer-state.cjs');
 const noUnsafeHtml = require('./no-unsafe-html.cjs');
 const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
+const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
 
@@ -194,6 +195,7 @@ const plugin = {
     'no-unsafe-transfer-state': noUnsafeTransferState,
     'no-unsafe-html': noUnsafeHtml,
     'no-trust-forwarded-headers': noTrustForwardedHeaders,
+    'no-effect-import-in-frontend': noEffectImportInFrontend,
   },
 };
 

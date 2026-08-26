@@ -175,6 +175,14 @@ test('release checks execute the documentation test suite', () => {
   assert.match(packageJson.scripts['release:preflight'], /\bnx test docs\b/);
 });
 
+test('release preflight runs the generated starter gate', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  assert.match(packageJson.scripts['release:preflight'], /generated-starters:release/);
+  assert.match(packageJson.scripts['generated-starters:release'], /test-generated-starters/);
+});
+
 test('local releases run the complete unit and E2E suites', () => {
   const releaseLocal = readFileSync(
     new URL('./release-local.mjs', import.meta.url),
@@ -185,6 +193,14 @@ test('local releases run the complete unit and E2E suites', () => {
     releaseLocal,
     /run\('npx', \[\s*'nx',\s*'run-many',\s*'-t',\s*'test',\s*'e2e-ci',\s*'--all'\s*\]\);/s,
   );
+});
+
+test('local releases pass the candidate version to generated starters', () => {
+  const releaseLocal = readFileSync(
+    new URL('./release-local.mjs', import.meta.url),
+    'utf8',
+  );
+  assert.match(releaseLocal, /CRAFT_RELEASE_VERSION/);
 });
 
 test('releases all public CraftTS packages as one fixed group', () => {

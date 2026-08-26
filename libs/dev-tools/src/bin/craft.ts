@@ -227,59 +227,70 @@ function parseArgs(argv: string[]) {
 type CreateArgs = {
   directory?: string;
   effect?: string;
+  frontendRuntime?: 'plain' | 'effect';
+  backendRuntime?: 'none' | 'promise' | 'effect';
+  effectScope?: 'none' | 'frontend' | 'backend' | 'both';
   agents?: string;
   locales?: string;
   defaultLocale?: string;
-  i18n?: 'strict' | 'loose';
+  i18n?: 'strict' | 'loose' | 'none';
+  designSystem?: 'basic' | 'none';
+  typedCss?: boolean;
+  workspace?: 'standalone' | 'nx';
+  references?: 'none' | 'craft-ts' | 'all';
+  referenceMode?: 'context' | 'local' | 'source';
+  craftTsRef?: string;
+  effectTsRef?: string;
+  cloneCraftTs?: boolean;
+  cloneEffectTs?: boolean;
   flags: Set<string>;
   help: boolean;
 };
 
-function parseCreateArgs(argv: string[]): CreateArgs {
+export function parseCreateArgs(argv: string[]): CreateArgs {
   const result: CreateArgs = { flags: new Set(), help: false };
+  const values = new Map<string, string>();
+  const valueNames = new Set([
+    'effect', 'frontend-runtime', 'backend-runtime', 'effect-scope', 'agents',
+    'locales', 'default-locale', 'i18n', 'design-system', 'workspace',
+    'references', 'reference-mode', 'craft-ts-ref', 'effect-ts-ref',
+  ]);
+  const setValue = (name: string, value: string): void => {
+    values.set(name, value);
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--help' || argument === '-h') {
       result.help = true;
       continue;
     }
-    if (argument === '--no-effect') {
-      result.effect = 'none';
+    if (argument === '--no-effect' || argument === '--no-i18n' || argument === '--no-design-system' || argument === '--no-typed-css' || argument === '--no-clone-craft-ts' || argument === '--no-clone-effect-ts') {
+      if (argument === '--no-effect') setValue('effect', 'none');
+      else if (argument === '--no-i18n') setValue('i18n', 'none');
+      else if (argument === '--no-design-system') setValue('design-system', 'none');
+      else if (argument === '--no-typed-css') result.typedCss = false;
+      else if (argument === '--no-clone-craft-ts') result.cloneCraftTs = false;
+      else result.cloneEffectTs = false;
       continue;
     }
-    if (argument === '--effect' || argument === '--agents' || argument === '--locales' || argument === '--default-locale' || argument === '--i18n') {
+    if (valueNames.has(argument.slice(2))) {
       const value = argv[++index];
       if (!value || value.startsWith('--')) {
         throw new Error(`Missing value for ${argument}.`);
       }
-      if (argument === '--effect') result.effect = value;
-      else if (argument === '--agents') result.agents = value;
-      else if (argument === '--locales') result.locales = value;
-      else if (argument === '--default-locale') result.defaultLocale = value;
-      else if (value === 'strict' || value === 'loose') result.i18n = value;
-      else throw new Error(`Unknown i18n mode "${value}". Use strict or loose.`);
+      setValue(argument.slice(2), value);
       continue;
     }
-    if (argument.startsWith('--effect=')) {
-      result.effect = argument.slice('--effect='.length);
+    if (argument.startsWith('--') && argument.includes('=')) {
+      const [name, ...parts] = argument.slice(2).split('=');
+      if (!valueNames.has(name)) throw new Error(`Unknown option --${name}.`);
+      setValue(name, parts.join('='));
       continue;
     }
-    if (argument.startsWith('--agents=')) {
-      result.agents = argument.slice('--agents='.length);
-      continue;
-    }
-    if (argument.startsWith('--locales=')) {
-      result.locales = argument.slice('--locales='.length);
-      continue;
-    }
-    if (argument.startsWith('--default-locale=')) {
-      result.defaultLocale = argument.slice('--default-locale='.length);
-      continue;
-    }
-    if (argument.startsWith('--i18n=')) {
-      const value = argument.slice('--i18n='.length);
-      if (value !== 'strict' && value !== 'loose') throw new Error(`Unknown i18n mode "${value}". Use strict or loose.`);
-      result.i18n = value;
+    if (argument === '--typed-css' || argument === '--clone-craft-ts' || argument === '--clone-effect-ts') {
+      if (argument === '--typed-css') result.typedCss = true;
+      else if (argument === '--clone-craft-ts') result.cloneCraftTs = true;
+      else result.cloneEffectTs = true;
       continue;
     }
     if (argument === '--yes' || argument === '--force' || argument === '--json') {
@@ -292,6 +303,20 @@ function parseCreateArgs(argv: string[]): CreateArgs {
     if (result.directory) throw new Error('create accepts one destination directory.');
     result.directory = argument;
   }
+  result.effect = values.get('effect');
+  result.frontendRuntime = values.get('frontend-runtime') as CreateArgs['frontendRuntime'];
+  result.backendRuntime = values.get('backend-runtime') as CreateArgs['backendRuntime'];
+  result.effectScope = values.get('effect-scope') as CreateArgs['effectScope'];
+  result.agents = values.get('agents');
+  result.locales = values.get('locales');
+  result.defaultLocale = values.get('default-locale');
+  result.i18n = values.get('i18n') as CreateArgs['i18n'];
+  result.designSystem = values.get('design-system') as CreateArgs['designSystem'];
+  result.workspace = values.get('workspace') as CreateArgs['workspace'];
+  result.references = values.get('references') as CreateArgs['references'];
+  result.referenceMode = values.get('reference-mode') as CreateArgs['referenceMode'];
+  result.craftTsRef = values.get('craft-ts-ref');
+  result.effectTsRef = values.get('effect-ts-ref');
   return result;
 }
 
@@ -303,19 +328,38 @@ async function runCreate(argv: string[]): Promise<number> {
   }
   const readline = createInterface({ input, output });
   try {
-    // This is intentionally the first question in the interactive flow: the
-    // Effect v4 choice changes both dependencies and the installed skills.
-    const mode = createModeFromFlag(
-      parsed.effect ??
-        (parsed.flags.has('yes')
-          ? 'none'
-          : (await readline.question('Use EffectTS v4? [y/N] ')).trim().toLowerCase().startsWith('y')
-            ? 'v4'
-            : 'none'),
-    );
     const directory =
       parsed.directory ?? (await readline.question('Project directory: ')).trim();
     if (!directory) throw new Error('A destination directory is required.');
+    const interactive = Boolean(process.stdin.isTTY) && !parsed.flags.has('yes');
+    const legacyMode = parsed.effect === undefined
+      ? undefined
+      : createModeFromFlag(parsed.effect);
+    const frontendRuntime = parsed.frontendRuntime ?? legacyMode ?? (parsed.effectScope ? undefined : (
+      interactive
+        ? ((await readline.question('Effect v4 frontend? [y/N] ')).trim().toLowerCase().startsWith('y') ? 'effect' : 'plain')
+        : 'plain'
+    ));
+    const backendRuntime = parsed.backendRuntime ?? (parsed.effectScope ? undefined : (
+      interactive && (await readline.question('Add backend server functions? [y/N] ')).trim().toLowerCase().startsWith('y')
+        ? ((await readline.question('Backend runtime [promise/effect] (promise): ')).trim().toLowerCase() || 'promise')
+        : 'none'
+    )) as CreateArgs['backendRuntime'];
+    const i18n = parsed.i18n ?? (
+      interactive
+        ? ((await readline.question('Enable i18n? [Y/n] ')).trim().toLowerCase() === 'n' ? 'none' : 'strict')
+        : 'strict'
+    );
+    const designSystem = parsed.designSystem ?? (
+      interactive
+        ? ((await readline.question('Enable the design system? [Y/n] ')).trim().toLowerCase() === 'n' ? 'none' : 'basic')
+        : 'basic'
+    );
+    const typedCss = parsed.typedCss ?? (
+      interactive
+        ? !((await readline.question('Enable typed CSS? [Y/n] ')).trim().toLowerCase() === 'n')
+        : true
+    );
     const agentsValue =
       parsed.agents ??
       (parsed.flags.has('yes')
@@ -326,17 +370,30 @@ async function runCreate(argv: string[]): Promise<number> {
     const agents = parseCreateAgents(agentsValue);
     const result = await createCraftProject({
       directory,
-      mode,
+      mode: legacyMode,
+      frontendRuntime,
+      backendRuntime,
+      effectScope: parsed.effectScope,
       agents,
       locales: parsed.locales?.split(',').map((locale) => locale.trim()).filter(Boolean),
       defaultLocale: parsed.defaultLocale,
-      i18n: parsed.i18n ?? 'strict',
+      i18n,
+      designSystem,
+      typedCss,
+      workspace: parsed.workspace,
+      references: parsed.references,
+      referenceMode: parsed.referenceMode,
+      craftTsRef: parsed.craftTsRef,
+      effectTsRef: parsed.effectTsRef,
+      cloneCraftTs: parsed.cloneCraftTs,
+      cloneEffectTs: parsed.cloneEffectTs,
       force: parsed.flags.has('force'),
     });
     if (parsed.flags.has('json')) {
       console.log(JSON.stringify(result, null, 2));
     } else {
-      console.log(`Created ${result.mode === 'effect' ? 'Effect v4' : 'plain'} CraftTS app at ${result.directory}`);
+      console.log(`Created ${result.frontendRuntime === 'effect' ? 'Effect v4' : 'plain'} CraftTS app at ${result.directory}`);
+      console.log(`Runtime: frontend=${result.frontendRuntime}, backend=${result.backendRuntime}`);
       console.log(`Agents: ${result.agents.length > 0 ? result.agents.join(', ') : 'none'}`);
       console.log(`Next: cd ${result.directory} && npm install && npm run dev`);
     }
@@ -412,10 +469,24 @@ function printHelp(): void {
 Options:
   --effect <v4|none>           Select the Effect v4 or plain CraftTS starter
   --no-effect                  Alias for --effect none
+  --frontend-runtime <plain|effect>
+  --backend-runtime <none|promise|effect>
+  --effect-scope <none|frontend|backend|both>
   --agents <list>              codex,cursor,claude-code,cloud-code (or none)
-  --locales <list>             Comma-separated locales (default: en-US)
+  --locales <list>             Comma-separated locales (default: en-US,fr-FR)
   --default-locale <locale>    Initial locale (must be in --locales)
-  --i18n <strict|loose>        Plural/catalogue validation mode (default: strict)
+  --i18n <strict|loose|none>   Plural/catalogue validation mode
+  --no-i18n                    Disable i18n and its files/scripts
+  --design-system <basic|none>
+  --no-design-system
+  --typed-css / --no-typed-css
+  --workspace <standalone|nx>
+  --references <none|craft-ts|all>
+  --reference-mode <context|local|source>
+  --craft-ts-ref <git-ref>     CraftTS reference tag/commit
+  --effect-ts-ref <git-ref>    EffectTS reference tag/commit
+  --clone-craft-ts / --no-clone-craft-ts
+  --clone-effect-ts / --no-clone-effect-ts
   --force                      Merge into a non-empty destination directory
   --json                       Emit the creation result as JSON
   --root <dir>                 Workspace root (defaults to cwd)

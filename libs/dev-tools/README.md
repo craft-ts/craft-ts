@@ -15,15 +15,37 @@ For coding agents, also install
 
 ## Create a project
 
-Create a framework-independent CraftTS application from scratch. The command
-asks for the Effect v4 choice first in interactive mode because it changes the
-dependencies, generated API boundary, and agent skills:
+Create a framework-independent CraftTS application from scratch. Runtime axes,
+i18n, design-system, typed-CSS, server-function, workspace and reference
+choices are normalized into one effective configuration:
 
 ```bash
 npx craft create my-app
 npx craft create my-app --effect=v4 --agents=codex,cursor,cloud-code
 npx craft create my-app --effect=none --agents=none
+npx craft create my-app --effect=none --i18n=none --design-system=none --no-typed-css
+npx craft create my-app --frontend-runtime=effect --backend-runtime=effect --i18n=strict
+npx craft create my-app --frontend-runtime=plain --backend-runtime=effect
+npx craft create apps/my-app --workspace=nx --references=craft-ts --reference-mode=context
+npx craft create apps/my-app --references=craft-ts --reference-mode=source
 ```
+
+Canonical options include `--frontend-runtime=plain|effect`,
+`--backend-runtime=none|promise|effect`, `--effect-scope=none|frontend|backend|both`,
+`--i18n=strict|loose|none`, `--design-system=basic|none`,
+`--typed-css`/`--no-typed-css`, `--workspace=standalone|nx`, and
+`--references=none|craft-ts|all` with `--reference-mode=context|local|source`.
+`--effect=v4|none`, `--locales` and `--default-locale` remain compatible aliases.
+`--json` includes the complete effective configuration.
+
+With references enabled, `.references/manifest.json` records the requested ref
+and resolved SHA. `context` keeps npm dependencies portable; `local` is for
+build artifacts from the checked-out references. `source` keeps the scoped
+`@craft-ts/...` imports but resolves them directly to the cloned CraftTS source
+through TypeScript paths and Vite aliases; the CraftTS clone itself does not
+get a `node_modules`. Refresh clones with
+`npm run update:references` (or the generated `update:craft-ts`/
+`update:effect-ts` scripts).
 
 The starter includes a routed page, a typed API call, flat-config ESLint, unit
 tests, a graph-wide `architecture/` suite, Playwright E2E tests, development

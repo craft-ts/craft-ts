@@ -517,7 +517,9 @@ async function main(args) {
     release.version,
     ...(releaseIsPrepared ? ['--allow-existing'] : []),
   ]);
-  run('npm', ['run', 'release:check']);
+  run('npm', ['run', 'release:check'], {
+    env: { CRAFT_RELEASE_VERSION: release.version },
+  });
   run('npx', ['nx', 'run-many', '-t', 'test', 'e2e-ci', '--all']);
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);
   run('npx', [
