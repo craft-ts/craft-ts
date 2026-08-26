@@ -254,9 +254,7 @@ export const App = craftComponent(
                           a(
                             'navLink',
                             {
-                              *click() {
-                                yield* closeNav();
-                              },
+                              click: closeNav,
                             },
                             function* () {
                               return (yield* entry())[0];
