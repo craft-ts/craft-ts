@@ -193,26 +193,88 @@ these clones.
 `;
 }
 
-const AGENTS_MD = (
-  mode: CreateMode,
-  config?: StarterConfig,
-): string => `# CraftTS project
+function agentsMd(mode: CreateMode, config?: StarterConfig): string {
+  const frontend = config?.frontendRuntime ?? (mode === 'effect' ? 'effect' : 'plain');
+  const backend = config?.backendRuntime ?? 'none';
+  const i18n = config?.i18n.enabled ?? true;
+  const designSystem = config?.designSystem !== 'none';
+  const typedCss = config?.typedCss ?? true;
+  const effectFrontend = frontend === 'effect';
+  const effectBackend = backend === 'effect';
+  const effect = effectFrontend || effectBackend;
+  const effectSkillPaths = (config?.agents ?? []).map((agent) =>
+    agent === 'codex'
+      ? '.agents/skills/craft-ts-effect-v4/SKILL.md'
+      : agent === 'cursor'
+        ? '.cursor/skills/craft-ts-project/SKILL.md'
+        : agent === 'claude-code'
+          ? '.claude/skills/craft-ts-effect-v4/SKILL.md'
+          : '.gemini/skills/craft-ts-effect-v4/SKILL.md',
+  );
+  const effectSkillLine = effectSkillPaths.length
+    ? `Read the Effect-specific guidance in ${effectSkillPaths.map((path) => `\`${path}\``).join(', ')}.`
+    : 'Use the Effect v4 guidance in the project documentation when adding Effect code.';
+  const verify = [
+    'npm run lint',
+    'npm run typecheck',
+    'npm run typecheck-spec',
+    ...(i18n ? ['npm run i18n:check', 'npm run i18n:test'] : []),
+    ...(typedCss ? ['npm run style:check'] : []),
+    ...(backend !== 'none' ? ['npm run server:test'] : []),
+    ...(effect ? ['npm run effect-check'] : []),
+    'npm test',
+    'npm run architecture',
+    'npm run typecheck-architecture',
+    'npm run build',
+  ];
+  const effectGuidance = effect
+    ? `
+## Effect boundary
 
-This project was created with \`craft create\` using frontend **${config?.frontendRuntime ?? (mode === 'effect' ? 'effect' : 'plain')}** and backend **${config?.backendRuntime ?? 'none'}** runtimes.
+${effectFrontend ? '- Effect v4 is enabled in the browser; use `queryEffect` and the installed Craft Effect bridge.' : '- The browser runtime is plain; keep Effect imports out of browser components.'}
+${effectBackend ? '- Effect v4 is enabled on the backend; keep server Effects in `src/server/`, provide services through `Layer`, and run `npm run effect-check` after changes.' : '- The backend does not use Effect; do not add Effect dependencies or server Effects unless the runtime choice changes.'}
+${effectSkillLine}
+`
+    : `
+## Effect boundary
+
+Effect is not selected in this starter. Keep the application on the plain
+CraftTS runtime and do not add Effect imports or dependencies incidentally.
+`;
+  return `# CraftTS project
+
+This project was created with \`craft create\`. Treat this file as the project
+guide for coding agents: it records the selected runtime and feature surfaces.
+
+## Selected configuration
+
+- Frontend runtime: **${frontend}**
+- Backend runtime: **${backend}**
+- Type-safe i18n: **${i18n ? 'enabled' : 'disabled'}**
+- Design system: **${designSystem ? 'enabled' : 'disabled'}**
+- Typed CSS: **${typedCss ? 'enabled' : 'disabled'}**
 
 Read \`.agents/skills/craft-ts-project/SKILL.md\` before changing application
-code. ${config?.i18n.enabled ? 'The type-safe i18n contract lives in `src/i18n/`; run `npm run i18n:check` and `npm run i18n:test` when changing it.' : ''} ${mode === 'effect' || config?.backendRuntime === 'effect' ? 'Effect-specific guidance is in `.agents/skills/craft-ts-effect-v4/SKILL.md`.' : ''}
+code. ${i18n ? 'Translation keys live in `src/i18n/`; run `npm run i18n:check` and `npm run i18n:test` after changes.' : 'This starter has no i18n surface; do not add translation files unless the project configuration changes.'}
+${effectGuidance}
 
-## Runtime boundaries
+## Workflow
 
-Frontend runtime: ${config?.frontendRuntime ?? (mode === 'effect' ? 'effect' : 'plain')}.
-Backend runtime: ${config?.backendRuntime ?? 'none'}. A backend Effect runtime
-never authorizes importing Effect into browser components.
+Use Craft primitives and yield every Craft reader. Keep the browser, server and
+transport boundaries aligned with the selected runtimes. The architecture
+suite is a graph contract: run \`npm run architecture\` after structural
+changes, and do not add a test per feature or a rule for a smell already
+covered by the baseline helpers.
 
-The architecture suite is a graph contract. Run \`npm run architecture\`;
-do not add a test per feature. Add a rule only for a recurring product-level
-dependency smell not already covered by the baseline helpers.
+## Verification
+
+Run the checks relevant to this generated configuration:
+
+${verify.map((command) => `- \`${command}\``).join('\n')}
 ${referenceAgentGuidance(config)}`;
+}
+
+const AGENTS_MD = agentsMd;
 
 type TemplateContext = {
   readonly projectName: string;
@@ -418,7 +480,7 @@ ${styleAliasEntries}
     } }),`
     : '';
   return `import { readFileSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
+${typedCss ? "import { resolve as resolvePath } from 'node:path';\n" : ''}
 import { defineConfig, type ViteDevServer } from 'vite';
 ${typedCss ? styleImport : ''}
 
@@ -652,6 +714,12 @@ ${effect ? '' : "      'craft-ts/no-effect-import-in-frontend': 'error',"}
   },
   {
     files: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.spec.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       'craft-ts/no-async-await': 'off',
       'craft-ts/no-throw': 'off',
@@ -664,6 +732,7 @@ ${
   backendEffect
     ? `  {
     files: ['src/server/**/*.ts', 'src/**/*.fn-serveur.ts', 'src/**/*.mw-serveur.ts'],
+    ignores: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
     plugins: { 'craft-ts': craftRules },
     languageOptions: {
       parserOptions: {
@@ -1218,7 +1287,8 @@ function routesTs(context: TemplateContext): string {
     }),
 `
       : '';
-  return `import { loadCraftComponent } from '@craft-ts/component';
+  return `/* eslint-disable require-yield -- Route exception outcomes are synchronous by design. */
+import { loadCraftComponent } from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
@@ -1380,7 +1450,7 @@ export const getStarterMessage = serverFunction(
 
 export type StarterResponse = ServerFunctionSuccess<typeof getStarterMessage>;
 `
-    : `import { flatMapContext, mapContext, portableServerFunction, type SchemaOutput, type ServerFunctionSuccess } from '@craft-ts/core';
+    : `import { flatMapContext, mapContext, portableServerFunction, type SchemaOutput, type ServerFunctionContractOutput, type ServerFunctionSuccess } from '@craft-ts/core';
 import type { StandardSchemaV1 } from '@craft-ts/core';
 import { StarterRepository } from './server/repository';
 
@@ -1400,7 +1470,7 @@ export const getStarterMessage = portableServerFunction('starter.welcome', input
   .handler(async ({ context }) => context.value as SchemaOutput<typeof outputSchema>)
   .exposeErrors({});
 
-export type StarterResponse = ServerFunctionSuccess<typeof getStarterMessage>;
+export type StarterResponse = ServerFunctionContractOutput<typeof getStarterMessage['contract']>;
 `;
   const repository = effect
     ? `import { Context, Data, Effect, Layer } from 'effect';
@@ -1528,11 +1598,12 @@ async function writeWebResponse(
 }
 `;
 
-  const client = `import { createServerFunctionClient, craftUnique } from '@craft-ts/core';
+  const client = `import { createServerFunctionClient, craftUnique, type ServerFunctionClient } from '@craft-ts/core';
 import type { getStarterMessage as ServerGetStarterMessage, StarterResponse } from './starter.fn-serveur';
 
 export type { StarterResponse };
-export const getStarterMessage = createServerFunctionClient<typeof ServerGetStarterMessage>(craftUnique('starter.welcome'));
+const starterMessageTransport = createServerFunctionClient<typeof ServerGetStarterMessage>(craftUnique('starter.welcome'));
+export const getStarterMessage = starterMessageTransport as ServerFunctionClient<typeof ServerGetStarterMessage, StarterResponse>;
 `;
   const compatibilityServer = `export { application, createApplication } from './application';
 ${effect ? 'export { runtimeLayer } from \'./application\';\n' : ''}export { handleRequest } from './node-http';
@@ -1863,7 +1934,8 @@ const { StarterService } = craftService({ name: 'StarterService', providedIn: 'g
   return { label: 'resolved through Craft DI' };
 });
 `;
-  return `import { craftComponent, div, heading, p } from '@craft-ts/component';
+  const lintComment = context.config.frontendRuntime === 'effect' ? '' : '/* eslint-disable require-yield -- Synchronous DI factory is intentional in this starter. */\n';
+  return `${lintComment}import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${uiImport}${i18n}${effectI18n}${service}
 export const ServicesPage = craftComponent(
   'ServicesPage',
@@ -1895,10 +1967,10 @@ function plainHomePageTs(context: TemplateContext): string {
   const summary = context.config.i18n.enabled
     ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
     : "p('A framework-independent starter with a typed API boundary.'),";
-  const loadExpression =
+  const loadLoader =
     context.config.backendRuntime === 'none'
-      ? 'return yield* loadWelcome();'
-      : 'return loadWelcome();';
+      ? 'function* () { return yield* loadWelcome(); }'
+      : '() => loadWelcome()';
   return `import {
   craftComponent,
   div,
@@ -1918,9 +1990,7 @@ export const HomePage = craftComponent(
       'welcomeQuery',
       {
         params: () => true,
-        loader: function* () {
-          ${loadExpression}
-        },
+        loader: ${loadLoader},
       },
       ({ resource }) => ({
         hasWelcome: craftComputed('hasWelcome', () => resource.hasValue()),
@@ -1936,12 +2006,10 @@ export const HomePage = craftComponent(
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
-            const welcome = yield* welcomeQuery.value();
-            return 'API title: ' + (welcome?.title ?? '');
+            return 'API title: ' + String((yield* welcomeQuery.value())?.title);
           }),
           p(function* () {
-            const welcome = yield* welcomeQuery.value();
-            return 'API body: ' + (welcome?.body ?? '');
+            return 'API body: ' + String((yield* welcomeQuery.value())?.body);
           }),
         ]),
       ),
@@ -2434,7 +2502,6 @@ function agentFiles(
   const skill = `${baseSkill}${effectEnabled ? `\n${EFFECT_AGENT_SKILL}` : ''}${referenceAgentGuidance(config)}`;
   if (agent === 'codex') {
     return {
-      'AGENTS.md': AGENTS_MD(mode, config),
       '.agents/skills/craft-ts-project/SKILL.md': skill,
       ...(effectEnabled
         ? { '.agents/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
@@ -2482,6 +2549,7 @@ function templates(context: TemplateContext): Record<string, string> {
   );
   const files: Record<string, string> = {
     'package.json': packageJson(context),
+    'AGENTS.md': AGENTS_MD(context.mode, context.config),
     '.gitignore': GENERATED_GITIGNORE,
     'tsconfig.json': tsconfig(context),
     'tsconfig.app.json': tsconfigApp,

@@ -29,6 +29,7 @@ non-interactive starters, configuration options, and first checks
 ### Managing state
 
 [Local state](/guide/state/local-state) ·
+[State machines](/guide/state/state-machines) ·
 [query](/guide/state/server-state) ·
 [Mutations](/guide/state/mutations) ·
 [queryParams](/guide/state/url-state) ·

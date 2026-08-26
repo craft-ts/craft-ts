@@ -8,14 +8,15 @@ Coding agents: [llms.txt](https://craft-ts.github.io/craft/llms.txt) and
 
 ## Primitives
 
-| Symbol         | What it does                                             | Page                                       |
-| -------------- | -------------------------------------------------------- | ------------------------------------------ |
-| `state`        | Signal-based state you own                               | [Local state](/guide/state/local-state)    |
-| `query`        | Server data, re-fetched from reactive `params`           | [query](/guide/state/server-state)         |
-| `mutation`     | Server write, triggered explicitly                       | [Mutations](/guide/state/mutations)        |
-| `queryParams`  | State that lives in the URL query string                 | [queryParams](/guide/state/url-state)      |
-| `asyncProcess` | One-off async operation with lifecycle state             | [asyncProcess](/guide/state/async-process) |
-| `craftUse`     | Drives a primitive outside a generator (component field) | [Learn 1](/learn/01-first-state)           |
+| Symbol              | What it does                                             | Page                                          |
+| ------------------- | -------------------------------------------------------- | --------------------------------------------- |
+| `state`             | Signal-based state you own                               | [Local state](/guide/state/local-state)       |
+| `craftStateMachine` | Declarative finite-state workflow                        | [State machines](/guide/state/state-machines) |
+| `query`             | Server data, re-fetched from reactive `params`           | [query](/guide/state/server-state)            |
+| `mutation`          | Server write, triggered explicitly                       | [Mutations](/guide/state/mutations)           |
+| `queryParams`       | State that lives in the URL query string                 | [queryParams](/guide/state/url-state)         |
+| `asyncProcess`      | One-off async operation with lifecycle state             | [asyncProcess](/guide/state/async-process)    |
+| `craftUse`          | Drives a primitive outside a generator (component field) | [Learn 1](/learn/01-first-state)              |
 
 Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primitive)
 
@@ -74,7 +75,7 @@ already receive those methods as arguments — see
 | `insertFormSubmit`                                                          | Wires submission to a mutation             | [Submitting](/guide/forms/submit)     |
 | `insertNoopTypingAnchor`                                                    | Type anchor required per field tree        | [Forms](/guide/forms/)                |
 | `CraftFieldDirective`                                                       | Binds a typed field to a Craft DOM node    | [Forms](/guide/forms/)                |
-| `fieldErrorNode.exhaustive` / `.partial`                               | Exhaustive or partial validation rendering | [Forms](/guide/forms/)                |
+| `fieldErrorNode.exhaustive` / `.partial`                                    | Exhaustive or partial validation rendering | [Forms](/guide/forms/)                |
 | `cRequired`, `cEmail`, `cMin`/`cMax`, `cMinLength`/`cMaxLength`, `cPattern` | Built-in validators                        | [Validators](/guide/forms/validation) |
 | `cValidate`, `cAsyncValidate`                                               | Custom and async validators                | [Validators](/guide/forms/validation) |
 
@@ -118,7 +119,7 @@ already receive those methods as arguments — see
 | `renderCraft`, `renderToString`                            | Renders an isolated request to HTML, CSS, and a transfer snapshot       | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `startCraft`                                               | Hydrates an SSR host or mounts a fresh client application automatically | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM          | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `pendingNode({ ssr })`                                    | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `pendingNode({ ssr })`                                     | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                          | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `CraftUnhandledSsrResolutionError`, `CraftSsrTimeoutError` | Reports missing policies and timed-out blocking sources                 | [SSR and hydration](/guide/advanced/ssr-hydration) |
 

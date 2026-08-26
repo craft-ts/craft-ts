@@ -8,8 +8,8 @@ The demo groups them the way you would meet them: **components** first, then the
 **routing** and the rest.
 
 ::: tip Just want to poke at something?
-The [Playground](#playground) is a shareable sandbox with a small todo flow —
-the fastest way to try an idea.
+The [Playground](https://stackblitz.com/fork/github/craft-ts/craft-ts-demo/tree/main?file=src%2Fapp%2Fexamples%2Fplayground%2Fplayground.ts&initialpath=%2Fplayground)
+is a shareable sandbox with a small todo flow — the fastest way to try an idea.
 :::
 
 ## Components
@@ -41,6 +41,16 @@ with no service layer.
 | [Pixel Art Matrix](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts&initialpath=/pixel-art-matrix) | Nested `insertSelect` and internal `source$` between rows and cells |
 | [Exceptions](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/exceptions/exceptions.ts&initialpath=/exceptions) | Business exceptions on `query()`, rendered per code with `matchNode.exhaustive` |
 | [Exception QueryParams](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/exceptions/exception-query-params.ts&initialpath=/exception-query-params) | `queryParams` decode failures through `hasException()` and `exceptions().parse` |
+
+## State machines
+
+State machines for explicit transitions, history and collection-oriented UI.
+
+| Example | What it shows |
+| --- | --- |
+| [Profile editor](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/state-machine/profile-editor.ts&initialpath=/state-machine) | `craftStateMachine`, typed transitions and persisted history |
+| [Text editor](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/state-machine/text-editor.ts&initialpath=/state-machine-text) | A compact state machine for editing, validation and transitions |
+| [Task board](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/primitives/state-machine-list/task-board.ts&initialpath=/state-machine-list) | A state machine per list item with history and reactive collection updates |
 
 ## Services
 
@@ -105,7 +115,7 @@ The guide is [Type-safe i18n](/guide/i18n/).
 
 | Example                                                                                                                                                                              | What it shows                                                                          |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| [Playground](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/playground/playground.ts&initialpath=/playground)                                 | A shareable sandbox: a small todo flow with `craftService`, `query()` and `mutation()` |
+| [Playground](https://stackblitz.com/fork/github/craft-ts/craft-ts-demo/tree/main?file=src%2Fapp%2Fexamples%2Fplayground%2Fplayground.ts&initialpath=%2Fplayground)                                 | A shareable sandbox: a small todo flow with `craftService`, `query()` and `mutation()` |
 | [Send Context to AI](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/ia/demo-send-context/demo-send-context.ts&initialpath=/demo-send-context) | Exporting the live dependency graph and app context to an assistant                    |
 
 ## Notes

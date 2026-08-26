@@ -60,8 +60,10 @@ npx --yes --package @craft-ts/dev-tools@beta craft create
 
 The agent question is a multi-selection list. Use `↑`/`↓` to move, `Space` to
 select or deselect an integration, and `Enter` to confirm. Codex starts
-selected, preserving the default used by scripted creation. The selected
-integration receives its editor-specific project instructions and skills.
+selected, preserving the default used by scripted creation. Every starter
+receives an `AGENTS.md` project guide describing its selected runtimes and
+features; selected integrations additionally receive their editor-specific
+project instructions and skills.
 
 ### Creating inside an existing Git repository
 
@@ -129,7 +131,7 @@ The main configuration options are:
 | `--frontend-runtime` | `plain`, `effect` | Choose the frontend runtime |
 | `--backend-runtime` | `none`, `promise`, `effect` | Choose server functions |
 | `--effect-scope` | `none`, `frontend`, `backend`, `both` | Set Effect placement |
-| `--agents` | comma-separated names or `none` | Add agent instructions |
+| `--agents` | comma-separated names or `none` | Add editor-specific agent integrations; `AGENTS.md` is always generated |
 | `--i18n` | `strict`, `loose`, `none` | Configure type-safe i18n |
 | `--design-system` | `basic`, `none` | Include the design-system starter |
 | `--typed-css` | flag / `--no-typed-css` | Enable or disable typed CSS |

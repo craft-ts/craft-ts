@@ -159,6 +159,7 @@ describe('createCraftProject', () => {
     await expect(readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).rejects.toThrow();
     await expect(readFile(join(result.directory, 'src/app/ui/ui.style.ts'), 'utf8')).rejects.toThrow();
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain("craftRoute('services'");
+    expect(await readFile(join(result.directory, 'AGENTS.md'), 'utf8')).toContain('Effect is not selected');
   });
 
   it('uses a local delayed welcome response when no backend is configured', async () => {
@@ -173,8 +174,8 @@ describe('createCraftProject', () => {
     expect(api).not.toContain('CraftHttpClient');
     expect(api).toContain('craftSleep');
     expect(api).toContain('title:');
-    expect(homePage).toContain("welcome?.title ?? ''");
-    expect(homePage).toContain("welcome?.body ?? ''");
+    expect(homePage).toContain("String((yield* welcomeQuery.value())?.title)");
+    expect(homePage).toContain("String((yield* welcomeQuery.value())?.body)");
 
     const effectResult = await createCraftProject({
       directory: 'effect-starter', rootDir: root, mode: 'effect', agents: [],
@@ -338,6 +339,9 @@ describe('createCraftProject', () => {
     expect(packageJson.devDependencies?.['aria-query']).toBe('^5.3.2');
     expect(packageJson.devDependencies?.typescript).toBe('^6.0.3');
     expect(await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8')).toContain('Layer.succeed');
+    expect(await readFile(join(result.directory, 'tsconfig.effect.json'), 'utf8')).toContain(
+      '@effect/language-service',
+    );
     expect(await readFile(join(result.directory, 'src/app/app.config.ts'), 'utf8')).toContain(
       'Layer.mergeAll(WelcomeRepositoryLive, i18nLayer)',
     );
@@ -371,6 +375,10 @@ describe('createCraftProject', () => {
 
     expect(result.frontendRuntime).toBe('plain');
     expect(result.backendRuntime).toBe('effect');
+    const agents = await readFile(join(result.directory, 'AGENTS.md'), 'utf8');
+    expect(agents).toContain('Frontend runtime: **plain**');
+    expect(agents).toContain('Backend runtime: **effect**');
+    expect(agents).toContain('The browser runtime is plain');
     expect(await readFile(join(result.directory, 'src/server/application.ts'), 'utf8')).toContain('executeEffect');
     expect(await readFile(join(result.directory, 'src/server/application.ts'), 'utf8')).toContain('runtimeLayer');
     expect(await readFile(join(result.directory, 'src/server/node-http.ts'), 'utf8')).toContain("body: request as unknown as BodyInit");

@@ -94,6 +94,7 @@ const guideSidebar = [
     collapsed: false,
     items: [
       { text: 'Local state', link: '/guide/state/local-state' },
+      { text: 'State machines', link: '/guide/state/state-machines' },
       { text: 'query', link: '/guide/state/server-state' },
       { text: 'Mutations', link: '/guide/state/mutations' },
       { text: 'queryParams', link: '/guide/state/url-state' },
