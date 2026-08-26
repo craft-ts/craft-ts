@@ -179,6 +179,7 @@ function assertStaticStarter(cell, directory, name) {
   if (!existsSync(manifestPath))
     throw new Error(`Missing generated package.json for ${name}`);
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  assertFile(directory, 'AGENTS.md', true, name);
   const hasEffect =
     cell.frontendRuntime === 'effect' || cell.backendRuntime === 'effect';
   const hasServer = cell.backendRuntime !== 'none';
