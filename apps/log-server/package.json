@@ -1,8 +1,15 @@
 {
   "name": "@craft-ts/log-server",
-  "version": "0.7.0-beta.14",
+  "version": "0.7.0-beta.15",
   "description": "Local JSONL log ingestion server for CraftTS development",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.js.map"
+  ],
   "bin": {
     "craft-ts-log-server": "dist/main.js"
   },

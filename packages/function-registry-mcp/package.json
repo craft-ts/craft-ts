@@ -1,8 +1,15 @@
 {
   "name": "@craft-ts/function-registry-mcp",
-  "version": "0.7.0-beta.14",
+  "version": "0.7.0-beta.15",
   "description": "MCP bridge for CraftTS browser pages and runtime registry",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.js.map"
+  ],
   "bin": {
     "craft-ts-registry-mcp": "dist/main.js"
   },

@@ -1,8 +1,15 @@
 {
   "name": "@craft-ts/log-mcp",
-  "version": "0.7.0-beta.14",
+  "version": "0.7.0-beta.15",
   "description": "MCP reader for CraftTS local JSONL logs",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.js.map"
+  ],
   "bin": {
     "craft-ts-log-mcp": "dist/main.js"
   },
