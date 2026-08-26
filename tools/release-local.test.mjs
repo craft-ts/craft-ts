@@ -67,7 +67,7 @@ test('runs release tests only for projects affected since the release tag', () =
   assert.deepEqual(releaseAffectedTestArguments('v0.7.0-beta.11'), [
     'nx',
     'affected',
-    '--target=test,e2e',
+    '--target=test',
     '--base=v0.7.0-beta.11',
     '--head=HEAD',
     '--exclude=docs',

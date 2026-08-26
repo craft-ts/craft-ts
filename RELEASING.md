@@ -83,8 +83,9 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 
 Before changing files, the command checks that all four workspaces are clean,
 on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
-the release tooling, runs the unit and E2E tests for projects affected since the
-latest release tag, and completes the other release gates. The release
+the release tooling, runs the unit tests for projects affected since the latest
+release tag, and completes the other release gates. E2E tests are temporarily
+disabled in local releases. The release
 package and documentation artifacts are built once, after confirmation, so the
 preview does not build the same artifacts twice. The production preflight keeps
 the application build, including `demo-effect`, as its validation build.

@@ -189,7 +189,7 @@ test('release preflight runs the generated starter gate', () => {
   assert.match(packageJson.scripts['generated-starters:full'], /test-generated-starters.*--profile=full/);
 });
 
-test('local releases run affected unit and E2E suites', () => {
+test('local releases run affected unit tests without E2E', () => {
   const releaseLocal = readFileSync(
     new URL('./release-local.mjs', import.meta.url),
     'utf8',
@@ -202,6 +202,8 @@ test('local releases run affected unit and E2E suites', () => {
   assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_SECURITY_TESTS/);
   assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_GENERATED_STARTERS/);
   assert.match(releaseLocal, /CI: 'true'/);
+  assert.match(releaseLocal, /'--target=test'/);
+  assert.doesNotMatch(releaseLocal, /'--target=test,e2e'/);
   assert.match(releaseLocal, /'--exclude=docs'/);
   assert.doesNotMatch(
     releaseLocal,

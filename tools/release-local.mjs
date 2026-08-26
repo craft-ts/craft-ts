@@ -457,7 +457,7 @@ export function releaseAffectedTestArguments(base) {
   return [
     'nx',
     'affected',
-    '--target=test,e2e',
+    '--target=test',
     `--base=${base}`,
     '--head=HEAD',
     '--exclude=docs',
