@@ -809,7 +809,7 @@ function i18nRuntimeTs(context: TemplateContext): string {
 ${localeImports}
 
 export const i18n = createI18nRuntime({
-  locales: [${localeValues}],
+  locales: [${localeValues}] as const,
   defaultLocale: '${context.defaultLocale}',
   strict: ${context.i18nStrict},
 });

@@ -288,6 +288,9 @@ describe('createCraftProject', () => {
     });
     expect(await readFile(join(result.directory, 'index.html'), 'utf8')).toContain('<html lang="fr-FR"');
     expect(await readFile(join(result.directory, 'src/i18n/locales/fr-FR.ts'), 'utf8')).toContain('defineLocaleLike');
+    expect(await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8')).toContain(
+      'locales: [enUS, frFR] as const',
+    );
     expect(await readFile(join(result.directory, '.github/workflows/ci.yml'), 'utf8')).toContain('npm run i18n:check');
   });
 });
