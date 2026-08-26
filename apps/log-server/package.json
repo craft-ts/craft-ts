@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/log-server",
-  "version": "0.7.0-beta.15",
+  "version": "0.7.0-beta.16",
   "description": "Local JSONL log ingestion server for CraftTS development",
   "type": "module",
   "files": [

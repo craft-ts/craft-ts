@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/i18n-effect",
-  "version": "0.7.0-beta.15",
+  "version": "0.7.0-beta.16",
   "description": "Effect v4 adapter for @craft-ts/i18n",
   "license": "MIT",
   "type": "module",
