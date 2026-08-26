@@ -93,11 +93,12 @@ The affected comparison base is the latest reachable `v*` Git tag. To override
 it deliberately, set `CRAFT_RELEASE_AFFECTED_BASE` to another commit or tag.
 
 The generated-starter gate keeps all 48 runtime/template combinations in its
-matrix. A local release statically validates all 48 cells and runs the full
-install/typecheck/test/build/E2E suite for 13 representative cells: the six
-frontend/backend runtime pairs with the complete feature profile, plus the
-remaining seven feature combinations on the minimal plain starter. The full
-48-cell executable matrix runs in parallel in
+matrix. It remains available as `npm run generated-starters:release`, but is
+currently skipped automatically by `release:local` to keep local releases
+shorter. The full gate runs the install/typecheck/test/build/E2E suite for 13
+representative cells: the six frontend/backend runtime pairs with the complete
+feature profile, plus the remaining seven feature combinations on the minimal
+plain starter. The full 48-cell executable matrix runs in parallel in
 `.github/workflows/generated-starters.yml`.
 
 Use `npm run generated-starters:check` for the 13-cell executable smoke,

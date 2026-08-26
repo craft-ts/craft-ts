@@ -566,7 +566,10 @@ async function main(args) {
     ...(releaseIsPrepared ? ['--allow-existing'] : []),
   ]);
   run('npm', ['run', 'release:check'], {
-    env: { CRAFT_RELEASE_VERSION: release.version },
+    env: {
+      CRAFT_RELEASE_VERSION: release.version,
+      CRAFT_RELEASE_SKIP_GENERATED_STARTERS: 'true',
+    },
   });
   runAffectedReleaseTests();
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);

@@ -24,7 +24,7 @@
     "security:test": "npx vitest run --config libs/core/vitest.config.ts security/ && npx vitest run --config libs/component/vitest.config.ts security/ && npx vitest run --config libs/dev-tools/vitest.config.mts src/eslint-rules/security.spec.ts",
     "production:check": "npm run build:production && node tools/production-smoke.mjs dist/apps/demo dist/apps/demo-effect dist/apps/quickstart-effect dist/apps/demo-with-server-function dist/apps/demo-ssr && npm run deploy:check && npm run deploy:manifest && node tools/production-http-smoke.mjs",
     "demo:ssr:production": "nx run demo-ssr:build:production && nx run demo-ssr:start-production",
-    "release:preflight": "nx run-many --targets=typecheck,typecheck-manifests,lint,architecture,effect-check --all --skipSync --outputStyle=stream && nx test docs && npm run security:check && npm run security:test && npm run production:check && npm run generated-starters:release",
+    "release:preflight": "nx run-many --targets=typecheck,typecheck-manifests,lint,architecture,effect-check --all --skipSync --outputStyle=stream && nx test docs && npm run security:check && npm run security:test && npm run production:check && if [ \"${CRAFT_RELEASE_SKIP_GENERATED_STARTERS:-}\" = \"true\" ]; then echo 'Skipping generated-starters release gate'; else npm run generated-starters:release; fi",
     "release:check": "npm run release:preflight && node --test tools/release.test.mjs tools/release-local.test.mjs tools/generated-starters-matrix.test.mjs",
     "generated-starters:check": "CRAFT_RELEASE_VERSION=0.0.0-check node tools/test-generated-starters.mjs --profile=smoke",
     "generated-starters:static": "node tools/test-generated-starters.mjs --profile=static",

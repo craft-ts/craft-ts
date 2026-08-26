@@ -180,6 +180,10 @@ test('release preflight runs the generated starter gate', () => {
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   );
   assert.match(packageJson.scripts['release:preflight'], /generated-starters:release/);
+  assert.match(
+    packageJson.scripts['release:preflight'],
+    /CRAFT_RELEASE_SKIP_GENERATED_STARTERS/,
+  );
   assert.match(packageJson.scripts['generated-starters:release'], /test-generated-starters.*--profile=release/);
   assert.match(packageJson.scripts['generated-starters:static'], /test-generated-starters.*--profile=static/);
   assert.match(packageJson.scripts['generated-starters:full'], /test-generated-starters.*--profile=full/);
@@ -196,6 +200,7 @@ test('local releases run affected unit and E2E suites', () => {
     /runAffectedReleaseTests\(\);/,
   );
   assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_SECURITY_TESTS/);
+  assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_GENERATED_STARTERS/);
   assert.match(releaseLocal, /CI: 'true'/);
   assert.match(releaseLocal, /'--exclude=docs'/);
   assert.doesNotMatch(
