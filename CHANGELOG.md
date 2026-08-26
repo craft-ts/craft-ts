@@ -1,3 +1,13 @@
+## 0.7.0-beta.17 (2026-08-26)
+
+### 🩹 Fixes
+
+- sync standalone demo style dependencies ([7ed98948](https://github.com/craft-ts/craft-ts/commit/7ed98948))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.16 (2026-08-26)
 
 This was a version bump only, there were no code changes.
