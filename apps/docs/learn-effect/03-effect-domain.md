@@ -171,8 +171,10 @@ runs:
 
 <<< @/tests/snippets/learn-effect/sync-members.spec.ts#refused
 
-Everywhere a Craft adapter does not reach — a `params`, a `craftMethod`, a
-`state` updater — `syncEffect(...)` is the same door, opened by hand:
+For a synchronous Effect exposed as a callable method, use `methodEffect`, the
+Effect counterpart of `craftMethod`. For lower-level positions such as a
+`params` factory or a `state` updater, `syncEffect(...)` is the same door,
+opened by hand:
 
 ```typescript
 queryEffect('shippingQuote', {
@@ -184,7 +186,8 @@ queryEffect('shippingQuote', {
 ```
 
 The relationship mirrors the asynchronous side: `computedEffect` is to
-`syncEffect` what `queryEffect` is to `runEffect`.
+`methodEffect` what `queryEffect` is to `asyncProcessEffect` — a value or method
+with no resource lifecycle. `syncEffect` remains the lower-level escape hatch.
 
 ::: tip Three lines of defence
 

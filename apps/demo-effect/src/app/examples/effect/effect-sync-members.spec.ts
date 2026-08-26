@@ -67,6 +67,17 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
     injector.destroy();
   });
 
+  it('runs methodEffect from an interactive action', () => {
+    const { element, injector, mounted } = mount();
+
+    clickByName(element, 'formatSamplePrice');
+
+    expect(element.textContent).toContain('14,99');
+
+    mounted.destroy();
+    injector.destroy();
+  });
+
   it('keeps the suspending member behind the loader', async () => {
     const { element, injector, mounted } = mount();
 
@@ -75,6 +86,7 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Craft Express');
+      expect(element.textContent).toContain('7.30');
     });
 
     mounted.destroy();

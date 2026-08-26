@@ -34,6 +34,9 @@ provides its in-memory Layer. The demo intentionally delays and fails the connec
 the template shows `pendingNode` first, then renders the typed
 `DatabaseConnectionError`.
 
+The `/sync-members` example also exposes the synchronous `CartPricing.formatPrice`
+operation through `methodEffect`, alongside `computedEffect` and `queryEffect`.
+
 Use `queryEffect`, `mutationEffect`, and `asyncProcessEffect` at the boundary
 between an Effect domain and a Craft primitive whose work **suspends**: only
 `loader` may run a suspending Effect.

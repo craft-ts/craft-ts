@@ -12,6 +12,7 @@ import {
   asyncProcessEffect,
   computedEffect,
   effectLoader,
+  methodEffect,
   mutationEffect,
   queryEffect,
 } from './effect-adapter';
@@ -205,6 +206,74 @@ describe('Effect-aware Craft adapters', () => {
       input.setValue('Grace');
 
       expect(craftUse(value())).toEqual({ name: 'Grace' });
+    });
+  });
+
+  it('adapts a synchronous Effect to a callable craftMethod', () => {
+    TestBed.runInInjectionContext(() => {
+      const format = methodEffect('format-effect', (value: number) =>
+        Effect.gen(function* () {
+          yield* SyncOp;
+          return `value:${value}`;
+        }),
+      );
+
+      expect(format(42)).toBe('value:42');
+    });
+  });
+
+  it('supports Craft dependencies in a methodEffect factory generator', () => {
+    TestBed.runInInjectionContext(() => {
+      const input = craftUse(
+        state('method-effect-input', 'Ada', ({ set }) => ({
+          setValue: set,
+        })),
+      );
+      const method = methodEffect('method-effect-generator', function* () {
+        const name = yield* input();
+        return Effect.gen(function* () {
+          yield* SyncOp;
+          return name.toUpperCase();
+        });
+      });
+
+      expect(method()).toBe('ADA');
+      input.setValue('Grace');
+      expect(method()).toBe('GRACE');
+    });
+  });
+
+  it('maps a synchronous method Effect failure to a Craft exception', () => {
+    TestBed.runInInjectionContext(() => {
+      const method = methodEffect('method-effect-failure', () =>
+        Effect.gen(function* () {
+          yield* SyncOp;
+          return yield* Effect.fail(new InvalidRequest({ reason: 'invalid' }));
+        }),
+      );
+
+      let caught: unknown;
+      try {
+        method();
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(isCraftGenShortCircuit(caught)).toBe(true);
+      expect(
+        (caught as { exception: { _tag: string } }).exception,
+      ).toMatchObject({
+        _tag: 'InvalidRequest',
+      });
+    });
+  });
+
+  it('rejects an undeclared-synchronous method Effect at compile time', () => {
+    TestBed.runInInjectionContext(() => {
+      // @ts-expect-error A methodEffect may only run an Effect declared with SyncOp.
+      methodEffect('method-effect-must-be-sync', () =>
+        Effect.succeed('async?'),
+      );
     });
   });
 

@@ -122,7 +122,7 @@ describe('createCraftProject', () => {
     expect(result.config.i18n.enabled).toBe(false);
     await expect(readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).rejects.toThrow();
     await expect(readFile(join(result.directory, 'src/app/ui/ui.style.ts'), 'utf8')).rejects.toThrow();
-    expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain("path: 'services'");
+    expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain("craftRoute('services'");
   });
 
   it('creates a framework-independent plain starter with the complete quality gate', async () => {
@@ -257,6 +257,15 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeDefined();
     expect(packageJson.devDependencies?.typescript).toBe('^6.0.3');
     expect(await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8')).toContain('Layer.succeed');
+    expect(await readFile(join(result.directory, 'src/app/app.config.ts'), 'utf8')).toContain(
+      'Layer.mergeAll(WelcomeRepositoryLive, i18nLayer)',
+    );
+    expect(await readFile(join(result.directory, 'src/i18n/effect.ts'), 'utf8')).toContain(
+      'translateEffectRaw<AppLocales, Key>',
+    );
+    expect(await readFile(join(result.directory, 'src/app/home-page.ts'), 'utf8')).toContain(
+      "i18n.t('order.summary'",
+    );
     expect(await readFile(join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'), 'utf8')).toContain('Effect v4');
     expect(await readFile(join(result.directory, 'README.md'), 'utf8')).toContain('effect-check');
     expect(await readFile(join(result.directory, '.github/workflows/ci.yml'), 'utf8')).toContain(
@@ -289,7 +298,10 @@ describe('createCraftProject', () => {
     expect(await readFile(join(result.directory, 'index.html'), 'utf8')).toContain('<html lang="fr-FR"');
     expect(await readFile(join(result.directory, 'src/i18n/locales/fr-FR.ts'), 'utf8')).toContain('defineLocaleLike');
     expect(await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8')).toContain(
-      'locales: [enUS, frFR] as const',
+      'const locales = [enUS, frFR] as const;',
+    );
+    expect(await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8')).toContain(
+      'createI18nRuntime<typeof locales>({',
     );
     expect(await readFile(join(result.directory, '.github/workflows/ci.yml'), 'utf8')).toContain('npm run i18n:check');
   });

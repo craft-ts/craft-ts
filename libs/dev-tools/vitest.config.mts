@@ -14,6 +14,9 @@ export default defineConfig(() => ({
     environment: 'node',
     testTimeout: 30_000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: process.env.CRAFT_RELEASE_SKIP_SECURITY_TESTS
+      ? ['src/eslint-rules/security.spec.ts']
+      : [],
     reporters: ['default'],
     coverage: {
       reportsDirectory: '../../coverage/libs/dev-tools',

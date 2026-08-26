@@ -70,6 +70,7 @@ test('runs release tests only for projects affected since the release tag', () =
     '--target=test,e2e',
     '--base=v0.7.0-beta.11',
     '--head=HEAD',
+    '--exclude=docs',
     '--skipSync',
   ]);
   assert.throws(

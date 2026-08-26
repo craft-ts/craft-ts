@@ -84,12 +84,18 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 Before changing files, the command checks that all four workspaces are clean,
 on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
 the release tooling, runs the unit and E2E tests for projects affected since the
-latest release tag, builds every package in `releasePackages`, builds the
-frontend Effect demo, and builds the documentation. The other release gates
-remain deliberately complete.
+latest release tag, and completes the other release gates. The release
+package and documentation artifacts are built once, after confirmation, so the
+preview does not build the same artifacts twice. The production preflight keeps
+the application build, including `demo-effect`, as its validation build.
 
 The affected comparison base is the latest reachable `v*` Git tag. To override
 it deliberately, set `CRAFT_RELEASE_AFFECTED_BASE` to another commit or tag.
+
+Successful Nx test tasks are cached. If a later test fails and the code is
+corrected, rerunning the release reuses cached tasks whose inputs did not
+change; only affected projects and invalidated tasks run again. Do not use
+`--skip-nx-cache` or `npx nx reset` when you want this behavior.
 
 After showing the resolved version, it asks for confirmation and:
 
@@ -139,8 +145,9 @@ push all four repositories and create releases.
 
 ## Safe preview
 
-Run all preflight checks and builds without modifying, publishing, committing,
-or pushing anything. For the first `@craft-ts/*` publication, use the exact
+Run all preflight checks without modifying, publishing, committing, or pushing
+anything. Artifact builds happen only after confirmation, so `--dry-run` does
+not build packages or documentation. For the first `@craft-ts/*` publication, use the exact
 version because the new packages do not have npm history yet:
 
 ```bash

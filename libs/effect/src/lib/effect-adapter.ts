@@ -1,13 +1,16 @@
 import {
   asyncProcess as craftAsyncProcess,
   craftComputed,
+  craftMethod,
   mutation as craftMutation,
   query as craftQuery,
   type AsyncProcessOutput,
   type InsertionParams,
   type MutationOutput,
   type NamedCraftPrimitiveGen,
+  type Provider,
   type QueryOutput,
+  type YieldableMethod,
   type YieldableReactiveValue,
 } from '@craft-ts/core';
 import { Effect } from 'effect';
@@ -46,6 +49,28 @@ type EffectComputedFactory<Value, Error, Requirements> =
   | (() =>
       | Generator<unknown, Effect.Effect<Value, Error, Requirements>, unknown>
       | Effect.Effect<Value, Error, Requirements>);
+
+type EffectMethodNameConfig<Name extends string> =
+  | Name
+  | {
+      readonly name: Name;
+      readonly providers?: readonly Provider[];
+    };
+
+type EffectMethodResult<Value, Error, Requirements> =
+  | Effect.Effect<Value, Error, Requirements>
+  | Generator<unknown, Effect.Effect<Value, Error, Requirements>, unknown>;
+
+type EffectMethodFactory<
+  This,
+  Args extends unknown[],
+  Value,
+  Error,
+  Requirements,
+> = (
+  this: This,
+  ...args: Args
+) => EffectMethodResult<Value, Error, Requirements>;
 
 type EffectInsertionResult<Insertion> = Insertion extends (
   ...args: never[]
@@ -194,6 +219,93 @@ export function computedEffect(
       label: `computedEffect('${name}')`,
     });
   });
+}
+
+/**
+ * Adapts a synchronous Effect program to a callable `craftMethod`.
+ *
+ * This is the method counterpart of `computedEffect`: the factory receives the
+ * method arguments and returns an Effect, while the returned method exposes the
+ * resolved value immediately. The Effect must carry `SyncOp`; an Effect that
+ * can suspend belongs in `asyncProcessEffect`, `mutationEffect`, or
+ * `queryEffect` instead.
+ *
+ * The factory may itself be a Craft generator when it needs to read Craft
+ * dependencies before constructing the Effect.
+ *
+ * @example
+ * const formatPrice = methodEffect('formatPrice', (cents: number) =>
+ *   Effect.gen(function* () {
+ *     yield* SyncOp;
+ *     return `${(cents / 100).toFixed(2)} €`;
+ *   }),
+ * );
+ *
+ * formatPrice(1499); // '14.99 €'
+ */
+export function methodEffect<
+  Name extends string,
+  This,
+  Args extends unknown[],
+  Value,
+  Error,
+  Requirements,
+  Config extends EffectMethodNameConfig<Name> = Name,
+>(
+  name: Config,
+  factory: EffectMethodFactory<This, Args, Value, Error, Requirements> &
+    AssertDeclaredSync<Requirements>,
+): YieldableMethod<Args, Value>;
+export function methodEffect<
+  Name extends string,
+  This,
+  Args extends unknown[],
+  Value,
+  Error,
+  Requirements,
+  Config extends EffectMethodNameConfig<Name> = Name,
+>(
+  name: Config,
+  self: This,
+  factory: EffectMethodFactory<This, Args, Value, Error, Requirements> &
+    AssertDeclaredSync<Requirements>,
+): YieldableMethod<Args, Value>;
+export function methodEffect(
+  nameOrConfig: string | EffectMethodNameConfig<string>,
+  selfOrFactory: unknown,
+  maybeFactory?: unknown,
+): unknown {
+  const hasHost = typeof maybeFactory === 'function';
+  const factory = (
+    hasHost ? maybeFactory : selfOrFactory
+  ) as EffectMethodFactory<unknown, unknown[], unknown, unknown, unknown>;
+  const name =
+    typeof nameOrConfig === 'string' ? nameOrConfig : nameOrConfig.name;
+
+  const runFactory = function* (this: unknown, ...args: unknown[]) {
+    const produced = factory.apply(hasHost ? selfOrFactory : this, args);
+    const effect = Effect.isEffect(produced) ? produced : yield* produced;
+
+    if (!Effect.isEffect(effect)) {
+      throw new TypeError(
+        `methodEffect('${name}') factory must return an Effect.`,
+      );
+    }
+
+    return yield* syncEffect(effect as never, {
+      label: `methodEffect('${name}')`,
+    });
+  };
+
+  if (hasHost) {
+    return craftMethod(
+      nameOrConfig as never,
+      selfOrFactory,
+      runFactory as never,
+    );
+  }
+
+  return craftMethod(nameOrConfig as never, runFactory as never);
 }
 
 /**

@@ -28,7 +28,8 @@ boundary.
 | Toggle, draft, selection or other local UI value | `state`                          | Craft owns reactive UI state                                     |
 | Read data with an Effect loader                  | `queryEffect`                    | loading, caching, cancellation and exceptions are Craft concerns |
 | Derive a reactive value from a synchronous Effect | `computedEffect`                 | runs a `SyncOp` Effect in place — a value, not a resource        |
-| Run a synchronous Effect anywhere else            | `syncEffect`                     | `craftMethod`, a `params`, a `state` updater — the low-level door |
+| Expose a synchronous Effect as a callable method  | `methodEffect`                  | the Effect counterpart of `craftMethod`                         |
+| Run a synchronous Effect in a lower-level position | `syncEffect`                     | `params`, a `craftMethod`, a `state` updater                     |
 | Write data with an Effect loader                 | `mutationEffect`                 | explicit writes and mutation reactions                           |
 | Run an explicit command                          | `asyncProcessEffect`             | export, refresh, share action or other non-resource process      |
 | Provide Effect services                          | `provideLayer`                   | app and route injectors own Layer scope                          |
@@ -222,6 +223,27 @@ the loader owns the asynchronous Effect program.
 
 Use it for an operation with a lifecycle but without a query cache or mutation
 relationship.
+
+### `methodEffect`: synchronous callable methods
+
+Use `methodEffect` when a domain operation is a synchronous Effect and should be
+exposed as a callable method rather than as a resource:
+
+```typescript
+const formatPrice = methodEffect('formatPrice', (cents: number) =>
+  Effect.gen(function* () {
+    yield* SyncOp;
+    return `${(cents / 100).toFixed(2)} €`;
+  }),
+);
+
+formatPrice(1499); // '14.99 €'
+```
+
+It is the Effect-aware convenience form of `craftMethod`. The `SyncOp`
+requirement is mandatory because the method returns immediately. For an Effect
+that can suspend, use `asyncProcessEffect`, `mutationEffect`, or
+`queryEffect`.
 
 ### `computedEffect`: a derived value, not a resource
 

@@ -9,7 +9,11 @@
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/tsconfig.spec.json"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": [
+      {
+        "env": "CRAFT_RELEASE_SKIP_SECURITY_TESTS"
+      }
+    ]
   },
   "plugins": [
     {
@@ -48,6 +52,9 @@
     }
   ],
   "targetDefaults": {
+    "test": {
+      "cache": true
+    },
     "@nx/eslint:lint": {
       "cache": true,
       "inputs": [

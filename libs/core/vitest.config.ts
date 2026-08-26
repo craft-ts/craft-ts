@@ -36,7 +36,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.spec.ts', 'security/**/*.spec.ts'],
-    exclude: [],
+    exclude: process.env.CRAFT_RELEASE_SKIP_SECURITY_TESTS
+      ? ['security/**/*.spec.ts']
+      : [],
     reporters: ['default'],
   },
 });

@@ -808,8 +808,10 @@ function i18nRuntimeTs(context: TemplateContext): string {
   return `import { createI18nRuntime } from '@craft-ts/i18n';
 ${localeImports}
 
-export const i18n = createI18nRuntime({
-  locales: [${localeValues}] as const,
+export const locales = [${localeValues}] as const;
+
+export const i18n = createI18nRuntime<typeof locales>({
+  locales,
   defaultLocale: '${context.defaultLocale}',
   strict: ${context.i18nStrict},
 });
@@ -835,8 +837,18 @@ export * from './runtime';
 export * from './typography';
 `;
 
-const effectI18nTs = `import { translateEffect } from '@craft-ts/i18n-effect';
-export { translateEffect };
+const effectI18nTs = `import { translateEffect as translateEffectRaw } from '@craft-ts/i18n-effect';
+import type { TranslationKey, TranslationParams } from '@craft-ts/i18n';
+import { locales } from './runtime';
+
+type AppLocales = typeof locales;
+
+export const translateEffect = <Key extends TranslationKey<AppLocales[number]>>(
+  key: Key,
+  ...params: keyof TranslationParams<AppLocales[number], Key & string> extends never
+    ? [params?: TranslationParams<AppLocales[number], Key & string>]
+    : [params: TranslationParams<AppLocales[number], Key & string>]
+) => translateEffectRaw<AppLocales, Key>(key, ...params);
 `;
 
 const effectLayerTs = `import { provideI18nRuntime } from '@craft-ts/i18n-effect';
@@ -1352,7 +1364,7 @@ export const getStarterMessage = createServerFunctionClient<typeof ServerGetStar
     'src/starter.fn-serveur.ts': fnServer,
     'src/starter.fn-client.ts': client,
     ...(effect && context.config.i18n.enabled
-      ? { 'src/server/i18n.ts': "import { provideI18nRuntime, translateEffect } from '@craft-ts/i18n-effect';\nimport { i18n } from '../i18n/runtime';\nexport const serverI18nLayer = provideI18nRuntime(i18n);\nexport { translateEffect };\n" }
+      ? { 'src/server/i18n.ts': "import { provideI18nRuntime } from '@craft-ts/i18n-effect';\nimport { i18n } from '../i18n/runtime';\nexport const serverI18nLayer = provideI18nRuntime(i18n);\nexport { translateEffect } from '../i18n/effect';\n" }
       : {}),
     ...(effect ? { 'src/starter.mw-serveur.ts': "import { Effect } from 'effect';\nimport { effectServerMiddleware } from '@craft-ts/effect';\nexport const starterMiddleware = effectServerMiddleware('starter.middleware', () => Effect.succeed({ value: undefined }));\n" } : {}),
     'vitest.server.config.ts': `import { defineConfig } from 'vitest/config';
@@ -1471,13 +1483,13 @@ function aboutPageTs(context: TemplateContext): string {
     : '';
   const card = designSystem ? "{ class: surface.card }, " : '';
   const translated = context.config.i18n.enabled && context.config.frontendRuntime === 'effect'
-    ? "p(function* () { return 'i18n: ' + (yield* translateEffect('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })); }),"
+    ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
     : context.config.i18n.enabled
     ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
     : "p('This page proves that Craft routing and lazy component loading are wired.'),";
-  const i18nImport = context.config.i18n.enabled && context.config.frontendRuntime !== 'effect'
+  const i18nImport = context.config.i18n.enabled
     ? "import { i18n } from '../i18n';\n"
-    : context.config.i18n.enabled ? "import { translateEffect } from '@craft-ts/i18n-effect';\n" : '';
+    : '';
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${surfaceImport}${i18nImport}
 
@@ -1507,11 +1519,11 @@ function servicesPageTs(context: TemplateContext): string {
     ? "import { i18n } from '../i18n';\n"
     : '';
   const effectI18n = context.config.frontendRuntime === 'effect' && context.config.i18n.enabled
-    ? "import { translateEffect } from '@craft-ts/i18n-effect';\n"
+    ? "import { i18n } from '../i18n';\n"
     : '';
   const body = context.config.frontendRuntime === 'effect'
     ? `p('Effect service: Context.Service + Layer + provideLayer are installed at app scope.'),
-      ${context.config.i18n.enabled ? "p(function* () { return 'i18n: ' + (yield* translateEffect('order.items', { count: 2 })); })," : "p('The service contract is isolated from the page.'),"}`
+      ${context.config.i18n.enabled ? "p('i18n: ' + i18n.t('order.items', { count: 2 }))," : "p('The service contract is isolated from the page.'),"}`
     : `p(function* () { return 'Plain service: ' + (yield* StarterService()).label; }),
       ${context.config.i18n.enabled ? "p('i18n: ' + i18n.t('order.items', { count: 2 }))," : "p('The service is resolved through Craft DI.'),"}`;
   const service = context.config.frontendRuntime === 'effect'
@@ -1661,10 +1673,10 @@ function effectHomePageTs(context: TemplateContext): string {
   const note = designSystem ? "{ class: surface.note }, " : '';
   const message = designSystem ? "{ class: surface.message, 'data-tone': 'danger' }, " : '';
   const i18nImports = context.config.i18n.enabled
-    ? "import { translateEffect } from '@craft-ts/i18n-effect';\n"
+    ? "import { i18n } from '../i18n';\n"
     : '';
   const summary = context.config.i18n.enabled
-    ? "p(function* () { return 'i18n: ' + (yield* translateEffect('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })); }),"
+    ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
     : "p('The page uses queryEffect over a typed repository Layer.'),";
   const effectLoader = context.config.backendRuntime === 'none'
     ? 'loadWelcome()'
@@ -1756,6 +1768,7 @@ import {
   installCraftEffectBridge,
   provideLayer,
 } from '@craft-ts/effect';
+${i18n ? "import { Layer } from 'effect';" : ''}
 import { App } from './app';
 import { appRoutes } from './app.routes';
 ${i18n ? "import { i18nLayer } from '../i18n/effect-layer';" : ''}
@@ -1763,7 +1776,7 @@ import {
   WelcomeRepositoryLive,
 } from './domain';
 
-const effectProviders = [provideLayer(WelcomeRepositoryLive)${i18n ? ', provideLayer(i18nLayer)' : ''}] as const;
+const effectProviders = provideLayer(${i18n ? 'Layer.mergeAll(WelcomeRepositoryLive, i18nLayer)' : 'WelcomeRepositoryLive'});
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
@@ -1773,13 +1786,13 @@ export const appConfig = craftAppConfig({
     provideCraftRootComponent(App),
     provideCraftRouter(appRoutes.toRoutes()),
 ${context.config.backendRuntime !== 'none' ? '    provideDefaultServerFunctionTransport(),\n' : ''}
-    ...effectProviders,
+    effectProviders,
     provideAppInitializer(() => installCraftEffectBridge()),
   ],
 });
 
-// effectProviders is a typed tuple: removing the Layer makes the app config
-// fail at the provider boundary before the application can boot.
+// Keep all application layers inside one provider: provideLayer replaces the
+// level when registered twice, so separate providers would drop one layer.
 `;
 }
 

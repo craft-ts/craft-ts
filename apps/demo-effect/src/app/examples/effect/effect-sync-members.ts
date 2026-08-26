@@ -10,12 +10,18 @@ import {
   strong,
 } from '@craft-ts/component';
 import { craftComputed, settled, state } from '@craft-ts/core';
-import { computedEffect, queryEffect, syncEffect } from '@craft-ts/effect';
+import {
+  computedEffect,
+  methodEffect,
+  queryEffect,
+  syncEffect,
+} from '@craft-ts/effect';
 import { Effect } from 'effect';
 import {
   cartTotalLabel,
   cartWeightGrams,
   quoteShipping,
+  CartPricing,
   type CartLine,
 } from './effect-pricing-domain';
 
@@ -60,6 +66,15 @@ const EffectSyncMembersComponent = craftComponent(
     `,
   },
   function* () {
+    // A direct synchronous method: the Effect service remains in the domain,
+    // while `methodEffect` makes the operation callable from Craft code.
+    const formatPrice = methodEffect('formatPrice', (cents: number) =>
+      Effect.gen(function* () {
+        const pricing = yield* CartPricing;
+        return yield* pricing.formatPrice(cents);
+      }),
+    );
+
     // Everything derived from the quantity alone lives in its insertion.
     const qty = yield* state('qty', 2, ({ state: read, update }) => {
       const lines = craftComputed('lines', function* () {
@@ -106,14 +121,22 @@ const EffectSyncMembersComponent = craftComponent(
       }),
     );
 
-    return { qty, shippingQuery };
+    const formattedPreview = yield* state(
+      'formattedPreview',
+      'Click the button to run methodEffect',
+      ({ set }) => ({
+        format: (cents: number) => set(formatPrice(cents)),
+      }),
+    );
+
+    return { formattedPreview, qty, shippingQuery };
   },
-  ({ qty, shippingQuery }) =>
+  ({ formattedPreview, qty, shippingQuery }) =>
     div([
       heading('Synchronous and asynchronous members of one Effect service'),
       p(
         { class: 'intro' },
-        'Both panels read the same CartPricing service. The total is declared SyncOp, so a craftComputed can run it and it updates on the same tick. The shipping quote suspends, so it stays in a loader.',
+        'The panels read the same CartPricing service. The total is declared SyncOp, so a craftComputed can run it and it updates on the same tick. The shipping quote suspends, so it stays in a loader.',
       ),
       div({ class: 'actions' }, [
         button(
@@ -129,6 +152,20 @@ const EffectSyncMembersComponent = craftComponent(
         ),
       ]),
       div({ class: 'panels' }, [
+        div({ class: 'panel' }, [
+          p({ class: 'panel-title' }, 'Callable method — synchronous Effect'),
+          p({ class: 'result' }, formattedPreview),
+          button(
+            'formatSamplePrice',
+            { type: 'button', click: () => formattedPreview.format(1_499) },
+            'Format 14,99 €',
+          ),
+          p({ class: 'hint' }, [
+            'The click calls ',
+            span({ class: 'mono' }, 'methodEffect'),
+            ', which runs the declared-synchronous Effect immediately.',
+          ]),
+        ]),
         div({ class: 'panel' }, [
           p({ class: 'panel-title' }, 'Cart total — synchronous'),
           p({ class: 'result' }, qty.totalLabel),

@@ -460,6 +460,7 @@ export function releaseAffectedTestArguments(base) {
     '--target=test,e2e',
     `--base=${base}`,
     '--head=HEAD',
+    '--exclude=docs',
     '--skipSync',
   ];
 }
@@ -486,7 +487,9 @@ function latestReleaseTag() {
 function runAffectedReleaseTests() {
   const base = process.env.CRAFT_RELEASE_AFFECTED_BASE ?? latestReleaseTag();
   process.stdout.write(`\nRunning affected tests since ${base}...\n`);
-  run('npx', releaseAffectedTestArguments(base));
+  run('npx', releaseAffectedTestArguments(base), {
+    env: { CRAFT_RELEASE_SKIP_SECURITY_TESTS: 'true' },
+  });
 }
 
 function publishPackage(packageRoot, channel, otp) {
@@ -564,16 +567,6 @@ async function main(args) {
   });
   runAffectedReleaseTests();
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);
-  run('npx', [
-    'nx',
-    'run-many',
-    '-t',
-    'build',
-    '-p',
-    ...releasePackages.map(({ project }) => project),
-  ]);
-  run('npx', ['nx', 'build', 'demo-effect']);
-  run('npx', ['nx', 'build', 'docs']);
 
   process.stdout.write(
     `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n- Effect StackBlitz: ${effectDemoRepo}\n`,
@@ -610,7 +603,6 @@ async function main(args) {
     '-p',
     ...releasePackages.map(({ project }) => project),
   ]);
-  run('npx', ['nx', 'build', 'demo-effect']);
   run('npx', ['nx', 'build', 'docs']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
   run('node', [

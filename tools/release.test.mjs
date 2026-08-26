@@ -193,6 +193,12 @@ test('local releases run affected unit and E2E suites', () => {
     releaseLocal,
     /runAffectedReleaseTests\(\);/,
   );
+  assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_SECURITY_TESTS/);
+  assert.match(releaseLocal, /'--exclude=docs'/);
+  assert.doesNotMatch(
+    releaseLocal,
+    /run\('npx', \['nx', 'build', 'demo-effect'\]\);/,
+  );
 });
 
 test('local releases pass the candidate version to generated starters', () => {
@@ -201,6 +207,17 @@ test('local releases pass the candidate version to generated starters', () => {
     'utf8',
   );
   assert.match(releaseLocal, /CRAFT_RELEASE_VERSION/);
+});
+
+test('release test targets keep successful tasks in the Nx cache', () => {
+  const nxJson = JSON.parse(
+    readFileSync(new URL('../nx.json', import.meta.url), 'utf8'),
+  );
+
+  assert.equal(nxJson.targetDefaults.test.cache, true);
+  assert.deepEqual(nxJson.namedInputs.sharedGlobals, [
+    { env: 'CRAFT_RELEASE_SKIP_SECURITY_TESTS' },
+  ]);
 });
 
 test('releases all public CraftTS packages as one fixed group', () => {

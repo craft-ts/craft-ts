@@ -42,6 +42,7 @@ export {
 export {
   asyncProcessEffect,
   computedEffect,
+  methodEffect,
   mutationEffect,
   queryEffect,
   type EffectLoader,
