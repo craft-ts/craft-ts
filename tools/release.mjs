@@ -126,6 +126,21 @@ export const releaseTrackedFiles = [
   ...releasePackages.map(({ sourceManifest }) => sourceManifest),
 ].sort();
 
+// VitePress writes these files while running the documentation checks/build.
+// The directory is ignored, but old checkouts may still contain tracked files
+// from before that ignore rule was added.
+export const releaseGeneratedPaths = ['apps/docs/.vitepress/cache'];
+
+export function filterReleaseChanges(paths) {
+  return paths.filter(
+    (path) =>
+      !releaseGeneratedPaths.some(
+        (generatedPath) =>
+          path === generatedPath || path.startsWith(`${generatedPath}/`),
+      ),
+  );
+}
+
 const unpublishedNpmPackPath =
   /(^|\/)tests(\/|$)|(?:^|\/)[^/]+\.(?:spec|test)\.(?:[cm]?[jt]sx?)$/;
 
@@ -352,14 +367,14 @@ function changedFiles(base, head) {
     .split('\n')
     .filter(Boolean);
 
-  if (base || head) return [...new Set(unstaged)].sort();
+  if (base || head) return filterReleaseChanges([...new Set(unstaged)]).sort();
 
   const staged = run('git', ['diff', '--cached', '--name-only'], {
     capture: true,
   })
     .split('\n')
     .filter(Boolean);
-  return [...new Set([...unstaged, ...staged])].sort();
+  return filterReleaseChanges([...new Set([...unstaged, ...staged])]).sort();
 }
 
 function assertChangedFiles(base, head, allowSubset = false) {

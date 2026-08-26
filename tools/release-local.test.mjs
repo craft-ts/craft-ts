@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -20,6 +21,7 @@ import {
   syncBuiltDocumentation,
   syncDemoWorkspace,
   syncEffectDemoWorkspace,
+  untrackGeneratedReleaseFiles,
 } from './release-local.mjs';
 
 function write(path, contents) {
@@ -134,6 +136,47 @@ test('explains how to synchronize a repository with its remote', () => {
   );
 });
 
+test('untracks generated release files without deleting their local copies', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-release-git-'));
+
+  try {
+    write(join(temporaryRoot, '.gitignore'), 'generated/\n');
+    write(join(temporaryRoot, 'generated/cache.json'), '{"local":true}\n');
+    execFileSync('git', ['init', '--quiet', temporaryRoot]);
+    execFileSync('git', ['-C', temporaryRoot, 'add', '--all', '--force']);
+    execFileSync('git', [
+      '-C',
+      temporaryRoot,
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.test',
+      'commit',
+      '--quiet',
+      '--message',
+      'initial',
+    ]);
+
+    assert.equal(
+      untrackGeneratedReleaseFiles(temporaryRoot, ['generated']),
+      true,
+    );
+    assert.equal(existsSync(join(temporaryRoot, 'generated/cache.json')), true);
+    assert.match(
+      execFileSync('git', ['-C', temporaryRoot, 'status', '--porcelain'], {
+        encoding: 'utf8',
+      }),
+      /D  generated\/cache\.json/,
+    );
+    assert.equal(
+      untrackGeneratedReleaseFiles(temporaryRoot, ['generated']),
+      false,
+    );
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test('mirrors the complete demo source and pins CraftTS dependencies', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-demo-sync-'));
   const source = join(temporaryRoot, 'source');
@@ -234,11 +277,7 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
     assert.equal(manifest.dependencies['@craft-ts/core'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ts/component'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ts/dev-tools'], '0.6.0');
-    for (const dependency of [
-      '@eslint/js',
-      'eslint',
-      'typescript-eslint',
-    ]) {
+    for (const dependency of ['@eslint/js', 'eslint', 'typescript-eslint']) {
       assert.equal(typeof manifest.devDependencies?.[dependency], 'string');
     }
     assert.equal(manifest.scripts.lint, 'eslint . --fix');
@@ -291,18 +330,9 @@ test('mirrors the frontend Effect demo and pins CraftTS plus Effect dependencies
     const manifest = JSON.parse(
       readFileSync(join(target, 'package.json'), 'utf8'),
     );
-    assert.equal(
-      manifest.dependencies['@craft-ts/core'],
-      '0.7.0-beta.11',
-    );
-    assert.equal(
-      manifest.dependencies['@craft-ts/component'],
-      '0.7.0-beta.11',
-    );
-    assert.equal(
-      manifest.dependencies['@craft-ts/effect'],
-      '0.7.0-beta.11',
-    );
+    assert.equal(manifest.dependencies['@craft-ts/core'], '0.7.0-beta.11');
+    assert.equal(manifest.dependencies['@craft-ts/component'], '0.7.0-beta.11');
+    assert.equal(manifest.dependencies['@craft-ts/effect'], '0.7.0-beta.11');
     assert.equal(manifest.dependencies.effect, '^4.0.0-rc.110');
     assert.equal(
       manifest.devDependencies['@craft-ts/dev-tools'],

@@ -7,6 +7,7 @@ import {
   bumpReleaseVersion,
   compareReleaseVersions,
   extractChangelogEntry,
+  filterReleaseChanges,
   parseReleaseVersion,
   releasePackages,
   releaseTrackedFiles,
@@ -156,14 +157,31 @@ test('release PRs are limited to manifests and changelog', () => {
   ]);
 });
 
+test('ignores generated VitePress cache changes during release validation', () => {
+  assert.deepEqual(
+    filterReleaseChanges([
+      'CHANGELOG.md',
+      'apps/docs/.vitepress/cache/deps/_metadata.json',
+      'libs/core/package.json',
+    ]),
+    ['CHANGELOG.md', 'libs/core/package.json'],
+  );
+});
+
 test('release checks run typechecking, lint, and architecture verification first', () => {
   const packageJson = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   );
 
-  assert.match(packageJson.scripts['release:check'], /npm run release:preflight/);
+  assert.match(
+    packageJson.scripts['release:check'],
+    /npm run release:preflight/,
+  );
   for (const target of ['typecheck', 'lint', 'architecture']) {
-    assert.match(packageJson.scripts['release:preflight'], new RegExp(`\\b${target}\\b`));
+    assert.match(
+      packageJson.scripts['release:preflight'],
+      new RegExp(`\\b${target}\\b`),
+    );
   }
 });
 
@@ -179,14 +197,26 @@ test('release preflight runs the generated starter gate', () => {
   const packageJson = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   );
-  assert.match(packageJson.scripts['release:preflight'], /generated-starters:release/);
+  assert.match(
+    packageJson.scripts['release:preflight'],
+    /generated-starters:release/,
+  );
   assert.match(
     packageJson.scripts['release:preflight'],
     /CRAFT_RELEASE_SKIP_GENERATED_STARTERS/,
   );
-  assert.match(packageJson.scripts['generated-starters:release'], /test-generated-starters.*--profile=release/);
-  assert.match(packageJson.scripts['generated-starters:static'], /test-generated-starters.*--profile=static/);
-  assert.match(packageJson.scripts['generated-starters:full'], /test-generated-starters.*--profile=full/);
+  assert.match(
+    packageJson.scripts['generated-starters:release'],
+    /test-generated-starters.*--profile=release/,
+  );
+  assert.match(
+    packageJson.scripts['generated-starters:static'],
+    /test-generated-starters.*--profile=static/,
+  );
+  assert.match(
+    packageJson.scripts['generated-starters:full'],
+    /test-generated-starters.*--profile=full/,
+  );
 });
 
 test('local releases run affected unit tests without E2E', () => {
@@ -195,10 +225,7 @@ test('local releases run affected unit tests without E2E', () => {
     'utf8',
   );
 
-  assert.match(
-    releaseLocal,
-    /runAffectedReleaseTests\(\);/,
-  );
+  assert.match(releaseLocal, /runAffectedReleaseTests\(\);/);
   assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_SECURITY_TESTS/);
   assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_GENERATED_STARTERS/);
   assert.match(releaseLocal, /CI: 'true'/);
@@ -284,7 +311,10 @@ test('npm packs must not include the internal DevTools tests', () => {
   );
 
   const manifest = JSON.parse(
-    readFileSync(new URL('../libs/dev-tools/package.json', import.meta.url), 'utf8'),
+    readFileSync(
+      new URL('../libs/dev-tools/package.json', import.meta.url),
+      'utf8',
+    ),
   );
   assert.equal(manifest.files.includes('!tests/**'), true);
   assert.equal(manifest.files.includes('!src/**/*.spec.ts'), true);

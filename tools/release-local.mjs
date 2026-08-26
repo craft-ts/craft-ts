@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import {
   extractChangelogEntry,
   parseReleaseVersion,
+  releaseGeneratedPaths,
   releasePackages,
 } from './release.mjs';
 
@@ -88,11 +89,7 @@ function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
 
   const workspaceManifest = readJson(join(workspaceRoot, 'package.json'));
   targetManifest.devDependencies ??= {};
-  for (const dependency of [
-    '@eslint/js',
-    'eslint',
-    'typescript-eslint',
-  ]) {
+  for (const dependency of ['@eslint/js', 'eslint', 'typescript-eslint']) {
     const version = workspaceManifest.devDependencies?.[dependency];
     if (!version) {
       throw new Error(`Missing workspace ESLint dependency: ${dependency}`);
@@ -400,6 +397,25 @@ function hasChanges(path) {
   );
 }
 
+export function untrackGeneratedReleaseFiles(
+  path,
+  generatedPaths = releaseGeneratedPaths,
+) {
+  const trackedFiles = git(path, ['ls-files', '-z', '--', ...generatedPaths], {
+    capture: true,
+  })
+    .split('\0')
+    .filter(Boolean);
+
+  if (trackedFiles.length === 0) return false;
+
+  // Keep the generated files on disk for local tooling, but stop Git from
+  // treating their changes as release input. The staged removals are included
+  // in the release commit by commitAll().
+  git(path, ['rm', '--cached', '--force', '--quiet', '--', ...trackedFiles]);
+  return true;
+}
+
 function commitAll(path, message) {
   if (!hasChanges(path)) return false;
   git(path, ['add', '--all']);
@@ -411,12 +427,7 @@ function gitTagExists(path, tag) {
   return Boolean(git(path, ['tag', '--list', tag], { capture: true }).trim());
 }
 
-async function askForConfirmation(
-  version,
-  docsRepo,
-  demoRepo,
-  effectDemoRepo,
-) {
+async function askForConfirmation(version, docsRepo, demoRepo, effectDemoRepo) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error('Use --yes when running release:local non-interactively.');
   }
@@ -509,9 +520,7 @@ function verifyPublishedArtifacts(version, manifestPath) {
         { capture: true },
       ),
     );
-    if (
-      releasePackages.every((pkg) => verification[pkg.key] === 'skip')
-    ) {
+    if (releasePackages.every((pkg) => verification[pkg.key] === 'skip')) {
       return;
     }
 
@@ -611,6 +620,7 @@ async function main(args) {
   ]);
   run('npx', ['nx', 'build', 'docs']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
+  untrackGeneratedReleaseFiles(workspaceRoot);
   run('node', [
     'tools/release.mjs',
     'assert-changes',
