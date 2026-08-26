@@ -26,7 +26,7 @@
     "build-local-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json --pretty false"
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json libs/style/tsconfig.lib.json libs/style-testing/tsconfig.lib.json --pretty false"
       },
       "cache": false
     },

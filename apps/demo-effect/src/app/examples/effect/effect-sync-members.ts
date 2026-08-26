@@ -21,7 +21,6 @@ import {
   cartTotalLabel,
   cartWeightGrams,
   quoteShipping,
-  CartPricing,
   type CartLine,
 } from './effect-pricing-domain';
 
@@ -31,7 +30,8 @@ const CATALOG: readonly Omit<CartLine, 'qty'>[] = [
 ];
 
 /**
- * Two members of the same Effect service, side by side.
+ * Synchronous and asynchronous members of the same Effect service, side by side,
+ * plus a callable method adapted from a domain-level Effect program.
  *
  * The total is computed by `craftComputed`, which runs on Craft's synchronous
  * driver: it updates on the very tick the button is clicked, with no loading
@@ -66,15 +66,6 @@ const EffectSyncMembersComponent = craftComponent(
     `,
   },
   function* () {
-    // A direct synchronous method: the Effect service remains in the domain,
-    // while `methodEffect` makes the operation callable from Craft code.
-    const formatPrice = methodEffect('formatPrice', (cents: number) =>
-      Effect.gen(function* () {
-        const pricing = yield* CartPricing;
-        return yield* pricing.formatPrice(cents);
-      }),
-    );
-
     // Everything derived from the quantity alone lives in its insertion.
     const qty = yield* state('qty', 2, ({ state: read, update }) => {
       const lines = craftComputed('lines', function* () {
@@ -121,17 +112,24 @@ const EffectSyncMembersComponent = craftComponent(
       }),
     );
 
+    // This is an imperative method triggered by a user action. Avoid this
+    // pattern for derived values; use `computedEffect` instead.
+    // ! it is imperative, avoid that kind of pattern
+    const formatCurrentCart = methodEffect('formatCurrentCart', function* () {
+      return cartTotalLabel(yield* qty.lines());
+    });
+
     const formattedPreview = yield* state(
       'formattedPreview',
-      'Click the button to run methodEffect',
+      'Click the button to format the current cart',
       ({ set }) => ({
-        format: (cents: number) => set(formatPrice(cents)),
+        setPreview: (value: string) => set(value),
       }),
     );
 
-    return { formattedPreview, qty, shippingQuery };
+    return { formattedPreview, formatCurrentCart, qty, shippingQuery };
   },
-  ({ formattedPreview, qty, shippingQuery }) =>
+  ({ formattedPreview, formatCurrentCart, qty, shippingQuery }) =>
     div([
       heading('Synchronous and asynchronous members of one Effect service'),
       p(
@@ -156,14 +154,19 @@ const EffectSyncMembersComponent = craftComponent(
           p({ class: 'panel-title' }, 'Callable method — synchronous Effect'),
           p({ class: 'result' }, formattedPreview),
           button(
-            'formatSamplePrice',
-            { type: 'button', click: () => formattedPreview.format(1_499) },
-            'Format 14,99 €',
+            'formatCurrentCart',
+            {
+              type: 'button',
+              click: function* () {
+                yield* formattedPreview.setPreview(yield* formatCurrentCart());
+              },
+            },
+            'Format current cart',
           ),
           p({ class: 'hint' }, [
             'The click calls ',
             span({ class: 'mono' }, 'methodEffect'),
-            ', which runs the declared-synchronous Effect immediately.',
+            ' to adapt the current cart total to a callable Craft method.',
           ]),
         ]),
         div({ class: 'panel' }, [

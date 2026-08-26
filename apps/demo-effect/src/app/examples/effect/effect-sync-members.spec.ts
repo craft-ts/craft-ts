@@ -70,9 +70,10 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
   it('runs methodEffect from an interactive action', () => {
     const { element, injector, mounted } = mount();
 
-    clickByName(element, 'formatSamplePrice');
+    clickByName(element, 'increaseQty');
+    clickByName(element, 'formatCurrentCart');
 
-    expect(element.textContent).toContain('14,99');
+    expect(element.textContent).toContain('117,45');
 
     mounted.destroy();
     injector.destroy();

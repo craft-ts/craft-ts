@@ -21,5 +21,10 @@
     "importHelpers": false
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"]
+  "exclude": ["src/**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../../libs/dev-tools"
+    }
+  ]
 }

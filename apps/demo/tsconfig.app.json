@@ -9,13 +9,25 @@
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
     {
+      "path": "../../libs/i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/style/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/component/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/dev-tools/tsconfig.lib.json"
+      "path": "../../libs/style-testing/tsconfig.lib.json"
     },
     {
       "path": "../../libs/core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/deploy/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/dev-tools/tsconfig.lib.json"
     }
   ]
 }
