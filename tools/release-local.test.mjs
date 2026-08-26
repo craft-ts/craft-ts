@@ -213,6 +213,14 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
       join(source, 'craft-eslint-rules.mjs'),
       'export const craftDemoRules = {};\n',
     );
+    write(
+      join(source, 'vite.config.standalone.ts'),
+      "export default { plugins: ['craft-style'] };\n",
+    );
+    write(
+      join(source, 'tsconfig.standalone.json'),
+      '{"compilerOptions":{"strict":true}}\n',
+    );
     write(join(target, 'src/app/examples/old.ts'), 'obsolete\n');
     write(join(target, 'public/old.txt'), 'obsolete\n');
     write(join(target, 'angular.json'), '{"preserved":true}\n');
@@ -248,6 +256,14 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
       readFileSync(join(target, 'craft-eslint-rules.mjs'), 'utf8'),
       'export const craftDemoRules = {};\n',
     );
+    assert.equal(
+      readFileSync(join(target, 'vite.config.ts'), 'utf8'),
+      "export default { plugins: ['craft-style'] };\n",
+    );
+    assert.equal(
+      readFileSync(join(target, 'tsconfig.json'), 'utf8'),
+      '{"compilerOptions":{"strict":true}}\n',
+    );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
       /\/\/ Log forwarding imports disabled for the target demo\./,
@@ -277,6 +293,9 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
     assert.equal(manifest.dependencies['@craft-ts/core'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ts/component'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ts/dev-tools'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/i18n'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ts/style'], '0.6.0');
+    assert.equal(manifest.devDependencies['@craft-ts/style-testing'], '0.6.0');
     for (const dependency of ['@eslint/js', 'eslint', 'typescript-eslint']) {
       assert.equal(typeof manifest.devDependencies?.[dependency], 'string');
     }

@@ -166,10 +166,32 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest);
   disableTargetLogForwarding(targetDemoRoot);
 
+  const standaloneViteConfig = join(
+    sourceDemoRoot,
+    'vite.config.standalone.ts',
+  );
+  if (!existsSync(standaloneViteConfig)) {
+    throw new Error(`Missing standalone demo Vite config: ${standaloneViteConfig}`);
+  }
+  cpSync(standaloneViteConfig, join(targetDemoRoot, 'vite.config.ts'));
+
+  const standaloneTsConfig = join(
+    sourceDemoRoot,
+    'tsconfig.standalone.json',
+  );
+  if (!existsSync(standaloneTsConfig)) {
+    throw new Error(`Missing standalone demo TypeScript config: ${standaloneTsConfig}`);
+  }
+  cpSync(standaloneTsConfig, join(targetDemoRoot, 'tsconfig.json'));
+
   targetManifest.dependencies ??= {};
   targetManifest.dependencies['@craft-ts/core'] = version;
   targetManifest.dependencies['@craft-ts/component'] = version;
   targetManifest.dependencies['@craft-ts/dev-tools'] = version;
+  targetManifest.dependencies['@craft-ts/i18n'] = version;
+  targetManifest.dependencies['@craft-ts/style'] = version;
+  targetManifest.devDependencies ??= {};
+  targetManifest.devDependencies['@craft-ts/style-testing'] = version;
   writeJson(targetManifestPath, targetManifest);
 
   removeDemoPackageLock(targetDemoRoot);
