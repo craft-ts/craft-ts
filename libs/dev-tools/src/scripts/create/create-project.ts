@@ -400,6 +400,7 @@ import { defineConfig, type ViteDevServer } from 'vite';
 ${typedCss ? styleImport : ''}
 
 const typecheckStatusPath = new URL('./.craft/typecheck-status.json', import.meta.url);
+const starterPort = Number(process.env.CRAFT_STARTER_PORT ?? 4173);
 
 function readTypecheckStatus(): { status: 'running' | 'passed' | 'failed' } {
   try {
@@ -448,7 +449,7 @@ ${hasServer ? '    serverFunctionsPlugin(),' : ''}
   ],
   server: {
     host: '127.0.0.1',
-    port: 4173,
+    port: starterPort,
     forwardConsole: true,
   },
 ${sourceAliasConfig}
@@ -1903,12 +1904,14 @@ for (const locale of locales) {
 
 const playwrightConfig = `import { defineConfig, devices } from '@playwright/test';
 
+const starterPort = Number(process.env.CRAFT_STARTER_PORT ?? 4173);
+
 export default defineConfig({
   testDir: './e2e',
-  use: { baseURL: 'http://127.0.0.1:4173', ...devices['Desktop Chrome'] },
+  use: { baseURL: 'http://127.0.0.1:' + starterPort, ...devices['Desktop Chrome'] },
   webServer: {
     command: 'npm run dev',
-    url: 'http://127.0.0.1:4173',
+    url: 'http://127.0.0.1:' + starterPort,
     reuseExistingServer: false,
   },
 });
@@ -2134,8 +2137,11 @@ function templates(context: TemplateContext): Record<string, string> {
         }
       : {}),
     ...localeFiles,
-    ...(effect && hasI18n
-      ? { 'src/i18n/effect.ts': effectI18nTs, 'src/i18n/effect-layer.ts': effectLayerTs }
+    ...(hasEffect && hasI18n
+      ? {
+          'src/i18n/effect.ts': effectI18nTs,
+          ...(effect ? { 'src/i18n/effect-layer.ts': effectLayerTs } : {}),
+        }
       : {}),
     'src/types.d.ts': '/// <reference types="vite/client" />\n' +
       (typedCss ? "\n// Served by the craftStyle plugin; it has no file on disk to resolve.\ndeclare module 'virtual:craft-style.css';\n" : ''),

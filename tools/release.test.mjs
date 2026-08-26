@@ -180,7 +180,9 @@ test('release preflight runs the generated starter gate', () => {
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   );
   assert.match(packageJson.scripts['release:preflight'], /generated-starters:release/);
-  assert.match(packageJson.scripts['generated-starters:release'], /test-generated-starters/);
+  assert.match(packageJson.scripts['generated-starters:release'], /test-generated-starters.*--profile=release/);
+  assert.match(packageJson.scripts['generated-starters:static'], /test-generated-starters.*--profile=static/);
+  assert.match(packageJson.scripts['generated-starters:full'], /test-generated-starters.*--profile=full/);
 });
 
 test('local releases run affected unit and E2E suites', () => {

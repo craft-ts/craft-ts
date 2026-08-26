@@ -276,6 +276,29 @@ describe('createCraftProject', () => {
     );
   });
 
+  it('shares Effect i18n helpers with an Effect backend and plain frontend', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-backend-effect-'));
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      frontendRuntime: 'plain',
+      backendRuntime: 'effect',
+      i18n: 'strict',
+    });
+
+    expect(result.frontendRuntime).toBe('plain');
+    expect(result.backendRuntime).toBe('effect');
+    expect(await readFile(join(result.directory, 'src/i18n/effect.ts'), 'utf8')).toContain(
+      'translateEffectRaw',
+    );
+    expect(await readFile(join(result.directory, 'src/server/i18n.ts'), 'utf8')).toContain(
+      "from '../i18n/effect'",
+    );
+    await expect(readFile(join(result.directory, 'src/i18n/effect-layer.ts'), 'utf8')).rejects.toThrow();
+  });
+
   it('generates explicit locale parity and strict i18n scripts', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-i18n-'));
     temporaryDirectories.push(root);

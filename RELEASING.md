@@ -92,6 +92,19 @@ the application build, including `demo-effect`, as its validation build.
 The affected comparison base is the latest reachable `v*` Git tag. To override
 it deliberately, set `CRAFT_RELEASE_AFFECTED_BASE` to another commit or tag.
 
+The generated-starter gate keeps all 48 runtime/template combinations in its
+matrix. A local release statically validates all 48 cells and runs the full
+install/typecheck/test/build/E2E suite for 13 representative cells: the six
+frontend/backend runtime pairs with the complete feature profile, plus the
+remaining seven feature combinations on the minimal plain starter. The full
+48-cell executable matrix runs in parallel in
+`.github/workflows/generated-starters.yml`.
+
+Use `npm run generated-starters:check` for the 13-cell executable smoke,
+`npm run generated-starters:static` for template-surface validation only, and
+`npm run generated-starters:full` for all 48 cells. Set
+`CRAFT_GENERATED_STARTER_CELL` to a one-based cell number to isolate one cell.
+
 Successful Nx test tasks are cached. If a later test fails and the code is
 corrected, rerunning the release reuses cached tasks whose inputs did not
 change; only affected projects and invalidated tasks run again. Do not use
