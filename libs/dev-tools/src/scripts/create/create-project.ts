@@ -2,7 +2,6 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -10,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { runArchitectureMigration } from '../architecture/migrate-architecture.js';
 
-export const CRAFT_TS_STARTER_VERSION = '^0.7.0-beta.13';
+export const CRAFT_TS_STARTER_VERSION = '^0.7.0-beta.15';
 export const EFFECT_V4_VERSION = '^4.0.0-rc.110';
 
 export type CreateAgent = 'codex' | 'cursor' | 'claude-code' | 'cloud-code';
@@ -19,7 +18,8 @@ export type CreateMode = 'effect' | 'plain';
 export type FrontendRuntime = 'plain' | 'effect';
 export type BackendRuntime = 'none' | 'promise' | 'effect';
 export type WorkspaceKind = 'standalone' | 'nx';
-export type ReferenceMode = 'context' | 'local' | 'source';
+/** Cloned repositories provide agent context; application dependencies stay on npm. */
+export type ReferenceMode = 'context';
 
 export type StarterConfig = {
   /** Legacy input only. Templates use the explicit runtime axes. */
@@ -172,6 +172,27 @@ Do not silently replace Effect v4 APIs with v3 examples. Confirm a symbol in
 the installed package before using it.
 `;
 
+function referenceAgentGuidance(config?: StarterConfig): string {
+  if (!config || (!config.references.craftTs && !config.references.effectTs))
+    return '';
+  const root = config.workspace.kind === 'nx' ? '../../.references' : '.references';
+  const entries = [
+    config.references.craftTs ? `- CraftTS source: \`${root}/craft-ts\`` : '',
+    config.references.effectTs ? `- EffectTS source: \`${root}/effect-ts\`` : '',
+  ].filter(Boolean);
+  return `
+## Local source references
+
+The following repositories are cloned for agent context only:
+${entries.join('\n')}
+Use them to inspect implementations, types, tests and examples when the
+installed package or project documentation is not enough. The application must
+always import CraftTS and EffectTS from the npm dependencies declared in
+\`package.json\`; do not add TypeScript, Vite or package \`file:\` aliases to
+these clones.
+`;
+}
+
 const AGENTS_MD = (
   mode: CreateMode,
   config?: StarterConfig,
@@ -191,7 +212,7 @@ never authorizes importing Effect into browser components.
 The architecture suite is a graph contract. Run \`npm run architecture\`;
 do not add a test per feature. Add a rule only for a recurring product-level
 dependency smell not already covered by the baseline helpers.
-`;
+${referenceAgentGuidance(config)}`;
 
 type TemplateContext = {
   readonly projectName: string;
@@ -214,17 +235,9 @@ function packageJson(context: TemplateContext): string {
   const hasI18n = context.config.i18n.enabled;
   const hasTypedCss = context.config.typedCss;
   const hasServer = context.config.backendRuntime !== 'none';
-  const localReferences = context.config.references.mode === 'local';
-  const sourceReferences = context.config.references.mode === 'source';
   const packageVersion = context.packageVersion ?? CRAFT_TS_STARTER_VERSION;
-  const craftPackage = (name: string): string =>
-    (localReferences || sourceReferences) && context.config.references.craftTs
-      ? `file:.references/craft-ts/${sourceReferences ? craftReferencePackagePath(name) : localCraftReferencePackagePath(name)}`
-      : packageVersion;
-  const effectPackage =
-    localReferences && context.config.references.effectTs
-      ? 'file:.references/effect-ts/packages/effect'
-      : EFFECT_V4_VERSION;
+  const craftPackage = (): string => packageVersion;
+  const effectPackage = EFFECT_V4_VERSION;
   return json({
     name: context.projectName,
     private: true,
@@ -272,38 +285,36 @@ function packageJson(context: TemplateContext): string {
       'typecheck-architecture': 'tsc -p tsconfig.architecture.json --noEmit',
     },
     dependencies: {
-      '@craft-ts/component': craftPackage('component'),
-      '@craft-ts/core': craftPackage('core'),
-      ...(hasI18n ? { '@craft-ts/i18n': craftPackage('i18n') } : {}),
-      ...(hasTypedCss ? { '@craft-ts/style': craftPackage('style') } : {}),
+      '@craft-ts/component': craftPackage(),
+      '@craft-ts/core': craftPackage(),
+      ...(hasI18n ? { '@craft-ts/i18n': craftPackage() } : {}),
+      ...(hasTypedCss ? { '@craft-ts/style': craftPackage() } : {}),
       ...(hasEffect && hasI18n
-        ? { '@craft-ts/i18n-effect': craftPackage('i18n-effect') }
+        ? { '@craft-ts/i18n-effect': craftPackage() }
         : {}),
       ...(hasEffect
-        ? { '@craft-ts/effect': craftPackage('effect'), effect: effectPackage }
+        ? { '@craft-ts/effect': craftPackage(), effect: effectPackage }
         : {}),
     },
     devDependencies: {
-      '@craft-ts/dev-tools': craftPackage('dev-tools'),
-      '@craft-ts/mcp': craftPackage('mcp'),
-      '@craft-ts/function-registry-mcp': craftPackage('function-registry-mcp'),
-      '@craft-ts/log-mcp': craftPackage('log-mcp'),
-      '@craft-ts/log-server': craftPackage('log-server'),
-      effect: effectPackage,
+      '@craft-ts/dev-tools': craftPackage(),
+      '@craft-ts/mcp': craftPackage(),
+      '@craft-ts/function-registry-mcp': craftPackage(),
+      '@craft-ts/log-mcp': craftPackage(),
+      '@craft-ts/log-server': craftPackage(),
+      ...(hasEffect ? { effect: effectPackage } : {}),
       ...(hasTypedCss
-        ? { '@craft-ts/style-testing': craftPackage('style-testing') }
+        ? { '@craft-ts/style-testing': craftPackage() }
         : {}),
       '@playwright/test': '^1.52.0',
       '@types/node': '^22.0.0',
+      'aria-query': '^5.3.2',
       jsdom: '^27.1.0',
       rxjs: '^7.8.0',
       tslib: '^2.3.0',
       ...(hasEffect
         ? {
-            '@effect/tsgo':
-              localReferences && context.config.references.effectTs
-                ? 'file:.references/effect-ts/packages/tsgo'
-                : '^0.24.3',
+            '@effect/tsgo': '^0.24.3',
             '@typescript/native': 'npm:typescript@7.0.2',
           }
         : {}),
@@ -319,79 +330,11 @@ function packageJson(context: TemplateContext): string {
   });
 }
 
-function craftReferencePackagePath(name: string): string {
-  if (
-    name === 'mcp' ||
-    name === 'function-registry-mcp' ||
-    name === 'log-mcp'
-  ) {
-    return `packages/${name}`;
-  }
-  if (name === 'log-server') return 'apps/log-server';
-  return `libs/${name}`;
-}
-
-export function localCraftReferencePackagePath(name: string): string {
-  if (
-    name === 'mcp' ||
-    name === 'function-registry-mcp' ||
-    name === 'log-mcp'
-  ) {
-    return `packages/${name}`;
-  }
-  if (name === 'log-server') return 'apps/log-server';
-  return `dist/libs/${name}`;
-}
-
-function sourceReferenceRoot(context: TemplateContext): string {
-  return context.config.workspace.kind === 'nx'
-    ? '../../.references/craft-ts'
-    : './.references/craft-ts';
-}
-
-function sourceReferenceAliases(
-  context: TemplateContext,
-): Record<string, string> {
-  const root = sourceReferenceRoot(context);
-  const aliases: Record<string, string> = {
-    '@craft-ts/core': `${root}/libs/core/src/index.ts`,
-    '@craft-ts/component': `${root}/libs/component/src/index.ts`,
-    '@craft-ts/i18n': `${root}/libs/i18n/src/index.ts`,
-    '@craft-ts/style': `${root}/libs/style/src/index.ts`,
-    '@craft-ts/style/vite': `${root}/libs/style/src/plugin/vite.ts`,
-    '@craft-ts/style-testing': `${root}/libs/style-testing/src/index.ts`,
-    '@craft-ts/dev-tools': `${root}/libs/dev-tools/src/index.ts`,
-  };
-  if (
-    context.config.frontendRuntime === 'effect' ||
-    context.config.backendRuntime === 'effect'
-  ) {
-    aliases['@craft-ts/effect'] = `${root}/libs/effect/src/index.ts`;
-  }
-  if (
-    context.config.i18n.enabled &&
-    (context.config.frontendRuntime === 'effect' ||
-      context.config.backendRuntime === 'effect')
-  ) {
-    aliases['@craft-ts/i18n-effect'] = `${root}/libs/i18n-effect/src/index.ts`;
-  }
-  return aliases;
-}
-
 function tsconfig(context: TemplateContext): string {
   const hasEffect =
     context.config.frontendRuntime === 'effect' ||
     context.config.backendRuntime === 'effect';
   const hasServer = context.config.backendRuntime !== 'none';
-  const sourceAliases =
-    context.config.references.mode === 'source' &&
-    context.config.references.craftTs
-      ? Object.fromEntries(
-          Object.entries(sourceReferenceAliases(context)).map(
-            ([name, path]) => [name, [path]],
-          ),
-        )
-      : undefined;
   return json({
     compilerOptions: {
       target: 'ES2022',
@@ -404,7 +347,6 @@ function tsconfig(context: TemplateContext): string {
       erasableSyntaxOnly: false,
       skipLibCheck: true,
       types: ['node'],
-      ...(sourceAliases ? { paths: sourceAliases } : {}),
     },
     references: [
       { path: './tsconfig.app.json' },
@@ -433,7 +375,34 @@ const tsconfigSpec = `{
 
 const tsconfigEffect = `{
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": true },
+  "compilerOptions": {
+    "noEmit": true,
+    "plugins": [{
+      "name": "@effect/language-service",
+      "diagnostics": true,
+      "diagnosticsName": true,
+      "overrides": [{
+        "include": ["src/**/*.ts"],
+        "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+        "options": {
+          "diagnosticSeverity": {
+            "floatingEffect": "error",
+            "missingEffectContext": "error",
+            "missingEffectError": "error",
+            "missingLayerContext": "error",
+            "missingReturnYieldStar": "error",
+            "missingStarInYieldEffectGen": "error",
+            "outdatedApi": "error",
+            "unsafeEffectTypeAssertion": "error",
+            "asyncFunction": "warning",
+            "newPromise": "warning",
+            "nodeBuiltinImport": "warning",
+            "preferSchemaOverJson": "warning"
+          }
+        }
+      }]
+    }]
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }\n`;
@@ -441,29 +410,8 @@ const tsconfigEffect = `{
 function viteConfig(context: TemplateContext): string {
   const typedCss = context.config.typedCss;
   const hasServer = context.config.backendRuntime !== 'none';
-  const sourceReferences =
-    context.config.references.mode === 'source' &&
-    context.config.references.craftTs;
-  const sourceRoot = sourceReferenceRoot(context);
-  const styleImport = sourceReferences
-    ? `import { craftStyle } from '${sourceRoot}/libs/style/src/plugin/vite.ts';`
-    : "import { craftStyle } from '@craft-ts/style/vite';";
-  const sourceAliasEntries = Object.entries(sourceReferenceAliases(context))
-    .map(
-      ([name, path]) =>
-        `    ${JSON.stringify(name)}: resolvePath(import.meta.dirname, ${JSON.stringify(path)})`,
-    )
-    .join(',\n');
-  const styleAliasEntries = sourceReferences
-    ? sourceAliasEntries
-    : `    '@craft-ts/style': resolvePath(import.meta.dirname, 'node_modules/@craft-ts/style/src/index.js')`;
-  const sourceAliasConfig = sourceReferences
-    ? `resolve: {
-    alias: {
-${sourceAliasEntries}
-    },
-  },`
-    : '';
+  const styleImport = "import { craftStyle } from '@craft-ts/style/vite';";
+  const styleAliasEntries = `    '@craft-ts/style': resolvePath(import.meta.dirname, 'node_modules/@craft-ts/style/src/index.js')`;
   const stylePlugin = typedCss
     ? `    craftStyle({ dumpPath: '.craft/style-graph.json', alias: {
 ${styleAliasEntries}
@@ -509,9 +457,17 @@ ${
   return {
     name: 'craft-starter-server-functions',
     async configureServer(server: ViteDevServer) {
-      const module = await server.ssrLoadModule('/src/server/server.ts') as typeof import('./src/server/server');
+      const module = await server.ssrLoadModule('/src/server/node-http.ts') as typeof import('./src/server/node-http');
       server.middlewares.use('/__server-functions', (request, response) => {
-        void module.handleRequest(request, response);
+        void module.handleRequest(request, response).catch((error: unknown) => {
+          if (response.headersSent) {
+            response.destroy();
+            return;
+          }
+          response.statusCode = 500;
+          response.end('Internal Server Error');
+          console.error(error);
+        });
       });
     },
   };
@@ -535,7 +491,6 @@ ${hasServer ? '    serverFunctionsPlugin(),' : ''}
     port: starterPort,
     forwardConsole: true,
   },
-${sourceAliasConfig}
   build: { target: 'es2022' },
 });
 `;
@@ -780,7 +735,8 @@ const styles = `:root {
 body { margin: 0; min-width: 320px; }
 a { color: #2457d6; }
 main { max-width: 860px; margin: 0 auto; padding: 3rem 1.25rem; }
-nav { display: flex; gap: 1rem; padding: 1rem 1.25rem; background: white; border-bottom: 1px solid #e3e7ef; }
+nav { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: white; border-bottom: 1px solid #e3e7ef; }
+.starter-experimental-badge { display: inline-flex; align-items: center; margin-left: auto; padding: .25rem .55rem; border: 1px solid #f0c36d; border-radius: 999px; color: #7a4b00; background: #fff8e6; font-size: .75rem; font-weight: 600; line-height: 1.2; white-space: nowrap; }
 button:focus-visible, a:focus-visible { outline: 3px solid #7aa2ff; outline-offset: 3px; }
 .heading { font-size: var(--craft-font-size-heading); line-height: var(--craft-line-height-heading); font-weight: 700; }
 body, .body { font-size: var(--craft-font-size-body); line-height: var(--craft-line-height-body); }
@@ -1216,6 +1172,7 @@ function appTs(context: TemplateContext): string {
   div,
   main,
   nav,
+  span,
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
 ${uiImport}
@@ -1230,6 +1187,7 @@ export const App = craftComponent(
         a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' })),
         a('services', {}, 'Services').pipe(CraftRouterLink({ to: 'services' })),
         a('about', {}, 'About').pipe(CraftRouterLink({ to: 'about' })),
+        span({ class: 'starter-experimental-badge' }, 'Experimental · feedback welcome'),
       ]),
       main(CraftRouterOutlet()),
     ${themeClose},
@@ -1252,6 +1210,14 @@ function routesTs(context: TemplateContext): string {
       }),
 `
       : '';
+  const backendEffectErrorHandler =
+    context.config.frontendRuntime === 'plain' &&
+    context.config.backendRuntime === 'effect'
+      ? `    StarterRepositoryError: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
+`
+      : '';
   return `import { loadCraftComponent } from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
@@ -1272,6 +1238,7 @@ export const { appRoutes } = craftRoutes('app', [
     ),
   }, {
 ${httpErrorHandler}
+${backendEffectErrorHandler}
 ${welcomeErrorHandler}  }),
   craftRoute('about', {
     ...loadCraftComponent(({ withRetry }) =>
@@ -1390,23 +1357,30 @@ function serverFiles(context: TemplateContext): Record<string, string> {
   if (context.config.backendRuntime === 'none') return {};
   const effect = context.config.backendRuntime === 'effect';
   const fnServer = effect
-    ? `import { serverFunction } from '@craft-ts/core';
+    ? `import { serverFunction, type ServerFunctionSuccess } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
 import { StarterRepository } from './server/repository';
+import { starterMiddleware } from './starter.mw-serveur';
 
 const inputSchema = Schema.toStandardSchemaV1(Schema.Struct({ filter: Schema.String }));
 const outputSchema = Schema.toStandardSchemaV1(Schema.Struct({ title: Schema.String, body: Schema.String }));
 
-export type StarterResponse = { readonly title: string; readonly body: string };
-
 export const getStarterMessage = serverFunction(
   'starter.welcome', inputSchema, { exposure: 'client', output: outputSchema },
-).handler(({ input }) => Effect.gen(function* () {
+).use(starterMiddleware).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StarterRepository;
   return yield* repository.welcome(input.filter);
-})).exposeErrors({});
+})).exposeErrors({
+  StarterRepositoryError: (errorPayload) => ({
+    code: 'STARTER_REPOSITORY_FAILURE',
+    status: 503,
+    payload: { filter: errorPayload.filter, message: errorPayload.message },
+  }),
+});
+
+export type StarterResponse = ServerFunctionSuccess<typeof getStarterMessage>;
 `
-    : `import { flatMapContext, mapContext, portableServerFunction } from '@craft-ts/core';
+    : `import { flatMapContext, mapContext, portableServerFunction, type SchemaOutput, type ServerFunctionSuccess } from '@craft-ts/core';
 import type { StandardSchemaV1 } from '@craft-ts/core';
 import { StarterRepository } from './server/repository';
 
@@ -1414,78 +1388,145 @@ type Input = { readonly filter: string };
 const inputSchema: StandardSchemaV1<Input, Input> = { '~standard': { version: 1, vendor: 'craft-starter', types: undefined,
   validate(value: unknown) { return typeof value === 'object' && value !== null && typeof (value as Input).filter === 'string'
     ? { value: value as Input } : { issues: [{ message: 'filter must be a string' }] }; } } };
-export type StarterResponse = { readonly title: string; readonly body: string };
+const outputSchema: StandardSchemaV1<{ readonly title: string; readonly body: string }, { readonly title: string; readonly body: string }> = { '~standard': { version: 1, vendor: 'craft-starter', types: undefined,
+  validate(value: unknown) { return typeof value === 'object' && value !== null && typeof (value as { title?: unknown }).title === 'string' && typeof (value as { body?: unknown }).body === 'string'
+    ? { value: value as { readonly title: string; readonly body: string } } : { issues: [{ message: 'welcome response must contain title and body' }] }; } } };
 
-export const getStarterMessage = portableServerFunction('starter.welcome', inputSchema, { exposure: 'client' })
+export const getStarterMessage = portableServerFunction('starter.welcome', inputSchema, { exposure: 'client', output: outputSchema })
   .pipe(
     mapContext(({ input }) => ({ normalizedFilter: input.filter.trim() })),
     flatMapContext(() => StarterRepository.welcome()),
   )
-  .handler(async ({ context }) => context.value)
+  .handler(async ({ context }) => context.value as SchemaOutput<typeof outputSchema>)
   .exposeErrors({});
+
+export type StarterResponse = ServerFunctionSuccess<typeof getStarterMessage>;
 `;
   const repository = effect
-    ? `import { Context, Effect, Layer } from 'effect';
+    ? `import { Context, Data, Effect, Layer } from 'effect';
 
 export type StarterRepositoryShape = {
-  readonly welcome: (filter: string) => Effect.Effect<{ readonly title: string; readonly body: string }>;
+  readonly welcome: (filter: string) => Effect.Effect<
+    { readonly title: string; readonly body: string },
+    StarterRepositoryError
+  >;
 };
 export class StarterRepository extends Context.Service<StarterRepository, StarterRepositoryShape>()('starter/StarterRepository') {}
+export class StarterRepositoryError extends Data.TaggedError('StarterRepositoryError')<{
+  readonly filter: string;
+  readonly message: string;
+}> {}
+
 export const StarterRepositoryLive = Layer.succeed(StarterRepository, {
-  welcome: (filter) => Effect.succeed({ title: 'Hello from the server', body: 'Effect server function: ' + filter }),
+  welcome: (filter) => Effect.tryPromise({
+    try: () => filter === 'error'
+      ? Promise.reject(new Error('The starter repository failed.'))
+      : Promise.resolve({ title: 'Hello from the server', body: 'Effect server function: ' + filter }),
+    catch: (cause) => new StarterRepositoryError({
+      filter,
+      message: cause instanceof Error ? cause.message : String(cause),
+    }),
+  }),
 });
 `
     : `export const StarterRepository = {
   welcome: async () => ({ value: { title: 'Hello from the server', body: 'Promise server function works.' } }),
 };
 `;
-  let server = '';
-  if (effect) {
-    server = `import { createServer } from '@craft-ts/core';
+  const application = effect
+    ? `import { createServer, type Server } from '@craft-ts/core';
 import { executeEffect } from '@craft-ts/effect';
+${context.config.i18n.enabled ? "import { Layer } from 'effect';\n" : ''}
 import { getStarterMessage } from '../starter.fn-serveur';
 import { StarterRepositoryLive } from './repository';
-import type { IncomingMessage, ServerResponse } from 'node:http';
+${context.config.i18n.enabled ? "import { serverI18nLayer } from './i18n';\n" : ''}
 
-export const application = createServer({ functions: [getStarterMessage], execute: executeEffect(StarterRepositoryLive).run });
-export const runtime = StarterRepositoryLive;
-export async function handleRequest(request: IncomingMessage, response: ServerResponse) {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  const host = typeof request.headers.host === 'string' ? request.headers.host : '127.0.0.1';
-  const webResponse = await application.handle(new Request('http://' + host + '/__server-functions', {
-    method: request.method,
-    headers: Object.entries(request.headers).flatMap(([name, value]) => value === undefined ? [] : [[name, Array.isArray(value) ? value.join(', ') : value]]),
-    body: request.method === 'GET' || request.method === 'HEAD' ? undefined : Buffer.concat(chunks),
-  }));
-  response.statusCode = webResponse.status;
-  webResponse.headers.forEach((value, name) => response.setHeader(name, value));
-  response.end(Buffer.from(await webResponse.arrayBuffer()));
+export const runtimeLayer = ${context.config.i18n.enabled ? 'Layer.mergeAll(StarterRepositoryLive, serverI18nLayer)' : 'StarterRepositoryLive'};
+
+export function createApplication(layer = runtimeLayer): Server {
+  return createServer({
+    functions: [getStarterMessage],
+    execute: executeEffect(layer).run,
+    runtimeOptions: {
+      maxBodyBytes: 1_000_000,
+      maxOutputBytes: 1_000_000,
+      timeoutMs: 10_000,
+    },
+  });
 }
-`;
-  }
 
-  if (!effect) {
-    server = `import { createServer } from '@craft-ts/core';
+export const application = createApplication();
+`
+    : `import { createServer, type Server } from '@craft-ts/core';
 import { getStarterMessage } from '../starter.fn-serveur';
+
+export function createApplication(): Server {
+  return createServer({
+    functions: [getStarterMessage],
+    runtimeOptions: {
+      maxBodyBytes: 1_000_000,
+      maxOutputBytes: 1_000_000,
+      timeoutMs: 10_000,
+    },
+  });
+}
+
+export const application = createApplication();
+`;
+
+  const nodeHttp = `/* eslint-disable craft-ts/no-async-await -- The Node adapter is an async platform boundary. */
+import { application } from './application';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-export const application = createServer({ functions: [getStarterMessage] });
-export async function handleRequest(request: IncomingMessage, response: ServerResponse) {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  const host = typeof request.headers.host === 'string' ? request.headers.host : '127.0.0.1';
-  const webResponse = await application.handle(new Request('http://' + host + '/__server-functions', {
-    method: request.method,
-    headers: Object.entries(request.headers).flatMap(([name, value]) => value === undefined ? [] : [[name, Array.isArray(value) ? value.join(', ') : value]]),
-    body: request.method === 'GET' || request.method === 'HEAD' ? undefined : Buffer.concat(chunks),
-  }));
+export async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const abortController = new AbortController();
+  const abort = () => abortController.abort();
+  const close = () => {
+    if (!request.complete) abort();
+  };
+  request.once('aborted', abort);
+  request.once('close', close);
+  try {
+    const webResponse = await application.handle(toWebRequest(request, abortController.signal));
+    await writeWebResponse(webResponse, response, request.method === 'HEAD');
+  } finally {
+    request.off('aborted', abort);
+    request.off('close', close);
+  }
+}
+
+function toWebRequest(request: IncomingMessage, signal: AbortSignal): Request {
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
+  }
+  const method = request.method ?? 'GET';
+  const hasBody = method !== 'GET' && method !== 'HEAD';
+  return new Request(
+    'http://' + (request.headers.host ?? '127.0.0.1') + (request.url ?? '/'),
+    {
+      method,
+      headers,
+      signal,
+      ...(hasBody ? { body: request as unknown as BodyInit, duplex: 'half' } : {}),
+    } as RequestInit,
+  );
+}
+
+async function writeWebResponse(
+  webResponse: Response,
+  response: ServerResponse,
+  head: boolean,
+): Promise<void> {
   response.statusCode = webResponse.status;
   webResponse.headers.forEach((value, name) => response.setHeader(name, value));
+  if (head || webResponse.body === null) {
+    response.end();
+    return;
+  }
   response.end(Buffer.from(await webResponse.arrayBuffer()));
 }
 `;
-  }
 
   const client = `import { createServerFunctionClient, craftUnique } from '@craft-ts/core';
 import type { getStarterMessage as ServerGetStarterMessage, StarterResponse } from './starter.fn-serveur';
@@ -1493,68 +1534,137 @@ import type { getStarterMessage as ServerGetStarterMessage, StarterResponse } fr
 export type { StarterResponse };
 export const getStarterMessage = createServerFunctionClient<typeof ServerGetStarterMessage>(craftUnique('starter.welcome'));
 `;
+  const compatibilityServer = `export { application, createApplication } from './application';
+${effect ? 'export { runtimeLayer } from \'./application\';\n' : ''}export { handleRequest } from './node-http';
+`;
   return {
     'src/server/repository.ts': repository,
-    'src/server/server.ts': server,
+    'src/server/application.ts': application,
+    'src/server/node-http.ts': nodeHttp,
+    'src/server/server.ts': compatibilityServer,
     'src/starter.fn-serveur.ts': fnServer,
     'src/starter.fn-client.ts': client,
     ...(effect && context.config.i18n.enabled
       ? {
           'src/server/i18n.ts':
-            "import { provideI18nRuntime } from '@craft-ts/i18n-effect';\nimport { i18n } from '../i18n/runtime';\nexport const serverI18nLayer = provideI18nRuntime(i18n);\nexport { translateEffect } from '../i18n/effect';\n",
+            "import { provideI18nRuntime } from '@craft-ts/i18n-effect';\nimport { i18n } from '../i18n/runtime';\n\nexport const serverI18nLayer = provideI18nRuntime(i18n);\n",
         }
       : {}),
     ...(effect
       ? {
           'src/starter.mw-serveur.ts':
-            "import { Effect } from 'effect';\nimport { effectServerMiddleware } from '@craft-ts/effect';\nexport const starterMiddleware = effectServerMiddleware('starter.middleware', () => Effect.succeed({ value: undefined }));\n",
+            "import { Effect } from 'effect';\nimport { effectServerMiddleware } from '@craft-ts/effect';\n\nexport const starterMiddleware = effectServerMiddleware('starter.middleware', () =>\n  Effect.gen(function* () {\n    yield* Effect.log('starter middleware executed');\n    return { value: undefined };\n  }),\n);\n",
         }
       : {}),
     'vitest.server.config.ts': `import { defineConfig } from 'vitest/config';
 export default defineConfig({ test: { name: 'craft-starter-server', globals: true, environment: 'node', include: ['src/server/**/*.spec.ts'] } });
 `,
-    'src/server/server.spec.ts': `import { describe, expect, it } from 'vitest';
-import { application } from './server';
-
-describe('server function registry', () => {
-  it('registers the starter function', () => expect(application).toBeDefined());
-});
-`,
+    'src/server/server.spec.ts': serverSpec(context),
   };
 }
 
-export const EFFECT_REFERENCE_PATHS = [
-  'apps/demo-effect',
-  'apps/quickstart-effect',
-  'apps/demo-with-server-function',
-  'apps/docs/learn-effect',
-  'apps/docs/tsconfig.learn-effect.json',
-  'apps/docs/tests/snippets/learn-effect',
-  'apps/docs/guide/advanced/effect.md',
-  'apps/docs/guide/i18n/effect.md',
-  'apps/docs/guide/reactivity/craft-effect.md',
-  'apps/docs/guide/testing/architecture/craft-effect-imperative-sync.md',
-  'apps/docs/guide/testing/architecture/craft-effect-network.md',
-  'apps/docs/resources/effect-adoption.md',
-  'apps/docs/resources/effect-compatibility.md',
-  'apps/docs/public/assets/effect-logo-black.png',
-  'apps/docs/public/assets/effect-craft-ts-hover.png',
-  'apps/docs/public/assets/effect-craft-mark-hover.png',
-  'libs/effect',
-  'libs/i18n-effect',
-  'packages/mcp/skills/craft-ts-effect-v4',
-  'tools/effect-diagnostics',
-  'tools/compile-learn-effect-examples.mjs',
-  'tools/run-effect-tsgo.mjs',
-  'tools/effect-typecost',
-];
+function serverSpec(context: TemplateContext): string {
+  const effectFailure = context.config.backendRuntime === 'effect'
+    ? `
+  it('exposes the typed Effect repository failure', async () => {
+    const response = await application.handle(new Request('http://127.0.0.1/__server-functions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 'starter.welcome', input: { filter: 'error' } }),
+    }));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { _tag: 'StarterRepositoryError', code: 'STARTER_REPOSITORY_FAILURE', filter: 'error' },
+    });
+  });
+`
+    : '';
+  return `import { createServer as createNodeServer } from 'node:http';
+import { describe, expect, it } from 'vitest';
+import { createServer, serverFunction, type StandardSchemaV1 } from '@craft-ts/core';
+import { application, handleRequest } from './server';
+
+const invalidInputSchema: StandardSchemaV1<unknown, unknown> = {
+  '~standard': { version: 1, vendor: 'craft-starter-test', types: undefined,
+    validate(value: unknown) { return { value }; } },
+};
+const invalidOutputSchema: StandardSchemaV1<{ readonly required: string }, { readonly required: string }> = {
+  '~standard': { version: 1, vendor: 'craft-starter-test', types: undefined,
+    validate(value: unknown) {
+      return typeof value === 'object' && value !== null && typeof (value as { required?: unknown }).required === 'string'
+        ? { value: value as { readonly required: string } }
+        : { issues: [{ message: 'required must be a string' }] };
+    } },
+};
+const invalidOutput = serverFunction(
+  'starter.invalid-output',
+  invalidInputSchema,
+  { exposure: 'server', output: invalidOutputSchema },
+).handler(() => ({ required: 123 })).exposeErrors({});
+
+describe('server function registry', () => {
+  it('invokes the starter function through the registry', async () => {
+    await expect(application.invoke('starter.welcome', { filter: 'Ada' })).resolves.toMatchObject({
+      title: 'Hello from the server',
+    });
+  });
+
+  it('rejects invalid input', async () => {
+    await expect(application.invoke('starter.welcome', { filter: 123 })).rejects.toThrow(
+      'CRAFT_SERVER_FUNCTION_INPUT_INVALID',
+    );
+  });
+
+  it('rejects invalid output', async () => {
+    const server = createServer({ functions: [invalidOutput] });
+    await expect(server.invoke('starter.invalid-output', undefined)).rejects.toThrow(
+      'CRAFT_SERVER_FUNCTION_OUTPUT_INVALID',
+    );
+  });
+${effectFailure}
+
+  it('serves a real HTTP request through the Node adapter', async () => {
+    const nodeServer = createNodeServer((request, response) => {
+      void handleRequest(request, response).catch((error: unknown) => {
+        if (!response.headersSent) response.statusCode = 500;
+        response.end('Internal Server Error');
+        throw error;
+      });
+    });
+    await new Promise<void>((resolve) => nodeServer.listen(0, '127.0.0.1', resolve));
+    const address = nodeServer.address();
+    if (!address || typeof address === 'string') throw new Error('Server did not start.');
+    try {
+      const response = await fetch('http://127.0.0.1:' + address.port + '/__server-functions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'starter.welcome', input: { filter: 'Ada' } }),
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({ title: 'Hello from the server' });
+    } finally {
+      await new Promise<void>((resolve, reject) => nodeServer.close((error) => error ? reject(error) : resolve()));
+    }
+  });
+
+  it('rejects unsupported method and content type', async () => {
+    await expect(application.handle(new Request('http://127.0.0.1/__server-functions'))).resolves.toHaveProperty('status', 405);
+    await expect(application.handle(new Request('http://127.0.0.1/__server-functions', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: '{}',
+    }))).resolves.toHaveProperty('status', 415);
+  });
+});
+`;
+}
 
 function referenceFiles(context: TemplateContext): Record<string, string> {
   if (!context.config.references.craftTs && !context.config.references.effectTs)
     return {};
   const manifest: Record<string, unknown> = {
     schemaVersion: 1,
-    mode: context.config.references.mode,
+    mode: 'context',
     effectEnabled:
       context.config.frontendRuntime === 'effect' ||
       context.config.backendRuntime === 'effect',
@@ -1574,14 +1684,19 @@ function referenceFiles(context: TemplateContext): Record<string, string> {
       path: '.references/effect-ts',
     };
   const resolver =
-    "export function resolveReferencePath(root, name) { const manifest = resolveReferenceManifest(root); return manifest[name] ? resolve(root, manifest[name].path) : undefined; }\nexport function resolveReferenceManifest(root) { return JSON.parse(readFileSync(join(root, '.references/manifest.json'), 'utf8')); }\nimport { readFileSync } from 'node:fs'; import { join, resolve } from 'node:path';\n";
-  const updater = `import { execFileSync } from 'node:child_process'; import { readFileSync, rmSync, writeFileSync } from 'node:fs'; import { join, resolve } from 'node:path';
-const root = resolve(import.meta.dirname, '..'); const manifestPath = join(root, '.references/manifest.json'); const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-const effectReferencePaths = ${JSON.stringify(EFFECT_REFERENCE_PATHS)};
-function pruneEffectReference(referenceRoot) { for (const relativePath of effectReferencePaths) rmSync(join(referenceRoot, relativePath), { recursive: true, force: true }); }
-const craftProjects = ['craft-ts-core', 'craft-ts-component', 'dev-tools', 'mcp', 'craft-ts-i18n', 'craft-ts-i18n-effect', 'craft-ts-style', 'craft-ts-style-testing', ...(manifest.effectEnabled ? ['craft-ts-effect'] : [])].join(',');
-function buildReference(name, path) { if (name === 'craftTs' && manifest.mode === 'local') { execFileSync('npx', ['--no-install', 'nx', 'run-many', '--target=build', '--projects', craftProjects, '--skipSync', '--outputStyle=stream'], { cwd: path, stdio: 'inherit' }); for (const workspace of ['@craft-ts/log-server', '@craft-ts/log-mcp', '@craft-ts/function-registry-mcp']) execFileSync('npm', ['run', 'build', '--workspace', workspace], { cwd: path, stdio: 'inherit' }); } else if (name === 'effectTs' && (manifest.mode === 'local' || manifest.mode === 'source')) execFileSync('npm', ['run', 'build'], { cwd: path, stdio: 'inherit' }); }
-for (const [name, entry] of Object.entries(manifest).filter(([key, value]) => !['schemaVersion', 'mode', 'effectEnabled'].includes(key) && value && value.path)) { const path = resolve(root, entry.path); if (execFileSync('git', ['status', '--short'], { cwd: path, encoding: 'utf8' }).trim()) throw new Error('Modified reference: ' + path); execFileSync('git', ['fetch', '--depth', '1', 'origin', entry.requestedRef], { cwd: path, stdio: 'inherit' }); execFileSync('git', ['checkout', '--detach', 'FETCH_HEAD'], { cwd: path, stdio: 'inherit' }); if (manifest.mode === 'local' || (manifest.mode === 'source' && name === 'effectTs')) { execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: path, stdio: 'inherit' }); buildReference(name, path); } if (name === 'craftTs' && manifest.effectEnabled === false) pruneEffectReference(path); entry.resolvedSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path, encoding: 'utf8' }).trim(); }
+    "import { readFileSync } from 'node:fs'; import { join, resolve } from 'node:path';\nexport function resolveReferenceManifest(root) { return JSON.parse(readFileSync(join(root, '.references/manifest.json'), 'utf8')); }\nexport function resolveReferencePath(root, name) { const manifest = resolveReferenceManifest(root); return manifest[name] ? resolve(root, manifest[name].path) : undefined; }\n";
+  const updater = `import { execFileSync } from 'node:child_process'; import { existsSync, readFileSync, writeFileSync } from 'node:fs'; import { join, resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '..');
+const manifestPath = join(root, '.references/manifest.json');
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+for (const [name, entry] of Object.entries(manifest).filter(([key, value]) => !['schemaVersion', 'mode', 'effectEnabled'].includes(key) && value && value.path)) {
+  const path = resolve(root, entry.path);
+  if (!existsSync(join(path, '.git'))) throw new Error('Missing reference clone: ' + path);
+  if (execFileSync('git', ['status', '--short'], { cwd: path, encoding: 'utf8' }).trim()) throw new Error('Modified reference: ' + path);
+  execFileSync('git', ['fetch', '--depth', '1', 'origin', entry.requestedRef], { cwd: path, stdio: 'inherit' });
+  execFileSync('git', ['checkout', '--detach', 'FETCH_HEAD'], { cwd: path, stdio: 'inherit' });
+  entry.resolvedSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path, encoding: 'utf8' }).trim();
+}
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\\n');
 `;
   return {
@@ -1625,26 +1740,6 @@ function cloneReferenceIfRequested(root: string, config: StarterConfig): void {
         { cwd: root, stdio: 'inherit' },
       );
     }
-    if (
-      relativePath === '.references/craft-ts' &&
-      config.frontendRuntime !== 'effect' &&
-      config.backendRuntime !== 'effect'
-    ) {
-      pruneEffectReference(target);
-    }
-    if (
-      config.references.mode === 'local' ||
-      (config.references.mode === 'source' &&
-        relativePath === '.references/effect-ts')
-    ) {
-      execFileSync('npm', ['install', '--no-audit', '--no-fund'], {
-        cwd: target,
-        stdio: 'inherit',
-      });
-      for (const [command, args] of getReferenceBuildSteps(relativePath, config)) {
-        execFileSync(command, [...args], { cwd: target, stdio: 'inherit' });
-      }
-    }
   }
   const manifestPath = join(root, '.references', 'manifest.json');
   if (existsSync(manifestPath)) {
@@ -1666,62 +1761,6 @@ function cloneReferenceIfRequested(root: string, config: StarterConfig): void {
       'utf8',
     );
   }
-}
-
-export type ReferenceBuildStep = readonly [
-  command: string,
-  args: readonly string[],
-];
-
-/**
- * CraftTS has no root `build` script: its published packages are Nx targets,
- * while the MCP and log workspaces keep their own package build scripts.
- */
-export function getReferenceBuildSteps(
-  relativePath: string,
-  config: StarterConfig,
-): readonly ReferenceBuildStep[] {
-  if (relativePath === '.references/effect-ts') {
-    return [['npm', ['run', 'build']]];
-  }
-  if (relativePath !== '.references/craft-ts') return [];
-
-  const hasEffect =
-    config.frontendRuntime === 'effect' || config.backendRuntime === 'effect';
-  const projects = [
-    'craft-ts-core',
-    'craft-ts-component',
-    'dev-tools',
-    'mcp',
-    ...(config.i18n.enabled ? ['craft-ts-i18n'] : []),
-    ...(config.i18n.enabled && hasEffect ? ['craft-ts-i18n-effect'] : []),
-    ...(config.typedCss
-      ? ['craft-ts-style', 'craft-ts-style-testing']
-      : []),
-    ...(hasEffect ? ['craft-ts-effect'] : []),
-  ];
-
-  return [
-    [
-      'npx',
-      [
-        '--no-install',
-        'nx',
-        'run-many',
-        '--target=build',
-        '--projects',
-        projects.join(','),
-        '--skipSync',
-        '--outputStyle=stream',
-      ],
-    ],
-    ['npm', ['run', 'build', '--workspace', '@craft-ts/log-server']],
-    ['npm', ['run', 'build', '--workspace', '@craft-ts/log-mcp']],
-    [
-      'npm',
-      ['run', 'build', '--workspace', '@craft-ts/function-registry-mcp'],
-    ],
-  ];
 }
 
 function ensureGitignore(root: string): void {
@@ -1759,12 +1798,6 @@ function initialiseGitRepository(root: string): void {
     // The destination is not inside an existing Git worktree.
   }
   execFileSync('git', ['init', '--quiet'], { cwd: root, stdio: 'ignore' });
-}
-
-export function pruneEffectReference(root: string): void {
-  for (const relativePath of EFFECT_REFERENCE_PATHS) {
-    rmSync(join(root, relativePath), { recursive: true, force: true });
-  }
 }
 
 function aboutPageTs(context: TemplateContext): string {
@@ -2307,7 +2340,7 @@ function readme(context: TemplateContext): string {
       : []),
     ...(references
       ? [
-          `- local CraftTS/EffectTS references under \`${referencePath}/\`; run \`npm run update:references\` to refresh them.`,
+          `- cloned CraftTS/EffectTS source references for coding agents under \`${referencePath}/\`; run \`npm run update:references\` to refresh them.`,
         ]
       : []),
     '',
@@ -2361,7 +2394,8 @@ function readme(context: TemplateContext): string {
           '## References',
           '',
           `The \`${referencePath}/manifest.json\` file records the requested refs and resolved SHAs.`,
-          'The `context` mode keeps npm dependencies portable; `local` is reserved for build artifacts.',
+          'The cloned repositories are read-only context for coding agents; the application always uses the npm dependencies declared in package.json.',
+          'Do not add file: dependencies or TypeScript/Vite aliases to the clones.',
           'Run `npm run update:references` after reviewing local changes in a clone.',
         ]
       : []),
@@ -2397,7 +2431,7 @@ function agentFiles(
           '5. Keep visual',
         )
       : BASE_AGENT_SKILL;
-  const skill = `${baseSkill}${effectEnabled ? `\n${EFFECT_AGENT_SKILL}` : ''}`;
+  const skill = `${baseSkill}${effectEnabled ? `\n${EFFECT_AGENT_SKILL}` : ''}${referenceAgentGuidance(config)}`;
   if (agent === 'codex') {
     return {
       'AGENTS.md': AGENTS_MD(mode, config),
@@ -2486,7 +2520,7 @@ function templates(context: TemplateContext): Record<string, string> {
         }
       : {}),
     ...localeFiles,
-    ...(hasEffect && hasI18n
+    ...(effect && hasI18n
       ? {
           'src/i18n/effect.ts': effectI18nTs,
           ...(effect ? { 'src/i18n/effect-layer.ts': effectLayerTs } : {}),
@@ -2681,9 +2715,11 @@ export function normalizeCreateOptions(
   }
   if (
     options.referenceMode !== undefined &&
-    !['context', 'local', 'source'].includes(options.referenceMode)
+    options.referenceMode !== 'context'
   ) {
-    throw new Error(`Unknown reference mode "${options.referenceMode}".`);
+    throw new Error(
+      `Reference mode "${options.referenceMode}" is no longer supported; cloned references are context only and npm packages remain the runtime dependencies.`,
+    );
   }
   const craftTs =
     options.cloneCraftTs ?? (references === 'craft-ts' || references === 'all');
@@ -2693,12 +2729,6 @@ export function normalizeCreateOptions(
       'EffectTS references require an Effect frontend or backend runtime.',
     );
   }
-  if (options.referenceMode === 'local' && !craftTs && !effectTs) {
-    throw new Error(
-      '--reference-mode=local requires at least one cloned reference.',
-    );
-  }
-
   const directory = resolve(rootDir, options.directory);
   const workspaceKind =
     options.workspace ??
@@ -2720,7 +2750,7 @@ export function normalizeCreateOptions(
     references: {
       craftTs,
       effectTs,
-      mode: options.referenceMode ?? 'context',
+      mode: 'context',
       craftTsRef: options.craftTsRef ?? 'main',
       effectTsRef: options.effectTsRef ?? 'main',
     },

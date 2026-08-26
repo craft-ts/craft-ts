@@ -246,7 +246,6 @@ type CreateArgs = {
   typedCss?: boolean;
   workspace?: 'standalone' | 'nx';
   references?: 'none' | 'craft-ts' | 'all';
-  referenceMode?: 'context' | 'local' | 'source';
   craftTsRef?: string;
   effectTsRef?: string;
   cloneCraftTs?: boolean;
@@ -281,11 +280,6 @@ const CREATE_WORKSPACE_OPTIONS: readonly InteractiveOption<'standalone' | 'nx'>[
   { value: 'standalone', label: 'Standalone project' },
   { value: 'nx', label: 'Nx workspace' },
 ];
-const CREATE_REFERENCE_MODE_OPTIONS: readonly InteractiveOption<'context' | 'local' | 'source'>[] = [
-  { value: 'context', label: 'Context only (portable npm packages)' },
-  { value: 'local', label: 'Local build artifacts' },
-  { value: 'source', label: 'Direct source mapping' },
-];
 const CREATE_LOCALE_OPTIONS: readonly InteractiveOption<string>[] = [
   { value: 'en-US', label: 'English (United States)' },
   { value: 'fr-FR', label: 'Français (France)' },
@@ -303,7 +297,7 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
   const valueNames = new Set([
     'effect', 'frontend-runtime', 'backend-runtime', 'effect-scope', 'agents',
     'locales', 'default-locale', 'i18n', 'design-system', 'workspace',
-    'references', 'reference-mode', 'craft-ts-ref', 'effect-ts-ref',
+    'references', 'craft-ts-ref', 'effect-ts-ref',
   ]);
   const setValue = (name: string, value: string): void => {
     values.set(name, value);
@@ -364,7 +358,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
   result.designSystem = values.get('design-system') as CreateArgs['designSystem'];
   result.workspace = values.get('workspace') as CreateArgs['workspace'];
   result.references = values.get('references') as CreateArgs['references'];
-  result.referenceMode = values.get('reference-mode') as CreateArgs['referenceMode'];
   result.craftTsRef = values.get('craft-ts-ref');
   result.effectTsRef = values.get('effect-ts-ref');
   return result;
@@ -509,7 +502,6 @@ async function runCreate(argv: string[]): Promise<number> {
         : undefined
     );
     let references = parsed.references;
-    let referenceMode = parsed.referenceMode;
     let cloneCraftTs = parsed.cloneCraftTs;
     let cloneEffectTs = parsed.cloneEffectTs;
     const effectEnabled = frontendRuntime === 'effect'
@@ -531,18 +523,6 @@ async function runCreate(argv: string[]): Promise<number> {
           )) === 'yes'
         : false;
       references = cloneEffectTs ? 'all' : cloneCraftTs ? 'craft-ts' : 'none';
-    }
-    if (
-      interactive
-      && referenceMode === undefined
-      && ((references !== undefined && references !== 'none') || cloneCraftTs || cloneEffectTs)
-    ) {
-      referenceMode = await selectCreateOption(
-        readline,
-        CREATE_REFERENCE_MODE_OPTIONS,
-        'Reference mode (↑/↓ move, Enter confirm):',
-        'context',
-      );
     }
     let agents: readonly CreateAgent[];
     if (parsed.agents !== undefined) {
@@ -569,7 +549,6 @@ async function runCreate(argv: string[]): Promise<number> {
       typedCss,
       workspace,
       references,
-      referenceMode,
       craftTsRef: parsed.craftTsRef,
       effectTsRef: parsed.effectTsRef,
       cloneCraftTs,
@@ -669,7 +648,6 @@ Options:
   --typed-css / --no-typed-css
   --workspace <standalone|nx>
   --references <none|craft-ts|all>
-  --reference-mode <context|local|source>
   --craft-ts-ref <git-ref>     CraftTS reference tag/commit
   --effect-ts-ref <git-ref>    EffectTS reference tag/commit
   --clone-craft-ts / --no-clone-craft-ts

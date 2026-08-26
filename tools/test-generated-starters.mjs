@@ -206,7 +206,27 @@ function assertStaticStarter(cell, directory, name) {
   assertFile(directory, 'tsconfig.effect.json', hasEffect, name);
   assertFile(directory, 'tsconfig.server.json', hasServer, name);
   assertFile(directory, 'src/server/server.ts', hasServer, name);
+  assertFile(directory, 'src/server/application.ts', hasServer, name);
+  assertFile(directory, 'src/server/node-http.ts', hasServer, name);
   assertFile(directory, 'src/starter.fn-serveur.ts', hasServer, name);
+  assertFile(
+    directory,
+    'src/starter.mw-serveur.ts',
+    cell.backendRuntime === 'effect',
+    name,
+  );
+  assertFile(
+    directory,
+    'src/server/i18n.ts',
+    cell.backendRuntime === 'effect' && cell.i18n !== 'none',
+    name,
+  );
+  assertFile(
+    directory,
+    'src/i18n/effect.ts',
+    cell.frontendRuntime === 'effect' && cell.i18n !== 'none',
+    name,
+  );
   assertFile(
     directory,
     'src/app/domain.ts',

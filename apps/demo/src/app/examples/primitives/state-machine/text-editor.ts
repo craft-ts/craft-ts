@@ -12,9 +12,10 @@ import {
 } from '@craft-ts/component';
 import {
   craftComputed,
-  craftMethod,
   craftStateMachine,
   initStateMachine,
+  insertDeepYieldable,
+  insertStatePipe,
   on$,
   source$,
   state,
@@ -41,7 +42,7 @@ const TextEditorStateMachine = craftComponent(
             committedValue: '',
             value: '',
           },
-          ({ patch }) => ({
+          insertStatePipe(insertDeepYieldable(), ({ patch }) => ({
             change: (value: string) =>
               patch(() => ({
                 value,
@@ -56,7 +57,7 @@ const TextEditorStateMachine = craftComponent(
                 value: current.committedValue,
               })),
             ),
-          }),
+          })),
         );
 
         return { edit$, commit$, cancel$, text };
@@ -76,24 +77,18 @@ const TextEditorStateMachine = craftComponent(
         };
       },
 
-      function* (context) {
+      function* ({ text, cancel$, commit$, edit$ }) {
         return {
-          reading: { text: context.text },
-          editing: { text: context.text },
+          reading: {
+            text,
+            edit$,
+          },
+          editing: { text, commit$, cancel$ },
         };
       },
 
-      ({ context, currentStep }) => {
-        const { text, ..._context } = context;
-
+      ({ currentStep }) => {
         return {
-          value: craftComputed('value', function* () {
-            return (yield* text()).committedValue;
-          }),
-          committedValue: craftComputed('committedValue', function* () {
-            return (yield* text()).committedValue;
-          }),
-          change: text.change,
           readingClass: craftComputed('readingClass', function* () {
             return (yield* currentStep()) === 'reading'
               ? 'step step--active'
@@ -104,23 +99,13 @@ const TextEditorStateMachine = craftComponent(
               ? 'step step--active'
               : 'step';
           }),
-          edit: craftMethod('edit', function* () {
-            context.edit$.emit();
-          }),
-          commit: craftMethod('commit', function* () {
-            context.commit$.emit();
-          }),
-          cancel: craftMethod('cancel', function* () {
-            context.cancel$.emit();
-          }),
-          ..._context,
         };
       },
     );
 
     return { machine };
   },
-  ({ machine }) =>
+  ({ machine: { currentStepWithContext, editingClass, readingClass } }) =>
     section([
       heading('State machine — declarative text editor'),
       p(
@@ -129,32 +114,32 @@ const TextEditorStateMachine = craftComponent(
       ),
 
       div({ class: 'steps' }, [
-        span({ class: machine.readingClass }, 'reading'),
-        span({ class: machine.editingClass }, 'editing'),
+        span({ class: readingClass }, 'reading'),
+        span({ class: editingClass }, 'editing'),
       ]),
 
-      matchNode.exhaustive(machine.currentStep, {
-        reading: () =>
+      matchNode.exhaustive(currentStepWithContext, 'step', {
+        reading: (reading) =>
           div({ class: 'panel' }, [
-            p(['Committed value: ', machine.committedValue]),
-            p(['Current value: ', machine.value]),
+            p(['Committed value: ', reading.text.committedValue]),
+            p(['Current value: ', reading.text.value]),
             button(
               'text-edit',
               {
                 type: 'button',
-                click: machine.edit,
+                click: () => reading.edit$.emit(),
               },
               'Edit',
             ),
           ]),
-        editing: () =>
+        editing: (editing) =>
           div({ class: 'panel' }, [
             labelText('Value'),
             input('text-input', {
               type: 'text',
-              value: machine.value,
+              value: editing.text.value,
               input: function* (event) {
-                yield* machine.change(event.target.value);
+                yield* editing.text.change(event.target.value);
               },
             }),
             div({ class: 'actions' }, [
@@ -162,7 +147,7 @@ const TextEditorStateMachine = craftComponent(
                 'text-commit',
                 {
                   type: 'button',
-                  click: machine.commit,
+                  click: () => editing.commit$.emit(),
                 },
                 'Commit',
               ),
@@ -171,7 +156,7 @@ const TextEditorStateMachine = craftComponent(
                 {
                   type: 'button',
                   class: 'secondary',
-                  click: machine.cancel,
+                  click: () => editing.cancel$.emit(),
                 },
                 'Cancel',
               ),

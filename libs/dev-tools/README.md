@@ -26,15 +26,15 @@ npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none -
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --i18n=none --design-system=none --no-typed-css
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=effect --backend-runtime=effect --i18n=strict
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=plain --backend-runtime=effect
-npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --workspace=nx --references=craft-ts --reference-mode=context
-npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --references=craft-ts --reference-mode=source
+npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --workspace=nx --references=craft-ts
+npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --frontend-runtime=effect --references=all
 ```
 
 In a terminal, creation is interactive by default. The frontend and backend
 runtimes are selected independently, so `plain` frontend + `effect` backend is
 available for server functions. The prompts also cover i18n locales, the
-workspace, CraftTS/EffectTS source references, and their resolution
-mode. All closed configuration values use keyboard menus: `↑`/`↓` to move
+workspace, and optional CraftTS/EffectTS source references for agent context.
+All closed configuration values use keyboard menus: `↑`/`↓` to move
 and `Enter` to confirm; locales and agent integrations additionally use
 `Space` for multi-selection. Codex is selected by default. Pass
 `--yes` after `create` to disable all prompts, or pass
@@ -53,21 +53,17 @@ Canonical options include `--frontend-runtime=plain|effect`,
 `--backend-runtime=none|promise|effect`, `--effect-scope=none|frontend|backend|both`,
 `--i18n=strict|loose|none`, `--design-system=basic|none`,
 `--typed-css`/`--no-typed-css`, `--workspace=standalone|nx`, and
-`--references=none|craft-ts|all` with `--reference-mode=context|local|source`.
+`--references=none|craft-ts|all`.
 `--effect=v4|none`, `--locales` and `--default-locale` remain compatible aliases.
 `--json` includes the complete effective configuration.
 
 With references enabled, `.references/manifest.json` records the requested ref
-and resolved SHA. `context` keeps npm dependencies portable; `local` is for
-build artifacts from the checked-out references. `source` keeps the scoped
-`@craft-ts/...` imports but resolves them directly to the cloned CraftTS source
-through TypeScript paths and Vite aliases; the CraftTS clone itself does not
-get a `node_modules`. Refresh clones with
+and resolved SHA. The clones are read-only context for coding agents: they are
+not installed as application dependencies, and generated TypeScript/Vite
+configuration never points at them. The application uses the published npm
+packages declared in `package.json`. Refresh clones with
 `npm run update:references` (or the generated `update:craft-ts`/
 `update:effect-ts` scripts).
-
-`local` builds CraftTS with its Nx library targets and builds the MCP/log
-workspaces individually; CraftTS has no root `npm run build` script.
 
 The starter includes a routed page, a typed API call, flat-config ESLint, unit
 tests, a graph-wide `architecture/` suite, Playwright E2E tests, development

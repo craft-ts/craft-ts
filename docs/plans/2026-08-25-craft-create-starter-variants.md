@@ -93,7 +93,7 @@ type StarterConfig = {
   readonly references: {
     readonly craftTs: boolean;
     readonly effectTs: boolean;
-    readonly mode: 'context' | 'local';
+    readonly mode: 'context';
     readonly craftTsRef: string;
     readonly effectTsRef: string;
   };
@@ -137,8 +137,8 @@ Règles de validation :
 - `backendRuntime=effect` nécessite une surface server functions ;
 - `backendRuntime=effect` ne rend pas le frontend Effect obligatoire ;
 - `frontendRuntime=effect` ne rend pas le backend Effect obligatoire ;
-- `references.mode = 'local'` nécessite les clones correspondants et un build
-  local réussi avant de réécrire les dépendances ;
+- les références clonées servent uniquement de contexte pour les agents ; les
+  dépendances d’exécution restent toujours les paquets npm publiés ;
 - aucun fichier, script ou dépendance optionnelle ne doit rester dans une
   variante désactivée.
 
@@ -163,7 +163,6 @@ feature :
 --no-typed-css
 --workspace <standalone|nx>
 --references <none|craft-ts|all>
---reference-mode <context|local>
 --craft-ts-ref <git-ref>
 --effect-ts-ref <git-ref>
 --clone-craft-ts
@@ -271,11 +270,18 @@ Quand `backendRuntime` vaut `promise` ou `effect`, ajouter une surface minimale
 à la base :
 
 ```text
-src/server/server.ts
+src/server/application.ts
+src/server/node-http.ts
+src/server/server.ts          # compatibility exports
 src/server/repository.ts
 src/server/<name>.fn-serveur.ts
 src/<name>.fn-client.ts
 ```
+
+`application.ts` owns the CraftTS registry and the Effect runtime `Layer`;
+`node-http.ts` only adapts the Node stream to a Web `Request` and delegates body
+limits and cancellation to the registry. `server.ts` remains a small
+compatibility barrel for existing imports.
 
 Le frontend possède une page qui appelle la facade client et expose loading,
 success et erreur. Le serveur possède un test direct de la registry et un
@@ -404,36 +410,17 @@ sont pas acceptées par défaut : prévoir une liste d’hôtes autorisés ou un
 option explicite d’extension pour éviter qu’un template exécute un clone
 inattendu.
 
-### Mode `context` et mode `local`
+### Références locales pour les agents
 
-Le clone et la résolution des dépendances sont deux décisions distinctes :
+Le clone et la résolution des dépendances sont deux décisions distinctes. Les
+référentiels CraftTS et EffectTS sont clonés sous `.references/*` uniquement
+pour permettre aux agents de rechercher les implémentations, types, tests et
+exemples. Le starter utilise toujours les paquets npm publiés déclarés dans
+`package.json`.
 
-| Mode | Clone | Runtime du starter | Usage |
-|---|---|---|---|
-| `context` | oui | packages npm correspondant à la version du starter | contexte IA sans risque de divergence |
-| `local` | oui | packages construits depuis `.references/*` | développement local de CraftTS/EffectTS |
-
-Le mode `context` est recommandé par défaut. Il ajoute dans les fichiers
-d’agents, le README et `.mcp.json` des liens relatifs vers les repositories
-locaux, sans créer de faux alias TypeScript.
-
-Le mode `local` ne doit pas écrire directement des `paths` vers des fichiers
-`.ts` non buildés. Il suit cette séquence déterministe :
-
-1. cloner ou mettre à jour la référence vers le SHA demandé ;
-2. installer ses dépendances dans le repository cloné ;
-3. construire les packages nécessaires avec les scripts natifs du repository
-   et Nx lorsque le repository en utilise un ;
-4. vérifier les manifests et les versions produites ;
-5. écrire des dépendances `file:` vers les artefacts locaux buildés, ou utiliser
-   un workspace de liens équivalent supporté par npm ;
-6. régénérer le lockfile du projet ;
-7. lancer le typecheck et le build du starter.
-
-La résolution locale doit être centralisée dans un script généré, et non
-répliquée dans `package.json`, `tsconfig` et `vite.config`. Si le build local
-ne produit pas un package compatible, le mode `local` s’arrête avec les
-versions, paths et commandes de diagnostic.
+La génération ne doit ni installer ni construire les clones, ni écrire de
+dépendances `file:`, ni ajouter d’alias TypeScript/Vite vers leurs sources. Les
+scripts `update:*` mettent uniquement à jour le checkout et le SHA du manifeste.
 
 ### Scripts de mise à jour
 
@@ -451,9 +438,7 @@ Ils appellent un seul orchestrateur généré, par exemple
 - lit `.references/manifest.json` ;
 - fait `fetch`, résout la ref et compare le SHA ;
 - met à jour uniquement le repository demandé ;
-- reconstruit les packages si `reference-mode=local` ;
-- réécrit les liens `file:` et le lockfile si nécessaire ;
-- exécute les vérifications adaptées au mode du projet.
+- ne modifie que le checkout et le SHA du manifeste ;
 
 Les scripts doivent être idempotents, fonctionner hors ligne si le SHA est
 déjà présent, et ne jamais faire de `git reset --hard` dans un dossier que
@@ -473,10 +458,8 @@ présents.
 
 Par défaut, ignorer le contenu volumineux de `.references` dans le Git du
 projet et conserver uniquement le manifeste. Le README doit expliquer comment
-reconstruire les clones avec `npm run update:references`. En mode `local`, le
-lockfile et le README doivent signaler que les dépendances `file:` nécessitent
-les clones présents ; le mode `context` reste le profil portable pour CI et
-pour les autres développeurs.
+reconstruire les clones avec `npm run update:references`; le lockfile et les
+paquets npm restent indépendants de la présence des clones.
 
 ## Intégration standalone et Nx
 
@@ -1129,12 +1112,12 @@ npx --package @craft-ts/dev-tools craft create my-app \
 
 # Starter avec contexte local CraftTS pour l’IA
 npx --package @craft-ts/dev-tools craft create my-app \
-  --references=craft-ts --reference-mode=context
+  --references=craft-ts
 
-# Starter Effect avec sources locales buildées
+# Starter Effect avec contexte local CraftTS + EffectTS pour l’IA
 npx --package @craft-ts/dev-tools craft create my-app \
   --frontend-runtime=effect --backend-runtime=effect \
-  --references=all --reference-mode=local
+  --references=all
 
 # Ajouter une application dans un workspace Nx existant
 npx --package @craft-ts/dev-tools craft create apps/my-app \
@@ -1161,8 +1144,8 @@ npx --package @craft-ts/dev-tools craft create my-app
   hors sheets typées.
 - Les références activées sont clonées entièrement dans `.references`, avec un
   SHA enregistré et des liens locaux utilisables par les agents.
-- Le mode `local` consomme uniquement des artefacts buildés et ses scripts
-  `update:*` sont idempotents et sûrs face aux changements locaux.
+- Les scripts `update:*` ne remplacent jamais les dépendances npm par les
+  clones et sont idempotents et sûrs face aux changements locaux.
 - Le mode Nx fonctionne dans un workspace neuf comme dans un workspace
   existant, sans Nx ou lockfile imbriqué.
 - `npm run release:preflight` exécute les tests de génération des starters.

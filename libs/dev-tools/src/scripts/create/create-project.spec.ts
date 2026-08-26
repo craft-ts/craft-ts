@@ -1,5 +1,4 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,11 +6,8 @@ import { realpathSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createCraftProject,
-  getReferenceBuildSteps,
-  localCraftReferencePackagePath,
   normalizeCreateOptions,
   parseCreateAgents,
-  pruneEffectReference,
 } from './create-project';
 
 const temporaryDirectories: string[] = [];
@@ -29,43 +25,6 @@ async function createFixture(mode: 'plain' | 'effect', agents = ['codex', 'curso
 }
 
 describe('createCraftProject', () => {
-  it('maps local package references to their actual build roots', () => {
-    expect(localCraftReferencePackagePath('core')).toBe('dist/libs/core');
-    expect(localCraftReferencePackagePath('mcp')).toBe('packages/mcp');
-    expect(localCraftReferencePackagePath('function-registry-mcp')).toBe(
-      'packages/function-registry-mcp',
-    );
-    expect(localCraftReferencePackagePath('log-server')).toBe('apps/log-server');
-  });
-
-  it('builds local CraftTS references through their Nx and workspace targets', () => {
-    const steps = getReferenceBuildSteps('.references/craft-ts', normalizeCreateOptions({
-      directory: 'starter',
-      frontendRuntime: 'plain',
-      backendRuntime: 'effect',
-      typedCss: true,
-    }));
-
-    expect(steps).toEqual([
-      [
-        'npx',
-        [
-          '--no-install',
-          'nx',
-          'run-many',
-          '--target=build',
-          '--projects',
-          'craft-ts-core,craft-ts-component,dev-tools,mcp,craft-ts-i18n,craft-ts-i18n-effect,craft-ts-style,craft-ts-style-testing,craft-ts-effect',
-          '--skipSync',
-          '--outputStyle=stream',
-        ],
-      ],
-      ['npm', ['run', 'build', '--workspace', '@craft-ts/log-server']],
-      ['npm', ['run', 'build', '--workspace', '@craft-ts/log-mcp']],
-      ['npm', ['run', 'build', '--workspace', '@craft-ts/function-registry-mcp']],
-    ]);
-  });
-
   it('normalizes legacy aliases and independent runtime axes', () => {
     expect(normalizeCreateOptions({ directory: 'starter', mode: 'effect' })).toMatchObject({
       frontendRuntime: 'effect',
@@ -83,8 +42,8 @@ describe('createCraftProject', () => {
       typedCss: false,
     })).toMatchObject({ frontendRuntime: 'plain', backendRuntime: 'effect' });
     expect(normalizeCreateOptions({
-      directory: 'starter', references: 'craft-ts', referenceMode: 'source', cloneCraftTs: false,
-    }).references.mode).toBe('source');
+      directory: 'starter', references: 'craft-ts', referenceMode: 'context', cloneCraftTs: false,
+    }).references.mode).toBe('context');
   });
 
   it('rejects contradictory locale and reference choices before writing', () => {
@@ -96,31 +55,7 @@ describe('createCraftProject', () => {
     );
   });
 
-  it('prunes Effect demos, learn content and packages from a plain Craft reference', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'craft-ts-reference-'));
-    temporaryDirectories.push(root);
-    await Promise.all([
-      mkdir(join(root, 'apps/demo-effect'), { recursive: true }),
-      mkdir(join(root, 'apps/demo-with-server-function'), { recursive: true }),
-      mkdir(join(root, 'apps/docs/learn-effect'), { recursive: true }),
-      mkdir(join(root, 'libs/effect'), { recursive: true }),
-      mkdir(join(root, 'libs/i18n-effect'), { recursive: true }),
-    ]);
-    await writeFile(join(root, 'apps/demo-effect/file.ts'), 'effect');
-    await writeFile(join(root, 'apps/docs/learn-effect/index.md'), 'effect');
-    await writeFile(join(root, 'libs/effect/package.json'), '{}');
-    await writeFile(join(root, 'libs/i18n-effect/package.json'), '{}');
-
-    pruneEffectReference(root);
-
-    expect(existsSync(join(root, 'apps/demo-effect'))).toBe(false);
-    expect(existsSync(join(root, 'apps/demo-with-server-function'))).toBe(false);
-    expect(existsSync(join(root, 'apps/docs/learn-effect'))).toBe(false);
-    expect(existsSync(join(root, 'libs/effect'))).toBe(false);
-    expect(existsSync(join(root, 'libs/i18n-effect'))).toBe(false);
-  });
-
-  it('keeps scoped imports while source-linking a cloned CraftTS reference', async () => {
+  it('keeps npm dependencies when a CraftTS source reference is cloned', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-source-links-'));
     temporaryDirectories.push(root);
     const clone = join(root, 'starter/.references/craft-ts');
@@ -132,31 +67,83 @@ describe('createCraftProject', () => {
     execFileSync('git', ['add', 'README.md'], { cwd: clone });
     execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: clone });
     const result = await createCraftProject({
-      directory: 'starter', rootDir: root, agents: [], references: 'craft-ts',
-      referenceMode: 'source', cloneCraftTs: true, i18n: 'none', typedCss: true, force: true,
+      directory: 'starter', rootDir: root, agents: ['codex'], references: 'craft-ts',
+      referenceMode: 'context', cloneCraftTs: true, i18n: 'none', typedCss: true, force: true,
     });
     const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>;
     };
-    expect(packageJson.dependencies['@craft-ts/core']).toBe('file:.references/craft-ts/libs/core');
-    expect(await readFile(join(result.directory, 'tsconfig.json'), 'utf8')).toContain(
-      '"@craft-ts/core": [\n        "./.references/craft-ts/libs/core/src/index.ts"',
+    expect(packageJson.dependencies['@craft-ts/core']).toBe('^0.7.0-beta.15');
+    expect(packageJson.dependencies['@craft-ts/core']).not.toContain('file:');
+    expect(await readFile(join(result.directory, 'tsconfig.json'), 'utf8')).not.toContain(
+      '.references/craft-ts',
     );
     const viteConfig = await readFile(join(result.directory, 'vite.config.ts'), 'utf8');
-    expect(viteConfig).toContain('./.references/craft-ts/libs/core/src/index.ts');
-    expect(viteConfig).toContain("from './.references/craft-ts/libs/style/src/plugin/vite.ts'");
+    expect(viteConfig).not.toContain('.references/craft-ts');
+    expect(viteConfig).toContain("from '@craft-ts/style/vite'");
     const referenceUpdater = await readFile(
       join(result.directory, 'scripts/update-references.mjs'),
       'utf8',
     );
-    expect(referenceUpdater).toContain("'npx', ['--no-install', 'nx', 'run-many'");
-    expect(referenceUpdater).toContain("'@craft-ts/function-registry-mcp'");
+    expect(referenceUpdater).toContain("'git', ['fetch'");
+    expect(referenceUpdater).not.toContain('npm install');
+    expect(referenceUpdater).not.toContain('pnpm');
+    expect(referenceUpdater).not.toContain('run build');
+    expect(await readFile(join(result.directory, 'AGENTS.md'), 'utf8')).toContain(
+      'agent context only',
+    );
     expect(await readFile(join(result.directory, 'src/app/app.ts'), 'utf8')).toContain(
       "from '@craft-ts/component'",
     );
     const app = await readFile(join(result.directory, 'src/app/app.ts'), 'utf8');
     expect(app).toContain("a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' }))");
+    expect(app).toContain(
+      "span({ class: 'starter-experimental-badge' }, 'Experimental · feedback welcome')",
+    );
     expect(app).not.toContain('craftRouterLink:');
+    expect(await readFile(join(result.directory, 'src/styles.css'), 'utf8')).toContain(
+      '.starter-experimental-badge',
+    );
+  });
+
+  it('keeps npm dependencies when both CraftTS and EffectTS references are cloned', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-both-references-'));
+    temporaryDirectories.push(root);
+    for (const name of ['craft-ts', 'effect-ts']) {
+      const clone = join(root, `starter/.references/${name}`);
+      await mkdir(clone, { recursive: true });
+      await writeFile(join(clone, 'README.md'), name);
+      execFileSync('git', ['init', '--quiet'], { cwd: clone });
+      execFileSync('git', ['config', 'user.email', 'fixture@example.test'], { cwd: clone });
+      execFileSync('git', ['config', 'user.name', 'fixture'], { cwd: clone });
+      execFileSync('git', ['add', 'README.md'], { cwd: clone });
+      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: clone });
+    }
+
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: ['codex'],
+      frontendRuntime: 'effect',
+      references: 'all',
+      cloneCraftTs: true,
+      cloneEffectTs: true,
+      i18n: 'none',
+      typedCss: false,
+      force: true,
+    });
+    const packageJson = JSON.parse(await readFile(join(result.directory, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+
+    expect(packageJson.dependencies.effect).toBe('^4.0.0-rc.110');
+    expect(packageJson.dependencies['@craft-ts/effect']).toBe('^0.7.0-beta.15');
+    expect(Object.values(packageJson.dependencies).every((value) => !value.startsWith('file:'))).toBe(true);
+    expect(await readFile(join(result.directory, 'tsconfig.json'), 'utf8')).not.toContain('.references/');
+    const agents = await readFile(join(result.directory, 'AGENTS.md'), 'utf8');
+    expect(agents).toContain('.references/craft-ts');
+    expect(agents).toContain('.references/effect-ts');
+    expect(agents).toContain('always import CraftTS and EffectTS from the npm dependencies');
   });
 
   it('omits disabled feature surfaces and returns the effective config', async () => {
@@ -229,6 +216,7 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeUndefined();
     expect(packageJson.dependencies.effect).toBeUndefined();
+    expect(packageJson.devDependencies.effect).toBeUndefined();
     expect(packageJson.devDependencies?.typescript).toBe('^6.0.3');
     expect(packageJson.scripts).toMatchObject({
       lint: 'eslint .',
@@ -346,6 +334,8 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['@craft-ts/effect']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeDefined();
+    expect(packageJson.devDependencies?.['@effect/tsgo']).toBe('^0.24.3');
+    expect(packageJson.devDependencies?.['aria-query']).toBe('^5.3.2');
     expect(packageJson.devDependencies?.typescript).toBe('^6.0.3');
     expect(await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8')).toContain('Layer.succeed');
     expect(await readFile(join(result.directory, 'src/app/app.config.ts'), 'utf8')).toContain(
@@ -381,15 +371,21 @@ describe('createCraftProject', () => {
 
     expect(result.frontendRuntime).toBe('plain');
     expect(result.backendRuntime).toBe('effect');
-    expect(await readFile(join(result.directory, 'src/server/server.ts'), 'utf8')).toContain('Effect');
+    expect(await readFile(join(result.directory, 'src/server/application.ts'), 'utf8')).toContain('executeEffect');
+    expect(await readFile(join(result.directory, 'src/server/application.ts'), 'utf8')).toContain('runtimeLayer');
+    expect(await readFile(join(result.directory, 'src/server/node-http.ts'), 'utf8')).toContain("body: request as unknown as BodyInit");
+    expect(await readFile(join(result.directory, 'src/server/server.ts'), 'utf8')).not.toContain('IncomingMessage');
+    expect(await readFile(join(result.directory, 'src/starter.fn-serveur.ts'), 'utf8')).toContain('ServerFunctionSuccess');
+    expect(await readFile(join(result.directory, 'src/starter.fn-serveur.ts'), 'utf8')).toContain('.use(starterMiddleware)');
     expect(await readFile(join(result.directory, 'src/app/app.ts'), 'utf8')).not.toMatch(
       /@craft-ts\/effect|from ['"]effect['"]|provideLayer|queryEffect/,
     );
-    expect(await readFile(join(result.directory, 'src/i18n/effect.ts'), 'utf8')).toContain(
-      'translateEffectRaw',
-    );
     expect(await readFile(join(result.directory, 'src/server/i18n.ts'), 'utf8')).toContain(
-      "from '../i18n/effect'",
+      "from '@craft-ts/i18n-effect'",
+    );
+    await expect(readFile(join(result.directory, 'src/i18n/effect.ts'), 'utf8')).rejects.toThrow();
+    expect(await readFile(join(result.directory, 'src/server/application.ts'), 'utf8')).toContain(
+      'Layer.mergeAll(StarterRepositoryLive, serverI18nLayer)',
     );
     await expect(readFile(join(result.directory, 'src/i18n/effect-layer.ts'), 'utf8')).rejects.toThrow();
   });
