@@ -168,9 +168,7 @@ const TaskRow = craftComponent(
           {
             type: 'button',
             disabled: machine.startDisabled,
-            click: function* () {
-              yield* machine.start();
-            },
+            click: machine.start,
           },
           'Start',
         ),
@@ -179,9 +177,7 @@ const TaskRow = craftComponent(
           {
             type: 'button',
             disabled: machine.finishDisabled,
-            click: function* () {
-              yield* machine.finish();
-            },
+            click: machine.finish,
           },
           'Finish',
         ),
@@ -191,9 +187,7 @@ const TaskRow = craftComponent(
             type: 'button',
             class: 'secondary',
             disabled: machine.reopenDisabled,
-            click: function* () {
-              yield* machine.reopen();
-            },
+            click: machine.reopen,
           },
           'Reopen',
         ),
@@ -206,9 +200,7 @@ const TaskRow = craftComponent(
             type: 'button',
             class: 'secondary',
             disabled: machine.backDisabled,
-            click: function* () {
-              yield* machine.back();
-            },
+            click: machine.back,
           },
           '← Back',
         ),
@@ -218,9 +210,7 @@ const TaskRow = craftComponent(
             type: 'button',
             class: 'secondary',
             disabled: machine.forwardDisabled,
-            click: function* () {
-              yield* machine.forward();
-            },
+            click: machine.forward,
           },
           'Forward →',
         ),

@@ -80,13 +80,12 @@ export const componentCompositionDemo = craftComponent(
       p(lastHandledException),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(function* () {
-            return yield* canReadRestrictedData.restriction();
-          }),
+          provideRestrictedData(canReadRestrictedData.restriction),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {
             yield* lastHandledException.showNoAccessText();
+            return;
           },
         }),
       )({}),

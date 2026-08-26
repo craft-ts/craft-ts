@@ -35,9 +35,9 @@ beforeEach(resetStyleRegistry);
 
 describe('a sheet without a condition has an empty contract', () => {
   it('produces no axis at all', () => {
-    const sheet = craftStyles('plain', { root: [display.block, p(space(4))] });
+    const _sheet = craftStyles('plain', { root: [display.block, p(space(4))] });
 
-    type Contract = VariantsOf<typeof sheet.root>;
+    type Contract = VariantsOf<typeof _sheet.root>;
     type _empty = Expect<Equal<Contract, Record<never, never>>>;
 
     expect(scenarios('plain-root')).toHaveLength(1);
@@ -47,7 +47,7 @@ describe('a sheet without a condition has an empty contract', () => {
 
 describe('the contract keeps only the points actually used', () => {
   it('ignores the breakpoints the sheet never crosses', () => {
-    const sheet = craftStyles('card', {
+    const _sheet = craftStyles('card', {
       root: [
         p(space(4)),
         when(bp.md, [px(space(6))]),
@@ -55,7 +55,7 @@ describe('the contract keeps only the points actually used', () => {
       ],
     });
 
-    type Contract = VariantsOf<typeof sheet.root>;
+    type Contract = VariantsOf<typeof _sheet.root>;
     // `bp` defines sm AND md; the sheet crosses md only. Unfolding every point
     // of the axis would double the number of captures for scenarios nobody
     // ever renders.

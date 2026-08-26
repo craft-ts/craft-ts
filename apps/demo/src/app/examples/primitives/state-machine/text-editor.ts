@@ -142,9 +142,7 @@ const TextEditorStateMachine = craftComponent(
               'text-edit',
               {
                 type: 'button',
-                click: function* () {
-                  yield* machine.edit();
-                },
+                click: machine.edit,
               },
               'Edit',
             ),
@@ -164,9 +162,7 @@ const TextEditorStateMachine = craftComponent(
                 'text-commit',
                 {
                   type: 'button',
-                  click: function* () {
-                    yield* machine.commit();
-                  },
+                  click: machine.commit,
                 },
                 'Commit',
               ),
@@ -175,9 +171,7 @@ const TextEditorStateMachine = craftComponent(
                 {
                   type: 'button',
                   class: 'secondary',
-                  click: function* () {
-                    yield* machine.cancel();
-                  },
+                  click: machine.cancel,
                 },
                 'Cancel',
               ),

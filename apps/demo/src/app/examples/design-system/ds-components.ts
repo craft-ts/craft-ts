@@ -106,8 +106,8 @@ export type DsAlert = typeof DsAlert;
 export const DsMeter = craftComponent(
   'DsMeter',
   {},
-  (value: Input<number>, label: Input<string>) => ({ value, label }),
-  ({ value, label }) =>
+  (value: Input<number>, caption: Input<string>) => ({ value, caption }),
+  ({ value, caption }) =>
     div({ class: meter.root }, [
       div(
         {
@@ -116,7 +116,7 @@ export const DsMeter = craftComponent(
           'aria-valuemin': 0,
           'aria-valuemax': 100,
           'aria-valuenow': value,
-          'aria-label': label,
+          'aria-label': caption,
         },
         [
           div({
@@ -128,7 +128,7 @@ export const DsMeter = craftComponent(
         ],
       ),
       span({ class: meter.label }, function* () {
-        return `${yield* label()} — ${yield* value()}%`;
+        return `${yield* caption()} — ${yield* value()}%`;
       }),
     ]),
 );

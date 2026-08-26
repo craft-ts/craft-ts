@@ -1738,11 +1738,15 @@ export function primitiveLoaderRequirementViolations(
     const label = primitiveDisplayName(primitive);
     if (allowed.has(label) || allowed.has(primitive.label)) return [];
 
-    const loaderEdges = graph.edges.filter(
-      (edge) =>
-        edge.from === primitive.id &&
-        edge.details?.['resourceRole'] === 'loader',
-    );
+    const loaderEdges = graph.edges.filter((edge) => {
+      if (edge.from !== primitive.id) return false;
+      const role = edge.details?.['resourceRole'];
+      return (
+        role === 'loader' ||
+        (primitive.details?.['primitive'] === 'computedEffect' &&
+          role === 'computed')
+      );
+    });
     const satisfied = loaderEdges.some((edge) => {
       const target = nodesById.get(edge.to);
       if (!target) return false;

@@ -299,9 +299,7 @@ const PlaygroundComponent = craftComponent(
         button('add',
           { type: 'button',
             disabled: pg.addTodo.isLoading,
-            *click() {
-              yield* add();
-            },
+            click: add,
           },
           ifNode(
             isAdding,

@@ -24,7 +24,6 @@
 import {
   craftComponent,
   div,
-  h2,
   p,
   section,
   span,
@@ -96,7 +95,7 @@ export const designSystemDemo = craftComponent(
 
         // ── tone ─────────────────────────────────────────────────────────
         div({ class: card.root }, [
-          h2({ class: card.title }, 'Tone is an axis, not a class name'),
+          heading({ class: card.title }, 'Tone is an axis, not a class name'),
           p(
             { class: card.body },
             'The buttons below share one class. What changes is the data-tone attribute — which is also what a visual test will drive.',
@@ -110,7 +109,7 @@ export const designSystemDemo = craftComponent(
                 label: constant(tone),
                 tone: constant(tone),
                 size: showcase.size,
-                press: () => showcase.pickTone(tone),
+                press: function* () { yield* showcase.pickTone(tone); },
               }),
             ),
           ),
@@ -123,7 +122,7 @@ export const designSystemDemo = craftComponent(
 
         // ── size ─────────────────────────────────────────────────────────
         div({ class: card.root }, [
-          h2({ class: card.title }, 'Density is a second axis'),
+          heading({ class: card.title }, 'Density is a second axis'),
           p(
             { class: card.body },
             'Size writes the padding variables the base rule already reads. Three rules, not three copies of the button.',
@@ -135,7 +134,7 @@ export const designSystemDemo = craftComponent(
                 label: constant(size),
                 tone: showcase.tone,
                 size: constant(size),
-                press: () => showcase.pickSize(size),
+                press: function* () { yield* showcase.pickSize(size); },
               }),
             ),
           ),
@@ -143,7 +142,7 @@ export const designSystemDemo = craftComponent(
 
         // ── alert ────────────────────────────────────────────────────────
         div({ class: card.root }, [
-          h2({ class: card.title }, 'One variable, five variants'),
+          heading({ class: card.title }, 'One variable, five variants'),
           p(
             { class: card.body },
             'The alert border reads --ds-alert-accent. Each tone writes it once; the rule that reads it is never repeated.',
@@ -158,13 +157,13 @@ export const designSystemDemo = craftComponent(
 
         // ── meter ────────────────────────────────────────────────────────
         div({ class: card.root }, [
-          h2({ class: card.title }, 'What moves at runtime is a variable'),
+          heading({ class: card.title }, 'What moves at runtime is a variable'),
           p({ class: card.body }, [
             'The fill width comes from a signal, so it cannot be a class. It goes through ',
             span('--ds-meter-value'),
             ', a registered percentage custom property.',
           ]),
-          DsMeter({ value: showcase.progress, label: constant('Upload') }),
+          DsMeter({ value: showcase.progress, caption: constant('Upload') }),
           div({ class: card.footer }, [
             DsGhostButton({
               label: constant('Advance'),

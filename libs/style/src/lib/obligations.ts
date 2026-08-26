@@ -18,8 +18,8 @@ import type { Declaration } from './props/factory.ts';
  * the sealing error can quote both. The core reads two opaque strings; every
  * word of CSS meaning in them is written here.
  */
-export interface Obligation<Id extends string, Explain extends string = string>
-  extends CraftRequirement<Id, Explain> {}
+export type Obligation<Id extends string, Explain extends string = string> =
+  CraftRequirement<Id, Explain>;
 
 export interface ObligationSpec<
   Id extends string,

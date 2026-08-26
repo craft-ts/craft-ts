@@ -43,10 +43,9 @@ const EffectSharedServiceComponent = craftComponent(
       },
       ({ resource }) => ({
         hasDecision: craftComputed('hasDecision', () => resource.hasValue()),
-        showUnknown: craftComputed(
-          'showUnknown',
-          () => !resource.isLoading() && !resource.hasValue(),
-        ),
+        showUnknown: craftComputed('showUnknown', function* () {
+          return !(yield* resource.isLoading()) && !resource.hasValue();
+        }),
         userName: craftComputed('userName', function* () {
           return (yield* resource.value())?.user.name ?? '…';
         }),

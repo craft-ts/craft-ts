@@ -20,6 +20,7 @@ export function loadArchitectureGraph() {
     tsConfigFilePath: 'apps/demo-with-server-function/tsconfig.graph.json',
     middlewareCapabilities: {
       'demo.request-audit': ['personal-data'],
+      'demo.effect-audit': ['personal-data'],
     },
   });
   writeFileSync(

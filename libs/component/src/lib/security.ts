@@ -108,7 +108,7 @@ function sanitizeUrl(
   const normalized = value.trim();
   // A protocol-relative URL inherits the current scheme and leaves the origin,
   // which is never what a template author means by "a link".
-  if (/^[\u0000-\u0020]*\/\//.test(normalized)) {
+  if (normalized.startsWith('//')) {
     throw new CraftDomSecurityError(
       'CRAFT_DOM_URL_BLOCKED',
       'Protocol-relative URLs are not allowed; use an absolute https URL.',

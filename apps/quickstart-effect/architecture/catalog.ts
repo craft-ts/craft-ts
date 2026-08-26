@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "37d3411dbf72e47b",
+  "graphHash": "473865d6f4924615",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -13,6 +13,7 @@ export const architectureCatalog = {
     "BrowserWindowService",
     "ConsoleService",
     "CookiesService",
+    "CraftLogServerUrl",
     "GlobalPersisterHandlerService",
     "HostName",
     "LocalStoragePersister",

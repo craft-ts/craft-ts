@@ -40,7 +40,7 @@ export const MyRouteLoadErrorScreen = craftComponent(
       p(() => message()),
       div({ class: 'actions' }, [
         button('retry', { type: 'button', click: () => void recovery.retry() }, 'Retry route load'),
-        button('reload', { type: 'button', click: function* () { yield* recovery.reload(); } }, 'Reload app'),
+        button('reload', { type: 'button', click: recovery.reload }, 'Reload app'),
       ]),
     ]);
   },

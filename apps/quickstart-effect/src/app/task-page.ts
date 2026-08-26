@@ -58,9 +58,7 @@ const QuickstartTaskPage = craftComponent(
       ifNode(taskQuery.hasTaskException, () =>
         p([
           'Business error: ',
-          span({ class: 'error' }, function* () {
-            return yield* taskQuery.exceptionTag();
-          }),
+          span({ class: 'error' }, taskQuery.exceptionTag),
         ]),
       ),
       button(

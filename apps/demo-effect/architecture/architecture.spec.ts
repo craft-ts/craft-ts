@@ -106,7 +106,7 @@ describe('architecture', () => {
       // `@craft-ts/i18n-effect` rather than by this application, so it can
       // never appear as a node of this app's graph. The route still proves the
       // requirement — through `EffectRequirementsCheckedDI` in app.routes.ts.
-      allow: ['effectFunctionQuery', 'profileQuery', 'receiptQuery'],
+      allow: ['effectFunctionQuery', 'profileQuery', 'receiptQuery', 'weightLabel'],
     });
   });
 

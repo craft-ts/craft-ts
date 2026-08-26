@@ -1,4 +1,3 @@
-import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
 import craftRules from '../../libs/dev-tools/src/eslint-rules/index.cjs';
 import { craftDemoRules } from '../demo/craft-eslint-rules.mjs';

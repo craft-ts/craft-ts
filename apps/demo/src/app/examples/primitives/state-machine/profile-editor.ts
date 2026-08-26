@@ -334,9 +334,7 @@ const ProfileEditorStateMachine = craftComponent(
                     'edit',
                     {
                       type: 'button',
-                      click: function* () {
-                        yield* machine.requestEdit();
-                      },
+                      click: machine.requestEdit,
                     },
                     'Edit',
                   ),
@@ -389,9 +387,7 @@ const ProfileEditorStateMachine = craftComponent(
                     'save',
                     {
                       type: 'button',
-                      click: function* () {
-                        yield* machine.requestSubmit();
-                      },
+                      click: machine.requestSubmit,
                     },
                     'Save',
                   ),
@@ -400,9 +396,7 @@ const ProfileEditorStateMachine = craftComponent(
                     {
                       type: 'button',
                       class: 'secondary',
-                      click: function* () {
-                        yield* machine.requestCancel();
-                      },
+                      click: machine.requestCancel,
                     },
                     'Cancel',
                   ),
@@ -419,9 +413,7 @@ const ProfileEditorStateMachine = craftComponent(
             type: 'button',
             class: 'secondary',
             disabled: machine.backDisabled,
-            click: function* () {
-              yield* machine.back();
-            },
+            click: machine.back,
           },
           '← Back',
         ),
@@ -431,9 +423,7 @@ const ProfileEditorStateMachine = craftComponent(
             type: 'button',
             class: 'secondary',
             disabled: machine.forwardDisabled,
-            click: function* () {
-              yield* machine.forward();
-            },
+            click: machine.forward,
           },
           'Forward →',
         ),
@@ -446,9 +436,7 @@ const ProfileEditorStateMachine = craftComponent(
           {
             type: 'button',
             class: 'secondary',
-            click: function* () {
-              yield* permissions.readOnly.toggle();
-            },
+            click: permissions.readOnly.toggle,
           },
           'Toggle read-only',
         ),

@@ -95,18 +95,14 @@ const GlobalQuery = craftComponent(
         button(
           'GoToPreviousUser',
           { type: 'button',
-            *click() {
-              yield* navigatePrevious();
-            },
+            click: navigatePrevious,
           },
           'Previous user',
         ),
         button(
           'GoToNextUser',
           { type: 'button',
-            *click() {
-              yield* navigateNext();
-            },
+            click: navigateNext,
           },
           'Next user',
         ),

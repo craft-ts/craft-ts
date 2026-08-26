@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- The generated-property conformance test reads its checked-in data fixture.
 import {
   EXCLUSIONS,
   EXPECTED_COVERED,
@@ -87,9 +88,9 @@ describe('no signature in the table takes a string', () => {
     // throw rather than demonstrate anything. The typecheck is the point.
     const _rejected = () => {
       // @ts-expect-error a typo is a missing property, not ignored CSS
-      generated.display.inlineFlexx;
+      void generated.display.inlineFlexx;
       // @ts-expect-error and a keyword is not something you pass in
-      generated.position('sticky');
+      void generated.position('sticky');
     };
     expect(_rejected).toBeTypeOf('function');
   });

@@ -255,9 +255,13 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/function-registry-mcp': craftPackage('function-registry-mcp'),
       '@craft-ts/log-mcp': craftPackage('log-mcp'),
       '@craft-ts/log-server': craftPackage('log-server'),
+      effect: effectPackage,
       ...(hasTypedCss ? { '@craft-ts/style-testing': craftPackage('style-testing') } : {}),
       '@playwright/test': '^1.52.0',
       '@types/node': '^22.0.0',
+      'jsdom': '^27.1.0',
+      'rxjs': '^7.8.0',
+      'tslib': '^2.3.0',
       ...(hasEffect
         ? {
             '@effect/tsgo': localReferences && context.config.references.effectTs
@@ -375,6 +379,9 @@ function viteConfig(context: TemplateContext): string {
   const sourceAliasEntries = Object.entries(sourceReferenceAliases(context))
     .map(([name, path]) => `    ${JSON.stringify(name)}: resolvePath(import.meta.dirname, ${JSON.stringify(path)})`)
     .join(',\n');
+  const styleAliasEntries = sourceReferences
+    ? sourceAliasEntries
+    : `    '@craft-ts/style': resolvePath(import.meta.dirname, 'node_modules/@craft-ts/style/src/index.js')`;
   const sourceAliasConfig = sourceReferences
     ? `resolve: {
     alias: {
@@ -383,9 +390,9 @@ ${sourceAliasEntries}
   },`
     : '';
   const stylePlugin = typedCss
-    ? `    craftStyle({ dumpPath: '.craft/style-graph.json'${sourceReferences ? `, alias: {
-${sourceAliasEntries}
-    }` : ''} }),`
+    ? `    craftStyle({ dumpPath: '.craft/style-graph.json', alias: {
+${styleAliasEntries}
+    } }),`
     : '';
   return `import { readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
@@ -1088,50 +1095,89 @@ export const App = craftComponent(
 `;
 }
 
-const routesTs = `import { loadCraftComponent } from '@craft-ts/component';
+function routesTs(context: TemplateContext): string {
+  const httpErrorHandler = context.config.frontendRuntime === 'plain'
+    ? `    HttpError: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
+`
+    : '';
+  const welcomeErrorHandler = context.config.frontendRuntime === 'effect'
+    ? `      ${context.config.backendRuntime === 'none' ? 'WelcomeApiError' : 'EffectFailure'}: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+`
+    : '';
+  return `import { loadCraftComponent } from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
+  craftExceptionHandler,
+  craftRoute,
   craftRoutes,
   type CanRun,
-  type CraftRouter,
-  type ValidateCascadeRoutesFile,
+  type ComponentDepsOf,
+  type RouteCheckedDI,
 } from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
-  {
-    path: '',
+  craftRoute('', {
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./home-page')).then(
         (module: typeof import('./home-page')) => module.default,
       ),
     ),
-  },
-  {
-    path: 'about',
+  }, {
+${httpErrorHandler}
+${welcomeErrorHandler}  }),
+  craftRoute('about', {
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./about-page')).then(
         (module: typeof import('./about-page')) => module.default,
       ),
     ),
-  },
-  {
-    path: 'services',
+  }, {
+    HttpError: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
+  }),
+  craftRoute('services', {
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./services-page')).then(
         (module: typeof import('./services-page')) => module.default,
       ),
     ),
-  },
+  }, {
+    HttpError: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
+  }),
 ]);
 
 assertExhaustiveRouteExceptions(appRoutes);
 
-type _CheckAppDI = ValidateCascadeRoutesFile<
+type _CheckHomePageDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./home-page'))['default']>,
+  'CraftRouter',
   never,
-  CraftRouter,
-  typeof appRoutes
+  'component: home-page'
 >;
-type _CanRunAppDI = CanRun<_CheckAppDI>;
+type _CanRunHomePage = CanRun<_CheckHomePageDI>;
+
+type _CheckAboutPageDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./about-page'))['default']>,
+  'CraftRouter',
+  never,
+  'component: about-page'
+>;
+type _CanRunAboutPage = CanRun<_CheckAboutPageDI>;
+
+type _CheckServicesPageDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./services-page'))['default']>,
+  'CraftRouter',
+  never,
+  'component: services-page'
+>;
+type _CanRunServicesPage = CanRun<_CheckServicesPageDI>;
 
 declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
@@ -1139,12 +1185,18 @@ declare module '@craft-ts/core' {
   }
 }
 `;
+}
 
-const appConfigTs = `import { provideCraftRootComponent } from '@craft-ts/component';
+function plainAppConfig(context: TemplateContext): string {
+  const serverTransport = context.config.backendRuntime !== 'none'
+    ? '  provideDefaultServerFunctionTransport(),\n'
+    : '';
+  return `import { provideCraftRootComponent } from '@craft-ts/component';
 import {
   craftAppConfig,
   provideCraftDevTools,
   provideCraftRouter,
+${context.config.backendRuntime !== 'none' ? '  provideDefaultServerFunctionTransport,\n' : ''}
 } from '@craft-ts/core';
 import { App } from './app';
 import { appRoutes } from './app.routes';
@@ -1157,14 +1209,15 @@ export const appConfig = craftAppConfig({
     ...developmentProviders,
     provideCraftRootComponent(App),
     provideCraftRouter(appRoutes.toRoutes()),
-  ],
+${serverTransport}  ],
 });
 `;
+}
 
 function apiTs(context: TemplateContext): string {
   if (context.config.backendRuntime !== 'none') {
-    return `import { getStarterMessage } from './starter.fn-client';
-export type { StarterResponse as WelcomeResponse } from './starter.fn-client';
+    return `import { getStarterMessage } from '../starter.fn-client';
+export type { StarterResponse as WelcomeResponse } from '../starter.fn-client';
 export function loadWelcome() {
   return getStarterMessage({ filter: 'starter' });
 }
@@ -1188,11 +1241,11 @@ export function* loadWelcome() {
 
 function serverFiles(context: TemplateContext): Record<string, string> {
   if (context.config.backendRuntime === 'none') return {};
-  const effect = context.config.backendRuntime === 'effect';
+const effect = context.config.backendRuntime === 'effect';
   const fnServer = effect
     ? `import { serverFunction } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
-import { StarterRepository } from './repository';
+import { StarterRepository } from './server/repository';
 
 const inputSchema = Schema.toStandardSchemaV1(Schema.Struct({ filter: Schema.String }));
 const outputSchema = Schema.toStandardSchemaV1(Schema.Struct({ title: Schema.String, body: Schema.String }));
@@ -1204,13 +1257,14 @@ export const getStarterMessage = serverFunction(
 ).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StarterRepository;
   return yield* repository.welcome(input.filter);
-}));
+})).exposeErrors({});
 `
     : `import { flatMapContext, mapContext, portableServerFunction } from '@craft-ts/core';
-import { StarterRepository } from './repository';
+import type { StandardSchemaV1 } from '@craft-ts/core';
+import { StarterRepository } from './server/repository';
 
 type Input = { readonly filter: string };
-const inputSchema = { '~standard': { version: 1, vendor: 'craft-starter', types: undefined,
+const inputSchema: StandardSchemaV1<Input, Input> = { '~standard': { version: 1, vendor: 'craft-starter', types: undefined,
   validate(value: unknown) { return typeof value === 'object' && value !== null && typeof (value as Input).filter === 'string'
     ? { value: value as Input } : { issues: [{ message: 'filter must be a string' }] }; } } };
 export type StarterResponse = { readonly title: string; readonly body: string };
@@ -1220,7 +1274,8 @@ export const getStarterMessage = portableServerFunction('starter.welcome', input
     mapContext(({ input }) => ({ normalizedFilter: input.filter.trim() })),
     flatMapContext(() => StarterRepository.welcome()),
   )
-  .handler(async ({ context }) => context.value);
+  .handler(async ({ context }) => context.value)
+  .exposeErrors({});
 `;
   const repository = effect
     ? `import { Context, Effect, Layer } from 'effect';
@@ -1250,7 +1305,8 @@ export const runtime = StarterRepositoryLive;
 export async function handleRequest(request: IncomingMessage, response: ServerResponse) {
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  const webResponse = await application.handle(new Request('http://127.0.0.1/__server-functions', {
+  const host = typeof request.headers.host === 'string' ? request.headers.host : '127.0.0.1';
+  const webResponse = await application.handle(new Request('http://' + host + '/__server-functions', {
     method: request.method,
     headers: Object.entries(request.headers).flatMap(([name, value]) => value === undefined ? [] : [[name, Array.isArray(value) ? value.join(', ') : value]]),
     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : Buffer.concat(chunks),
@@ -1271,7 +1327,8 @@ export const application = createServer({ functions: [getStarterMessage] });
 export async function handleRequest(request: IncomingMessage, response: ServerResponse) {
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
-  const webResponse = await application.handle(new Request('http://127.0.0.1/__server-functions', {
+  const host = typeof request.headers.host === 'string' ? request.headers.host : '127.0.0.1';
+  const webResponse = await application.handle(new Request('http://' + host + '/__server-functions', {
     method: request.method,
     headers: Object.entries(request.headers).flatMap(([name, value]) => value === undefined ? [] : [[name, Array.isArray(value) ? value.join(', ') : value]]),
     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : Buffer.concat(chunks),
@@ -1535,10 +1592,12 @@ export const HomePage = craftComponent(
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
-            return 'API title: ' + (yield* welcomeQuery.value()).title;
+            const welcome = yield* welcomeQuery.value();
+            return 'API title: ' + (welcome?.title ?? '');
           }),
           p(function* () {
-            return 'API body: ' + (yield* welcomeQuery.value()).body;
+            const welcome = yield* welcomeQuery.value();
+            return 'API body: ' + (welcome?.body ?? '');
           }),
         ]),
       ),
@@ -1610,6 +1669,7 @@ function effectHomePageTs(context: TemplateContext): string {
   const effectLoader = context.config.backendRuntime === 'none'
     ? 'loadWelcome()'
     : "Effect.tryPromise({ try: () => loadWelcome(), catch: (cause) => new Error(String(cause)) })";
+  const effectErrorTag = context.config.backendRuntime === 'none' ? 'WelcomeApiError' : 'EffectFailure';
   return `import {
   craftComponent,
   div,
@@ -1618,7 +1678,7 @@ function effectHomePageTs(context: TemplateContext): string {
   p,
   span,
 } from '@craft-ts/component';
-import { computedEffect, queryEffect } from '@craft-ts/effect';
+import { computedEffect, queryEffect, SyncOp } from '@craft-ts/effect';
 import { Effect } from 'effect';
 ${i18nImports}${surfaceImport}
 import { loadWelcome } from './api';
@@ -1633,9 +1693,16 @@ export const HomePage = craftComponent(
         loader: () => ${effectLoader},
       },
       ({ resource, exceptions }) => ({
-        hasWelcome: computedEffect('hasWelcome', () => Effect.succeed(resource.hasValue())),
+        hasWelcome: computedEffect('hasWelcome', () => Effect.gen(function* () {
+          yield* SyncOp;
+          return resource.hasValue();
+        })),
         errorMessage: computedEffect('errorMessage', function* () {
-          return Effect.succeed((yield* exceptions()).loader?.message ?? 'Unknown API error');
+          const loaderError = (yield* exceptions()).loader;
+          return Effect.flatMap(
+            SyncOp,
+            () => Effect.succeed(loaderError?.${effectErrorTag}?.message ?? 'Unknown API error'),
+          );
         }),
       }),
     );
@@ -1650,10 +1717,12 @@ export const HomePage = craftComponent(
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
-            return 'API title: ' + (yield* welcomeQuery.value()).title;
+            const welcome = yield* welcomeQuery.value();
+            return 'API title: ' + (welcome && 'title' in welcome ? welcome.title : '');
           }),
           p(function* () {
-            return 'API body: ' + (yield* welcomeQuery.value()).body;
+            const welcome = yield* welcomeQuery.value();
+            return 'API body: ' + (welcome && 'body' in welcome ? welcome.body : '');
           }),
         ]),
       ),
@@ -1673,7 +1742,6 @@ export default HomePage;
 `;
 }
 
-const plainAppConfig = appConfigTs;
 function effectAppConfig(context: TemplateContext): string {
   const i18n = context.config.i18n.enabled;
   return `import { provideCraftRootComponent } from '@craft-ts/component';
@@ -1682,6 +1750,7 @@ import {
   provideAppInitializer,
   provideCraftDevTools,
   provideCraftRouter,
+${context.config.backendRuntime !== 'none' ? '  provideDefaultServerFunctionTransport,\n' : ''}
 } from '@craft-ts/core';
 import {
   installCraftEffectBridge,
@@ -1703,6 +1772,7 @@ export const appConfig = craftAppConfig({
     ...developmentProviders,
     provideCraftRootComponent(App),
     provideCraftRouter(appRoutes.toRoutes()),
+${context.config.backendRuntime !== 'none' ? '    provideDefaultServerFunctionTransport(),\n' : ''}
     ...effectProviders,
     provideAppInitializer(() => installCraftEffectBridge()),
   ],
@@ -1715,12 +1785,18 @@ export const appConfig = craftAppConfig({
 
 function unitTestTs(context: TemplateContext): string {
   const effect = context.mode === 'effect';
+  const serverMock = context.config.backendRuntime !== 'none'
+    ? `vi.mock('../starter.fn-client', () => ({
+  getStarterMessage: vi.fn().mockResolvedValue({ title: 'Hello from the API', body: 'Server function works.' }),
+}));
+`
+    : '';
   return `// @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 ${effect ? "import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';\nimport { WelcomeRepositoryLive } from './domain';" : ''}
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HomePage } from './home-page';
+${serverMock}import { HomePage } from './home-page';
 
 describe('HomePage', () => {
   ${effect ? 'let disposeBridge: () => void;' : ''}
@@ -1754,9 +1830,12 @@ describe('HomePage', () => {
 `;
 }
 
-const e2eTestTs = `import { expect, test } from '@playwright/test';
-
-test.beforeEach(async ({ page }) => {
+function e2eTestTs(context: TemplateContext): string {
+  const hasServer = context.config.backendRuntime !== 'none';
+  const expectedTitle = hasServer ? 'Hello from the server' : 'Hello from the API';
+  const routeMock = hasServer
+    ? ''
+    : `test.beforeEach(async ({ page }) => {
   await page.route('**/api/welcome', async (route) =>
     route.fulfill({
       status: 200,
@@ -1765,17 +1844,22 @@ test.beforeEach(async ({ page }) => {
     }),
   );
 });
+`;
+  return `import { expect, test } from '@playwright/test';
+
+${routeMock}
 
 test('loads the API page and navigates to About', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Welcome to CraftTS/ })).toBeVisible();
-  await expect(page.getByText('Hello from the API')).toBeVisible();
+  await expect(page.getByText('${expectedTitle}')).toBeVisible();
   await page.getByRole('link', { name: 'Services' }).click();
   await expect(page.getByRole('heading', { name: 'Services' })).toBeVisible();
   await page.getByRole('link', { name: 'About' }).click();
   await expect(page.getByRole('heading', { name: 'About this starter' })).toBeVisible();
 });
 `;
+}
 
 function i18nE2eTestTs(context: TemplateContext): string {
   return `import { expect, test } from '@playwright/test';
@@ -1812,7 +1896,7 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
   },
 });
 `;
@@ -2043,16 +2127,16 @@ function templates(context: TemplateContext): Record<string, string> {
     'src/types.d.ts': '/// <reference types="vite/client" />\n' +
       (typedCss ? "\n// Served by the craftStyle plugin; it has no file on disk to resolve.\ndeclare module 'virtual:craft-style.css';\n" : ''),
     'src/app/app.ts': appTs(context),
-    'src/app/app.config.ts': effect ? effectAppConfig(context) : plainAppConfig,
-    'src/app/app.routes.ts': routesTs,
+    'src/app/app.config.ts': effect ? effectAppConfig(context) : plainAppConfig(context),
+    'src/app/app.routes.ts': routesTs(context),
     'src/app/api.ts': effect && !hasServer
-      ? "export { loadWelcome } from './domain';\nexport type { WelcomeResponse, HomePageError } from './domain';\n"
+      ? "export { loadWelcome } from './domain';\nexport type { WelcomeResponse } from './domain';\n"
       : apiTs(context),
     ...(effect ? { 'src/app/domain.ts': effectDomainTs, 'src/app/home-page.ts': effectHomePageTs(context) } : { 'src/app/home-page.ts': plainHomePageTs(context) }),
     'src/app/about-page.ts': aboutPageTs(context),
     'src/app/services-page.ts': servicesPageTs(context),
     'src/app/home-page.spec.ts': unitTestTs(context),
-    'e2e/starter.spec.ts': e2eTestTs,
+    'e2e/starter.spec.ts': e2eTestTs(context),
     ...(hasI18n ? { 'e2e/i18n.spec.ts': i18nE2eTestTs(context) } : {}),
   };
   if (hasDesignSystem) {

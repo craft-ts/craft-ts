@@ -1180,6 +1180,7 @@ describe('resource loader requirements', () => {
         ${STUBS}
         declare function queryEffect(...args: unknown[]): unknown;
         declare function mutationEffect(...args: unknown[]): unknown;
+        declare function computedEffect<T>(name: string, factory: () => Effect.Effect<T, never, UserApi>): unknown;
         declare namespace Effect { interface Effect<A, E, R> {} }
         declare namespace Context { function Service<T, Shape>(): (name: string) => new (...args: never[]) => Shape; }
         class UserApi extends Context.Service<UserApi, {}>()('UserApi') {}
@@ -1194,6 +1195,7 @@ describe('resource loader requirements', () => {
               method: (value: string) => value,
               loader: () => loadAccess(),
             });
+            computedEffect('computedAccess', () => loadAccess());
             yield* queryEffect('localEffect', {
               loader: () => Promise.resolve('local'),
             });

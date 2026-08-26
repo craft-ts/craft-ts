@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  mkdirSync,
+  readdirSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -390,6 +396,32 @@ function packedTarballPaths(tarball) {
     .map((entry) => entry.replace(/^package\//, ''));
 }
 
+export function appendJsExtensions(root) {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      appendJsExtensions(path);
+      continue;
+    }
+    if (!entry.name.endsWith('.js') && !entry.name.endsWith('.d.ts')) continue;
+
+    const source = readFileSync(path, 'utf8');
+    const updated = source.replace(
+      /(from\s+|import\s+|import\s*\(\s*|export\s+from\s+)(['"])(\.\.?\/[^'"]+)\2/g,
+      (match, prefix, quote, specifier) => {
+        if (specifier.endsWith('.js')) return match;
+        const candidate = join(dirname(path), `${specifier}.js`);
+        const indexCandidate = join(dirname(path), specifier, 'index.js');
+        if (!existsSync(candidate) && !existsSync(indexCandidate)) {
+          return match;
+        }
+        return `${prefix}${quote}${specifier}.js${quote}`;
+      },
+    );
+    if (updated !== source) writeFileSync(path, updated);
+  }
+}
+
 function packRelease(version, outputDirectory) {
   assertManifests(version);
   const absoluteOutput = resolve(outputDirectory);
@@ -404,6 +436,7 @@ function packRelease(version, outputDirectory) {
         `${pkg.distRoot}/package.json must contain ${pkg.name}@${version}.`,
       );
     }
+    appendJsExtensions(packRoot);
 
     const output = run(
       'npm',

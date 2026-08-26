@@ -22,7 +22,6 @@ import {
   cursor,
   display,
   font,
-  insetBlockEnd,
   insetBlockStart,
   lineWidth,
   position,
@@ -40,6 +39,8 @@ import {
   visibility,
   when,
 } from '@craft-ts/style';
+// The shared theme is itself a style module and is safe for the build-time emitter.
+// eslint-disable-next-line craft-ts/style-file-boundary -- Importing the shared style vocabulary keeps dark-mode values centralized.
 import { theme } from './foundation.style.ts';
 
 export const backToTop = craftStyles(

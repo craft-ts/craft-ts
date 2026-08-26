@@ -10,6 +10,7 @@ import {
   img,
   input,
   p,
+  safeResourceUrl,
   safeUrl,
   section,
   small,
@@ -299,7 +300,9 @@ const DebouncedWebSearch = craftComponent(
               article({ class: 'book' }, [
                 img({
                   src: function* () {
-                    return (yield* book()).coverUrl;
+                    return safeResourceUrl((yield* book()).coverUrl, {
+                      allowedOrigins: ['https://covers.openlibrary.org'],
+                    });
                   },
                   alt: '',
                 }),

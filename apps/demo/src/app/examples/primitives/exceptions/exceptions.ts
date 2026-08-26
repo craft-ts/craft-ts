@@ -208,28 +208,20 @@ const ExceptionsComponent = craftComponent(
           div([
             p([
               strong('ID: '),
-              function* () {
-                return yield* userQuery.userId();
-              },
+              userQuery.userId,
             ]),
             p([
               strong('Name: '),
-              function* () {
-                return yield* userQuery.userName();
-              },
+              userQuery.userName,
             ]),
             p([
               strong('Email: '),
-              function* () {
-                return yield* userQuery.userEmail();
-              },
+              userQuery.userEmail,
             ]),
           ]),
         () => [
           matchNode.exhaustive(
-            function* () {
-              return yield* userQuery.typedUserExceptionLoader();
-            },
+            userQuery.typedUserExceptionLoader,
             '_tag',
             {
               UserNotFoundException: () =>

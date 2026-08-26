@@ -174,9 +174,7 @@ const PixelArt = craftComponent(
         'clear',
         {
           type: 'button',
-          *click() {
-            yield* cells.clearAll();
-          },
+          click: cells.clearAll,
         },
         'Clear',
       ),

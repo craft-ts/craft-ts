@@ -56,11 +56,11 @@ describe('the standard axes are closed sets', () => {
   it('makes a typo a missing property rather than ignored CSS', () => {
     const _rejected = () => {
       // @ts-expect-error the platform has no such scroll state
-      scrollState.stuck.blockEndd;
+      void scrollState.stuck.blockEndd;
       // @ts-expect-error nor is a point something you pass in
-      scrollState.stuck('block-end');
+      void scrollState.stuck('block-end');
       // @ts-expect-error `base` is the absence of a condition, not a point
-      scheme.light;
+      void scheme.light;
     };
     expect(_rejected).toBeTypeOf('function');
   });

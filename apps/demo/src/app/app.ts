@@ -9,6 +9,7 @@ import {
   ifNode,
   main,
   nav,
+  safeUrl,
   skipLink,
   span,
   strong,
@@ -190,14 +191,14 @@ export const App = craftComponent(
   ({ clearCache, navOpen, toggleNav, closeNav, router }) =>
     div([
       skipLink('main', 'Skip to content'),
-      div('demo-banner', { class: 'demo-banner', click: closeNav }, [
+      div('demo-banner', { class: 'demo-banner' }, [
         div({ class: 'demo-banner__main' }, [
           strong('Beta demo'),
           span(' — the API and documentation may still evolve.'),
           a(
             'docs',
             {
-              href: DOCS_URL,
+              href: safeUrl(DOCS_URL),
               target: '_blank',
               rel: 'noreferrer',
             },
@@ -207,7 +208,7 @@ export const App = craftComponent(
           a(
             'feedback',
             {
-              href: FEEDBACK_URL,
+              href: safeUrl(FEEDBACK_URL),
               target: '_blank',
               rel: 'noreferrer',
             },
@@ -285,9 +286,7 @@ export const App = craftComponent(
         {
           class: 'clear-cache-btn',
           type: 'button',
-          *click() {
-            yield* clearCache();
-          },
+          click: clearCache,
         },
         '🗑️ Clear Cache',
       ),
