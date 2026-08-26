@@ -223,6 +223,9 @@ describe('createCraftProject', () => {
     expect(sheet).toContain("defineStateAxis('tone'");
     expect(sheet).toContain("cssVars('app'");
 
+    const components = await readFile(join(result.directory, 'src/app/ui/components.ts'), 'utf8');
+    expect(components).toContain("button('continue', { class: surface.card }, 'Continue')");
+
     // The variant travels as an attribute; the class stays constant. A starter
     // that shipped `class: 'error'` would teach the opposite on day one.
     const homePage = await readFile(join(result.directory, 'src/app/home-page.ts'), 'utf8');

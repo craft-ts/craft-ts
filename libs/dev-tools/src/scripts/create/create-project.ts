@@ -988,7 +988,7 @@ ${styleImport}
 
 export const Stack = craftComponent('Stack', {}, () => ({}), () => div({ class: surface.card }, []));
 export const Card = craftComponent('Card', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Button = craftComponent('Button', {}, () => ({}), () => button({ class: surface.card }, 'Continue'));
+export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card }, 'Continue'));
 export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, 'Alert'));
 `;
 }
