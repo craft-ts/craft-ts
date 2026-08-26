@@ -83,8 +83,13 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 
 Before changing files, the command checks that all four workspaces are clean,
 on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
-the release tooling, builds every package in `releasePackages`, builds the
-frontend Effect demo, and builds the documentation.
+the release tooling, runs the unit and E2E tests for projects affected since the
+latest release tag, builds every package in `releasePackages`, builds the
+frontend Effect demo, and builds the documentation. The other release gates
+remain deliberately complete.
+
+The affected comparison base is the latest reachable `v*` Git tag. To override
+it deliberately, set `CRAFT_RELEASE_AFFECTED_BASE` to another commit or tag.
 
 After showing the resolved version, it asks for confirmation and:
 

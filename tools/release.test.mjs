@@ -183,7 +183,7 @@ test('release preflight runs the generated starter gate', () => {
   assert.match(packageJson.scripts['generated-starters:release'], /test-generated-starters/);
 });
 
-test('local releases run the complete unit and E2E suites', () => {
+test('local releases run affected unit and E2E suites', () => {
   const releaseLocal = readFileSync(
     new URL('./release-local.mjs', import.meta.url),
     'utf8',
@@ -191,7 +191,7 @@ test('local releases run the complete unit and E2E suites', () => {
 
   assert.match(
     releaseLocal,
-    /run\('npx', \[\s*'nx',\s*'run-many',\s*'-t',\s*'test',\s*'e2e-ci',\s*'--all'\s*\]\);/s,
+    /runAffectedReleaseTests\(\);/,
   );
 });
 

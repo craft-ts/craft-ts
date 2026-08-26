@@ -447,6 +447,48 @@ export function npmPublishArguments(packageRoot, channel, otp = '') {
   ];
 }
 
+export function releaseAffectedTestArguments(base) {
+  if (!base) {
+    throw new Error(
+      'Missing affected base. Expected the latest release tag or an explicit base commit.',
+    );
+  }
+
+  return [
+    'nx',
+    'affected',
+    '--target=test,e2e',
+    `--base=${base}`,
+    '--head=HEAD',
+    '--skipSync',
+  ];
+}
+
+function latestReleaseTag() {
+  let tag;
+  try {
+    tag = git(
+      workspaceRoot,
+      ['describe', '--tags', '--match', 'v[0-9]*', '--abbrev=0', 'HEAD'],
+      { capture: true },
+    ).trim();
+  } catch {
+    tag = '';
+  }
+  if (!tag) {
+    throw new Error(
+      'Could not determine the latest release tag. Set CRAFT_RELEASE_AFFECTED_BASE to a commit.',
+    );
+  }
+  return tag;
+}
+
+function runAffectedReleaseTests() {
+  const base = process.env.CRAFT_RELEASE_AFFECTED_BASE ?? latestReleaseTag();
+  process.stdout.write(`\nRunning affected tests since ${base}...\n`);
+  run('npx', releaseAffectedTestArguments(base));
+}
+
 function publishPackage(packageRoot, channel, otp) {
   run('npm', npmPublishArguments(packageRoot, channel, otp));
 }
@@ -520,7 +562,7 @@ async function main(args) {
   run('npm', ['run', 'release:check'], {
     env: { CRAFT_RELEASE_VERSION: release.version },
   });
-  run('npx', ['nx', 'run-many', '-t', 'test', 'e2e-ci', '--all']);
+  runAffectedReleaseTests();
   if (!dryRun) syncInternalPeerDependencyRanges(release.version);
   run('npx', [
     'nx',
