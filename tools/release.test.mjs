@@ -196,6 +196,7 @@ test('local releases run affected unit and E2E suites', () => {
     /runAffectedReleaseTests\(\);/,
   );
   assert.match(releaseLocal, /CRAFT_RELEASE_SKIP_SECURITY_TESTS/);
+  assert.match(releaseLocal, /CI: 'true'/);
   assert.match(releaseLocal, /'--exclude=docs'/);
   assert.doesNotMatch(
     releaseLocal,

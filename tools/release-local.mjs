@@ -457,7 +457,7 @@ export function releaseAffectedTestArguments(base) {
   return [
     'nx',
     'affected',
-    '--target=test-ci,e2e-ci',
+    '--target=test,e2e',
     `--base=${base}`,
     '--head=HEAD',
     '--exclude=docs',
@@ -488,7 +488,10 @@ function runAffectedReleaseTests() {
   const base = process.env.CRAFT_RELEASE_AFFECTED_BASE ?? latestReleaseTag();
   process.stdout.write(`\nRunning affected tests since ${base}...\n`);
   run('npx', releaseAffectedTestArguments(base), {
-    env: { CRAFT_RELEASE_SKIP_SECURITY_TESTS: 'true' },
+    env: {
+      CI: 'true',
+      CRAFT_RELEASE_SKIP_SECURITY_TESTS: 'true',
+    },
   });
 }
 
