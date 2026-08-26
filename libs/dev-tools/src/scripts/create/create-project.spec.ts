@@ -3,9 +3,12 @@ import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { realpathSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createCraftProject,
+  getReferenceBuildSteps,
+  localCraftReferencePackagePath,
   normalizeCreateOptions,
   parseCreateAgents,
   pruneEffectReference,
@@ -26,6 +29,43 @@ async function createFixture(mode: 'plain' | 'effect', agents = ['codex', 'curso
 }
 
 describe('createCraftProject', () => {
+  it('maps local package references to their actual build roots', () => {
+    expect(localCraftReferencePackagePath('core')).toBe('dist/libs/core');
+    expect(localCraftReferencePackagePath('mcp')).toBe('packages/mcp');
+    expect(localCraftReferencePackagePath('function-registry-mcp')).toBe(
+      'packages/function-registry-mcp',
+    );
+    expect(localCraftReferencePackagePath('log-server')).toBe('apps/log-server');
+  });
+
+  it('builds local CraftTS references through their Nx and workspace targets', () => {
+    const steps = getReferenceBuildSteps('.references/craft-ts', normalizeCreateOptions({
+      directory: 'starter',
+      frontendRuntime: 'plain',
+      backendRuntime: 'effect',
+      typedCss: true,
+    }));
+
+    expect(steps).toEqual([
+      [
+        'npx',
+        [
+          '--no-install',
+          'nx',
+          'run-many',
+          '--target=build',
+          '--projects',
+          'craft-ts-core,craft-ts-component,dev-tools,mcp,craft-ts-i18n,craft-ts-i18n-effect,craft-ts-style,craft-ts-style-testing,craft-ts-effect',
+          '--skipSync',
+          '--outputStyle=stream',
+        ],
+      ],
+      ['npm', ['run', 'build', '--workspace', '@craft-ts/log-server']],
+      ['npm', ['run', 'build', '--workspace', '@craft-ts/log-mcp']],
+      ['npm', ['run', 'build', '--workspace', '@craft-ts/function-registry-mcp']],
+    ]);
+  });
+
   it('normalizes legacy aliases and independent runtime axes', () => {
     expect(normalizeCreateOptions({ directory: 'starter', mode: 'effect' })).toMatchObject({
       frontendRuntime: 'effect',
@@ -105,9 +145,18 @@ describe('createCraftProject', () => {
     const viteConfig = await readFile(join(result.directory, 'vite.config.ts'), 'utf8');
     expect(viteConfig).toContain('./.references/craft-ts/libs/core/src/index.ts');
     expect(viteConfig).toContain("from './.references/craft-ts/libs/style/src/plugin/vite.ts'");
+    const referenceUpdater = await readFile(
+      join(result.directory, 'scripts/update-references.mjs'),
+      'utf8',
+    );
+    expect(referenceUpdater).toContain("'npx', ['--no-install', 'nx', 'run-many'");
+    expect(referenceUpdater).toContain("'@craft-ts/function-registry-mcp'");
     expect(await readFile(join(result.directory, 'src/app/app.ts'), 'utf8')).toContain(
       "from '@craft-ts/component'",
     );
+    const app = await readFile(join(result.directory, 'src/app/app.ts'), 'utf8');
+    expect(app).toContain("a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' }))");
+    expect(app).not.toContain('craftRouterLink:');
   });
 
   it('omits disabled feature surfaces and returns the effective config', async () => {
@@ -123,6 +172,48 @@ describe('createCraftProject', () => {
     await expect(readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).rejects.toThrow();
     await expect(readFile(join(result.directory, 'src/app/ui/ui.style.ts'), 'utf8')).rejects.toThrow();
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain("craftRoute('services'");
+  });
+
+  it('uses a local delayed welcome response when no backend is configured', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-local-welcome-'));
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter', rootDir: root, agents: [], i18n: 'none', designSystem: 'none',
+    });
+    const api = await readFile(join(result.directory, 'src/app/api.ts'), 'utf8');
+    const homePage = await readFile(join(result.directory, 'src/app/home-page.ts'), 'utf8');
+
+    expect(api).not.toContain('CraftHttpClient');
+    expect(api).toContain('craftSleep');
+    expect(api).toContain('title:');
+    expect(homePage).toContain("welcome?.title ?? ''");
+    expect(homePage).toContain("welcome?.body ?? ''");
+
+    const effectResult = await createCraftProject({
+      directory: 'effect-starter', rootDir: root, mode: 'effect', agents: [],
+      i18n: 'none', designSystem: 'none',
+    });
+    const effectDomain = await readFile(join(effectResult.directory, 'src/app/domain.ts'), 'utf8');
+    expect(effectDomain).not.toContain("fetch('/api/welcome')");
+    expect(effectDomain).toContain("Effect.sleep('10 millis')");
+  });
+
+  it('initializes Git and ignores generated local artifacts', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-git-init-'));
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({ directory: 'starter', rootDir: root, agents: [] });
+    const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: result.directory,
+      encoding: 'utf8',
+    }).trim();
+    const gitignore = await readFile(join(result.directory, '.gitignore'), 'utf8');
+
+    expect(realpathSync(gitRoot)).toBe(realpathSync(result.directory));
+    expect(gitignore).toContain('node_modules/');
+    expect(gitignore).toContain('dist/');
+    expect(execFileSync('git', ['check-ignore', '--quiet', 'node_modules/example'], {
+      cwd: result.directory,
+    })).toBeInstanceOf(Buffer);
   });
 
   it('creates a framework-independent plain starter with the complete quality gate', async () => {
@@ -176,7 +267,7 @@ describe('createCraftProject', () => {
       ".craft-typecheck-indicator[data-status='failed']",
     );
     expect(await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8')).toContain('craftRoutes');
-    expect(await readFile(join(result.directory, 'src/app/api.ts'), 'utf8')).toContain('CraftHttpClient');
+    expect(await readFile(join(result.directory, 'src/app/api.ts'), 'utf8')).toContain('craftSleep');
     expect(await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).toContain('baseCatalog');
     expect(await readFile(join(result.directory, 'src/i18n/typography.ts'), 'utf8')).toContain('lineHeight');
     expect(await readFile(join(result.directory, 'e2e/i18n.spec.ts'), 'utf8')).toContain('document.fonts.ready');
@@ -290,6 +381,10 @@ describe('createCraftProject', () => {
 
     expect(result.frontendRuntime).toBe('plain');
     expect(result.backendRuntime).toBe('effect');
+    expect(await readFile(join(result.directory, 'src/server/server.ts'), 'utf8')).toContain('Effect');
+    expect(await readFile(join(result.directory, 'src/app/app.ts'), 'utf8')).not.toMatch(
+      /@craft-ts\/effect|from ['"]effect['"]|provideLayer|queryEffect/,
+    );
     expect(await readFile(join(result.directory, 'src/i18n/effect.ts'), 'utf8')).toContain(
       'translateEffectRaw',
     );

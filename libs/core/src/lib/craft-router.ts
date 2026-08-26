@@ -40,6 +40,7 @@ import {
 import {
   CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
+  type CraftNodeDirective,
 } from './craft-node-directive';
 import { executeYieldable } from './yieldable';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
@@ -509,103 +510,111 @@ export function provideCraftRouter(
  */
 export const CraftRouter = CraftRouterInternal as unknown as CraftRouterHelper;
 
-type CraftRouterLinkProps = {
-  readonly craftRouterLink: CraftRouterLinkInput | null | undefined;
-};
+type CraftRouterLinkValue = CraftRouterLinkInput | null | undefined;
+
+type CraftRouterLinkBinding =
+  | CraftRouterLinkValue
+  | (() =>
+      | CraftRouterLinkValue
+      | Generator<unknown, CraftRouterLinkValue, unknown>);
 
 /**
- * Functional Craft directive for type-safe router links.
+ * Creates a functional Craft directive for type-safe router links.
  *
  * @example
- * a({ craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink)
+ * a({}, 'Tasks').pipe(CraftRouterLink({ to: 'tasks' }))
  */
-export const CraftRouterLink = craftNodeDirective<CraftRouterLinkProps>(
-  'CraftRouterLink',
-  ['craftRouterLink'],
-  (context) => {
-    const router = context.injector.get(CRAFT_ROUTER) as CraftRouter;
-    let currentInput: CraftRouterLinkInput | null | undefined;
-    let currentUrlTree: CraftUrlTree | undefined;
+export function CraftRouterLink(
+  link: CraftRouterLinkBinding,
+): CraftNodeDirective<Readonly<Record<never, never>>> {
+  return craftNodeDirective<Readonly<Record<never, never>>>(
+    'CraftRouterLink',
+    [],
+    (context) => {
+      const router = context.injector.get(CRAFT_ROUTER) as CraftRouter;
+      let currentInput: CraftRouterLinkInput | null | undefined;
+      let currentUrlTree: CraftUrlTree | undefined;
 
-    const syncAriaCurrent = () => {
-      if (!currentUrlTree) {
-        context.renderer.removeAttribute(context.element, 'aria-current');
-        return;
-      }
-      const active = router.isActive(currentUrlTree, {
-        paths: 'exact',
-        queryParams: 'ignored',
-        fragment: 'ignored',
-        matrixParams: 'ignored',
-      });
-      if (active) {
-        context.renderer.setAttribute(context.element, 'aria-current', 'page');
-      } else {
-        context.renderer.removeAttribute(context.element, 'aria-current');
-      }
-    };
+      const syncAriaCurrent = () => {
+        if (!currentUrlTree) {
+          context.renderer.removeAttribute(context.element, 'aria-current');
+          return;
+        }
+        const active = router.isActive(currentUrlTree, {
+          paths: 'exact',
+          queryParams: 'ignored',
+          fragment: 'ignored',
+          matrixParams: 'ignored',
+        });
+        if (active) {
+          context.renderer.setAttribute(
+            context.element,
+            'aria-current',
+            'page',
+          );
+        } else {
+          context.renderer.removeAttribute(context.element, 'aria-current');
+        }
+      };
 
-    const hrefEffect = context.injector.get(CRAFT_NODE_EFFECT_FACTORY)(
-      'router-link-href',
-      () => {
-        const candidate = context.props.craftRouterLink;
-        currentInput =
-          typeof candidate === 'function'
-            ? executeYieldable(
-                candidate as () => CraftRouterLinkInput | null | undefined,
-                [],
-                context.injector,
-              )
-            : candidate;
+      const hrefEffect = context.injector.get(CRAFT_NODE_EFFECT_FACTORY)(
+        'router-link-href',
+        () => {
+          const candidate = link;
+          currentInput =
+            typeof candidate === 'function'
+              ? executeYieldable(candidate, [], context.injector)
+              : candidate;
 
-        if (!currentInput) {
-          currentUrlTree = undefined;
-          context.renderer.removeAttribute(context.element, 'href');
+          if (!currentInput) {
+            currentUrlTree = undefined;
+            context.renderer.removeAttribute(context.element, 'href');
+            syncAriaCurrent();
+            return;
+          }
+
+          currentUrlTree = router.createUrlTree(currentInput);
+          context.renderer.setAttribute(
+            context.element,
+            'href',
+            router.serializeUrl(currentUrlTree),
+          );
           syncAriaCurrent();
-          return;
-        }
+        },
+      );
 
-        currentUrlTree = router.createUrlTree(currentInput);
-        context.renderer.setAttribute(
-          context.element,
-          'href',
-          router.serializeUrl(currentUrlTree),
-        );
-        syncAriaCurrent();
-      },
-    );
+      const navigation = router.events.subscribe((event) => {
+        if (event.type === 'NavigationEnd') syncAriaCurrent();
+      });
 
-    const navigation = router.events.subscribe((event) => {
-      if (event.type === 'NavigationEnd') syncAriaCurrent();
-    });
+      const removeClickListener = context.renderer.listen(
+        context.element,
+        'click',
+        (event) => {
+          const mouseEvent = event as MouseEvent;
+          if (
+            !currentInput ||
+            !currentUrlTree ||
+            !shouldHandleCraftRouterLinkClick(mouseEvent, context.element)
+          ) {
+            return;
+          }
 
-    const removeClickListener = context.renderer.listen(
-      context.element,
-      'click',
-      (event) => {
-        const mouseEvent = event as MouseEvent;
-        if (
-          !currentInput ||
-          !currentUrlTree ||
-          !shouldHandleCraftRouterLinkClick(mouseEvent, context.element)
-        ) {
-          return;
-        }
-
-        mouseEvent.preventDefault();
-        void router.navigateByUrl(
-          currentUrlTree,
-          getNavigationBehaviorOptions(currentInput),
-        );
-      },
-    );
-    return () => {
-      removeClickListener();
-      navigation.unsubscribe();
-      hrefEffect.destroy();
-    };
-  },
-);
+          mouseEvent.preventDefault();
+          void router.navigateByUrl(
+            currentUrlTree,
+            getNavigationBehaviorOptions(currentInput),
+          );
+        },
+      );
+      return () => {
+        removeClickListener();
+        navigation.unsubscribe();
+        hrefEffect.destroy();
+      };
+    },
+  );
+}
 
 export function shouldHandleCraftRouterLinkClick(
   event: MouseEvent,

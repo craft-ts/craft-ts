@@ -1,6 +1,39 @@
 'use strict';
 
-const { parseHyperscriptCall, hasProp, staticPropString } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  hasProp,
+  staticPropString,
+} = require('./hyperscript-walk.cjs');
+
+function hasCraftRouterLinkPipe(node) {
+  const pipeMember = node.parent;
+  if (
+    !pipeMember ||
+    pipeMember.type !== 'MemberExpression' ||
+    pipeMember.computed ||
+    pipeMember.property.type !== 'Identifier' ||
+    pipeMember.property.name !== 'pipe'
+  ) {
+    return false;
+  }
+
+  const pipeCall = pipeMember.parent;
+  if (
+    !pipeCall ||
+    pipeCall.type !== 'CallExpression' ||
+    pipeCall.arguments.length !== 1
+  ) {
+    return false;
+  }
+
+  const directiveCall = pipeCall.arguments[0];
+  return (
+    directiveCall.type === 'CallExpression' &&
+    directiveCall.callee.type === 'Identifier' &&
+    directiveCall.callee.name === 'CraftRouterLink'
+  );
+}
 
 module.exports = {
   meta: {
@@ -20,9 +53,10 @@ module.exports = {
       CallExpression(node) {
         const call = parseHyperscriptCall(node);
         if (!call || call.tag !== 'a') return;
-        if (hasProp(call.props, 'href') || hasProp(call.props, 'craftRouterLink')) return;
+        if (hasProp(call.props, 'href') || hasCraftRouterLinkPipe(node)) return;
         const role = staticPropString(call.props, 'role');
-        const hasClick = hasProp(call.props, 'click') || hasProp(call.props, 'onClick');
+        const hasClick =
+          hasProp(call.props, 'click') || hasProp(call.props, 'onClick');
         const hasKey =
           hasProp(call.props, 'keydown') ||
           hasProp(call.props, 'onKeydown') ||

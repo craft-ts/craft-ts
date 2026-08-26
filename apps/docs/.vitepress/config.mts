@@ -66,6 +66,7 @@ const learnEffectSidebar = [
 
 const guideSidebar = [
   { text: 'Guide overview', link: '/guide/' },
+  { text: 'Create a project', link: '/guide/create-project' },
   {
     text: 'Core concepts',
     collapsed: false,

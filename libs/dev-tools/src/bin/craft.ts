@@ -19,7 +19,15 @@ import {
   createCraftProject,
   createModeFromFlag,
   parseCreateAgents,
+  type CreateAgent,
 } from '../scripts/create/create-project.js';
+import {
+  selectOptionInteractively,
+  selectOptionsInteractively,
+  selectAgentsInteractively,
+  type InteractiveOption,
+  type AgentSelectorInput,
+} from './agent-selector.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
 import { spawnSync } from 'node:child_process';
 
@@ -247,6 +255,48 @@ type CreateArgs = {
   help: boolean;
 };
 
+const CREATE_FRONTEND_OPTIONS: readonly InteractiveOption<'plain' | 'effect'>[] = [
+  { value: 'plain', label: 'Plain CraftTS' },
+  { value: 'effect', label: 'Effect v4' },
+];
+const CREATE_BACKEND_OPTIONS: readonly InteractiveOption<'none' | 'promise' | 'effect'>[] = [
+  { value: 'none', label: 'No backend' },
+  { value: 'promise', label: 'Promise server functions' },
+  { value: 'effect', label: 'Effect server functions' },
+];
+const CREATE_I18N_OPTIONS: readonly InteractiveOption<'strict' | 'loose' | 'none'>[] = [
+  { value: 'strict', label: 'Strict type-safe i18n' },
+  { value: 'loose', label: 'Loose i18n validation' },
+  { value: 'none', label: 'No i18n' },
+];
+const CREATE_DESIGN_SYSTEM_OPTIONS: readonly InteractiveOption<'basic' | 'none'>[] = [
+  { value: 'basic', label: 'Basic design system' },
+  { value: 'none', label: 'No design system' },
+];
+const CREATE_BOOLEAN_OPTIONS: readonly InteractiveOption<'yes' | 'no'>[] = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+];
+const CREATE_WORKSPACE_OPTIONS: readonly InteractiveOption<'standalone' | 'nx'>[] = [
+  { value: 'standalone', label: 'Standalone project' },
+  { value: 'nx', label: 'Nx workspace' },
+];
+const CREATE_REFERENCE_MODE_OPTIONS: readonly InteractiveOption<'context' | 'local' | 'source'>[] = [
+  { value: 'context', label: 'Context only (portable npm packages)' },
+  { value: 'local', label: 'Local build artifacts' },
+  { value: 'source', label: 'Direct source mapping' },
+];
+const CREATE_LOCALE_OPTIONS: readonly InteractiveOption<string>[] = [
+  { value: 'en-US', label: 'English (United States)' },
+  { value: 'fr-FR', label: 'Français (France)' },
+  { value: 'de-DE', label: 'Deutsch (Deutschland)' },
+  { value: 'es-ES', label: 'Español (España)' },
+  { value: 'it-IT', label: 'Italiano (Italia)' },
+  { value: 'pt-BR', label: 'Português (Brasil)' },
+  { value: 'ja-JP', label: '日本語 (日本)' },
+  { value: 'zh-CN', label: '中文 (中国)' },
+];
+
 export function parseCreateArgs(argv: string[]): CreateArgs {
   const result: CreateArgs = { flags: new Set(), help: false };
   const values = new Map<string, string>();
@@ -320,6 +370,48 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
   return result;
 }
 
+function parseLocales(value: string): string[] {
+  const locales = value
+    .split(',')
+    .map((locale) => locale.trim())
+    .filter(Boolean);
+  return locales.length > 0 ? locales : ['en-US', 'fr-FR'];
+}
+
+async function selectCreateOption<Value extends string>(
+  readline: ReturnType<typeof createInterface>,
+  options: readonly InteractiveOption<Value>[],
+  title: string,
+  initialValue: Value,
+): Promise<Value> {
+  readline.pause();
+  return selectOptionInteractively(
+    options,
+    title,
+    initialValue,
+    input as AgentSelectorInput,
+    output,
+  );
+}
+
+async function selectCreateOptions<Value extends string>(
+  readline: ReturnType<typeof createInterface>,
+  options: readonly InteractiveOption<Value>[],
+  title: string,
+  initialSelection: readonly Value[],
+  minimumSelection = 0,
+): Promise<readonly Value[]> {
+  readline.pause();
+  return selectOptionsInteractively(
+    options,
+    title,
+    initialSelection,
+    input as AgentSelectorInput,
+    output,
+    minimumSelection,
+  );
+}
+
 async function runCreate(argv: string[]): Promise<number> {
   const parsed = parseCreateArgs(argv);
   if (parsed.help) {
@@ -337,37 +429,132 @@ async function runCreate(argv: string[]): Promise<number> {
       : createModeFromFlag(parsed.effect);
     const frontendRuntime = parsed.frontendRuntime ?? legacyMode ?? (parsed.effectScope ? undefined : (
       interactive
-        ? ((await readline.question('Effect v4 frontend? [y/N] ')).trim().toLowerCase().startsWith('y') ? 'effect' : 'plain')
+        ? await selectCreateOption(
+            readline,
+            CREATE_FRONTEND_OPTIONS,
+            'Frontend runtime (↑/↓ move, Enter confirm):',
+            'plain',
+          )
         : 'plain'
     ));
     const backendRuntime = parsed.backendRuntime ?? (parsed.effectScope ? undefined : (
-      interactive && (await readline.question('Add backend server functions? [y/N] ')).trim().toLowerCase().startsWith('y')
-        ? ((await readline.question('Backend runtime [promise/effect] (promise): ')).trim().toLowerCase() || 'promise')
+      interactive
+        ? await selectCreateOption(
+            readline,
+            CREATE_BACKEND_OPTIONS,
+            'Backend runtime (↑/↓ move, Enter confirm):',
+            'none',
+          )
         : 'none'
-    )) as CreateArgs['backendRuntime'];
+    ));
     const i18n = parsed.i18n ?? (
       interactive
-        ? ((await readline.question('Enable i18n? [Y/n] ')).trim().toLowerCase() === 'n' ? 'none' : 'strict')
+        ? await selectCreateOption(
+            readline,
+            CREATE_I18N_OPTIONS,
+            'i18n (↑/↓ move, Enter confirm):',
+            'strict',
+          )
         : 'strict'
+    );
+    const locales = parsed.locales !== undefined
+      ? parseLocales(parsed.locales)
+      : interactive && i18n !== 'none'
+        ? [...await selectCreateOptions(
+            readline,
+            CREATE_LOCALE_OPTIONS,
+            'Locales (↑/↓ move, Space toggle, Enter confirm):',
+            ['en-US', 'fr-FR'],
+            1,
+          )]
+        : undefined;
+    const defaultLocale = parsed.defaultLocale ?? (
+      interactive && i18n !== 'none'
+        ? await selectCreateOption(
+            readline,
+            (locales ?? ['en-US']).map((locale) => ({ value: locale, label: locale })),
+            'Default locale (↑/↓ move, Enter confirm):',
+            locales?.[0] ?? 'en-US',
+          )
+        : undefined
     );
     const designSystem = parsed.designSystem ?? (
       interactive
-        ? ((await readline.question('Enable the design system? [Y/n] ')).trim().toLowerCase() === 'n' ? 'none' : 'basic')
+        ? await selectCreateOption(
+            readline,
+            CREATE_DESIGN_SYSTEM_OPTIONS,
+            'Design system (↑/↓ move, Enter confirm):',
+            'basic',
+          )
         : 'basic'
     );
     const typedCss = parsed.typedCss ?? (
       interactive
-        ? !((await readline.question('Enable typed CSS? [Y/n] ')).trim().toLowerCase() === 'n')
+        ? (await selectCreateOption(
+            readline,
+            CREATE_BOOLEAN_OPTIONS,
+            'Enable typed CSS? (↑/↓ move, Enter confirm):',
+            'yes',
+          )) === 'yes'
         : true
     );
-    const agentsValue =
-      parsed.agents ??
-      (parsed.flags.has('yes')
-        ? undefined
-        : await readline.question(
-            'Agent integrations [codex,cursor,claude-code,cloud-code] (empty = Codex): ',
-          ));
-    const agents = parseCreateAgents(agentsValue);
+    const workspace = parsed.workspace ?? (
+      interactive
+        ? await selectCreateOption(
+            readline,
+            CREATE_WORKSPACE_OPTIONS,
+            'Workspace (↑/↓ move, Enter confirm):',
+            'standalone',
+          )
+        : undefined
+    );
+    let references = parsed.references;
+    let referenceMode = parsed.referenceMode;
+    let cloneCraftTs = parsed.cloneCraftTs;
+    let cloneEffectTs = parsed.cloneEffectTs;
+    const effectEnabled = frontendRuntime === 'effect'
+      || backendRuntime === 'effect'
+      || (parsed.effectScope !== undefined && parsed.effectScope !== 'none');
+    if (interactive && references === undefined && cloneCraftTs === undefined && cloneEffectTs === undefined) {
+      cloneCraftTs = (await selectCreateOption(
+        readline,
+        CREATE_BOOLEAN_OPTIONS,
+        'Clone CraftTS sources for the AI? (↑/↓ move, Enter confirm):',
+        'yes',
+      )) === 'yes';
+      cloneEffectTs = effectEnabled
+        ? (await selectCreateOption(
+            readline,
+            CREATE_BOOLEAN_OPTIONS,
+            'Clone EffectTS sources for the AI? (↑/↓ move, Enter confirm):',
+            'yes',
+          )) === 'yes'
+        : false;
+      references = cloneEffectTs ? 'all' : cloneCraftTs ? 'craft-ts' : 'none';
+    }
+    if (
+      interactive
+      && referenceMode === undefined
+      && ((references !== undefined && references !== 'none') || cloneCraftTs || cloneEffectTs)
+    ) {
+      referenceMode = await selectCreateOption(
+        readline,
+        CREATE_REFERENCE_MODE_OPTIONS,
+        'Reference mode (↑/↓ move, Enter confirm):',
+        'context',
+      );
+    }
+    let agents: readonly CreateAgent[];
+    if (parsed.agents !== undefined) {
+      agents = parseCreateAgents(parsed.agents);
+    } else if (interactive) {
+      agents = await selectAgentsInteractively(
+        process.stdin as AgentSelectorInput,
+        output,
+      );
+    } else {
+      agents = parseCreateAgents(undefined);
+    }
     const result = await createCraftProject({
       directory,
       mode: legacyMode,
@@ -375,18 +562,18 @@ async function runCreate(argv: string[]): Promise<number> {
       backendRuntime,
       effectScope: parsed.effectScope,
       agents,
-      locales: parsed.locales?.split(',').map((locale) => locale.trim()).filter(Boolean),
-      defaultLocale: parsed.defaultLocale,
+      locales,
+      defaultLocale,
       i18n,
       designSystem,
       typedCss,
-      workspace: parsed.workspace,
-      references: parsed.references,
-      referenceMode: parsed.referenceMode,
+      workspace,
+      references,
+      referenceMode,
       craftTsRef: parsed.craftTsRef,
       effectTsRef: parsed.effectTsRef,
-      cloneCraftTs: parsed.cloneCraftTs,
-      cloneEffectTs: parsed.cloneEffectTs,
+      cloneCraftTs,
+      cloneEffectTs,
       force: parsed.flags.has('force'),
     });
     if (parsed.flags.has('json')) {
@@ -472,7 +659,7 @@ Options:
   --frontend-runtime <plain|effect>
   --backend-runtime <none|promise|effect>
   --effect-scope <none|frontend|backend|both>
-  --agents <list>              codex,cursor,claude-code,cloud-code (or none)
+  --agents <list>              codex,cursor,claude-code,gemini (cloud-code alias; or none)
   --locales <list>             Comma-separated locales (default: en-US,fr-FR)
   --default-locale <locale>    Initial locale (must be in --locales)
   --i18n <strict|loose|none>   Plural/catalogue validation mode

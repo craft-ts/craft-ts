@@ -19,6 +19,11 @@ afternoon:
    everything is built on
 5. [Insertions](/guide/concepts/insertions) — how behaviour is composed
 
+## Project setup
+
+[Create a CraftTS project](/guide/create-project) — interactive and
+non-interactive starters, configuration options, and first checks
+
 ## By topic
 
 ### Managing state

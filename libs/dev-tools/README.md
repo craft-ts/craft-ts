@@ -20,15 +20,34 @@ i18n, design-system, typed-CSS, server-function, workspace and reference
 choices are normalized into one effective configuration:
 
 ```bash
-npx craft create my-app
-npx craft create my-app --effect=v4 --agents=codex,cursor,cloud-code
-npx craft create my-app --effect=none --agents=none
-npx craft create my-app --effect=none --i18n=none --design-system=none --no-typed-css
-npx craft create my-app --frontend-runtime=effect --backend-runtime=effect --i18n=strict
-npx craft create my-app --frontend-runtime=plain --backend-runtime=effect
-npx craft create apps/my-app --workspace=nx --references=craft-ts --reference-mode=context
-npx craft create apps/my-app --references=craft-ts --reference-mode=source
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=v4 --agents=codex,cursor,gemini
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --agents=none
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --i18n=none --design-system=none --no-typed-css
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=effect --backend-runtime=effect --i18n=strict
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=plain --backend-runtime=effect
+npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --workspace=nx --references=craft-ts --reference-mode=context
+npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --references=craft-ts --reference-mode=source
 ```
+
+In a terminal, creation is interactive by default. The frontend and backend
+runtimes are selected independently, so `plain` frontend + `effect` backend is
+available for server functions. The prompts also cover i18n locales, the
+workspace, CraftTS/EffectTS source references, and their resolution
+mode. All closed configuration values use keyboard menus: `↑`/`↓` to move
+and `Enter` to confirm; locales and agent integrations additionally use
+`Space` for multi-selection. Codex is selected by default. Pass
+`--yes` after `create` to disable all prompts, or pass
+`--agents=codex,cursor` / `--agents=none` for scripted agent selection.
+
+In interactive mode, reference sources are cloned by default; answer `n` to
+opt out. In non-interactive mode, request them explicitly with
+`--references=craft-ts` or `--references=all`.
+
+New standalone projects are initialized with Git (without an initial commit)
+and receive a `.gitignore` covering `node_modules/`, build outputs, test
+reports, and local references. If the destination is already inside another
+Git repository, no nested repository is created.
 
 Canonical options include `--frontend-runtime=plain|effect`,
 `--backend-runtime=none|promise|effect`, `--effect-scope=none|frontend|backend|both`,
@@ -47,12 +66,16 @@ get a `node_modules`. Refresh clones with
 `npm run update:references` (or the generated `update:craft-ts`/
 `update:effect-ts` scripts).
 
+`local` builds CraftTS with its Nx library targets and builds the MCP/log
+workspaces individually; CraftTS has no root `npm run build` script.
+
 The starter includes a routed page, a typed API call, flat-config ESLint, unit
 tests, a graph-wide `architecture/` suite, Playwright E2E tests, development
 logs forwarded to a local JSONL server, `.mcp.json` for Craft/log/page MCP
 servers, a browser type-check indicator, and a GitHub Actions workflow with an
 explicit `npm run typecheck` gate. `codex`, `cursor`, `claude-code`, and the
-`cloud-code`/`gemini` aliases install the corresponding project instructions.
+`gemini` (with `cloud-code` kept as a compatibility alias) installs the
+corresponding Gemini project instructions.
 
 ## Project configuration
 

@@ -89,13 +89,13 @@ export const App = craftComponent(
   () =>
     div({ class: 'shell' }, [
       header({ class: 'masthead' }, [
-        a('brand', { craftRouterLink: { to: '' } }, [
+        a('brand', {}, [
           span({ class: 'brand__mark' }, 'S'),
           span([
             strong('SSR lab · CraftTS'),
             small('SSR initial · navigation SPA après hydratation'),
           ]),
-        ]).pipe(CraftRouterLink),
+        ]).pipe(CraftRouterLink({ to: '' })),
         div({ class: 'server-indicator' }, [
           strong('HTML rendu par renderCraft'),
           span('Puis hydraté par hydrateCraft'),
@@ -104,9 +104,7 @@ export const App = craftComponent(
       nav(
         { class: 'nav', 'aria-label': 'Scénarios SSR' },
         SCENARIOS.map(([label, link]) =>
-          a('scenarioLink', { craftRouterLink: link }, label).pipe(
-            CraftRouterLink,
-          ),
+          a('scenarioLink', {}, label).pipe(CraftRouterLink(link)),
         ),
       ),
       main({ id: 'main', class: 'content', tabIndex: -1 }, CraftRouterOutlet()),

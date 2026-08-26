@@ -8,10 +8,12 @@ import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
 import {
   CraftRouter,
+  CraftRouterLink,
   CRAFT_HISTORY,
   provideCraftRouter,
   shouldHandleCraftRouterLinkClick,
 } from './craft-router';
+import { CRAFT_NODE_DIRECTIVE } from './craft-node-directive';
 import { craftRoutes } from './craft-routes';
 import type { GetServiceDependencies } from './craft-service';
 import { queryParams } from './query-params';
@@ -120,6 +122,12 @@ beforeEach(() => {
 });
 
 describe('CraftRouter', () => {
+  it('configures the link on the directive instead of the anchor props', () => {
+    const directive = CraftRouterLink({ to: 'list' });
+
+    expect(directive[CRAFT_NODE_DIRECTIVE].inputs).toEqual([]);
+  });
+
   it('should expose type-safe route inputs', () => {
     TestBed.configureTestingModule({
       providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],

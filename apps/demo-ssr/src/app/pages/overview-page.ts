@@ -61,9 +61,9 @@ export const OverviewPage = craftComponent(
           ]),
           a(
             'overviewDataLink',
-            { class: 'button', craftRouterLink: { to: 'data' } },
+            { class: 'button' },
             'Voir la query bloquante',
-          ).pipe(CraftRouterLink),
+          ).pipe(CraftRouterLink({ to: 'data' })),
         ]),
         article({ class: 'card' }, [
           span({ class: 'badge' }, 'server function'),

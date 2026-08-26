@@ -1,9 +1,5 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import {
-  a,
-  craftComponent,
-  nav,
-} from '@craft-ts/component';
+import { a, craftComponent, nav } from '@craft-ts/component';
 import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
 
 const CSS_VARS_LINKS = [
@@ -39,7 +35,7 @@ export const CssVarsPageNav = craftComponent(
     nav(
       { 'aria-label': 'CSS variable examples' },
       CSS_VARS_LINKS.map(([label, link]) =>
-        a('link', { craftRouterLink: link }, label).pipe(CraftRouterLink),
+        a('link', {}, label).pipe(CraftRouterLink(link)),
       ),
     ),
 );

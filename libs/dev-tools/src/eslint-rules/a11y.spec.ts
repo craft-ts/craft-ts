@@ -59,27 +59,38 @@ async function lintTree(files: Record<string, string>, rule: string) {
     ],
   });
   const results = await eslint.lintFiles(['**/*.ts']);
-  return results.flatMap((result) => result.messages.map((message) => message.message));
+  return results.flatMap((result) =>
+    result.messages.map((message) => message.message),
+  );
 }
 
 describe('craft-ts a11y', () => {
   describe('prefer-named-html-helpers', () => {
     it('rejects h() when a named helper exists', async () => {
-      const [result] = await lint(`h('img', { alt: '' });`, 'prefer-named-html-helpers');
+      const [result] = await lint(
+        `h('img', { alt: '' });`,
+        'prefer-named-html-helpers',
+      );
       expect(messages(result)).toEqual([
         "Use the named helper img(...) instead of h('img'). Named helpers carry a11y types and lint.",
       ]);
     });
 
     it('allows h() for tags without a helper', async () => {
-      const [result] = await lint(`h('video', { src: 'clip.mp4' });`, 'prefer-named-html-helpers');
+      const [result] = await lint(
+        `h('video', { src: 'clip.mp4' });`,
+        'prefer-named-html-helpers',
+      );
       expect(result.messages).toEqual([]);
     });
   });
 
   describe('img-has-alt', () => {
     it('rejects img without alt, including via h()', async () => {
-      const [result] = await lint(`img({ src: 'x.png' }); h('img', { src: 'y.png' });`, 'img-has-alt');
+      const [result] = await lint(
+        `img({ src: 'x.png' }); h('img', { src: 'y.png' });`,
+        'img-has-alt',
+      );
       expect(messages(result)).toEqual([
         "<img> must have an alt attribute (use alt: '' for decorative images).",
         "<img> must have an alt attribute (use alt: '' for decorative images).",
@@ -87,19 +98,30 @@ describe('craft-ts a11y', () => {
     });
 
     it('allows empty decorative alt', async () => {
-      const [result] = await lint(`img({ src: 'x.png', alt: '' });`, 'img-has-alt');
+      const [result] = await lint(
+        `img({ src: 'x.png', alt: '' });`,
+        'img-has-alt',
+      );
       expect(result.messages).toEqual([]);
     });
   });
 
   describe('control-has-accessible-name', () => {
     it('rejects a nameless button', async () => {
-      const [result] = await lint(`button({ type: 'button' });`, 'control-has-accessible-name');
-      expect(messages(result)[0]).toContain('<button> must have an accessible name');
+      const [result] = await lint(
+        `button({ type: 'button' });`,
+        'control-has-accessible-name',
+      );
+      expect(messages(result)[0]).toContain(
+        '<button> must have an accessible name',
+      );
     });
 
     it('allows a button with text children', async () => {
-      const [result] = await lint(`button({ type: 'button' }, 'Save');`, 'control-has-accessible-name');
+      const [result] = await lint(
+        `button({ type: 'button' }, 'Save');`,
+        'control-has-accessible-name',
+      );
       expect(result.messages).toEqual([]);
     });
 
@@ -122,7 +144,10 @@ describe('craft-ts a11y', () => {
 
   describe('label-has-associated-control', () => {
     it('rejects a label with neither htmlFor nor a nested control', async () => {
-      const [result] = await lint(`label('Email');`, 'label-has-associated-control');
+      const [result] = await lint(
+        `label('Email');`,
+        'label-has-associated-control',
+      );
       expect(messages(result)[0]).toContain('label must be associated');
     });
 
@@ -159,9 +184,9 @@ describe('craft-ts a11y', () => {
       expect(messages(result)[0]).toContain('<a> must have href');
     });
 
-    it('allows href and craftRouterLink', async () => {
+    it('allows href and a CraftRouterLink directive', async () => {
       const [result] = await lint(
-        `a({ href: '/' }, 'Home'); a({ craftRouterLink: { to: 'home' } }, 'Home');`,
+        `a({ href: '/' }, 'Home'); a({}, 'Home').pipe(CraftRouterLink({ to: 'home' }));`,
         'anchor-has-href',
       );
       expect(result.messages).toEqual([]);
@@ -175,7 +200,10 @@ describe('craft-ts a11y', () => {
     });
 
     it('allows an explicit type', async () => {
-      const [result] = await lint(`button({ type: 'submit' }, 'Save');`, 'button-has-type');
+      const [result] = await lint(
+        `button({ type: 'submit' }, 'Save');`,
+        'button-has-type',
+      );
       expect(result.messages).toEqual([]);
     });
 
@@ -192,26 +220,37 @@ describe('craft-ts a11y', () => {
           },
         ],
       });
-      const [result] = await eslint.lintText(`button('Save');`, { filePath: 'fixture.ts' });
+      const [result] = await eslint.lintText(`button('Save');`, {
+        filePath: 'fixture.ts',
+      });
       expect(result.output).toContain("type: 'button'");
     });
   });
 
   describe('iframe-has-title', () => {
     it('requires title', async () => {
-      const [result] = await lint(`iframe({ src: 'about:blank' });`, 'iframe-has-title');
+      const [result] = await lint(
+        `iframe({ src: 'about:blank' });`,
+        'iframe-has-title',
+      );
       expect(messages(result)[0]).toContain('<iframe> must have a title');
     });
   });
 
   describe('heading-has-content', () => {
     it('rejects empty headings', async () => {
-      const [result] = await lint(`h1(); heading({ class: 'x' });`, 'heading-has-content');
+      const [result] = await lint(
+        `h1(); heading({ class: 'x' });`,
+        'heading-has-content',
+      );
       expect(messages(result)).toHaveLength(2);
     });
 
     it('allows text', async () => {
-      const [result] = await lint(`h1('Title'); heading('Title');`, 'heading-has-content');
+      const [result] = await lint(
+        `h1('Title'); heading('Title');`,
+        'heading-has-content',
+      );
       expect(result.messages).toEqual([]);
     });
 
@@ -226,8 +265,13 @@ describe('craft-ts a11y', () => {
 
   describe('no-positive-tabindex', () => {
     it('rejects tabIndex > 0', async () => {
-      const [result] = await lint(`button({ type: 'button', tabIndex: 2 }, 'Go');`, 'no-positive-tabindex');
-      expect(messages(result)[0]).toContain('tabIndex must not be greater than 0');
+      const [result] = await lint(
+        `button({ type: 'button', tabIndex: 2 }, 'Go');`,
+        'no-positive-tabindex',
+      );
+      expect(messages(result)[0]).toContain(
+        'tabIndex must not be greater than 0',
+      );
     });
   });
 
@@ -238,21 +282,30 @@ describe('craft-ts a11y', () => {
     });
 
     it('allows aria-label', async () => {
-      const [result] = await lint(`div({ 'aria-label': 'Panel' });`, 'valid-aria');
+      const [result] = await lint(
+        `div({ 'aria-label': 'Panel' });`,
+        'valid-aria',
+      );
       expect(result.messages).toEqual([]);
     });
   });
 
   describe('role-has-required-aria', () => {
     it('requires aria-checked on checkbox role', async () => {
-      const [result] = await lint(`div({ role: 'checkbox' });`, 'role-has-required-aria');
+      const [result] = await lint(
+        `div({ role: 'checkbox' });`,
+        'role-has-required-aria',
+      );
       expect(messages(result)[0]).toContain('aria-checked');
     });
   });
 
   describe('target-blank-noopener', () => {
     it('requires noopener', async () => {
-      const [result] = await lint(`a({ href: 'https://x', target: '_blank' }, 'x');`, 'target-blank-noopener');
+      const [result] = await lint(
+        `a({ href: 'https://x', target: '_blank' }, 'x');`,
+        'target-blank-noopener',
+      );
       expect(messages(result)[0]).toContain('noopener');
     });
 
@@ -398,8 +451,8 @@ describe('craft-ts a11y', () => {
   it('exports the a11y preset as error', () => {
     expect(plugin.configs.a11y.rules['craft-ts/img-has-alt']).toBe('error');
     expect(plugin.configs.a11y.rules['craft-ts/button-has-type']).toBe('error');
-    expect(plugin.configs.a11y.rules['craft-ts/require-outlet-heading-section']).toBe(
-      'error',
-    );
+    expect(
+      plugin.configs.a11y.rules['craft-ts/require-outlet-heading-section'],
+    ).toBe('error');
   });
 });

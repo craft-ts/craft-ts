@@ -51,9 +51,7 @@ export const App = craftComponent(
       nav(
         { class: 'app-nav', 'aria-label': 'EffectTS examples' },
         EXAMPLE_LINKS.map(([label, link]) =>
-          a('exampleLink', { craftRouterLink: link }, label).pipe(
-            CraftRouterLink,
-          ),
+          a('exampleLink', {}, label).pipe(CraftRouterLink(link)),
         ),
       ),
       main({ class: 'app-content' }, headingSection(CraftRouterOutlet())),

@@ -31,7 +31,6 @@ component caller only provides the original `user` input.
 
 <<< @/tests/snippets/guide/components/directives/interactivepermissions.spec.ts#interactivepermissions
 
-
 ## Basic composition
 
 A directive transforms the existing logic and template:
@@ -150,7 +149,6 @@ A structural directive decides whether the template produces nodes:
 
 <<< @/tests/snippets/guide/components/directives/whendirective.spec.ts#whendirective
 
-
 When `when()` becomes false, the renderer removes the template output. When it
 becomes true again, the template is rendered again.
 
@@ -209,11 +207,12 @@ The component context is passed to the decorated template. Craft structural
 directives can therefore transform Craft output without introducing an
 intermediate component.
 
-Functional DOM directives can also be applied with `.pipe(...)`. Their declared
-inputs are consumed by the directive instead of becoming DOM attributes:
+Functional DOM directives can also receive their configuration directly and be
+applied with `.pipe(...)`. The configuration is owned by the directive instead
+of becoming a DOM attribute:
 
 ```ts
-button({ craftRouterLink: link }).pipe(CraftRouterLink);
+a({}, 'Tasks').pipe(CraftRouterLink(link));
 ```
 
 A field configured with `insertSelectFormTree` must be selected before it is

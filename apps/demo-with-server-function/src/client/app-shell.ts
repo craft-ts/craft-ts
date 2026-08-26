@@ -28,31 +28,21 @@ const AppShell = craftComponent(
   () =>
     div([
       nav({ class: 'demo-nav' }, [
-        a(
-          'navLinkPublicProducts',
-          { craftRouterLink: { to: '' } },
-          'Public products',
-        ).pipe(CraftRouterLink),
-        a(
-          'navLinkAuthenticatedList',
-          { craftRouterLink: { to: 'authenticated-list' } },
-          'Authenticated list',
-        ).pipe(CraftRouterLink),
-        a(
-          'navLinkSimpleUsers',
-          { craftRouterLink: { to: 'simple-list' } },
-          'Simple users',
-        ).pipe(CraftRouterLink),
-        a(
-          'navLinkPortable',
-          { craftRouterLink: { to: 'portable' } },
-          'Portable middleware',
-        ).pipe(CraftRouterLink),
-        a(
-          'navLinkEffectMiddleware',
-          { craftRouterLink: { to: 'effect-middleware' } },
-          'Effect middleware',
-        ).pipe(CraftRouterLink),
+        a('navLinkPublicProducts', {}, 'Public products').pipe(
+          CraftRouterLink({ to: '' }),
+        ),
+        a('navLinkAuthenticatedList', {}, 'Authenticated list').pipe(
+          CraftRouterLink({ to: 'authenticated-list' }),
+        ),
+        a('navLinkSimpleUsers', {}, 'Simple users').pipe(
+          CraftRouterLink({ to: 'simple-list' }),
+        ),
+        a('navLinkPortable', {}, 'Portable middleware').pipe(
+          CraftRouterLink({ to: 'portable' }),
+        ),
+        a('navLinkEffectMiddleware', {}, 'Effect middleware').pipe(
+          CraftRouterLink({ to: 'effect-middleware' }),
+        ),
       ]),
       main(CraftRouterOutlet()),
     ]),

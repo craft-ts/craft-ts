@@ -15,20 +15,17 @@ const CASES = [
   {
     path: 'css-vars/required',
     title: 'Required and optional values',
-    description:
-      'Compare multiple instances, fallbacks, and the omit marker.',
+    description: 'Compare multiple instances, fallbacks, and the omit marker.',
   },
   {
     path: 'css-vars/inheritance',
     title: 'Native inheritance',
-    description:
-      'Observe inherit and how the variable resolves from a parent.',
+    description: 'Observe inherit and how the variable resolves from a parent.',
   },
   {
     path: 'css-vars/forwarding',
     title: 'Forwarding and overrides',
-    description:
-      "Turn a child's tokens into an optional parent API.",
+    description: "Turn a child's tokens into an optional parent API.",
   },
   {
     path: 'css-vars/property',
@@ -87,18 +84,18 @@ export const CssVarsDemo = craftComponent(
         ),
       ]),
       headingSection(
-      section(
-        { class: 'css-vars-demo__grid', 'aria-label': 'Examples' },
-        CASES.map(({ path, title, description }) =>
-          a('cardLink',
-            {
-              class: 'css-vars-demo__card',
-              craftRouterLink: { to: path },
-            },
-            [heading(title), p(description)],
-          ).pipe(CraftRouterLink),
+        section(
+          { class: 'css-vars-demo__grid', 'aria-label': 'Examples' },
+          CASES.map(({ path, title, description }) =>
+            a(
+              'cardLink',
+              {
+                class: 'css-vars-demo__card',
+              },
+              [heading(title), p(description)],
+            ).pipe(CraftRouterLink({ to: path })),
+          ),
         ),
-      ),
       ),
     ]),
 );
