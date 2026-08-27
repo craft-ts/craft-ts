@@ -724,11 +724,12 @@ export function query<
   Name extends string,
   QueryState extends object | undefined,
   QueryParams,
+  ParamsYielded = never,
   LoaderYielded = never,
 >(
   name: Name,
   queryConfig: {
-    params: () => QueryParams;
+    params: GeneratorCompatibleFactory<() => QueryParams, ParamsYielded>;
     loader: (
       param: ResourceLoaderParams<StripCraftException<QueryParams>>,
     ) => Generator<LoaderYielded, QueryState, unknown>;
