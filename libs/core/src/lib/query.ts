@@ -729,7 +729,9 @@ export function query<
 >(
   name: Name,
   queryConfig: {
-    params: GeneratorCompatibleFactory<() => QueryParams, ParamsYielded>;
+    params:
+      | (() => QueryParams)
+      | (() => Generator<ParamsYielded, QueryParams, unknown>);
     loader: (
       param: ResourceLoaderParams<StripCraftException<QueryParams>>,
     ) => Generator<LoaderYielded, QueryState, unknown>;

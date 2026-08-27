@@ -30,19 +30,20 @@ npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --workspac
 npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --frontend-runtime=effect --references=all
 ```
 
-In a terminal, creation is interactive by default. The frontend and backend
-runtimes are selected independently, so `plain` frontend + `effect` backend is
-available for server functions. The prompts also cover i18n locales, the
-workspace, and optional CraftTS/EffectTS source references for agent context.
-All closed configuration values use keyboard menus: `↑`/`↓` to move
+In a terminal, creation is interactive by default. The first question asks
+whether the application is frontend-only or full-stack. Full-stack projects
+then choose a backend runtime, with EffectTS recommended; the frontend runtime
+is chosen afterwards. The prompts also cover i18n locales, the design system,
+typed CSS, the workspace, and agent integrations. CraftTS source references
+are enabled automatically, with EffectTS references added whenever EffectTS is
+selected. All closed configuration values use keyboard menus: `↑`/`↓` to move
 and `Enter` to confirm; locales and agent integrations additionally use
 `Space` for multi-selection. Codex is selected by default. Pass
 `--yes` after `create` to disable all prompts, or pass
 `--agents=codex,cursor` / `--agents=none` for scripted agent selection.
 
-In interactive mode, reference sources are cloned by default; answer `n` to
-opt out. In non-interactive mode, request them explicitly with
-`--references=craft-ts` or `--references=all`.
+The same defaults apply in non-interactive mode. Use `--references=none` to
+opt out, or `--references=craft-ts` / `--references=all` to choose explicitly.
 
 New standalone projects are initialized with Git (without an initial commit)
 and receive a `.gitignore` covering `node_modules/`, build outputs, test
@@ -69,8 +70,7 @@ The starter includes a routed page, a typed API call, flat-config ESLint, unit
 tests, a graph-wide `architecture/` suite, Playwright E2E tests, development
 logs forwarded to a local JSONL server, `.mcp.json` for Craft/log/page MCP
 servers, a browser type-check indicator, and a GitHub Actions workflow with an
-explicit `npm run typecheck` gate. `codex`, `cursor`, `claude-code`, and the
-`gemini` (with `cloud-code` kept as a compatibility alias) installs the
+explicit `npm run typecheck` gate. `codex`, `cursor`, and `cloud-code` install the
 corresponding Gemini project instructions.
 
 ## Project configuration

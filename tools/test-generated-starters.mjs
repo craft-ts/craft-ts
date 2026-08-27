@@ -276,6 +276,7 @@ async function runExecutableStarter(cell, directory, name, localRelease, port) {
   );
   for (const command of [
     'typecheck',
+    'lint',
     'test',
     'architecture',
     'typecheck-architecture',

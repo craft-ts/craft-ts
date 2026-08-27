@@ -8,12 +8,46 @@ Public docs: https://craft-ts.github.io/craft
 LLM index: https://craft-ts.github.io/craft/llms.txt
 Full dump: https://craft-ts.github.io/craft/llms-full.txt
 
-For a new framework-independent app, start with `npx craft create <directory>`.
-The prompt asks for EffectTS v4 first, then the agent integrations to install
-(`codex`, `cursor`, `cloud-code`; `claude-code` is also supported). The starter
-already contains a routed page, a `CraftHttpClient` API query, ESLint, unit and
-Playwright tests, and the `architecture/` contract. Use `--effect=v4` or
-`--effect=none` for non-interactive setup.
+For a new framework-independent app, start by asking the user only:
+
+> What kind of application are you building, and what are its main features?
+> Keep the answer high-level for now; we will refine the details afterwards.
+
+Do not begin by asking whether to use EffectTS. From the application type and
+the main features, infer whether a backend is needed. If it is, propose the
+stack explicitly and ask for confirmation:
+
+> I suggest CraftTS for the frontend and EffectTS v4 for the backend. EffectTS
+> fits this project particularly well because its typed services, Layers and
+> errors align with CraftTS's dependency graph and typed server boundary. Is
+> that stack OK?
+
+When the user confirms the proposal, use EffectTS for the backend by default.
+If the user rejects it or names another backend, do not silently scaffold an
+EffectTS backend; honour the requested choice, or leave the backend out when
+no alternative is specified.
+
+Once the stack is confirmed, create an empty, domain-ready starter with the
+quality surfaces enabled from the beginning:
+
+```bash
+npx --yes --package @craft-ts/dev-tools@beta craft create <directory> \
+  --yes --no-demos --domain app \
+  --frontend-runtime=plain --backend-runtime=effect \
+  --i18n=strict --design-system=basic --typed-css \
+  --references=all --agents=codex
+```
+
+Replace `--backend-runtime=effect` with the user's explicit backend choice,
+or `--backend-runtime=none` when they decline a backend. When no Effect
+runtime is selected, use `--references=craft-ts` instead of `--references=all`.
+Keep
+`--no-demos`, `--i18n=strict`, `--design-system=basic` and `--typed-css` by
+default for agent-created projects. The starter contains the CraftTS
+architecture and tooling contract, but no prefilled product pages or demo
+content. CraftTS source references are always enabled, and EffectTS references
+are included whenever either runtime uses EffectTS; there is no final reference
+confirmation question.
 
 When MCP tools are available, call `get_best_practices` once, then `search_documentation` / `get_skill` instead of inventing APIs.
 

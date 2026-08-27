@@ -33,17 +33,17 @@ Run the command in a real terminal without `craft create --yes`:
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app
 ```
 
-The generator presents menus for:
+The generator presents menus in this order:
 
+- the application type: frontend-only or full-stack;
+- for a full-stack app, the backend runtime: `promise` or `effect` (EffectTS
+  v4 is recommended);
 - the frontend runtime: `plain` or `effect`;
-- the backend runtime: `none`, `promise`, or `effect`;
 - type-safe i18n, its locales, and its default locale;
 - the design system;
 - typed CSS;
 - a standalone or Nx workspace;
-- CraftTS and, when Effect is selected, EffectTS source references for agent
-  context;
-- integrations for Codex, Cursor, Claude Code, or Gemini CLI.
+- integrations for Codex, Cursor, or Cloud Code.
 
 The frontend and backend choices are independent. To create a plain browser
 application whose server functions use Effect v4, choose `plain` for the
@@ -65,6 +65,35 @@ receives an `AGENTS.md` project guide describing its selected runtimes and
 features; selected integrations additionally receive their editor-specific
 project instructions and skills.
 
+## Agent-assisted creation
+
+When an agent starts a new project, it should first ask what kind of
+application is being built and what its main features are, without collecting
+detailed requirements yet. If those features imply a backend, it should
+propose EffectTS v4 for the backend and explain that its typed services, Layers
+and errors fit CraftTS's typed server boundary. The user can confirm that
+stack, reject it, or name another backend; the agent must not add an EffectTS
+backend after an explicit rejection.
+
+The agent should create a domain-ready but empty starter with the design
+system, typed CSS and strict i18n enabled, and without the explanatory demo
+pages:
+
+```bash
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
+  --yes --no-demos --domain app \
+  --frontend-runtime=plain --backend-runtime=effect \
+  --i18n=strict --design-system=basic --typed-css \
+  --references=all --agents=codex
+```
+
+Use `--backend-runtime=none` when the user declines a backend, or the explicit
+requested backend when it is supported. When no Effect runtime is selected,
+use `--references=craft-ts` instead of `--references=all`. The `--no-demos`
+starter still
+contains the architecture/tooling baseline and a domain boundary, but no
+prefilled product pages or demo content.
+
 ### Creating inside an existing Git repository
 
 An existing `.git` directory makes the destination non-empty. Generate into
@@ -79,7 +108,7 @@ npx --yes --package @craft-ts/dev-tools@beta craft create . --force
 off the configuration prompts. Review generated file changes before
 committing when the repository already contains application code.
 
-During the interactive flow, reference sources are cloned by default:
+During the interactive flow, reference sources are cloned automatically:
 
 - CraftTS sources go into `.references/craft-ts`;
 - EffectTS sources are also cloned when an Effect frontend or backend is
@@ -87,9 +116,10 @@ During the interactive flow, reference sources are cloned by default:
 - the sources are available to agents without replacing the installed npm
   packages.
 
-Answer `n` to opt out. In non-interactive mode, references remain opt-in so
-that `--yes` does not silently perform network clones; use
-`--references=craft-ts` or `--references=all` explicitly.
+There is no reference confirmation prompt. The same defaults apply in
+non-interactive mode: CraftTS is cloned, and EffectTS is cloned whenever an
+Effect frontend or backend is selected. Use `--references=none` to opt out, or
+`--references=craft-ts` / `--references=all` to choose explicitly.
 
 The cloned repositories are reference material for coding agents only. The
 generated application always imports the published CraftTS and EffectTS npm
@@ -125,22 +155,22 @@ npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
 
 The main configuration options are:
 
-| Option               | Values                                | Purpose                                                                 |
-| -------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
-| `--effect`           | `v4`, `none`                          | Select the Effect v4 or plain starter                                   |
-| `--frontend-runtime` | `plain`, `effect`                     | Choose the frontend runtime                                             |
-| `--backend-runtime`  | `none`, `promise`, `effect`           | Choose server functions                                                 |
-| `--effect-scope`     | `none`, `frontend`, `backend`, `both` | Set Effect placement                                                    |
-| `--agents`           | comma-separated names or `none`       | Add editor-specific agent integrations; `AGENTS.md` is always generated |
-| `--i18n`             | `strict`, `loose`, `none`             | Configure type-safe i18n                                                |
-| `--design-system`    | `basic`, `none`                       | Include the design-system starter                                       |
-| `--typed-css`        | flag / `--no-typed-css`               | Enable or disable typed CSS                                             |
-| `--workspace`        | `standalone`, `nx`                    | Choose the workspace layout                                             |
-| `--references`       | `none`, `craft-ts`, `all`             | Include source references                                               |
-| `--no-demos`         | flag                                  | Generate a domain feature without explanatory demo pages                |
-| `--domain`           | slug                                  | Name the first domain feature when using `--no-demos`                   |
-| `--force`            | flag                                  | Allow an existing non-empty destination                                 |
-| `--json`             | flag                                  | Print the effective configuration as JSON                               |
+| Option               | Values                                | Purpose                                                                   |
+| -------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
+| `--effect`           | `v4`, `none`                          | Select the Effect v4 or plain starter                                     |
+| `--frontend-runtime` | `plain`, `effect`                     | Choose the frontend runtime                                               |
+| `--backend-runtime`  | `none`, `promise`, `effect`           | Choose server functions                                                   |
+| `--effect-scope`     | `none`, `frontend`, `backend`, `both` | Set Effect placement                                                      |
+| `--agents`           | comma-separated names or `none`       | Add editor-specific agent integrations; `AGENTS.md` is always generated   |
+| `--i18n`             | `strict`, `loose`, `none`             | Configure type-safe i18n                                                  |
+| `--design-system`    | `basic`, `none`                       | Include the design-system starter                                         |
+| `--typed-css`        | flag / `--no-typed-css`               | Enable or disable typed CSS                                               |
+| `--workspace`        | `standalone`, `nx`                    | Choose the workspace layout                                               |
+| `--references`       | `none`, `craft-ts`, `all`             | Include source references (default: CraftTS, plus EffectTS when selected) |
+| `--no-demos`         | flag                                  | Generate a domain feature without explanatory demo pages                  |
+| `--domain`           | slug                                  | Name the first domain feature when using `--no-demos`                     |
+| `--force`            | flag                                  | Allow an existing non-empty destination                                   |
+| `--json`             | flag                                  | Print the effective configuration as JSON                                 |
 
 Use `craft create --help` to see the complete list:
 

@@ -22,7 +22,8 @@ suite that already exists.
 
 ## 1. Bootstrap a new project
 
-Prefer `craft create`, which asks for Effect v4 and agent integrations and
+Prefer `craft create`, which asks for the application type first, recommends
+EffectTS v4 for a full-stack backend, and then asks for agent integrations. It
 generates the application, API/page example, routes, ESLint, unit tests,
 architecture suite and Playwright commands together:
 

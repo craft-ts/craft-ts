@@ -131,8 +131,12 @@ bootstrapCraft.
    browser is a visual state nothing recorded, which is what no-raw-class,
    no-free-has, no-raw-css-value and style-file-boundary exist to prevent.
    Components read theme variables, never palette tokens directly.
-6. Run the focused test, then npm run lint, npm run typecheck,
-   npm run architecture, and npm run e2e when the browser flow changed.
+6. Run the focused test, then npm run lint and fix every lint error before
+   continuing. Keep derived values on their owning Craft primitive, read
+   reactive values through the documented bindings, give every button an
+   explicit type, and declare Node globals in Node-only scripts. Then run
+   npm run typecheck and npm run architecture; run npm run e2e only after
+   those checks pass and only when the browser flow changed.
 7. Keep the generated development surface enabled: 'npm run logs:server'
    stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
    to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
@@ -799,7 +803,10 @@ ${
   {
     files: ['scripts/**/*.mjs'],
     languageOptions: {
-      globals: { process: 'readonly' },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
     },
   },
   prettier,
@@ -1203,7 +1210,7 @@ ${styleImport}
 
 export const Stack = craftComponent('Stack', {}, () => ({}), () => div({ class: surface.card }, []));
 export const Card = craftComponent('Card', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card }, 'Continue'));
+export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button' }, 'Continue'));
 export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, 'Alert'));
 `;
 }
@@ -1275,6 +1282,7 @@ export function startCraftTypecheckIndicator(): void {
 
 function appTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
+  const spanImport = context.config.demoPages ? '  span,\n' : '';
   const uiImport = designSystem
     ? `import { appTheme } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';`
     : '';
@@ -1295,7 +1303,7 @@ function appTs(context: TemplateContext): string {
   div,
   main,
   nav,
-  span,
+${spanImport}
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
 ${uiImport}
@@ -2293,6 +2301,19 @@ import { computedEffect, queryEffect, SyncOp } from '@craft-ts/effect';
 import { Effect } from 'effect';
 ${i18nImports}${surfaceImport}
 import { loadWelcome } from './api';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readWelcomeField(value: unknown, field: 'title' | 'body'): string {
+  if (!isRecord(value) || !(field in value)) {
+    return '';
+  }
+  const fieldValue = value[field];
+  return typeof fieldValue === 'string' ? fieldValue : '';
+}
+
 export const HomePage = craftComponent(
   'HomePage',
   {},
@@ -2328,12 +2349,10 @@ export const HomePage = craftComponent(
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
-            const welcome = yield* welcomeQuery.value();
-            return 'API title: ' + (welcome && 'title' in welcome ? welcome.title : '');
+            return 'API title: ' + readWelcomeField(yield* welcomeQuery.value(), 'title');
           }),
           p(function* () {
-            const welcome = yield* welcomeQuery.value();
-            return 'API body: ' + (welcome && 'body' in welcome ? welcome.body : '');
+            return 'API body: ' + readWelcomeField(yield* welcomeQuery.value(), 'body');
           }),
         ]),
       ),

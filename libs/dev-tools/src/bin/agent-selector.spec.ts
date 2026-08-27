@@ -54,7 +54,11 @@ describe('selectAgentsInteractively', () => {
     input.emit('keypress', ' ', { name: 'space' });
     input.emit('keypress', '', { name: 'return' });
 
-    await expect(resultPromise).resolves.toEqual(['codex', 'cursor', 'claude-code']);
+    await expect(resultPromise).resolves.toEqual([
+      'codex',
+      'cursor',
+      'cloud-code',
+    ]);
     expect(input.isRaw).toBe(false);
     expect(output.chunks.join('')).toContain('Space toggle');
   });
@@ -81,7 +85,10 @@ describe('selectAgentsInteractively', () => {
   it('keeps at least one item selected when a minimum is configured', async () => {
     const input = new FakeInput();
     const resultPromise = selectOptionsInteractively(
-      [{ value: 'en-US', label: 'English' }, { value: 'fr-FR', label: 'French' }],
+      [
+        { value: 'en-US', label: 'English' },
+        { value: 'fr-FR', label: 'French' },
+      ],
       'Locales:',
       ['en-US'],
       input as AgentSelectorInput,
@@ -112,8 +119,12 @@ describe('selectAgentsInteractively', () => {
     expect(CREATE_AGENT_OPTIONS.map((option) => option.value)).toEqual([
       'codex',
       'cursor',
-      'claude-code',
       'cloud-code',
+    ]);
+    expect(CREATE_AGENT_OPTIONS.map((option) => option.label)).toEqual([
+      'Codex',
+      'Cursor',
+      'Cloud Code',
     ]);
   });
 });

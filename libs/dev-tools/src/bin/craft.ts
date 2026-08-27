@@ -315,18 +315,23 @@ type CreateArgs = {
   help: boolean;
 };
 
+const CREATE_APPLICATION_OPTIONS: readonly InteractiveOption<
+  'frontend' | 'full-stack'
+>[] = [
+  { value: 'frontend', label: 'Frontend-only application' },
+  { value: 'full-stack', label: 'Full-stack application' },
+];
 const CREATE_FRONTEND_OPTIONS: readonly InteractiveOption<
   'plain' | 'effect'
 >[] = [
   { value: 'plain', label: 'Plain CraftTS' },
   { value: 'effect', label: 'Effect v4' },
 ];
-const CREATE_BACKEND_OPTIONS: readonly InteractiveOption<
-  'none' | 'promise' | 'effect'
+const CREATE_FULL_STACK_BACKEND_OPTIONS: readonly InteractiveOption<
+  'promise' | 'effect'
 >[] = [
-  { value: 'none', label: 'No backend' },
   { value: 'promise', label: 'Promise server functions' },
-  { value: 'effect', label: 'Effect server functions' },
+  { value: 'effect', label: 'EffectTS server functions (recommended)' },
 ];
 const CREATE_I18N_OPTIONS: readonly InteractiveOption<
   'strict' | 'loose' | 'none'
@@ -534,6 +539,43 @@ async function runCreate(argv: string[]): Promise<number> {
       parsed.effect === undefined
         ? undefined
         : createModeFromFlag(parsed.effect);
+    const explicitApplicationKind =
+      parsed.backendRuntime !== undefined
+        ? parsed.backendRuntime === 'none'
+          ? 'frontend'
+          : 'full-stack'
+        : parsed.effectScope !== undefined
+          ? parsed.effectScope === 'backend' || parsed.effectScope === 'both'
+            ? 'full-stack'
+            : 'frontend'
+          : 'frontend';
+    const applicationKind =
+      parsed.frontendRuntime === undefined &&
+      parsed.effect === undefined &&
+      parsed.effectScope === undefined &&
+      parsed.backendRuntime === undefined &&
+      interactive
+        ? await selectCreateOption(
+            readline,
+            CREATE_APPLICATION_OPTIONS,
+            'Application type (↑/↓ move, Enter confirm):',
+            'frontend',
+          )
+        : explicitApplicationKind;
+    const backendRuntime =
+      parsed.backendRuntime ??
+      (parsed.effectScope !== undefined
+        ? undefined
+        : applicationKind === 'full-stack'
+          ? interactive
+            ? await selectCreateOption(
+                readline,
+                CREATE_FULL_STACK_BACKEND_OPTIONS,
+                'Backend runtime (EffectTS is recommended; ↑/↓ move, Enter confirm):',
+                'effect',
+              )
+            : 'effect'
+          : 'none');
     const frontendRuntime =
       parsed.frontendRuntime ??
       legacyMode ??
@@ -547,18 +589,6 @@ async function runCreate(argv: string[]): Promise<number> {
               'plain',
             )
           : 'plain');
-    const backendRuntime =
-      parsed.backendRuntime ??
-      (parsed.effectScope
-        ? undefined
-        : interactive
-          ? await selectCreateOption(
-              readline,
-              CREATE_BACKEND_OPTIONS,
-              'Backend runtime (↑/↓ move, Enter confirm):',
-              'none',
-            )
-          : 'none');
     const i18n =
       parsed.i18n ??
       (interactive
@@ -634,26 +664,14 @@ async function runCreate(argv: string[]): Promise<number> {
       backendRuntime === 'effect' ||
       (parsed.effectScope !== undefined && parsed.effectScope !== 'none');
     if (
-      interactive &&
       references === undefined &&
       cloneCraftTs === undefined &&
       cloneEffectTs === undefined
     ) {
-      cloneCraftTs =
-        (await selectCreateOption(
-          readline,
-          CREATE_BOOLEAN_OPTIONS,
-          'Clone CraftTS sources for the AI? (↑/↓ move, Enter confirm):',
-          'yes',
-        )) === 'yes';
-      cloneEffectTs = effectEnabled
-        ? (await selectCreateOption(
-            readline,
-            CREATE_BOOLEAN_OPTIONS,
-            'Clone EffectTS sources for the AI? (↑/↓ move, Enter confirm):',
-            'yes',
-          )) === 'yes'
-        : false;
+      // Agent context is part of the default starter: CraftTS is always
+      // useful, and EffectTS is needed whenever either runtime uses it.
+      cloneCraftTs = true;
+      cloneEffectTs = effectEnabled;
       references = cloneEffectTs ? 'all' : cloneCraftTs ? 'craft-ts' : 'none';
     }
     let agents: readonly CreateAgent[];
@@ -780,7 +798,7 @@ Options:
   --frontend-runtime <plain|effect>
   --backend-runtime <none|promise|effect>
   --effect-scope <none|frontend|backend|both>
-  --agents <list>              codex,cursor,claude-code,gemini (cloud-code alias; or none)
+  --agents <list>              codex,cursor,cloud-code (or none)
   --locales <list>             Comma-separated locales (default: en-US,fr-FR)
   --default-locale <locale>    Initial locale (must be in --locales)
   --i18n <strict|loose|none>   Plural/catalogue validation mode
@@ -789,7 +807,7 @@ Options:
   --no-design-system
   --typed-css / --no-typed-css
   --workspace <standalone|nx>
-  --references <none|craft-ts|all>
+  --references <none|craft-ts|all> (default: CraftTS, plus EffectTS when selected)
   --craft-ts-ref <git-ref>     CraftTS reference tag/commit
   --effect-ts-ref <git-ref>    EffectTS reference tag/commit
   --clone-craft-ts / --no-clone-craft-ts

@@ -8,8 +8,7 @@ export const CREATE_AGENT_OPTIONS: readonly {
 }[] = [
   { value: 'codex', label: 'Codex' },
   { value: 'cursor', label: 'Cursor' },
-  { value: 'claude-code', label: 'Claude Code' },
-  { value: 'cloud-code', label: 'Gemini CLI' },
+  { value: 'cloud-code', label: 'Cloud Code' },
 ];
 
 export type InteractiveOption<Value extends string> = {
@@ -40,7 +39,10 @@ function selectValuesInteractively<Value extends string>(
   minimumSelection = 0,
 ): Promise<readonly Value[]> {
   const selected = new Set<Value>(initialSelection);
-  let cursor = Math.max(0, options.findIndex((option) => selected.has(option.value)));
+  let cursor = Math.max(
+    0,
+    options.findIndex((option) => selected.has(option.value)),
+  );
   let rendered = false;
 
   const render = (): void => {
@@ -48,7 +50,9 @@ function selectValuesInteractively<Value extends string>(
     output.write(`${title}\n`);
     for (const [index, option] of options.entries()) {
       const pointer = index === cursor ? '❯' : ' ';
-      const marker = multiple ? `${selected.has(option.value) ? '[x]' : '[ ]'} ` : '';
+      const marker = multiple
+        ? `${selected.has(option.value) ? '[x]' : '[ ]'} `
+        : '';
       output.write(`${pointer} ${marker}${option.label}\n`);
     }
     rendered = true;
@@ -89,15 +93,16 @@ function selectValuesInteractively<Value extends string>(
         const value = options[cursor].value;
         if (selected.has(value)) {
           if (selected.size > minimumSelection) selected.delete(value);
-        }
-        else selected.add(value);
+        } else selected.add(value);
         render();
         return;
       }
       if (key.name === 'return' || key.name === 'enter') {
         finish(
           multiple
-            ? options.map((option) => option.value).filter((value) => selected.has(value))
+            ? options
+                .map((option) => option.value)
+                .filter((value) => selected.has(value))
             : [options[cursor].value],
         );
       }
@@ -124,8 +129,14 @@ export function selectOptionInteractively<Value extends string>(
   input: AgentSelectorInput = process.stdin as AgentSelectorInput,
   output: AgentSelectorOutput = process.stdout,
 ): Promise<Value> {
-  return selectValuesInteractively(options, title, [initialValue], false, input, output)
-    .then(([value]) => value);
+  return selectValuesInteractively(
+    options,
+    title,
+    [initialValue],
+    false,
+    input,
+    output,
+  ).then(([value]) => value);
 }
 
 export function selectOptionsInteractively<Value extends string>(

@@ -391,6 +391,9 @@ describe('createCraftProject', () => {
       await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
     ).toContain('craft-ts/no-effect-import-in-frontend');
     expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).toContain("console: 'readonly'");
+    expect(
       await readFile(
         join(result.directory, 'architecture/architecture.spec.ts'),
         'utf8',
@@ -451,7 +454,7 @@ describe('createCraftProject', () => {
       'utf8',
     );
     expect(components).toContain(
-      "button('continue', { class: surface.card }, 'Continue')",
+      "button('continue', { class: surface.card, type: 'button' }, 'Continue')",
     );
 
     // The variant travels as an attribute; the class stays constant. A starter
@@ -512,6 +515,12 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, 'src/app/home-page.ts'), 'utf8'),
     ).toContain("i18n.t('order.summary'");
+    const homePage = await readFile(
+      join(result.directory, 'src/app/home-page.ts'),
+      'utf8',
+    );
+    expect(homePage).toContain('readWelcomeField');
+    expect(homePage).not.toContain('const welcome =');
     expect(
       await readFile(
         join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'),
@@ -682,6 +691,9 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, 'README.md'), 'utf8'),
     ).toContain('no explanatory demo pages');
+    expect(
+      await readFile(join(result.directory, 'src/app/app.ts'), 'utf8'),
+    ).not.toContain('  span,');
   });
 
   it('generates a one-shot reset command for the default demo starter', async () => {
