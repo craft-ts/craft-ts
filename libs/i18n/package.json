@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/i18n",
-  "version": "0.7.0-beta.17",
+  "version": "0.7.0-beta.18",
   "description": "Framework-independent, type-safe internationalisation for CraftTS",
   "license": "MIT",
   "type": "module",

@@ -1,3 +1,14 @@
+## 0.7.0-beta.18 (2026-08-27)
+
+### 🩹 Fixes
+
+- allow demo cache reset reload ([3a32ddab](https://github.com/craft-ts/craft-ts/commit/3a32ddab))
+- make demo architecture release-safe ([ad8f063f](https://github.com/craft-ts/craft-ts/commit/ad8f063f))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.17 (2026-08-26)
 
 ### 🩹 Fixes
