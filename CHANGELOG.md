@@ -2,6 +2,7 @@
 
 ### 🩹 Fixes
 
+- infer generator query params correctly ([5e064392](https://github.com/craft-ts/craft-ts/commit/5e064392))
 - allow demo cache reset reload ([3a32ddab](https://github.com/craft-ts/craft-ts/commit/3a32ddab))
 - make demo architecture release-safe ([ad8f063f](https://github.com/craft-ts/craft-ts/commit/ad8f063f))
 
