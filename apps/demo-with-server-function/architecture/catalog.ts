@@ -1,13 +1,17 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "409ae18e921e084d",
+  "graphHash": "c7cd07e9601bb621",
   "routes": [
     "",
+    "access-denied",
     "authenticated-list",
     "effect-middleware",
     "portable",
-    "simple-list"
+    "session-required",
+    "session-revoked",
+    "simple-list",
+    "users-not-found"
   ],
   "services": [
     "BrowserCryptoService",
@@ -22,6 +26,7 @@ export const architectureCatalog = {
     "ConsoleService",
     "CookiesService",
     "CraftLogServerUrl",
+    "CurrentSession",
     "CurrentUser",
     "GlobalPersisterHandlerService",
     "HostName",
@@ -38,6 +43,7 @@ export const architectureCatalog = {
   "components": [
     "AiContextMenu",
     "AiSendDialog",
+    "AnonymousComponent@31",
     "AnonymousComponent@800",
     "AppShell",
     "CraftRouterOutlet",
@@ -117,6 +123,10 @@ export const architectureCatalog = {
   "providedOn": {},
   "collisions": {
     "services": {
+      "CurrentSession": [
+        "apps/demo-with-server-function/src/shared/authenticated-user.ts",
+        "apps/demo-with-server-function/src/shared/authenticated-user.ts"
+      ],
       "CurrentUser": [
         "apps/demo-with-server-function/src/shared/authenticated-user.ts",
         "apps/demo-with-server-function/src/shared/authenticated-user.ts"

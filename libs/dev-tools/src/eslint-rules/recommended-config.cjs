@@ -25,6 +25,8 @@ module.exports = {
   'craft-ts/no-free-has': 'error',
   'craft-ts/style-file-boundary': 'error',
   'craft-ts/no-imperative-craft-resource-trigger': 'error',
+  'craft-ts/no-imperative-craft-method-actions': 'error',
+  'craft-ts/no-imperative-storage-in-craft-method': 'error',
   'craft-ts/no-transition-actions': 'error',
   'craft-ts/require-craft-resource-trigger-yield': 'error',
   'craft-ts/prefer-browser-boundaries': 'warn',

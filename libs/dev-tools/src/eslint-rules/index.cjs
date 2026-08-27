@@ -36,6 +36,8 @@ const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
 const templateElementNameUnique = require('./template-element-name-unique.cjs');
 const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
 const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
+const noImperativeCraftMethodActions = require('./no-imperative-craft-method-actions.cjs');
+const noImperativeStorageInCraftMethod = require('./no-imperative-storage-in-craft-method.cjs');
 const noTransitionActions = require('./no-transition-actions.cjs');
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
@@ -140,6 +142,8 @@ const plugin = {
     'template-element-name-unique': templateElementNameUnique,
     'prefer-craft-template-blocks': preferCraftTemplateBlocks,
     'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
+    'no-imperative-craft-method-actions': noImperativeCraftMethodActions,
+    'no-imperative-storage-in-craft-method': noImperativeStorageInCraftMethod,
     'no-transition-actions': noTransitionActions,
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
     'no-direct-temporal-globals': noDirectTemporalGlobals,

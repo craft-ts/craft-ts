@@ -65,25 +65,56 @@ If the query depends on `searchTerm`, make that dependency explicit with
 `params`:
 
 ```typescript
-const usersQuery = yield* query('usersQuery', {
-  params: searchTerm,
-  loader: ({ params }) => searchUsers(params),
-});
+const usersQuery =
+  yield *
+  query('usersQuery', {
+    params: searchTerm,
+    loader: ({ params }) => searchUsers(params),
+  });
 ```
 
-If all three operations belong to one explicit user action, use `craftMethod`
-instead of `craftEffect`:
+If the operation is a single explicit user action, a `craftMethod` may call one
+mutation after normalising the event:
 
 ```typescript
-const sync = craftMethod('sync', function* () {
-  yield* searchResults.set(yield* rawResults());
-  yield* usersQuery.call(yield* searchTerm());
+const save = craftMethod('save', function* (event: Event) {
+  event.preventDefault();
   yield* saveMutation.mutate(yield* draft());
 });
 ```
 
-Call `sync` from the submit or click handler. It then runs once per explicit
-invocation, rather than once per reactive recomputation.
+For several operations belonging to one event, emit a `source$` directly from
+the submit or click handler and let each affected primitive react to it. A
+mutation-to-query relationship belongs in `insertReactOnMutation`, not beside
+the mutation call site:
+
+```typescript
+const signOut$ = source$<void>('signOut$');
+
+button({ click: () => signOut$.emit() }, 'Sign out');
+
+const logout =
+  yield *
+  mutation('logout', {
+    method: signOut$.asReadonly(),
+    loader: logoutUser,
+  });
+
+const session =
+  yield *
+  query(
+    'session',
+    { params: () => 'current', loader: loadSession },
+    insertReactOnMutation(logout, {
+      optimisticUpdate: () => undefined,
+    }),
+  );
+```
+
+`craft-ts/no-imperative-craft-method-actions` and
+`craft-ts/no-imperative-storage-in-craft-method` enforce this placement in the
+editor. Storage adapters and intentionally imperative facades remain valid in
+their `craftService` seam.
 
 For a mutation-to-query relationship, use an insertion such as
 `insertReactOnMutation`. For a named external event, use `on$`. Use a computed
