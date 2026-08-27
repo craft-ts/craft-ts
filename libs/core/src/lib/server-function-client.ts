@@ -96,11 +96,15 @@ export function createServerFunctionFetchTransport(
   options: ServerFunctionFetchTransportOptions,
 ): ServerFunctionTransport {
   return (request) => {
-    const endpoint =
-      typeof options.endpoint === 'function'
-        ? options.endpoint(request.id)
-        : options.endpoint;
-    return fetchServerFunctionRequest(request, endpoint, options);
+    try {
+      const endpoint =
+        typeof options.endpoint === 'function'
+          ? options.endpoint(request.id)
+          : options.endpoint;
+      return fetchServerFunctionRequest(request, endpoint, options);
+    } catch (error) {
+      return toServerFunctionHttpError(request, error);
+    }
   };
 }
 
@@ -122,7 +126,10 @@ export type ServerFunctionContractClient<
   Contract extends ServerFunctionContract<any, any, any>,
 > = (
   input: ServerFunctionContractInput<Contract>,
-) => ServerFunctionInvocation<ServerFunctionContractOutput<Contract>>;
+) => ServerFunctionInvocation<
+  ServerFunctionContractOutput<Contract>,
+  ServerFunctionHttpError
+>;
 
 /**
  * A server call is deliberately a Craft generator rather than a Promise.
@@ -162,11 +169,12 @@ export type ServerFunctionClientFailure<
 export type ServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
   ClientOutput = ServerFunctionSuccess<Definition>,
-> = (input: ServerFunctionInput<Definition>) =>
-  ServerFunctionInvocation<
-    ClientOutput,
-    ServerFunctionClientFailure<Definition>
-  >;
+> = (
+  input: ServerFunctionInput<Definition>,
+) => ServerFunctionInvocation<
+  ClientOutput,
+  ServerFunctionClientFailure<Definition> | ServerFunctionHttpError
+>;
 
 export type ServerFunctionClientError<
   Definition extends ServerFunctionDefinition<any, any, any>,
@@ -315,7 +323,9 @@ function* invokeServerFunction(
   const middlewares = attachments.filter(isCraftClientMiddleware);
 
   if (middlewares.length === 0) {
-    return yield* awaitServerFunctionResult(transport({ id, input }));
+    return yield* awaitServerFunctionResult(
+      invokeServerFunctionTransport(transport, { id, input }),
+    );
   }
 
   // The injector must be captured while the invocation is being driven by its
@@ -330,8 +340,26 @@ function* invokeServerFunction(
     validateClientContext(id, providedSchemas, context),
   );
   return yield* awaitServerFunctionResult(
-    transport({ id, input, context, protocolVersion: 1 }),
+    invokeServerFunctionTransport(transport, {
+      id,
+      input,
+      context,
+      protocolVersion: 1,
+    }),
   );
+}
+
+function invokeServerFunctionTransport(
+  transport: ServerFunctionTransport,
+  request: ServerFunctionRequest,
+): Promise<unknown> {
+  try {
+    return Promise.resolve(transport(request)).catch((error) =>
+      toServerFunctionHttpError(request, error),
+    );
+  } catch (error) {
+    return Promise.resolve(toServerFunctionHttpError(request, error));
+  }
 }
 
 function* awaitServerFunctionResult<Result>(
@@ -382,45 +410,76 @@ async function fetchServerFunctionRequest(
       },
     );
   }
-  const response = await fetcher(endpoint, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      // En-tête non « simple » : il force un préflight CORS, donc un site
-      // tiers ne peut pas rejouer l'appel avec les cookies de l'utilisateur.
-      'x-craft-protocol': '1',
-      ...options.headers,
-    },
-    body: JSON.stringify(request),
-  });
-  const body = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    const failure = readServerFunctionFailure(body);
-    if (failure) {
-      return craftException(
-        {
-          _tag: failure._tag,
-          scope: 'ServerFunction',
-          identifier: request.id,
-        },
-        failure,
-      );
-    }
-    return craftException(
-      {
-        _tag: 'HttpError',
-        scope: 'ServerFunctionClient',
-        identifier: request.id,
+  try {
+    const response = await fetcher(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        // En-tête non « simple » : il force un préflight CORS, donc un site
+        // tiers ne peut pas rejouer l'appel avec les cookies de l'utilisateur.
+        'x-craft-protocol': '1',
+        ...options.headers,
       },
-      {
-        id: request.id,
+      body: JSON.stringify(request),
+    });
+
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch (error) {
+      return toServerFunctionHttpError(request, error, {
         status: response.status,
         statusText: response.statusText,
-        body,
-      },
-    );
+      });
+    }
+
+    if (!response.ok) {
+      const failure = readServerFunctionFailure(body);
+      if (failure) {
+        return craftException(
+          {
+            _tag: failure._tag,
+            scope: 'ServerFunction',
+            identifier: request.id,
+          },
+          failure,
+        );
+      }
+      return toServerFunctionHttpError(request, body, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+    return body;
+  } catch (error) {
+    return toServerFunctionHttpError(request, error);
   }
-  return body;
+}
+
+function toServerFunctionHttpError(
+  request: ServerFunctionRequest,
+  body: unknown,
+  response: Pick<
+    ServerFunctionHttpError['payload'],
+    'status' | 'statusText'
+  > = {
+    status: 0,
+    statusText: 'Unknown Error',
+  },
+): ServerFunctionHttpError {
+  return craftException(
+    {
+      _tag: 'HttpError',
+      scope: 'ServerFunctionClient',
+      identifier: request.id,
+    },
+    {
+      id: request.id,
+      status: response.status,
+      statusText: response.statusText,
+      body,
+    },
+  ) as ServerFunctionHttpError;
 }
 
 /** Relit un échec métier tagué sérialisé par le registre serveur. */

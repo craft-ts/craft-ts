@@ -714,6 +714,87 @@ export function query<
   >
 >;
 
+/**
+ * Generator-returning loaders need a dedicated overload. Without it, a
+ * generator is structurally an object and can be inferred as the resource
+ * state by one of the legacy overloads; its yielded exception markers would
+ * then disappear from the query's exception contract.
+ */
+export function query<
+  Name extends string,
+  QueryState extends object | undefined,
+  QueryParams,
+  LoaderYielded = never,
+>(
+  name: Name,
+  queryConfig: {
+    params: () => QueryParams;
+    loader: (
+      param: ResourceLoaderParams<StripCraftException<QueryParams>>,
+    ) => Generator<LoaderYielded, QueryState, unknown>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<QueryState>,
+    StripCraftException<QueryParams>,
+    unknown,
+    StripCraftException<QueryParams>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & {
+      params: ExtractCraftException<QueryParams>;
+      loader: Extract<
+        ExtractCraftGenExceptions<LoaderYielded>,
+        AnyCraftException
+      >;
+    },
+    {},
+    false,
+    never,
+    Name
+  >
+>;
+
+export function query<
+  Name extends string,
+  QueryState extends object | undefined,
+  QueryParams,
+  QueryArgsParams,
+  LoaderYielded = never,
+>(
+  name: Name,
+  queryConfig: {
+    method: (args: QueryArgsParams) => QueryParams;
+    loader: (
+      param: ResourceLoaderParams<StripCraftException<QueryParams>>,
+    ) => Generator<LoaderYielded, QueryState, unknown>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<QueryState>,
+    StripCraftException<QueryParams>,
+    QueryArgsParams,
+    StripCraftException<QueryParams>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & {
+      params: ExtractCraftException<QueryParams>;
+      loader: Extract<
+        ExtractCraftGenExceptions<LoaderYielded>,
+        AnyCraftException
+      >;
+    },
+    {},
+    false,
+    never,
+    Name
+  >
+>;
+
 export function query<
   Name extends string,
   ParamsSchema extends CraftSchema,

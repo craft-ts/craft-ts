@@ -1,14 +1,12 @@
 import { Effect } from 'effect';
 import { craftException } from '@craft-ts/core';
 import { effectServerMiddleware } from '@craft-ts/effect';
-import { CurrentUser } from '../server/authentication';
 
 /** Effect middleware: its value is yieldable and has no continuation hook. */
 export const effectAudit = effectServerMiddleware(
   'demo.effect-audit',
   ({ input }) =>
     Effect.gen(function* () {
-      const user = yield* CurrentUser;
       if (
         typeof input === 'object' &&
         input !== null &&
@@ -25,7 +23,7 @@ export const effectAudit = effectServerMiddleware(
           ),
         );
       }
-      yield* Effect.log(`effect middleware before user=${user.id}`);
+      yield* Effect.log('effect middleware before user request');
       return { value: undefined };
     }),
 );

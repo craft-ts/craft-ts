@@ -10,46 +10,91 @@ import {
 } from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
-  craftRoute('', {
-    ...loadCraftComponent(async () => {
-      const { PublicProductsDemo } = await import('./public-products-demo');
-      return PublicProductsDemo;
-    }),
-  }),
   craftRoute(
-    'authenticated-list',
+    '',
     {
-      ...loadCraftComponent(async () => {
-        const { ServerFunctionDemo } = await import('./server-function-demo');
-        return ServerFunctionDemo;
-      }),
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./public-products-demo')).then(
+          ({ PublicProductsDemo }) => PublicProductsDemo,
+        ),
+      ),
     },
     {
-      AdminRequired: craftExceptionHandler(function* ({ globalError }) {
-        return globalError();
-      }),
-      AuthenticatedUserMismatch: craftExceptionHandler(function* ({
-        globalError,
-      }) {
-        return globalError();
-      }),
-      AuthenticatedUsersNotFound: craftExceptionHandler(function* ({
-        globalError,
-      }) {
-        return globalError();
-      }),
       HttpError: craftExceptionHandler(function* ({ globalError }) {
         return globalError();
       }),
     },
   ),
   craftRoute(
+    'authenticated-list',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./server-function-demo')).then(
+          ({ ServerFunctionDemo }) => ServerFunctionDemo,
+        ),
+      ),
+    },
+    {
+      SessionRequired: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/session-required');
+      }),
+      SessionRevoked: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/session-revoked');
+      }),
+      AdminRequired: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/access-denied');
+      }),
+      AuthenticatedUserMismatch: craftExceptionHandler(function* ({
+        redirectUrl,
+      }) {
+        return redirectUrl('/access-denied');
+      }),
+      AuthenticatedUsersNotFound: craftExceptionHandler(function* ({
+        redirectUrl,
+      }) {
+        return redirectUrl('/users-not-found');
+      }),
+      HttpError: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ),
+  craftRoute('session-required', {
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./server-function-status-pages')).then(
+        ({ SessionRequiredPage }) => SessionRequiredPage,
+      ),
+    ),
+  }),
+  craftRoute('session-revoked', {
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./server-function-status-pages')).then(
+        ({ SessionRevokedPage }) => SessionRevokedPage,
+      ),
+    ),
+  }),
+  craftRoute('access-denied', {
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./server-function-status-pages')).then(
+        ({ AccessDeniedPage }) => AccessDeniedPage,
+      ),
+    ),
+  }),
+  craftRoute('users-not-found', {
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./server-function-status-pages')).then(
+        ({ UsersNotFoundPage }) => UsersNotFoundPage,
+      ),
+    ),
+  }),
+  craftRoute(
     'simple-list',
     {
-      ...loadCraftComponent(async () => {
-        const { SimpleListDemo } = await import('./simple-list-demo');
-        return SimpleListDemo;
-      }),
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./simple-list-demo')).then(
+          ({ SimpleListDemo }) => SimpleListDemo,
+        ),
+      ),
     },
     {
       HttpError: craftExceptionHandler(function* ({ globalError }) {
@@ -109,6 +154,46 @@ type _CheckServerFunctionDemoDI = RouteCheckedDI<
   'component: server-function-demo'
 >;
 type _CanRunServerFunctionDemo = CanRun<_CheckServerFunctionDemoDI>;
+
+type _CheckSessionRequiredPageDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./server-function-status-pages'))['SessionRequiredPage']
+  >,
+  'CraftRouter',
+  never,
+  'component: session-required'
+>;
+type _CanRunSessionRequiredPage = CanRun<_CheckSessionRequiredPageDI>;
+
+type _CheckSessionRevokedPageDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./server-function-status-pages'))['SessionRevokedPage']
+  >,
+  'CraftRouter',
+  never,
+  'component: session-revoked'
+>;
+type _CanRunSessionRevokedPage = CanRun<_CheckSessionRevokedPageDI>;
+
+type _CheckAccessDeniedPageDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./server-function-status-pages'))['AccessDeniedPage']
+  >,
+  'CraftRouter',
+  never,
+  'component: access-denied'
+>;
+type _CanRunAccessDeniedPage = CanRun<_CheckAccessDeniedPageDI>;
+
+type _CheckUsersNotFoundPageDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./server-function-status-pages'))['UsersNotFoundPage']
+  >,
+  'CraftRouter',
+  never,
+  'component: users-not-found'
+>;
+type _CanRunUsersNotFoundPage = CanRun<_CheckUsersNotFoundPageDI>;
 
 type _CheckPublicProductsDemoDI = RouteCheckedDI<
   ComponentDepsOf<

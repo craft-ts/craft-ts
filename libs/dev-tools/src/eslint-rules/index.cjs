@@ -94,6 +94,7 @@ const noUnsafeTransferState = require('./no-unsafe-transfer-state.cjs');
 const noUnsafeHtml = require('./no-unsafe-html.cjs');
 const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
 const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
+const requireI18nText = require('./require-i18n-text.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
 
@@ -200,6 +201,7 @@ const plugin = {
     'no-unsafe-html': noUnsafeHtml,
     'no-trust-forwarded-headers': noTrustForwardedHeaders,
     'no-effect-import-in-frontend': noEffectImportInFrontend,
+    'require-i18n-text': requireI18nText,
   },
 };
 
@@ -252,6 +254,12 @@ plugin.configs = {
   security: {
     plugins: { 'craft-ts': plugin },
     rules: securityRules,
+  },
+  i18n: {
+    plugins: { 'craft-ts': plugin },
+    rules: {
+      'craft-ts/require-i18n-text': 'error',
+    },
   },
 };
 

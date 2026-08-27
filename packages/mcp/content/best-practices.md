@@ -45,7 +45,7 @@ Decision page: `/guide/concepts/choose-primitive`.
    state.
 3. **Do not use `async` / `await` / `for await`.** Generators, `craftSleep`, and `CraftHttpClient` replace them.
 4. **HTTP:** `query` for reads, `mutation` for writes, both backed by `CraftHttpClient`. No raw `fetch` / `HttpClient`.
-5. **Forms** derive from `state` + `insertForm`. Validators are `cRequired`, `cEmail`, `cMinLength`, … Submit through `insertFormSubmit` + a `mutation`. Failures are `craftException` values.
+5. **Forms** derive from `state` + `insertForm`. Validators are `cRequired`, `cEmail`, `cMinLength`, … Submit through `insertFormSubmit` + a `mutation`. Failures are `craftException` values. Search terms `form`, `formulaire`, `validation`, `submit`, `field`, and `FormData` map to these APIs; native `FormData` is an interoperability boundary, not the form state model.
 6. **Services:** `craftService({ name, scope }, function* () { ... })`. Consume
    the generated `X()` helper, typically `yield* X(...)`.
 7. **Routes:** `craftRoutes(name, [...])`, every component route has `componentDeps: {} as import('./x').GenDeps_X`, and **every file** has its own `ValidateCascadeRoutesFile` / `CanRun` check. Parent checks do not cover `loadChildren`. On `TS2589`, split with `loadChildren` — never delete the check.

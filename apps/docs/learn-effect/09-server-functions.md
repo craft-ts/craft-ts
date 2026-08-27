@@ -9,6 +9,11 @@ experiment and to build demos; do not treat it as a stable deployment API.
 
 :::
 
+For the recommended public/protected access path, start with the
+[server functions guide](/guide/app/server-functions). This chapter keeps the
+lower-level POC details; the guide highlights the existing middleware,
+`clientContext`, session verification and refusal tests.
+
 **Goal:** understand the current client → registry → Effect server path.
 
 ## The current shape
@@ -39,11 +44,9 @@ const inputSchema = Schema.toStandardSchemaV1(
   Schema.Struct({ filter: Schema.String }),
 );
 
-export const listUsers = serverFunction(
-  'demo.users.list',
-  inputSchema,
-  { exposure: 'client' },
-).handler(({ input }) =>
+export const listUsers = serverFunction('demo.users.list', inputSchema, {
+  exposure: 'client',
+}).handler(({ input }) =>
   Effect.gen(function* () {
     const repository = yield* UserRepository;
     return yield* repository.list(input.filter);
@@ -61,9 +64,8 @@ of truth. Do not duplicate a result type or an error list manually.
 import { createServerFunctionClient } from '@craft-ts/core';
 import type { listUsers as ServerListUsers } from './list.fn-serveur';
 
-export const getUsers = createServerFunctionClient<typeof ServerListUsers>(
-  'demo.users.list',
-);
+export const getUsers =
+  createServerFunctionClient<typeof ServerListUsers>('demo.users.list');
 ```
 
 The component uses the facade like a typed function. Wrap it in `queryEffect` or
@@ -72,20 +74,34 @@ The component uses the facade like a typed function. Wrap it in `queryEffect` or
 ```typescript
 import { isCraftException } from '@craft-ts/core';
 
-const users = yield* queryEffect('users', {
-  params: () => ({ filter: search() }),
-  loader: ({ params }) =>
-    Effect.gen(function* () {
-      const result = yield* Effect.promise(() => getUsers(params));
-      if (isCraftException(result)) return yield* Effect.fail(result);
-      return result;
-    }),
-});
+const users =
+  yield *
+  queryEffect('users', {
+    params: () => ({ filter: search() }),
+    loader: ({ params }) =>
+      Effect.gen(function* () {
+        const result = yield* Effect.promise(() => getUsers(params));
+        if (isCraftException(result)) return yield* Effect.fail(result);
+        return result;
+      }),
+  });
 ```
 
 The exact transport adapter is still experimental. The repository's
 `demo-with-server-function` app currently uses `createServer`, `executeEffect`
 and a local HTTP bridge.
+
+### Transport failures are typed
+
+The client transport always converts failures that prevent a usable server
+function response into a `CraftException` with `_tag: 'HttpError'` and
+`scope: 'ServerFunctionClient'`. This includes a lost connection, an aborted
+request, a missing `fetch` implementation, a rejected custom transport and an
+unreadable response body. As with `CraftHttpClient`, a network failure has
+`payload.status === 0`; the original failure is kept in `payload.body`.
+
+Server-side business failures remain their declared tags, so connection loss
+and domain errors can be handled separately by the same resource or mutation.
 
 ## Register and execute on the server
 

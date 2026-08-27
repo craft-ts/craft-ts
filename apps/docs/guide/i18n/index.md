@@ -52,3 +52,27 @@ npm run i18n:test
 ```
 
 A working example lives in the demo, at `apps/demo/src/app/examples/i18n/`.
+
+## Guard visible text in Craft templates
+
+The dev-tools plugin exposes an opt-in `i18n` ESLint preset for applications
+that have finished moving their user-facing copy into a catalogue:
+
+```js
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
+
+export default [
+  {
+    plugins: { 'craft-ts': craftRules },
+    rules: { ...craftRules.configs.i18n.rules },
+  },
+];
+```
+
+`craft-ts/require-i18n-text` reports static text in visible headings,
+paragraphs, labels, buttons, links and options, plus visible `placeholder`,
+`aria-label` and `title` attributes. Dynamic business values, `i18n.t(...)`
+and catalogue files are accepted. Server files and tests are excluded so
+technical messages and assertions can remain literal. The rule is deliberately
+separate from the recommended preset: enable it when the catalogue is the
+application's source of truth, then run `npm run lint` in CI.

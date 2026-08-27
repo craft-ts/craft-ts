@@ -1,9 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -47,6 +42,8 @@ export type StarterConfig = {
     readonly effectTsRef: string;
   };
   readonly agents: readonly CreateAgent[];
+  readonly demoPages: boolean;
+  readonly domain: string;
 };
 
 export type CreateProjectOptions = {
@@ -73,6 +70,10 @@ export type CreateProjectOptions = {
   readonly cloneEffectTs?: boolean;
   /** Release runner override; normal users should leave this unset. */
   readonly packageVersion?: string;
+  /** Generate the explanatory demo pages (default: true). */
+  readonly demoPages?: boolean;
+  /** Domain/feature name used when demo pages are disabled. */
+  readonly domain?: string;
 };
 
 export type CreateProjectResult = {
@@ -175,10 +176,13 @@ the installed package before using it.
 function referenceAgentGuidance(config?: StarterConfig): string {
   if (!config || (!config.references.craftTs && !config.references.effectTs))
     return '';
-  const root = config.workspace.kind === 'nx' ? '../../.references' : '.references';
+  const root =
+    config.workspace.kind === 'nx' ? '../../.references' : '.references';
   const entries = [
     config.references.craftTs ? `- CraftTS source: \`${root}/craft-ts\`` : '',
-    config.references.effectTs ? `- EffectTS source: \`${root}/effect-ts\`` : '',
+    config.references.effectTs
+      ? `- EffectTS source: \`${root}/effect-ts\``
+      : '',
   ].filter(Boolean);
   return `
 ## Local source references
@@ -194,7 +198,8 @@ these clones.
 }
 
 function agentsMd(mode: CreateMode, config?: StarterConfig): string {
-  const frontend = config?.frontendRuntime ?? (mode === 'effect' ? 'effect' : 'plain');
+  const frontend =
+    config?.frontendRuntime ?? (mode === 'effect' ? 'effect' : 'plain');
   const backend = config?.backendRuntime ?? 'none';
   const i18n = config?.i18n.enabled ?? true;
   const designSystem = config?.designSystem !== 'none';
@@ -253,6 +258,9 @@ guide for coding agents: it records the selected runtime and feature surfaces.
 - Type-safe i18n: **${i18n ? 'enabled' : 'disabled'}**
 - Design system: **${designSystem ? 'enabled' : 'disabled'}**
 - Typed CSS: **${typedCss ? 'enabled' : 'disabled'}**
+- Starter surface: **${config?.demoPages === false ? 'domain-first' : 'demo pages'}**
+
+${config?.demoPages === false ? 'The starter is already domain-first.' : 'Before starting product development, run `npm run reset:starter` to remove the explanatory demo pages and keep only the first domain feature.'}
 
 Read \`.agents/skills/craft-ts-project/SKILL.md\` before changing application
 code. ${i18n ? 'Translation keys live in `src/i18n/`; run `npm run i18n:check` and `npm run i18n:test` after changes.' : 'This starter has no i18n surface; do not add translation files unless the project configuration changes.'}
@@ -286,6 +294,16 @@ type TemplateContext = {
   readonly packageVersion?: string;
 };
 
+function slugForGeneratedDomain(value: string | undefined): string {
+  const slug = (value ?? 'feature')
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return slug || 'feature';
+}
+
 function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -307,6 +325,7 @@ function packageJson(context: TemplateContext): string {
     engines: { node: '>=20.19.0' },
     scripts: {
       dev: 'node scripts/dev.mjs',
+      'reset:starter': 'node scripts/reset-starter.mjs',
       build: 'vite build',
       lint: 'eslint .',
       typecheck: 'node scripts/typecheck.mjs',
@@ -365,9 +384,7 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/log-mcp': craftPackage(),
       '@craft-ts/log-server': craftPackage(),
       ...(hasEffect ? { effect: effectPackage } : {}),
-      ...(hasTypedCss
-        ? { '@craft-ts/style-testing': craftPackage() }
-        : {}),
+      ...(hasTypedCss ? { '@craft-ts/style-testing': craftPackage() } : {}),
       '@playwright/test': '^1.52.0',
       '@types/node': '^22.0.0',
       'aria-query': '^5.3.2',
@@ -628,7 +645,7 @@ processes[0].once('exit', (code) => {
 
 const effectTsgoRunner = `import { chmodSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const effectTsgoPath = resolve(projectRoot, 'node_modules/.bin/effect-tsgo');
@@ -641,14 +658,43 @@ if (process.platform !== 'win32') {
     'lib',
     'tsc',
   );
-  if (existsSync(nativeBinary)) chmodSync(nativeBinary, 0o755);
+if (existsSync(nativeBinary)) chmodSync(nativeBinary, 0o755);
 }
-const result = spawnSync(effectTsgoPath, process.argv.slice(2), {
+const originalArgs = process.argv.slice(2);
+const projectArgument = valueAfter(originalArgs, '--project') ?? valueAfter(originalArgs, '-p');
+if (originalArgs[0] === 'diagnostics' && projectArgument) {
+  const projectPath = resolve(projectRoot, projectArgument);
+  const listed = spawnSync(
+    resolve(projectRoot, 'node_modules/.bin/tsc'),
+    ['-p', projectPath, '--listFilesOnly', '--pretty', 'false'],
+    { cwd: projectRoot, encoding: 'utf8' },
+  );
+  const programFiles = (listed.stdout ?? '').split(/\\r?\\n/).filter((file) => /\\.(ts|tsx|mts|cts)$/.test(file));
+  console.log('Effect check scope: ' + relative(projectRoot, projectPath));
+  console.log('TypeScript program files: ' + programFiles.length);
+  if (programFiles.length === 0) {
+    console.error('Effect check refused to continue: the TypeScript program contains no files. Check --project and tsconfig include/exclude.');
+    process.exitCode = 1;
+    process.exit();
+  }
+}
+const args =
+  originalArgs[0] === 'diagnostics' && !originalArgs.includes('--progress')
+    ? [...originalArgs, '--progress']
+    : originalArgs;
+const result = spawnSync(effectTsgoPath, args, {
   cwd: projectRoot,
   stdio: 'inherit',
 });
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;
+
+function valueAfter(args, flag) {
+  const index = args.indexOf(flag);
+  if (index >= 0) return args[index + 1];
+  const inline = args.find((argument) => argument.startsWith(flag + '='));
+  return inline?.slice(flag.length + 1);
+}
 `;
 
 const styleCheckScript = `import { existsSync } from 'node:fs';
@@ -1234,6 +1280,14 @@ function appTs(context: TemplateContext): string {
     : '';
   const themeOpen = designSystem ? 'div({ class: appTheme.root }, [' : 'div([';
   const themeClose = designSystem ? '])' : '])';
+  const badge = context.config.demoPages
+    ? "        span({ class: 'starter-experimental-badge' }, 'Experimental · feedback welcome'),"
+    : '';
+  const navigation = context.config.demoPages
+    ? `        a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' })),
+        a('services', {}, 'Services').pipe(CraftRouterLink({ to: 'services' })),
+        a('about', {}, 'About').pipe(CraftRouterLink({ to: 'about' })),`
+    : `        a('${context.config.domain}', {}, '${context.config.domain}').pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
   return `import {
   a,
   CraftRouterOutlet,
@@ -1253,10 +1307,8 @@ export const App = craftComponent(
   () =>
     ${themeOpen}
       nav([
-        a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' })),
-        a('services', {}, 'Services').pipe(CraftRouterLink({ to: 'services' })),
-        a('about', {}, 'About').pipe(CraftRouterLink({ to: 'about' })),
-        span({ class: 'starter-experimental-badge' }, 'Experimental · feedback welcome'),
+${navigation}
+${badge}
       ]),
       main(CraftRouterOutlet()),
     ${themeClose},
@@ -1265,6 +1317,7 @@ export const App = craftComponent(
 }
 
 function routesTs(context: TemplateContext): string {
+  if (!context.config.demoPages) return domainRoutesTs(context);
   const httpErrorHandler =
     context.config.frontendRuntime === 'plain'
       ? `    HttpError: craftExceptionHandler(function* ({ globalError }) {
@@ -1365,7 +1418,49 @@ declare module '@craft-ts/core' {
     App: typeof appRoutes.META_PATHS;
   }
 }
+
 `;
+}
+
+function domainRoutesTs(context: TemplateContext): string {
+  const domain = context.config.domain;
+  const type = typeNameForTemplate(domain);
+  return `/* eslint-disable require-yield -- Route exception outcomes are synchronous by design. */
+import { loadCraftComponent } from '@craft-ts/component';
+import { craftRoutes, type CanRun, type ComponentDepsOf, type RouteCheckedDI } from '@craft-ts/core';
+
+export const { appRoutes } = craftRoutes('app', [
+  {
+    path: '${domain}',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./features/${domain}/${domain}-page')).then(
+        (module: typeof import('./features/${domain}/${domain}-page')) => module.default,
+      ),
+    ),
+  },
+]);
+
+type _Check${type}PageDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./features/${domain}/${domain}-page'))['default']>,
+  'CraftRouter',
+  never,
+  'component: ${domain}-page'
+>;
+type _CanRun${type}Page = CanRun<_Check${type}PageDI>;
+
+declare module '@craft-ts/core' {
+  interface CraftRouterRoutesRegistry {
+    App: typeof appRoutes.META_PATHS;
+  }
+}
+`;
+}
+
+function typeNameForTemplate(value: string): string {
+  return value
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
 }
 
 function plainAppConfig(context: TemplateContext): string {
@@ -1606,7 +1701,7 @@ const starterMessageTransport = createServerFunctionClient<typeof ServerGetStart
 export const getStarterMessage = starterMessageTransport as ServerFunctionClient<typeof ServerGetStarterMessage, StarterResponse>;
 `;
   const compatibilityServer = `export { application, createApplication } from './application';
-${effect ? 'export { runtimeLayer } from \'./application\';\n' : ''}export { handleRequest } from './node-http';
+${effect ? "export { runtimeLayer } from './application';\n" : ''}export { handleRequest } from './node-http';
 `;
   return {
     'src/server/repository.ts': repository,
@@ -1635,8 +1730,9 @@ export default defineConfig({ test: { name: 'craft-starter-server', globals: tru
 }
 
 function serverSpec(context: TemplateContext): string {
-  const effectFailure = context.config.backendRuntime === 'effect'
-    ? `
+  const effectFailure =
+    context.config.backendRuntime === 'effect'
+      ? `
   it('exposes the typed Effect repository failure', async () => {
     const response = await application.handle(new Request('http://127.0.0.1/__server-functions', {
       method: 'POST',
@@ -1649,7 +1745,7 @@ function serverSpec(context: TemplateContext): string {
     });
   });
 `
-    : '';
+      : '';
   return `import { createServer as createNodeServer } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import { createServer, serverFunction, type StandardSchemaV1 } from '@craft-ts/core';
@@ -1905,6 +2001,87 @@ export default AboutPage;
 `;
 }
 
+function domainPageTs(context: TemplateContext): string {
+  const domain = context.config.domain;
+  const type = typeNameForTemplate(domain);
+  return `import { craftComponent, div, heading, p } from '@craft-ts/component';
+
+/** Domain-first entry point. Add queries, mutations and forms in this feature. */
+export const ${type}Page = craftComponent(
+  '${type}Page',
+  {},
+  () => ({}),
+  () => div([
+    heading('${type}'),
+    p('This is the ${domain} feature boundary. Add the domain flow here.'),
+  ]),
+);
+
+export default ${type}Page;
+`;
+}
+
+function resetStarterScript(context: TemplateContext): string {
+  const minimalContext: TemplateContext = {
+    ...context,
+    config: { ...context.config, demoPages: false },
+  };
+  const files = {
+    'src/app/app.ts': appTs(minimalContext),
+    'src/app/app.routes.ts': routesTs(minimalContext),
+    [`src/app/features/${context.config.domain}/${context.config.domain}-page.ts`]:
+      domainPageTs(minimalContext),
+    [`src/app/features/${context.config.domain}/${context.config.domain}-page.spec.ts`]: `import { describe, expect, it } from 'vitest';
+import ${typeNameForTemplate(context.config.domain)}Page from './${context.config.domain}-page';
+
+describe('${context.config.domain} feature', () => {
+  it('exports the domain entry point', () => expect(${typeNameForTemplate(context.config.domain)}Page).toBeDefined());
+});
+`,
+    [`src/app/features/${context.config.domain}/README.md`]: `# ${context.config.domain} feature
+
+This is the domain boundary generated by craft create. Add the query, mutation, form and server function for this feature here.
+`,
+    '.craft/starter.json': starterManifest(minimalContext),
+    'README.md': readme(minimalContext),
+  };
+  const removed = [
+    'src/app/api.ts',
+    'src/app/domain.ts',
+    'src/app/home-page.ts',
+    'src/app/home-page.spec.ts',
+    'src/app/about-page.ts',
+    'src/app/services-page.ts',
+    'e2e/starter.spec.ts',
+    'e2e/i18n.spec.ts',
+  ];
+  return `import { existsSync } from 'node:fs';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+
+const root = resolve(import.meta.dirname, '..');
+const manifestPath = join(root, '.craft/starter.json');
+if (!existsSync(manifestPath)) {
+  throw new Error('This project was not generated by craft create.');
+}
+const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+if (manifest.status !== 'demo') {
+  console.log('Starter is already in domain-first state; nothing to reset.');
+  process.exit(0);
+}
+
+for (const file of ${JSON.stringify(removed)}) {
+  await rm(join(root, file), { recursive: true, force: true });
+}
+for (const [file, contents] of Object.entries(${JSON.stringify(files)})) {
+  const target = join(root, file);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, contents, 'utf8');
+}
+console.log('Reset complete: demo pages removed; domain feature is ready.');
+`;
+}
+
 function servicesPageTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
   const uiImport = designSystem
@@ -1934,7 +2111,10 @@ const { StarterService } = craftService({ name: 'StarterService', providedIn: 'g
   return { label: 'resolved through Craft DI' };
 });
 `;
-  const lintComment = context.config.frontendRuntime === 'effect' ? '' : '/* eslint-disable require-yield -- Synchronous DI factory is intentional in this starter. */\n';
+  const lintComment =
+    context.config.frontendRuntime === 'effect'
+      ? ''
+      : '/* eslint-disable require-yield -- Synchronous DI factory is intentional in this starter. */\n';
   return `${lintComment}import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${uiImport}${i18n}${effectI18n}${service}
 export const ServicesPage = craftComponent(
@@ -2376,6 +2556,7 @@ function readme(context: TemplateContext): string {
   const typedCss = context.config.typedCss;
   const designSystem = context.config.designSystem !== 'none';
   const server = context.config.backendRuntime !== 'none';
+  const demoPages = context.config.demoPages;
   const references =
     context.config.references.craftTs || context.config.references.effectTs;
   const referencePath =
@@ -2389,9 +2570,16 @@ function readme(context: TemplateContext): string {
     '',
     'This project includes:',
     '',
-    '- a routed Craft component page;',
+    demoPages
+      ? '- a routed Craft component page;'
+      : `- a domain-first ${'`'}${context.config.domain}${'`'} feature boundary;`,
     `- a ${server ? 'server-function' : 'typed CraftHttpClient'} API boundary${effect ? ' with an Effect v4 repository service and Layer' : ''};`,
-    '- three lazy routes: `/`, `/services` and `/about`;',
+    ...(demoPages
+      ? ['- three lazy routes: `/`, `/services` and `/about`;']
+      : [
+          `- one lazy route: ${'`'}/${context.config.domain}${'`'};`,
+          '- no explanatory demo pages; add a form with `craft add form <name>`.',
+        ]),
     ...(designSystem
       ? [
           `- a ${typedCss ? 'typed CSS' : 'plain CSS'} design-system composition;`,
@@ -2419,6 +2607,10 @@ function readme(context: TemplateContext): string {
     'npm run registry:mcp',
     'npm run dev',
     '',
+    demoPages
+      ? 'Before product development, run `npm run reset:starter` to remove the explanatory demo pages and keep the generated domain feature.'
+      : 'The starter is already in its minimal domain-first state.',
+    '',
     'The browser type-check runs beside Vite. Its status is visible in the page;',
     'the same command writes the status used by CI. Raw console.* calls are not',
     'forwarded to the log MCP server: use Craft Console.* for searchable entries.',
@@ -2441,7 +2633,7 @@ function readme(context: TemplateContext): string {
     'npm test',
     'npm run architecture',
     'npm run typecheck-architecture',
-    'npm run e2e',
+    ...(demoPages ? ['npm run e2e'] : []),
     'npm run build',
     '',
     ...(i18n
@@ -2481,6 +2673,21 @@ function readme(context: TemplateContext): string {
     'architecture/catalog.ts by hand.',
     '',
   ].join('\n');
+}
+
+function starterManifest(context: TemplateContext): string {
+  return json({
+    schemaVersion: 1,
+    status: context.config.demoPages ? 'demo' : 'domain',
+    domain: context.config.domain,
+    frontendRuntime: context.config.frontendRuntime,
+    backendRuntime: context.config.backendRuntime,
+    i18n: context.config.i18n.enabled ? context.config.i18n.validation : 'none',
+    locales: context.locales,
+    defaultLocale: context.defaultLocale,
+    designSystem: context.config.designSystem,
+    typedCss: context.config.typedCss,
+  });
 }
 
 function agentFiles(
@@ -2539,6 +2746,7 @@ function templates(context: TemplateContext): Record<string, string> {
   const hasI18n = context.config.i18n.enabled;
   const hasDesignSystem = context.config.designSystem !== 'none';
   const typedCss = context.config.typedCss;
+  const demoPages = context.config.demoPages;
   const localeFiles = Object.fromEntries(
     hasI18n
       ? context.locales.map((locale, index) => [
@@ -2564,6 +2772,7 @@ function templates(context: TemplateContext): Record<string, string> {
     ...(hasServer ? { 'tsconfig.server.json': tsconfigServer } : {}),
     'scripts/typecheck.mjs': typecheckScript(context),
     'scripts/dev.mjs': devScript,
+    'scripts/reset-starter.mjs': resetStarterScript(context),
     'vite.config.ts': viteConfig(context),
     'vitest.config.ts': vitestConfig,
     'eslint.config.mjs': eslintConfig(
@@ -2578,6 +2787,7 @@ function templates(context: TemplateContext): Record<string, string> {
     'src/main.ts': mainTs(context),
     'src/dev-typecheck-indicator.ts': typecheckIndicatorTs,
     'src/styles.css': stylesFor(context),
+    '.craft/starter.json': starterManifest(context),
     ...(hasI18n
       ? {
           'src/i18n/catalog.ts': i18nCatalogTs(context.locales),
@@ -2604,21 +2814,30 @@ function templates(context: TemplateContext): Record<string, string> {
       ? effectAppConfig(context)
       : plainAppConfig(context),
     'src/app/app.routes.ts': routesTs(context),
-    'src/app/api.ts':
-      effect && !hasServer
-        ? "export { loadWelcome } from './domain';\nexport type { WelcomeResponse } from './domain';\n"
-        : apiTs(context),
-    ...(effect
+    ...(demoPages
       ? {
-          'src/app/domain.ts': effectDomainTs(context),
-          'src/app/home-page.ts': effectHomePageTs(context),
+          'src/app/api.ts':
+            effect && !hasServer
+              ? "export { loadWelcome } from './domain';\nexport type { WelcomeResponse } from './domain';\n"
+              : apiTs(context),
+          ...(effect
+            ? {
+                'src/app/domain.ts': effectDomainTs(context),
+                'src/app/home-page.ts': effectHomePageTs(context),
+              }
+            : { 'src/app/home-page.ts': plainHomePageTs(context) }),
+          'src/app/about-page.ts': aboutPageTs(context),
+          'src/app/services-page.ts': servicesPageTs(context),
+          'src/app/home-page.spec.ts': unitTestTs(context),
+          'e2e/starter.spec.ts': e2eTestTs(context),
+          ...(hasI18n ? { 'e2e/i18n.spec.ts': i18nE2eTestTs(context) } : {}),
         }
-      : { 'src/app/home-page.ts': plainHomePageTs(context) }),
-    'src/app/about-page.ts': aboutPageTs(context),
-    'src/app/services-page.ts': servicesPageTs(context),
-    'src/app/home-page.spec.ts': unitTestTs(context),
-    'e2e/starter.spec.ts': e2eTestTs(context),
-    ...(hasI18n ? { 'e2e/i18n.spec.ts': i18nE2eTestTs(context) } : {}),
+      : {
+          [`src/app/features/${context.config.domain}/${context.config.domain}-page.ts`]:
+            domainPageTs(context),
+          [`src/app/features/${context.config.domain}/${context.config.domain}-page.spec.ts`]: `import { describe, expect, it } from 'vitest';\nimport ${typeNameForTemplate(context.config.domain)}Page from './${context.config.domain}-page';\n\ndescribe('${context.config.domain} feature', () => {\n  it('exports the domain entry point', () => expect(${typeNameForTemplate(context.config.domain)}Page).toBeDefined());\n});\n`,
+          [`src/app/features/${context.config.domain}/README.md`]: `# ${context.config.domain} feature\n\nThis is the domain boundary generated by craft create --no-demos. Add the query, mutation, form and server function for this feature here.\n`,
+        }),
   };
   if (hasDesignSystem) {
     files[`src/app/ui/${typedCss ? 'ui.style.ts' : 'ui.ts'}`] = typedCss
@@ -2823,6 +3042,8 @@ export function normalizeCreateOptions(
       effectTsRef: options.effectTsRef ?? 'main',
     },
     agents: options.agents ?? DEFAULT_AGENTS,
+    demoPages: options.demoPages ?? true,
+    domain: slugForGeneratedDomain(options.domain),
   };
 }
 

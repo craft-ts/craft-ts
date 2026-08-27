@@ -17,7 +17,9 @@ import { Data, Effect } from 'effect';
 
 type TestSchema<Input, Output> = StandardSchemaV1<Input, Output>;
 
-const numberSchema = (transform: (value: number) => number): TestSchema<number, number> =>
+const numberSchema = (
+  transform: (value: number) => number,
+): TestSchema<number, number> =>
   ({
     '~standard': {
       version: 1,
@@ -35,9 +37,12 @@ describe('server functions', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
   it('keeps a server-only function local to its implementation', async () => {
-    const add = serverFunction('math.add', numberSchema((value) => value)).handler(
-      ({ input }) => input + 1,
-    ).exposeErrors({});
+    const add = serverFunction(
+      'math.add',
+      numberSchema((value) => value),
+    )
+      .handler(({ input }) => input + 1)
+      .exposeErrors({});
     const server = createServer({ functions: [add] });
 
     await expect(server.invoke('math.add', 2)).resolves.toBe(3);
@@ -76,10 +81,44 @@ describe('server functions', () => {
 
     const server = createServer({
       functions: [implementation],
-      runtime: { resolve: <Value>() => ({ id: 'u-1' } as Value) },
+      runtime: { resolve: <Value>() => ({ id: 'u-1' }) as Value },
       checkPermission: (permission) => permission === 'users:read',
     });
     await expect(server.invoke('users.current', 4)).resolves.toBe('u-1:4');
+  });
+
+  it('normalizes a rejected custom transport to a typed HTTP error', async () => {
+    const _implementation = serverFunction(
+      'users.transport-failure',
+      numberSchema((value) => value),
+      { exposure: 'client' },
+    )
+      .handler(({ input }) => input)
+      .exposeErrors({});
+    const connectionError = new TypeError('Failed to fetch');
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideServerFunctionTransport(async () => {
+          throw connectionError;
+        }),
+      ],
+    });
+    const client = createServerFunctionClient<typeof _implementation>(
+      craftUnique('users.transport-failure'),
+    );
+
+    await expect(runServerFunction(client, 4)).resolves.toMatchObject({
+      _tag: 'HttpError',
+      scope: 'ServerFunctionClient',
+      identifier: 'users.transport-failure',
+      payload: {
+        id: 'users.transport-failure',
+        status: 0,
+        statusText: 'Unknown Error',
+        body: connectionError,
+      },
+    });
   });
 
   it('rejette une permission déclarée mais refusée', async () => {
@@ -108,12 +147,18 @@ describe('server functions', () => {
   });
 
   it('rejects duplicate ids in the server registry', () => {
-    const one = serverFunction('same.id', numberSchema((value) => value)).handler(
-      ({ input }) => input,
-    ).exposeErrors({});
-    const two = serverFunction('same.id', numberSchema((value) => value)).handler(
-      ({ input }) => input,
-    ).exposeErrors({});
+    const one = serverFunction(
+      'same.id',
+      numberSchema((value) => value),
+    )
+      .handler(({ input }) => input)
+      .exposeErrors({});
+    const two = serverFunction(
+      'same.id',
+      numberSchema((value) => value),
+    )
+      .handler(({ input }) => input)
+      .exposeErrors({});
 
     expect(() => createServer({ functions: [one, two] })).toThrow(
       'Duplicate server function id "same.id"',
@@ -121,8 +166,10 @@ describe('server functions', () => {
   });
 
   it('requires an explicit error exposure policy before registration', () => {
-    const unexposed = serverFunction('missing.exposure', numberSchema((value) => value))
-      .handler(({ input }) => input);
+    const unexposed = serverFunction(
+      'missing.exposure',
+      numberSchema((value) => value),
+    ).handler(({ input }) => input);
 
     expect(() => {
       // @ts-expect-error server functions must call .exposeErrors(...) first
@@ -174,7 +221,9 @@ describe('server functions', () => {
         Effect.runPromise(program as Effect.Effect<unknown, unknown, never>),
     });
 
-    await expect(server.invoke('users.private-failure', 1)).rejects.toMatchObject({
+    await expect(
+      server.invoke('users.private-failure', 1),
+    ).rejects.toMatchObject({
       _tag: 'PrivateFailure',
       secret: 'do-not-leak',
     });

@@ -25,9 +25,17 @@ describe('no-server-function-outside-resource', () => {
       const verify = (event: Event) => {
         void getUsers({ filter: 'ada' });
       };
+      const verifyAsync = async () => {
+        await getUsers({ filter: 'ada' });
+      };
+      const verifyThen = () => {
+        getUsers({ filter: 'ada' }).then(() => undefined);
+      };
     `);
 
     expect(messages).toEqual([
+      'Server-function calls must be returned by a query, mutation, or asyncProcess loader. The client facade is yieldable and must not be fired from an event handler or another synchronous callback.',
+      'Server-function calls must be returned by a query, mutation, or asyncProcess loader. The client facade is yieldable and must not be fired from an event handler or another synchronous callback.',
       'Server-function calls must be returned by a query, mutation, or asyncProcess loader. The client facade is yieldable and must not be fired from an event handler or another synchronous callback.',
     ]);
   });

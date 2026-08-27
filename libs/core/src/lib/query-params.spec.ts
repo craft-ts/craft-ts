@@ -19,7 +19,12 @@ import {
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { craftUse } from './craft-use';
-import { CRAFT_HISTORY, CRAFT_ROUTER, provideCraftRouter } from './craft-router';
+import {
+  CRAFT_HISTORY,
+  CRAFT_ROUTER,
+  provideCraftRouter,
+} from './craft-router';
+import { Schema } from 'effect';
 
 let queryParamsResourceObserver:
   | ((context: PrimitiveResourceRuntimeContext) => void)
@@ -341,17 +346,17 @@ describe('queryParams', () => {
           },
           ({ state, set }) => ({
             goTo: function* (newPage: number) {
-                  const _state2 = yield* state();
-                            expectTypeOf(_state2).toEqualTypeOf<{
-                              page: number;
-                              pageSize: number;
-                            }>();
-                  const _state = yield* state();
-                  return yield* set({
-                              ..._state,
-                              page: newPage,
-                            });
-                          },
+              const _state2 = yield* state();
+              expectTypeOf(_state2).toEqualTypeOf<{
+                page: number;
+                pageSize: number;
+              }>();
+              const _state = yield* state();
+              return yield* set({
+                ..._state,
+                page: newPage,
+              });
+            },
           }),
         ),
       );
@@ -639,6 +644,35 @@ describe('queryParams codecs', () => {
       filters.set({ page: 5 });
       await vi.runAllTimersAsync();
       expect(router.url).toContain('page=5');
+    });
+  });
+
+  it('accepts synchronous Effect Schema decode and encode adapters', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(CRAFT_ROUTER);
+      const filters = craftUse(
+        queryParams(
+          'filters',
+          {
+            state: {
+              search: {
+                fallbackValue: '',
+                codec: {
+                  decode: Schema.decodeUnknownSync(Schema.String),
+                  encode: Schema.encodeSync(Schema.String),
+                },
+              },
+            },
+          },
+          ({ set }) => ({ set }),
+        ),
+      );
+
+      await router.navigateByUrl('/?search=craft');
+      expect(craftUse(filters.search())).toBe('craft');
+      filters.set({ search: 'typed' });
+      await vi.runAllTimersAsync();
+      expect(router.url).toContain('search=typed');
     });
   });
 

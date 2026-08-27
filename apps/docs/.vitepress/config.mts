@@ -135,6 +135,7 @@ const guideSidebar = [
       { text: 'Abstract services', link: '/guide/app/abstract-services' },
       { text: 'App start', link: '/guide/app/app-start' },
       { text: 'Lazy services', link: '/guide/app/lazy-services' },
+      { text: 'Server functions', link: '/guide/app/server-functions' },
       { text: 'craftRegisterFor', link: '/guide/app/register' },
       { text: 'Target wrapper', link: '/guide/app/target-wrapper' },
     ],

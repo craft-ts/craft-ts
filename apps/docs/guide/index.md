@@ -49,6 +49,8 @@ non-interactive starters, configuration options, and first checks
 [App start](/guide/app/app-start) ·
 [Lazy services](/guide/app/lazy-services)
 
+[Server functions](/guide/app/server-functions)
+
 ### Recommended approaches
 
 [Inject at the point of use](/guide/patterns/inject-at-point-of-use)

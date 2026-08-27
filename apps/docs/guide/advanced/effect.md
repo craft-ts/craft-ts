@@ -23,19 +23,19 @@ boundary.
 
 ## The short decision
 
-| Need                                             | Use                              | Why                                                              |
-| ------------------------------------------------ | -------------------------------- | ---------------------------------------------------------------- |
-| Toggle, draft, selection or other local UI value | `state`                          | Craft owns reactive UI state                                     |
-| Read data with an Effect loader                  | `queryEffect`                    | loading, caching, cancellation and exceptions are Craft concerns |
-| Derive a reactive value from a synchronous Effect | `computedEffect`                 | runs a `SyncOp` Effect in place — a value, not a resource        |
-| Expose a synchronous Effect as a callable method  | `methodEffect`                  | the Effect counterpart of `craftMethod`                         |
+| Need                                               | Use                              | Why                                                              |
+| -------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| Toggle, draft, selection or other local UI value   | `state`                          | Craft owns reactive UI state                                     |
+| Read data with an Effect loader                    | `queryEffect`                    | loading, caching, cancellation and exceptions are Craft concerns |
+| Derive a reactive value from a synchronous Effect  | `computedEffect`                 | runs a `SyncOp` Effect in place — a value, not a resource        |
+| Expose a synchronous Effect as a callable method   | `methodEffect`                   | the Effect counterpart of `craftMethod`                          |
 | Run a synchronous Effect in a lower-level position | `syncEffect`                     | `params`, a `craftMethod`, a `state` updater                     |
-| Write data with an Effect loader                 | `mutationEffect`                 | explicit writes and mutation reactions                           |
-| Run an explicit command                          | `asyncProcessEffect`             | export, refresh, share action or other non-resource process      |
-| Provide Effect services                          | `provideLayer`                   | app and route injectors own Layer scope                          |
-| Select a service from a Craft factory            | `effectService`                  | records the Effect service dependency and selected members       |
-| Yield one Effect in a Craft generator            | `runEffect`                      | low-level bridge with typed Craft exceptions                     |
-| Validate data with Effect Schema                 | `Schema.toStandardSchemaV1(...)` | uses Craft's schema boundary without coupling core to Effect     |
+| Write data with an Effect loader                   | `mutationEffect`                 | explicit writes and mutation reactions                           |
+| Run an explicit command                            | `asyncProcessEffect`             | export, refresh, share action or other non-resource process      |
+| Provide Effect services                            | `provideLayer`                   | app and route injectors own Layer scope                          |
+| Select a service from a Craft factory              | `effectService`                  | records the Effect service dependency and selected members       |
+| Yield one Effect in a Craft generator              | `runEffect`                      | low-level bridge with typed Craft exceptions                     |
+| Validate data with Effect Schema                   | `Schema.toStandardSchemaV1(...)` | uses Craft's schema boundary without coupling core to Effect     |
 
 There is intentionally no `stateEffect`. A reactive value is not made better by
 being an Effect. Use `state` for the value, and use Effect for the computation
@@ -50,6 +50,30 @@ npm i effect@rc
 
 Keep the three Craft packages on the same version. `@craft-ts/effect` declares
 `effect` as a peer dependency.
+
+## Run Effect diagnostics
+
+For an Effect-enabled project, make the diagnostics command part of the normal
+feedback loop:
+
+```shell
+npm run effect-check
+# or, from the repository root:
+node tools/run-effect-tsgo.mjs diagnostics \
+  --project apps/demo-effect/tsconfig.json \
+  --severity error,warning,message
+```
+
+The repository wrapper prints the resolved project scope, the TypeScript
+program file count and source candidates excluded by the project configuration,
+then asks EffectTS to print per-file progress. It refuses a zero-file program,
+which catches a wrong `--project`, an over-broad `exclude`, or an `include` that
+misses the intended source tree before the check can look green.
+
+Review warnings in two groups: the existing baseline that is accepted for the
+project, and warnings introduced by the current change. Keep the command's
+scope explicit in CI and link a diagnostic back to this page when handing the
+result to an agent. `--project=...` and `-p ...` are both supported.
 
 ## Install the bridge once
 
@@ -307,10 +331,9 @@ Use one merged Layer per injector level. A route can add a narrower Layer:
 const routes = craftRoutes('app', [
   {
     path: 'team',
-    ...loadCraftComponent(
-      () => import('./team'),
-      [provideLayer(TeamContextLive)] as const,
-    ),
+    ...loadCraftComponent(() => import('./team'), [
+      provideLayer(TeamContextLive),
+    ] as const),
   },
 ]);
 ```
@@ -324,8 +347,8 @@ the values provided by the app and route:
 ```typescript
 type Check = EffectRequirementsCheckedDI<
   Effect.Services<typeof loadTeamOverview>,
-  AppProvidedEffectServices |
-    ProvidedEffectServicesOfRoute<typeof routes._routes, 'team'>
+  | AppProvidedEffectServices
+  | ProvidedEffectServicesOfRoute<typeof routes._routes, 'team'>
 >;
 type CanRunCheck = CanRun<Check>;
 ```
@@ -337,12 +360,12 @@ the full `AppProvidedDependencyValuesOf` setup.
 
 The bridge keeps Effect's distinctions intact:
 
-| Effect outcome             | Craft outcome                         | Handle it with                           |
-| -------------------------- | ------------------------------------- | ---------------------------------------- |
-| `Effect.succeed(value)`    | resource value / generator result     | normal rendering                         |
+| Effect outcome             | Craft outcome                         | Handle it with                          |
+| -------------------------- | ------------------------------------- | --------------------------------------- |
+| `Effect.succeed(value)`    | resource value / generator result     | normal rendering                        |
 | typed `Effect.fail(error)` | Craft exception keyed by `error._tag` | `matchNode`, `catchTag`, route handlers |
-| `Effect.die(defect)`       | technical error                       | error boundary / monitoring              |
-| interruption               | cancellation                          | normally no user-facing handler          |
+| `Effect.die(defect)`       | technical error                       | error boundary / monitoring             |
+| interruption               | cancellation                          | normally no user-facing handler         |
 
 Use exhaustive matching for business errors:
 
@@ -463,15 +486,15 @@ boundaries](/guide/testing/browser-boundaries).
 
 ## Package map
 
-| Package               | Responsibility                                                                                                   |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `@craft-ts/component` | functional Craft components and typed templates                                                                  |
-| `@craft-ts/core`      | Craft primitives, services, routing, forms, testing and the current server-function registry                     |
-| `@craft-ts/effect`    | Effect bridge, `Layer` providers, Effect-aware primitives, service selection, mocks and server execution helpers |
+| Package                 | Responsibility                                                                                                                                                 |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@craft-ts/component`   | functional Craft components and typed templates                                                                                                                |
+| `@craft-ts/core`        | Craft primitives, services, routing, forms, testing and the current server-function registry                                                                   |
+| `@craft-ts/effect`      | Effect bridge, `Layer` providers, Effect-aware primitives, service selection, mocks and server execution helpers                                               |
 | `@craft-ts/i18n-effect` | the Effect adapter over an `@craft-ts/i18n` runtime: `provideI18nRuntime`, `translateEffect`, `I18nEffectService` — see [i18n with Effect](/guide/i18n/effect) |
-| `effect`              | `Effect`, `Context.Service`, `Layer`, `Schema`, tagged errors and the Effect runtime                             |
-| `@effect/platform-*`  | Effect-native platform adapters; used by the current server-function experiment                                  |
-| `@craft-ts/dev-tools` | generators, migration tools, graph and architecture checks                                                       |
+| `effect`                | `Effect`, `Context.Service`, `Layer`, `Schema`, tagged errors and the Effect runtime                                                                           |
+| `@effect/platform-*`    | Effect-native platform adapters; used by the current server-function experiment                                                                                |
+| `@craft-ts/dev-tools`   | generators, migration tools, graph and architecture checks                                                                                                     |
 
 Install only the packages needed by the layer you are building. For example,
 Effect Schema validation can be used with `@craft-ts/core` alone; the bridge and

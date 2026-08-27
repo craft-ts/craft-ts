@@ -14,7 +14,7 @@ import {
 } from 'node:http';
 import {
   demoAuthenticatedUser,
-  CurrentUser,
+  CurrentSession,
   type AuthenticatedUser,
 } from './authentication';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-serveur';
@@ -25,12 +25,12 @@ import { listPublicProducts } from '../products/public-products.fn-serveur';
 import { createDemoDatabase, UserRepository } from './database';
 
 export function createDemoApplication(
-  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+  authenticatedUser: AuthenticatedUser | null = demoAuthenticatedUser,
 ) {
   const database = createDemoDatabase();
   const runtimeLayer = Layer.mergeAll(
     database.layer,
-    Layer.succeed(CurrentUser)(authenticatedUser),
+    Layer.succeed(CurrentSession)(authenticatedUser),
   );
   return {
     application: createApplication(runtimeLayer),
@@ -43,10 +43,10 @@ export function createDemoApplication(
  *
  * Keeping this separate from the demo database makes the same registry usable
  * by the HTTP adapter and by SSR's in-memory transport. The layer must be
- * created for each request when it contains request data such as CurrentUser.
+ * created for each request when it contains request data such as CurrentSession.
  */
 export function createApplication(
-  runtimeLayer: Layer.Layer<CurrentUser | UserRepository, unknown, never>,
+  runtimeLayer: Layer.Layer<CurrentSession | UserRepository, unknown, never>,
 ): Server {
   return createServer({
     functions: [
@@ -79,7 +79,7 @@ const trustedHosts = (process.env.TRUSTED_HOSTS ?? '')
   .filter(Boolean);
 
 export function createDemoWebHandler(
-  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+  authenticatedUser: AuthenticatedUser | null = demoAuthenticatedUser,
 ) {
   const demo = createDemoApplication(authenticatedUser);
   const application = createHttpApplication({
@@ -99,7 +99,7 @@ export function createDemoWebHandler(
 export async function handleDemoNodeRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+  authenticatedUser: AuthenticatedUser | null = demoAuthenticatedUser,
 ): Promise<void> {
   const demo = createDemoWebHandler(authenticatedUser);
   try {
@@ -111,7 +111,7 @@ export async function handleDemoNodeRequest(
 }
 
 export async function listenDemoServer(
-  authenticatedUser: AuthenticatedUser = demoAuthenticatedUser,
+  authenticatedUser: AuthenticatedUser | null = demoAuthenticatedUser,
 ): Promise<{
   readonly url: string;
   readonly close: () => Promise<void>;

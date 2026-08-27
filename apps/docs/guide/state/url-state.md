@@ -28,16 +28,18 @@ const booleanCodec = {
   encode: (value: boolean) => String(value),
 };
 
-const pagination = yield* queryParams(
-  'pagination',
-  {
-    state: {
-      page: { fallbackValue: 1, codec: numberCodec },
-      showArchived: { fallbackValue: false, codec: booleanCodec },
+const pagination =
+  yield *
+  queryParams(
+    'pagination',
+    {
+      state: {
+        page: { fallbackValue: 1, codec: numberCodec },
+        showArchived: { fallbackValue: false, codec: booleanCodec },
+      },
     },
-  },
-  ({ set, update, patch, reset }) => ({ set, update, patch, reset }),
-);
+    ({ set, update, patch, reset }) => ({ set, update, patch, reset }),
+  );
 
 pagination(); // { page: 1, showArchived: false }
 pagination.page(); // 1
@@ -80,28 +82,64 @@ q: { fallbackValue: '', codec: { decode: String, encode: String } },
 
 The same pattern covers dates, enums and JSON-encoded objects.
 
+## Effect Schema adapter
+
+When the application already uses Effect Schema, keep `queryParams` as the URL
+owner and adapt the schema's synchronous entry points. This keeps URL parsing
+typed without introducing a second URL primitive:
+
+```typescript
+import { Schema } from 'effect';
+
+const Search = Schema.String;
+const searchCodec = {
+  decode: Schema.decodeUnknownSync(Search),
+  encode: Schema.encodeSync(Search),
+};
+
+const filters =
+  yield *
+  queryParams('filters', {
+    state: {
+      search: { fallbackValue: '', codec: searchCodec },
+    },
+  });
+```
+
+Use the same adapter shape for numbers, booleans, dates, enums and arrays. A
+transformation schema is useful when the URL representation differs from the
+value used by the component; its `decode` and `encode` functions must still be
+synchronous. Missing values use `fallbackValue`, malformed values keep that
+fallback and expose `QueryParamDecodeError`, and `reset()` removes the keys
+from the URL. This covers the common filter, sort and pagination cases while
+preserving stable serialization in one place.
+
+There is deliberately no `queryParamsEffect`: URL synchronisation belongs to
+Craft, while an Effect query or loader reacts to the resulting typed state.
+
 ## Custom methods
 
 ```typescript
-yield* queryParams(
-  'pagination',
-  {
-    state: { page: { fallbackValue: 1, codec: numberCodec } },
-  },
-  ({ state, patch }) => ({
-    nextPage: function* () {
-      const current = yield* state();
-      return yield* patch({ page: current.page + 1 });
+yield *
+  queryParams(
+    'pagination',
+    {
+      state: { page: { fallbackValue: 1, codec: numberCodec } },
     },
-    previousPage: function* () {
-      const current = yield* state();
-      return yield* patch({ page: current.page - 1 });
-    },
-    setPageSize: function* (pageSize: number) {
-      return yield* patch({ pageSize, page: 1 });
-    },
-  }),
-);
+    ({ state, patch }) => ({
+      nextPage: function* () {
+        const current = yield* state();
+        return yield* patch({ page: current.page + 1 });
+      },
+      previousPage: function* () {
+        const current = yield* state();
+        return yield* patch({ page: current.page - 1 });
+      },
+      setPageSize: function* (pageSize: number) {
+        return yield* patch({ pageSize, page: 1 });
+      },
+    }),
+  );
 ```
 
 ## Feeding a query
@@ -185,8 +223,6 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
 );
 ```
 
-
-
 Working source:
 [exception-query-params.ts](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts).
 :::
@@ -195,20 +231,21 @@ Working source:
 The insertion can be a generator, so a rule can come from a service:
 
 ```typescript
-yield* queryParams(
-  'pagination',
-  { state: { page: { fallbackValue: 1, codec: numberCodec } } },
-  function* ({ patch, state }) {
-    const maxPage = yield* PaginationRules.maxPage();
-    return {
-      nextPage: function* () {
-        const current = yield* state();
-        if (current.page >= maxPage()) return;
-        return yield* patch(({ page }) => ({ page: page + 1 }));
-      },
-    };
-  },
-);
+yield *
+  queryParams(
+    'pagination',
+    { state: { page: { fallbackValue: 1, codec: numberCodec } } },
+    function* ({ patch, state }) {
+      const maxPage = yield* PaginationRules.maxPage();
+      return {
+        nextPage: function* () {
+          const current = yield* state();
+          if (current.page >= maxPage()) return;
+          return yield* patch(({ page }) => ({ page: page + 1 }));
+        },
+      };
+    },
+  );
 ```
 
 :::

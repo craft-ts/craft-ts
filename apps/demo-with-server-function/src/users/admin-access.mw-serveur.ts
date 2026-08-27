@@ -1,7 +1,10 @@
 import { clientContext, craftMiddleware } from '@craft-ts/core';
 import { Data, Effect } from 'effect';
-import { requireAdmin } from '../shared/authenticated-user';
-import { claimedUserHandshake, ClaimedUserContext as ClaimedUser } from '../shared/claimed-user-id';
+import { requireAdminSession } from '../shared/authenticated-user';
+import {
+  claimedUserHandshake,
+  ClaimedUserContext as ClaimedUser,
+} from '../shared/claimed-user-id';
 
 export class AuthenticatedUserMismatch extends Data.TaggedError(
   'AuthenticatedUserMismatch',
@@ -17,7 +20,7 @@ export class AuthenticatedUserMismatch extends Data.TaggedError(
  */
 export const adminOnly = craftMiddleware('demo.admin-only').server(() =>
   Effect.gen(function* () {
-    const authenticatedUser = yield* requireAdmin;
+    const authenticatedUser = yield* requireAdminSession;
     return { value: authenticatedUser, context: { authenticatedUser } };
   }),
 );

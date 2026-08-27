@@ -13,6 +13,172 @@ the mutation it submits to, so they cannot drift apart from them.
 into the individual insertions.
 :::
 
+## Choose the insertion
+
+When a requirement mentions a form, start from `state` and add `insertForm`.
+This map keeps the form tree, validation and mutation in one graph:
+
+| Need                            | Recommended API                        |
+| ------------------------------- | -------------------------------------- |
+| Form derived from state         | `state` + `insertForm`                 |
+| Nested field or object branch   | `insertSelectFormTree`                 |
+| Field attributes and validation | `insertFormAttributes`                 |
+| Whole-form validation           | `insertFormSchema`                     |
+| Submit to a mutation            | `insertFormSubmit`                     |
+| Field errors                    | `field.exceptions` or `fieldErrorNode` |
+| Submission state                | `form().submitting()`                  |
+
+`insertNoopTypingAnchor` is only a type-inference anchor for a selected field;
+it adds no runtime behaviour. The common field shape is therefore:
+
+```ts
+insertSelectFormTree(
+  'email',
+  insertNoopTypingAnchor,
+  insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
+);
+```
+
+## Native controls, one binding rule
+
+`CraftFieldDirective` supports text inputs, checkboxes, selects and textareas.
+Keep a stable `id`/`htmlFor` pair and put the directive on the native control:
+
+```ts
+import { input, option, select, textarea } from '@craft-ts/component';
+
+input('animal-name', { id: 'animal-name' }).pipe(
+  CraftFieldDirective(animal.form.selectName()),
+);
+
+input('animal-available', { id: 'animal-available', type: 'checkbox' }).pipe(
+  CraftFieldDirective(animal.form.selectAvailable()),
+);
+
+select('animal-species', { id: 'animal-species' }, [
+  option('dog', { value: 'dog' }, 'Dog'),
+  option('cat', { value: 'cat' }, 'Cat'),
+]).pipe(CraftFieldDirective(animal.form.selectSpecies()));
+
+textarea('animal-notes', { id: 'animal-notes' }).pipe(
+  CraftFieldDirective(animal.form.selectNotes()),
+);
+```
+
+A checkbox maps to a boolean, a select to its option value, and a textarea to
+a string; nested fields use the corresponding selector chain.
+
+## A complete form in one file
+
+This is the shortest complete path: typed state, required/email validation, a
+mutation, server exceptions, submitting state and errors rendered next to the
+controls. The text in a real application should come from its i18n catalogue.
+
+```ts
+import {
+  button,
+  craftComponent,
+  fieldErrorNode,
+  form,
+  input,
+  label,
+  p,
+} from '@craft-ts/component';
+import {
+  cEmail,
+  cRequired,
+  CraftFieldDirective,
+  craftException,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
+  insertNoopTypingAnchor,
+  insertSelectFormTree,
+  mutation,
+  state,
+  type ValidatedFormValue,
+} from '@craft-ts/core';
+
+type Animal = { name: string; email: string };
+
+const saveAnimal = mutation('saveAnimal', {
+  method: (value: NonNullable<ValidatedFormValue<Animal>>) => value,
+  loader: ({ params }) =>
+    params.email.endsWith('@taken.test')
+      ? craftException({ _tag: 'EMAIL_ALREADY_USED' }, { field: 'email' })
+      : params,
+});
+
+export const AnimalForm = craftComponent(
+  'AnimalForm',
+  {},
+  function* () {
+    const animal = yield* state(
+      'animalForm',
+      { name: '', email: '' } satisfies Animal,
+      insertForm(
+        insertSelectFormTree(
+          'name',
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({ validators: [cRequired()] })),
+        ),
+        insertSelectFormTree(
+          'email',
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
+        ),
+        insertFormSubmit(saveAnimal),
+      ),
+    );
+    return { animal };
+  },
+  ({ animal }) =>
+    form(
+      'animal-form',
+      {
+        *submit(event) {
+          event.preventDefault();
+          yield* animal.form.submit();
+        },
+      },
+      [
+        label({ htmlFor: 'animal-name' }, 'Name'),
+        input('animal-name', { id: 'animal-name' })
+          .pipe(CraftFieldDirective(animal.form.selectName()))
+          .pipe(
+            fieldErrorNode.exhaustive({
+              required: () => p('Name is required.'),
+            }),
+          ),
+        label({ htmlFor: 'animal-email' }, 'Email'),
+        input('animal-email', { id: 'animal-email', type: 'email' })
+          .pipe(CraftFieldDirective(animal.form.selectEmail()))
+          .pipe(
+            fieldErrorNode.exhaustive({
+              required: () => p('Email is required.'),
+              email: () => p('Enter a valid email.'),
+            }),
+          ),
+        button(
+          'animal-submit',
+          { type: 'submit', disabled: animal.form.submitting },
+          'Save',
+        ),
+        p(function* () {
+          if (!(yield* animal.form.hasSubmitExceptions())) return '';
+          return 'The server rejected this animal.';
+        }),
+      ],
+    ),
+);
+```
+
+The advanced version uses the same primitives for nested `address` fields,
+conditional visibility and asynchronous validation. Keep the branch insertion
+in the feature rather than hiding it in a component library; see
+[Nested forms](/guide/forms/nested) and
+[Validation](/guide/forms/validation#casyncvalidate).
+
 ## Why it is shaped this way
 
 Three pillars, all of which follow from deriving rather than declaring:

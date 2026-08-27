@@ -60,27 +60,36 @@ export const getAuthenticatedUsers = serverFunction(
       return result;
     }),
   )
-    .exposeErrors({
-      AdminRequired: (errorPayload) => ({
-        code: 'ADMIN_REQUIRED',
-        status: 403,
-        payload: { role: errorPayload.role },
-      }),
-      AuthenticatedUserMismatch: (errorPayload) => ({
-        code: 'AUTHENTICATED_USER_MISMATCH',
-        status: 403,
-        payload: {
-          requestedUserId: errorPayload.requestedUserId,
-          authenticatedUserId: errorPayload.authenticatedUserId,
-        },
-      }),
-      AuthenticatedUsersNotFound: (errorPayload) => ({
-        code: 'AUTHENTICATED_USERS_NOT_FOUND',
-        status: 404,
-        payload: {
-          status: errorPayload.status,
-          message: errorPayload.message,
-          filter: errorPayload.filter,
-        },
-      }),
-    });
+  .exposeErrors({
+    SessionRequired: () => ({
+      code: 'SESSION_REQUIRED',
+      status: 401,
+    }),
+    SessionRevoked: (errorPayload) => ({
+      code: 'SESSION_REVOKED',
+      status: 401,
+      payload: { authenticatedUserId: errorPayload.authenticatedUserId },
+    }),
+    AdminRequired: (errorPayload) => ({
+      code: 'ADMIN_REQUIRED',
+      status: 403,
+      payload: { role: errorPayload.role },
+    }),
+    AuthenticatedUserMismatch: (errorPayload) => ({
+      code: 'AUTHENTICATED_USER_MISMATCH',
+      status: 403,
+      payload: {
+        requestedUserId: errorPayload.requestedUserId,
+        authenticatedUserId: errorPayload.authenticatedUserId,
+      },
+    }),
+    AuthenticatedUsersNotFound: (errorPayload) => ({
+      code: 'AUTHENTICATED_USERS_NOT_FOUND',
+      status: 404,
+      payload: {
+        status: errorPayload.status,
+        message: errorPayload.message,
+        filter: errorPayload.filter,
+      },
+    }),
+  });

@@ -29,6 +29,7 @@ import {
   type AgentSelectorInput,
 } from './agent-selector.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
+import { runFormAdd } from '../scripts/forms/form-command.js';
 import { spawnSync } from 'node:child_process';
 
 type CommonOptions = {
@@ -45,10 +46,15 @@ async function main(argv: string[]): Promise<number> {
   if (argv[0] === 'create') {
     return await runCreate(argv.slice(1));
   }
+  if (argv[0] === 'add' && argv[1] === 'form') {
+    return await runForm(argv.slice(2));
+  }
   if (argv[0] === 'graph') {
     const { spawn } = await import('node:child_process');
     const { fileURLToPath } = await import('node:url');
-    const graphBin = fileURLToPath(new URL('./craft-graph.js', import.meta.url));
+    const graphBin = fileURLToPath(
+      new URL('./craft-graph.js', import.meta.url),
+    );
     const child = spawn(process.execPath, [graphBin, ...argv.slice(1)], {
       stdio: 'inherit',
     });
@@ -60,7 +66,10 @@ async function main(argv: string[]): Promise<number> {
   if (argv[0] === 'security' && argv[1] === 'check') {
     const rootIndex = argv.indexOf('--root');
     const rootDir = rootIndex >= 0 ? argv[rootIndex + 1] : process.cwd();
-    const result = runSecurityCheck({ rootDir, strict: argv.includes('--strict') });
+    const result = runSecurityCheck({
+      rootDir,
+      strict: argv.includes('--strict'),
+    });
     for (const diagnostic of result.diagnostics) {
       const line = `${diagnostic.file}:${diagnostic.line} ${diagnostic.code}: ${diagnostic.message}`;
       if (diagnostic.severity === 'error') console.error(line);
@@ -81,7 +90,10 @@ async function main(argv: string[]): Promise<number> {
   if (argv[0] === 'i18n' && ['check', 'test'].includes(argv[1] ?? '')) {
     return runI18nCommand(argv[1] as 'check' | 'test');
   }
-  if (argv[0] !== 'route' || !['add', 'split', 'verify'].includes(argv[1] ?? '')) {
+  if (
+    argv[0] !== 'route' ||
+    !['add', 'split', 'verify'].includes(argv[1] ?? '')
+  ) {
     printHelp();
     return argv.includes('--help') ? 0 : 1;
   }
@@ -190,6 +202,53 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
+async function runForm(argv: string[]): Promise<number> {
+  let name: string | undefined;
+  let rootDir: string | undefined;
+  let advanced = false;
+  let force = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--help' || argument === '-h') {
+      console.log(
+        'Usage: craft add form <name> [--advanced] [--force] [--root <dir>] [--json]',
+      );
+      return 0;
+    }
+    if (argument === '--advanced') {
+      advanced = true;
+      continue;
+    }
+    if (argument === '--force') {
+      force = true;
+      continue;
+    }
+    if (argument === '--json') {
+      json = true;
+      continue;
+    }
+    if (argument === '--root') {
+      rootDir = argv[++index];
+      if (!rootDir) throw new Error('Missing value for --root.');
+      continue;
+    }
+    if (argument.startsWith('--'))
+      throw new Error(`Unknown option ${argument}.`);
+    if (name) throw new Error('craft add form accepts one form name.');
+    name = argument;
+  }
+  if (!name)
+    throw new Error('A form name is required. Usage: craft add form <name>.');
+  const result = await runFormAdd({ name, rootDir, advanced, force });
+  if (json) console.log(JSON.stringify(result, null, 2));
+  else
+    console.log(
+      `Generated ${result.advanced ? 'advanced' : 'simple'} form in ${result.directory}\n${result.changedFiles.join('\n')}`,
+    );
+  return 0;
+}
+
 function parseArgs(argv: string[]) {
   const values: Record<string, string> = {};
   const flags = new Set<string>();
@@ -250,25 +309,35 @@ type CreateArgs = {
   effectTsRef?: string;
   cloneCraftTs?: boolean;
   cloneEffectTs?: boolean;
+  demoPages?: boolean;
+  domain?: string;
   flags: Set<string>;
   help: boolean;
 };
 
-const CREATE_FRONTEND_OPTIONS: readonly InteractiveOption<'plain' | 'effect'>[] = [
+const CREATE_FRONTEND_OPTIONS: readonly InteractiveOption<
+  'plain' | 'effect'
+>[] = [
   { value: 'plain', label: 'Plain CraftTS' },
   { value: 'effect', label: 'Effect v4' },
 ];
-const CREATE_BACKEND_OPTIONS: readonly InteractiveOption<'none' | 'promise' | 'effect'>[] = [
+const CREATE_BACKEND_OPTIONS: readonly InteractiveOption<
+  'none' | 'promise' | 'effect'
+>[] = [
   { value: 'none', label: 'No backend' },
   { value: 'promise', label: 'Promise server functions' },
   { value: 'effect', label: 'Effect server functions' },
 ];
-const CREATE_I18N_OPTIONS: readonly InteractiveOption<'strict' | 'loose' | 'none'>[] = [
+const CREATE_I18N_OPTIONS: readonly InteractiveOption<
+  'strict' | 'loose' | 'none'
+>[] = [
   { value: 'strict', label: 'Strict type-safe i18n' },
   { value: 'loose', label: 'Loose i18n validation' },
   { value: 'none', label: 'No i18n' },
 ];
-const CREATE_DESIGN_SYSTEM_OPTIONS: readonly InteractiveOption<'basic' | 'none'>[] = [
+const CREATE_DESIGN_SYSTEM_OPTIONS: readonly InteractiveOption<
+  'basic' | 'none'
+>[] = [
   { value: 'basic', label: 'Basic design system' },
   { value: 'none', label: 'No design system' },
 ];
@@ -276,7 +345,9 @@ const CREATE_BOOLEAN_OPTIONS: readonly InteractiveOption<'yes' | 'no'>[] = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
 ];
-const CREATE_WORKSPACE_OPTIONS: readonly InteractiveOption<'standalone' | 'nx'>[] = [
+const CREATE_WORKSPACE_OPTIONS: readonly InteractiveOption<
+  'standalone' | 'nx'
+>[] = [
   { value: 'standalone', label: 'Standalone project' },
   { value: 'nx', label: 'Nx workspace' },
 ];
@@ -295,9 +366,20 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
   const result: CreateArgs = { flags: new Set(), help: false };
   const values = new Map<string, string>();
   const valueNames = new Set([
-    'effect', 'frontend-runtime', 'backend-runtime', 'effect-scope', 'agents',
-    'locales', 'default-locale', 'i18n', 'design-system', 'workspace',
-    'references', 'craft-ts-ref', 'effect-ts-ref',
+    'effect',
+    'frontend-runtime',
+    'backend-runtime',
+    'effect-scope',
+    'agents',
+    'locales',
+    'default-locale',
+    'i18n',
+    'design-system',
+    'workspace',
+    'references',
+    'craft-ts-ref',
+    'effect-ts-ref',
+    'domain',
   ]);
   const setValue = (name: string, value: string): void => {
     values.set(name, value);
@@ -308,13 +390,24 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       result.help = true;
       continue;
     }
-    if (argument === '--no-effect' || argument === '--no-i18n' || argument === '--no-design-system' || argument === '--no-typed-css' || argument === '--no-clone-craft-ts' || argument === '--no-clone-effect-ts') {
+    if (
+      argument === '--no-effect' ||
+      argument === '--no-i18n' ||
+      argument === '--no-design-system' ||
+      argument === '--no-typed-css' ||
+      argument === '--no-clone-craft-ts' ||
+      argument === '--no-clone-effect-ts' ||
+      argument === '--no-demos'
+    ) {
       if (argument === '--no-effect') setValue('effect', 'none');
       else if (argument === '--no-i18n') setValue('i18n', 'none');
-      else if (argument === '--no-design-system') setValue('design-system', 'none');
+      else if (argument === '--no-design-system')
+        setValue('design-system', 'none');
       else if (argument === '--no-typed-css') result.typedCss = false;
       else if (argument === '--no-clone-craft-ts') result.cloneCraftTs = false;
-      else result.cloneEffectTs = false;
+      else if (argument === '--no-clone-effect-ts')
+        result.cloneEffectTs = false;
+      else result.demoPages = false;
       continue;
     }
     if (valueNames.has(argument.slice(2))) {
@@ -331,35 +424,53 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       setValue(name, parts.join('='));
       continue;
     }
-    if (argument === '--typed-css' || argument === '--clone-craft-ts' || argument === '--clone-effect-ts') {
+    if (
+      argument === '--typed-css' ||
+      argument === '--clone-craft-ts' ||
+      argument === '--clone-effect-ts' ||
+      argument === '--demos'
+    ) {
       if (argument === '--typed-css') result.typedCss = true;
       else if (argument === '--clone-craft-ts') result.cloneCraftTs = true;
-      else result.cloneEffectTs = true;
+      else if (argument === '--clone-effect-ts') result.cloneEffectTs = true;
+      else result.demoPages = true;
       continue;
     }
-    if (argument === '--yes' || argument === '--force' || argument === '--json') {
+    if (
+      argument === '--yes' ||
+      argument === '--force' ||
+      argument === '--json'
+    ) {
       result.flags.add(argument.slice(2));
       continue;
     }
     if (argument.startsWith('--')) {
       throw new Error(`Unknown option ${argument}.`);
     }
-    if (result.directory) throw new Error('create accepts one destination directory.');
+    if (result.directory)
+      throw new Error('create accepts one destination directory.');
     result.directory = argument;
   }
   result.effect = values.get('effect');
-  result.frontendRuntime = values.get('frontend-runtime') as CreateArgs['frontendRuntime'];
-  result.backendRuntime = values.get('backend-runtime') as CreateArgs['backendRuntime'];
+  result.frontendRuntime = values.get(
+    'frontend-runtime',
+  ) as CreateArgs['frontendRuntime'];
+  result.backendRuntime = values.get(
+    'backend-runtime',
+  ) as CreateArgs['backendRuntime'];
   result.effectScope = values.get('effect-scope') as CreateArgs['effectScope'];
   result.agents = values.get('agents');
   result.locales = values.get('locales');
   result.defaultLocale = values.get('default-locale');
   result.i18n = values.get('i18n') as CreateArgs['i18n'];
-  result.designSystem = values.get('design-system') as CreateArgs['designSystem'];
+  result.designSystem = values.get(
+    'design-system',
+  ) as CreateArgs['designSystem'];
   result.workspace = values.get('workspace') as CreateArgs['workspace'];
   result.references = values.get('references') as CreateArgs['references'];
   result.craftTsRef = values.get('craft-ts-ref');
   result.effectTsRef = values.get('effect-ts-ref');
+  result.domain = values.get('domain');
   return result;
 }
 
@@ -414,106 +525,127 @@ async function runCreate(argv: string[]): Promise<number> {
   const readline = createInterface({ input, output });
   try {
     const directory =
-      parsed.directory ?? (await readline.question('Project directory: ')).trim();
+      parsed.directory ??
+      (await readline.question('Project directory: ')).trim();
     if (!directory) throw new Error('A destination directory is required.');
-    const interactive = Boolean(process.stdin.isTTY) && !parsed.flags.has('yes');
-    const legacyMode = parsed.effect === undefined
-      ? undefined
-      : createModeFromFlag(parsed.effect);
-    const frontendRuntime = parsed.frontendRuntime ?? legacyMode ?? (parsed.effectScope ? undefined : (
-      interactive
-        ? await selectCreateOption(
-            readline,
-            CREATE_FRONTEND_OPTIONS,
-            'Frontend runtime (↑/↓ move, Enter confirm):',
-            'plain',
-          )
-        : 'plain'
-    ));
-    const backendRuntime = parsed.backendRuntime ?? (parsed.effectScope ? undefined : (
-      interactive
-        ? await selectCreateOption(
-            readline,
-            CREATE_BACKEND_OPTIONS,
-            'Backend runtime (↑/↓ move, Enter confirm):',
-            'none',
-          )
-        : 'none'
-    ));
-    const i18n = parsed.i18n ?? (
-      interactive
+    const interactive =
+      Boolean(process.stdin.isTTY) && !parsed.flags.has('yes');
+    const legacyMode =
+      parsed.effect === undefined
+        ? undefined
+        : createModeFromFlag(parsed.effect);
+    const frontendRuntime =
+      parsed.frontendRuntime ??
+      legacyMode ??
+      (parsed.effectScope
+        ? undefined
+        : interactive
+          ? await selectCreateOption(
+              readline,
+              CREATE_FRONTEND_OPTIONS,
+              'Frontend runtime (↑/↓ move, Enter confirm):',
+              'plain',
+            )
+          : 'plain');
+    const backendRuntime =
+      parsed.backendRuntime ??
+      (parsed.effectScope
+        ? undefined
+        : interactive
+          ? await selectCreateOption(
+              readline,
+              CREATE_BACKEND_OPTIONS,
+              'Backend runtime (↑/↓ move, Enter confirm):',
+              'none',
+            )
+          : 'none');
+    const i18n =
+      parsed.i18n ??
+      (interactive
         ? await selectCreateOption(
             readline,
             CREATE_I18N_OPTIONS,
             'i18n (↑/↓ move, Enter confirm):',
             'strict',
           )
-        : 'strict'
-    );
-    const locales = parsed.locales !== undefined
-      ? parseLocales(parsed.locales)
-      : interactive && i18n !== 'none'
-        ? [...await selectCreateOptions(
-            readline,
-            CREATE_LOCALE_OPTIONS,
-            'Locales (↑/↓ move, Space toggle, Enter confirm):',
-            ['en-US', 'fr-FR'],
-            1,
-          )]
-        : undefined;
-    const defaultLocale = parsed.defaultLocale ?? (
-      interactive && i18n !== 'none'
+        : 'strict');
+    const locales =
+      parsed.locales !== undefined
+        ? parseLocales(parsed.locales)
+        : interactive && i18n !== 'none'
+          ? [
+              ...(await selectCreateOptions(
+                readline,
+                CREATE_LOCALE_OPTIONS,
+                'Locales (↑/↓ move, Space toggle, Enter confirm):',
+                ['en-US', 'fr-FR'],
+                1,
+              )),
+            ]
+          : undefined;
+    const defaultLocale =
+      parsed.defaultLocale ??
+      (interactive && i18n !== 'none'
         ? await selectCreateOption(
             readline,
-            (locales ?? ['en-US']).map((locale) => ({ value: locale, label: locale })),
+            (locales ?? ['en-US']).map((locale) => ({
+              value: locale,
+              label: locale,
+            })),
             'Default locale (↑/↓ move, Enter confirm):',
             locales?.[0] ?? 'en-US',
           )
-        : undefined
-    );
-    const designSystem = parsed.designSystem ?? (
-      interactive
+        : undefined);
+    const designSystem =
+      parsed.designSystem ??
+      (interactive
         ? await selectCreateOption(
             readline,
             CREATE_DESIGN_SYSTEM_OPTIONS,
             'Design system (↑/↓ move, Enter confirm):',
             'basic',
           )
-        : 'basic'
-    );
-    const typedCss = parsed.typedCss ?? (
-      interactive
+        : 'basic');
+    const typedCss =
+      parsed.typedCss ??
+      (interactive
         ? (await selectCreateOption(
             readline,
             CREATE_BOOLEAN_OPTIONS,
             'Enable typed CSS? (↑/↓ move, Enter confirm):',
             'yes',
           )) === 'yes'
-        : true
-    );
-    const workspace = parsed.workspace ?? (
-      interactive
+        : true);
+    const workspace =
+      parsed.workspace ??
+      (interactive
         ? await selectCreateOption(
             readline,
             CREATE_WORKSPACE_OPTIONS,
             'Workspace (↑/↓ move, Enter confirm):',
             'standalone',
           )
-        : undefined
-    );
+        : undefined);
     let references = parsed.references;
     let cloneCraftTs = parsed.cloneCraftTs;
     let cloneEffectTs = parsed.cloneEffectTs;
-    const effectEnabled = frontendRuntime === 'effect'
-      || backendRuntime === 'effect'
-      || (parsed.effectScope !== undefined && parsed.effectScope !== 'none');
-    if (interactive && references === undefined && cloneCraftTs === undefined && cloneEffectTs === undefined) {
-      cloneCraftTs = (await selectCreateOption(
-        readline,
-        CREATE_BOOLEAN_OPTIONS,
-        'Clone CraftTS sources for the AI? (↑/↓ move, Enter confirm):',
-        'yes',
-      )) === 'yes';
+    const effectEnabled =
+      frontendRuntime === 'effect' ||
+      backendRuntime === 'effect' ||
+      (parsed.effectScope !== undefined && parsed.effectScope !== 'none');
+    if (
+      interactive &&
+      references === undefined &&
+      cloneCraftTs === undefined &&
+      cloneEffectTs === undefined
+    ) {
+      cloneCraftTs =
+        (await selectCreateOption(
+          readline,
+          CREATE_BOOLEAN_OPTIONS,
+          'Clone CraftTS sources for the AI? (↑/↓ move, Enter confirm):',
+          'yes',
+        )) === 'yes';
       cloneEffectTs = effectEnabled
         ? (await selectCreateOption(
             readline,
@@ -553,14 +685,22 @@ async function runCreate(argv: string[]): Promise<number> {
       effectTsRef: parsed.effectTsRef,
       cloneCraftTs,
       cloneEffectTs,
+      demoPages: parsed.demoPages,
+      domain: parsed.domain,
       force: parsed.flags.has('force'),
     });
     if (parsed.flags.has('json')) {
       console.log(JSON.stringify(result, null, 2));
     } else {
-      console.log(`Created ${result.frontendRuntime === 'effect' ? 'Effect v4' : 'plain'} CraftTS app at ${result.directory}`);
-      console.log(`Runtime: frontend=${result.frontendRuntime}, backend=${result.backendRuntime}`);
-      console.log(`Agents: ${result.agents.length > 0 ? result.agents.join(', ') : 'none'}`);
+      console.log(
+        `Created ${result.frontendRuntime === 'effect' ? 'Effect v4' : 'plain'} CraftTS app at ${result.directory}`,
+      );
+      console.log(
+        `Runtime: frontend=${result.frontendRuntime}, backend=${result.backendRuntime}`,
+      );
+      console.log(
+        `Agents: ${result.agents.length > 0 ? result.agents.join(', ') : 'none'}`,
+      );
       console.log(`Next: cd ${result.directory} && npm install && npm run dev`);
     }
     return 0;
@@ -571,9 +711,10 @@ async function runCreate(argv: string[]): Promise<number> {
 
 function runI18nCommand(command: 'check' | 'test'): number {
   const executable = command === 'check' ? 'tsc' : 'vitest';
-  const args = command === 'check'
-    ? ['-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false']
-    : ['run', '--config', 'vitest.config.ts'];
+  const args =
+    command === 'check'
+      ? ['-p', 'tsconfig.app.json', '--noEmit', '--pretty', 'false']
+      : ['run', '--config', 'vitest.config.ts'];
   const result = spawnSync(`node_modules/.bin/${executable}`, args, {
     cwd: process.cwd(),
     stdio: 'inherit',
@@ -625,6 +766,7 @@ function printVerificationResult(
 function printHelp(): void {
   console.log(`Usage:
   craft create [directory] [options]
+  craft add form <name> [--advanced] [--force]
   craft i18n check|test
   craft graph [options]
   craft security check [--strict] [--root <dir>]
@@ -652,6 +794,8 @@ Options:
   --effect-ts-ref <git-ref>    EffectTS reference tag/commit
   --clone-craft-ts / --no-clone-craft-ts
   --clone-effect-ts / --no-clone-effect-ts
+  --no-demos                  Generate a domain feature without demo pages
+  --domain <name>             Feature name used by --no-demos (default: feature)
   --force                      Merge into a non-empty destination directory
   --json                       Emit the creation result as JSON
   --root <dir>                 Workspace root (defaults to cwd)

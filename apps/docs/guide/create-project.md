@@ -125,25 +125,45 @@ npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
 
 The main configuration options are:
 
-| Option | Values | Purpose |
-| --- | --- | --- |
-| `--effect` | `v4`, `none` | Select the Effect v4 or plain starter |
-| `--frontend-runtime` | `plain`, `effect` | Choose the frontend runtime |
-| `--backend-runtime` | `none`, `promise`, `effect` | Choose server functions |
-| `--effect-scope` | `none`, `frontend`, `backend`, `both` | Set Effect placement |
-| `--agents` | comma-separated names or `none` | Add editor-specific agent integrations; `AGENTS.md` is always generated |
-| `--i18n` | `strict`, `loose`, `none` | Configure type-safe i18n |
-| `--design-system` | `basic`, `none` | Include the design-system starter |
-| `--typed-css` | flag / `--no-typed-css` | Enable or disable typed CSS |
-| `--workspace` | `standalone`, `nx` | Choose the workspace layout |
-| `--references` | `none`, `craft-ts`, `all` | Include source references |
-| `--force` | flag | Allow an existing non-empty destination |
-| `--json` | flag | Print the effective configuration as JSON |
+| Option               | Values                                | Purpose                                                                 |
+| -------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
+| `--effect`           | `v4`, `none`                          | Select the Effect v4 or plain starter                                   |
+| `--frontend-runtime` | `plain`, `effect`                     | Choose the frontend runtime                                             |
+| `--backend-runtime`  | `none`, `promise`, `effect`           | Choose server functions                                                 |
+| `--effect-scope`     | `none`, `frontend`, `backend`, `both` | Set Effect placement                                                    |
+| `--agents`           | comma-separated names or `none`       | Add editor-specific agent integrations; `AGENTS.md` is always generated |
+| `--i18n`             | `strict`, `loose`, `none`             | Configure type-safe i18n                                                |
+| `--design-system`    | `basic`, `none`                       | Include the design-system starter                                       |
+| `--typed-css`        | flag / `--no-typed-css`               | Enable or disable typed CSS                                             |
+| `--workspace`        | `standalone`, `nx`                    | Choose the workspace layout                                             |
+| `--references`       | `none`, `craft-ts`, `all`             | Include source references                                               |
+| `--no-demos`         | flag                                  | Generate a domain feature without explanatory demo pages                |
+| `--domain`           | slug                                  | Name the first domain feature when using `--no-demos`                   |
+| `--force`            | flag                                  | Allow an existing non-empty destination                                 |
+| `--json`             | flag                                  | Print the effective configuration as JSON                               |
 
 Use `craft create --help` to see the complete list:
 
 ```bash
 npx --yes --package @craft-ts/dev-tools@beta craft create --help
+```
+
+For a domain-first starting point, omit the explanatory home/services/about
+pages and name the feature explicitly:
+
+```bash
+npx --yes --package @craft-ts/dev-tools@beta craft create pet-foster \
+  --yes --no-demos --domain animal --frontend-runtime=effect \
+  --backend-runtime=effect
+```
+
+The generated feature lives under `src/app/features/animal/`. Add a form to
+that feature with the existing primitives and its unit/submission test:
+
+```bash
+craft add form animal
+# advanced nested/schema variant:
+craft add form animal --advanced
 ```
 
 ## After generation

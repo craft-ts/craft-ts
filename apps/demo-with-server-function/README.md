@@ -150,16 +150,24 @@ Three things are inferred, with no manual declaration:
   raised by the middleware and end up in the `Effect` error channel of the
   server function, then in the client facade return type.
 
+The authenticated-list route handles those outcomes as user journeys instead
+of sending every case to the global error screen: missing sessions redirect to
+`/session-required`, revoked sessions to `/session-revoked`, authorization or
+identity mismatches to `/access-denied`, and an empty server result to
+`/users-not-found`. Technical `HttpError` failures still use the global error
+screen.
+
 Middleware execute as yieldable programs. Dependencies declared with
 `.pipe(...)` run first and are deduplicated by id. When a middleware adds
 context, it returns a `CraftMiddlewareResult`:
 
 ```ts
 export const requestMetadata = craftMiddleware('demo.request-metadata').server(
-  () => Effect.succeed({
-    value: undefined,
-    context: { source: 'authenticated-list' },
-  }),
+  () =>
+    Effect.succeed({
+      value: undefined,
+      context: { source: 'authenticated-list' },
+    }),
 );
 ```
 

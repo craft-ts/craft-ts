@@ -63,6 +63,13 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   is a compile error. `@craft-ts/i18n` has no framework and no Effect import;
   use `@craft-ts/i18n-effect` only inside an Effect program. Load
   `craft-ts-i18n` before adding a key, a locale or a token.
+- Forms start with `state` + `insertForm`. Choose `insertSelectFormTree` for a
+  nested field, `insertFormAttributes` for validators/visibility,
+  `insertFormSchema` for whole-form validation and `insertFormSubmit` for a
+  mutation. Bind the selected field with `CraftFieldDirective`; expose
+  `field.exceptions` through `fieldErrorNode`, and read submission state with
+  `form().submitting()` / `form().hasSubmitExceptions()`. Do not reach for
+  native `FormData` as the primary form model.
 - Run existing architecture tests. Do not add an architecture rule for the feature.
 - Keep `npm run typecheck` in the project CI; for generated projects this is
   already wired into `.github/workflows/ci.yml` alongside the architecture

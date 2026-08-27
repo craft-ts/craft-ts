@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   craftException,
+  executeGeneratorCompatibleFactoryAsync,
   isCraftException,
   provideServerFunctionTransport,
   readServerFunctionFailure,
@@ -41,9 +42,7 @@ describe('demo with server function', () => {
     try {
       configureServerFunctionTransport(server.url);
 
-      const products = await TestBed.runInInjectionContext(() =>
-        getPublicProducts({}),
-      );
+      const products = await invokeServerFunction(getPublicProducts, {});
 
       expect(products).toEqual([
         expect.objectContaining({ id: 'craft-starter', available: true }),
@@ -60,9 +59,7 @@ describe('demo with server function', () => {
     try {
       configureServerFunctionTransport(server.url);
 
-      const users = await TestBed.runInInjectionContext(() =>
-        getUsers({ filter: 'ada' }),
-      );
+      const users = await invokeServerFunction(getUsers, { filter: 'ada' });
 
       expect(users).toEqual([
         { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
@@ -98,9 +95,9 @@ describe('demo with server function', () => {
         },
       });
 
-      const result = await TestBed.runInInjectionContext(() =>
-        getUsers({ filter: 'does-not-exist' }),
-      );
+      const result = await invokeServerFunction(getUsers, {
+        filter: 'does-not-exist',
+      });
       expect(result).toMatchObject({
         _tag: 'UsersNotFound',
         scope: 'ServerFunction',
@@ -122,9 +119,9 @@ describe('demo with server function', () => {
     try {
       configureServerFunctionTransport(server.url);
 
-      const response = await TestBed.runInInjectionContext(() =>
-        getPortableUsers({ filter: ' Ada ' }),
-      );
+      const response = await invokeServerFunction(getPortableUsers, {
+        filter: ' Ada ',
+      });
 
       // Chaque champ vient d'une couche différente du `.pipe(...)` : l'audit,
       // la dérivation pure, puis le programme Promise qui charge la base.
@@ -147,9 +144,10 @@ describe('demo with server function', () => {
     try {
       configureServerFunctionTransport(server.url);
 
-      const users = await TestBed.runInInjectionContext(() =>
-        getEffectMiddlewareUsers({ filter: 'ada', simulateError: 'none' }),
-      );
+      const users = await invokeServerFunction(getEffectMiddlewareUsers, {
+        filter: 'ada',
+        simulateError: 'none',
+      });
 
       expect(users).toEqual([
         { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
@@ -164,11 +162,9 @@ describe('demo with server function', () => {
     try {
       configureServerFunctionTransport(server.url);
 
-      const middlewareFailure = await TestBed.runInInjectionContext(() =>
-        getEffectMiddlewareUsers({
-          filter: 'ada',
-          simulateError: 'middleware',
-        }),
+      const middlewareFailure = await invokeServerFunction(
+        getEffectMiddlewareUsers,
+        { filter: 'ada', simulateError: 'middleware' },
       );
       expect(middlewareFailure).toMatchObject({
         _tag: 'DemoMiddlewareFailure',
@@ -180,8 +176,9 @@ describe('demo with server function', () => {
       });
       expect(isCraftException(middlewareFailure)).toBe(true);
 
-      const handlerFailure = await TestBed.runInInjectionContext(() =>
-        getEffectMiddlewareUsers({ filter: 'ada', simulateError: 'handler' }),
+      const handlerFailure = await invokeServerFunction(
+        getEffectMiddlewareUsers,
+        { filter: 'ada', simulateError: 'handler' },
       );
       expect(handlerFailure).toMatchObject({
         _tag: 'DemoHandlerFailure',
@@ -204,9 +201,9 @@ describe('demo with server function', () => {
       // navigateur et voyage dans le canal `context`.
       configureServerFunctionTransport(server.url, 'other-user');
 
-      const result = await TestBed.runInInjectionContext(() =>
-        getAuthenticatedUsers({ filter: 'ada' }),
-      );
+      const result = await invokeServerFunction(getAuthenticatedUsers, {
+        filter: 'ada',
+      });
 
       expect(isCraftException(result)).toBe(true);
       expect(result).toMatchObject({
@@ -231,9 +228,9 @@ describe('demo with server function', () => {
     try {
       configureServerFunctionTransport(server.url);
 
-      const result = await TestBed.runInInjectionContext(() =>
-        getAuthenticatedUsers({ filter: 'ada' }),
-      );
+      const result = await invokeServerFunction(getAuthenticatedUsers, {
+        filter: 'ada',
+      });
 
       expect(isCraftException(result)).toBe(true);
       expect(result).toMatchObject({
@@ -246,15 +243,54 @@ describe('demo with server function', () => {
     }
   });
 
+  it('refuses a protected server function when the session is absent', async () => {
+    const server = await listenDemoServer(null);
+    try {
+      configureServerFunctionTransport(server.url);
+      const result = await invokeServerFunction(getAuthenticatedUsers, {
+        filter: 'ada',
+      });
+
+      expect(result).toMatchObject({
+        _tag: 'SessionRequired',
+        payload: {},
+      });
+      expect(isCraftException(result)).toBe(true);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('refuses a protected server function after the session is revoked', async () => {
+    const server = await listenDemoServer({
+      ...demoAuthenticatedUser,
+      sessionStatus: 'revoked',
+    });
+    try {
+      configureServerFunctionTransport(server.url);
+      const result = await invokeServerFunction(getAuthenticatedUsers, {
+        filter: 'ada',
+      });
+
+      expect(result).toMatchObject({
+        _tag: 'SessionRevoked',
+        payload: { authenticatedUserId: demoAuthenticatedUser.id },
+      });
+      expect(isCraftException(result)).toBe(true);
+    } finally {
+      await server.close();
+    }
+  });
+
   it('transporte le contexte client validé, et le refuse quand il manque', async () => {
     const server = await listenDemoServer();
     try {
       const sent: unknown[] = [];
       configureServerFunctionTransport(server.url, 'user-ada', sent);
 
-      const users = await TestBed.runInInjectionContext(() =>
-        getAuthenticatedUsers({ filter: 'ada' }),
-      );
+      const users = await invokeServerFunction(getAuthenticatedUsers, {
+        filter: 'ada',
+      });
       expect(users).toEqual([
         { id: 1, name: 'Ada Lovelace', email: 'ada@craft.dev' },
       ]);
@@ -324,9 +360,9 @@ describe('demo with server function', () => {
         },
       });
 
-      const result = await TestBed.runInInjectionContext(() =>
-        getAuthenticatedUsers({ filter: 'does-not-exist' }),
-      );
+      const result = await invokeServerFunction(getAuthenticatedUsers, {
+        filter: 'does-not-exist',
+      });
       expect(result).toMatchObject({
         _tag: 'AuthenticatedUsersNotFound',
         payload: {
@@ -412,4 +448,22 @@ function configureServerFunctionTransport(
       }),
     ],
   });
+}
+
+async function invokeServerFunction<Input, Output>(
+  client: (input: Input) => Generator<unknown, Output, unknown>,
+  input: Input,
+): Promise<Output> {
+  const invocation = TestBed.runInInjectionContext(() => client(input));
+  const settled = await executeGeneratorCompatibleFactoryAsync({
+    factory: () => invocation,
+    thisArg: undefined,
+    getInjector: () => TestBed.rootInjector,
+    args: [],
+    invalidYieldErrorMessage: 'invalid server-function yield',
+  });
+  if (settled.kind !== 'done') {
+    throw new Error(`server function did not settle: ${settled.kind}`);
+  }
+  return settled.value as Output;
 }
