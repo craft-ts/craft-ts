@@ -10,10 +10,7 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import {
-  craftMethod,
-  CraftRouter,
-} from '@craft-ts/core';
+import { CraftRouterLink } from '@craft-ts/core';
 import { PHOTOS } from './photos';
 
 const ViewTransitionsGalleryComponent = craftComponent(
@@ -25,20 +22,8 @@ const ViewTransitionsGalleryComponent = craftComponent(
       .vt-emoji{font-size:3rem}.vt-meta{display:grid;gap:.15rem}.vt-title{font-weight:700}.vt-subtitle{font-size:.85rem;color:#64748b}
     `,
   },
-  function* () {
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    })); // todo move directly on open
-    const open = craftMethod('open', function* (photoId: string) {
-      void router.navigate({
-        to: 'view-transitions/:photoId',
-        params: { photoId },
-        viewTransition: { name: `photo-${photoId}`, image: null },
-      });
-    });
-    return { open };
-  },
-  ({ open }) => [
+  () => ({}),
+  () => [
     header({ class: 'vt-intro' }, [
       heading('View Transitions'),
       p('Click a tile to morph it into the detail hero.'),
@@ -47,17 +32,9 @@ const ViewTransitionsGalleryComponent = craftComponent(
       { class: 'vt-grid' },
       forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
         li(
-          a('photo',
-            {
-              class: 'vt-tile',
-              href: function* () {
-                return `/view-transitions/${(yield* photo()).id}`;
-              },
-              *click(event) {
-                event.preventDefault();
-                yield* open((yield* photo()).id);
-              },
-            },
+          a(
+            'photo',
+            { class: 'vt-tile' },
             [
               span(
                 {
@@ -82,6 +59,17 @@ const ViewTransitionsGalleryComponent = craftComponent(
                 }),
               ]),
             ],
+          ).pipe(
+            CraftRouterLink(function* () {
+              return {
+                to: 'view-transitions/:photoId',
+                params: { photoId: (yield* photo()).id },
+                viewTransition: {
+                  name: `photo-${(yield* photo()).id}`,
+                  image: null,
+                },
+              };
+            }),
           ),
         ),
       ),
