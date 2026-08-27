@@ -16,7 +16,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, isCraftException, query } from '@craft-ts/core';
+import { craftComputed, query } from '@craft-ts/core';
 import { getPublicProducts } from '../products/public-products.fn-client';
 
 /**
@@ -104,10 +104,7 @@ const PublicProductsDemo = craftComponent(
       'publicProductsQuery',
       {
         params: () => true,
-        loader: async () => {
-          const result = await getPublicProducts({});
-          return isCraftException(result) ? [] : result;
-        },
+        loader: () => getPublicProducts({}),
       },
       ({ resource }) => ({
         hasProducts: craftComputed('hasProducts', () => resource.hasValue()),

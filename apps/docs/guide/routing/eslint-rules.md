@@ -128,6 +128,7 @@ What each rule does:
 - `craft-ts/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
 - `craft-ts/require-cascade-route-di-check`: rejects any `craftRoutes(...)` collection without a same-file `ValidateCascadeRoutesFile + CanRun` proof; its autofix adds the conservative `<never, Router>` context, which should be adjusted when the mount inherits providers
 - `craft-ts/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
+- `craft-ts/prefer-craft-router-link`: requires `CraftRouterLink` for internal `a(..., { href: ... })` navigation; external URLs, fragment links, downloads, `_blank`, and links marked with `data-navigation: 'external'` remain native
 
 ### Accessibility (`craft-ts/a11y`)
 

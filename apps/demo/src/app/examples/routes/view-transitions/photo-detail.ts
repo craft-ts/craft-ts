@@ -10,7 +10,7 @@ import {
   type Input,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, CraftRouter } from '@craft-ts/core';
+import { craftComputed, CraftRouterLink } from '@craft-ts/core';
 import { findPhoto, type Photo } from './photos';
 
 const MISSING_PHOTO: Photo = {
@@ -32,12 +32,6 @@ const ViewTransitionsDetailComponent = craftComponent(
     `,
   },
   function* (photoId: Input<string>) {
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-    const back = craftMethod('back', function* () {
-      void router.navigate({ to: 'view-transitions' });
-    });
     const currentPhoto = craftComputed('currentPhoto', function* () {
       return findPhoto(yield* photoId()) ?? MISSING_PHOTO;
     });
@@ -47,21 +41,17 @@ const ViewTransitionsDetailComponent = craftComponent(
     const currentPhotoTitle = craftComputed('currentPhotoTitle', function* () {
       return (yield* currentPhoto()).title;
     });
-    return { photoId, back, currentPhoto, currentPhotoTitle, hasPhoto };
+    return { photoId, currentPhoto, currentPhotoTitle, hasPhoto };
   },
-  ({ photoId, back, currentPhoto, currentPhotoTitle, hasPhoto }) => {
+  ({ photoId, currentPhoto, currentPhotoTitle, hasPhoto }) => {
     return [
-      a('back',
+      a(
+        'back',
         {
           class: 'vt-back',
-          href: '/view-transitions',
-          *click(event: MouseEvent) {
-            event.preventDefault();
-            yield* back();
-          },
         },
         '← Back to gallery',
-      ),
+      ).pipe(CraftRouterLink({ to: 'view-transitions' })),
       ifNode(
         hasPhoto,
         () =>

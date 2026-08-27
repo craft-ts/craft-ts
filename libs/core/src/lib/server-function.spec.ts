@@ -3,6 +3,7 @@ import {
   craftUnique,
   createServer,
   createServerFunctionClient,
+  executeGeneratorCompatibleFactoryAsync,
   provideServerFunctionTransport,
   requireServerPermission,
   serverFunction,
@@ -69,9 +70,7 @@ describe('server functions', () => {
       craftUnique('users.current'),
     );
 
-    await expect(
-      TestBed.runInInjectionContext(() => client(4)),
-    ).resolves.toBe('u-1:4');
+    await expect(runServerFunction(client, 4)).resolves.toBe('u-1:4');
     // Aucun contexte client attendu : la requête garde sa forme historique.
     expect(requests).toEqual([{ id: 'users.current', input: 4 }]);
 
@@ -198,3 +197,21 @@ describe('server functions', () => {
     });
   });
 });
+
+async function runServerFunction<Input, Output>(
+  client: (input: Input) => Generator<unknown, Output, unknown>,
+  input: Input,
+): Promise<Output> {
+  const invocation = TestBed.runInInjectionContext(() => client(input));
+  const settled = await executeGeneratorCompatibleFactoryAsync({
+    factory: () => invocation,
+    thisArg: undefined,
+    getInjector: () => TestBed.rootInjector,
+    args: [],
+    invalidYieldErrorMessage: 'invalid server-function yield',
+  });
+  if (settled.kind !== 'done') {
+    throw new Error(`server function did not settle: ${settled.kind}`);
+  }
+  return settled.value as Output;
+}

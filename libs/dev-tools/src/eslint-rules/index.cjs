@@ -57,6 +57,7 @@ const controlHasAccessibleName = require('./control-has-accessible-name.cjs');
 const labelHasAssociatedControl = require('./label-has-associated-control.cjs');
 const noNoninteractiveElementInteractions = require('./no-noninteractive-element-interactions.cjs');
 const anchorHasHref = require('./anchor-has-href.cjs');
+const preferCraftRouterLink = require('./prefer-craft-router-link.cjs');
 const buttonHasType = require('./button-has-type.cjs');
 const requireInteractiveLocalName = require('./require-interactive-local-name.cjs');
 const iframeHasTitle = require('./iframe-has-title.cjs');
@@ -74,6 +75,7 @@ const requireReducedMotion = require('./require-reduced-motion.cjs');
 const requireEffectAdapters = require('./require-effect-adapters.cjs');
 const syncEffectBody = require('./sync-effect-body.cjs');
 const serverFunctionClientMatch = require('./server-function-client-match.cjs');
+const noServerFunctionOutsideResource = require('./no-server-function-outside-resource.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
 const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
@@ -159,6 +161,7 @@ const plugin = {
     'no-noninteractive-element-interactions':
       noNoninteractiveElementInteractions,
     'anchor-has-href': anchorHasHref,
+    'prefer-craft-router-link': preferCraftRouterLink,
     'button-has-type': buttonHasType,
     'require-interactive-local-name': requireInteractiveLocalName,
     'iframe-has-title': iframeHasTitle,
@@ -176,6 +179,7 @@ const plugin = {
     'require-effect-adapters': requireEffectAdapters,
     'sync-effect-body': syncEffectBody,
     'server-function-client-match': serverFunctionClientMatch,
+    'no-server-function-outside-resource': noServerFunctionOutsideResource,
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
     'no-effect-outside-loaders': noEffectOutsideLoaders,

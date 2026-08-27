@@ -28,6 +28,26 @@ export const SERVICE_TRACKED_DEPS_REQUEST_MARKER = Symbol(
 );
 export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
 
+/** Marker for an asynchronous promise yielded by a Craft resource loader. */
+export const CRAFT_PROMISE_AWAIT_REQUEST_MARKER = Symbol(
+  'craft-promise-await-request-marker',
+);
+
+export type RuntimePromiseAwaitRequest = Readonly<{
+  [CRAFT_PROMISE_AWAIT_REQUEST_MARKER]: true;
+  value: PromiseLike<unknown>;
+}>;
+
+export function isPromiseAwaitRequest(
+  value: unknown,
+): value is RuntimePromiseAwaitRequest {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    CRAFT_PROMISE_AWAIT_REQUEST_MARKER in value
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Foreign SYNCHRONOUS yields.
 //
@@ -193,6 +213,7 @@ export type RuntimeGuardAwaitRequest =
 
 export type RuntimeAwaitRequest =
   | RuntimeGuardAwaitRequest
+  | RuntimePromiseAwaitRequest
   | RuntimeTemporalAwaitRequest;
 
 export function isGuardAwaitRequest(
@@ -289,6 +310,12 @@ export function runCraftGenerator({
     if (isTemporalAwaitRequest(yielded)) {
       throw new Error(
         'This Craft generator requires the async driver because it yields craftSleep(...).',
+      );
+    }
+
+    if (isPromiseAwaitRequest(yielded)) {
+      throw new Error(
+        'This Craft generator requires the async driver because it yields an asynchronous promise.',
       );
     }
 

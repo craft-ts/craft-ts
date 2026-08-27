@@ -12,6 +12,7 @@ import {
   GUARD_AWAIT_REQUEST_MARKER,
   isGenerator,
   isGuardAwaitRequest,
+  isPromiseAwaitRequest,
   isServiceAppStartRequest,
   resolveCraftGeneratorYield,
   type GuardAwaitResourceLike,
@@ -162,7 +163,11 @@ export function pumpCraftProgramSync(
     while (!current.done) {
       const yielded = current.value;
 
-      if (isGuardAwaitRequest(yielded) || isTemporalAwaitRequest(yielded)) {
+      if (
+        isGuardAwaitRequest(yielded) ||
+        isPromiseAwaitRequest(yielded) ||
+        isTemporalAwaitRequest(yielded)
+      ) {
         return { kind: 'await', request: yielded };
       }
 
@@ -243,6 +248,10 @@ export function awaitCraftProgramRequest(
       destroyRef: injector.get(DestroyRef, null) ?? undefined,
       signal: request.signal ?? abortSignal,
     });
+  }
+
+  if (isPromiseAwaitRequest(request)) {
+    return Promise.resolve(request.value);
   }
 
   if (request.kind === 'promise') {

@@ -72,6 +72,35 @@ function hasProp(object, name) {
   return !!property(object, name);
 }
 
+function hasCraftRouterLinkPipe(node) {
+  const pipeMember = node && node.parent;
+  if (
+    !pipeMember ||
+    pipeMember.type !== 'MemberExpression' ||
+    pipeMember.computed ||
+    pipeMember.property.type !== 'Identifier' ||
+    pipeMember.property.name !== 'pipe'
+  ) {
+    return false;
+  }
+
+  const pipeCall = pipeMember.parent;
+  if (
+    !pipeCall ||
+    pipeCall.type !== 'CallExpression' ||
+    pipeCall.arguments.length !== 1
+  ) {
+    return false;
+  }
+
+  const directiveCall = pipeCall.arguments[0];
+  return (
+    directiveCall.type === 'CallExpression' &&
+    directiveCall.callee.type === 'Identifier' &&
+    directiveCall.callee.name === 'CraftRouterLink'
+  );
+}
+
 function parseHelperArgs(args) {
   if (args.length === 0) {
     return { name: undefined, props: undefined, children: undefined };
@@ -241,6 +270,7 @@ module.exports = {
   property,
   staticPropString,
   hasProp,
+  hasCraftRouterLinkPipe,
   parseHelperArgs,
   parseHyperscriptCall,
   walk,

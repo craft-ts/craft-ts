@@ -10,6 +10,8 @@ import type {
   ServerFunctionError,
   ServerFunctionSuccess,
 } from './server-function';
+import type { CraftGenExceptionMarker } from './craft-gen';
+import type { AnyCraftException } from './craft-exception';
 import {
   collectClientMiddlewareSchemas,
   isCraftClientMiddleware,
@@ -29,6 +31,10 @@ import {
 } from './craft-service';
 import { craftUse } from './craft-use';
 import { craftException, type CraftExceptionResult } from './craft-exception';
+import {
+  CRAFT_PROMISE_AWAIT_REQUEST_MARKER,
+  type RuntimePromiseAwaitRequest,
+} from './craft-generator-runtime';
 
 export type ServerFunctionRequest = {
   readonly id: string;
@@ -116,7 +122,21 @@ export type ServerFunctionContractClient<
   Contract extends ServerFunctionContract<any, any, any>,
 > = (
   input: ServerFunctionContractInput<Contract>,
-) => Promise<ServerFunctionContractOutput<Contract>>;
+) => ServerFunctionInvocation<ServerFunctionContractOutput<Contract>>;
+
+/**
+ * A server call is deliberately a Craft generator rather than a Promise.
+ * Resource loaders are the asynchronous boundary that drives this invocation;
+ * callers outside an async Craft host cannot accidentally fire-and-forget it.
+ */
+export type ServerFunctionInvocation<
+  Result = unknown,
+  Error extends AnyCraftException = never,
+> = Generator<
+  [Error] extends [never] ? unknown : CraftGenExceptionMarker<Error>,
+  Result,
+  unknown
+>;
 
 /**
  * Échec métier rejoué côté client. Chaque erreur taguée du canal d'erreur
@@ -141,11 +161,12 @@ export type ServerFunctionClientFailure<
 
 export type ServerFunctionClient<
   Definition extends ServerFunctionDefinition<any, any, any, any>,
-  ClientOutput =
-    | ServerFunctionSuccess<Definition>
-    | ServerFunctionClientFailure<Definition>
-    | ServerFunctionHttpError,
-> = (input: ServerFunctionInput<Definition>) => Promise<ClientOutput>;
+  ClientOutput = ServerFunctionSuccess<Definition>,
+> = (input: ServerFunctionInput<Definition>) =>
+  ServerFunctionInvocation<
+    ClientOutput,
+    ServerFunctionClientFailure<Definition>
+  >;
 
 export type ServerFunctionClientError<
   Definition extends ServerFunctionDefinition<any, any, any>,
@@ -264,32 +285,17 @@ export function createServerFunctionClient<
   contract: ServerFunctionDefinitionContract<Definition>,
 ):
   | ServerFunctionClient<Definition, ClientOutput>
-  | ServerFunctionClientBuilder<Definition> {
+  | ServerFunctionClientBuilder<Definition>
+  | ServerFunctionContractClient<ServerFunctionContract<any, any, any>> {
   const id = (typeof contract === 'string' ? contract : contract.id) as string;
   const makeClient = (
     attachments: readonly ServerFunctionClientAttachment[],
   ): ServerFunctionClient<Definition, ClientOutput> => {
-    const middlewares = attachments.filter(isCraftClientMiddleware);
-    const providedSchemas = collectClientMiddlewareSchemas(middlewares);
-
-    return (async (input: ServerFunctionContractInput<typeof contract>) => {
-      // Tout ce qui dépend du contexte d'injection **ambiant** est fait avant
-      // le premier `await` : il n'existe que le temps de l'appel synchrone. La
-      // chaîne, elle, reçoit l'injecteur capturé et le rétablit elle-même après
-      // chaque suspension.
-      const transport = craftUse(ServerFunctionTransport());
-      if (middlewares.length === 0) return transport({ id, input });
-
-      const injector = captureInjector();
-      const context = await runClientMiddlewareChainAsync(
-        middlewares,
-        input,
-        injector,
-      );
-
-      await validateClientContext(id, providedSchemas, context);
-      return transport({ id, input, context, protocolVersion: 1 });
-    }) as ServerFunctionClient<Definition, ClientOutput>;
+    return ((input: ServerFunctionContractInput<typeof contract>) =>
+      invokeServerFunction(id, input, attachments)) as ServerFunctionClient<
+      Definition,
+      ClientOutput
+    >;
   };
 
   const client = makeClient([]);
@@ -298,6 +304,43 @@ export function createServerFunctionClient<
       makeClient(attachment.attachments),
   });
   return client;
+}
+
+function* invokeServerFunction(
+  id: string,
+  input: unknown,
+  attachments: readonly ServerFunctionClientAttachment[],
+): ServerFunctionInvocation<unknown> {
+  const transport = craftUse(ServerFunctionTransport());
+  const middlewares = attachments.filter(isCraftClientMiddleware);
+
+  if (middlewares.length === 0) {
+    return yield* awaitServerFunctionResult(transport({ id, input }));
+  }
+
+  // The injector must be captured while the invocation is being driven by its
+  // resource loader. The middleware chain restores it across every suspension.
+  const injector = captureInjector();
+  const providedSchemas = collectClientMiddlewareSchemas(middlewares);
+  const context = yield* awaitServerFunctionResult(
+    runClientMiddlewareChainAsync(middlewares, input, injector),
+  );
+
+  yield* awaitServerFunctionResult(
+    validateClientContext(id, providedSchemas, context),
+  );
+  return yield* awaitServerFunctionResult(
+    transport({ id, input, context, protocolVersion: 1 }),
+  );
+}
+
+function* awaitServerFunctionResult<Result>(
+  value: Result | PromiseLike<Result>,
+): Generator<RuntimePromiseAwaitRequest, Result, unknown> {
+  return (yield {
+    [CRAFT_PROMISE_AWAIT_REQUEST_MARKER]: true,
+    value: Promise.resolve(value),
+  }) as Result;
 }
 
 function captureInjector(): Injector {

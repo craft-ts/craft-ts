@@ -20,14 +20,13 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { Effect } from 'effect';
 import {
   craftComputed,
   craftMethod,
   isCraftException,
+  query,
   state,
 } from '@craft-ts/core';
-import { queryEffect } from '@craft-ts/effect';
 import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
 
@@ -123,9 +122,11 @@ const ServerFunctionDemo = craftComponent(
     const searchInput = yield* state('searchInput', '', ({ set }) => ({
       setSearchInput: (value: string) => set(value),
     }));
-    const currentUserQuery = yield* queryEffect('currentUserQuery', {
+    const currentUserQuery = yield* query('currentUserQuery', {
       params: () => true,
-      loader: () => CurrentUser,
+      loader: () => function* () {
+        return yield* CurrentUser;
+      }(),
     });
     const currentUser = craftComputed('currentUser', function* () {
       return yield* currentUserQuery.value();
@@ -134,29 +135,19 @@ const ServerFunctionDemo = craftComponent(
       return (yield* currentUser())?.role === 'admin';
     });
     // todo removeImporve and remove all the coments
-    const usersQuery = yield* queryEffect(
+    const usersQuery = yield* query(
       'usersQuery',
       {
         method: (term: string) => term,
-        loader: ({ params }) =>
-          Effect.gen(function* () {
-            // Contrôle d'UX uniquement : il évite un aller-retour réseau, il
-            // n'autorise rien.
-            yield* requireAdmin;
-            // L'identité annoncée ne se recopie plus à la main dans l'input :
-            // elle voyage dans le canal `context`, alimenté par la chaîne
-            // client déclarée sur la façade.
-            const result = yield* Effect.promise(() =>
-              getAuthenticatedUsers({ filter: params }),
-            );
-            // Le canal d'erreur du serveur arrive typé jusqu'ici : `AdminRequired`
-            // et `AuthenticatedUserMismatch` viennent de la chaîne de middleware.
-            // On le traite au lieu de le faire passer pour une liste d'utilisateurs.
-            if (isCraftException(result)) {
-              return yield* Effect.fail(result);
-            }
-            return result;
-          }),
+        loader: ({ params }) => function* () {
+          // Contrôle d'UX uniquement : il évite un aller-retour réseau, il
+          // n'autorise rien.
+          yield* requireAdmin;
+          // L'identité annoncée ne se recopie plus à la main dans l'input :
+          // elle voyage dans le canal `context`, alimenté par la chaîne
+          // client déclarée sur la façade.
+          return yield* getAuthenticatedUsers({ filter: params });
+        }(),
       },
       ({ resource, exceptions }) => {
         const hasUsers = craftComputed('hasUsers', () => resource.hasValue());
