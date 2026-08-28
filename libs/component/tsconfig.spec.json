@@ -1,7 +1,5 @@
 {
   "compilerOptions": {
-    // No `outDir`: it makes tsc infer a rootDir for this project, and every
-    // file reached through the path mappings below then reports TS6059.
     "noEmit": true,
     "types": ["vitest/globals", "node"],
     "target": "es2022",
