@@ -11,7 +11,12 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { I18n } from './i18n.service';
+import {
+  ClientCurrency,
+  I18n,
+  provideClientCurrency,
+  provideClientUnits,
+} from './i18n.service';
 
 const ORDER_DATE = new Date('2026-08-25T14:30:00Z');
 const LAST_SYNC_DAYS = -2;
@@ -33,11 +38,15 @@ export const TypeSafeI18nDemo = craftComponent(
       @media (max-width:520px){.grid{grid-template-columns:1fr}.toolbar{align-items:stretch;flex-direction:column}}
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
+    providers: [provideClientCurrency(), provideClientUnits()],
   },
   function* () {
-    return yield* I18n();
+    return {
+      ...(yield* I18n()),
+      clientCurrency: yield* ClientCurrency(),
+    };
   },
-  ({ language, translate }) =>
+  ({ language, translate, clientCurrency }) =>
     section({ 'aria-labelledby': 'i18n-title' }, [
       div({ class: 'intro' }, [
         heading({ id: 'i18n-title' }, translate('page.title')),
@@ -58,6 +67,24 @@ export const TypeSafeI18nDemo = craftComponent(
             option({ value: 'fr-FR' }, 'Français'),
           ],
         ),
+        label({ htmlFor: 'i18n-client' }, 'Client'),
+        select(
+          'i18n-client',
+          {
+            id: 'i18n-client',
+            value: clientCurrency.client,
+            'aria-label': 'Client',
+            *change(event: Event) {
+              yield* clientCurrency.changeClient(
+                (event.target as HTMLSelectElement).value as 'acme' | 'globex',
+              );
+            },
+          },
+          [
+            option({ value: 'acme' }, 'Acme · CHF'),
+            option({ value: 'globex' }, 'Globex · USD'),
+          ],
+        ),
       ]),
       div({ class: 'grid' }, [
         div({ class: 'card' }, [
@@ -65,7 +92,10 @@ export const TypeSafeI18nDemo = craftComponent(
           p(
             translate('page.order', {
               amount: 1234567.89,
-              placedAt: ORDER_DATE,
+              // The schema turns this ISO string into the `Date` the formatter
+              // wants, so the call site never builds one.
+              placedAt: '2026-08-25T14:30:00Z',
+              weight: 12.4,
             }),
           ),
         ]),

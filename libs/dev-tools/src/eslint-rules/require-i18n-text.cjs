@@ -1,10 +1,6 @@
 'use strict';
 
-const {
-  parseHyperscriptCall,
-  property,
-  stringLiteralValue,
-} = require('./hyperscript-walk.cjs');
+const { parseHyperscriptCall, property } = require('./hyperscript-walk.cjs');
 
 // These are the positions where a literal becomes text that a user can read.
 // Keep the list deliberately small: business values and technical strings are
@@ -35,23 +31,55 @@ const TEXT_HELPERS = new Set([
 
 const TEXT_ATTRIBUTES = new Set(['placeholder', 'aria-label', 'title']);
 
-function isStaticText(node) {
-  return stringLiteralValue(node) !== undefined;
+// Copy has letters. A separator (`' '`, `' — '`, `':'`) is glue between values,
+// not something a translator would ever be handed, and reporting it would only
+// teach people to silence the rule.
+const CARRIES_COPY = /\p{L}/u;
+
+function carriesCopy(text) {
+  return typeof text === 'string' && CARRIES_COPY.test(text);
 }
 
-function isI18nCall(node) {
-  return (
-    node &&
-    node.type === 'CallExpression' &&
-    node.callee &&
-    ((node.callee.type === 'MemberExpression' &&
-      !node.callee.computed &&
-      node.callee.property.type === 'Identifier' &&
-      (node.callee.property.name === 't' ||
-        node.callee.property.name === 'translate')) ||
-      (node.callee.type === 'Identifier' &&
-        (node.callee.name === 't' || node.callee.name === 'translate')))
-  );
+/**
+ * Walks a visible position and reports every literal that is copy — including
+ * the ones sitting next to a translated value.
+ *
+ * It descends only through the shapes that keep text *in place* on screen
+ * (concatenation, ternary, fallback, list, template text). A call is a value
+ * the application supplies, so `i18n.t('key')` is accepted and its key is never
+ * mistaken for copy; a function child stays the application's business too.
+ */
+function reportCopyLiterals(node, report, depth = 0) {
+  if (!node || depth > 8) return;
+  switch (node.type) {
+    case 'Literal':
+      if (carriesCopy(node.value)) report(node);
+      return;
+    case 'TemplateLiteral':
+      // `${…}` holes are values; the text around them is copy.
+      if (node.quasis.some((quasi) => carriesCopy(quasi.value.cooked)))
+        report(node);
+      return;
+    case 'BinaryExpression':
+      if (node.operator !== '+') return;
+      reportCopyLiterals(node.left, report, depth + 1);
+      reportCopyLiterals(node.right, report, depth + 1);
+      return;
+    case 'ConditionalExpression':
+      reportCopyLiterals(node.consequent, report, depth + 1);
+      reportCopyLiterals(node.alternate, report, depth + 1);
+      return;
+    case 'LogicalExpression':
+      reportCopyLiterals(node.left, report, depth + 1);
+      reportCopyLiterals(node.right, report, depth + 1);
+      return;
+    case 'ArrayExpression':
+      for (const element of node.elements)
+        reportCopyLiterals(element, report, depth + 1);
+      return;
+    default:
+      return;
+  }
 }
 
 function isIgnoredFile(filename) {
@@ -85,7 +113,9 @@ module.exports = {
     },
   },
   create(context) {
-    if (isIgnoredFile(context.getFilename())) return {};
+    // `context.getFilename()` was removed in ESLint 10; `context.filename` is
+    // the supported reader and already exists in 9.
+    if (isIgnoredFile(context.filename ?? context.getFilename())) return {};
 
     return {
       CallExpression(node) {
@@ -94,21 +124,21 @@ module.exports = {
 
         for (const attribute of TEXT_ATTRIBUTES) {
           const entry = property(call.props, attribute);
-          if (!entry || !isStaticText(entry.value) || isI18nCall(entry.value))
-            continue;
-          context.report({
-            node: entry.value,
-            messageId: 'attribute',
-            data: { attribute },
-          });
+          if (!entry) continue;
+          reportCopyLiterals(entry.value, (node) =>
+            context.report({
+              node,
+              messageId: 'attribute',
+              data: { attribute },
+            }),
+          );
         }
 
-        const children = call.children;
         // A function, identifier, member expression or translation call is a
         // value supplied by the application. It is intentionally accepted.
-        if (isStaticText(children) && !isI18nCall(children)) {
-          context.report({ node: children, messageId: 'literal' });
-        }
+        reportCopyLiterals(call.children, (node) =>
+          context.report({ node, messageId: 'literal' }),
+        );
       },
     };
   },

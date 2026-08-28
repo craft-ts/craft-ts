@@ -60,8 +60,10 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   typecheck and emit nothing. Load `craft-ts-style` before touching one.
 - Translations live in a `@craft-ts/i18n` catalogue: `defineCatalog` + `msg` for
   the reference locale, `defineLocaleLike` for every other one, so a missing key
-  is a compile error. `@craft-ts/i18n` has no framework and no Effect import;
-  use `@craft-ts/i18n-effect` only inside an Effect program. Load
+  is a compile error. A token may validate or parse its parameter with a
+  Standard Schema, and resolve its formatter from a Craft service; a project
+  generated with i18n also forbids visible literals in templates. No Effect
+  import — use `@craft-ts/i18n-effect` only inside an Effect program. Load
   `craft-ts-i18n` before adding a key, a locale or a token.
 - Forms start with `state` + `insertForm`. Choose `insertSelectFormTree` for a
   nested field, `insertFormAttributes` for validators/visibility,

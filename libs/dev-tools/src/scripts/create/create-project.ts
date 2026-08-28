@@ -119,7 +119,8 @@ bootstrapCraft.
    do not introduce Angular decorators or inject().
 4. Keep translations in src/i18n/catalog.ts. Add locales with
    defineLocaleLike and project-specific tokens in project-tokens.ts.
-   @craft-ts/i18n is framework-independent; do not import Effect for plain
+   @craft-ts/i18n integrates with CraftTS: a token may resolve a service or
+   parse its parameter with a Standard Schema. Do not import Effect for plain
    translations. Run npm run i18n:check and npm run i18n:test after changes.
 5. Keep visual rules in a *.style.ts sheet under src/app/ui/. A sheet may
    import @craft-ts/style vocabulary and nothing else; the build plugin
@@ -722,6 +723,7 @@ export default defineConfig({
 const eslintConfig = (
   effect: boolean,
   backendEffect = false,
+  i18n = false,
 ) => `import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import playwright from 'eslint-plugin-playwright';
@@ -758,7 +760,7 @@ export default tseslint.config(
     },
     rules: {
       ...craftRules.configs.${effect ? 'effect' : 'recommended'}.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
+${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\n      ...craftRules.configs.i18n.rules,\n' : ''}      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
 ${effect ? '' : "      'craft-ts/no-effect-import-in-frontend': 'error',"}
     },
   },
@@ -938,7 +940,94 @@ function starterPluralCategories(
   ];
 }
 
-function i18nCatalogTs(locales: readonly string[]): string {
+/**
+ * The visible copy of the starter pages. It lives in the catalogue because
+ * `craft-ts/require-i18n-text` is part of the generated lint configuration as
+ * soon as i18n is enabled: a starter that kept its own labels inline would fail
+ * the rule it ships with.
+ */
+function starterUiCopy(context: TemplateContext, french: boolean) {
+  const domain = context.config.domain;
+  return french
+    ? {
+        navHome: 'Accueil',
+        navServices: 'Services',
+        navAbout: 'À propos',
+        badge: 'Expérimental · vos retours sont bienvenus',
+        homeTitle: 'Bienvenue dans CraftTS',
+        homeTitleEffect: 'Bienvenue dans CraftTS + Effect v4',
+        homeLoading: 'Chargement de l’API…',
+        homeApiError: 'La requête API a échoué. Ouvrez l’onglet réseau.',
+        aboutTitle: 'À propos de ce starter',
+        aboutBody:
+          'Cette page prouve que le routage Craft et le chargement paresseux des composants sont câblés.',
+        servicesTitle: 'Services',
+        servicesEffect:
+          'Service Effect : Context.Service + Layer + provideLayer sont installés à l’échelle de l’application.',
+        domainBody: `Voici la frontière du domaine ${domain}. Ajoutez-y le flux métier.`,
+        componentsContinue: 'Continuer',
+        componentsAlert: 'Alerte',
+      }
+    : {
+        navHome: 'Home',
+        navServices: 'Services',
+        navAbout: 'About',
+        badge: 'Experimental · feedback welcome',
+        homeTitle: 'Welcome to CraftTS',
+        homeTitleEffect: 'Welcome to CraftTS + Effect v4',
+        homeLoading: 'Loading API…',
+        homeApiError: 'The API request failed. Check the network tab.',
+        aboutTitle: 'About this starter',
+        aboutBody:
+          'This page proves that Craft routing and lazy component loading are wired.',
+        servicesTitle: 'Services',
+        servicesEffect:
+          'Effect service: Context.Service + Layer + provideLayer are installed at app scope.',
+        domainBody: `This is the ${domain} feature boundary. Add the domain flow here.`,
+        componentsContinue: 'Continue',
+        componentsAlert: 'Alert',
+      };
+}
+
+function i18nUiSectionTs(context: TemplateContext, french: boolean): string {
+  const domain = context.config.domain;
+  const type = typeNameForTemplate(domain);
+  const copy = starterUiCopy(context, french);
+  return `  ui: {
+    nav: {
+      home: msg\`${copy.navHome}\`,
+      services: msg\`${copy.navServices}\`,
+      about: msg\`${copy.navAbout}\`,
+      domain: msg\`${domain}\`,
+    },
+    badge: msg\`${copy.badge}\`,
+    home: {
+      title: msg\`${copy.homeTitle}\`,
+      titleEffect: msg\`${copy.homeTitleEffect}\`,
+      loading: msg\`${copy.homeLoading}\`,
+      apiError: msg\`${copy.homeApiError}\`,
+    },
+    about: {
+      title: msg\`${copy.aboutTitle}\`,
+      body: msg\`${copy.aboutBody}\`,
+    },
+    services: {
+      title: msg\`${copy.servicesTitle}\`,
+      effect: msg\`${copy.servicesEffect}\`,
+    },
+    domain: {
+      title: msg\`${type}\`,
+      body: msg\`${copy.domainBody}\`,
+    },
+    components: {
+      continue: msg\`${copy.componentsContinue}\`,
+      alert: msg\`${copy.componentsAlert}\`,
+    },
+  },`;
+}
+
+function i18nCatalogTs(context: TemplateContext): string {
+  const locales = context.locales;
   const categories = starterPluralCategories(locales);
   const branches = categories
     .map(
@@ -957,6 +1046,7 @@ export const baseCatalog = defineCatalog({
 ${branches}
     }),
   },
+${i18nUiSectionTs(context, false)}
 });
 `;
 }
@@ -964,8 +1054,9 @@ ${branches}
 function i18nLocaleTs(
   locale: string,
   index: number,
-  locales: readonly string[],
+  context: TemplateContext,
 ): string {
+  const locales = context.locales;
   const isFrench = locale.toLowerCase().startsWith('fr');
   const categories = starterPluralCategories(locales);
   const branches = categories
@@ -1001,6 +1092,7 @@ export const ${locale.replace(/[^a-zA-Z0-9]/g, '')} = defineLocaleLike(${locales
 ${branches}
     }),
   },
+${i18nUiSectionTs(context, isFrench)}
 });
 `;
 }
@@ -1048,12 +1140,12 @@ export * from './typography';
 `;
 
 const effectI18nTs = `import { translateEffect as translateEffectRaw } from '@craft-ts/i18n-effect';
-import type { TranslationKey, TranslationParams } from '@craft-ts/i18n';
+import type { StaticTranslationKey, TranslationParams } from '@craft-ts/i18n';
 import { locales } from './runtime';
 
 type AppLocales = typeof locales;
 
-export const translateEffect = <Key extends TranslationKey<AppLocales[number]>>(
+export const translateEffect = <Key extends StaticTranslationKey<AppLocales[number]>>(
   key: Key,
   ...params: keyof TranslationParams<AppLocales[number], Key & string> extends never
     ? [params?: TranslationParams<AppLocales[number], Key & string>]
@@ -1205,13 +1297,21 @@ function uiComponentsTs(context: TemplateContext): string {
   const styleImport = context.config.typedCss
     ? "import { surface } from './ui.style';"
     : "import { surface } from './ui';";
+  const hasI18n = context.config.i18n.enabled;
+  const i18nImport = hasI18n
+    ? "\nimport { i18n } from '../../i18n';"
+    : '';
+  const continueLabel = hasI18n
+    ? "i18n.t('ui.components.continue')"
+    : "'Continue'";
+  const alertLabel = hasI18n ? "i18n.t('ui.components.alert')" : "'Alert'";
   return `import { button, craftComponent, div, p } from '@craft-ts/component';
-${styleImport}
+${styleImport}${i18nImport}
 
 export const Stack = craftComponent('Stack', {}, () => ({}), () => div({ class: surface.card }, []));
 export const Card = craftComponent('Card', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button' }, 'Continue'));
-export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, 'Alert'));
+export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button' }, ${continueLabel}));
+export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, ${alertLabel}));
 `;
 }
 
@@ -1288,14 +1388,18 @@ function appTs(context: TemplateContext): string {
     : '';
   const themeOpen = designSystem ? 'div({ class: appTheme.root }, [' : 'div([';
   const themeClose = designSystem ? '])' : '])';
+  const i18nEnabled = context.config.i18n.enabled;
+  const text = (key: string, literal: string) =>
+    i18nEnabled ? `i18n.t('${key}')` : `'${literal}'`;
+  const i18nImport = i18nEnabled ? "import { i18n } from '../i18n';\n" : '';
   const badge = context.config.demoPages
-    ? "        span({ class: 'starter-experimental-badge' }, 'Experimental · feedback welcome'),"
+    ? `        span({ class: 'starter-experimental-badge' }, ${text('ui.badge', 'Experimental · feedback welcome')}),`
     : '';
   const navigation = context.config.demoPages
-    ? `        a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' })),
-        a('services', {}, 'Services').pipe(CraftRouterLink({ to: 'services' })),
-        a('about', {}, 'About').pipe(CraftRouterLink({ to: 'about' })),`
-    : `        a('${context.config.domain}', {}, '${context.config.domain}').pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
+    ? `        a('home', {}, ${text('ui.nav.home', 'Home')}).pipe(CraftRouterLink({ to: '' })),
+        a('services', {}, ${text('ui.nav.services', 'Services')}).pipe(CraftRouterLink({ to: 'services' })),
+        a('about', {}, ${text('ui.nav.about', 'About')}).pipe(CraftRouterLink({ to: 'about' })),`
+    : `        a('${context.config.domain}', {}, ${text('ui.nav.domain', context.config.domain)}).pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
   return `import {
   a,
   CraftRouterOutlet,
@@ -1306,7 +1410,7 @@ function appTs(context: TemplateContext): string {
 ${spanImport}
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
-${uiImport}
+${i18nImport}${uiImport}
 
 export const App = craftComponent(
   'App',
@@ -1981,15 +2085,21 @@ function aboutPageTs(context: TemplateContext): string {
     ? `import { surface } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';\n`
     : '';
   const card = designSystem ? '{ class: surface.card }, ' : '';
-  const translated =
-    context.config.i18n.enabled && context.config.frontendRuntime === 'effect'
-      ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
-      : context.config.i18n.enabled
-        ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
-        : "p('This page proves that Craft routing and lazy component loading are wired.'),";
+  const sample = context.config.i18n.enabled
+    ? ["p(i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"]
+    : [];
+  const title = context.config.i18n.enabled
+    ? "i18n.t('ui.about.title')"
+    : "'About this starter'";
+  const body = context.config.i18n.enabled
+    ? "i18n.t('ui.about.body')"
+    : "'This page proves that Craft routing and lazy component loading are wired.'";
   const i18nImport = context.config.i18n.enabled
     ? "import { i18n } from '../i18n';\n"
     : '';
+  const children = [`heading(${title}),`, ...sample, `p(${body}),`].join(
+    '\n      ',
+  );
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${surfaceImport}${i18nImport}
 
@@ -1999,9 +2109,7 @@ export const AboutPage = craftComponent(
   () => ({}),
   () =>
     div(${card}[
-      heading('About this starter'),
-      ${translated}
-      p('This page proves that Craft routing and lazy component loading are wired.'),
+      ${children}
     ]),
 );
 
@@ -2012,16 +2120,24 @@ export default AboutPage;
 function domainPageTs(context: TemplateContext): string {
   const domain = context.config.domain;
   const type = typeNameForTemplate(domain);
+  const i18nEnabled = context.config.i18n.enabled;
+  const i18nImport = i18nEnabled
+    ? "import { i18n } from '../../../i18n';\n"
+    : '';
+  const title = i18nEnabled ? "i18n.t('ui.domain.title')" : `'${type}'`;
+  const body = i18nEnabled
+    ? "i18n.t('ui.domain.body')"
+    : `'This is the ${domain} feature boundary. Add the domain flow here.'`;
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
-
+${i18nImport}
 /** Domain-first entry point. Add queries, mutations and forms in this feature. */
 export const ${type}Page = craftComponent(
   '${type}Page',
   {},
   () => ({}),
   () => div([
-    heading('${type}'),
-    p('This is the ${domain} feature boundary. Add the domain flow here.'),
+    heading(${title}),
+    p(${body}),
   ]),
 );
 
@@ -2104,12 +2220,17 @@ function servicesPageTs(context: TemplateContext): string {
     context.config.frontendRuntime === 'effect' && context.config.i18n.enabled
       ? "import { i18n } from '../i18n';\n"
       : '';
+  const hasI18n = context.config.i18n.enabled;
+  const title = hasI18n ? "i18n.t('ui.services.title')" : "'Services'";
+  const effectLead = hasI18n
+    ? "p(i18n.t('ui.services.effect')),"
+    : "p('Effect service: Context.Service + Layer + provideLayer are installed at app scope.'),";
   const body =
     context.config.frontendRuntime === 'effect'
-      ? `p('Effect service: Context.Service + Layer + provideLayer are installed at app scope.'),
-      ${context.config.i18n.enabled ? "p('i18n: ' + i18n.t('order.items', { count: 2 }))," : "p('The service contract is isolated from the page.'),"}`
+      ? `${effectLead}
+      ${hasI18n ? "p(i18n.t('order.items', { count: 2 }))," : "p('The service contract is isolated from the page.'),"}`
       : `p(function* () { return 'Plain service: ' + (yield* StarterService()).label; }),
-      ${context.config.i18n.enabled ? "p('i18n: ' + i18n.t('order.items', { count: 2 }))," : "p('The service is resolved through Craft DI.'),"}`;
+      ${hasI18n ? "p(i18n.t('order.items', { count: 2 }))," : "p('The service is resolved through Craft DI.'),"}`;
   const service =
     context.config.frontendRuntime === 'effect'
       ? ''
@@ -2130,7 +2251,7 @@ export const ServicesPage = craftComponent(
   {},
   () => ({}),
   () => div(${card}[
-    heading('Services'),
+    heading(${title}),
     ${body}
   ]),
 );
@@ -2152,9 +2273,15 @@ function plainHomePageTs(context: TemplateContext): string {
   const i18n = context.config.i18n.enabled
     ? "import { i18n } from '../i18n';\n"
     : '';
-  const summary = context.config.i18n.enabled
-    ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
+  const hasI18n = context.config.i18n.enabled;
+  const summary = hasI18n
+    ? "p(i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
     : "p('A framework-independent starter with a typed API boundary.'),";
+  const title = hasI18n ? "i18n.t('ui.home.title')" : "'Welcome to CraftTS'";
+  const loading = hasI18n ? "i18n.t('ui.home.loading')" : "'Loading API…'";
+  const apiError = hasI18n
+    ? "i18n.t('ui.home.apiError')"
+    : "'The API request failed. Check the network tab.'";
   const loadLoader =
     context.config.backendRuntime === 'none'
       ? 'function* () { return yield* loadWelcome(); }'
@@ -2188,9 +2315,9 @@ export const HomePage = craftComponent(
   },
   ({ welcomeQuery }) =>
     div(${card}[
-      heading('Welcome to CraftTS'),
+      heading(${title}),
       ${summary}
-      ifNode(welcomeQuery.isLoading, () => p(${note}'Loading API…')),
+      ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
@@ -2203,7 +2330,7 @@ export const HomePage = craftComponent(
       ),
       ifNode(welcomeQuery.hasException, () =>
         p(${message}[
-          span('The API request failed. Check the network tab.'),
+          span(${apiError}),
         ]),
       ),
     ]),
@@ -2278,9 +2405,14 @@ function effectHomePageTs(context: TemplateContext): string {
   const i18nImports = context.config.i18n.enabled
     ? "import { i18n } from '../i18n';\n"
     : '';
-  const summary = context.config.i18n.enabled
-    ? "p('i18n: ' + i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
+  const hasI18n = context.config.i18n.enabled;
+  const summary = hasI18n
+    ? "p(i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"
     : "p('The page uses queryEffect over a typed repository Layer.'),";
+  const title = hasI18n
+    ? "i18n.t('ui.home.titleEffect')"
+    : "'Welcome to CraftTS + Effect v4'";
+  const loading = hasI18n ? "i18n.t('ui.home.loading')" : "'Loading API…'";
   const effectLoader =
     context.config.backendRuntime === 'none'
       ? 'loadWelcome()'
@@ -2343,9 +2475,9 @@ export const HomePage = craftComponent(
   },
   ({ welcomeQuery }) =>
     div(${card}[
-      heading('Welcome to CraftTS + Effect v4'),
+      heading(${title}),
       ${summary}
-      ifNode(welcomeQuery.isLoading, () => p(${note}'Loading API…')),
+      ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
           p(function* () {
@@ -2479,16 +2611,28 @@ test('loads the API page and navigates to About', async ({ page }) => {
 }
 
 function i18nE2eTestTs(context: TemplateContext): string {
+  const effect = context.config.frontendRuntime === 'effect';
+  // Read from the same copy the catalogue is generated from: the assertion
+  // fails if a locale stops translating the page, not if a string moves.
+  const titles = Object.fromEntries(
+    context.locales.map((locale) => {
+      const copy = starterUiCopy(context, locale.toLowerCase().startsWith('fr'));
+      return [locale, effect ? copy.homeTitleEffect : copy.homeTitle];
+    }),
+  );
   return `import { expect, test } from '@playwright/test';
 
 const locales = ${JSON.stringify(context.locales)} as const;
+const titles: Record<string, string> = ${JSON.stringify(titles)};
 
 for (const locale of locales) {
   test(\`renders the real starter page without layout overflow in \${locale}\`, async ({ page }) => {
     await page.goto('/?locale=' + locale);
     await page.evaluate(async () => { await document.fonts.ready; });
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
-    await expect(page.getByText('i18n:')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: titles[locale] }),
+    ).toBeVisible();
     const layout = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       body: document.body.scrollWidth,
@@ -2770,7 +2914,7 @@ function templates(context: TemplateContext): Record<string, string> {
     hasI18n
       ? context.locales.map((locale, index) => [
           `src/i18n/locales/${locale}.ts`,
-          i18nLocaleTs(locale, index, context.locales),
+          i18nLocaleTs(locale, index, context),
         ])
       : [],
   );
@@ -2797,6 +2941,7 @@ function templates(context: TemplateContext): Record<string, string> {
     'eslint.config.mjs': eslintConfig(
       effect,
       context.config.backendRuntime === 'effect',
+      context.config.i18n.enabled,
     ),
     'playwright.config.ts': playwrightConfig,
     'index.html': indexHtml(context.defaultLocale),
@@ -2809,7 +2954,7 @@ function templates(context: TemplateContext): Record<string, string> {
     '.craft/starter.json': starterManifest(context),
     ...(hasI18n
       ? {
-          'src/i18n/catalog.ts': i18nCatalogTs(context.locales),
+          'src/i18n/catalog.ts': i18nCatalogTs(context),
           'src/i18n/project-tokens.ts': projectTokensTs,
           'src/i18n/runtime.ts': i18nRuntimeTs(context),
           'src/i18n/typography.ts': typographyTs,

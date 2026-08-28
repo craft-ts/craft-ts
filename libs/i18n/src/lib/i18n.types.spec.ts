@@ -15,6 +15,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
+import type {
+  ComponentDepsOf,
+  GetDeps,
+  RouteCheckedDI,
+  ServiceTrackingMetadata,
+  ServiceYieldRequest,
+} from '@craft-ts/core';
 import {
   createI18nRuntime,
   defineCatalog,
@@ -24,12 +31,38 @@ import {
   msg,
   number,
   plural,
+  dateLong,
+  type StaticTranslationKey,
+  type TokenSchema,
   type TranslationKey,
+  type TranslationDependencies,
   type TranslationParams,
 } from '../index';
 
 const count = number('count');
 const amount = money('amount', undefined, { currency: 'EUR' });
+type ClientCurrencyRequest = ServiceYieldRequest<
+  'toProvide',
+  { readonly code: 'CHF' },
+  ServiceTrackingMetadata<
+    'ClientCurrency',
+    'toProvide',
+    { readonly code: 'CHF' },
+    never
+  >
+>;
+declare const ClientCurrency: () => Generator<
+  ClientCurrencyRequest,
+  { readonly code: 'CHF' },
+  unknown
+>;
+const clientAmount = money('clientAmount', function* () {
+  const currency = yield* ClientCurrency();
+  return {
+    currency: currency.code,
+    minimumFractionDigits: 2,
+  };
+});
 
 const enCatalog = defineCatalog({
   order: {
@@ -57,11 +90,70 @@ const fr = defineLocaleLike(en, 'fr-FR', {
 const locales = [en, fr] as const;
 const runtime = createI18nRuntime({ locales, defaultLocale: 'en-US' });
 
+const diLocale = defineLocale('en-US', defineCatalog({
+  order: msg`Order total ${clientAmount}.`,
+}));
+const diRuntime = createI18nRuntime({ locales: [diLocale] });
+const diTranslate = diRuntime.bind(function* () { return; });
+const _diReader = diTranslate('order', { clientAmount: 1234.5 });
+type DiReaderDeps = ComponentDepsOf<typeof _diReader>;
+
 // ─── 1. the key set is a closed union ───────────────────────────────────────
 
 type Keys = TranslationKey<(typeof locales)[number]>;
 type _KeysAreClosed = Expect<
   Equal<Keys, 'order.total' | 'order.heading' | 'order.items'>
+>;
+
+type _TranslationDependenciesAreInferred = Expect<
+  Equal<keyof TranslationDependencies<typeof diLocale, 'order'>, 'ClientCurrency'>
+>;
+type _ReaderCarriesDependencies = Expect<
+  Equal<keyof DiReaderDeps, 'ClientCurrency'>
+>;
+type DiComponentDeps = GetDeps<{
+  deps: DiReaderDeps;
+  provided: Record<never, never>;
+  publicProperties: Record<never, never>;
+}>;
+type _MissingProviderFailsAtRouteBoundary = Expect<
+  Equal<
+    RouteCheckedDI<DiComponentDeps, never, never, 'translation'>,
+    ['The ClientCurrency service is not provided in translation']
+  >
+>;
+
+// ─── 1b. `t` only accepts the keys it can actually render ───────────────────
+
+type _DiKeyIsNotAStaticKey = Expect<
+  Equal<StaticTranslationKey<typeof diLocale>, never>
+>;
+type _StaticKeysStayAvailable = Expect<
+  Equal<StaticTranslationKey<(typeof locales)[number]>, Keys>
+>;
+
+/** Never called: `t` has no injection context, so a DI key is not one of its keys. */
+export function _tRejectsADependentKey(): void {
+  // @ts-expect-error `order` resolves ClientCurrency; it needs a bound translator.
+  diRuntime.t('order', { clientAmount: 1234.5 });
+}
+
+// ─── 1c. a schema declares what the call site passes ────────────────────────
+
+declare const isoDate: TokenSchema<Date, string>;
+
+/** Never called: the catalogue below exists for its type only. */
+function _schemaCatalogue() {
+  const placedAt = dateLong('placedAt', isoDate);
+  return defineLocale('en-US', { order: msg`Placed on ${placedAt}.` });
+}
+type SchemaLocale = ReturnType<typeof _schemaCatalogue>;
+
+type _SchemaInputIsTheParameterType = Expect<
+  Equal<TranslationParams<SchemaLocale, 'order'>, { placedAt: string }>
+>;
+type _SchemaTokenCarriesNoDependency = Expect<
+  Equal<keyof TranslationDependencies<SchemaLocale, 'order'>, never>
 >;
 
 /**

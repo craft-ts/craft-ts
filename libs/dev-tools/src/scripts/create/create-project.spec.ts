@@ -226,6 +226,13 @@ describe('createCraftProject', () => {
     await expect(
       readFile(join(result.directory, 'src/app/ui/ui.style.ts'), 'utf8'),
     ).rejects.toThrow();
+    // No catalogue, so no rule demanding one.
+    expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).not.toContain('craftRules.configs.i18n.rules');
+    expect(
+      await readFile(join(result.directory, 'src/app/app.ts'), 'utf8'),
+    ).toContain("'Home'");
     expect(
       await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8'),
     ).toContain("craftRoute('services'");
@@ -375,6 +382,23 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8'),
     ).toContain('baseCatalog');
+    // The starter must obey the rule it ships with: its own visible copy lives
+    // in the catalogue, in every locale.
+    expect(
+      await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8'),
+    ).toContain('home: msg`Home`');
+    expect(
+      await readFile(join(result.directory, 'src/i18n/locales/fr-FR.ts'), 'utf8'),
+    ).toContain('home: msg`Accueil`');
+    expect(
+      await readFile(join(result.directory, 'src/app/app.ts'), 'utf8'),
+    ).toContain("i18n.t('ui.nav.home')");
+    expect(
+      await readFile(join(result.directory, 'src/app/home-page.ts'), 'utf8'),
+    ).toContain("i18n.t('ui.home.title')");
+    expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).toContain('craftRules.configs.i18n.rules');
     expect(
       await readFile(join(result.directory, 'src/i18n/typography.ts'), 'utf8'),
     ).toContain('lineHeight');
@@ -453,8 +477,10 @@ describe('createCraftProject', () => {
       join(result.directory, 'src/app/ui/components.ts'),
       'utf8',
     );
+    // The label now comes from the catalogue; the class and the named id are
+    // what this assertion is about.
     expect(components).toContain(
-      "button('continue', { class: surface.card, type: 'button' }, 'Continue')",
+      "button('continue', { class: surface.card, type: 'button' }, i18n.t('ui.components.continue'))",
     );
 
     // The variant travels as an attribute; the class stays constant. A starter

@@ -1,14 +1,14 @@
 # Type-safe i18n
 
-`@craft-ts/i18n` has **no CraftTS, Angular or Effect import**. The catalogue is
-a plain TypeScript value and the runtime works in a browser, a server, a worker
-or a test without a framework. That is not a packaging detail — it is what lets
-the same catalogue be checked by `tsc`, exercised by a Node test, and rendered
-during SSR without a second implementation.
+`@craft-ts/i18n` is the CraftTS i18n integration. The catalogue remains a plain
+declarative TypeScript value, while DI-aware tokens use the existing CraftTS
+service contracts. A catalogue that does not use DI can still be formatted by
+`runtime.t`; a catalogue with DI is rendered through the reactive CraftTS
+translator so its dependencies are checked like component dependencies.
 
 ## The contract
 
-Four things are guaranteed, and all four are checked before the app runs.
+Six things are guaranteed, and all six are checked before the app runs.
 
 | guarantee                                                   | what it costs you to break                                          |
 | ----------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -16,8 +16,10 @@ Four things are guaranteed, and all four are checked before the app runs.
 | every locale has the **same keys with the same parameters** | a translation you forgot is a compile error, not a fallback         |
 | parameters are **typed by their token**                     | a date cannot be passed where a currency amount belongs             |
 | a plural carries **every category the locale requires**     | Polish needs `one`/`few`/`many`/`other`; French needs `one`/`other` |
+| a DI-aware token declares its **CraftTS services**           | a missing provider is a compile error at the component/route boundary |
+| a token declared with a **schema** types its own input       | the call site passes what the schema parses, not what the formatter wants |
 
-The usual failure mode of a translation layer is that all four of these are
+The usual failure mode of a translation layer is that all of these are
 runtime concerns: a missing key renders its own name, a wrong parameter renders
 `[object Object]`, and a missing plural category renders the wrong branch to the
 users of one locale only. None of that is observable from the code that calls
@@ -55,8 +57,9 @@ A working example lives in the demo, at `apps/demo/src/app/examples/i18n/`.
 
 ## Guard visible text in Craft templates
 
-The dev-tools plugin exposes an opt-in `i18n` ESLint preset for applications
-that have finished moving their user-facing copy into a catalogue:
+`craft create` enables this preset for every project generated **with** i18n —
+its own pages already take their copy from the catalogue. A project generated
+without i18n never sees the rule. To add it by hand to an existing application:
 
 ```js
 import craftRules from '@craft-ts/dev-tools/eslint-rules';
@@ -71,8 +74,13 @@ export default [
 
 `craft-ts/require-i18n-text` reports static text in visible headings,
 paragraphs, labels, buttons, links and options, plus visible `placeholder`,
-`aria-label` and `title` attributes. Dynamic business values, `i18n.t(...)`
-and catalogue files are accepted. Server files and tests are excluded so
-technical messages and assertions can remain literal. The rule is deliberately
-separate from the recommended preset: enable it when the catalogue is the
-application's source of truth, then run `npm run lint` in CI.
+`aria-label` and `title` attributes — and it looks *inside* the visible
+position, so `p('Total: ' + t('cart.total'))`, `` span(`Total: ${amount}`) ``,
+`label(isNew ? 'New' : 'Returning')`, `p(name || 'Anonymous')` and a literal in
+a children array are reported too. Only what carries letters counts: `first + ' ' + last`
+is glue between values, not copy. Dynamic business values, `i18n.t(...)`, its
+key and parameters, a generator child and catalogue files are accepted. Server files and tests are excluded so
+technical messages and assertions can remain literal. The rule stays separate
+from the recommended preset, because it only makes sense once the catalogue is
+the application's source of truth — which is exactly the condition `craft
+create` checks when it decides to enable it.

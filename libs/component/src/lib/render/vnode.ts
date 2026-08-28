@@ -7,6 +7,8 @@ import type {
   MergeChannelUnion,
   CraftNodeDirective,
   CraftLazyLoadHelpers,
+  CRAFT_COMPONENT_DEPS,
+  ComponentDepsCarrier,
   CatchTagExhaustiveCodesCheck,
   CraftSettledCodesOf,
   CraftSettledSourcesOf,
@@ -198,14 +200,44 @@ type CraftNodeChildrenDependenciesOf<Value> =
                 ? {}
                 : Dependencies
               : {}
-            : {}
+            : typeof CRAFT_COMPONENT_DEPS extends keyof Value
+              ? Value extends ComponentDepsCarrier<
+                  infer Dependencies extends object
+                >
+                ? IsAny<Dependencies> extends true
+                  ? {}
+                  : Dependencies
+                : {}
+              : {}
           : {};
 
-export type CraftNodeChildrenDependencies<Value> = {
+type MergedCraftNodeChildrenDependencies<Value> = {
   [Key in keyof UnionToIntersection<
     CraftNodeChildrenDependenciesOf<Value>
   >]: UnionToIntersection<CraftNodeChildrenDependenciesOf<Value>>[Key];
 } & {};
+
+/**
+ * Prop values carry dependencies too: a reader bound to `title`, `aria-label`
+ * or `placeholder` is rendered exactly like a text child, and the i18n lint
+ * rule sends translations to those very attributes. Without this, such a
+ * dependency would leave no trace in the component contract and a missing
+ * provider would surface as a runtime injection failure.
+ */
+type CraftNodePropsDependencySources<Props> = [Props] extends [object]
+  ? Props[keyof Props]
+  : never;
+
+export type CraftNodeDependencies<Props, Children> =
+  CraftNodeChildrenDependencies<
+    Children | CraftNodePropsDependencySources<Props>
+  >;
+
+// Reading the node's own carrier and stopping there would be cheaper, but a
+// node that went through `.pipe(...)` keeps the directive's template
+// dependencies beside that carrier: the merge is what collects them.
+export type CraftNodeChildrenDependencies<Value> =
+  MergedCraftNodeChildrenDependencies<Value>;
 
 type CraftNodeChildrenCssVarsOf<
   Value,

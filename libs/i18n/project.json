@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/i18n/src",
   "projectType": "library",
-  "tags": ["scope:i18n", "independent:effect"],
+  "tags": ["scope:i18n", "integration:craft"],
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",

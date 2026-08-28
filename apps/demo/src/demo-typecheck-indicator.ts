@@ -42,14 +42,19 @@ export function startDemoTypecheckIndicator(): void {
 
       if (dismissed) return;
       if (payload.status === 'passed') {
-        indicator.remove();
-        return;
-      }
-      if (payload.status === 'failed') {
+        indicator.hidden = true;
+        indicator.removeAttribute('data-status');
+        message.textContent = 'Type checking passed';
+      } else if (payload.status === 'failed') {
+        indicator.hidden = false;
         indicator.dataset['status'] = 'failed';
         message.textContent = 'Type checking failed — app is still running';
         dismiss.hidden = false;
-        return;
+      } else {
+        indicator.hidden = false;
+        indicator.removeAttribute('data-status');
+        message.textContent = 'Type checking in progress…';
+        dismiss.hidden = true;
       }
     } catch {
       // Keep the indicator visible while Vite is still starting.

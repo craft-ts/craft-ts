@@ -235,9 +235,17 @@ export type CraftComponentDependencies<
   publicProperties: PublicProperties;
   missingProvider: [TemplateDependencies] extends [never]
     ? {}
-    : MissingProvidersFromDepsMap<{
-        readonly __craft_template_dependencies__: TemplateDependencies;
-      }>;
+    : // Two shapes reach this point: a map of service dependencies (a reader
+      // carrying its own contract) and a map whose entries are themselves
+      // dependency records (projected content, a piped directive). The first
+      // shape needs the map read directly, the second needs it read as a
+      // nested entry — collecting both is what keeps either from vanishing.
+      MergeObjectUnion<
+        | MissingProvidersFromDepsMap<TemplateDependencies>
+        | MissingProvidersFromDepsMap<{
+            readonly __craft_template_dependencies__: TemplateDependencies;
+          }>
+      >;
 }>;
 
 type ComponentMissingProviderRecord<Dependency> =

@@ -222,20 +222,24 @@ without `craftStyle` from `@craft-ts/style/vite` in the Vite config. See
 
 ## Internationalisation
 
-`@craft-ts/i18n` has no CraftTS, Angular or Effect import; the catalogue is a
-plain TypeScript value.
+`@craft-ts/i18n` is the CraftTS i18n integration: the catalogue stays a plain
+TypeScript value, and a token may resolve a Craft service or parse its
+parameter with a Standard Schema. The package imports core for types only.
 
 | Symbol                                                                                                        | What it does                                                           | Page                                                                  |
 | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `defineCatalog`, `msg`, `plural`                                                                              | The catalogue, its messages, and per-locale plural categories          | [The catalogue](/guide/i18n/catalog)                                  |
 | `defineLocale`, `defineLocaleLike`                                                                            | The reference locale, and every other one checked against it           | [The catalogue](/guide/i18n/catalog)                                  |
 | `number`, `integer`, `percent`, `compactNumber`, `money`, `dateShort`, `dateLong`, `dateTime`, `relativeTime` | The shipped semantic tokens, formatted through `Intl`                  | [Tokens](/guide/i18n/tokens)                                          |
-| `defineToken`, `defineTokenFactory`, `formatters`                                                             | Project tokens, and the factory the shipped ones are built from        | [Tokens](/guide/i18n/tokens)                                          |
+| `defineToken`, `defineTokenFactory`, `formatters`, `TokenFormatter`, `FormatterContext`                       | Project tokens, and the factory the shipped ones are built from        | [Tokens](/guide/i18n/tokens)                                          |
 | `createI18nRuntime`, `translate` / `t`, `setLocale`, `locale`                                                 | The runtime and its one active locale                                  | [The runtime](/guide/i18n/runtime)                                    |
+| `TranslationDependencies`, `StaticTranslationKey`                                                             | The services a message resolves, and the keys `t` can render alone     | [The runtime](/guide/i18n/runtime#di-inside-a-translation)             |
+| `TokenSchema`, `TokenSchemaInput`, `TokenSchemaOutput`, `TokenFactory`                                        | Declaring a parameter with a Standard Schema                           | [Tokens](/guide/i18n/tokens)                                          |
 | `bind`, `createReactiveTranslator`                                                                            | A translator that re-reads when the locale state changes               | [The runtime](/guide/i18n/runtime#reactive-translation)               |
 | `createI18nLoader`, `loadLocale`                                                                              | Lazy locales, cached by id, evicted on failure                         | [The runtime](/guide/i18n/runtime#lazy-locales)                       |
 | `validateCatalog`, `assertValidCatalog`, `validateLocaleParity`, `assertLocaleParity`                         | The checks behind `npm run i18n:check` (also `@craft-ts/i18n/testing`) | [The catalogue](/guide/i18n/catalog#checking-outside-the-typechecker) |
-| `I18nRuntimeError`                                                                                            | `NO_LOCALES`, `LOCALE_NOT_LOADED`, `INVALID_NUMBER`, `INVALID_DATE`    | [The runtime](/guide/i18n/runtime)                                    |
+| `serializeCatalog`, `serializeToken`                                                                          | JSON-safe delivery shape; refuses a token that resolves a service      | [The catalogue](/guide/i18n/catalog)                                  |
+| `I18nRuntimeError`                                                                                            | `LOCALE_NOT_LOADED`, `MISSING_PARAM`, `INVALID_PARAM`, `CRAFT_INJECTION_REQUIRED`, … | [The runtime](/guide/i18n/runtime)                      |
 | `provideI18nRuntime`, `translateEffect`, `I18nEffectService`                                                  | The Effect adapter (`@craft-ts/i18n-effect`)                           | [With Effect](/guide/i18n/effect)                                     |
 
 ## Tooling

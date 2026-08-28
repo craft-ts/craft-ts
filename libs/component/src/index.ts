@@ -110,6 +110,8 @@ export type {
   CraftNode,
   CraftNodeChild,
   CraftNodeChildren,
+  CraftNodeChildrenDependencies,
+  CraftNodeDependencies,
   IfNode,
   CatchNode,
   MatchNode,

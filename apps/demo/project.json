@@ -87,7 +87,7 @@
             "forwardAllArgs": true
           },
           {
-            "command": "node tools/demo-typecheck.mjs --non-blocking",
+            "command": "node tools/demo-typecheck.mjs --watch --non-blocking",
             "forwardAllArgs": false
           }
         ],

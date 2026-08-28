@@ -29,6 +29,18 @@ a locale the runtime does not hold. So does `t`, if the active locale was
 somehow never loaded. The error is not a formatting failure to be swallowed: it
 means the app is about to render the wrong language.
 
+The other codes it raises, all for the same reason — rendering something wrong
+is worse than not rendering:
+
+| code                       | when                                                              |
+| -------------------------- | ------------------------------------------------------------------ |
+| `MISSING_PARAM`            | a token's parameter is absent from the params object               |
+| `INVALID_PARAM`            | a guard rejected the value, or a schema's issues, quoted verbatim  |
+| `ASYNC_SCHEMA`             | a parameter's schema returned a promise; a message renders in sync |
+| `CRAFT_INJECTION_REQUIRED` | `t` met a token that resolves a service (see below)                |
+| `INVALID_PLURAL_COUNT`     | a plural selector that is not a finite number                      |
+| `UNKNOWN_KEY`              | a key that no longer exists in the loaded catalogue                |
+
 ## Reactive translation
 
 A string that does not change when the locale changes is not a translation.
@@ -42,6 +54,44 @@ the `state` that holds the active locale:
 yields like any other Craft reader. One service owns the locale for the whole
 app; components consume it rather than each building a local binding, which is
 what keeps two components from disagreeing about which language is on screen.
+
+### DI inside a translation
+
+Dependencies belong to the token that needs them, not to the whole i18n
+runtime:
+
+```ts
+const orderAmount = money('amount', function* () {
+  const currency = yield* ClientCurrency();
+  return { currency: currency.code, minimumFractionDigits: 2 };
+});
+
+const catalog = defineCatalog({
+  order: msg`Order total ${orderAmount}.`,
+});
+```
+
+In a template, the translator's result is used exactly like any other child or
+attribute value — pass it, do not drive it:
+
+```ts
+p(translate('order', { amount: 1234.5 }));
+p({ title: translate('order', { amount: 1234.5 }) }, 'Order');
+```
+
+Both forms carry `ClientCurrency` into the component dependency contract, so
+the route check reports a missing provider at compile time, just as it does for
+a service yielded by the component factory.
+
+The reader is a function, so `yield* translate(...)` does not type-check; and
+driving it yourself inside a template generator (`yield* translate(...)()`)
+hides the dependency from that check, exactly as a service yielded straight
+from a template does. Pass the reader.
+
+`t` refuses such a message at compile time: its key type is
+`StaticTranslationKey`, the keys whose formatting resolves nothing. A resolver
+that yields no request is still a `t` key — the type and the runtime draw the
+same line.
 
 ## Loading catalogues
 

@@ -1,7 +1,7 @@
 {
   "name": "@craft-ts/i18n",
   "version": "0.7.0-beta.18",
-  "description": "Framework-independent, type-safe internationalisation for CraftTS",
+  "description": "Type-safe internationalisation integrated with CraftTS",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.js",
@@ -22,6 +22,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "@craft-ts/core": "^0.7.0-beta.0"
   },
   "sideEffects": false
 }

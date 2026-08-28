@@ -45,9 +45,14 @@ failure every call site would have to handle.
 ## When to reach for it
 
 Use `translateEffect` **inside an Effect program** — a domain service building a
-message, a server handler rendering an email. In a component, `t` is the shorter
-and framework-independent path, and reaching for Effect just to format a string
+message, a server handler rendering an email. In a component, the bound
+translator is the shorter path, and reaching for Effect just to format a string
 adds a requirement to the program for nothing.
+
+An Effect program is not a Craft injection context, so `translateEffect` accepts
+`StaticTranslationKey` — the keys whose formatting resolves no service. A
+message whose token yields a Craft service is rendered by the component-side
+translator; that is what keeps the `never` error channel above honest.
 
 See also the [Effect adapters](../advanced/effect.md) page for the rest of the
 `@craft-ts/*-effect` family.

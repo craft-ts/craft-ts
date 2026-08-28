@@ -1,8 +1,14 @@
 /*
- * This file intentionally has no CraftTS, Angular or Effect import.  The
- * catalogue is a plain TypeScript value and the runtime is usable in a
- * browser, a server, a worker, or a test without a framework.
+ * The catalogue stays a plain TypeScript value.  The CraftTS integration is
+ * type-only here: DI-aware tokens yield Craft service requests while the
+ * catalogue remains declarative.
  */
+
+import type {
+  ComponentDepsCarrier,
+  ServiceDependencyMapFromYielded,
+  StandardSchemaV1,
+} from '@craft-ts/core';
 
 export type PluralCategory = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
 export type FormatterContext = {
@@ -12,18 +18,93 @@ export type FormatterContext = {
 export type TokenFormatter<Value> = ((value: Value, context: FormatterContext) => string) & {
   readonly id?: string;
 };
-export type TokenValueAdapter<Value> = {
-  readonly validate?: (value: unknown) => value is Value;
-  readonly name?: string;
-} | ((value: unknown) => value is Value);
+/**
+ * A Standard Schema — the very contract `state`, `query`, `mutation` and forms
+ * already accept, so a Zod / Valibot / ArkType schema written for the rest of
+ * the application is usable as-is on a token.
+ *
+ * `Output` is what the formatter receives, `Input` is what the call site
+ * passes: a schema is allowed to **parse**, not only to validate, which is how
+ * `'2026-08-25'` reaches a date token and comes out as a `Date`.
+ */
+export type TokenSchema<Output = unknown, Input = unknown> = StandardSchemaV1<
+  Input,
+  Output
+>;
 
-export type I18nToken<Name extends string = string, Value = unknown, Kind extends string = string> = {
+type SchemaTypes<Schema> = Schema extends {
+  readonly '~standard': { readonly types?: infer Types };
+}
+  ? Types
+  : never;
+
+/** What a call site must pass for a token declared with `Schema`. */
+export type TokenSchemaInput<Schema> =
+  NonNullable<SchemaTypes<Schema>> extends { readonly input: infer Input }
+    ? Input
+    : never;
+
+/** What the formatter receives for a token declared with `Schema`. */
+export type TokenSchemaOutput<Schema> =
+  NonNullable<SchemaTypes<Schema>> extends { readonly output: infer Output }
+    ? Output
+    : never;
+
+export type TokenValueAdapter<Value> =
+  | TokenSchema<Value>
+  | {
+      readonly validate?: (value: unknown) => value is Value;
+      readonly name?: string;
+    }
+  | ((value: unknown) => value is Value);
+
+export type CraftI18nOptionsFactory<Options, Yielded = unknown> = () => Generator<
+  Yielded,
+  Options,
+  unknown
+>;
+
+type FactoryYielded<Factory> = Factory extends (...args: any[]) => infer Result
+  ? Result extends Generator<infer Yielded, any, any>
+    ? Yielded
+    : never
+  : never;
+
+type DependenciesOfFactory<Factory> = ServiceDependencyMapFromYielded<
+  FactoryYielded<Factory>
+>;
+
+type TranslationReader<Dependencies extends object> = (() => Generator<
+  unknown,
+  string,
+  unknown
+>) & ComponentDepsCarrier<Dependencies>;
+
+export type I18nToken<
+  Name extends string = string,
+  Value = unknown,
+  Kind extends string = string,
+  Dependencies extends object = Record<never, never>,
+  Input = Value,
+> = {
   readonly __i18nToken: true;
   readonly name: Name;
   readonly kind: Kind;
   readonly tokenId: string;
   readonly validate?: (value: unknown) => value is Value;
+  /**
+   * Set when the token was declared with a schema. It runs before the
+   * formatter, so the value the formatter sees is the parsed one — and it is
+   * also what makes `Input` differ from `Value`.
+   */
+  readonly parse?: (value: Input) => Value;
   readonly format: TokenFormatter<Value>;
+  readonly resolveFormatter?: () => Generator<
+    unknown,
+    TokenFormatter<Value>,
+    unknown
+  >;
+  readonly dependencies?: Dependencies;
 };
 
 type Simplify<T> = { [Key in keyof T]: T[Key] } & {};
@@ -31,32 +112,72 @@ type UnionToIntersection<T> =
   (T extends unknown ? (value: T) => void : never) extends (value: infer I) => void
     ? I
     : never;
-type TokenParams<T> = T extends I18nToken<infer Name, infer Value, infer _Kind>
-  ? { [Key in Name]: Value }
+type TokenParams<T> = T extends I18nToken<
+  infer Name,
+  any,
+  infer _Kind,
+  any,
+  infer Input
+>
+  ? { [Key in Name]: Input }
+  : Record<never, never>;
+type TokenDependencies<T> = T extends I18nToken<
+  any,
+  any,
+  any,
+  infer Dependencies extends object
+>
+  ? Dependencies
   : Record<never, never>;
 type ParamsFromTokens<T extends readonly unknown[]> = Simplify<
   UnionToIntersection<TokenParams<T[number]>>
 >;
+type DependenciesFromTokens<T extends readonly unknown[]> = Simplify<
+  UnionToIntersection<TokenDependencies<T[number]>>
+>;
+type MessageDependencies<T> = T extends Message<any, infer Dependencies extends object>
+  ? Dependencies
+  : T extends PluralMessage<any, any, any, infer Dependencies extends object>
+    ? Dependencies
+    : Record<never, never>;
+type DependenciesFromMessages<T> = Simplify<
+  UnionToIntersection<MessageDependencies<T>>
+>;
 
-export type Message<Params = Record<never, never>> = {
+export type Message<
+  Params = Record<never, never>,
+  Dependencies extends object = Record<never, never>,
+> = {
   readonly kind: 'message';
   // The erased token union is intentionally bivariant; concrete tokens keep their value type in Params.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly parts: readonly (string | I18nToken<string, any, string>)[];
   readonly params: Params;
+  readonly dependencies?: Dependencies;
 };
 
+/**
+ * The selector token's own dependencies are deliberately absent: `renderNode`
+ * only reads the count to pick a category, it never runs the selector's
+ * formatter. A DI-aware token used as a selector *and* rendered inside a branch
+ * contributes through that branch, which is the path that actually resolves it.
+ */
 export type PluralMessage<
   CountName extends string = string,
   CountValue extends number = number,
   Branches extends Partial<Record<PluralCategory, Message<unknown>>> = Partial<Record<PluralCategory, Message<unknown>>>,
+  Dependencies extends object = DependenciesFromMessages<Branches[keyof Branches]>,
+  CountInput = CountValue,
 > = {
   readonly kind: 'plural';
-  readonly count: I18nToken<CountName, CountValue, string>;
+  readonly count: I18nToken<CountName, CountValue, string, any, CountInput>;
   readonly branches: Branches;
   readonly params: Simplify<
-    { [Key in CountName]: CountValue } &
+    { [Key in CountName]: CountInput } &
       (Branches[keyof Branches] extends Message<infer Params> ? Params : Record<never, never>)
+  >;
+  readonly dependencies?: Simplify<
+    Dependencies
   >;
 };
 
@@ -71,6 +192,14 @@ function isPlural(value: unknown): value is PluralMessage {
   return typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'plural';
 }
 
+function isParamsRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function paramsRecord(value: unknown): Record<string, unknown> {
+  return isParamsRecord(value) ? value : {};
+}
+
 export function defineCatalog<const T extends Catalog>(catalog: T): T {
   return catalog;
 }
@@ -79,7 +208,7 @@ export function defineCatalog<const T extends Catalog>(catalog: T): T {
 export function msg<const Parts extends readonly I18nToken<string, any, string>[]>(
   strings: TemplateStringsArray,
   ...tokens: Parts
-): Message<ParamsFromTokens<Parts>> {
+): Message<ParamsFromTokens<Parts>, DependenciesFromTokens<Parts>> {
   const parts: (string | I18nToken)[] = [];
   for (let index = 0; index < strings.length; index += 1) {
     const text = strings[index];
@@ -87,7 +216,12 @@ export function msg<const Parts extends readonly I18nToken<string, any, string>[
     const token = tokens[index];
     if (token) parts.push(token);
   }
-  return { kind: 'message', parts, params: undefined as unknown as ParamsFromTokens<Parts> };
+  return {
+    kind: 'message',
+    parts,
+    params: undefined as unknown as ParamsFromTokens<Parts>,
+    dependencies: undefined as unknown as DependenciesFromTokens<Parts>,
+  };
 }
 
 export type PluralBranches = Partial<Record<PluralCategory, Message<unknown>>> &
@@ -97,57 +231,298 @@ export function plural<
   CountName extends string,
   CountValue extends number,
   const Branches extends PluralBranches,
+  CountInput = CountValue,
 >(
-  count: I18nToken<CountName, CountValue, string>,
+  count: I18nToken<CountName, CountValue, string, any, CountInput>,
   branches: Branches,
-): PluralMessage<CountName, CountValue, Branches> {
+): PluralMessage<
+  CountName,
+  CountValue,
+  Branches,
+  DependenciesFromMessages<Branches[keyof Branches]>,
+  CountInput
+> {
   return {
     kind: 'plural',
     count,
     branches,
-    params: undefined as unknown as PluralMessage<CountName, CountValue, Branches>['params'],
+    params: undefined as unknown as PluralMessage<
+      CountName,
+      CountValue,
+      Branches,
+      DependenciesFromMessages<Branches[keyof Branches]>,
+      CountInput
+    >['params'],
+    dependencies: undefined as unknown as PluralMessage<
+      CountName,
+      CountValue,
+      Branches
+    >['dependencies'],
   };
 }
 
-export type TokenDefinition<Name extends string, Value, Kind extends string = string> = {
+type TokenDefinitionBase<
+  Name extends string,
+  Value,
+  Kind extends string,
+  Schema,
+> = {
   readonly name: Name;
   readonly kind: Kind;
   readonly tokenId?: string;
   readonly validate?: (value: unknown) => value is Value;
-  readonly format: TokenFormatter<Value>;
+  /**
+   * A Standard Schema for the parameter. It replaces `validate` and, unlike a
+   * type guard, it may parse: the formatter receives the schema's output.
+   */
+  readonly schema?: Schema;
 };
 
-export function defineToken<Name extends string, Value, Kind extends string = string>(
-  definition: TokenDefinition<Name, Value, Kind>,
-): I18nToken<Name, Value, Kind> {
+/**
+ * A token formats through exactly one of the two: `format` when the formatter
+ * is known when the catalogue is written, `resolveFormatter` when it is built
+ * from the injector at render time. Both renderers prefer the resolver
+ * whenever it is present, so requiring `format` beside it would only ask for
+ * code that never runs.
+ */
+export type TokenDefinition<
+  Name extends string,
+  Value,
+  Kind extends string = string,
+  Resolver extends (...args: any[]) => Generator<any, TokenFormatter<Value>, any> = never,
+  Schema extends TokenSchema<Value> | undefined = undefined,
+> = TokenDefinitionBase<Name, Value, Kind, Schema> &
+  (
+    | {
+        readonly format: TokenFormatter<Value>;
+        readonly resolveFormatter?: Resolver;
+      }
+    | {
+        readonly format?: TokenFormatter<Value>;
+        readonly resolveFormatter: Resolver;
+      }
+  );
+
+type DependenciesOfResolver<Resolver> = Resolver extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, any>
+  ? ServiceDependencyMapFromYielded<Yielded>
+  : Record<never, never>;
+
+type TokenInputOf<Schema, Value> = [Schema] extends [undefined]
+  ? Value
+  : [TokenSchemaInput<Schema>] extends [never]
+    ? Value
+    : TokenSchemaInput<Schema>;
+
+type TokenOptionsFactory<Options> = () => Generator<any, Options, unknown>;
+
+function isTokenSchema(value: unknown): value is TokenSchema<unknown> {
+  return typeof value === 'object' && value !== null && '~standard' in value;
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
+
+/**
+ * Turns a Standard Schema into the token's `parse`. A translation is rendered
+ * synchronously, so an asynchronous schema is a defect rather than something to
+ * await: the message would have to be split in two to accommodate it.
+ */
+function schemaParser<Value>(
+  schema: TokenSchema<Value>,
+  name: string,
+): (value: unknown) => Value {
+  return (value: unknown): Value => {
+    const result = schema['~standard'].validate(value);
+    if (isPromiseLike(result)) {
+      throw new I18nRuntimeError(
+        'ASYNC_SCHEMA',
+        `The schema of parameter ${name} is asynchronous; a translation is rendered synchronously.`,
+      );
+    }
+    if (result.issues) {
+      throw new I18nRuntimeError(
+        'INVALID_PARAM',
+        `Invalid parameter ${name}: ${result.issues.map((issue) => issue.message).join(', ')}`,
+      );
+    }
+    return result.value;
+  };
+}
+
+// Overloaded rather than one signature over the union: with no `format` to
+// infer `Value` from, it has to be read from what the resolver returns.
+export function defineToken<
+  Name extends string,
+  Value,
+  Kind extends string = string,
+  Resolver extends (...args: any[]) => Generator<any, TokenFormatter<Value>, any> = never,
+  Schema extends TokenSchema<Value> | undefined = undefined,
+>(
+  definition: TokenDefinitionBase<Name, Value, Kind, Schema> & {
+    readonly format: TokenFormatter<Value>;
+    readonly resolveFormatter?: Resolver;
+  },
+): I18nToken<
+  Name,
+  Value,
+  Kind,
+  DependenciesOfResolver<Resolver>,
+  TokenInputOf<Schema, Value>
+>;
+export function defineToken<
+  Name extends string,
+  Value,
+  Kind extends string = string,
+  Yielded = never,
+  Schema extends TokenSchema<Value> | undefined = undefined,
+>(
+  definition: TokenDefinitionBase<Name, Value, Kind, Schema> & {
+    readonly format?: undefined;
+    // The bare call signature rather than `TokenFormatter<Value>`: `Value` has
+    // no other inference site here, and inference does not reach through the
+    // intersection that carries the formatter's `id`.
+    readonly resolveFormatter: () => Generator<
+      Yielded,
+      (value: Value, context: FormatterContext) => string,
+      unknown
+    >;
+  },
+): I18nToken<
+  Name,
+  Value,
+  Kind,
+  ServiceDependencyMapFromYielded<Yielded>,
+  TokenInputOf<Schema, Value>
+>;
+export function defineToken(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  definition: TokenDefinition<string, any, string, any, any>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): I18nToken<string, any, string, any, any> {
   return {
     __i18nToken: true,
     name: definition.name,
     kind: definition.kind,
     tokenId: definition.tokenId ?? `app.${definition.kind}`,
     validate: definition.validate,
-    format: definition.format,
+    // Unreachable through either renderer — they both take the resolver first.
+    // It exists so the token keeps one formatter-shaped member for anything
+    // that reads a catalogue without rendering it.
+    format:
+      definition.format ??
+      (() => {
+        throw new I18nRuntimeError(
+          'CRAFT_INJECTION_REQUIRED',
+          `Token ${definition.name} is formatted by its resolver; it has no standalone formatter.`,
+        );
+      }),
+    parse: definition.schema
+      ? schemaParser(definition.schema, definition.name)
+      : undefined,
+    resolveFormatter: definition.resolveFormatter,
+    dependencies: undefined,
   };
+}
+
+/**
+ * A value guard receives the value, so it declares at least one parameter. A
+ * zero-argument function in that position is an options factory that was
+ * written as an arrow instead of a `function*`: accepting it silently would
+ * install it as the guard and format with the default options.
+ */
+function assertTokenAdapter<Value>(
+  adapter: TokenValueAdapter<Value> | TokenOptionsFactory<unknown> | undefined,
+  name: string,
+): TokenValueAdapter<Value> | undefined {
+  if (typeof adapter === 'function' && adapter.length === 0) {
+    throw new I18nRuntimeError(
+      'INVALID_TOKEN_ADAPTER',
+      `Token ${name} received a zero-argument function where a value guard, a schema or a generator function was expected. A DI-aware token must be declared with \`function* () { ... }\`.`,
+    );
+  }
+  return adapter as TokenValueAdapter<Value> | undefined;
+}
+
+/**
+ * The three ways to declare a token of a given kind. Named rather than inferred
+ * so a shipped factory (`number`, `money`, …) keeps a declaration that can be
+ * emitted without expanding the Craft service markers it refers to.
+ */
+export interface TokenFactory<Kind extends string, Value, Options> {
+  // The DI form: the options are produced by a Craft generator, so the services
+  // it yields become part of the token's — and then the message's — contract.
+  <Name extends string, Factory extends TokenOptionsFactory<Options>>(
+    name: Name,
+    optionsFactory: Factory,
+  ): I18nToken<Name, Value, Kind, DependenciesOfFactory<Factory>>;
+  // The schema form: the call site passes the schema's input, the formatter
+  // receives its output.
+  <Name extends string, Schema extends TokenSchema<Value>>(
+    name: Name,
+    schema: Schema,
+    options?: Options,
+  ): I18nToken<
+    Name,
+    Value,
+    Kind,
+    Record<never, never>,
+    TokenInputOf<Schema, Value>
+  >;
+  <Name extends string>(
+    name: Name,
+    adapter?: TokenValueAdapter<Value>,
+    options?: Options,
+  ): I18nToken<Name, Value, Kind>;
 }
 
 export function defineTokenFactory<Kind extends string, Value, Options = undefined>(definition: {
   readonly kind: Kind;
   readonly tokenId?: string;
   readonly format: (options: Options | undefined) => TokenFormatter<Value>;
-}) {
-  return function create<Name extends string>(
-    name: Name,
-    adapter?: TokenValueAdapter<Value>,
+}): TokenFactory<Kind, Value, Options> {
+  function create(
+    name: string,
+    adapterOrOptionsFactory?: TokenValueAdapter<Value> | TokenOptionsFactory<Options>,
     options?: Options,
-  ): I18nToken<Name, Value, Kind> {
+  ): I18nToken<string, Value, Kind> {
+    if (isGeneratorFunction(adapterOrOptionsFactory)) {
+      const optionsFactory = adapterOrOptionsFactory as TokenOptionsFactory<Options>;
+      return defineToken({
+        name,
+        kind: definition.kind,
+        tokenId: definition.tokenId,
+        format: definition.format(options),
+        resolveFormatter: function* () {
+          return definition.format(yield* optionsFactory());
+        },
+      }) as I18nToken<string, Value, Kind>;
+    }
+
+    const adapter = assertTokenAdapter(adapterOrOptionsFactory, name);
     return defineToken({
       name,
       kind: definition.kind,
       tokenId: definition.tokenId,
-      validate: typeof adapter === 'function' ? adapter : adapter?.validate,
+      schema: isTokenSchema(adapter)
+        ? (adapter as TokenSchema<Value>)
+        : undefined,
+      validate: isTokenSchema(adapter)
+        ? undefined
+        : typeof adapter === 'function'
+          ? adapter
+          : adapter?.validate,
       format: definition.format(options),
-    });
-  };
+    }) as I18nToken<string, Value, Kind>;
+  }
+
+  return create as TokenFactory<Kind, Value, Options>;
 }
 
 export type NumberFormatterOptions = Intl.NumberFormatOptions & {
@@ -206,7 +581,25 @@ export const number = defineTokenFactory({ kind: 'number', format: (options?: Nu
 export const integer = defineTokenFactory({ kind: 'integer', format: () => formatters.integer() });
 export const percent = defineTokenFactory({ kind: 'percent', format: (options?: NumberFormatterOptions) => formatters.percent(options) });
 export const compactNumber = defineTokenFactory({ kind: 'compact-number', format: (options?: NumberFormatterOptions) => formatters.compactNumber(options) });
-export const money = defineTokenFactory({ kind: 'money', format: (options?: { readonly currency?: string } & NumberFormatterOptions) => formatters.money(options?.currency ?? 'EUR', options) });
+export type MoneyOptions = { readonly currency?: string } & NumberFormatterOptions;
+
+type GeneratorFunction = (...args: never[]) => Generator<unknown, unknown, unknown>;
+
+// Mirrors `isGeneratorFunction` in `@craft-ts/core`: the same two checks, kept
+// local so the package still has no runtime import of core.
+function isGeneratorFunction(value: unknown): value is GeneratorFunction {
+  return (
+    typeof value === 'function' &&
+    (value.constructor?.name === 'GeneratorFunction' ||
+      Object.prototype.toString.call(value) === '[object GeneratorFunction]')
+  );
+}
+
+export const money = defineTokenFactory({
+  kind: 'money',
+  format: (options?: MoneyOptions) =>
+    formatters.money(options?.currency ?? 'EUR', options),
+});
 export const dateShort = defineTokenFactory({ kind: 'date-short', format: () => formatters.dateShort() });
 export const dateLong = defineTokenFactory({ kind: 'date-long', format: () => formatters.dateLong() });
 export const dateTime = defineTokenFactory({ kind: 'date-time', format: (options?: DateFormatterOptions) => formatters.dateTime(options) });
@@ -319,6 +712,31 @@ type NodeAtPath<T, Path extends string> = Path extends `${infer Head}.${infer Ta
   : Path extends keyof T ? T[Path] : never;
 export type TranslationParams<C, Key extends string> = MessageParams<NodeAtPath<CatalogOf<C>, Key>>;
 
+type TranslationNodeDependencies<Node> = Node extends Message<
+  any,
+  infer Dependencies extends object
+>
+  ? Dependencies
+  : Node extends PluralMessage<any, any, any, infer Dependencies extends object>
+    ? Dependencies
+    : Record<never, never>;
+
+export type TranslationDependencies<C, Key extends string> =
+  TranslationNodeDependencies<NodeAtPath<CatalogOf<C>, Key>>;
+
+/**
+ * The keys `t` can render on its own: those whose formatting resolves no Craft
+ * service. A key that does needs the injection context of a bound translator,
+ * so it is rejected here at compile time rather than at the first render.
+ */
+export type StaticTranslationKey<C> = {
+  [Key in TranslationKey<C>]: [
+    keyof TranslationDependencies<C, Key & string>,
+  ] extends [never]
+    ? Key
+    : never;
+}[TranslationKey<C>];
+
 export type TranslationParamsArgument<Params> = keyof Params extends never
   ? [params?: Params]
   : [params: Params];
@@ -376,6 +794,21 @@ export function assertValidCatalog(catalog: Catalog, locale: string): void {
   if (diagnostics.length > 0) throw new I18nRuntimeError('INVALID_CATALOG', diagnostics.map((item) => `${item.path}: ${item.message}`).join('\n'));
 }
 
+/**
+ * Two locales must agree on more than the token names: a token that resolves a
+ * service in one locale and not in the other renders through a different path,
+ * and one that parses its input changes what the call site must pass.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tokenSignature(token: I18nToken<string, any, string>): string {
+  return [
+    token.name,
+    token.kind,
+    token.resolveFormatter ? 'injected' : 'static',
+    token.parse ? 'parsed' : 'raw',
+  ].join(':');
+}
+
 export function validateLocaleParity(reference: Catalog, candidate: Catalog): readonly CatalogDiagnostic[] {
   const diagnostics: CatalogDiagnostic[] = [];
   const compare = (left: unknown, right: unknown, path: string): void => {
@@ -384,13 +817,13 @@ export function validateLocaleParity(reference: Catalog, candidate: Catalog): re
         diagnostics.push({ code: 'LOCALE_MISMATCH', path, message: 'Locale message shape does not match the reference.' });
         return;
       }
-      const leftTokens = left.parts.filter((part): part is I18nToken => typeof part !== 'string').map((part) => `${part.name}:${part.kind}`).sort();
-      const rightTokens = right.parts.filter((part): part is I18nToken => typeof part !== 'string').map((part) => `${part.name}:${part.kind}`).sort();
+      const leftTokens = left.parts.filter((part): part is I18nToken => typeof part !== 'string').map(tokenSignature).sort();
+      const rightTokens = right.parts.filter((part): part is I18nToken => typeof part !== 'string').map(tokenSignature).sort();
       if (leftTokens.join('|') !== rightTokens.join('|')) diagnostics.push({ code: 'LOCALE_MISMATCH', path, message: 'Locale token set does not match the reference.' });
       return;
     }
     if (isPlural(left) || isPlural(right)) {
-      if (!isPlural(left) || !isPlural(right) || left.count.name !== right.count.name || left.count.kind !== right.count.kind) {
+      if (!isPlural(left) || !isPlural(right) || tokenSignature(left.count) !== tokenSignature(right.count)) {
         diagnostics.push({ code: 'LOCALE_MISMATCH', path, message: 'Locale plural selector does not match the reference.' });
         return;
       }
@@ -430,24 +863,108 @@ function nodeAt(catalog: Catalog, key: string): Message<unknown> | PluralMessage
   throw new I18nRuntimeError('UNKNOWN_KEY', `Unknown translation key: ${key}`);
 }
 
-function renderMessage(message: Message<unknown>, params: Record<string, unknown>, context: FormatterContext): string {
+/**
+ * Resolves one parameter: present, parsed by the token's schema when it has
+ * one, then guarded. The schema runs first on purpose — it is allowed to turn
+ * the call-site input into the value the formatter expects.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tokenValue(token: I18nToken<string, any, string>, params: Record<string, unknown>): unknown {
+  const raw = params[token.name];
+  if (raw === undefined) throw new I18nRuntimeError('MISSING_PARAM', `Missing parameter ${token.name}.`);
+  const value = token.parse ? token.parse(raw) : raw;
+  if (token.validate && !token.validate(value)) throw new I18nRuntimeError('INVALID_PARAM', `Invalid parameter ${token.name}.`);
+  return value;
+}
+
+/**
+ * `t` has no injection context, so it can only drive a resolver that asks for
+ * nothing. That is the exact runtime counterpart of `StaticTranslationKey`: a
+ * token whose dependency map is empty renders here, one that yields a service
+ * request does not.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatterSync(token: I18nToken<string, any, string>): TokenFormatter<unknown> {
+  if (!token.resolveFormatter) return token.format;
+  const step = token.resolveFormatter().next();
+  if (!step.done) {
+    throw new I18nRuntimeError(
+      'CRAFT_INJECTION_REQUIRED',
+      `Token ${token.name} resolves a dependency and must be rendered through a CraftTS translator.`,
+    );
+  }
+  return step.value;
+}
+
+function renderMessageSync(message: Message<unknown>, params: Record<string, unknown>, context: FormatterContext): string {
   return message.parts.map((part) => {
     if (typeof part === 'string') return part;
-    const value = params[part.name];
-    if (value === undefined) throw new I18nRuntimeError('MISSING_PARAM', `Missing parameter ${part.name}.`);
-    if (part.validate && !part.validate(value)) throw new I18nRuntimeError('INVALID_PARAM', `Invalid parameter ${part.name}.`);
-    return part.format(value, context);
+    return formatterSync(part)(tokenValue(part, params), context);
   }).join('');
 }
 
-function renderNode(node: Message<unknown> | PluralMessage, params: Record<string, unknown>, context: FormatterContext): string {
-  if (isMessage(node)) return renderMessage(node, params, context);
-  const count = params[node.count.name];
-  if (typeof count !== 'number' || !Number.isFinite(count)) throw new I18nRuntimeError('INVALID_PLURAL_COUNT', `Plural count ${node.count.name} must be a finite number.`);
+function renderNodeSync(node: Message<unknown> | PluralMessage, params: Record<string, unknown>, context: FormatterContext): string {
+  if (isMessage(node)) return renderMessageSync(node, params, context);
+  const count = pluralCount(node, params);
   const category = new Intl.PluralRules(context.locale).select(count) as PluralCategory;
   const branch = node.branches[category];
   if (!branch) throw new I18nRuntimeError('MISSING_PLURAL_CATEGORY', `Missing plural category ${category} for ${context.locale}.`);
-  return renderMessage(branch, params, context);
+  return renderMessageSync(branch, params, context);
+}
+
+/**
+ * The selector is read through the same parse path as any other parameter, so a
+ * schema that coerces (`'3'` → `3`) works for a plural too.
+ */
+function pluralCount(node: PluralMessage, params: Record<string, unknown>): number {
+  const count = (node.count.parse as ((value: unknown) => unknown) | undefined)
+    ? (node.count.parse as (value: unknown) => unknown)(params[node.count.name])
+    : params[node.count.name];
+  if (typeof count !== 'number' || !Number.isFinite(count)) {
+    throw new I18nRuntimeError(
+      'INVALID_PLURAL_COUNT',
+      `Plural count ${node.count.name} must be a finite number.`,
+    );
+  }
+  return count;
+}
+
+function* renderMessage(
+  message: Message<unknown>,
+  params: Record<string, unknown>,
+  context: FormatterContext,
+): Generator<unknown, string, unknown> {
+  let output = '';
+  for (const part of message.parts) {
+    if (typeof part === 'string') {
+      output += part;
+      continue;
+    }
+    const value = tokenValue(part, params);
+    const formatter = part.resolveFormatter
+      ? yield* part.resolveFormatter()
+      : part.format;
+    output += formatter(value, context);
+  }
+  return output;
+}
+
+function* renderNode(
+  node: Message<unknown> | PluralMessage,
+  params: Record<string, unknown>,
+  context: FormatterContext,
+): Generator<unknown, string, unknown> {
+  if (isMessage(node)) return yield* renderMessage(node, params, context);
+  const count = pluralCount(node, params);
+  const category = new Intl.PluralRules(context.locale).select(count) as PluralCategory;
+  const branch = node.branches[category];
+  if (!branch) {
+    throw new I18nRuntimeError(
+      'MISSING_PLURAL_CATEGORY',
+      `Missing plural category ${category} for ${context.locale}.`,
+    );
+  }
+  return yield* renderMessage(branch, params, context);
 }
 
 export type I18nLoader<Locale extends LocaleDefinition = LocaleDefinition> = {
@@ -479,7 +996,7 @@ export function createI18nLoader<Locale extends LocaleDefinition>(
 export type I18nRuntime<Locales extends readonly LocaleDefinition[]> = {
   readonly locale: () => Locales[number]['id'];
   readonly setLocale: (id: Locales[number]['id']) => void;
-  readonly translate: <Key extends TranslationKey<Locales[number]>>(
+  readonly translate: <Key extends StaticTranslationKey<Locales[number]>>(
     key: Key,
     ...params: TranslationParamsArgument<
       TranslationParams<Locales[number], Key & string>
@@ -500,12 +1017,18 @@ export type ReactiveTranslationDependency = () => Generator<
 
 export type ReactiveTranslator<
   Locales extends readonly LocaleDefinition[],
-> = <Key extends TranslationKey<Locales[number]>>(
-  key: Key,
-  ...params: TranslationParamsArgument<
-    TranslationParams<Locales[number], Key & string>
-  >
-) => () => Generator<unknown, string, unknown>;
+> = {
+  <Key extends TranslationKey<Locales[number]>>(
+    key: Key,
+    ...params: TranslationParamsArgument<
+      TranslationParams<Locales[number], Key & string>
+    >
+  ): TranslationReader<
+    TranslationDependencies<Locales[number], Key & string>
+  >;
+} & ComponentDepsCarrier<
+  TranslationDependencies<Locales[number], TranslationKey<Locales[number]>>
+>;
 
 export function createI18nRuntime<const Locales extends readonly LocaleDefinition[]>(options: {
   readonly locales: Locales;
@@ -526,12 +1049,34 @@ export function createI18nRuntime<const Locales extends readonly LocaleDefinitio
     const locale = await options.loader.load(id);
     loaded.set(id, locale);
   };
-  const translate = ((key: string, params?: Record<string, unknown>) => {
+  const translate = <Key extends StaticTranslationKey<Locales[number]>>(
+    key: Key,
+    ...params: TranslationParamsArgument<
+      TranslationParams<Locales[number], Key & string>
+    >
+  ): string => {
     const locale = loaded.get(current);
     if (!locale) throw new I18nRuntimeError('LOCALE_NOT_LOADED', `Locale ${current} has not been loaded.`);
-    const node = nodeAt(locale.catalog, key);
-    return renderNode(node, params ?? {}, { locale: current, timeZone: options.timeZone });
-  }) as I18nRuntime<Locales>['translate'];
+    return renderNodeSync(
+      nodeAt(locale.catalog, key),
+      paramsRecord(params[0]),
+      { locale: current, timeZone: options.timeZone },
+    );
+  };
+  const translateGenerator = function* (
+    key: string,
+    params?: unknown,
+  ): Generator<unknown, string, unknown> {
+    const locale = loaded.get(current);
+    if (!locale) {
+      throw new I18nRuntimeError('LOCALE_NOT_LOADED', `Locale ${current} has not been loaded.`);
+    }
+    return yield* renderNode(
+      nodeAt(locale.catalog, key),
+      paramsRecord(params),
+      { locale: current, timeZone: options.timeZone },
+    );
+  };
   return {
     locale: () => current,
     setLocale: (id) => {
@@ -542,7 +1087,7 @@ export function createI18nRuntime<const Locales extends readonly LocaleDefinitio
     t: translate,
     bind: (dependency: ReactiveTranslationDependency) =>
       createReactiveTranslator<Locales>({
-        runtime: { translate },
+        runtime: { translateGenerator },
         dependency,
       }),
     loadLocale,
@@ -552,18 +1097,47 @@ export function createI18nRuntime<const Locales extends readonly LocaleDefinitio
 export function createReactiveTranslator<
   const Locales extends readonly LocaleDefinition[],
 >(options: {
-  readonly runtime: Pick<I18nRuntime<Locales>, 'translate'>;
+  // Only the generator form is accepted: a translator built on the synchronous
+  // `translate` would advertise dependencies in its type and then throw on the
+  // first DI-aware message it renders.
+  readonly runtime: {
+    readonly translateGenerator: (
+      key: string,
+      params?: unknown,
+    ) => Generator<unknown, string, unknown>;
+  };
   readonly dependency: ReactiveTranslationDependency;
 }): ReactiveTranslator<Locales> {
-  return ((key: string, params?: Record<string, unknown>) =>
+  const translate = <Key extends TranslationKey<Locales[number]>>(
+    key: Key,
+    ...params: TranslationParamsArgument<
+      TranslationParams<Locales[number], Key & string>
+    >
+  ): TranslationReader<
+    TranslationDependencies<Locales[number], Key & string>
+  > =>
     function* () {
       yield* options.dependency();
-      return options.runtime.translate(key as never, params as never);
-    }) as ReactiveTranslator<Locales>;
+      return yield* options.runtime.translateGenerator(key, params[0]);
+    };
+
+  return translate;
 }
 
-export function serializeToken<Name extends string, Value, Kind extends string>(token: I18nToken<Name, Value, Kind>): { readonly token: string; readonly name: string } {
-  return { token: token.tokenId, name: token.name };
+export function serializeToken<Name extends string, Value, Kind extends string>(
+  token: I18nToken<Name, Value, Kind>,
+): { readonly token: string; readonly name: string; readonly parsed?: true } {
+  if (token.resolveFormatter) {
+    throw new I18nRuntimeError(
+      'CRAFT_INJECTION_REQUIRED',
+      `Token ${token.name} resolves a dependency: its formatter is produced at render time and cannot be serialised. Deliver such a message from the application rather than from a serialised catalogue.`,
+    );
+  }
+  // A token id alone would let a parsed token and a raw one of the same kind
+  // look identical on the other side of the boundary.
+  return token.parse
+    ? { token: token.tokenId, name: token.name, parsed: true }
+    : { token: token.tokenId, name: token.name };
 }
 
 export type SerializedCatalog = {

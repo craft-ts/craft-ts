@@ -1,5 +1,6 @@
 import type {
   CraftNodeChildrenDependencies,
+  CraftNodeDependencies,
   CraftNodeChildrenCssVars,
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeChildren,
@@ -165,7 +166,10 @@ export function h<
   propsOrChildren?: PropsOrChildren,
   maybeChildren?: MaybeChildren,
 ): ElementNode<
-  CraftNodeChildrenDependencies<HChildren<Tag, PropsOrChildren, MaybeChildren>>,
+  CraftNodeDependencies<
+    HProps<PropsOrChildren>,
+    HChildren<Tag, PropsOrChildren, MaybeChildren>
+  >,
   Tag,
   HProps<PropsOrChildren>,
   HChildren<Tag, PropsOrChildren, MaybeChildren>,
@@ -190,7 +194,8 @@ export function h<
     props: props as Readonly<Record<string, unknown>>,
     children: children ?? [],
   } as ElementNode<
-    CraftNodeChildrenDependencies<
+    CraftNodeDependencies<
+      HProps<PropsOrChildren>,
       HChildren<Tag, PropsOrChildren, MaybeChildren>
     >,
     Tag,
@@ -238,7 +243,7 @@ function hNamed<
   props: Props | null,
   children?: Children,
 ): ElementNode<
-  CraftNodeChildrenDependencies<Children>,
+  CraftNodeDependencies<Props, Children>,
   Tag,
   Props,
   Children,
@@ -253,7 +258,7 @@ function hNamed<
     props as Props & ElementPropsContext<Tag>,
     children,
   ) as unknown as ElementNode<
-    CraftNodeChildrenDependencies<Children>,
+    CraftNodeDependencies<Props, Children>,
     Tag,
     Props,
     Children,
@@ -292,7 +297,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
       CraftNodeChildren &
       RequireCaughtComponentExceptions<NoInfer<Children>>,
   ): ElementNode<
-    CraftNodeChildrenDependencies<Children>,
+    CraftNodeDependencies<NoInfer<Props>, Children>,
     Tag,
     NoInfer<Props>,
     Children,
@@ -306,7 +311,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     name: Name,
     props: Props | null,
   ): ElementNode<
-    CraftNodeChildrenDependencies<readonly []>,
+    CraftNodeDependencies<NoInfer<Props>, readonly []>,
     Tag,
     NoInfer<Props>,
     readonly [],
@@ -327,7 +332,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
       CraftNodeChildren &
       RequireCaughtComponentExceptions<NoInfer<Children>>,
   ): ElementNode<
-    CraftNodeChildrenDependencies<Children>,
+    CraftNodeDependencies<NoInfer<Props>, Children>,
     Tag,
     NoInfer<Props>,
     Children,

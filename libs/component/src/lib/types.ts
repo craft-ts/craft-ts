@@ -103,6 +103,20 @@ export type CraftInputExceptionsCarrier<Exceptions extends string = string> = {
   readonly [CRAFT_INPUT_EXCEPTIONS]?: Exceptions;
 };
 
+// `keyof (A | B)` keeps only keys common to every member. A translator can
+// therefore carry `{}` for most messages and a dependency map for one message;
+// distribute before checking so the callable translator remains projected as-is.
+type DependencyKeys<Dependencies> = Dependencies extends unknown
+  ? keyof Dependencies
+  : never;
+
+type HasComponentDependencies<Value> =
+  Value extends ComponentDepsCarrier<infer Dependencies extends object>
+    ? [DependencyKeys<Dependencies>] extends [never]
+      ? false
+      : true
+    : false;
+
 /**
  * A component input is a yieldable reader.
  *
@@ -186,6 +200,19 @@ type ProjectTemplateSignalProperties<
 // Brand-only check: `Value extends RenderableContent` expands CraftNodeChildren
 // and cycles back here through component nodes (TS2456).
 type ProjectTemplateValue<Value, ContextMethod extends string> = Value extends {
+  readonly [CONTENT_RENDERABLE]: true;
+}
+  ? Value
+  : Value extends (...args: any[]) => infer Result
+    ? HasComponentDependencies<Value> extends true
+      ? Value
+      : ProjectTemplateValueWithoutComponentDeps<Value, ContextMethod>
+  : ProjectTemplateValueWithoutComponentDeps<Value, ContextMethod>;
+
+type ProjectTemplateValueWithoutComponentDeps<
+  Value,
+  ContextMethod extends string,
+> = Value extends {
   readonly [CONTENT_RENDERABLE]: true;
 }
   ? Value

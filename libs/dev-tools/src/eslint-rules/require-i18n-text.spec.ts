@@ -53,6 +53,44 @@ describe('require-i18n-text', () => {
     ]);
   });
 
+  it('reports copy sitting next to a translated value', async () => {
+    const messages = await lint(`
+      p('Total: ' + i18n.t('cart.total', { amount }));
+      span(\`Total: \${amount}\`);
+      label(isNew ? 'New' : 'Returning');
+      p(userName || 'Anonymous');
+      p([i18n.t('cart.total'), ' and more']);
+      button({ type: 'button' }, 'Save ' + label);
+    `);
+    expect(messages).toHaveLength(7);
+    expect(
+      messages.every((message) =>
+        message.message.includes('Visible text must come from i18n.t'),
+      ),
+    ).toBe(true);
+  });
+
+  it('reports copy nested in a visible attribute', async () => {
+    const messages = await lint(
+      "input({ placeholder: 'Search ' + scope, title: isNew ? 'New' : label });",
+    );
+    expect(messages.map((message) => message.message)).toEqual([
+      expect.stringContaining('placeholder value must come from i18n.t'),
+      expect.stringContaining('title value must come from i18n.t'),
+    ]);
+  });
+
+  it('leaves glue, values and generator children alone', async () => {
+    const messages = await lint(`
+      p(first + ' ' + last);
+      span(count + ' / ' + total);
+      p(function* () { return 'API title: ' + (yield* query.value()); });
+      p(i18n.t('cart.total', { amount: 'not copy' }));
+      option({ value: animal.id }, animal.name);
+    `);
+    expect(messages).toEqual([]);
+  });
+
   it('does not inspect catalogues, tests or server files', async () => {
     await expect(
       lint("heading('Catalogue');", 'src/i18n/catalog.ts'),

@@ -5,9 +5,11 @@ description: Build and review type-safe internationalisation in a CraftTS projec
 
 # CraftTS type-safe i18n
 
-`@craft-ts/i18n` has **no CraftTS, Angular or Effect import**. The catalogue is
-a plain TypeScript value and the runtime works in a browser, a server, a worker
-or a test without a framework. Do not reach for Effect to translate a string.
+`@craft-ts/i18n` integrates with CraftTS for DI-aware translation tokens. The
+catalogue remains declarative, and non-DI messages still work with `runtime.t`.
+Use the CraftTS-bound translator whenever a token yields a service. Do not reach
+for Effect to translate a string; use `@craft-ts/i18n-effect` only inside an
+Effect program.
 
 The contract it enforces, all at typecheck time:
 
@@ -88,6 +90,93 @@ return { language, setLocale: language.setLocale, translate: runtime.bind(langua
 
 `bind(...)('key', params)` returns a generator the template yields, like any
 other Craft reader.
+
+### DI-aware tokens
+
+Any token factory accepts a **generator function** in place of the adapter. The
+yielded services are carried into the translation reader's component dependency
+contract:
+
+```ts
+const amount = money('amount', function* () {
+  const currency = yield* ClientCurrency();
+  return { currency: currency.code, minimumFractionDigits: 2 };
+});
+
+const catalog = defineCatalog({
+  order: msg`Order total ${amount}.`,
+});
+```
+
+Render it with the translator returned by `runtime.bind(...)`, and **pass the
+reader** — as a child or as an attribute value:
+
+```ts
+p(translate('order', { amount: 1234.5 }));
+p({ title: translate('order', { amount: 1234.5 }) }, 'Order');
+```
+
+Both carry the dependency, so the component and route DI checks fail
+compilation if `ClientCurrency` is not provided. Do not drive the reader
+yourself (`yield* translate(...)()`): it renders the same string but the
+dependency disappears from the check.
+
+`runtime.t` accepts `StaticTranslationKey` only — the keys that resolve no
+service — so a DI message on that path is a compile error, not a runtime one.
+An arrow function that returns a generator is refused: the options factory must
+be a `function*`.
+
+### No visible literal in a template
+
+A project generated with i18n ships `craft-ts/require-i18n-text` in its ESLint
+configuration: a static string in `heading`/`p`/`label`/`button`/`a`/`option`/…
+or in a `placeholder`, `aria-label` or `title` attribute is an error. Put the
+copy in `src/i18n/catalog.ts` (and in every locale) and read it with
+`i18n.t(...)`.
+
+Wrapping the literal does not hide it — concatenation, template text, ternary
+branches, `||` fallbacks and children arrays are all inspected:
+
+```ts
+p('Total: ' + i18n.t('cart.total', { amount }));   // reported: 'Total: '
+p(i18n.t('cart.totalLine', { amount }));           // the whole sentence is a key
+```
+
+Only text carrying letters counts, so `first + ' ' + last` is fine. The key and
+parameters of `i18n.t(...)`, generator children, catalogue files, server files
+and tests are all exempt. A project generated without i18n does not get the
+rule.
+
+A project token does the same through `defineToken`, and declares no `format`
+when the formatter only exists at render time:
+
+```ts
+const weight = defineToken({
+  name: 'weight',
+  kind: 'weight',
+  resolveFormatter: function* () {
+    const units = yield* Units();
+    const unit = (yield* units.system()) === 'imperial' ? 'pound' : 'kilogram';
+    return (value: number, context) =>
+      new Intl.NumberFormat(context.locale, { style: 'unit', unit }).format(value);
+  },
+});
+```
+
+### Schema-declared parameters
+
+The adapter position also takes a Standard Schema (Zod, Valibot, ArkType — the
+same contract as `state`, `query` and forms). The parameter type becomes the
+schema's input and the formatter receives its output, so the schema parses
+once, in the catalogue:
+
+```ts
+const placedAt = dateLong('placedAt', z.coerce.date());
+translate('order', { placedAt: '2026-08-25T14:30:00Z' });
+```
+
+`defineToken` takes the same `schema` field and may combine it with
+`resolveFormatter`.
 
 ## With Effect
 

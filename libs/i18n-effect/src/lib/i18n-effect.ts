@@ -1,4 +1,9 @@
-import type { I18nRuntime, LocaleDefinition, TranslationKey, TranslationParams } from '@craft-ts/i18n';
+import type {
+  I18nRuntime,
+  LocaleDefinition,
+  StaticTranslationKey,
+  TranslationParams,
+} from '@craft-ts/i18n';
 import { Context, Effect, Layer } from 'effect';
 
 export type I18nEffectShape = {
@@ -17,9 +22,16 @@ export function provideI18nRuntime<const Locales extends readonly LocaleDefiniti
   });
 }
 
+/**
+ * An Effect program is not a Craft injection context, so this adapter renders
+ * through the synchronous runtime and accepts exactly the keys that runtime
+ * accepts. A message whose formatting resolves a service is rendered by the
+ * component-side translator instead — hence `StaticTranslationKey`, which keeps
+ * the `never` error channel below honest.
+ */
 export function translateEffect<
   const Locales extends readonly LocaleDefinition[],
-  Key extends TranslationKey<Locales[number]>,
+  Key extends StaticTranslationKey<Locales[number]>,
 >(
   key: Key,
   ...params: keyof TranslationParams<Locales[number], Key & string> extends never

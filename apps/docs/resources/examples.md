@@ -97,7 +97,7 @@ nothing without the Vite plugin.
 
 | Example                                                                                                                                        | What it shows                                                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Type-safe i18n](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/i18n/i18n.service.ts&initialpath=/i18n) | `defineCatalog` + `msg` + `plural`, a second locale through `defineLocaleLike`, every shipped semantic token, a custom `defineToken`, and `runtime.bind` switching the whole page reactively |
+| [Type-safe i18n](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/i18n/i18n.service.ts&initialpath=/i18n) | `defineCatalog` + `msg` + `plural`, a second locale through `defineLocaleLike`, every shipped semantic token, a custom `defineToken` that resolves a service and parses its parameter with a schema, and `runtime.bind` switching the whole page reactively |
 
 The guide is [Type-safe i18n](/guide/i18n/).
 

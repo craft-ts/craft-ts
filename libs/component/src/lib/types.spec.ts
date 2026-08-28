@@ -10,6 +10,7 @@ import {
   provideHostName,
   state,
   type ComponentDepsOf,
+  type ComponentDepsCarrier,
   type RouteCheckedDI,
   craftUse,
 } from '@craft-ts/core';
@@ -624,6 +625,39 @@ it('preserves template dependencies when Craft directives are applied', () => {
       keyof NodePipedDependencies['missingProvider'],
       'DirectiveTemplateDependency'
     >
+  >;
+});
+
+it('propagates component-carried dependencies from a reader used as text', () => {
+  type TranslationReader = (() => Generator<unknown, string, unknown>) &
+    ComponentDepsCarrier<{
+      ClientCurrency: {
+        readonly providedIn: 'toProvide';
+        readonly dependencies: Record<never, never>;
+      };
+    }>;
+  const reader = (() => function* () {
+    return 'translated';
+  }) as unknown as TranslationReader;
+  const component = craftComponent(
+    'translationReaderDependency',
+    {},
+    () => ({}),
+    () => p(reader),
+  );
+
+  const paragraph = p(reader);
+  type ParagraphDependencies = CraftNodeChildrenDependencies<
+    typeof paragraph extends { readonly children: infer Children }
+      ? Children
+      : never
+  >;
+  type _ParagraphDependencyWasPropagated = Expect<
+    Equal<keyof ParagraphDependencies, 'ClientCurrency'>
+  >;
+  type Dependencies = ComponentDepsOf<typeof component>;
+  type _ReaderDependencyWasPropagated = Expect<
+    Equal<keyof Dependencies['missingProvider'], 'ClientCurrency'>
   >;
 });
 

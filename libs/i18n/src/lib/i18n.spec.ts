@@ -6,6 +6,7 @@ import {
   defineCatalog,
   defineLocale,
   defineLocaleLike,
+  defineToken,
   dateLong,
   money,
   msg,
@@ -13,6 +14,7 @@ import {
   plural,
   serializeCatalog,
   validateCatalog,
+  type TokenSchema,
 } from '../index';
 
 const count = number('count');
@@ -41,7 +43,117 @@ const fr = defineLocaleLike(en, 'fr-FR', defineCatalog({
   },
 }));
 
+/** A Standard Schema, hand-rolled the way the core specs do it. */
+const isoDateSchema = {
+  '~standard': {
+    version: 1,
+    vendor: 'test',
+    types: undefined,
+    validate(value: unknown) {
+      if (typeof value !== 'string') return { issues: [{ message: 'string expected' }] };
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime())
+        ? { issues: [{ message: 'ISO date expected' }] }
+        : { value: parsed };
+    },
+  },
+} as unknown as TokenSchema<Date, string>;
+
 describe('@craft-ts/i18n', () => {
+  it('resolves a generator-backed token in the CraftTS translator', () => {
+    // A resolver that yields a request needs an injection context…
+    const resolvedAmount = money('resolvedAmount', function* () {
+      const currency = (yield 'currency-request') as string;
+      return { currency, minimumFractionDigits: 2 };
+    });
+    const locale = defineLocale('en-US', {
+      cart: msg`Total: ${resolvedAmount}.`,
+    });
+    const runtime = createI18nRuntime({ locales: [locale] });
+    const translate = runtime.bind(function* () { return; });
+
+    const reader = translate('cart', { resolvedAmount: 1234.5 })();
+    expect(reader.next().value).toBe('currency-request');
+    expect(reader.next('CHF')).toEqual({
+      value: 'Total: CHF\u00a01,234.50.',
+      done: true,
+    });
+
+    // …and `t`, which has none, says so instead of formatting the wrong money.
+    // (This resolver yields a plain marker rather than a service request, so it
+    // is only the runtime boundary that rejects it here; the compile-time one
+    // is asserted in `i18n.types.spec.ts`, where the yield is a real request.)
+    expect(() => runtime.t('cart', { resolvedAmount: 1234.5 })).toThrow(
+      'must be rendered through a CraftTS translator',
+    );
+  });
+
+  it('renders a dependency-free resolver through the synchronous path', () => {
+    // Nothing is yielded, so the type keeps the key in `t` and `t` honours it.
+    const resolvedAmount = money('resolvedAmount', function* () {
+      return { currency: 'CHF', minimumFractionDigits: 2 };
+    });
+    const locale = defineLocale('en-US', {
+      cart: msg`Total: ${resolvedAmount}.`,
+    });
+    const runtime = createI18nRuntime({ locales: [locale] });
+
+    expect(runtime.t('cart', { resolvedAmount: 1234.5 })).toBe(
+      'Total: CHF\u00a01,234.50.',
+    );
+  });
+
+  it('parses a parameter through its schema before formatting it', () => {
+    const placedAt = dateLong('placedAt', isoDateSchema);
+    const locale = defineLocale('en-US', { order: msg`Placed on ${placedAt}.` });
+    const runtime = createI18nRuntime({ locales: [locale] });
+
+    // The call site passes the schema's input; the formatter gets its output.
+    expect(runtime.t('order', { placedAt: '2026-08-25T12:00:00Z' })).toBe(
+      'Placed on August 25, 2026.',
+    );
+    expect(() =>
+      // @ts-expect-error The parameter type is the schema input, not `unknown`.
+      runtime.t('order', { placedAt: 12 }),
+    ).toThrow('Invalid parameter placedAt');
+    expect(() => runtime.t('order', { placedAt: 'not a date' })).toThrow(
+      'Invalid parameter placedAt: ISO date expected',
+    );
+  });
+
+  it('formats through the resolver alone, with no standalone formatter', () => {
+    // Both renderers take `resolveFormatter` first, so a token that has one
+    // declares no `format` at all rather than a branch that never runs.
+    const weight = defineToken({
+      name: 'weight',
+      kind: 'weight',
+      resolveFormatter: function* () {
+        const unit = (yield 'unit-request') as string;
+        return (value: number) => `${value} ${unit}`;
+      },
+    });
+    const locale = defineLocale('en-US', { line: msg`Weight: ${weight}.` });
+    const runtime = createI18nRuntime({ locales: [locale] });
+    const translate = runtime.bind(function* () { return; });
+
+    const reader = translate('line', { weight: 12 })();
+    expect(reader.next().value).toBe('unit-request');
+    expect(reader.next('kg')).toEqual({ value: 'Weight: 12 kg.', done: true });
+  });
+
+  it('refuses a zero-argument function where a guard or a generator belongs', () => {
+    // An arrow that *returns* a generator satisfies the DI overload at the type
+    // level but is not a generator function: accepting it would install it as
+    // the value guard and quietly format with the default currency.
+    function* currencyOptions() {
+      return { currency: 'CHF' };
+    }
+
+    expect(() => money('amount', () => currencyOptions())).toThrow(
+      'zero-argument function',
+    );
+  });
+
   it('formats tokens according to the active locale', () => {
     const runtime = createI18nRuntime({ locales: [en, fr], defaultLocale: 'en-US' });
     expect(runtime.t('cart.total', { amount: 1234.5 })).toContain('1,234.50');
