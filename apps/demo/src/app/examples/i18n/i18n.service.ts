@@ -44,24 +44,16 @@ const DEMO_CLIENTS: Record<
   globex: { name: 'Globex', currency: 'USD', units: 'imperial' },
 };
 
-type DemoClientState = (() => Generator<unknown, DemoClientId, unknown>) & {
-  readonly changeClient: (
-    next: DemoClientId,
-  ) => Generator<unknown, unknown, unknown>;
-  readonly currency: () => Generator<
-    unknown,
-    { readonly code: string; readonly name: string },
-    unknown
-  >;
-};
-
 /** A component-scoped service: each client can carry its own currency. */
 export const { ClientCurrency, provideClientCurrency } = craftService(
   { name: 'ClientCurrency', providedIn: 'toProvide' },
   function* () {
     // The currency derives from this state and nothing else, so it belongs to
     // the primitive's insertion rather than to a computed beside it.
-    const client = (yield* state(
+    // No cast: it would erase what each member yields, and a reader typed
+    // `Generator<unknown, …>` swallows the service request of whoever reads it
+    // — the token's dependency map would come back empty.
+    const client = yield* state(
       'client',
       'acme' as DemoClientId,
       ({ state: selected, set }) => ({
@@ -71,7 +63,7 @@ export const { ClientCurrency, provideClientCurrency } = craftService(
           return { code: clientDetails.currency, name: clientDetails.name };
         }),
       }),
-    )) as DemoClientState;
+    );
 
     return {
       client,
