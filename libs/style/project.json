@@ -8,7 +8,9 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/libs/style",
         "main": "libs/style/src/index.ts",
@@ -26,6 +28,18 @@
         "command": "node tools/run-lib-vitest.mjs libs/style/vitest.config.mts",
         "forwardAllArgs": true
       }
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/style/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
     },
     "lint": {
       "executor": "@nx/eslint:lint",

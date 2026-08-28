@@ -2275,7 +2275,7 @@ describe('functional component interpreter', () => {
           error: (error) =>
             p(
               { class: 'error' },
-              (error as { code?: string })._tag ?? 'unknown',
+              (error as { _tag?: string })._tag ?? 'unknown',
             ),
         }),
     );

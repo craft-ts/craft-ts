@@ -46,7 +46,10 @@ describe('the CSS the sheet produces', () => {
     const declared = new Set([v.bg.declaration.name, v.ink.declaration.name]);
     const used = registeredAtoms()
       .flatMap((atom) => [...atom.value.matchAll(/var\((--[^),]+)/g)])
-      .map((match) => match[1]);
+      .map((match) => match[1])
+      // The capture always starts with `--`; the guard is what tells the type,
+      // so `declared.has(...)` reads a custom property name and not a string.
+      .filter((name): name is `--${string}` => name.startsWith('--'));
 
     expect(used.length).toBeGreaterThan(0);
     for (const name of used) expect(declared.has(name)).toBe(true);
