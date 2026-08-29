@@ -21,6 +21,7 @@ import {
   createTodo,
   listTodos,
   removeTodo,
+  type TodoNotFound,
   TodoStore,
   toggleTodo,
   type EffectTodo,
@@ -71,7 +72,7 @@ const EffectPlaygroundComponent = craftComponent(
       number,
       number,
       EffectTodo,
-      never,
+      TodoNotFound,
       TodoStore
     >('toggleTodo', {
       method: (id: number) => id,
@@ -82,7 +83,7 @@ const EffectPlaygroundComponent = craftComponent(
       number,
       number,
       EffectTodo,
-      never,
+      TodoNotFound,
       TodoStore
     >('removeTodo', {
       method: (id: number) => id,

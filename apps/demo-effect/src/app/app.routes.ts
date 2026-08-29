@@ -75,6 +75,11 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         ),
       [provideLayer(TodoStoreLive)] as const,
     ),
+    handleExceptions: {
+      TodoNotFound: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
   },
   {
     path: 'sync-members',
@@ -131,6 +136,13 @@ declare module '@craft-ts/core' {
         typeof demoEffectRoutes,
         'effect-function',
         'DatabaseConnectionError'
+      >;
+    };
+    playground: {
+      TodoNotFound: CraftRouteExceptionType<
+        typeof demoEffectRoutes,
+        'playground',
+        'TodoNotFound'
       >;
     };
   }

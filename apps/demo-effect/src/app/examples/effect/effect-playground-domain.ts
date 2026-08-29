@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Data, Effect, Layer } from 'effect';
 import { effectService } from '@craft-ts/effect';
 
 export type EffectTodo = {
@@ -7,11 +7,15 @@ export type EffectTodo = {
   readonly completed: boolean;
 };
 
+export class TodoNotFound extends Data.TaggedError('TodoNotFound')<{
+  readonly id: number;
+}> {}
+
 type TodoStoreShape = {
-  readonly list: () => Effect.Effect<readonly EffectTodo[]>;
+  readonly list: Effect.Effect<readonly EffectTodo[]>;
   readonly add: (title: string) => Effect.Effect<EffectTodo>;
-  readonly toggle: (id: number) => Effect.Effect<EffectTodo>;
-  readonly remove: (id: number) => Effect.Effect<EffectTodo>;
+  readonly toggle: (id: number) => Effect.Effect<EffectTodo, TodoNotFound>;
+  readonly remove: (id: number) => Effect.Effect<EffectTodo, TodoNotFound>;
 };
 
 export class TodoStore extends Context.Service<TodoStore, TodoStoreShape>()(
@@ -30,7 +34,7 @@ export const TodoStoreLive = Layer.sync(TodoStore)(() => {
   let nextId = todos.length + 1;
 
   return {
-    list: Effect.fnUntraced(function* () {
+    list: Effect.gen(function* () {
       yield* Effect.sleep('250 millis');
       return todos.map((todo) => ({ ...todo }));
     }),
@@ -47,15 +51,15 @@ export const TodoStoreLive = Layer.sync(TodoStore)(() => {
     toggle: Effect.fnUntraced(function* (id: number) {
       yield* Effect.sleep('250 millis');
       const todo = todos.find((candidate) => candidate.id === id);
-      if (!todo) return yield* Effect.die(new Error(`Todo ${id} not found`));
+      if (!todo) return yield* new TodoNotFound({ id });
       todo.completed = !todo.completed;
       return { ...todo };
     }),
     remove: Effect.fnUntraced(function* (id: number) {
       yield* Effect.sleep('250 millis');
       const index = todos.findIndex((candidate) => candidate.id === id);
+      if (index === -1) return yield* new TodoNotFound({ id });
       const [removed] = todos.splice(index, 1);
-      if (!removed) return yield* Effect.die(new Error(`Todo ${id} not found`));
       return { ...removed };
     }),
   } satisfies TodoStoreShape;
@@ -63,7 +67,7 @@ export const TodoStoreLive = Layer.sync(TodoStore)(() => {
 
 export const listTodos = Effect.fnUntraced(function* () {
   const { list } = yield* effectService(TodoStore, ({ list }) => ({ list }));
-  return yield* list();
+  return yield* list;
 });
 
 export const createTodo = Effect.fnUntraced(function* (title: string) {
