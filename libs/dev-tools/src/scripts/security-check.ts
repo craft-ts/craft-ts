@@ -34,7 +34,11 @@ export type SecurityCheckConfig = Readonly<{
 }>;
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
-const IGNORED = new Set(['node_modules', '.git', 'dist', '.nx', '.angular', '.vitepress', 'coverage', 'test-results', 'tmp', 'temp']);
+// `.references/` holds the CraftTS/EffectTS sources `npm run update:references`
+// clones as read-only context for coding agents. It is third-party code, it is
+// git-ignored, and every generated starter carries it — scanning it reports
+// findings nobody in the project can act on.
+const IGNORED = new Set(['node_modules', '.git', 'dist', '.nx', '.angular', '.vitepress', 'coverage', 'test-results', 'tmp', 'temp', '.references']);
 const CONFIG_FILE = 'craft-security.json';
 /** Commentaire d'exemption ligne à ligne : `// craft-security-ignore <code>`. */
 const IGNORE_COMMENT = /craft-security-ignore(?:\s+([A-Z_]+))?/;
