@@ -1,3 +1,23 @@
+## 0.7.0-beta.20 (2026-08-29)
+
+### 🚀 Features
+
+- **dev-tools:** limit craft declarations per file ([2000dc3e](https://github.com/craft-ts/craft-ts/commit/2000dc3e))
+
+### 🩹 Fixes
+
+- **architecture:** index fnUntraced Effect operations ([a547dfd1](https://github.com/craft-ts/craft-ts/commit/a547dfd1))
+- **core:** close the type holes the spec type-check uncovered ([7b83102b](https://github.com/craft-ts/craft-ts/commit/7b83102b))
+- **demo:** satisfy Craft lint rules ([10ef7a4e](https://github.com/craft-ts/craft-ts/commit/10ef7a4e))
+- **docs:** keep reactive snippet bindings granular ([a118c458](https://github.com/craft-ts/craft-ts/commit/a118c458))
+- **effect:** align examples and starters with Effect patterns ([106b87f4](https://github.com/craft-ts/craft-ts/commit/106b87f4))
+- **effect:** type todo mutation failures ([7abcef32](https://github.com/craft-ts/craft-ts/commit/7abcef32))
+
+### ❤️ Thank You
+
+- Claude Opus 5
+- Romain
+
 ## 0.7.0-beta.19 (2026-08-28)
 
 This was a version bump only, there were no code changes.
