@@ -262,9 +262,14 @@ function namedOperationDeclaration(
       const initializer = current.getInitializer();
       if (
         (Node.isCallExpression(initializer) &&
-          initializer.getExpression().getText() === 'Effect.gen') ||
+          ['Effect.gen', 'Effect.fn', 'Effect.fnUntraced'].includes(
+            initializer.getExpression().getText(),
+          )) ||
         initializer?.getDescendantsOfKind(SyntaxKind.CallExpression).some(
-          (call) => call.getExpression().getText() === 'Effect.gen',
+          (call) =>
+            ['Effect.gen', 'Effect.fn', 'Effect.fnUntraced'].includes(
+              call.getExpression().getText(),
+            ),
         )
       ) {
         return current;

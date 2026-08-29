@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "55eeace761996b09",
+  "graphHash": "82acb1bced756a28",
   "routes": [
     "",
     "access",
@@ -30,6 +30,7 @@ export const architectureCatalog = {
     "I18nEffectService",
     "LocalStoragePersister",
     "LocalStorageService",
+    "MiddlewareExecutionScope",
     "ServerFunctionTransport",
     "SessionService",
     "SessionStoragePersister",
@@ -127,6 +128,10 @@ export const architectureCatalog = {
       "I18nEffectService": [
         "libs/i18n-effect/src/lib/i18n-effect.ts",
         "libs/i18n-effect/src/lib/i18n-effect.ts"
+      ],
+      "MiddlewareExecutionScope": [
+        "libs/core/src/lib/server-function-middleware.ts",
+        "libs/core/src/lib/server-function-middleware.ts"
       ],
       "SessionService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",
