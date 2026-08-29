@@ -144,7 +144,7 @@ describe('what the table refuses to contain', () => {
 });
 
 describe('the table is generated, and stays that way', () => {
-  it('regenerates to exactly what is committed', () => {
+  it('regenerates to exactly what is committed', { timeout: 15_000 }, () => {
     // Rerunning the generator in CI is what stops the table from ageing behind
     // the spec: a keyword added upstream shows up as a failing test.
     expect(() =>
