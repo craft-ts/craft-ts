@@ -45,10 +45,11 @@ and `Enter` to confirm; locales and agent integrations additionally use
 The same defaults apply in non-interactive mode. Use `--references=none` to
 opt out, or `--references=craft-ts` / `--references=all` to choose explicitly.
 
-New standalone projects are initialized with Git (without an initial commit)
-and receive a `.gitignore` covering `node_modules/`, build outputs, test
-reports, and local references. If the destination is already inside another
-Git repository, no nested repository is created.
+New standalone projects are initialized with Git. Projects without references
+have no initial commit; projects with references receive the minimal initial
+history required by `git subtree`. The generated `.gitignore` covers
+`node_modules/`, build outputs, and test reports. If the destination is already
+inside another Git repository, no nested repository is created.
 
 Canonical options include `--frontend-runtime=plain|effect`,
 `--backend-runtime=none|promise|effect`, `--effect-scope=none|frontend|backend|both`,
@@ -59,10 +60,10 @@ Canonical options include `--frontend-runtime=plain|effect`,
 `--json` includes the complete effective configuration.
 
 With references enabled, `.references/manifest.json` records the requested ref
-and resolved SHA. The clones are read-only context for coding agents: they are
-not installed as application dependencies, and generated TypeScript/Vite
+and resolved SHA. The subtrees are read-only context for coding agents: they
+are not installed as application dependencies, and generated TypeScript/Vite
 configuration never points at them. The application uses the published npm
-packages declared in `package.json`. Refresh clones with
+packages declared in `package.json`. Refresh subtrees with
 `npm run update:references` (or the generated `update:craft-ts`/
 `update:effect-ts` scripts).
 

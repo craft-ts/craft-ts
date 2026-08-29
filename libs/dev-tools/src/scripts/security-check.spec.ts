@@ -40,7 +40,7 @@ describe('runSecurityCheck', () => {
     );
   });
 
-  it('never scans the .references clone of third-party sources', async () => {
+  it('never scans the .references subtree of third-party sources', async () => {
     const rootDir = await fixture({
       'src/app.ts': 'export const safe = true;\n',
       '.references/effect-ts/packages/effect/src/Persistence.ts': DYNAMIC_CODE,

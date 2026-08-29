@@ -412,11 +412,11 @@ inattendu.
 
 ### Références locales pour les agents
 
-Le clone et la résolution des dépendances sont deux décisions distinctes. Les
-référentiels CraftTS et EffectTS sont clonés sous `.references/*` uniquement
-pour permettre aux agents de rechercher les implémentations, types, tests et
-exemples. Le starter utilise toujours les paquets npm publiés déclarés dans
-`package.json`.
+La vendorisation Git et la résolution des dépendances sont deux décisions
+distinctes. Les référentiels CraftTS et EffectTS sont intégrés sous
+`.references/*` avec `git subtree` uniquement pour permettre aux agents de
+rechercher les implémentations, types, tests et exemples. Le starter utilise
+toujours les paquets npm publiés déclarés dans `package.json`.
 
 La génération ne doit ni installer ni construire les clones, ni écrire de
 dépendances `file:`, ni ajouter d’alias TypeScript/Vite vers leurs sources. Les
@@ -436,8 +436,8 @@ Ils appellent un seul orchestrateur généré, par exemple
 `scripts/update-references.mjs`, qui :
 
 - lit `.references/manifest.json` ;
-- fait `fetch`, résout la ref et compare le SHA ;
-- met à jour uniquement le repository demandé ;
+- exécute `git subtree pull --squash` pour la ref demandée ;
+- met à jour uniquement le subtree demandé et son SHA source ;
 - ne modifie que le checkout et le SHA du manifeste ;
 
 Les scripts doivent être idempotents, fonctionner hors ligne si le SHA est
@@ -456,10 +456,10 @@ Lire .references/effect-ts/packages/effect pour l’API Effect v4.
 La génération de ces liens doit être conditionnelle aux clones réellement
 présents.
 
-Par défaut, ignorer le contenu volumineux de `.references` dans le Git du
-projet et conserver uniquement le manifeste. Le README doit expliquer comment
-reconstruire les clones avec `npm run update:references`; le lockfile et les
-paquets npm restent indépendants de la présence des clones.
+Les sources de `.references` sont suivies dans le Git du projet comme des
+subtrees squashés. Le README doit expliquer comment les actualiser avec
+`npm run update:references`; le lockfile et les paquets npm restent
+indépendants de la présence de ces sources comme dépendances d’exécution.
 
 ## Intégration standalone et Nx
 
@@ -779,7 +779,7 @@ tests. Chaque cellule contient la configuration et les assertions attendues :
 | i18n | packages, `en-US`, `fr-FR`, catalogue, scripts | aucun fichier/import i18n si off |
 | design system | blocs et page de composition | aucun bloc DS si off |
 | typed CSS | plugin, sheets, import virtuel, style test | aucun `@craft-ts/style` si off |
-| references | manifeste, clones, liens d’agents, scripts update | aucun `.references` si off |
+| references | manifeste, subtrees, liens d’agents, scripts update | aucun `.references` si off |
 | workspace | `project.json` et targets Nx, ou package standalone | aucun Nx imbriqué |
 
 ## Tests et vérification
@@ -1056,7 +1056,7 @@ défaut des `node_modules`, registries ou clones temporaires dans le workspace.
 
 - [ ] Ajouter le manifeste de compatibilité CraftTS/EffectTS et le resolver de
   refs vers SHA.
-- [ ] Implémenter le clone complet dans `.references` avec vérification des
+- [ ] Implémenter la vendorisation complète dans `.references` avec vérification des
   hôtes, refs et changements locaux.
 - [ ] Générer `.references/manifest.json`, les liens agents/MCP et les scripts
   `update:craft-ts`, `update:effect-ts`, `update:references`.

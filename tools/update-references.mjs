@@ -10,35 +10,74 @@ if (!existsSync(manifestPath)) {
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+const metadataKeys = new Set(['schemaVersion', 'mode', 'effectEnabled']);
 
-for (const [name, entry] of Object.entries(manifest)) {
-  if (!entry || typeof entry !== 'object' || !entry.path) continue;
-
-  const path = resolve(root, entry.path);
-  if (!existsSync(join(path, '.git'))) {
-    throw new Error(`Missing ${name} reference clone: ${path}`);
-  }
-
-  const status = execFileSync('git', ['status', '--short'], {
-    cwd: path,
+function subtreeSourceSha() {
+  const message = execFileSync('git', ['log', '-n', '20', '--format=%B'], {
+    cwd: root,
     encoding: 'utf8',
-  }).trim();
-  if (status) {
-    throw new Error(`Modified reference clone; review it before updating: ${path}`);
-  }
-
-  execFileSync('git', ['fetch', '--depth', '1', 'origin', entry.requestedRef], {
-    cwd: path,
-    stdio: 'inherit',
   });
-  execFileSync('git', ['checkout', '--detach', 'FETCH_HEAD'], {
-    cwd: path,
-    stdio: 'inherit',
-  });
-  entry.resolvedSha = execFileSync('git', ['rev-parse', 'HEAD'], {
-    cwd: path,
-    encoding: 'utf8',
-  }).trim();
+  return message.match(/^git-subtree-split: ([0-9a-f]{40})$/m)?.[1];
 }
 
-writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+if (
+  execFileSync('git', ['status', '--short'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim()
+) {
+  throw new Error(
+    'Working tree is not clean; commit or stash changes before updating vendored references.',
+  );
+}
+
+for (const [name, entry] of Object.entries(manifest).filter(
+  ([key, value]) =>
+    !metadataKeys.has(key) &&
+    value &&
+    value.path &&
+    value.url &&
+    value.requestedRef,
+)) {
+  const path = resolve(root, entry.path);
+  if (!existsSync(path))
+    throw new Error(`Missing vendored ${name} reference: ${path}`);
+  if (existsSync(join(path, '.git'))) {
+    throw new Error(
+      `Nested Git clone found at ${path}; migrate this reference to git subtree first.`,
+    );
+  }
+
+  const before = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  execFileSync(
+    'git',
+    [
+      'subtree',
+      'pull',
+      `--prefix=${entry.path}`,
+      entry.url,
+      entry.requestedRef,
+      '--squash',
+    ],
+    { cwd: root, stdio: 'inherit' },
+  );
+  const after = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+
+  if (after === before) continue;
+  const sha = subtreeSourceSha();
+  if (sha) entry.resolvedSha = sha;
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  execFileSync('git', ['add', '--', '.references/manifest.json'], {
+    cwd: root,
+  });
+  execFileSync('git', ['commit', '--amend', '--no-edit'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+}

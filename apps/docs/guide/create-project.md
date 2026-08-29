@@ -108,24 +108,25 @@ npx --yes --package @craft-ts/dev-tools@beta craft create . --force
 off the configuration prompts. Review generated file changes before
 committing when the repository already contains application code.
 
-During the interactive flow, reference sources are cloned automatically:
+During the interactive flow, reference sources are vendored automatically with
+`git subtree`:
 
 - CraftTS sources go into `.references/craft-ts`;
-- EffectTS sources are also cloned when an Effect frontend or backend is
+- EffectTS sources are also vendored when an Effect frontend or backend is
   selected;
-- the sources are available to agents without replacing the installed npm
-  packages.
+- the sources are committed in the project repository for agents without
+  replacing the installed npm packages.
 
 There is no reference confirmation prompt. The same defaults apply in
-non-interactive mode: CraftTS is cloned, and EffectTS is cloned whenever an
+non-interactive mode: CraftTS is vendored, and EffectTS is vendored whenever an
 Effect frontend or backend is selected. Use `--references=none` to opt out, or
 `--references=craft-ts` / `--references=all` to choose explicitly.
 
-The cloned repositories are reference material for coding agents only. The
-generated application always imports the published CraftTS and EffectTS npm
-packages from `package.json`; it does not use `file:` dependencies or
-TypeScript/Vite aliases to the clones. Use `npm run update:references` to fetch
-the requested refs and refresh the recorded SHAs.
+The vendored repositories are read-only reference material for coding agents
+only. The generated application always imports the published CraftTS and
+EffectTS npm packages from `package.json`; it does not use `file:` dependencies
+or TypeScript/Vite aliases to the references. Use `npm run update:references`
+to run `git subtree pull` and refresh the recorded source SHA.
 
 ## Non-interactive creation
 
@@ -145,7 +146,7 @@ npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
   --agents=none
 ```
 
-To create a backend-only Effect project and clone both reference sources:
+To create a backend-only Effect project and vendor both reference sources:
 
 ```bash
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
@@ -199,9 +200,10 @@ craft add form animal --advanced
 ## After generation
 
 The generator creates a Git repository when the destination is not already
-inside another repository. It does not create a commit. The generated
-`.gitignore` excludes `node_modules/`, build outputs, test reports, and local
-reference clones.
+inside another repository. When references are enabled, it adds them as
+tracked Git subtrees and creates the minimal Git history required by
+`git subtree` when the destination is a new repository. The generated
+`.gitignore` excludes `node_modules/`, build outputs, and test reports.
 
 Install dependencies and start the generated application:
 

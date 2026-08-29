@@ -83,19 +83,12 @@ describe('createCraftProject', () => {
     ).toThrow(/EffectTS references require/);
   });
 
-  it('keeps npm dependencies when a CraftTS source reference is cloned', async () => {
+  it('keeps npm dependencies when a CraftTS source reference is vendored', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-source-links-'));
     temporaryDirectories.push(root);
-    const clone = join(root, 'starter/.references/craft-ts');
-    await mkdir(clone, { recursive: true });
-    await writeFile(join(clone, 'README.md'), 'fixture');
-    execFileSync('git', ['init', '--quiet'], { cwd: clone });
-    execFileSync('git', ['config', 'user.email', 'fixture@example.test'], {
-      cwd: clone,
-    });
-    execFileSync('git', ['config', 'user.name', 'fixture'], { cwd: clone });
-    execFileSync('git', ['add', 'README.md'], { cwd: clone });
-    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: clone });
+    const reference = join(root, 'starter/.references/craft-ts');
+    await mkdir(reference, { recursive: true });
+    await writeFile(join(reference, 'README.md'), 'fixture');
     const result = await createCraftProject({
       directory: 'starter',
       rootDir: root,
@@ -127,7 +120,9 @@ describe('createCraftProject', () => {
       join(result.directory, 'scripts/update-references.mjs'),
       'utf8',
     );
-    expect(referenceUpdater).toContain("'git', ['fetch'");
+    expect(referenceUpdater).toContain("'git', ['subtree', 'pull'");
+    expect(referenceUpdater).toContain('git-subtree-split');
+    expect(referenceUpdater).not.toContain("'git', ['clone'");
     expect(referenceUpdater).not.toContain('npm install');
     expect(referenceUpdater).not.toContain('pnpm');
     expect(referenceUpdater).not.toContain('run build');
@@ -153,22 +148,13 @@ describe('createCraftProject', () => {
     ).toContain('.starter-experimental-badge');
   });
 
-  it('keeps npm dependencies when both CraftTS and EffectTS references are cloned', async () => {
+  it('keeps npm dependencies when both CraftTS and EffectTS references are vendored', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-both-references-'));
     temporaryDirectories.push(root);
     for (const name of ['craft-ts', 'effect-ts']) {
-      const clone = join(root, `starter/.references/${name}`);
-      await mkdir(clone, { recursive: true });
-      await writeFile(join(clone, 'README.md'), name);
-      execFileSync('git', ['init', '--quiet'], { cwd: clone });
-      execFileSync('git', ['config', 'user.email', 'fixture@example.test'], {
-        cwd: clone,
-      });
-      execFileSync('git', ['config', 'user.name', 'fixture'], { cwd: clone });
-      execFileSync('git', ['add', 'README.md'], { cwd: clone });
-      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], {
-        cwd: clone,
-      });
+      const reference = join(root, `starter/.references/${name}`);
+      await mkdir(reference, { recursive: true });
+      await writeFile(join(reference, 'README.md'), name);
     }
 
     const result = await createCraftProject({
@@ -199,12 +185,18 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, 'tsconfig.json'), 'utf8'),
     ).not.toContain('.references/');
+    expect(
+      await readFile(join(result.directory, '.vscode/settings.json'), 'utf8'),
+    ).toContain('files.exclude');
+    expect(
+      await readFile(join(result.directory, '.gitignore'), 'utf8'),
+    ).not.toContain('.references/*');
     const agents = await readFile(join(result.directory, 'AGENTS.md'), 'utf8');
     expect(agents).toContain('.references/craft-ts');
     expect(agents).toContain('.references/effect-ts');
     expect(agents).toContain('.references/effect-ts/.patterns/effect.md');
     expect(agents).toContain(
-      'always import CraftTS and EffectTS from the npm dependencies',
+      'application must always import CraftTS and EffectTS from the npm',
     );
   });
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -13,7 +13,7 @@ export type CreateMode = 'effect' | 'plain';
 export type FrontendRuntime = 'plain' | 'effect';
 export type BackendRuntime = 'none' | 'promise' | 'effect';
 export type WorkspaceKind = 'standalone' | 'nx';
-/** Cloned repositories provide agent context; application dependencies stay on npm. */
+/** Vendored repositories provide agent context; application dependencies stay on npm. */
 export type ReferenceMode = 'context';
 
 export type StarterConfig = {
@@ -95,8 +95,6 @@ coverage/
 playwright-report/
 test-results/
 .DS_Store
-.references/*
-!.references/manifest.json
 `;
 
 const BASE_AGENT_SKILL = `---
@@ -199,13 +197,14 @@ function referenceAgentGuidance(config?: StarterConfig): string {
   return `
 ## Local source references
 
-The following repositories are cloned for agent context only:
+The following repositories are vendored with git subtree for agent context only:
 ${entries.join('\n')}
 Use them to inspect implementations, types, tests and examples when the
-installed package or project documentation is not enough. The application must
-always import CraftTS and EffectTS from the npm dependencies declared in
-\`package.json\`; do not add TypeScript, Vite or package \`file:\` aliases to
-these clones.
+installed package or project documentation is not enough. Treat these
+directories as read-only reference material: do not edit them unless explicitly
+asked. The application must always import CraftTS and EffectTS from the npm
+dependencies declared in \`package.json\`; do not add TypeScript, Vite or
+package \`file:\` aliases to these references.
 `;
 }
 
@@ -1971,22 +1970,48 @@ function referenceFiles(context: TemplateContext): Record<string, string> {
     };
   const resolver =
     "import { readFileSync } from 'node:fs'; import { join, resolve } from 'node:path';\nexport function resolveReferenceManifest(root) { return JSON.parse(readFileSync(join(root, '.references/manifest.json'), 'utf8')); }\nexport function resolveReferencePath(root, name) { const manifest = resolveReferenceManifest(root); return manifest[name] ? resolve(root, manifest[name].path) : undefined; }\n";
-  const updater = `import { execFileSync } from 'node:child_process'; import { existsSync, readFileSync, writeFileSync } from 'node:fs'; import { join, resolve } from 'node:path';
-const root = resolve(import.meta.dirname, '..');
-const manifestPath = join(root, '.references/manifest.json');
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-for (const [name, entry] of Object.entries(manifest).filter(([key, value]) => !['schemaVersion', 'mode', 'effectEnabled'].includes(key) && value && value.path)) {
-  const path = resolve(root, entry.path);
-  if (!existsSync(join(path, '.git'))) throw new Error('Missing reference clone: ' + path);
-  if (execFileSync('git', ['status', '--short'], { cwd: path, encoding: 'utf8' }).trim()) throw new Error('Modified reference: ' + path);
-  execFileSync('git', ['fetch', '--depth', '1', 'origin', entry.requestedRef], { cwd: path, stdio: 'inherit' });
-  execFileSync('git', ['checkout', '--detach', 'FETCH_HEAD'], { cwd: path, stdio: 'inherit' });
-  entry.resolvedSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path, encoding: 'utf8' }).trim();
+  const editorSettings = `{
+  "typescript.preferences.autoImportFileExcludePatterns": [".references/**"],
+  "javascript.preferences.autoImportFileExcludePatterns": [".references/**"],
+  "files.exclude": { ".references/**": true },
+  "files.watcherExclude": { ".references/**": true },
+  "search.exclude": { ".references/**": true }
 }
-writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\\n');
+`;
+  const updater = `import { execFileSync } from 'node:child_process'; import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'; import { join, relative, resolve } from 'node:path';
+const projectRoot = realpathSync(resolve(import.meta.dirname, '..'));
+const gitRoot = realpathSync(resolve(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: projectRoot, encoding: 'utf8' }).trim()));
+const manifestPath = join(projectRoot, '.references/manifest.json');
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+const metadataKeys = new Set(['schemaVersion', 'mode', 'effectEnabled']);
+const subtreeSha = () => {
+  const message = execFileSync('git', ['log', '-n', '20', '--format=%B'], { cwd: gitRoot, encoding: 'utf8' });
+  return message.match(/^git-subtree-split: ([0-9a-f]{40})$/m)?.[1];
+};
+if (execFileSync('git', ['status', '--short'], { cwd: gitRoot, encoding: 'utf8' }).trim()) {
+  throw new Error('Working tree is not clean; commit or stash changes before updating vendored references.');
+}
+for (const [name, entry] of Object.entries(manifest).filter(([key, value]) => !metadataKeys.has(key) && value && value.path)) {
+  const path = resolve(projectRoot, entry.path);
+  if (!existsSync(path)) throw new Error('Missing vendored reference: ' + path);
+  if (existsSync(join(path, '.git'))) throw new Error('Nested Git clone found; migrate this reference to git subtree: ' + path);
+  const prefix = relative(gitRoot, path).replaceAll('\\\\', '/');
+  const before = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: gitRoot, encoding: 'utf8' }).trim();
+  execFileSync('git', ['subtree', 'pull', '--prefix=' + prefix, entry.url, entry.requestedRef, '--squash'], { cwd: gitRoot, stdio: 'inherit' });
+  const after = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: gitRoot, encoding: 'utf8' }).trim();
+  if (after !== before) {
+    const sha = subtreeSha();
+    if (sha) entry.resolvedSha = sha;
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\\n');
+    const manifestRelative = relative(gitRoot, realpathSync(manifestPath)).replaceAll('\\\\', '/');
+    execFileSync('git', ['add', '--', manifestRelative], { cwd: gitRoot });
+    execFileSync('git', ['commit', '--amend', '--no-edit'], { cwd: gitRoot, stdio: 'inherit' });
+  }
+}
 `;
   return {
     '.gitignore': GENERATED_GITIGNORE,
+    '.vscode/settings.json': editorSettings,
     '.references/manifest.json': json(manifest),
     'scripts/reference-resolver.mjs': resolver,
     'scripts/update-references.mjs': updater,
@@ -1999,10 +2024,13 @@ writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\\n');
   };
 }
 
-function cloneReferenceIfRequested(root: string, config: StarterConfig): void {
-  const entries = [
+function referenceEntries(
+  config: StarterConfig,
+): readonly [string, string, string, string][] {
+  return [
     config.references.craftTs
       ? [
+          'craftTs',
           'https://github.com/craft-ts/craft-ts.git',
           config.references.craftTsRef,
           '.references/craft-ts',
@@ -2010,42 +2038,117 @@ function cloneReferenceIfRequested(root: string, config: StarterConfig): void {
       : undefined,
     config.references.effectTs
       ? [
+          'effectTs',
           'https://github.com/Effect-TS/effect.git',
           config.references.effectTsRef,
           '.references/effect-ts',
         ]
       : undefined,
-  ].filter((entry): entry is [string, string, string] => entry !== undefined);
-  for (const [url, ref, relativePath] of entries) {
-    const target = join(root, relativePath);
-    if (!existsSync(join(target, '.git'))) {
-      mkdirSync(dirname(target), { recursive: true });
-      execFileSync(
-        'git',
-        ['clone', '--depth', '1', '--branch', ref, url, target],
-        { cwd: root, stdio: 'inherit' },
-      );
-    }
-  }
-  const manifestPath = join(root, '.references', 'manifest.json');
-  if (existsSync(manifestPath)) {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
-      string,
-      { path: string; resolvedSha?: string }
-    >;
-    for (const entry of Object.values(manifest)) {
-      if (!entry.path) continue;
-      const target = resolve(root, entry.path);
-      entry.resolvedSha = execFileSync('git', ['rev-parse', 'HEAD'], {
-        cwd: target,
+  ].filter(
+    (entry): entry is [string, string, string, string] => entry !== undefined,
+  );
+}
+
+function subtreeSourceSha(root: string): string | undefined {
+  const message = execFileSync('git', ['log', '-n', '20', '--format=%B'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  return message.match(/^git-subtree-split: ([0-9a-f]{40})$/m)?.[1];
+}
+
+function gitTopLevel(root: string): string {
+  return realpathSync(
+    resolve(
+      execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: root,
         encoding: 'utf8',
-      }).trim();
+      }).trim(),
+    ),
+  );
+}
+
+function ensureGitHistoryForSubtree(root: string): string {
+  initialiseGitRepository(root);
+  const gitRoot = gitTopLevel(root);
+  try {
+    execFileSync('git', ['rev-parse', '--verify', 'HEAD'], {
+      cwd: gitRoot,
+      stdio: 'ignore',
+    });
+  } catch {
+    let hasStagedChanges = false;
+    try {
+      execFileSync('git', ['diff', '--cached', '--quiet'], {
+        cwd: gitRoot,
+        stdio: 'ignore',
+      });
+    } catch {
+      hasStagedChanges = true;
     }
+    if (hasStagedChanges)
+      throw new Error(
+        'Cannot initialize git subtree with staged changes; commit them first.',
+      );
+    execFileSync(
+      'git',
+      [
+        'commit',
+        '--allow-empty',
+        '--only',
+        '-m',
+        'chore: initialize repository for vendored references',
+      ],
+      { cwd: gitRoot, stdio: 'inherit' },
+    );
+  }
+  return gitRoot;
+}
+
+function ensureReferenceSubtrees(root: string, config: StarterConfig): void {
+  const entries = referenceEntries(config);
+  if (entries.length === 0) return;
+
+  const gitRoot = ensureGitHistoryForSubtree(root);
+  const manifestPath = join(root, '.references', 'manifest.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
+    string,
+    { path?: string; resolvedSha?: string }
+  >;
+
+  for (const [name, url, ref, relativePath] of entries) {
+    const target = join(root, relativePath);
+    if (existsSync(target)) {
+      if (existsSync(join(target, '.git')))
+        throw new Error(
+          `Nested Git clone found at ${target}; remove it before using the vendored subtree.`,
+        );
+      continue;
+    }
+
+    const prefix = relative(
+      gitRoot,
+      join(realpathSync(root), relativePath),
+    ).replaceAll('\\', '/');
+    execFileSync(
+      'git',
+      ['subtree', 'add', `--prefix=${prefix}`, url, ref, '--squash'],
+      { cwd: gitRoot, stdio: 'inherit' },
+    );
+    const sha = subtreeSourceSha(gitRoot);
+    if (sha) manifest[name] = { ...manifest[name], resolvedSha: sha };
     writeFileSync(
       manifestPath,
       `${JSON.stringify(manifest, null, 2)}\n`,
       'utf8',
     );
+    execFileSync('git', ['add', '--', relative(gitRoot, realpathSync(manifestPath))], {
+      cwd: gitRoot,
+    });
+    execFileSync('git', ['commit', '--amend', '--no-edit'], {
+      cwd: gitRoot,
+      stdio: 'inherit',
+    });
   }
 }
 
@@ -2766,7 +2869,7 @@ function readme(context: TemplateContext): string {
       : []),
     ...(references
       ? [
-          `- cloned CraftTS/EffectTS source references for coding agents under \`${referencePath}/\`; run \`npm run update:references\` to refresh them.`,
+          `- vendored CraftTS/EffectTS source references for coding agents under \`${referencePath}/\`; run \`npm run update:references\` to refresh them.`,
         ]
       : []),
     '',
@@ -2824,9 +2927,9 @@ function readme(context: TemplateContext): string {
           '## References',
           '',
           `The \`${referencePath}/manifest.json\` file records the requested refs and resolved SHAs.`,
-          'The cloned repositories are read-only context for coding agents; the application always uses the npm dependencies declared in package.json.',
-          'Do not add file: dependencies or TypeScript/Vite aliases to the clones.',
-          'Run `npm run update:references` after reviewing local changes in a clone.',
+          'The vendored repositories are read-only context for coding agents; the application always uses the npm dependencies declared in package.json.',
+          'Do not add file: dependencies or TypeScript/Vite aliases to the references.',
+          'Run `npm run update:references` to update them with git subtree pull after reviewing the resulting commit.',
         ]
       : []),
     '',
@@ -3176,7 +3279,7 @@ export function normalizeCreateOptions(
     options.referenceMode !== 'context'
   ) {
     throw new Error(
-      `Reference mode "${options.referenceMode}" is no longer supported; cloned references are context only and npm packages remain the runtime dependencies.`,
+      `Reference mode "${options.referenceMode}" is no longer supported; vendored references are context only and npm packages remain the runtime dependencies.`,
     );
   }
   const craftTs =
@@ -3259,6 +3362,7 @@ export async function createCraftProject(
     delete files['package.json'];
     delete files['.references/manifest.json'];
     delete files['.gitignore'];
+    delete files['.vscode/settings.json'];
     delete files['scripts/reference-resolver.mjs'];
     delete files['scripts/update-references.mjs'];
     delete files['scripts/update-craft-ts.mjs'];
@@ -3277,7 +3381,11 @@ export async function createCraftProject(
   await Promise.all(
     Object.entries(files).map(async ([file, contents]) => {
       const target = join(directory, file);
-      if (file === '.gitignore' && existsSync(target)) return;
+      if (
+        (file === '.gitignore' || file === '.vscode/settings.json') &&
+        existsSync(target)
+      )
+        return;
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, contents, 'utf8');
     }),
@@ -3330,7 +3438,11 @@ export async function createCraftProject(
     await Promise.all(
       Object.entries(rootReferenceFiles).map(async ([file, contents]) => {
         const target = join(rootDir, file);
-        if (file === '.gitignore' && existsSync(target)) return;
+        if (
+          (file === '.gitignore' || file === '.vscode/settings.json') &&
+          existsSync(target)
+        )
+          return;
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, contents, 'utf8');
       }),
@@ -3340,12 +3452,8 @@ export async function createCraftProject(
   const gitRoot = config.workspace.kind === 'nx' ? rootDir : directory;
   ensureGitignore(gitRoot);
 
-  if (config.references.craftTs || config.references.effectTs) {
-    cloneReferenceIfRequested(
-      config.workspace.kind === 'nx' ? rootDir : directory,
-      config,
-    );
-  }
+  if (config.references.craftTs || config.references.effectTs)
+    ensureReferenceSubtrees(gitRoot, config);
 
   // Reuse the same deterministic scaffold as migration, but with a standalone
   // project root. It also adds architecture/typecheck scripts to package.json.

@@ -7,5 +7,13 @@
   // Flat config resolves from the cwd only, so the ESLint extension must run
   // per nx project — otherwise the root eslint.config.mjs (no craft-ts rules)
   // is used everywhere and craft-ts/* diagnostics + quick fixes never appear.
-  "eslint.workingDirectories": [{ "pattern": "apps/*/" }, { "pattern": "libs/*/" }]
+  "eslint.workingDirectories": [
+    { "pattern": "apps/*/" },
+    { "pattern": "libs/*/" }
+  ],
+  "typescript.preferences.autoImportFileExcludePatterns": [".references/**"],
+  "javascript.preferences.autoImportFileExcludePatterns": [".references/**"],
+  "files.exclude": { ".references/**": true },
+  "files.watcherExclude": { ".references/**": true },
+  "search.exclude": { ".references/**": true }
 }

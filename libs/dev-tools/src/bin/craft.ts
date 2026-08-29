@@ -810,8 +810,8 @@ Options:
   --references <none|craft-ts|all> (default: CraftTS, plus EffectTS when selected)
   --craft-ts-ref <git-ref>     CraftTS reference tag/commit
   --effect-ts-ref <git-ref>    EffectTS reference tag/commit
-  --clone-craft-ts / --no-clone-craft-ts
-  --clone-effect-ts / --no-clone-effect-ts
+  --clone-craft-ts / --no-clone-craft-ts (legacy subtree aliases)
+  --clone-effect-ts / --no-clone-effect-ts (legacy subtree aliases)
   --no-demos                  Generate a domain feature without demo pages
   --domain <name>             Feature name used by --no-demos (default: feature)
   --force                      Merge into a non-empty destination directory

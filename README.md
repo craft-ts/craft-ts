@@ -153,17 +153,17 @@ tools/
 
 ### Local source references
 
-The EffectTS v4 source is available locally at `.references/effect-ts` for
-exploring its implementation, types, tests, and examples. The checkout is
-kept out of Git; `.references/manifest.json` records the pinned tag and
-resolved SHA. Refresh it with:
+The EffectTS v4 source is vendored at `.references/effect-ts` with `git
+subtree` for exploring its implementation, types, tests, and examples.
+`.references/manifest.json` records the pinned ref and resolved source SHA.
+Refresh it with:
 
 ```bash
 npm run update:references
 ```
 
 The application continues to use the published npm packages from the
-workspace dependencies; the clone is reference material only.
+workspace dependencies; the subtree is read-only reference material only.
 
 ## Development
 
