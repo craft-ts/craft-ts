@@ -35,25 +35,45 @@ export type EffectServerMiddlewareContext = MiddlewareRunContext<
   Record<never, never>
 >;
 
-export function effectServerMiddleware<const Id extends string, Value = unknown, Error = never, Requirements = never>(
+export function effectServerMiddleware<
+  const Id extends string,
+  Value = unknown,
+  Error = never,
+  Requirements = never,
+>(
   id: Id,
   run: (
     context: EffectServerMiddlewareContext,
-  ) => Effect.Effect<CraftMiddlewareResult<Value, MiddlewareContext>, Error, Requirements>,
+  ) => Effect.Effect<
+    CraftMiddlewareResult<Value, MiddlewareContext>,
+    Error,
+    Requirements
+  >,
 ): EffectServerMiddleware<Id, Value, Error, Requirements> {
   return craftMiddleware(id).server((context) => run(context));
 }
 
-/** Compose yieldable middleware in declaration order, without continuations. */
-export function composeEffect<A, E, R>(
-  middlewares: readonly EffectServerMiddleware[],
+/**
+ * Compose yieldable middleware in declaration order, without continuations.
+ *
+ * The middleware error and requirement channels are inferred from the array,
+ * so a chain of requirement-free middleware keeps the handler's own `R` and
+ * stays runnable with `Effect.runPromise`.
+ */
+export function composeEffect<A, E, R, MiddlewareError, MiddlewareRequirements>(
+  middlewares: readonly EffectServerMiddleware<
+    string,
+    unknown,
+    MiddlewareError,
+    MiddlewareRequirements
+  >[],
   handler: Effect.Effect<A, E, R>,
-): Effect.Effect<A, E | unknown, R | unknown> {
+): Effect.Effect<A, E | MiddlewareError, R | MiddlewareRequirements> {
   return runMiddlewareChain(
     middlewares,
     undefined,
     () => handler,
-  ) as Effect.Effect<A, E | unknown, R | unknown>;
+  ) as Effect.Effect<A, E | MiddlewareError, R | MiddlewareRequirements>;
 }
 
 export function executeEffect<Output = unknown>(
@@ -65,7 +85,11 @@ export function executeEffect<Output = unknown>(
       const effect = program as Effect.Effect<Output, unknown, unknown>;
       return Effect.runPromise(
         layer
-          ? (Effect.provide(effect, layer) as Effect.Effect<Output, unknown, never>)
+          ? (Effect.provide(effect, layer) as Effect.Effect<
+              Output,
+              unknown,
+              never
+            >)
           : (effect as Effect.Effect<Output, unknown, never>),
       );
     },

@@ -9,6 +9,8 @@ import {
   WritableSignal,
   computed,
   Signal,
+  type ResourceLoaderParams,
+  type ResourceStreamingLoader,
 } from './host/craft-compat';
 import { craftLinkedSignal as linkedSignal } from './host/craft-linked-signal';
 import { preservedResource } from './preserved-resource';
@@ -110,7 +112,19 @@ type ResourceByIdConfig<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-> = Omit<ResourceOptions<State, ResourceParams>, 'params'> & {
+> = Omit<
+  ResourceOptions<State, ResourceParams>,
+  'params' | 'loader' | 'stream'
+> & {
+  /**
+   * Params are grouped by `identifier(params)` and a falsy params value never
+   * reaches a group (the source effect returns early), so — exactly like
+   * {@link Identifier} — the loader and the stream only ever see defined params.
+   */
+  loader?: (
+    params: ResourceLoaderParams<NonNullable<ResourceParams>>,
+  ) => Promise<State> | State;
+  stream?: ResourceStreamingLoader<State, NonNullable<ResourceParams>>;
   /** @internal Shared source name used by the server policy gate. */
   ssrSourceName?: string;
 } & (
@@ -239,7 +253,9 @@ export function resourceById<
         group,
         resourceOptions: {
           loader,
-          params: paramsWithEqualRule as () => ResourceParams,
+          // Same assumption as the config's loader/stream: a falsy params value
+          // never produces a load, so the group's source is a defined-params one.
+          params: paramsWithEqualRule as () => NonNullable<ResourceParams>,
           stream,
           ssrSourceName,
         },

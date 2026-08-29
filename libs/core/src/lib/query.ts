@@ -382,30 +382,33 @@ export type ResourceLikeExceptions<
     | undefined
   >;
   /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
-  exceptions: DeepYieldableReactiveValue<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          QueryException['params'],
-          'params',
-          unknown
-        >
-      | InsertMetaInCraftExceptionIfExists<
-          QueryException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      QueryException['params'],
-      'params',
-      unknown
-    >;
-    loader?: InsertMetaInCraftExceptionIfExists<
-      QueryException['loader'],
-      'loader',
-      GroupIdentifier
-    >;
-  }> &
+  exceptions: DeepYieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            QueryException['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            QueryException['loader'],
+            'loader',
+            GroupIdentifier
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        QueryException['params'],
+        'params',
+        unknown
+      >;
+      loader?: InsertMetaInCraftExceptionIfExists<
+        QueryException['loader'],
+        'loader',
+        GroupIdentifier
+      >;
+    },
+    'exceptions'
+  > &
     (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
@@ -415,35 +418,38 @@ export type ResourceByIdLikeExceptions<
 > = {
   hasException: Signal<boolean>;
   /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
-  exceptions: DeepYieldableReactiveValue<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          QueryException['params'],
-          'params',
-          unknown
+  exceptions: DeepYieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            QueryException['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            QueryException['loader'],
+            'loader',
+            GroupIdentifier
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        QueryException['params'],
+        'params',
+        unknown
+      >;
+      loader: Partial<
+        Record<
+          GroupIdentifier,
+          InsertMetaInCraftExceptionIfExists<
+            QueryException['loader'],
+            'loader',
+            GroupIdentifier
+          >
         >
-      | InsertMetaInCraftExceptionIfExists<
-          QueryException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      QueryException['params'],
-      'params',
-      unknown
-    >;
-    loader: Partial<
-      Record<
-        GroupIdentifier,
-        InsertMetaInCraftExceptionIfExists<
-          QueryException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-      >
-    >;
-  }> &
+      >;
+    },
+    'exceptions'
+  > &
     (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
@@ -715,6 +721,44 @@ export function query<
 >;
 
 /**
+ * Declared next to the all-schemas overload, and BEFORE the generator ones, on
+ * purpose: overload resolution stops at the first match, and the generator
+ * overloads accept a `method` of any shape. Declared after them, this one was
+ * never reached, so `methodSchema` stopped contextually typing its `method`
+ * argument and both `method`'s parameter and the loader's `params` silently
+ * fell back to `unknown`.
+ */
+export function query<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  Params,
+  State extends object | undefined,
+>(
+  name: Name,
+  queryConfig: {
+    methodSchema: MethodSchema;
+    method: (args: SchemaOutput<MethodSchema>) => Params;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    State,
+    Params,
+    SchemaInput<MethodSchema>,
+    Params,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true,
+    never,
+    Name
+  >
+>;
+
+/**
  * Generator-returning loaders need a dedicated overload. Without it, a
  * generator is structurally an object and can be inferred as the resource
  * state by one of the legacy overloads; its yielded exception markers would
@@ -756,6 +800,54 @@ export function query<
     {},
     false,
     never,
+    Name
+  >
+>;
+
+/**
+ * A generator `method` needs its own overload for the same reason a generator
+ * `params` does: `GeneratorCompatibleFactory` places a naked `Params` beside
+ * the generator in a union, so the generator itself is inferred as the params
+ * type and the loader then receives a service request where it expects the
+ * value the method returned.
+ */
+export function query<
+  Name extends string,
+  QueryState extends object | undefined,
+  QueryParams,
+  QueryArgsParams,
+  MethodYielded = never,
+  LoaderYielded = never,
+>(
+  name: Name,
+  queryConfig: {
+    method: (
+      args: QueryArgsParams,
+    ) => Generator<MethodYielded, QueryParams, unknown>;
+    loader: (
+      param: ResourceLoaderParams<StripCraftException<QueryParams>>,
+    ) => Generator<LoaderYielded, QueryState, unknown>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<Awaited<QueryState>>,
+    StripCraftException<QueryParams>,
+    QueryArgsParams,
+    StripCraftException<QueryParams>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & {
+      params: ExtractCraftException<QueryParams>;
+      loader: Extract<
+        ExtractCraftGenExceptions<LoaderYielded>,
+        AnyCraftException
+      >;
+    },
+    QueryTrackedDependencies<never, MethodYielded, LoaderYielded>,
+    false,
+    MethodYielded,
     Name
   >
 >;
@@ -882,36 +974,6 @@ export function query<
     LoaderParams,
     LoaderArgs,
     LoaderParams,
-    unknown,
-    {},
-    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
-    {},
-    true,
-    never,
-    Name
-  >
->;
-
-export function query<
-  Name extends string,
-  MethodSchema extends CraftSchema,
-  Params,
-  State extends object | undefined,
->(
-  name: Name,
-  queryConfig: {
-    methodSchema: MethodSchema;
-    method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
-    [key: string]: unknown;
-  },
-): NamedCraftPrimitiveGen<
-  Name,
-  QueryOutput<
-    State,
-    Params,
-    SchemaInput<MethodSchema>,
-    Params,
     unknown,
     {},
     ResourceExceptionConstraints & { parse: SchemaParseExceptions },

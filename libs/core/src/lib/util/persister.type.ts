@@ -1,11 +1,24 @@
-import { ResourceRef, Signal } from '../host/craft-compat';
+import { ResourceStatus, Signal } from '../host/craft-compat';
 import { ResourceByIdRef } from '../resource-by-id';
+
+/**
+ * The resource surface the persister actually drives: it reads `status` and
+ * `value`, restores a cached value with `set`, and can trigger a background
+ * reload. Both Angular's `ResourceRef` and craft's `CraftResourceRef` — what
+ * `craftResource(...)`/`query(...)` produce — satisfy it.
+ */
+export interface PersistedQueryResource {
+  value: Signal<unknown>;
+  status: Signal<ResourceStatus>;
+  set(value: any): void;
+  reload(): boolean;
+}
 
 export interface PersistedQuery {
   key: string;
   /** Optional per-insertion namespace; defaults to the persister namespace. */
   storeName?: string;
-  queryResource: ResourceRef<any>;
+  queryResource: PersistedQueryResource;
   queryResourceParamsSrc: Signal<unknown>;
   waitForParamsSrcToBeEqualToPreviousValue: boolean;
   cacheTime: number;

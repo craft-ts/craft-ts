@@ -100,9 +100,19 @@ type YieldableInsertionMethodOf<Fn> =
               subscribe: (...args: any[]) => any;
               value: unknown;
             }
-          ? Omit<Fn, 'emit'> & {
-              readonly emit: YieldableInsertionMethod<Args, Result>;
-            }
+          ? // A source$ keeps its `emit`/`subscribe`/`value` shape once
+            // projected, so without this guard a second pass (a nested
+            // `insertSelect` inside `craftPipe`, say) wraps the invocation in
+            // another invocation and the two contexts stop matching.
+            Fn['emit'] extends YieldableInsertionMethod<any, any, any>
+            ? Fn
+            : Omit<Fn, 'emit'> & {
+                readonly emit: YieldableInsertionMethod<Args, Result>;
+              } & // `Omit` drops call signatures, and a source$ is itself callable
+                // (`paintCell$('red')` yields the emit generator), so put it back.
+                (Fn extends (...callArgs: infer CallArgs) => infer CallResult
+                  ? (...callArgs: CallArgs) => CallResult
+                  : unknown)
           : Fn extends YieldableInsertionMethod<any, any, any>
             ? Fn
             : Fn extends (...args: infer Args) => infer Result

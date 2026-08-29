@@ -20,7 +20,14 @@ export type ParamMap = {
   keys: string[];
 };
 
+/**
+ * Carries the same brand as `CraftUrlTree` — and for the same reason. Without
+ * it a url tree is just `{ toString(): string }`, which EVERY object satisfies,
+ * so `Exclude<…, GuardResult>` erased every object a guard returned and the
+ * route's `GuardedData` helper silently disappeared.
+ */
 export type UrlTree = {
+  readonly __craftUrlTree: true;
   toString(): string;
 };
 

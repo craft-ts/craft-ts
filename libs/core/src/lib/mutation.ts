@@ -460,30 +460,33 @@ export type ResourceLikeMutationExceptions<
           | undefined
         >;
         /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
-        exceptions: DeepYieldableReactiveValue<{
-          list: (
-            | InsertMetaInCraftExceptionIfExists<
-                MutationException['params'],
-                'params',
-                unknown
-              >
-            | InsertMetaInCraftExceptionIfExists<
-                MutationException['loader'],
-                'loader',
-                GroupIdentifier
-              >
-          )[];
-          params?: InsertMetaInCraftExceptionIfExists<
-            MutationException['params'],
-            'params',
-            unknown
-          >;
-          loader?: InsertMetaInCraftExceptionIfExists<
-            MutationException['loader'],
-            'loader',
-            GroupIdentifier
-          >;
-        }> &
+        exceptions: DeepYieldableReactiveValue<
+          {
+            list: (
+              | InsertMetaInCraftExceptionIfExists<
+                  MutationException['params'],
+                  'params',
+                  unknown
+                >
+              | InsertMetaInCraftExceptionIfExists<
+                  MutationException['loader'],
+                  'loader',
+                  GroupIdentifier
+                >
+            )[];
+            params?: InsertMetaInCraftExceptionIfExists<
+              MutationException['params'],
+              'params',
+              unknown
+            >;
+            loader?: InsertMetaInCraftExceptionIfExists<
+              MutationException['loader'],
+              'loader',
+              GroupIdentifier
+            >;
+          },
+          'exceptions'
+        > &
           (MutationException extends { parse: infer Parse }
             ? { parse: Parse }
             : {});
@@ -496,35 +499,38 @@ export type ResourceByIdLikeMutationExceptions<
 > = {
   hasException: Signal<boolean>;
   /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
-  exceptions: DeepYieldableReactiveValue<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          MutationException['params'],
-          'params',
-          unknown
+  exceptions: DeepYieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            MutationException['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            MutationException['loader'],
+            'loader',
+            GroupIdentifier
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        MutationException['params'],
+        'params',
+        unknown
+      >;
+      loader: Partial<
+        Record<
+          GroupIdentifier,
+          InsertMetaInCraftExceptionIfExists<
+            MutationException['loader'],
+            'loader',
+            GroupIdentifier
+          >
         >
-      | InsertMetaInCraftExceptionIfExists<
-          MutationException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      MutationException['params'],
-      'params',
-      unknown
-    >;
-    loader: Partial<
-      Record<
-        GroupIdentifier,
-        InsertMetaInCraftExceptionIfExists<
-          MutationException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-      >
-    >;
-  }> &
+      >;
+    },
+    'exceptions'
+  > &
     (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 

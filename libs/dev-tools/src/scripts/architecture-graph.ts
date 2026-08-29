@@ -99,8 +99,8 @@ export type ArchitectureGraphView<
   handshakes(): ArchitectureNodeView<C>[];
   serverFunctionFamily(id: string): ArchitectureNodeView<C>;
   httpEndpoints(): ArchitectureNodeView<C>[];
-  unique(value: CatalogUniques<C>): ArchitectureNodeView<C>;
-  uniques(): ArchitectureNodeView<C>[];
+  unique(value: CatalogUniques<C>): ArchitectureNodeView<C, 'unique'>;
+  uniques(): ArchitectureNodeView<C, 'unique'>[];
 };
 
 export type ArchitectureGraphPath = {
@@ -536,10 +536,12 @@ export function createArchitectureGraph<
         undefined,
         (node) =>
           node.label === value || node.details?.['canonical'] === value,
-      );
+      ) as ArchitectureNodeView<C, 'unique'>;
     },
     uniques() {
-      return graph.nodes.filter((node) => node.kind === 'unique').map(wrap);
+      return graph.nodes
+        .filter((node) => node.kind === 'unique')
+        .map(wrap) as ArchitectureNodeView<C, 'unique'>[];
     },
   };
 }

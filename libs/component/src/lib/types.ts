@@ -207,7 +207,7 @@ type ProjectTemplateValue<Value, ContextMethod extends string> = Value extends {
     ? HasComponentDependencies<Value> extends true
       ? Value
       : ProjectTemplateValueWithoutComponentDeps<Value, ContextMethod>
-  : ProjectTemplateValueWithoutComponentDeps<Value, ContextMethod>;
+    : ProjectTemplateValueWithoutComponentDeps<Value, ContextMethod>;
 
 type ProjectTemplateValueWithoutComponentDeps<
   Value,
@@ -292,21 +292,34 @@ type ProjectTemplateValueWithoutComponentDeps<
                         ? ProjectTemplateObject<Value, ContextMethod>
                         : Value;
 
+// A deep-yieldable reader is an intersection of two call signatures (the
+// generator reader and the raw host signal). Inferring `Generator<…>` from it
+// picks the signal one and collapses both channels to `unknown`, so the value
+// type is read from the `REACTIVE_VALUE_TYPE` carrier instead — the same
+// carrier the non-deep reactive branch above uses.
 type ProjectTemplateDeepYieldableValue<
   Value,
   ContextMethod extends string,
-> = Value extends (
-  ...args: infer Args
-) => Generator<infer Yielded, infer Result, any>
-  ? ((
-      ...args: Args
-    ) => Generator<
-      Yielded | TemplateMethodUse<ContextMethod>,
-      Result,
-      unknown
-    >) &
+> = Value extends { readonly [REACTIVE_VALUE_TYPE]: infer ReactiveState }
+  ? YieldableTemplateCallback<
+      [],
+      ReactiveState,
+      ReactiveReadRequest<ReactiveState>,
+      ContextMethod
+    > &
       ProjectTemplateObject<Value & object, ContextMethod>
-  : ProjectTemplateObject<Value & object, ContextMethod>;
+  : Value extends (
+        ...args: infer Args
+      ) => Generator<infer Yielded, infer Result, any>
+    ? ((
+        ...args: Args
+      ) => Generator<
+        Yielded | TemplateMethodUse<ContextMethod>,
+        Result,
+        unknown
+      >) &
+        ProjectTemplateObject<Value & object, ContextMethod>
+    : ProjectTemplateObject<Value & object, ContextMethod>;
 
 type DirectTemplateContextMethod<Context> =
   Context extends NamedYieldableValue<infer Name extends string, any>

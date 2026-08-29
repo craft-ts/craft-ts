@@ -1,3 +1,5 @@
+import type { REACTIVE_VALUE_TYPE } from './reactive-read';
+
 export const SERVICE_ROOT_EXPOSURE_KEY = '$self' as const;
 export const SERVICE_PROVIDED_INPUT_KEY = '$provided' as const;
 export const CRAFT_SERVICE_PROVIDER_BRAND = Symbol(
@@ -23,11 +25,23 @@ export type RequirementScope =
   | 'manuallyProvidedAtRoot'
   | 'abstract';
 
-export type CallableShell<Value> = Value extends (
-  ...args: infer Args
-) => infer Result
-  ? (...args: Args) => Result
-  : never;
+/**
+ * The callable shape a mock has to provide for a service's root value.
+ *
+ * A yieldable reader carries two call signatures — the `yield*` generator and
+ * the raw signal read — and `infer` picks the LAST one. Consumers read a reader
+ * either way (`craftUse(counter())` or `yield* counter()`), so a reader mock is
+ * allowed to be either; keeping only the signal form left `yield*` consumers
+ * iterating the returned value instead of driving a generator.
+ */
+export type CallableShell<Value> =
+  typeof REACTIVE_VALUE_TYPE extends keyof Value
+    ? Value extends { readonly [REACTIVE_VALUE_TYPE]: infer State }
+      ? (() => State) | (() => Generator<unknown, State, unknown>)
+      : never
+    : Value extends (...args: infer Args) => infer Result
+      ? (...args: Args) => Result
+      : never;
 
 export type RootExposureKey = typeof SERVICE_ROOT_EXPOSURE_KEY;
 export type ProvidedInputKey = typeof SERVICE_PROVIDED_INPUT_KEY;

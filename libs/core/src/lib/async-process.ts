@@ -420,30 +420,33 @@ export type ResourceLikeAsyncProcessExceptions<
     | undefined
   >;
   /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
-  exceptions: DeepYieldableReactiveValue<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          AsyncProcessException['params'],
-          'params',
-          GroupIdentifier
-        >
-      | InsertMetaInCraftExceptionIfExists<
-          AsyncProcessException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      AsyncProcessException['params'],
-      'params',
-      unknown
-    >;
-    loader?: InsertMetaInCraftExceptionIfExists<
-      AsyncProcessException['loader'],
-      'loader',
-      GroupIdentifier
-    >;
-  }> &
+  exceptions: DeepYieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            AsyncProcessException['params'],
+            'params',
+            GroupIdentifier
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            AsyncProcessException['loader'],
+            'loader',
+            GroupIdentifier
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        AsyncProcessException['params'],
+        'params',
+        unknown
+      >;
+      loader?: InsertMetaInCraftExceptionIfExists<
+        AsyncProcessException['loader'],
+        'loader',
+        GroupIdentifier
+      >;
+    },
+    'exceptions'
+  > &
     (AsyncProcessException extends { parse: infer Parse }
       ? { parse: Parse }
       : {});
@@ -456,35 +459,38 @@ export type ResourceByIdLikeAsyncProcessExceptions<
 > = {
   hasException: Signal<boolean>;
   /** Deep reader: `exceptions.loader`, `exceptions.params`, and `exceptions.list`. */
-  exceptions: DeepYieldableReactiveValue<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          AsyncProcessException['params'],
-          'params',
-          unknown
+  exceptions: DeepYieldableReactiveValue<
+    {
+      list: (
+        | InsertMetaInCraftExceptionIfExists<
+            AsyncProcessException['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            AsyncProcessException['loader'],
+            'loader',
+            GroupIdentifier
+          >
+      )[];
+      params?: InsertMetaInCraftExceptionIfExists<
+        AsyncProcessException['params'],
+        'params',
+        unknown
+      >;
+      loader: Partial<
+        Record<
+          GroupIdentifier,
+          InsertMetaInCraftExceptionIfExists<
+            AsyncProcessException['loader'],
+            'loader',
+            GroupIdentifier
+          >
         >
-      | InsertMetaInCraftExceptionIfExists<
-          AsyncProcessException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      AsyncProcessException['params'],
-      'params',
-      unknown
-    >;
-    loader: Partial<
-      Record<
-        GroupIdentifier,
-        InsertMetaInCraftExceptionIfExists<
-          AsyncProcessException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-      >
-    >;
-  }> &
+      >;
+    },
+    'exceptions'
+  > &
     (AsyncProcessException extends { parse: infer Parse }
       ? { parse: Parse }
       : {});

@@ -1,7 +1,12 @@
 import { Injector, runInInjectionContext } from './host/craft-compat';
 import type { CraftRouter, CraftUrlTree } from './craft-router';
 
-type CraftRouteRouterLike = {
+/**
+ * The router surface the route chain actually uses — the three navigation
+ * methods it binds onto the exception handler context. Exported so callers and
+ * tests can supply a router without reaching for the `CRAFT_ROUTER` token.
+ */
+export type CraftRouteRouterLike = {
   readonly url?: string;
   createUrlTree: (...args: any[]) => unknown;
   navigate: (...args: any[]) => Promise<boolean>;

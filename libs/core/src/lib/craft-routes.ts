@@ -107,6 +107,11 @@ type AngularRouteBase = Omit<
   | 'path'
   | 'providers'
   | 'redirectTo'
+  // Craft's `resolve` is a generator factory (see `CraftRouteUxFields`), not
+  // Angular's `ResolveData` map. Left in, the two intersect into
+  // `Record<string, unknown> & CraftRouteResolve`, which no resolve factory
+  // satisfies — and the whole route then stops being a route definition.
+  | 'resolve'
 >;
 type AngularRouteProviders = NonNullable<Route['providers']>;
 type AngularRouteComponent = NonNullable<Route['component']>;
