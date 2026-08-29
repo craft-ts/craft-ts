@@ -20,6 +20,7 @@ module.exports = {
   'craft-ts/prefer-craft-http-transport': 'error',
   'craft-ts/no-server-function-outside-resource': 'error',
   'craft-ts/no-craft-service-component-same-file': 'warn',
+  'craft-ts/max-craft-declarations-per-file': 'error',
   'craft-ts/no-raw-css-value': 'error',
   'craft-ts/no-raw-class': 'error',
   'craft-ts/no-free-has': 'error',

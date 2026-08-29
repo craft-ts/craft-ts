@@ -8,6 +8,7 @@ const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
 const noCraftServiceComponentSameFile = require('./no-craft-service-component-same-file.cjs');
+const maxCraftDeclarationsPerFile = require('./max-craft-declarations-per-file.cjs');
 const noRawCssValue = require('./no-raw-css-value.cjs');
 const noRawClass = require('./no-raw-class.cjs');
 const noFreeHas = require('./no-free-has.cjs');
@@ -112,6 +113,7 @@ const plugin = {
     'provide-host-name-match-component': provideHostNameMatchComponent,
     'prefer-craft-http-transport': preferCraftHttpTransport,
     'no-craft-service-component-same-file': noCraftServiceComponentSameFile,
+    'max-craft-declarations-per-file': maxCraftDeclarationsPerFile,
     'no-raw-css-value': noRawCssValue,
     'no-raw-class': noRawClass,
     'no-free-has': noFreeHas,

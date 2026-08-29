@@ -59,6 +59,7 @@ export default [
       'craft-ts/require-yieldable-template-method': 'error',
       'craft-ts/require-yieldable-insertion-write': 'error',
       'craft-ts/no-craft-service-component-same-file': 'error',
+      'craft-ts/max-craft-declarations-per-file': 'error',
       'craft-ts/prefer-craft-http-transport': 'error',
       'craft-ts/no-injection-token': 'error',
       'craft-ts/require-primitive-derived-property': 'error',
@@ -100,6 +101,7 @@ What each rule does:
 - `craft-ts/prefer-craft-reactivity`: rejects authored signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ts/prefer-craft-service`: keeps services in the `craftService(...)` model
 - `craft-ts/no-craft-service-component-same-file`: forbids declaring `craftService(...)` and `craftComponent(...)` in the same file; a route-level service provider combined with a lazy-loaded component can break lazy loading, so keep them in separate files
+- `craft-ts/max-craft-declarations-per-file`: reports the third and subsequent `craftComponent(...)`, `craftService(...)`, or `craftDirective(...)` declaration of the same kind in a file; keep Craft entities split across focused files
 - `craft-ts/no-injection-token`: forbids authored `InjectionToken` contracts; declare them with `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
 - `craft-ts/prefer-craft-http-client`: forbids direct transport usage in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
