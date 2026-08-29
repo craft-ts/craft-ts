@@ -162,36 +162,36 @@ describe('CraftRouter', () => {
           },
         });
 
-        // @ts-expect-error route params must be strings
         router.navigateByUrl({
           to: 'users/:userId',
           params: {
+            // @ts-expect-error route params must be strings
             userId: 1,
           },
         });
 
-        // @ts-expect-error extra route params are rejected
         router.navigateByUrl({
           to: 'users/:userId',
           params: {
             userId: '1',
+            // @ts-expect-error extra route params are rejected
             teamId: '2',
           },
         });
 
-        // @ts-expect-error query params must be strings
         router.navigateByUrl({
           to: 'query-params',
           queryParams: {
+            // @ts-expect-error query params must be strings
             page: 2,
           },
         });
 
-        // @ts-expect-error unknown query params are rejected
         router.navigateByUrl({
           to: 'query-params',
           queryParams: {
             page: '2',
+            // @ts-expect-error unknown query params are rejected
             unknown: 'x',
           },
         });
@@ -422,9 +422,9 @@ describe('CraftRouter', () => {
     TestBed.inject(CRAFT_HISTORY);
     TestBed.resetTestingModule();
 
-    expect(
-      removeSpy.mock.calls.some((call) => call[0] === 'popstate'),
-    ).toBe(true);
+    expect(removeSpy.mock.calls.some((call) => call[0] === 'popstate')).toBe(
+      true,
+    );
     removeSpy.mockRestore();
   });
 });

@@ -9,6 +9,7 @@ import {
   normalizeCreateOptions,
   parseCreateAgents,
 } from './create-project';
+import type { CreateAgent } from './create-project';
 
 const temporaryDirectories: string[] = [];
 
@@ -22,7 +23,7 @@ afterEach(async () => {
 
 async function createFixture(
   mode: 'plain' | 'effect',
-  agents = ['codex', 'cursor', 'cloud-code'] as const,
+  agents: readonly CreateAgent[] = ['codex', 'cursor', 'cloud-code'],
 ) {
   const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-'));
   temporaryDirectories.push(root);
@@ -188,7 +189,7 @@ describe('createCraftProject', () => {
       dependencies: Record<string, string>;
     };
 
-    expect(packageJson.dependencies.effect).toBe('^4.0.0-rc.110');
+    expect(packageJson.dependencies['effect']).toBe('^4.0.0-rc.110');
     expect(packageJson.dependencies['@craft-ts/effect']).toBe('^0.7.0-beta.15');
     expect(
       Object.values(packageJson.dependencies).every(
@@ -324,9 +325,9 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['@craft-ts/core']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeUndefined();
-    expect(packageJson.dependencies.effect).toBeUndefined();
-    expect(packageJson.devDependencies.effect).toBeUndefined();
-    expect(packageJson.devDependencies?.typescript).toBe('^6.0.3');
+    expect(packageJson.dependencies['effect']).toBeUndefined();
+    expect(packageJson.devDependencies['effect']).toBeUndefined();
+    expect(packageJson.devDependencies?.['typescript']).toBe('^6.0.3');
     expect(packageJson.scripts).toMatchObject({
       lint: 'eslint .',
       architecture: expect.stringContaining('vitest'),
@@ -389,7 +390,10 @@ describe('createCraftProject', () => {
       await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8'),
     ).toContain('home: msg`Home`');
     expect(
-      await readFile(join(result.directory, 'src/i18n/locales/fr-FR.ts'), 'utf8'),
+      await readFile(
+        join(result.directory, 'src/i18n/locales/fr-FR.ts'),
+        'utf8',
+      ),
     ).toContain('home: msg`Accueil`');
     expect(
       await readFile(join(result.directory, 'src/app/app.ts'), 'utf8'),
@@ -520,13 +524,13 @@ describe('createCraftProject', () => {
       devDependencies: Record<string, string>;
     };
 
-    expect(packageJson.dependencies.effect).toBe('^4.0.0-rc.110');
+    expect(packageJson.dependencies['effect']).toBe('^4.0.0-rc.110');
     expect(packageJson.dependencies['@craft-ts/effect']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeDefined();
     expect(packageJson.devDependencies?.['@effect/tsgo']).toBe('^0.24.3');
     expect(packageJson.devDependencies?.['aria-query']).toBe('^5.3.2');
-    expect(packageJson.devDependencies?.typescript).toBe('^6.0.3');
+    expect(packageJson.devDependencies?.['typescript']).toBe('^6.0.3');
     expect(
       await readFile(join(result.directory, 'src/app/domain.ts'), 'utf8'),
     ).toContain('Layer.succeed');

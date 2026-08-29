@@ -1,7 +1,4 @@
-import {
-  computed,
-  signal,
-} from './host/craft-compat';
+import { computed, signal } from './host/craft-compat';
 import { query, ResourceByIdLikeQueryRef } from './query';
 import { craftService } from './craft-service';
 import { craftPipe } from './craft-pipe';
@@ -29,10 +26,7 @@ import { catchTag, retry } from './craft-program-operators';
 import { craftUntilSettled } from './craft-until-settled';
 import type { YieldableReactiveProperties } from './reactive-read';
 import { craftSignal } from './host/craft-signal';
-import {
-  setupCraftServiceTest,
-} from './setup-craft-service-test';
-
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   setupCraftServiceTest().injector.run(fn);
@@ -426,7 +420,7 @@ describe('query with identifier>', () => {
       const queryRef = craftUse(
         query('queryRef', {
           method: (id: string) => id,
-          identifier: (id) => id,
+          identifier: (id: string) => id,
           loader: async ({ params }) => ({ id: params }),
         }),
       );
@@ -445,7 +439,7 @@ describe('query with identifier>', () => {
       const queryByIdFn = craftUse(
         query('queryByIdFn', {
           params: () => '5',
-          identifier: (params) => params,
+          identifier: (params: string) => params,
           loader: async ({ params }) => {
             return {
               id: params,
@@ -561,15 +555,22 @@ describe('query Insertions output', () => {
               },
             },
             (data) => {
-              expectTypeOf(data.resource).toEqualTypeOf<
+              // `toMatchTypeOf`, like the resourceById sibling below: the
+              // context replaces `settledValue` with its yieldable counterpart,
+              // so the ref is a structural superset rather than an equal.
+              expectTypeOf(data.resource).toMatchTypeOf<
                 YieldableReactiveProperties<
-                  CraftResourceRef<
-                    NoInfer<{
-                      id: string;
-                      name: string;
-                      email: string;
-                    }>,
-                    string
+                  Omit<
+                    CraftResourceRef<
+                      NoInfer<{
+                        id: string;
+                        name: string;
+                        email: string;
+                      }>,
+                      string,
+                      'user'
+                    >,
+                    'settledValue'
                   >
                 >
               >();
@@ -966,7 +967,7 @@ describe('query exceptions', () => {
                   { reason: 'missing' as const },
                 )
               : 'user-1',
-          identifier: (id) => id,
+          identifier: (id: 'user-1') => id,
           loader: async ({ params }) => {
             return shouldFail()
               ? craftException(
@@ -1051,7 +1052,7 @@ describe('query exceptions', () => {
                   { reason: 'missing' as const },
                 )
               : ('user-1' as string),
-          identifier: (id) => id,
+          identifier: (id: string) => id,
           loader: async ({ params }) => {
             return shouldFail()
               ? shouldFail()
@@ -1318,7 +1319,7 @@ describe('query exceptions', () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => current(),
-          identifier: (id) => id,
+          identifier: (id: 'A' | 'B') => id,
           loader: async ({ params }) =>
             craftException({ _tag: 'PARSE_FAILED' }, { params }),
         }),
@@ -1357,7 +1358,7 @@ describe('query exceptions', () => {
             current()
               ? craftException({ _tag: 'INVALID_ID' }, { params: current() })
               : current(),
-          identifier: (id) => id,
+          identifier: (id: 'A' | 'B') => id,
           loader: async ({ params }) => ({ id: params }),
         }),
       );
@@ -1499,7 +1500,7 @@ describe('query — providers', () => {
             }),
           ],
           method: (id: string) => ({ id }),
-          identifier: (params) => params.id,
+          identifier: (params: { id: string }) => params.id,
           loader: async ({ params }) => ({ id: params.id, name: 'server' }),
         }),
       );

@@ -11,7 +11,9 @@ import {
   TestBed,
 } from '@craft-ts/core';
 
-class Trace extends Context.Service<Trace, string[]>()('test/yieldable-trace') {}
+class Trace extends Context.Service<Trace, string[]>()(
+  'test/yieldable-trace',
+) {}
 class CurrentUser extends Context.Service<
   CurrentUser,
   { readonly id: string; readonly role: 'admin' | 'member' }
@@ -79,7 +81,13 @@ function makeServer(
         return `${context.auditId}/${user.id}`;
       }),
     )
-    .exposeErrors({}),
+    .exposeErrors({
+      AdminRequired: (errorPayload) => ({
+        code: 'ADMIN_REQUIRED',
+        status: 403,
+        payload: { authenticatedUserId: errorPayload.authenticatedUserId },
+      }),
+    }),
 ) {
   const layer = Layer.mergeAll(
     Layer.succeed(Trace)(trace),
@@ -138,9 +146,10 @@ describe('yieldable server middleware', () => {
     expect(() => flattenMiddlewares([audited, other])).toThrow(
       'Duplicate middleware id "test.audit"',
     );
-
   });
 });
 
 // @ts-expect-error next is intentionally absent from the new middleware API.
-craftMiddleware('test.no-next').server(({ next }) => Effect.succeed({ value: next }));
+craftMiddleware('test.no-next').server(({ next }) =>
+  Effect.succeed({ value: next }),
+);

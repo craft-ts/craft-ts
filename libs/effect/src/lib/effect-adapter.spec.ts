@@ -81,7 +81,7 @@ describe('Effect-aware Craft adapters', () => {
       Effect.fail(new InvalidRequest({ reason: 'bad input' })),
     );
     const failed = await executeGeneratorCompatibleFactoryAsync({
-      factory: () => fail({} as never),
+      factory: () => fail(),
       thisArg: undefined,
       getInjector: () => createCraftInjector([]),
       args: [],
@@ -92,7 +92,7 @@ describe('Effect-aware Craft adapters', () => {
     const die = effectLoader(() => Effect.die(new Error('broken')));
     await expect(
       executeGeneratorCompatibleFactoryAsync({
-        factory: () => die({} as never),
+        factory: () => die(),
         thisArg: undefined,
         getInjector: () => createCraftInjector([]),
         args: [],
@@ -103,7 +103,7 @@ describe('Effect-aware Craft adapters', () => {
     const controller = new AbortController();
     const interrupted = effectLoader(() => Effect.sleep('5 seconds'));
     const pending = executeGeneratorCompatibleFactoryAsync({
-      factory: () => interrupted({} as never),
+      factory: () => interrupted(),
       thisArg: undefined,
       getInjector: () => createCraftInjector([]),
       args: [],
@@ -300,7 +300,9 @@ describe('Effect-aware Craft adapters', () => {
       const value = computedEffect('computed-effect-failure', () =>
         Effect.gen(function* () {
           yield* SyncOp;
-          return yield* Effect.fail(new InvalidRequest({ reason: 'invalid input' }));
+          return yield* Effect.fail(
+            new InvalidRequest({ reason: 'invalid input' }),
+          );
         }),
       );
 
@@ -312,7 +314,9 @@ describe('Effect-aware Craft adapters', () => {
       }
 
       expect(isCraftGenShortCircuit(caught)).toBe(true);
-      expect((caught as { exception: { _tag: string } }).exception).toMatchObject({
+      expect(
+        (caught as { exception: { _tag: string } }).exception,
+      ).toMatchObject({
         _tag: 'InvalidRequest',
       });
     });

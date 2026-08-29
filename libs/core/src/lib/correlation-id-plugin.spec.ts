@@ -1,6 +1,4 @@
-import {
-  Injector,
-} from './host/craft-compat';
+import { Injector } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { provideCorrelationIdTracking } from './correlation-id-plugin';
@@ -32,7 +30,9 @@ describe('provideCorrelationIdTracking', () => {
     TestBed.configureTestingModule({
       providers: [provideCorrelationIdTracking()],
     });
-    const wrappers = TestBed.runInInjectionContext(() => TestBed.inject(FN_WRAPPER));
+    const wrappers = TestBed.runInInjectionContext(() =>
+      TestBed.inject(FN_WRAPPER),
+    );
     expect(wrappers.length).toBe(1);
   });
 
@@ -50,7 +50,9 @@ describe('provideCorrelationIdTracking', () => {
     TestBed.configureTestingModule({
       providers: [provideCorrelationIdTracking()],
     });
-    const [wrapper] = TestBed.runInInjectionContext(() => TestBed.inject(FN_WRAPPER));
+    const [wrapper] = TestBed.runInInjectionContext(() =>
+      TestBed.inject(FN_WRAPPER),
+    );
     const service = TestBed.runInInjectionContext(() =>
       TestBed.inject(CORRELATION_ID_SERVICE),
     );
@@ -123,7 +125,7 @@ describe('provideCorrelationIdTracking', () => {
     const watch = craftWatch(() => {
       runs += 1;
       const iterator = CorrelationId();
-      const request = iterator.next().value as {
+      const request = iterator.next().value as unknown as {
         resolve: (injector: Injector) => unknown;
       };
       request.resolve(injector);

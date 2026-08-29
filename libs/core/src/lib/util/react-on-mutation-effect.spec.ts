@@ -73,7 +73,7 @@ describe('reactOnMutation', () => {
       const queryRef = craftUse(
         query('queryRef', {
           params: () => '5',
-          identifier: (params) => params,
+          identifier: (params: string) => params,
           loader: async ({ params }) => {
             return {
               id: params,
@@ -125,7 +125,7 @@ describe('reactOnMutation', () => {
     'should enable to a query with identifier to react to a mutation change that rely on a fromResourceById',
     async () => {
       const { injector } = setupCraftServiceTest();
-    await injector.run(async () => {
+      await injector.run(async () => {
         const resourceByIdRef = resourceById({
           params: () => '1',
           identifier: (params) => params,
@@ -164,7 +164,7 @@ describe('reactOnMutation', () => {
         const queryRef = craftUse(
           query('queryRef', {
             params: () => '1',
-            identifier: (params) => params,
+            identifier: (params: string) => params,
             loader: async ({ params }) => {
               return [
                 {
@@ -195,7 +195,10 @@ describe('reactOnMutation', () => {
         );
 
         await vi.runAllTimersAsync();
-        console.log('queryRef.select(.value()', craftUse(queryRef.select('1')?.value()));
+        console.log(
+          'queryRef.select(.value()',
+          craftUse(queryRef.select('1')?.value()),
+        );
         expect(craftUse(queryRef.select('1')?.value())).toEqual({
           id: '1',
           name: 'Jane Doe',

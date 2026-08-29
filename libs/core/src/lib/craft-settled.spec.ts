@@ -1,7 +1,4 @@
-import {
-  computed,
-  signal,
-} from './host/craft-compat';
+import { computed, signal } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import {
   afterEach,
@@ -349,7 +346,7 @@ describe('settledValue on mutation and asyncProcess', () => {
       const users = craftUse(
         query('usersById', {
           params: () => ({ id: 'ada' }),
-          identifier: (params) => params.id,
+          identifier: (params: { id: string }) => params.id,
           loader: async ({ params }): Promise<User> => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return { id: params.id, name: 'Ada' };
@@ -420,9 +417,9 @@ describe('settledState in resource insertions', () => {
           const derived = craftComputed('derivedSettledState', function* () {
             return (yield* settledState()).length;
           });
-          expectTypeOf<CraftSettledSourcesOf<typeof derived>>().toEqualTypeOf<
-            'typedSettledState'
-          >();
+          expectTypeOf<
+            CraftSettledSourcesOf<typeof derived>
+          >().toEqualTypeOf<'typedSettledState'>();
           return {};
         },
       );
@@ -451,9 +448,7 @@ describe('settledState in resource insertions', () => {
         ),
       );
 
-      expect(() => craftUse(users.firstSettledUser())).toThrow(
-        CraftNotSettled,
-      );
+      expect(() => craftUse(users.firstSettledUser())).toThrow(CraftNotSettled);
       await vi.runAllTimersAsync();
       expect(craftUse(users.firstSettledUser())).toBe('Ada');
     });

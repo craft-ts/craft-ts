@@ -15,6 +15,13 @@ import type {
   GetDeps,
   GetPublicComponentProperties,
 } from './branded-component';
+import type { InputSignal } from '../host/craft-compat';
+
+// Core is host-agnostic — it never imports Angular. These stand-ins give the
+// type-level assertions below the same shapes an Angular component would carry,
+// the way the local `class HttpClient {}` declarations already do.
+class CommonModule {}
+declare function input<T>(): InputSignal<T | undefined>;
 
 describe('GetDeps', () => {
   it('computes missing providers from requirement-scoped service deps', () => {

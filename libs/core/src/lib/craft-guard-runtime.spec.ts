@@ -1,7 +1,4 @@
-
-import {
-  Injector,
-} from './host/craft-compat';
+import { Injector } from './host/craft-compat';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import { craftGen, CraftGenShortCircuit } from './craft-gen';
@@ -9,6 +6,7 @@ import { catchTag, retry } from './craft-program-operators';
 import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
 import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
 import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
+import type { CraftRouterNavigationApi } from './craft-router-tokens';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 
 declare module './craft-router' {
@@ -21,6 +19,7 @@ declare module './craft-router' {
 import {
   runCraftRouteChainAsync,
   type CraftRouteExceptionHandlerMap,
+  type CraftRouteRouterLike,
 } from './craft-guard-runtime';
 
 const injector = Injector.create({ providers: [] });
@@ -31,7 +30,7 @@ const router = {
   createUrlTree: () => ({}) as unknown,
   navigate: () => Promise.resolve(true),
   navigateByUrl: () => Promise.resolve(true),
-} as unknown as typeof CRAFT_ROUTER;
+} satisfies CraftRouteRouterLike;
 
 function* returns<T>(value: T): Generator<unknown, T, unknown> {
   return value;
@@ -322,13 +321,18 @@ describe('runCraftRouteChainAsync', () => {
     const activeRouter = {
       ...router,
       createUrlTree: () => target,
-    } as unknown as typeof CRAFT_ROUTER;
+    } satisfies CraftRouteRouterLike;
     const activeInjector = Injector.create({
       providers: [
         // provideCraftRouter's type admits EnvironmentProviders, but with no
         // features it only returns plain providers — safe for Injector.create.
         ...provideCraftRouter([]),
-        { provide: CRAFT_ROUTER, useValue: activeRouter },
+        {
+          provide: CRAFT_ROUTER,
+          // The fake only implements what the chain driver binds; the token
+          // asks for the full navigation API.
+          useValue: activeRouter as unknown as CraftRouterNavigationApi,
+        },
         { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
         { provide: FN_WRAPPER, useValue: [] },
         { provide: FN_WRAP_OBSERVER, useValue: [] },

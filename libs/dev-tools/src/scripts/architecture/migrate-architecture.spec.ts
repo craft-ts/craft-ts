@@ -90,11 +90,16 @@ describe('architecture migration', () => {
       existsSync(join(root, 'architecture/rules/insert-select-unique.spec.ts')),
     ).toBe(true);
     expect(
-      existsSync(join(root, 'architecture/rules/craft-effect-no-network.spec.ts')),
+      existsSync(
+        join(root, 'architecture/rules/craft-effect-no-network.spec.ts'),
+      ),
     ).toBe(true);
     expect(
       existsSync(
-        join(root, 'architecture/rules/craft-effect-no-imperative-sync.spec.ts'),
+        join(
+          root,
+          'architecture/rules/craft-effect-no-imperative-sync.spec.ts',
+        ),
       ),
     ).toBe(true);
     expect(
@@ -112,7 +117,7 @@ describe('architecture migration', () => {
     const packageJson = JSON.parse(
       await readFile(join(root, 'package.json'), 'utf8'),
     ) as { scripts: Record<string, string> };
-    expect(packageJson.scripts.architecture).toBe(
+    expect(packageJson.scripts['architecture']).toBe(
       'vitest run --config vitest.architecture.config.ts',
     );
 
@@ -206,12 +211,12 @@ describe('architecture migration', () => {
     ) as {
       targets: Record<string, { options?: { command?: string; cwd?: string } }>;
     };
-    expect(project.targets.architecture?.options?.command).toBe(
+    expect(project.targets['architecture']?.options?.command).toBe(
       'npx vitest run --config vitest.architecture.config.ts',
     );
-    expect(project.targets['typecheck-architecture']?.options?.command).toContain(
-      'tsconfig.architecture.json',
-    );
+    expect(
+      project.targets['typecheck-architecture']?.options?.command,
+    ).toContain('tsconfig.architecture.json');
 
     const vitestConfig = await readFile(
       join(root, 'vitest.architecture.config.ts'),
@@ -407,7 +412,7 @@ describe('architecture', () => {
     const pkg = JSON.parse(
       await readFile(join(root, 'package.json'), 'utf8'),
     ) as { scripts: Record<string, string> };
-    expect(pkg.scripts.architecture).toBe(
+    expect(pkg.scripts['architecture']).toBe(
       'vitest run --config projects/my-app/vitest.architecture.config.ts',
     );
     expect(pkg.scripts['typecheck-architecture']).toBe(
@@ -428,8 +433,8 @@ describe('architecture', () => {
 
     expect(result.architecture.exitCode).toBe(0);
     expect(existsSync(join(root, 'architecture/load-graph.ts'))).toBe(true);
-    expect(result.changedFiles.some((file) => file.includes('architecture'))).toBe(
-      true,
-    );
+    expect(
+      result.changedFiles.some((file) => file.includes('architecture')),
+    ).toBe(true);
   });
 });

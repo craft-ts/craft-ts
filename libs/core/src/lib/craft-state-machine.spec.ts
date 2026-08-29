@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Equal, Expect } from 'test-type';
+import type { Equal, Expect, PrettifyEqual } from 'test-type';
 import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { craftService, type GetServiceDependencies } from './craft-service';
@@ -20,11 +20,10 @@ import {
 type ChildrenOf<Deps> = Deps extends { dependencies: infer Children }
   ? Children
   : never;
-type HasDependency<Deps, Name extends string> = Name extends keyof ChildrenOf<
-  Deps
->
-  ? true
-  : false;
+type HasDependency<
+  Deps,
+  Name extends string,
+> = Name extends keyof ChildrenOf<Deps> ? true : false;
 
 type TouchEvent = { readonly type: 'touch' | 'blur' };
 type ValidateEvent = { readonly reason: string };
@@ -69,20 +68,20 @@ const transitions = transitionsSetup(function* (
     reading: transitionStep(function* () {
       yield* initStateMachine(() => transit());
 
-      yield* afterRecomputation(
-        context.saveStatus,
-        function* (status) {
-          if (status === 'resolved') {
-            yield* transit();
-          }
-        },
-      );
+      yield* afterRecomputation(context.saveStatus, function* (status) {
+        if (status === 'resolved') {
+          yield* transit();
+        }
+      });
     }),
 
     editing: transitionStep(function* () {
       yield* on$(context.touchEvent, function* (event) {
         yield* transit(event).pipe(
-          transitionGuard(function* ({ context: machineContext, event: touch }) {
+          transitionGuard(function* ({
+            context: machineContext,
+            event: touch,
+          }) {
             const permissions = yield* PermissionsService();
 
             return (
@@ -264,15 +263,15 @@ describe('craftStateMachine typing', () => {
     const machine = TestBed.runInInjectionContext(createMachine);
 
     type Step = ReturnType<typeof machine.currentStep>;
-    type _Step = Expect<
-      Equal<Step, 'reading' | 'editing' | 'saving'>
-    >;
+    type _Step = Expect<Equal<Step, 'reading' | 'editing' | 'saving'>>;
 
     type CurrentStepWithContext = ReturnType<
       typeof machine.currentStepWithContext
     >;
+    // The machine intersects the step discriminant with its context object, so
+    // compare the flattened shapes.
     type _CurrentStepWithContext = Expect<
-      Equal<
+      PrettifyEqual<
         CurrentStepWithContext,
         | { readonly step: 'reading'; formValid: MachineContext['formValid'] }
         | { readonly step: 'editing'; formValid: MachineContext['formValid'] }
@@ -486,7 +485,9 @@ describe('craftStateMachine bare transitions', () => {
     const machine = TestBed.runInInjectionContext(createBareMachine);
 
     type Step = ReturnType<typeof machine.currentStep>;
-    type _Step = Expect<Equal<Step, 'reading' | 'saving' | undefined>>;
+    // No `| undefined`: `initStateMachine(...)` is required at the type level,
+    // so a machine always has a step.
+    type _Step = Expect<Equal<Step, 'reading' | 'saving'>>;
 
     expect(craftUse(machine.currentStep())).toBe('reading');
   });

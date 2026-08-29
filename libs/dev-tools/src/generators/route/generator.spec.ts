@@ -145,7 +145,10 @@ describe('Craft route generators', () => {
       false,
     );
     // A Craft SFC carries its own contract, so the route has no componentDeps.
-    const routes = tree.read('apps/demo/src/app/created/created.routes.ts', 'utf8');
+    const routes = tree.read(
+      'apps/demo/src/app/created/created.routes.ts',
+      'utf8',
+    );
     expect(routes).toContain('demo-page');
     expect(routes).not.toContain('GenDeps_DemoPage');
   });
@@ -210,7 +213,7 @@ describe('Craft route generators', () => {
     const prompts: string[] = [];
 
     const result = await resolveRouteTargetOptions(
-      { path: '/created' },
+      {},
       {
         componentBase: 'apps/demo/src/app',
         ask: async (prompt) => {

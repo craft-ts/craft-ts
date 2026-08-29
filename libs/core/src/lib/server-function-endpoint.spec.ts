@@ -91,7 +91,7 @@ describe('server function endpoint transport', () => {
           json: async () => {
             throw responseError;
           },
-        }) as Response,
+        }) as unknown as Response,
     });
 
     const response = await transport({
