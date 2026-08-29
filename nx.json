@@ -18,6 +18,7 @@
   "plugins": [
     {
       "plugin": "@nx/js/typescript",
+      "exclude": [".references/**"],
       "options": {
         "typecheck": {
           "targetName": "typecheck"
@@ -32,12 +33,14 @@
     },
     {
       "plugin": "@nx/eslint/plugin",
+      "exclude": [".references/**"],
       "options": {
         "targetName": "eslint:lint"
       }
     },
     {
       "plugin": "@nx/vitest",
+      "exclude": [".references/**"],
       "options": {
         "testTargetName": "test",
         "ciTargetName": "test-ci",
@@ -46,6 +49,7 @@
     },
     {
       "plugin": "@nx/playwright/plugin",
+      "exclude": [".references/**"],
       "options": {
         "targetName": "e2e"
       }
