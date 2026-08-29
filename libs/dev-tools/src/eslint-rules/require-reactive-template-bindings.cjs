@@ -47,6 +47,23 @@ const EAGER_CALLBACK_METHODS = new Set([
   'some',
   'sort',
 ]);
+const PRESENTATION_FUNCTIONS = new Set([
+  'Boolean',
+  'Number',
+  'String',
+]);
+const PRESENTATION_METHODS = new Set([
+  'charAt',
+  'join',
+  'padEnd',
+  'padStart',
+  'slice',
+  'substring',
+  'toLowerCase',
+  'toString',
+  'toUpperCase',
+  'trim',
+]);
 
 module.exports = {
   meta: {
@@ -59,6 +76,8 @@ module.exports = {
     messages: {
       directRead:
         'Do not read a reactive value directly while building a Craft template. Wrap the rendered expression in a binding callback, for example `() => value()`.',
+      derivedCall:
+        'Do not call a derived business helper from a reactive Craft template binding. Move the derivation to state(), craftComputed(), or query(), then bind the resulting value.',
       missingTypeInfo:
         'This rule requires TypeScript type information to identify reactive template values.',
     },
@@ -104,14 +123,55 @@ module.exports = {
         }
         if (
           node.type !== 'CallExpression' ||
-          node.arguments.length !== 0 ||
-          !isReactiveRead(node) ||
-          isInsideBindingOrAction(node, template)
+          isInsideEventOrAction(node, template)
         ) {
           return;
         }
-        context.report({ node, messageId: 'directRead' });
+
+        if (node.arguments.length === 0 && isReactiveRead(node)) {
+          if (!isInsideBindingOrAction(node, template)) {
+            context.report({ node, messageId: 'directRead' });
+          }
+          return;
+        }
+
+        if (
+          node.arguments.length > 0 &&
+          isInsideReactiveBinding(node, template) &&
+          !isPresentationCall(node) &&
+          containsReactiveRead(node)
+        ) {
+          context.report({ node, messageId: 'derivedCall' });
+        }
       });
+    }
+
+    function containsReactiveRead(node) {
+      let found = false;
+      walk(node, (candidate) => {
+        if (
+          candidate !== node &&
+          candidate.type === 'CallExpression' &&
+          candidate.arguments.length === 0 &&
+          isReactiveRead(candidate)
+        ) {
+          found = true;
+          return 'skip';
+        }
+      });
+      return found;
+    }
+
+    function isPresentationCall(node) {
+      if (node.callee.type === 'Identifier') {
+        return PRESENTATION_FUNCTIONS.has(node.callee.name);
+      }
+      return (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.property.type === 'Identifier' &&
+        PRESENTATION_METHODS.has(node.callee.property.name)
+      );
     }
 
     function isReactiveRead(node) {
@@ -141,6 +201,28 @@ module.exports = {
         if (isFunctionNode(current)) {
           if (isEventOrOutputCallback(current)) return true;
           if (isReactiveBindingFunction(current)) return true;
+        }
+        current = current.parent;
+      }
+      return false;
+    }
+
+    function isInsideReactiveBinding(node, template) {
+      let current = node.parent;
+      while (current && current !== template) {
+        if (isFunctionNode(current)) {
+          return isReactiveBindingFunction(current);
+        }
+        current = current.parent;
+      }
+      return false;
+    }
+
+    function isInsideEventOrAction(node, template) {
+      let current = node.parent;
+      while (current && current !== template) {
+        if (isFunctionNode(current) && isEventOrOutputCallback(current)) {
+          return true;
         }
         current = current.parent;
       }

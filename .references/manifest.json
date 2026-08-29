@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mode": "context",
+  "effectEnabled": true,
+  "effectTs": {
+    "url": "https://github.com/Effect-TS/effect.git",
+    "requestedRef": "effect@4.0.0-rc.110",
+    "resolvedSha": "66114151c2b4640bf773f2b3456ce70d679422f6",
+    "path": ".references/effect-ts"
+  }
+}

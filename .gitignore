@@ -27,6 +27,10 @@ node_modules
 # local log server output
 /.logs
 
+# local source references for coding agents
+/.references/*
+!/.references/manifest.json
+
 # generated MCP docs corpus
 /packages/mcp/content/docs-index.json
 

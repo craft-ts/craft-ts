@@ -17,6 +17,8 @@
     "logs:server": "npm run start --workspace @craft-ts/log-server",
     "logs:mcp": "npm run start --workspace @craft-ts/log-mcp",
     "craft:mcp": "npm run start --workspace @craft-ts/mcp",
+    "update:effect-ts": "node tools/update-references.mjs",
+    "update:references": "node tools/update-references.mjs",
     "build:production": "nx run-many -t build --projects=demo,demo-effect,quickstart-effect,demo-with-server-function,demo-ssr --configuration=production --skipSync --outputStyle=stream",
     "security:check": "npx tsx libs/dev-tools/src/bin/craft.ts security check --strict",
     "deploy:check": "npx tsx libs/cli/src/bin/craft-ts.ts check --config apps/demo/craft.deploy.ts --provider github-pages --artifact && npx tsx libs/cli/src/bin/craft-ts.ts check --config apps/demo-ssr/craft.deploy.ts --provider docker --artifact",

@@ -62,6 +62,56 @@ describe('require-reactive-template-bindings', () => {
     expect(messages).toEqual([]);
   });
 
+  it('reports derived business calls inside reactive bindings', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      type Answers = { readonly selected: string };
+      declare const store: { readonly answers: CraftValue<Answers> };
+      declare function isChoiceSelected(
+        answers: Answers,
+        questionId: string,
+        choiceValue: string,
+      ): boolean;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () => ({}), () =>
+        button({
+          'data-selected': function* () {
+            return isChoiceSelected(
+              yield* store.answers(),
+              'question',
+              'choice',
+            );
+          },
+        }, 'Choice'),
+      );
+    `);
+
+    expect(messages).toEqual([
+      'Do not call a derived business helper from a reactive Craft template binding. Move the derivation to state(), craftComputed(), or query(), then bind the resulting value.',
+    ]);
+  });
+
+  it('allows presentation conversion around reactive reads', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      declare const value: CraftValue<number>;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () => ({}), () =>
+        p({
+          'data-value': function* () {
+            return String(yield* value());
+          },
+        }, 'Value'),
+      );
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('checks structural branch templates but not their nested bindings', async () => {
     const messages = await lintFixture(`
       declare const INPUT_BRAND: unique symbol;
