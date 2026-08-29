@@ -164,12 +164,10 @@ export const UserRepositoryLive = Layer.sync(UserRepositoryService)(() => ({
   byId: (userId) => findUserInDatabase(userId),
 }));
 
-export function loadUserProfile(userId: string) {
-  return Effect.gen(function* () {
-    const repository = yield* UserRepositoryService;
-    return yield* repository.byId(userId);
-  });
-}
+export const loadUserProfile = Effect.fnUntraced(function* (userId: string) {
+  const repository = yield* UserRepositoryService;
+  return yield* repository.byId(userId);
+});
 ```
 
 The resulting program carries its success value, its typed failures and its

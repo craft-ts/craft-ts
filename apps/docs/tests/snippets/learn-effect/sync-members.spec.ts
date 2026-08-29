@@ -32,11 +32,10 @@ export class CartPricing extends Context.Service<
 >()('learn-effect/CartPricing') {}
 
 export const CartPricingLive = Layer.sync(CartPricing)(() => ({
-  fetchCatalog: (skus) =>
-    Effect.gen(function* () {
-      yield* Effect.sleep('50 millis');
-      return new Map(skus.map((sku) => [sku, 1_000]));
-    }),
+  fetchCatalog: Effect.fnUntraced(function* (skus: readonly string[]) {
+    yield* Effect.sleep('50 millis');
+    return new Map(skus.map((sku) => [sku, 1_000]));
+  }),
 
   // The shape already declares these synchronous, so the implementations need
   // no ceremony: Effect<A, E, never> is assignable to Effect<A, E, SyncOp>.
@@ -50,26 +49,26 @@ export const CartPricingLive = Layer.sync(CartPricing)(() => ({
  * `R` is inferred here: `CartPricing` from the tag, `SyncOp` from the members.
  * Composition propagates the declaration — nothing to maintain by hand.
  */
-export function cartTotalLabel(lines: readonly CartLine[]) {
-  return Effect.gen(function* () {
-    const pricing = yield* CartPricing;
+export const cartTotalLabel = Effect.fnUntraced(function* (
+  lines: readonly CartLine[],
+) {
+  const pricing = yield* CartPricing;
 
-    let cents = 0;
-    for (const line of lines) {
-      cents += yield* pricing.lineTotal(line);
-    }
+  let cents = 0;
+  for (const line of lines) {
+    cents += yield* pricing.lineTotal(line);
+  }
 
-    return yield* pricing.formatPrice(cents);
-  });
-}
+  return yield* pricing.formatPrice(cents);
+});
 
 /** No marked call to inherit from, so the marker is spelled out. */
-export function cartWeight(lines: readonly CartLine[]) {
-  return Effect.gen(function* () {
-    yield* SyncOp;
-    return lines.reduce((total, line) => total + line.qty * 250, 0);
-  });
-}
+export const cartWeight = Effect.fnUntraced(function* (
+  lines: readonly CartLine[],
+) {
+  yield* SyncOp;
+  return lines.reduce((total, line) => total + line.qty * 250, 0);
+});
 // #endregion standalone
 
 // #region component

@@ -36,9 +36,7 @@ describe('installCraftEffectBridge', () => {
     factory: () => unknown,
     options: { providers?: readonly unknown[]; abortSignal?: AbortSignal } = {},
   ) => {
-    const injector = createCraftInjector(
-      (options.providers ?? []) as never,
-    );
+    const injector = createCraftInjector((options.providers ?? []) as never);
     return executeGeneratorCompatibleFactoryAsync({
       factory,
       thisArg: undefined,
@@ -61,12 +59,13 @@ describe('installCraftEffectBridge', () => {
 
     it('maps a typed failure onto the exception channel, keeping its _tag', async () => {
       const step = await drive(function* () {
-        yield* Effect.fail(new UserNotFound({ userId: 'u-1' }));
+        return yield* Effect.fail(new UserNotFound({ userId: 'u-1' }));
         return 'unreachable';
       });
 
       expect(step.kind).toBe('shortCircuit');
-      if (step.kind !== 'shortCircuit') throw new Error('expected shortCircuit');
+      if (step.kind !== 'shortCircuit')
+        throw new Error('expected shortCircuit');
       const exception = step.exception as AnyCraftException;
       expect(exception._tag).toBe('UserNotFound');
       expect((exception.payload as UserNotFound).userId).toBe('u-1');
@@ -75,7 +74,7 @@ describe('installCraftEffectBridge', () => {
     it('keeps a defect on the error channel, never as an exception', async () => {
       await expect(
         drive(function* () {
-          yield* Effect.die(new Error('kaboom'));
+          return yield* Effect.die(new Error('kaboom'));
           return 'unreachable';
         }),
       ).rejects.toThrow('kaboom');
@@ -85,7 +84,7 @@ describe('installCraftEffectBridge', () => {
       const after = vi.fn();
 
       const step = await drive(function* () {
-        yield* Effect.fail(new UserNotFound({ userId: 'u-2' }));
+        return yield* Effect.fail(new UserNotFound({ userId: 'u-2' }));
         after();
         return 'unreachable';
       });

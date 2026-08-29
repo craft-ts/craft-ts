@@ -104,13 +104,11 @@ export type Order = {
  * `translateEffect` exists for. In a component, `i18nRuntime.t` is the shorter
  * path and adds no requirement to anything.
  */
-export function renderReceipt(order: Order) {
-  return Effect.gen(function* () {
-    return {
-      heading: yield* t('receipt.heading'),
-      placed: yield* t('receipt.placed', { placedAt: order.placedAt }),
-      total: yield* t('receipt.total', { total: order.totalCents / 100 }),
-      lines: yield* t('receipt.lines', { count: order.lineCount }),
-    } satisfies Receipt;
-  });
-}
+export const renderReceipt = Effect.fnUntraced(function* (order: Order) {
+  return {
+    heading: yield* t('receipt.heading'),
+    placed: yield* t('receipt.placed', { placedAt: order.placedAt }),
+    total: yield* t('receipt.total', { total: order.totalCents / 100 }),
+    lines: yield* t('receipt.lines', { count: order.lineCount }),
+  } satisfies Receipt;
+});

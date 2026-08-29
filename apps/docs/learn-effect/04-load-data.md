@@ -28,23 +28,23 @@ export class Unauthorized extends Data.TaggedError('Unauthorized')<{
   readonly reason: string;
 }> {}
 
-export function loadUserProfile(scenario: ProfileScenario) {
-  return Effect.gen(function* () {
-    // Simulate the latency of a backend request.
-    yield* Effect.sleep('400 millis');
+export const loadUserProfile = Effect.fnUntraced(function* (
+  scenario: ProfileScenario,
+) {
+  // Simulate the latency of a backend request.
+  yield* Effect.sleep('400 millis');
 
-    switch (scenario) {
-      case 'not-found':
-        return yield* new UserNotFound({ userId: 'user-404' });
-      case 'session-expired':
-        return yield* new Unauthorized({ reason: 'session expired' });
-      case 'database-down':
-        return yield* Effect.die(new Error('database unavailable'));
-      case 'success':
-        return { name: 'Ada Lovelace' } satisfies Profile;
-    }
-  });
-}
+  switch (scenario) {
+    case 'not-found':
+      return yield* new UserNotFound({ userId: 'user-404' });
+    case 'session-expired':
+      return yield* new Unauthorized({ reason: 'session expired' });
+    case 'database-down':
+      return yield* Effect.die(new Error('database unavailable'));
+    case 'success':
+      return { name: 'Ada Lovelace' } satisfies Profile;
+  }
+});
 ```
 
 `loadUserProfile` does not run when it is declared. It returns an

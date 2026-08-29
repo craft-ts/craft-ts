@@ -32,8 +32,7 @@ export const TaskRepositoryLive = Layer.succeed(TaskRepositoryService, {
   },
 });
 
-export const loadTask = (taskId: string) =>
-  Effect.gen(function* () {
-    const repository = yield* TaskRepositoryService;
-    return yield* repository.find(taskId);
-  });
+export const loadTask = Effect.fnUntraced(function* (taskId: string) {
+  const repository = yield* TaskRepositoryService;
+  return yield* repository.find(taskId);
+});

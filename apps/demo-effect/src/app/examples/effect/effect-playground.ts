@@ -113,7 +113,7 @@ const EffectPlaygroundComponent = craftComponent(
       'todos',
       {
         params: () => 'all' as const,
-        loader: () => listTodos,
+        loader: () => listTodos(),
       },
       reloadAfterMutation,
     );

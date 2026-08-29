@@ -70,7 +70,7 @@ describe('wave-0 prototype: yield* Effect in the craft pump', () => {
 
     it('turns a typed Effect failure into a short-circuit carrying its _tag', async () => {
       const step = await drive(function* () {
-        yield* Effect.fail(new UserNotFound({ userId: 'u-1' }));
+        return yield* Effect.fail(new UserNotFound({ userId: 'u-1' }));
         return 'unreachable';
       });
 
@@ -85,7 +85,7 @@ describe('wave-0 prototype: yield* Effect in the craft pump', () => {
       const after = vi.fn();
 
       const step = await drive(function* () {
-        yield* Effect.fail(new Unauthorized({ reason: 'no token' }));
+        return yield* Effect.fail(new Unauthorized({ reason: 'no token' }));
         after();
         return 'unreachable';
       });
@@ -110,7 +110,7 @@ describe('wave-0 prototype: yield* Effect in the craft pump', () => {
     it('keeps a defect on the error channel, never as an exception', async () => {
       await expect(
         drive(function* () {
-          yield* Effect.die(new Error('kaboom'));
+          return yield* Effect.die(new Error('kaboom'));
           return 'unreachable';
         }),
       ).rejects.toThrow('kaboom');
@@ -124,10 +124,9 @@ describe('wave-0 prototype: yield* Effect in the craft pump', () => {
           query('user', {
             params: () => 'u-42',
             loader: function* ({ params }) {
-              const user = yield* Effect.fail(
+              return yield* Effect.fail(
                 new UserNotFound({ userId: params as string }),
               );
-              return user as { id: string };
             },
           }),
         );

@@ -27,11 +27,10 @@ export class Database extends Context.Service<Database, DatabaseShape>()(
  * template without throwing it from the component itself.
  */
 export const InMemoryDatabaseLive = Layer.succeed(Database, {
-  query: (_statement: string) =>
-    Effect.gen(function* () {
-      yield* Effect.sleep('700 millis');
-      return yield* new DatabaseConnectionError({
-        reason: 'the in-memory database connection is unavailable',
-      });
-    }),
+  query: Effect.fnUntraced(function* (_statement: string) {
+    yield* Effect.sleep('700 millis');
+    return yield* new DatabaseConnectionError({
+      reason: 'the in-memory database connection is unavailable',
+    });
+  }),
 });

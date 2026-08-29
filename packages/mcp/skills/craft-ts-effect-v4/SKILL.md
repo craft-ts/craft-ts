@@ -30,6 +30,14 @@ examples copied from older documentation.
 - Never declare `SyncOp` on a member that can suspend. The claim is checked by
   `craft-ts/sync-effect-body` on the body and by `Effect.runSyncExitWith` at
   runtime, which throws `CraftEffectNotSynchronous` on the first call.
+- Never use JavaScript `try/catch` inside `Effect.gen`; model failures with
+  Effect's error channel and combinators such as `Effect.result`.
+- Use `return yield*` for terminal effects such as `Effect.fail`, `Effect.die`
+  and `Effect.interrupt`.
+- Prefer `Effect.fnUntraced` for reusable functions whose implementation only
+  wraps `Effect.gen`; reserve `Effect.gen` for inline composition and one-off
+  programs.
+- Prefer the class syntax when defining `Context.Service` contracts.
 - Install `installCraftEffectBridge()` once during bootstrap.
 - Run the Effect diagnostics command from `package.json` after changing an
   Effect generator, service, schema or Layer.

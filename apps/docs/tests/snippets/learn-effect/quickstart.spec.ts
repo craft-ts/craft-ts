@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
-import {
-  installCraftEffectBridge,
-  provideLayer,
-} from '@craft-ts/effect';
+import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 // #region domain
@@ -32,11 +29,10 @@ export const UserRepositoryLive = Layer.succeed(UserRepositoryService, {
       : Effect.fail(new UserNotFound({ userId })),
 });
 
-export const loadUser = (userId: string) =>
-  Effect.gen(function* () {
-    const repository = yield* UserRepositoryService;
-    return yield* repository.find(userId);
-  });
+export const loadUser = Effect.fnUntraced(function* (userId: string) {
+  const repository = yield* UserRepositoryService;
+  return yield* repository.find(userId);
+});
 // #endregion domain
 
 // #region component
@@ -64,10 +60,7 @@ export const Profile = craftComponent(
 
 // #region bootstrap
 import { provideCraftRootComponent, bootstrapCraft } from '@craft-ts/component';
-import {
-  craftAppConfig,
-  provideAppInitializer,
-} from '@craft-ts/core';
+import { craftAppConfig, provideAppInitializer } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
   routingDeps: [],

@@ -64,24 +64,24 @@ export type ProfileScenario =
   | 'database-down';
 
 /** Mocked domain operation used to demonstrate Effect's result channels. */
-export function loadUserProfile(scenario: ProfileScenario) {
-  return Effect.gen(function* () {
-    yield* Effect.sleep('400 millis');
+export const loadUserProfile = Effect.fnUntraced(function* (
+  scenario: ProfileScenario,
+) {
+  yield* Effect.sleep('400 millis');
 
-    switch (scenario) {
-      case 'not-found':
-        return yield* new UserNotFound({ userId: 'user-404' });
-      case 'session-expired':
-        return yield* new Unauthorized({ reason: 'session expired' });
-      case 'database-down':
-        return yield* Effect.die(
-          new Error('the mock profile database is unavailable'),
-        );
-      case 'success':
-        return MOCK_USERS[0];
-    }
-  });
-}
+  switch (scenario) {
+    case 'not-found':
+      return yield* new UserNotFound({ userId: 'user-404' });
+    case 'session-expired':
+      return yield* new Unauthorized({ reason: 'session expired' });
+    case 'database-down':
+      return yield* Effect.die(
+        new Error('the mock profile database is unavailable'),
+      );
+    case 'success':
+      return MOCK_USERS[0];
+  }
+});
 
 export type AccessPolicyServiceShape = {
   readonly decide: (
@@ -95,50 +95,45 @@ export class AccessPolicyService extends Context.Service<
 >()('demo-effect/AccessPolicyService') {}
 
 export const AccessPolicyLive = Layer.sync(AccessPolicyService)(() => ({
-  decide: (userId: string) =>
-    Effect.gen(function* () {
-      yield* Effect.sleep('250 millis');
-      const user = MOCK_USERS.find((candidate) => candidate.id === userId);
-      if (!user) return yield* new UserNotFound({ userId });
+  decide: Effect.fnUntraced(function* (userId: string) {
+    yield* Effect.sleep('250 millis');
+    const user = MOCK_USERS.find((candidate) => candidate.id === userId);
+    if (!user) return yield* new UserNotFound({ userId });
 
-      switch (user.role) {
-        case 'admin':
-          return {
-            user,
-            allowed: true,
-            level: 'full',
-            label: 'Full access',
-            reason: 'The administrator role allows viewing the profile.',
-          } satisfies AccessDecision;
-        case 'member':
-          return {
-            user,
-            allowed: true,
-            level: 'read-only',
-            label: 'Read only',
-            reason: 'The member can view the profile without editing it.',
-          } satisfies AccessDecision;
-        case 'suspended':
-          return {
-            user,
-            allowed: false,
-            level: 'blocked',
-            label: 'Access blocked',
-            reason: 'The account is suspended and cannot be viewed.',
-          } satisfies AccessDecision;
-      }
-    }),
+    switch (user.role) {
+      case 'admin':
+        return {
+          user,
+          allowed: true,
+          level: 'full',
+          label: 'Full access',
+          reason: 'The administrator role allows viewing the profile.',
+        } satisfies AccessDecision;
+      case 'member':
+        return {
+          user,
+          allowed: true,
+          level: 'read-only',
+          label: 'Read only',
+          reason: 'The member can view the profile without editing it.',
+        } satisfies AccessDecision;
+      case 'suspended':
+        return {
+          user,
+          allowed: false,
+          level: 'blocked',
+          label: 'Access blocked',
+          reason: 'The account is suspended and cannot be viewed.',
+        } satisfies AccessDecision;
+    }
+  }),
 }));
 
 /** Business operation: the component does not resolve AccessPolicyService. */
-export function checkUserAccess(
-  userId: string,
-) {
-  return Effect.gen(function* () {
-    const policy = yield* AccessPolicyService;
-    return yield* policy.decide(userId);
-  });
-}
+export const checkUserAccess = Effect.fnUntraced(function* (userId: string) {
+  const policy = yield* AccessPolicyService;
+  return yield* policy.decide(userId);
+});
 
 export class SessionService extends Context.Service<
   SessionService,
@@ -169,8 +164,7 @@ export const loadTeamOverview = Effect.gen(function* () {
   return {
     teamName: team.name,
     viewerName: session.user.name,
-    viewerAccess:
-      session.user.role === 'admin' ? 'Administrator' : 'Member',
+    viewerAccess: session.user.role === 'admin' ? 'Administrator' : 'Member',
     members,
   } satisfies TeamOverview;
 });

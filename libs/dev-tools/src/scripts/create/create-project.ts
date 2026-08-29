@@ -171,6 +171,13 @@ This project deliberately uses Effect v4 (effect@${EFFECT_V4_VERSION}) and
 - production implementations are supplied by Layer;
 - UI data loading uses queryEffect, never a component-side runPromise;
 - installCraftEffectBridge() is installed once at bootstrap;
+- never use JavaScript try/catch inside Effect.gen; model failures with Effect's
+  error channel and combinators such as Effect.result;
+- use return yield* for terminal effects such as Effect.fail, Effect.die and
+  Effect.interrupt;
+- use Effect.fnUntraced for reusable functions whose body only wraps
+  Effect.gen; keep Effect.gen for inline composition and one-off programs;
+- define Context.Service contracts with the class syntax;
 - run npm run effect-check after changing an Effect generator, service or
   Layer, then run the architecture suite.
 
@@ -186,7 +193,7 @@ function referenceAgentGuidance(config?: StarterConfig): string {
   const entries = [
     config.references.craftTs ? `- CraftTS source: \`${root}/craft-ts\`` : '',
     config.references.effectTs
-      ? `- EffectTS source: \`${root}/effect-ts\``
+      ? `- EffectTS source: \`${root}/effect-ts\`\nRead \`${root}/effect-ts/.patterns/effect.md\` for the Effect library patterns.`
       : '',
   ].filter(Boolean);
   return `
@@ -2343,7 +2350,7 @@ export default HomePage;
 function effectDomainTs(context: TemplateContext): string {
   const loadImplementation =
     context.config.backendRuntime === 'none'
-      ? `  load: () => Effect.gen(function* () {
+      ? `  load: Effect.fnUntraced(function* () {
     // No backend is configured: simulate the typed API boundary locally.
     yield* Effect.sleep('10 millis');
     return {
@@ -2385,7 +2392,7 @@ export const WelcomeRepositoryLive = Layer.succeed(WelcomeRepositoryService, {
 ${loadImplementation}
 });
 
-export const loadWelcome = () => Effect.gen(function* () {
+export const loadWelcome = Effect.fnUntraced(function* () {
   const repository = yield* WelcomeRepositoryService;
   return yield* repository.load();
 });

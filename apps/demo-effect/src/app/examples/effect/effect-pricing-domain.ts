@@ -33,7 +33,9 @@ export type CartPricingShape = {
   readonly quoteShipping: (grams: number) => Effect.Effect<ShippingQuote>;
 
   /** Synchronous: business arithmetic. `SyncOp` is the whole difference. */
-  readonly lineTotalCents: (line: CartLine) => Effect.Effect<number, never, SyncOp>;
+  readonly lineTotalCents: (
+    line: CartLine,
+  ) => Effect.Effect<number, never, SyncOp>;
   readonly applyPromo: (cents: number) => Effect.Effect<number, never, SyncOp>;
   readonly formatPrice: (cents: number) => Effect.Effect<string, never, SyncOp>;
 };
@@ -44,16 +46,15 @@ export class CartPricing extends Context.Service<
 >()('demo-effect/CartPricing') {}
 
 export const CartPricingLive = Layer.succeed(CartPricing, {
-  quoteShipping: (grams: number) =>
-    Effect.gen(function* () {
-      // A carrier round-trip, mocked. This is what must never end up in a
-      // computation: the UI would freeze waiting for it.
-      yield* Effect.sleep('600 millis');
-      return {
-        carrier: 'Craft Express',
-        cents: 490 + Math.ceil(grams / 1_000) * 120,
-      };
-    }),
+  quoteShipping: Effect.fnUntraced(function* (grams: number) {
+    // A carrier round-trip, mocked. This is what must never end up in a
+    // computation: the UI would freeze waiting for it.
+    yield* Effect.sleep('600 millis');
+    return {
+      carrier: 'Craft Express',
+      cents: 490 + Math.ceil(grams / 1_000) * 120,
+    };
+  }),
 
   // The shape already declares these synchronous, so the implementations need
   // no marker: `Effect<A, E, never>` is assignable to `Effect<A, E, SyncOp>`.
@@ -77,31 +78,29 @@ export const CartPricingLive = Layer.succeed(CartPricing, {
  * `R` is inferred: `CartPricing` from the tag, `SyncOp` from the members it
  * calls. Composition propagates the declaration — there is no list to maintain.
  */
-export function cartTotalLabel(lines: readonly CartLine[]) {
-  return Effect.gen(function* () {
-    const pricing = yield* CartPricing;
+export const cartTotalLabel = Effect.fnUntraced(function* (
+  lines: readonly CartLine[],
+) {
+  const pricing = yield* CartPricing;
 
-    let cents = 0;
-    for (const line of lines) {
-      cents += yield* pricing.lineTotalCents(line);
-    }
+  let cents = 0;
+  for (const line of lines) {
+    cents += yield* pricing.lineTotalCents(line);
+  }
 
-    return yield* pricing.formatPrice(yield* pricing.applyPromo(cents));
-  });
-}
+  return yield* pricing.formatPrice(yield* pricing.applyPromo(cents));
+});
 
 /** Nothing marked to inherit from here, so the marker is spelled out. */
-export function cartWeightGrams(lines: readonly CartLine[]) {
-  return Effect.gen(function* () {
-    yield* SyncOp;
-    return lines.reduce((total, line) => total + line.qty * GRAMS_PER_ITEM, 0);
-  });
-}
+export const cartWeightGrams = Effect.fnUntraced(function* (
+  lines: readonly CartLine[],
+) {
+  yield* SyncOp;
+  return lines.reduce((total, line) => total + line.qty * GRAMS_PER_ITEM, 0);
+});
 
 /** Asynchronous program: a loader's job, never a computation's. */
-export function quoteShipping(grams: number) {
-  return Effect.gen(function* () {
-    const pricing = yield* CartPricing;
-    return yield* pricing.quoteShipping(grams);
-  });
-}
+export const quoteShipping = Effect.fnUntraced(function* (grams: number) {
+  const pricing = yield* CartPricing;
+  return yield* pricing.quoteShipping(grams);
+});

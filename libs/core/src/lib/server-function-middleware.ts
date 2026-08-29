@@ -560,19 +560,20 @@ export type MiddlewareChainHandler = (context: {
 
 type MiddlewareCacheEntry = { readonly value: unknown; readonly context: MiddlewareContext };
 
-export type MiddlewareExecutionScope = {
+export type MiddlewareExecutionScopeShape = {
   readonly execute: (middleware: AnyCraftMiddleware) => Effect.Effect<unknown, unknown, unknown>;
   readonly context: MiddlewareContext;
 };
 
-export const MiddlewareExecutionScope = Context.Service<MiddlewareExecutionScope>(
-  'craft/server-function-middleware-scope',
-);
+export class MiddlewareExecutionScope extends Context.Service<
+  MiddlewareExecutionScope,
+  MiddlewareExecutionScopeShape
+>()('craft/server-function-middleware-scope') {}
 
 function createMiddlewareExecutionScope(
   input: unknown,
   resolve: <Value>(token: ServerFunctionToken<Value>) => Value,
-): MiddlewareExecutionScope {
+): MiddlewareExecutionScopeShape {
   const cache = new Map<string, MiddlewareCacheEntry>();
   const running = new Set<string>();
   let context: MiddlewareContext = {};

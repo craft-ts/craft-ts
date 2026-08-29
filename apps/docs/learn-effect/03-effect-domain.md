@@ -31,14 +31,12 @@ export class UserRepositoryService extends Context.Service<
   UserRepository
 >()('app/UserRepository') {}
 
-export function loadUser(userId: string) {
-  return Effect.gen(function* () {
-    const repository = yield* UserRepositoryService;
-    const user = yield* repository.find(userId);
-    if (!user) return yield* new UserNotFound({ userId });
-    return user;
-  });
-}
+export const loadUser = Effect.fnUntraced(function* (userId: string) {
+  const repository = yield* UserRepositoryService;
+  const user = yield* repository.find(userId);
+  if (!user) return yield* new UserNotFound({ userId });
+  return user;
+});
 ```
 
 The program has the shape `Effect<User, UserNotFound, UserRepositoryService>`.
@@ -52,7 +50,7 @@ business exception.
 idiomatic form inside `Effect.gen`:
 
 ```typescript
-if (!user) return yield* new UserNotFound({ userId });
+if (!user) return yield * new UserNotFound({ userId });
 ```
 
 The explicit equivalent is `yield* Effect.fail(new UserNotFound({ userId }))`;
@@ -67,7 +65,9 @@ Use `Context.Service` for the contract and a `Layer` for the implementation:
 import { Context, Effect, Layer } from 'effect';
 
 type AccessPolicy = {
-  readonly decide: (userId: string) => Effect.Effect<AccessDecision, UserNotFound>;
+  readonly decide: (
+    userId: string,
+  ) => Effect.Effect<AccessDecision, UserNotFound>;
 };
 
 export class AccessPolicyService extends Context.Service<
@@ -79,12 +79,10 @@ export const AccessPolicyLive = Layer.sync(AccessPolicyService)(() => ({
   decide: (userId) => findAccessDecision(userId),
 }));
 
-export function checkUserAccess(userId: string) {
-  return Effect.gen(function* () {
-    const policy = yield* AccessPolicyService;
-    return yield* policy.decide(userId);
-  });
-}
+export const checkUserAccess = Effect.fnUntraced(function* (userId: string) {
+  const policy = yield* AccessPolicyService;
+  return yield* policy.decide(userId);
+});
 ```
 
 The component calls `checkUserAccess`; it does not call `AccessPolicyService`
@@ -96,10 +94,8 @@ When a Craft factory genuinely needs a service member, narrow it explicitly with
 ```typescript
 import { effectService } from '@craft-ts/effect';
 
-const { decide } = yield* effectService(
-  AccessPolicyService,
-  ({ decide }) => ({ decide }),
-);
+const { decide } =
+  yield * effectService(AccessPolicyService, ({ decide }) => ({ decide }));
 ```
 
 Prefer exposing a domain operation such as `checkUserAccess` to a component. The
@@ -116,10 +112,12 @@ query resource:
 import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 
-const accessQuery = yield* queryEffect('accessQuery', {
-  params: () => 'user-ada',
-  loader: ({ params }) => checkUserAccess(params),
-});
+const accessQuery =
+  yield *
+  queryEffect('accessQuery', {
+    params: () => 'user-ada',
+    loader: ({ params }) => checkUserAccess(params),
+  });
 
 const accessLabel = craftComputed('accessLabel', function* () {
   return (yield* accessQuery.value())?.label ?? 'Loading…';
@@ -139,7 +137,7 @@ not say whether running it will suspend.
 
 It is worse than it looks for a service member. A `Layer` closes over the
 member's dependencies when it builds the service, so a member that calls the
-network and a member that adds two numbers *both* surface as `R = never`:
+network and a member that adds two numbers _both_ surface as `R = never`:
 
 <<< @/tests/snippets/learn-effect/sync-members.spec.ts#domain
 
@@ -218,7 +216,7 @@ preserving its typed error channel:
 import { Effect } from 'effect';
 import { runEffect } from '@craft-ts/effect';
 
-const name = yield* runEffect(Effect.succeed('Ada'));
+const name = yield * runEffect(Effect.succeed('Ada'));
 ```
 
 Use the adapters in the next chapters for application data. They resolve the

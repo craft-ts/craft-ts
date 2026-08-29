@@ -201,6 +201,7 @@ describe('createCraftProject', () => {
     const agents = await readFile(join(result.directory, 'AGENTS.md'), 'utf8');
     expect(agents).toContain('.references/craft-ts');
     expect(agents).toContain('.references/effect-ts');
+    expect(agents).toContain('.references/effect-ts/.patterns/effect.md');
     expect(agents).toContain(
       'always import CraftTS and EffectTS from the npm dependencies',
     );
@@ -553,6 +554,18 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('Effect v4');
+    expect(
+      await readFile(
+        join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('Effect.fnUntraced');
+    expect(
+      await readFile(
+        join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('return yield*');
     expect(
       await readFile(join(result.directory, 'README.md'), 'utf8'),
     ).toContain('effect-check');

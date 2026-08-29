@@ -15,7 +15,14 @@ import {
   type ExtractCraftGenExceptions,
 } from '@craft-ts/core';
 import { Data, Effect } from 'effect';
-import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+} from 'vitest';
 import type { EffectExceptionOf } from './effect-exceptions';
 import { installCraftEffectBridge, runEffect } from './run-effect';
 
@@ -119,7 +126,7 @@ describe('0.1-b — the runtime still agrees with the types', () => {
     const injector = createCraftInjector([]);
     const step = await executeGeneratorCompatibleFactoryAsync({
       factory: function* () {
-        yield* runEffect(Effect.fail(new UserNotFound({ id: 'u-9' })));
+        return yield* runEffect(Effect.fail(new UserNotFound({ id: 'u-9' })));
         return 'unreachable';
       },
       thisArg: undefined,
