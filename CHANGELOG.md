@@ -1,3 +1,13 @@
+## 0.7.0-beta.21 (2026-08-29)
+
+### 🩹 Fixes
+
+- exclude vendored references from nx graph ([1796136b8](https://github.com/craft-ts/craft-ts/commit/1796136b8))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.20 (2026-08-29)
 
 ### 🚀 Features
