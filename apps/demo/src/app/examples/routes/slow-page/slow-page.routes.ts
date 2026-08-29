@@ -121,7 +121,7 @@ export const { slowPageRoutes } = craftRoutes(
           return redirectUrl('/login-form');
         }),
       },
-    ) as never,
+    ),
   ],
 );
 

@@ -102,7 +102,7 @@ export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
         return redirectUrl('/view-transitions');
       }),
     },
-  ) as never,
+  ),
   // Pin this lazy child collection to its mount path: the `loadChildren` slot of
   // the `view-transitions` route in `app.routes` only accepts a collection
   // branded for that exact path — a wrong placement is a compile error.
