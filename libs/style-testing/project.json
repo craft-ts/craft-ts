@@ -16,7 +16,9 @@
       }
     },
     "nx-release-publish": {
-      "options": { "packageRoot": "dist/{projectRoot}" }
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
     },
     "test": {
       "executor": "nx:run-commands",
@@ -25,6 +27,23 @@
         "forwardAllArgs": true
       }
     },
-    "lint": { "executor": "@nx/eslint:lint", "options": { "maxWarnings": -1 } }
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/style-testing/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    }
   }
 }

@@ -14,7 +14,8 @@
       "executor": "nx:run-commands",
       "dependsOn": [
         "compile-learn-effect-examples",
-        "typecheck-learn-effect-snippets"
+        "typecheck-learn-effect-snippets",
+        "typecheck-app-start-snippets"
       ],
       "options": {
         "command": "vitest run --config apps/docs/vitest.config.mts"
@@ -42,6 +43,32 @@
         "{projectRoot}/tsconfig.learn-effect.json",
         "{projectRoot}/tests/snippets/learn-effect/**/*.ts"
       ]
+    },
+    "typecheck-app-start-snippets": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs/tsconfig.app-start-snippets.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.app-start-snippets.json",
+        "{projectRoot}/tests/snippets/guide/app/app-start/**/*.ts"
+      ],
+      "cache": true
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/tests/**/*.ts",
+        "{projectRoot}/.vitepress/config.mts",
+        "{projectRoot}/vitest.config.mts"
+      ],
+      "cache": true
     },
     "typecheck-architecture-docs": {
       "executor": "nx:run-commands",

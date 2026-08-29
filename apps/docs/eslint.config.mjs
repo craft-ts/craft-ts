@@ -11,7 +11,7 @@ export default [
     files: ['**/tests/snippets/**/*.spec.ts'],
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.spec.json'],
+        project: ['./tsconfig.spec.json', './tsconfig.app-start-snippets.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

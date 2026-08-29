@@ -23,6 +23,19 @@
         "forwardAllArgs": true
       }
     },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/cli/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {

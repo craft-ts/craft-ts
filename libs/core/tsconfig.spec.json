@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "../../dist/out-tsc",
+    "noEmit": true,
     "types": ["vitest/globals", "node"],
     "target": "es2022",
     "module": "esnext",

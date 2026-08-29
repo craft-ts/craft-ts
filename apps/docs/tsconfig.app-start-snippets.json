@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vitest/globals", "node"],
+    "erasableSyntaxOnly": false
+  },
+  "include": [
+    "tests/snippets/guide/app/app-start/**/*.ts",
+    "tests/snippets/snippet-harness.ts"
+  ]
+}

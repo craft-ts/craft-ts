@@ -55,6 +55,21 @@
       "options": {
         "packageRoot": "dist/{projectRoot}"
       }
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/dev-tools/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/tests/**/*.ts",
+        "{projectRoot}/vitest.config.mts"
+      ],
+      "cache": true
     }
   }
 }
