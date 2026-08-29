@@ -1,3 +1,13 @@
+## 0.7.0-beta.22 (2026-08-29)
+
+### 🩹 Fixes
+
+- **release:** sync Effect demo i18n dependencies ([03e358965](https://github.com/craft-ts/craft-ts/commit/03e358965))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.21 (2026-08-29)
 
 ### 🩹 Fixes
