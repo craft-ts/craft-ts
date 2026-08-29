@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "473865d6f4924615",
+  "graphHash": "18bd5675e38f4057",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -18,6 +18,7 @@ export const architectureCatalog = {
     "HostName",
     "LocalStoragePersister",
     "LocalStorageService",
+    "MiddlewareExecutionScope",
     "ServerFunctionTransport",
     "SessionStoragePersister",
     "SessionStorageService",
@@ -59,6 +60,10 @@ export const architectureCatalog = {
   "providedOn": {},
   "collisions": {
     "services": {
+      "MiddlewareExecutionScope": [
+        "libs/core/src/lib/server-function-middleware.ts",
+        "libs/core/src/lib/server-function-middleware.ts"
+      ],
       "TaskRepositoryService": [
         "apps/quickstart-effect/src/app/task-domain.ts",
         "apps/quickstart-effect/src/app/task-domain.ts"
