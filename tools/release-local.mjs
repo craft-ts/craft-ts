@@ -240,9 +240,13 @@ export function syncEffectDemoWorkspace(
   targetManifest.dependencies['@craft-ts/core'] = version;
   targetManifest.dependencies['@craft-ts/component'] = version;
   targetManifest.dependencies['@craft-ts/effect'] = version;
+  targetManifest.dependencies['@craft-ts/i18n'] = version;
+  targetManifest.dependencies['@craft-ts/i18n-effect'] = version;
   targetManifest.dependencies.effect = effectVersion;
   delete targetManifest.dependencies['@craft-ts/dev-tools'];
   targetManifest.devDependencies['@craft-ts/dev-tools'] = version;
+  targetManifest.devDependencies.rxjs = '^7.8.0';
+  targetManifest.devDependencies.tslib = '^2.3.0';
   writeJson(targetManifestPath, targetManifest);
 
   removeDemoPackageLock(targetDemoRoot);

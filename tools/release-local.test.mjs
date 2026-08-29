@@ -312,7 +312,7 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
   }
 });
 
-test('mirrors the frontend Effect demo and pins CraftTS plus Effect dependencies', () => {
+test('mirrors the frontend Effect demo and pins CraftTS, i18n, and Effect dependencies', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-effect-demo-sync-'));
   const source = join(temporaryRoot, 'source');
   const target = join(temporaryRoot, 'target');
@@ -352,11 +352,18 @@ test('mirrors the frontend Effect demo and pins CraftTS plus Effect dependencies
     assert.equal(manifest.dependencies['@craft-ts/core'], '0.7.0-beta.11');
     assert.equal(manifest.dependencies['@craft-ts/component'], '0.7.0-beta.11');
     assert.equal(manifest.dependencies['@craft-ts/effect'], '0.7.0-beta.11');
+    assert.equal(manifest.dependencies['@craft-ts/i18n'], '0.7.0-beta.11');
+    assert.equal(
+      manifest.dependencies['@craft-ts/i18n-effect'],
+      '0.7.0-beta.11',
+    );
     assert.equal(manifest.dependencies.effect, '^4.0.0-rc.110');
     assert.equal(
       manifest.devDependencies['@craft-ts/dev-tools'],
       '0.7.0-beta.11',
     );
+    assert.equal(manifest.devDependencies.rxjs, '^7.8.0');
+    assert.equal(manifest.devDependencies.tslib, '^2.3.0');
     assert.equal(
       readFileSync(join(target, '.gitignore'), 'utf8')
         .split('\n')
