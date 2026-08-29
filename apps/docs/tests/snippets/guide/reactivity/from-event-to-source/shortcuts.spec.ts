@@ -6,6 +6,7 @@ useSnippetHarness();
 
 // #region shortcuts
 import { craftComponent, p } from '@craft-ts/component';
+import { fromEventToSource$ } from '@craft-ts/core';
 
 interface ShortcutEvent {
   key: string;

@@ -13,28 +13,34 @@ type Task = { id: string; title: string; done: boolean };
 export const Tasks = craftComponent(
   'Tasks', // name: stable component name used by tooling and host tags
   {}, // meta: providers, styles and host configuration
-  function* () { // logic factory: creates the component context
-    const tasks = yield* state('tasks', [ // name: state identifier
+  function* () {
+    // logic factory: creates the component context
+    const tasks = yield* state('tasks', [
+      // name: state identifier
       { id: '1', title: 'Read step 1', done: false },
     ] as Task[]); // initial value: the seeded task list
 
     return { tasks };
   },
-  ({ tasks }) => [ // template: turns the context into rendered nodes
+  ({ tasks }) => [
+    // template: turns the context into rendered nodes
     h1('Tasks'),
     ul(
       forNode(
         tasks, // source: the reactive collection to render
         { track: (task) => task.id }, // options: stable identity for each item
-        (task) => li(task.title), // render: creates one node per task
+        // render: creates one node per task
+        (task) =>
+          li(function* () {
+            return (yield* task()).title;
+          }),
       ),
     ),
   ],
 );
 // #endregion tasks-component
 
-beforeAll(() => {
-});
+beforeAll(() => {});
 
 beforeEach(() => {
   TestBed.resetTestingModule();

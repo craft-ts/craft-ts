@@ -33,9 +33,6 @@ describe('Learn 05 TaskList query', () => {
   it('exposes a named query service', async () => {
     const { sut } = await setupCraftServiceTestingByRegister(TaskList, {
       TaskList: 'real',
-      CraftHttpClient: {
-        get: () => [],
-      },
     });
 
     expect(sut).toBeDefined();

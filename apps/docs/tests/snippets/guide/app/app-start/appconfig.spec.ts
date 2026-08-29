@@ -5,7 +5,12 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region appconfig
-import { Console, craftAppConfig, craftService, onAppStart } from '@craft-ts/core';
+import {
+  Console,
+  craftAppConfig,
+  craftService,
+  onAppStart,
+} from '@craft-ts/core';
 
 const { AppStartLog } = craftService(
   {
@@ -30,6 +35,7 @@ declare module '@craft-ts/core' {
 }
 
 export const appConfig = craftAppConfig({
+  routingDeps: [],
   appStart: { AppStartLog },
 });
 // #endregion appconfig

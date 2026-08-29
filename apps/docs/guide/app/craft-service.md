@@ -73,7 +73,6 @@ Each scope and when to pick it: **[Service scopes](/guide/app/service-scopes)**.
 
 <<< @/tests/snippets/guide/app/craft-service/example-3.spec.ts#example-3
 
-
 ## Returning one primitive directly
 
 When a service exposes only one primitive, the factory can return its generator
@@ -81,11 +80,7 @@ directly. `craftService` drives it and the generated service helper returns the
 primitive reference:
 
 ```typescript
-import {
-  craftService,
-  query,
-  type CraftServiceInput,
-} from '@craft-ts/core';
+import { craftService, query, type CraftServiceInput } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
@@ -162,7 +157,6 @@ This is separate from `provideUserFacade()`, which is only generated for provide
 
 <<< @/tests/snippets/guide/app/craft-service/example-7.spec.ts#example-7
 
-
 ## Shaping the public API
 
 `yield* X()` can expose only part of a dependency, and `X.property()` derives a
@@ -179,8 +173,7 @@ single one. See **[Shaping a service's public API](/guide/app/expose-api)**.
 
 The callback can be a plain function or a generator function. Use the generator form when startup logic needs to `yield*` crafted dependencies:
 
-<<< @/tests/snippets/guide/app/craft-service/appconfig.spec.ts#appconfig
-
+<<< @/tests/snippets/guide/app/app-start/appconfig.spec.ts#appconfig
 
 Dependencies used only inside that callback are still tracked on the parent service.
 

@@ -5,14 +5,8 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region submitdemo
-import {
-  button,
-  craftComponent,
-  form,
-  input,
-  p,
-} from '@craft-ts/component';
-import { state } from '@craft-ts/core';
+import { button, craftComponent, form, input, p } from '@craft-ts/component';
+import { fromEventToSource$, on$, state } from '@craft-ts/core';
 
 export const SubmitDemo = craftComponent(
   'SubmitDemo',

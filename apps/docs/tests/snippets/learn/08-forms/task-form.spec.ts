@@ -26,7 +26,7 @@ export const { TaskForm } = craftService(
           'title',
           insertNoopTypingAnchor,
           insertFormAttributes(() => ({
-            validators: [cRequired(), cMaxLength(80)],
+            validators: [cRequired(), cMaxLength({ maxLength: 80 })],
           })),
         ),
         insertSelectFormTree(

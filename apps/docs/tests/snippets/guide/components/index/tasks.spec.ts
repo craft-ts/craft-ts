@@ -19,13 +19,18 @@ export const Tasks = craftComponent(
   },
   ({ tasks }) => [
     h1('Tasks'),
-    ul(forNode(tasks, { track: (task) => task.id }, (task) => li(task.title))),
+    ul(
+      forNode(tasks, { track: (task) => task.id }, (task) =>
+        li(function* () {
+          return (yield* task()).title;
+        }),
+      ),
+    ),
   ],
 );
 // #endregion tasks
 
-beforeAll(() => {
-});
+beforeAll(() => {});
 
 beforeEach(() => {
   TestBed.resetTestingModule();

@@ -1,5 +1,13 @@
-import { defineConfig } from 'vitepress';
+import { defineConfig, type UserConfig } from 'vitepress';
 import llmstxt from 'vitepress-plugin-llms';
+
+/**
+ * VitePress bundles its own copy of Vite, so a plugin built against the
+ * workspace copy carries a structurally identical but distinct `Plugin` type.
+ */
+type VitePressVitePlugins = NonNullable<
+  NonNullable<UserConfig['vite']>['plugins']
+>;
 
 const learnSidebar = [
   {
@@ -537,6 +545,6 @@ export default defineConfig({
         domain: 'https://craft-ts.github.io',
         ignoreFiles: ['public/**', 'README.md'],
       }),
-    ],
+    ] as unknown as VitePressVitePlugins,
   },
 });

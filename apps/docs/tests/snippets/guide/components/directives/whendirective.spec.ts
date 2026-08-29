@@ -14,6 +14,9 @@ import {
   div,
   p,
 } from '@craft-ts/component';
+import { craftSignal } from '@craft-ts/core';
+
+const isVisible = craftSignal(true);
 
 const whenDirective = craftDirective(
   'whenDirective',
@@ -40,7 +43,9 @@ const Panel = craftComponent(
 ).pipe(whenDirective);
 
 Panel({
-  when: () => isVisible(),
+  when: function* () {
+    return isVisible();
+  },
 });
 // #endregion whendirective
 

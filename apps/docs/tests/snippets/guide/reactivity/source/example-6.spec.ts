@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-6
-import { craftService, source, state } from '@craft-ts/core';
+import { craftService, on$, source$, state } from '@craft-ts/core';
 
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },

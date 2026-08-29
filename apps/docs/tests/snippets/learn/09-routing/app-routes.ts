@@ -13,3 +13,11 @@ export const { appRoutes } = craftRoutes('app', [
   },
 ]);
 // #endregion app-routes
+
+// The typed path registry the router helpers read. In a real application the
+// craft-ts ESLint plugin writes this block for you.
+declare module '@craft-ts/core' {
+  interface CraftRouterRoutesRegistry {
+    LearnRoutingRoutes: readonly [{ path: 'tasks' }, { path: 'tasks/:taskId' }];
+  }
+}

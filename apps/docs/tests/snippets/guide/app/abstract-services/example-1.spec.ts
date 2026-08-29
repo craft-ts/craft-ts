@@ -13,7 +13,7 @@ type CounterContract = {
 };
 
 const { CounterRequirement } = craftService(
-  { name: 'Counter', scope: 'abstract' },
+  { name: 'Counter', providedIn: 'abstract' },
   abstract<CounterContract>(),
 );
 // #endregion example-1

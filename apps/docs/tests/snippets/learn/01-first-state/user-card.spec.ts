@@ -27,18 +27,21 @@ const UserCard = craftComponent(
   ({ user, onRemove }) =>
     div([
       span(user.name),
-      button('remove', {
-        type: 'button',
-        *click() {
-          yield* onRemove(yield* user());
+      button(
+        'remove',
+        {
+          type: 'button',
+          *click() {
+            yield* onRemove(yield* user());
+          },
         },
-      }, 'Remove'),
+        'Remove',
+      ),
     ]),
 );
 // #endregion user-card
 
-beforeAll(() => {
-});
+beforeAll(() => {});
 
 beforeEach(() => {
   TestBed.resetTestingModule();
@@ -51,7 +54,7 @@ describe('Learn 01 UserCard snippet', () => {
         function* () {
           return { name: 'Ada' };
         },
-        (_user: User) => undefined,
+        ((_user: User) => undefined) as Output<(user: User) => void>,
       ],
       register: {},
     });

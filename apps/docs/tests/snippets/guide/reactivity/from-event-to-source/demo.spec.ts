@@ -6,6 +6,7 @@ useSnippetHarness();
 
 // #region demo
 import { craftComponent, p } from '@craft-ts/component';
+import { fromEventToSource$ } from '@craft-ts/core';
 
 export const Demo = craftComponent(
   'Demo',

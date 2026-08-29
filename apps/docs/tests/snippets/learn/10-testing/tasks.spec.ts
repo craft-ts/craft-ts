@@ -14,12 +14,16 @@ type Task = { id: string; title: string; done: boolean };
 const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    const tasks = yield* state('tasks', [] as Task[], ({ update: _update }) => ({
-      remaining: () => 0,
-      add: (_title: string) => undefined,
-      toggle: (_id: string) => undefined,
-      remove: (_id: string) => undefined,
-    }));
+    const tasks = yield* state(
+      'tasks',
+      [] as Task[],
+      ({ update: _update }) => ({
+        remaining: () => 0,
+        add: (_title: string) => undefined,
+        toggle: (_id: string) => undefined,
+        remove: (_id: string) => undefined,
+      }),
+    );
     return tasks;
   },
 );
@@ -39,10 +43,10 @@ export const Tasks = craftComponent(
       return `Tasks — ${yield* tasks.remaining()} left`;
     }),
     ul(
-      forNode(
-        tasks,
-        { track: (task) => task.id },
-        (task) => li(task.title),
+      forNode(tasks, { track: (task) => task.id }, (task) =>
+        li(function* () {
+          return (yield* task()).title;
+        }),
       ),
     ),
   ],
