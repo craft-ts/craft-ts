@@ -1,5 +1,4 @@
 import { Context, Data, Effect, Layer } from 'effect';
-import { effectService } from '@craft-ts/effect';
 
 export type EffectTodo = {
   readonly id: number;
@@ -63,28 +62,4 @@ export const TodoStoreLive = Layer.sync(TodoStore)(() => {
       return { ...removed };
     }),
   } satisfies TodoStoreShape;
-});
-
-export const listTodos = Effect.fnUntraced(function* () {
-  const { list } = yield* effectService(TodoStore, ({ list }) => ({ list }));
-  return yield* list;
-});
-
-export const createTodo = Effect.fnUntraced(function* (title: string) {
-  const { add } = yield* effectService(TodoStore, ({ add }) => ({ add }));
-  return yield* add(title);
-});
-
-export const toggleTodo = Effect.fnUntraced(function* (id: number) {
-  const { toggle } = yield* effectService(TodoStore, ({ toggle }) => ({
-    toggle,
-  }));
-  return yield* toggle(id);
-});
-
-export const removeTodo = Effect.fnUntraced(function* (id: number) {
-  const { remove } = yield* effectService(TodoStore, ({ remove }) => ({
-    remove,
-  }));
-  return yield* remove(id);
 });

@@ -16,14 +16,14 @@ import {
   insertReactOnMutation,
   state,
 } from '@craft-ts/core';
-import { mutationEffect, queryEffect } from '@craft-ts/effect';
 import {
-  createTodo,
-  listTodos,
-  removeTodo,
+  mutationEffect,
+  queryEffect,
+} from '@craft-ts/effect';
+import { Effect } from 'effect';
+import {
   type TodoNotFound,
   TodoStore,
-  toggleTodo,
   type EffectTodo,
 } from './effect-playground-domain';
 
@@ -65,7 +65,11 @@ const EffectPlaygroundComponent = craftComponent(
       TodoStore
     >('addTodo', {
       method: (title: string) => title.trim(),
-      loader: ({ params }) => createTodo(params),
+      loader: ({ params }) =>
+        Effect.gen(function* () {
+          const { add } = yield* TodoStore;
+          return yield* add(params);
+        }),
     });
     const toggleTodoMutation = yield* mutationEffect<
       'toggleTodo',
@@ -76,7 +80,11 @@ const EffectPlaygroundComponent = craftComponent(
       TodoStore
     >('toggleTodo', {
       method: (id: number) => id,
-      loader: ({ params }) => toggleTodo(params),
+      loader: ({ params }) =>
+        Effect.gen(function* () {
+          const { toggle } = yield* TodoStore;
+          return yield* toggle(params);
+        }),
     });
     const removeTodoMutation = yield* mutationEffect<
       'removeTodo',
@@ -87,7 +95,11 @@ const EffectPlaygroundComponent = craftComponent(
       TodoStore
     >('removeTodo', {
       method: (id: number) => id,
-      loader: ({ params }) => removeTodo(params),
+      loader: ({ params }) =>
+        Effect.gen(function* () {
+          const { remove } = yield* TodoStore;
+          return yield* remove(params);
+        }),
     });
     // The Effect adapter's insertion overload cannot infer the query value
     // through a composed core insertion, so keep the runtime-safe pipe at the
@@ -114,7 +126,11 @@ const EffectPlaygroundComponent = craftComponent(
       'todos',
       {
         params: () => 'all' as const,
-        loader: () => listTodos(),
+        loader: () =>
+          Effect.gen(function* () {
+            const { list } = yield* TodoStore;
+            return yield* list;
+          }),
       },
       reloadAfterMutation,
     );

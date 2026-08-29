@@ -6,9 +6,8 @@ import { Cause, Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectPlaygroundComponent from './effect-playground';
 import {
-  listTodos,
-  removeTodo,
   TodoNotFound,
+  TodoStore,
   TodoStoreLive,
 } from './effect-playground-domain';
 
@@ -69,9 +68,10 @@ describe('demo: Effect playground', () => {
   it('returns TodoNotFound without deleting another todo', async () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {
-        const before = yield* listTodos();
-        const removal = yield* Effect.exit(removeTodo(999));
-        const after = yield* listTodos();
+        const todoStore = yield* TodoStore;
+        const before = yield* todoStore.list;
+        const removal = yield* Effect.exit(todoStore.remove(999));
+        const after = yield* todoStore.list;
         return { after, before, removal };
       }).pipe(Effect.provide(TodoStoreLive)),
     );

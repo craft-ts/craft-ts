@@ -19,8 +19,10 @@ import { SupportTeamLive } from './shared/access-domain';
 import type { checkUserAccess, loadTeamOverview } from './shared/access-domain';
 import { InMemoryDatabaseLive } from './examples/effect/effect-database';
 import type { getData } from './examples/effect/effect-function';
-import { TodoStoreLive } from './examples/effect/effect-playground-domain';
-import type { listTodos } from './examples/effect/effect-playground-domain';
+import {
+  TodoStore,
+  TodoStoreLive,
+} from './examples/effect/effect-playground-domain';
 import { CartPricingLive } from './examples/effect/effect-pricing-domain';
 import type { cartTotalLabel } from './examples/effect/effect-pricing-domain';
 import { I18nLive } from './shared/i18n-domain';
@@ -239,7 +241,7 @@ type _CanRunTeamOverviewRequirements = CanRun<_CheckTeamOverviewRequirements>;
 
 // `/playground` resolves its local TodoStore from the route-scoped Layer.
 type _CheckTodoPlaygroundRequirements = EffectRequirementsCheckedDI<
-  Effect.Services<typeof listTodos>,
+  Effect.Services<typeof TodoStore>,
   | AppProvidedEffectServices
   | ProvidedEffectServicesOfRoute<typeof demoEffectRoutes._routes, 'playground'>
 >;

@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "4fc30f21309605cc",
+  "graphHash": "428d6739c2060760",
   "routes": [
     "",
     "access",
