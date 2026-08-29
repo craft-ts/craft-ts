@@ -6,7 +6,7 @@ useSnippetHarness();
 
 // #region submitdemo
 import { button, craftComponent, form, input, p } from '@craft-ts/component';
-import { fromEventToSource$, on$, state } from '@craft-ts/core';
+import { craftComputed, fromEventToSource$, on$, state } from '@craft-ts/core';
 
 export const SubmitDemo = craftComponent(
   'SubmitDemo',
@@ -23,9 +23,12 @@ export const SubmitDemo = craftComponent(
     const formData = yield* state(
       'formData',
       null as Record<string, unknown> | null,
-      ({ set }) => ({
+      ({ state, set }) => ({
         // bound to the source, so NOT exposed on the ref
         handleSubmit: on$(submit$, (data) => set(data)),
+        formDataJson: craftComputed('formDataJson', function* () {
+          return JSON.stringify(yield* state());
+        }),
       }),
     );
 
@@ -35,9 +38,7 @@ export const SubmitDemo = craftComponent(
     form([
       input('username', { type: 'text', name: 'username' }),
       button('submit', { type: 'submit' }, 'Submit'),
-      p(function* () {
-        return JSON.stringify(yield* formData());
-      }),
+      p(formData.formDataJson),
     ]),
 );
 // #endregion submitdemo
