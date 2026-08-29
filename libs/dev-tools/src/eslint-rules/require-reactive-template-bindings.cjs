@@ -47,11 +47,7 @@ const EAGER_CALLBACK_METHODS = new Set([
   'some',
   'sort',
 ]);
-const PRESENTATION_FUNCTIONS = new Set([
-  'Boolean',
-  'Number',
-  'String',
-]);
+const PRESENTATION_FUNCTIONS = new Set(['Boolean', 'Number', 'String']);
 const PRESENTATION_METHODS = new Set([
   'charAt',
   'join',
@@ -63,6 +59,11 @@ const PRESENTATION_METHODS = new Set([
   'toString',
   'toUpperCase',
   'trim',
+]);
+const SAFE_TEMPLATE_CALLS = new Set([
+  'safeUrl',
+  'safeResourceUrl',
+  'safeUrlList',
 ]);
 
 module.exports = {
@@ -164,7 +165,10 @@ module.exports = {
 
     function isPresentationCall(node) {
       if (node.callee.type === 'Identifier') {
-        return PRESENTATION_FUNCTIONS.has(node.callee.name);
+        return (
+          PRESENTATION_FUNCTIONS.has(node.callee.name) ||
+          SAFE_TEMPLATE_CALLS.has(node.callee.name)
+        );
       }
       return (
         node.callee.type === 'MemberExpression' &&

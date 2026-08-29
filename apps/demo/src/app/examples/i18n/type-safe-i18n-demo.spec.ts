@@ -9,7 +9,7 @@ import type {
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import TypeSafeI18nDemo from './type-safe-i18n-demo';
-import { I18n } from './i18n.service';
+import { I18n } from './i18n-runtime.service';
 import type {
   ClientCurrency,
   DemoOrderTranslationDependencies,

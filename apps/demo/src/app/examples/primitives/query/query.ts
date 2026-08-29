@@ -47,11 +47,16 @@ const GlobalQuery = craftComponent(
       insertQueryPipe(
         ({ resource }) => ({
           hasUser: craftComputed('hasUser', () => resource.hasValue()),
+          userValueJson: craftComputed('userValueJson', function* () {
+            return JSON.stringify(yield* resource.value(), null, 2);
+          }),
         }),
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'user-query',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app',
+            key: 'user-query',
+          }),
+        ),
       ),
     );
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
@@ -82,9 +87,7 @@ const GlobalQuery = craftComponent(
         'User ',
         StatusComponent({ status: userQuery.status }),
         ifNode(userQuery.hasUser, () =>
-          pre('QueryValue', {}, function* () {
-            return JSON.stringify(yield* userQuery.value(), null, 2);
-          }),
+          pre('QueryValue', {}, userQuery.userValueJson),
         ),
       ]),
       p(
@@ -94,16 +97,12 @@ const GlobalQuery = craftComponent(
       div({ class: 'query-actions' }, [
         button(
           'GoToPreviousUser',
-          { type: 'button',
-            click: navigatePrevious,
-          },
+          { type: 'button', click: navigatePrevious },
           'Previous user',
         ),
         button(
           'GoToNextUser',
-          { type: 'button',
-            click: navigateNext,
-          },
+          { type: 'button', click: navigateNext },
           'Next user',
         ),
       ]),

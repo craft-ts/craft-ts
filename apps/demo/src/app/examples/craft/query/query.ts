@@ -36,10 +36,12 @@ const { UserQuery } = craftService(
           return yield* ApiService.getItemById(params as string);
         },
       },
-      insertStoragePersister(craftUnique({
-        storeName: 'demo-app-craft',
-        key: 'user-query',
-      })),
+      insertStoragePersister(
+        craftUnique({
+          storeName: 'demo-app-craft',
+          key: 'user-query',
+        }),
+      ),
     );
   },
 );
@@ -74,19 +76,18 @@ const CraftGlobalQuery = craftComponent(
       });
     });
     const hasUser = craftComputed('hasUser', () => user.hasValue());
-    return { user, hasUser, navigate };
+    const userValueJson = craftComputed('userValueJson', function* () {
+      return JSON.stringify(yield* user.value(), null, 2);
+    });
+    return { user, hasUser, userValueJson, navigate };
   },
-  ({ user, hasUser, navigate }) =>
+  ({ user, hasUser, userValueJson, navigate }) =>
     div({ class: 'query-shell' }, [
       heading('User query'),
       div({ class: 'query-result' }, [
         'User ',
         StatusComponent({ status: user.status }),
-        ifNode(hasUser, () =>
-          pre('QueryValue', {}, function* () {
-            return JSON.stringify(yield* user.value(), null, 2);
-          }),
-        ),
+        ifNode(hasUser, () => pre('QueryValue', {}, userValueJson)),
       ]),
       p(
         { class: 'query-note' },
@@ -95,7 +96,8 @@ const CraftGlobalQuery = craftComponent(
       div({ class: 'query-actions' }, [
         button(
           'GoToPreviousUser',
-          { type: 'button',
+          {
+            type: 'button',
             *click() {
               yield* navigate(-1);
             },
@@ -104,7 +106,8 @@ const CraftGlobalQuery = craftComponent(
         ),
         button(
           'GoToNextUser',
-          { type: 'button',
+          {
+            type: 'button',
             *click() {
               yield* navigate(1);
             },

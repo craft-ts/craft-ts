@@ -51,10 +51,12 @@ export const { provideUserMutation, UserMutation } = craftService(
         preservePreviousValue: () => true,
       },
       insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app-craft',
-          key: 'mutation',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app-craft',
+            key: 'mutation',
+          }),
+        ),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams }: { mutationParams: { name: string } }) =>
@@ -82,6 +84,9 @@ const MutationCraft = craftComponent(
       setName: (value: string) => set(value),
     }));
     const hasUser = craftComputed('hasUser', () => store.user.hasValue());
+    const userValueJson = craftComputed('userValueJson', function* () {
+      return JSON.stringify(yield* store.user.value(), null, 2);
+    });
     const updateUserNameFn = craftMethod(
       'updateUserNameFn',
       function* (newName: string) {
@@ -89,7 +94,7 @@ const MutationCraft = craftComponent(
           undefined,
           ({ user, updateUserName }) => ({ user, updateUserName }),
         );
-          const _uservalue = yield* user.value();
+        const _uservalue = yield* user.value();
         const userValue = _uservalue;
         if (userValue) {
           yield* updateUserName.mutate({
@@ -113,21 +118,26 @@ const MutationCraft = craftComponent(
       nameInput,
       setName: nameInput.setName,
       hasUser,
+      userValueJson,
       updateUserNameFn,
       navigate,
     };
   },
-  ({ store, nameInput, setName, hasUser, updateUserNameFn, navigate }) => {
+  ({
+    store,
+    nameInput,
+    setName,
+    hasUser,
+    userValueJson,
+    updateUserNameFn,
+    navigate,
+  }) => {
     return div([
       heading('Update user'),
       div([
         'User ',
         StatusComponent({ status: store.user.status }),
-        ifNode(hasUser, () =>
-          pre('UserValue', {}, function* () {
-            return JSON.stringify(yield* store.user.value(), null, 2);
-          }),
-        ),
+        ifNode(hasUser, () => pre('UserValue', {}, userValueJson)),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input('NameInput', {
@@ -140,7 +150,8 @@ const MutationCraft = craftComponent(
       }),
       button(
         'UpdateUserNameButton',
-        { type: 'button',
+        {
+          type: 'button',
           class: 'update-user-name',
           disabled: store.updateUserName.isLoading,
           *click() {
@@ -156,7 +167,8 @@ const MutationCraft = craftComponent(
       ),
       button(
         'PreviousUser',
-        { type: 'button',
+        {
+          type: 'button',
           *click() {
             yield* navigate(-1);
           },
@@ -165,7 +177,8 @@ const MutationCraft = craftComponent(
       ),
       button(
         'NextUser',
-        { type: 'button',
+        {
+          type: 'button',
           *click() {
             yield* navigate(1);
           },

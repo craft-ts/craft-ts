@@ -1,12 +1,6 @@
-import {
-  BrowserDocument,
-  craftComputed,
-  craftService,
-  state,
-} from '@craft-ts/core';
+import { craftComputed, craftService, state } from '@craft-ts/core';
 import {
   compactNumber,
-  createI18nRuntime,
   dateLong,
   dateShort,
   dateTime,
@@ -240,44 +234,5 @@ const frenchCatalog = defineLocaleLike(englishLocale, 'fr-FR', {
   },
 });
 
-const locales = [englishLocale, frenchCatalog] as const;
+export const locales = [englishLocale, frenchCatalog] as const;
 export type DemoLocale = LocaleId<(typeof locales)[number]>;
-
-/**
- * The demo has one active locale for the whole application. Components consume
- * this service instead of creating a local translation binding.
- */
-export const { I18n } = craftService(
-  { name: 'I18n', providedIn: 'global' },
-  function* () {
-    const runtime = createI18nRuntime({ locales, defaultLocale: 'en-US' });
-    const language = yield* state(
-      'language',
-      'en-US' as DemoLocale,
-      ({ set }) => {
-        const setLocale = function* (next: DemoLocale) {
-          runtime.setLocale(next);
-          yield* set(next);
-          yield* BrowserDocument.setLang(next);
-        };
-
-        return {
-          setLocale,
-          change: function* (event: Event) {
-            const next = (event.target as HTMLSelectElement)
-              .value as DemoLocale;
-            yield* setLocale(next);
-          },
-        };
-      },
-    );
-
-    const translate = runtime.bind(language);
-
-    return {
-      language,
-      setLocale: language.setLocale,
-      translate,
-    };
-  },
-);

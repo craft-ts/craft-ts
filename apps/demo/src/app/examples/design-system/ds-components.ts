@@ -13,13 +13,12 @@
 import {
   button as buttonEl,
   craftComponent,
-  div,
-  span,
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { assign, unit } from '@craft-ts/style';
-import { alert, button, meter, meterVars } from './components.style';
+import { button } from './components.style';
+
+export { DsAlert, DsMeter } from './ds-components.alert-meter';
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 export type Size = 'sm' | 'md' | 'lg';
@@ -75,62 +74,3 @@ export const DsGhostButton = craftComponent(
 );
 
 export type DsGhostButton = typeof DsGhostButton;
-
-/** A banner whose accent colour is one variable written by the tone axis. */
-export const DsAlert = craftComponent(
-  'DsAlert',
-  {},
-  (message: Input<string>, tone: Input<Tone>) => ({ message, tone }),
-  ({ message, tone }) =>
-    div(
-      {
-        class: alert.root,
-        role: 'status',
-        'data-tone': tone,
-      },
-      message,
-    ),
-);
-
-export type DsAlert = typeof DsAlert;
-
-/**
- * The dynamic half of the system, in one component.
- *
- * The fill width comes from a signal, so it cannot be a class — there is no
- * finite set of widths to emit at build time. It goes through a `<percentage>`
- * custom property instead, written with `assign(...)`. The browser validates
- * the value because the property is registered; a length would simply not
- * apply, rather than applying wrongly.
- */
-export const DsMeter = craftComponent(
-  'DsMeter',
-  {},
-  (value: Input<number>, caption: Input<string>) => ({ value, caption }),
-  ({ value, caption }) =>
-    div({ class: meter.root }, [
-      div(
-        {
-          class: meter.track,
-          role: 'progressbar',
-          'aria-valuemin': 0,
-          'aria-valuemax': 100,
-          'aria-valuenow': value,
-          'aria-label': caption,
-        },
-        [
-          div({
-            class: meter.fill,
-            style: function* () {
-              return assign(meterVars.value, unit.pct(yield* value()));
-            },
-          }),
-        ],
-      ),
-      span({ class: meter.label }, function* () {
-        return `${yield* caption()} — ${yield* value()}%`;
-      }),
-    ]),
-);
-
-export type DsMeter = typeof DsMeter;

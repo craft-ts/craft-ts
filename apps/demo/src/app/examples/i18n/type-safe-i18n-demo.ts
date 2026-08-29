@@ -13,10 +13,10 @@ import {
 } from '@craft-ts/component';
 import {
   ClientCurrency,
-  I18n,
   provideClientCurrency,
   provideClientUnits,
 } from './i18n.service';
+import { I18n } from './i18n-runtime.service';
 
 const ORDER_DATE = new Date('2026-08-25T14:30:00Z');
 const LAST_SYNC_DAYS = -2;

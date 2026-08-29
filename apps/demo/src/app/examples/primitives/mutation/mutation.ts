@@ -56,11 +56,16 @@ const MutationDemoComponent = craftComponent(
       insertQueryPipe(
         ({ resource }) => ({
           hasUser: craftComputed('hasUser', () => resource.hasValue()),
+          userValueJson: craftComputed('userValueJson', function* () {
+            return JSON.stringify(yield* resource.value(), null, 2);
+          }),
         }),
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'mutation',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app',
+            key: 'mutation',
+          }),
+        ),
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams }: { mutationParams: { name: string } }) =>
@@ -69,7 +74,6 @@ const MutationDemoComponent = craftComponent(
         }),
       ),
     );
-
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
@@ -84,7 +88,7 @@ const MutationDemoComponent = craftComponent(
       if (!name) {
         return;
       }
-        const _userQueryvalue = yield* userQuery.value();
+      const _userQueryvalue = yield* userQuery.value();
       const user = _userQueryvalue;
       if (user) {
         yield* updateUserName.mutate({
@@ -110,9 +114,7 @@ const MutationDemoComponent = craftComponent(
         'User ',
         StatusComponent({ status: userQuery.status }),
         ifNode(userQuery.hasUser, () =>
-          pre('UserValue', {}, function* () {
-            return JSON.stringify(yield* userQuery.value(), null, 2);
-          }),
+          pre('UserValue', {}, userQuery.userValueJson),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
@@ -126,7 +128,8 @@ const MutationDemoComponent = craftComponent(
       }),
       button(
         'UpdateUserNameButton',
-        { type: 'button',
+        {
+          type: 'button',
           class: 'update-user-name',
           disabled: updateUserName.isLoading,
           click: function* () {
@@ -142,12 +145,22 @@ const MutationDemoComponent = craftComponent(
       ),
       button(
         'PreviousUser',
-        { type: 'button', click: function* () { yield* goTo(-1); } },
+        {
+          type: 'button',
+          click: function* () {
+            yield* goTo(-1);
+          },
+        },
         'Previous user',
       ),
       button(
         'NextUser',
-        { type: 'button', click: function* () { yield* goTo(1); } },
+        {
+          type: 'button',
+          click: function* () {
+            yield* goTo(1);
+          },
+        },
         'Next user',
       ),
     ]);

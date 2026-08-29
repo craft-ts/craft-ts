@@ -1,7 +1,5 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import {
-  Signal,
-} from '@craft-ts/core';
+import { Signal } from '@craft-ts/core';
 import {
   article,
   craftComponent,
@@ -12,10 +10,7 @@ import {
   span,
   type Input,
 } from '@craft-ts/component';
-import {
-  craftComputed,
-  injectCraftViewTransition,
-} from '@craft-ts/core';
+import { craftComputed, injectCraftViewTransition } from '@craft-ts/core';
 import { findPhoto, type Photo } from './photos';
 
 type TransitionPayload = {
@@ -36,9 +31,8 @@ const ViewTransitionsSkeletonComponent = craftComponent(
     `,
   },
   (photoId: Input<string>) => {
-    const viewTransition = injectCraftViewTransition() as unknown as Signal<
-      TransitionPayload | null
-    >;
+    const viewTransition =
+      injectCraftViewTransition() as unknown as Signal<TransitionPayload | null>;
     const hasImage = craftComputed(
       'hasImage',
       () =>
