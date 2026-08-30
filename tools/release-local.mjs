@@ -51,26 +51,32 @@ export function releasePeerDependencyRange(version) {
   return release.preid ? `^${base}-${release.preid}.0` : `^${base}`;
 }
 
-function syncInternalPeerDependencyRanges(version) {
+function syncInternalDependencyRanges(version) {
   const releaseRange = releasePeerDependencyRange(version);
   const releasePackageNames = new Set(releasePackages.map(({ name }) => name));
 
   for (const pkg of releasePackages) {
     const manifest = readJson(join(workspaceRoot, pkg.sourceManifest));
-    const peerDependencies = manifest.peerDependencies ?? {};
     let changed = false;
 
-    for (const dependency of Object.keys(peerDependencies)) {
-      if (!releasePackageNames.has(dependency)) continue;
-      if (peerDependencies[dependency] === releaseRange) continue;
-      peerDependencies[dependency] = releaseRange;
-      changed = true;
+    for (const field of [
+      'dependencies',
+      'optionalDependencies',
+      'peerDependencies',
+    ]) {
+      const dependencies = manifest[field] ?? {};
+      let fieldChanged = false;
+      for (const dependency of Object.keys(dependencies)) {
+        if (!releasePackageNames.has(dependency)) continue;
+        if (dependencies[dependency] === releaseRange) continue;
+        dependencies[dependency] = releaseRange;
+        fieldChanged = true;
+        changed = true;
+      }
+      if (fieldChanged) manifest[field] = dependencies;
     }
 
-    if (changed) {
-      manifest.peerDependencies = peerDependencies;
-      writeJson(join(workspaceRoot, pkg.sourceManifest), manifest);
-    }
+    if (changed) writeJson(join(workspaceRoot, pkg.sourceManifest), manifest);
   }
 }
 
@@ -607,7 +613,7 @@ async function main(args) {
     },
   });
   runAffectedReleaseTests();
-  if (!dryRun) syncInternalPeerDependencyRanges(release.version);
+  if (!dryRun) syncInternalDependencyRanges(release.version);
 
   process.stdout.write(
     `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n- Effect StackBlitz: ${effectDemoRepo}\n`,
