@@ -35,7 +35,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@craft-ts/dev-tools": "^0.7.0-beta.0",
+    "@craft-ts/dev-tools": "^0.8.0",
     "@modelcontextprotocol/sdk": "1.26.0",
     "zod": "4.3.6"
   },

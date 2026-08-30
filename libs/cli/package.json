@@ -39,7 +39,7 @@
     "craft-ts": "./src/bin/craft-ts.js"
   },
   "dependencies": {
-    "@craft-ts/deploy": "^0.7.0-beta.0"
+    "@craft-ts/deploy": "^0.8.0"
   },
   "peerDependencies": {
     "typescript": ">=5.4.0"
