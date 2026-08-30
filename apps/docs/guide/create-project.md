@@ -223,6 +223,24 @@ npm run architecture
 npm run build
 ```
 
+### Generated architecture rules
+
+The generated `eslint.config.mjs` imports `@craft-ts/dev-tools/eslint-rules`
+and activates the selected `recommended` or `effect` preset. These presets
+enforce the same architecture as the generated project guide:
+
+- remote reads and writes stay directly in query or mutation loaders; they
+  must not be hidden in `craftMethod`;
+- resource loaders infer their result instead of using casts such as
+  `as PromiseLike<...>`;
+- route-visible filters, search, sort and pagination use route-level
+  `queryParams`, not component-local `state`;
+- template event handlers emit one `source$`; query, mutation and state react
+  through `on$` instead of chaining imperative method calls.
+
+The generated agent skill repeats these boundaries so new features follow the
+same rules. Run `npm run lint` after generation to verify the project.
+
 With a backend, `src/server/application.ts` owns the registry and runtime
 Layer, while `src/server/node-http.ts` is only the Node stream adapter.
 `server.ts` re-exports both for compatibility. In the backend-only Effect

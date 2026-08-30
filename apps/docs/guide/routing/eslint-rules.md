@@ -67,6 +67,10 @@ export default [
       'craft-ts/no-throw': 'error',
       'craft-ts/no-imperative-craft-resource-trigger': 'error',
       'craft-ts/no-imperative-craft-method-actions': 'error',
+      'craft-ts/no-remote-work-in-craft-method': 'error',
+      'craft-ts/no-type-assertions-in-resource-loader': 'error',
+      'craft-ts/no-imperative-template-action-chain': 'error',
+      'craft-ts/prefer-route-query-params-for-filter-state': 'error',
       'craft-ts/no-imperative-storage-in-craft-method': 'error',
       'craft-ts/no-transition-actions': 'error',
       'craft-ts/require-craft-resource-trigger-yield': 'error',
@@ -111,6 +115,10 @@ What each rule does:
 - `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ts/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).
 - `craft-ts/no-imperative-craft-method-actions`: forbids composing multiple imperative actions in a `craftMethod`; emit a `source$` event and let the affected query react with `insertReactOnMutation(...)` instead. A handler such as `event.preventDefault()` followed by one `mutation.mutate(...)` remains valid.
+- `craft-ts/no-remote-work-in-craft-method`: forbids `CraftHttpClient.*(...)` inside `craftMethod`; define the request directly in the `query` or `mutation` loader so the resource owns its remote lifecycle.
+- `craft-ts/no-type-assertions-in-resource-loader`: forbids `as ...` and angle-bracket assertions inside `query`, `mutation`, and `asyncProcess` loaders; repair the request or adapter typing instead of forcing a `PromiseLike<...>` contract.
+- `craft-ts/no-imperative-template-action-chain`: forbids chaining multiple Craft actions in one template event callback; emit one `source$` event and let the query, mutation, and state react through `on$`.
+- `craft-ts/prefer-route-query-params-for-filter-state`: flags local `state()` declarations whose name is `filter`/`filters`; declare route-visible filters with route-level `queryParams` and feed the query reactively.
 - `craft-ts/no-imperative-storage-in-craft-method`: forbids direct storage access and imperative location changes in a `craftMethod`; use `insertReactOnMutation(...)` with `optimisticUpdate: () => undefined` to clear the affected query and let its persistence follow the query state.
 - `craft-ts/no-transition-actions`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` inside `transitionStep(...)`; validate the event and emit a source, then let the resource react to that source.
 - `craft-ts/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls

@@ -407,6 +407,15 @@ describe('createCraftProject', () => {
     ).toContain('craftRules.configs.recommended.rules');
     expect(
       await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).toContain('remote placement');
+    expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).toContain('filter params');
+    expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).toContain('source-driven template actions');
+    expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
     ).toContain('craftRules.configs.security.rules');
     expect(
       await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
@@ -574,6 +583,12 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
     ).toContain('craftRules.configs.effect.rules');
+    expect(
+      await readFile(
+        join(result.directory, '.agents/skills/craft-ts-effect-v4/SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('route-level');
   });
 
   it('shares Effect i18n helpers with an Effect backend and plain frontend', async () => {

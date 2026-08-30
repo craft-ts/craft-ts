@@ -12,7 +12,6 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Dedicated demo UI styles. */
 import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {

@@ -113,14 +113,21 @@ bootstrapCraft.
 1. Read the existing component, route and API boundary before editing.
 2. Use query for server reads, mutation for writes, and CraftHttpClient
    for transport. Yield every Craft reader.
-3. Use craftComponent, craftRoutes, componentDeps and the route DI proof;
+   Put CraftHttpClient calls directly in the owning query or mutation loader;
+   never hide remote work in craftMethod and never silence loader typing with
+   an \`as PromiseLike<...>\` assertion.
+3. Put route-visible filters, search, sort and pagination in route-level
+   queryParams. Do not keep them in component-local state.
+4. In template event handlers, emit one source$ event and let query, mutation
+   and state react through on$. Do not chain imperative Craft actions there.
+5. Use craftComponent, craftRoutes, componentDeps and the route DI proof;
    do not introduce Angular decorators or inject().
-4. Keep translations in src/i18n/catalog.ts. Add locales with
+6. Keep translations in src/i18n/catalog.ts. Add locales with
    defineLocaleLike and project-specific tokens in project-tokens.ts.
    @craft-ts/i18n integrates with CraftTS: a token may resolve a service or
    parse its parameter with a Standard Schema. Do not import Effect for plain
    translations. Run npm run i18n:check and npm run i18n:test after changes.
-5. Keep visual rules in a *.style.ts sheet under src/app/ui/. A sheet may
+7. Keep visual rules in a *.style.ts sheet under src/app/ui/. A sheet may
    import @craft-ts/style vocabulary and nothing else; the build plugin
    evaluates it in Node. Static variation goes to a class the emitter wrote
    at build time; dynamic variation goes through a typed custom property.
@@ -130,13 +137,13 @@ bootstrapCraft.
    browser is a visual state nothing recorded, which is what no-raw-class,
    no-free-has, no-raw-css-value and style-file-boundary exist to prevent.
    Components read theme variables, never palette tokens directly.
-6. Run the focused test, then npm run lint and fix every lint error before
+8. Run the focused test, then npm run lint and fix every lint error before
    continuing. Keep derived values on their owning Craft primitive, read
    reactive values through the documented bindings, give every button an
    explicit type, and declare Node globals in Node-only scripts. Then run
    npm run typecheck and npm run architecture; run npm run e2e only after
    those checks pass and only when the browser flow changed.
-7. Keep the generated development surface enabled: 'npm run logs:server'
+9. Keep the generated development surface enabled: 'npm run logs:server'
    stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
    to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
    Do not replace 'Console.*' with raw 'console.*' when an entry must be
@@ -168,6 +175,13 @@ This project deliberately uses Effect v4 (effect@${EFFECT_V4_VERSION}) and
 - domain operations return Effect.Effect and depend on Context.Service;
 - production implementations are supplied by Layer;
 - UI data loading uses queryEffect, never a component-side runPromise;
+- remote reads and writes belong directly in the corresponding queryEffect or
+  mutationEffect loader; never wrap CraftHttpClient in craftMethod or cast the
+  loader result with \`as PromiseLike<...>\`;
+- route-visible filters, search, sort and pagination use route-level
+  queryParams;
+- template event handlers emit one source$ event and let query, mutation and
+  state react through on$ instead of chaining imperative method calls;
 - installCraftEffectBridge() is installed once at bootstrap;
 - never use JavaScript try/catch inside Effect.gen; model failures with Effect's
   error channel and combinators such as Effect.result;
@@ -765,6 +779,8 @@ export default tseslint.config(
       },
     },
     rules: {
+      // This preset enforces remote placement, loader inference, route-level
+      // filter params and source-driven template actions.
       ...craftRules.configs.${effect ? 'effect' : 'recommended'}.rules,
 ${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\n      ...craftRules.configs.i18n.rules,\n' : ''}      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
 ${effect ? '' : "      'craft-ts/no-effect-import-in-frontend': 'error',"}
