@@ -43,6 +43,7 @@ export default [
       'craft-ts/require-primitive-derived-property': 'off',
       'craft-ts/require-reduced-motion': 'off',
       'craft-ts/require-yieldable-reactive-read': 'off',
+      'craft-ts/prefer-route-query-params-for-filter-state': 'off',
     },
   },
   {
