@@ -46,6 +46,23 @@ export default [
     },
   },
   {
+    // These teaching examples deliberately show the adapter boundary where
+    // route/input values are narrowed before calling the demo API.
+    files: [
+      '**/src/app/examples/craft/mutation/mutation.ts',
+      '**/src/app/examples/craft/query/query.ts',
+      '**/src/app/examples/primitives/exceptions/exceptions.ts',
+      '**/src/app/examples/primitives/mutation/mutation.ts',
+      '**/src/app/examples/primitives/query/query.ts',
+      '**/src/app/examples/routes/slow-page/slow-page.routes.ts',
+      '**/src/app/examples/routes/view-transitions/view-transitions.routes.ts',
+      '**/src/app/guard/auth.guard.ts',
+    ],
+    rules: {
+      'craft-ts/no-type-assertions-in-resource-loader': 'off',
+    },
+  },
+  {
     // These boundaries intentionally expose synchronous JavaScript-style
     // error contracts instead of the application's no-throw contract.
     files: [
