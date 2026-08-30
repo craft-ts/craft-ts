@@ -99,6 +99,9 @@
     "version": {
       "manifestRootsToUpdate": ["{projectRoot}"],
       "currentVersionResolver": "git-tag",
+      "versionActionsOptions": {
+        "skipLockFileUpdate": true
+      },
       "git": {
         "commit": false,
         "tag": false

@@ -80,6 +80,48 @@ function syncInternalDependencyRanges(version) {
   }
 }
 
+function syncWorkspacePackageLock() {
+  const lockPath = join(workspaceRoot, 'package-lock.json');
+  const lock = readJson(lockPath);
+  let changed = false;
+  const fields = [
+    'name',
+    'version',
+    'dependencies',
+    'optionalDependencies',
+    'peerDependencies',
+    'peerDependenciesMeta',
+    'devDependencies',
+    'bin',
+    'engines',
+  ];
+
+  for (const pkg of releasePackages) {
+    const lockKey = pkg.sourceManifest.replace(/\/package\.json$/, '');
+    const lockedManifest = lock.packages?.[lockKey];
+    if (!lockedManifest) continue;
+
+    const manifest = readJson(join(workspaceRoot, pkg.sourceManifest));
+    for (const field of fields) {
+      const value = manifest[field];
+      if (value === undefined) {
+        if (lockedManifest[field] !== undefined) {
+          delete lockedManifest[field];
+          changed = true;
+        }
+        continue;
+      }
+      if (JSON.stringify(lockedManifest[field]) === JSON.stringify(value)) {
+        continue;
+      }
+      lockedManifest[field] = value;
+      changed = true;
+    }
+  }
+
+  if (changed) writeJson(lockPath, lock);
+}
+
 function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
   const sourceConfig = join(sourceDemoRoot, 'eslint.config.standalone.mjs');
   if (!existsSync(sourceConfig)) {
@@ -640,6 +682,7 @@ async function main(args) {
     );
   } else {
     run('npx', ['nx', 'release', 'version', release.version]);
+    syncWorkspacePackageLock();
     run('npx', ['nx', 'release', 'changelog', release.version]);
   }
   run('npx', [
