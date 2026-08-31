@@ -13,6 +13,7 @@ import {
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
   assertPrimitiveLoaderRequirements,
+  assertResourceParamsPreferQueryParams,
   assertRouteDiProofs,
   assertServerFunctionArchitecture,
   sensitiveOutputProtectionViolations,
@@ -235,6 +236,10 @@ describe('architecture', () => {
       // query and must satisfy the Effect service requirement.
       allow: ['currentUserQuery'],
     });
+  });
+
+  it('keeps resource params URL-backed', () => {
+    assertResourceParamsPreferQueryParams(graph.graph);
   });
 
   it('requires craftUnique on every persisted primitive', () => {

@@ -1847,6 +1847,213 @@ export function assertQueryMutationHasServerState(
   });
 }
 
+export type ResourceParamsStateSelector =
+  | string
+  | {
+      readonly name: string;
+      readonly file?: string;
+    };
+
+export type ResourceParamsStateOptions = {
+  /** Resource primitives whose params must not depend on local state. */
+  readonly primitives?: readonly string[];
+  /** Intentional state dependencies, preferably narrowed with a file path. */
+  readonly allow?: readonly ResourceParamsStateSelector[];
+};
+
+export type ResourceParamsStateViolation = {
+  resource: string;
+  resourcePrimitive: string;
+  state: string;
+  stateFilePath?: string;
+  stateLine?: number;
+  filePath?: string;
+  line?: number;
+  path: readonly string[];
+};
+
+const RESOURCE_PARAMS_STATE_PRIMITIVES = [
+  'query',
+  'queryEffect',
+  'asyncProcess',
+  'asyncProcessEffect',
+] as const;
+
+export function resourceParamsStateViolations(
+  graph: DependencyGraph,
+  options: ResourceParamsStateOptions = {},
+): ResourceParamsStateViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const primitives = new Set(
+    options.primitives ?? RESOURCE_PARAMS_STATE_PRIMITIVES,
+  );
+  const allow = options.allow ?? [];
+  const violations: ResourceParamsStateViolation[] = [];
+
+  for (const resource of graph.nodes) {
+    if (
+      resource.kind !== 'primitive' ||
+      typeof resource.details?.['primitive'] !== 'string' ||
+      !primitives.has(resource.details['primitive'])
+    ) {
+      continue;
+    }
+
+    const paramsEdges = graph.edges.filter(
+      (edge) =>
+        edge.from === resource.id &&
+        edge.kind === 'depends-on' &&
+        edge.details?.['resourceRole'] === 'params',
+    );
+    for (const edge of paramsEdges) {
+      const queue: { id: string; path: string[] }[] = [
+        {
+          id: edge.to,
+          path: [resource.label, nodesById.get(edge.to)?.label ?? edge.to],
+        },
+      ];
+      const visited = new Set<string>();
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || visited.has(current.id)) continue;
+        visited.add(current.id);
+
+        const state = statePrimitiveForNode(graph, current.id, nodesById);
+        if (state) {
+          if (!isAllowedResourceParamsState(graph, state, allow)) {
+            violations.push({
+              resource: resource.label,
+              resourcePrimitive: String(resource.details?.['primitive']),
+              state: state.label,
+              stateFilePath: relativeGraphPath(graph, state.filePath),
+              stateLine: state.line,
+              filePath: relativeGraphPath(graph, resource.filePath),
+              line: resource.line,
+              path: current.path,
+            });
+          }
+          continue;
+        }
+
+        for (const dependency of graph.edges) {
+          if (dependency.from !== current.id || dependency.kind !== 'depends-on') {
+            continue;
+          }
+          const target = nodesById.get(dependency.to);
+          queue.push({
+            id: dependency.to,
+            path: [...current.path, target?.label ?? dependency.to],
+          });
+        }
+      }
+    }
+  }
+
+  const unique = new Map<string, ResourceParamsStateViolation>();
+  for (const violation of violations) {
+    const key = `${violation.resource}:${violation.state}`;
+    if (!unique.has(key)) unique.set(key, violation);
+  }
+  return [...unique.values()];
+}
+
+export function assertResourceParamsPreferQueryParams(
+  graph: DependencyGraph,
+  options: ResourceParamsStateOptions = {},
+): void {
+  const violations = resourceParamsStateViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        const path = violation.path.join(' -> ');
+        const stateAt = [violation.stateFilePath, violation.stateLine]
+          .filter(Boolean)
+          .join(':');
+        return `Resource ${violation.resource} params depend on state ${violation.state}${stateAt ? ` (${stateAt})` : ''} through ${path}${at ? ` (${at})` : ''}. Prefer queryParams(...), or add this intentional state to the architecture allow list.`;
+      })
+      .join('\n'),
+  );
+}
+
+function statePrimitiveForNode(
+  graph: DependencyGraph,
+  nodeId: string,
+  nodesById: Map<string, DependencyGraphNode>,
+  visited = new Set<string>(),
+): DependencyGraphNode | undefined {
+  if (visited.has(nodeId)) return undefined;
+  visited.add(nodeId);
+  const node = nodesById.get(nodeId);
+  if (
+    node?.kind === 'primitive' &&
+    node.details?.['primitive'] === 'state'
+  ) {
+    return node;
+  }
+  if (node?.kind === 'property') {
+    const member = String(node.details?.['member'] ?? '').split('.')[0];
+    if (member) {
+      const owner = containingServiceForNode(graph, nodeId, nodesById);
+      const state = graph.nodes.find(
+        (candidate) =>
+          candidate.kind === 'primitive' &&
+          candidate.details?.['primitive'] === 'state' &&
+          candidate.details?.['ownerId'] === owner?.id &&
+          candidate.details?.['name'] === member,
+      );
+      if (state) return state;
+    }
+  }
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'contains' || edge.to !== nodeId) continue;
+    const state = statePrimitiveForNode(graph, edge.from, nodesById, visited);
+    if (state) return state;
+  }
+  return undefined;
+}
+
+function containingServiceForNode(
+  graph: DependencyGraph,
+  nodeId: string,
+  nodesById: Map<string, DependencyGraphNode>,
+  visited = new Set<string>(),
+): DependencyGraphNode | undefined {
+  if (visited.has(nodeId)) return undefined;
+  visited.add(nodeId);
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'contains' || edge.to !== nodeId) continue;
+    const owner = nodesById.get(edge.from);
+    if (owner?.kind === 'service') return owner;
+    const service = containingServiceForNode(graph, edge.from, nodesById, visited);
+    if (service) return service;
+  }
+  return undefined;
+}
+
+function isAllowedResourceParamsState(
+  graph: DependencyGraph,
+  state: DependencyGraphNode,
+  allow: readonly ResourceParamsStateSelector[],
+): boolean {
+  const name = String(state.details?.['name'] ?? state.label);
+  const label = state.label;
+  const file = relativeGraphPath(graph, state.filePath);
+  return allow.some((selector) => {
+    if (typeof selector === 'string') {
+      return selector === name || selector === label || selector === state.id;
+    }
+    return (
+      (selector.name === name || selector.name === label || selector.name === state.id) &&
+      (selector.file === undefined || selector.file === file || selector.file === state.filePath)
+    );
+  });
+}
+
 export function craftEffectNetworkViolations(
   graph: DependencyGraph,
 ): CraftEffectNetworkViolation[] {

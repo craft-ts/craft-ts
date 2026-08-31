@@ -13,6 +13,7 @@ import {
   assertNoAppConfigRouteCycles,
   assertPersistedPrimitiveHasUnique,
   assertQueryMutationHasServerState,
+  assertResourceParamsPreferQueryParams,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
 } from '@craft-ts/dev-tools';
@@ -70,6 +71,10 @@ describe('demo-ssr architecture', () => {
       // renderer boundary itself rather than an HTTP/server-function client.
       allow: ['ssrData', 'deferredData', 'clientOnlyData'],
     });
+  });
+
+  it('keeps resource params URL-backed', () => {
+    assertResourceParamsPreferQueryParams(graph.graph);
   });
 
   it('requires craftUnique on every persisted primitive', () => {

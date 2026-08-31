@@ -38,6 +38,8 @@ import {
   pathBoundaryViolations,
   primitiveLoaderRequirementViolations,
   queryMutationServerStateViolations,
+  resourceParamsStateViolations,
+  assertResourceParamsPreferQueryParams,
   persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
   serverFunctionArchitectureViolations,
@@ -98,6 +100,7 @@ declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
 declare function mutation(...args: unknown[]): unknown;
 declare function asyncProcess(...args: unknown[]): unknown;
+declare function queryParams(...args: unknown[]): unknown;
 declare function craftUnique<T>(value: T): T;
 declare function insertStoragePersister(...args: unknown[]): unknown;
 declare function insertReactOnMutation(...args: unknown[]): unknown;
@@ -1225,6 +1228,102 @@ describe('resource loader requirements', () => {
 });
 
 describe('declarative architecture rules', () => {
+  it('finds state used by resource params through a computed and supports narrow allow lists', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+
+        const { Users } = craftService(
+          { name: 'Users', providedIn: 'global' },
+          function* () {
+            const search = yield* state('search', '');
+            const page = yield* state('page', 1);
+            const params = craftComputed('usersParams', function* () {
+              return {
+                search: yield* search(),
+                page: yield* page(),
+              };
+            });
+            function* utilityParams() {
+              return { search: yield* search() };
+            }
+            yield* query('users', {
+              params,
+              loader: () => Promise.resolve([]),
+            });
+            yield* query('utilityUsers', {
+              params: utilityParams,
+              loader: () => Promise.resolve([]),
+            });
+            yield* asyncProcess('refresh', {
+              params: () => search(),
+              loader: () => Promise.resolve(undefined),
+            });
+            yield* query('fromQueryParams', {
+              params: yield* queryParams('filters', { state: {} }),
+              loader: () => Promise.resolve([]),
+            });
+            return {};
+          },
+        );
+      `,
+    });
+
+    expect(resourceParamsStateViolations(graph.graph).map((v) => [v.resource, v.state])).toEqual([
+      ['asyncProcess:refresh', 'state:search'],
+      ['query:users', 'state:search'],
+      ['query:users', 'state:page'],
+      ['query:utilityUsers', 'state:search'],
+    ]);
+    expect(() => assertResourceParamsPreferQueryParams(graph.graph)).toThrow(
+      /Resource query:users params depend on state state:search/,
+    );
+    expect(() =>
+      assertResourceParamsPreferQueryParams(graph.graph, {
+        allow: [
+          { name: 'search', file: 'app.ts' },
+          { name: 'page', file: 'app.ts' },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it('finds state exposed by a service in another file', async () => {
+    const graph = await graphOf({
+      'filters.ts': `
+        ${STUBS}
+        export const { FilterStore } = craftService(
+          { name: 'FilterStore', providedIn: 'global' },
+          function* () {
+            const search = yield* state('search', '');
+            return { search };
+          },
+        );
+      `,
+      'app.ts': `
+        ${STUBS}
+        import { FilterStore } from './filters';
+        const Users = craftComponent(
+          'Users',
+          {},
+          function* () {
+            const filters = yield* FilterStore();
+            yield* query('users', {
+              params: () => filters.search(),
+              loader: () => Promise.resolve([]),
+            });
+            return {};
+          },
+          () => [],
+        );
+      `,
+    });
+
+    expect(resourceParamsStateViolations(graph.graph).map((v) => v.state)).toEqual([
+      'state:search',
+    ]);
+  });
+
   it('rejects the same HTTP verb+url called from two services', async () => {
     const graph = await graphOf({
       'app.ts': `

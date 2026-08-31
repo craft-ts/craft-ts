@@ -12,6 +12,7 @@ import {
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
   assertPrimitiveLoaderRequirements,
+  assertResourceParamsPreferQueryParams,
   assertRouteDiProofs,
 } from '@craft-ts/dev-tools/architecture-graph';
 import { loadArchitectureGraph } from './load-graph';
@@ -107,6 +108,24 @@ describe('architecture', () => {
       // never appear as a node of this app's graph. The route still proves the
       // requirement — through `EffectRequirementsCheckedDI` in app.routes.ts.
       allow: ['effectFunctionQuery', 'profileQuery', 'receiptQuery', 'weightLabel'],
+    });
+  });
+
+  it('keeps resource params URL-backed unless intentionally local', () => {
+    assertResourceParamsPreferQueryParams(graph.graph, {
+      // These demos exercise process/runtime state rather than route filters:
+      // locale selects the translation runtime and qty drives a member-sync
+      // example.
+      allow: [
+        {
+          name: 'locale',
+          file: 'apps/demo-effect/src/app/examples/effect/effect-i18n.ts',
+        },
+        {
+          name: 'qty',
+          file: 'apps/demo-effect/src/app/examples/effect/effect-sync-members.ts',
+        },
+      ],
     });
   });
 

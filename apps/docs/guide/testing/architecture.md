@@ -29,11 +29,12 @@ A green architecture suite does not prove that a button works. It proves that
 the app still respects the boundaries that make that button maintainable.
 
 ::: tip Start with the graph-wide baseline
-Add `assertDeclarativeArchitecture(graph.graph)` first. It checks the five
+Add `assertDeclarativeArchitecture(graph.graph)` first. It checks the core
 invariants that are easiest to break during a refactor: unique identities,
 unique HTTP ownership, pure `craftComputed` values, no dependency cycles and
 declared mutation reactions. Add focused rules when your application has an
-additional boundary, such as route DI or folder ownership.
+additional boundary, such as route DI, folder ownership or URL-backed resource
+params.
 :::
 
 ## What a rule looks like
@@ -68,6 +69,7 @@ import {
   assertPathBoundaries,
   assertPrimitiveLoaderRequirements,
   assertQueryMutationHasServerState,
+  assertResourceParamsPreferQueryParams,
   assertPersistedPrimitiveHasUnique,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
@@ -304,8 +306,9 @@ For adding a TypeScript backend with its own typed nodes and relations, see
 
 ## Built-in helpers
 
-The declarative baseline is five graph-wide checks. Import them all, then
-either call each one or `assertDeclarativeArchitecture` for the five together.
+The declarative baseline is the aggregate set of graph-wide checks below.
+Import them all, then either call each one or
+`assertDeclarativeArchitecture` for the aggregate checks together.
 The demo suite keeps all checks in `apps/demo/architecture/architecture.spec.ts`
 so the graph is loaded once. Run it with `npx nx architecture demo`.
 
@@ -321,7 +324,7 @@ rules that express your application's boundaries.
 | [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity) | a `craftComputed` `calls` a method or `writes` a `source$` |
 | [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles) | a directed cycle exists on `depends-on` (services, components, computeds) |
 | [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions) | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
-| [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the five baseline checks fail |
+| [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the baseline checks fail |
 | [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs) | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
 | [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files) | a route loads its page component from the routing file, or multiple routed page components share one component file |
 | [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries) | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
@@ -333,6 +336,7 @@ rules that express your application's boundaries.
 | [`assertInteractiveElementNamed`](/guide/testing/architecture/interactive-element-names) | an interactive element lacks a literal name or duplicates a `data-craft-name` |
 | [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader) | a `query` or `mutation` does not reach an allowed server-state boundary |
 | [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements) | an Effect-aware primitive does not declare an allowed dependency boundary |
+| [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state) | a `query` or `asyncProcess` params graph depends on a `state` instead of URL-backed `queryParams` |
 
 ### `noExclusiveLink`
 
@@ -458,8 +462,8 @@ it('forbids depends-on cycles', () => {
 
 ### `assertDeclarativeArchitecture`
 
-Runs the five checks above and joins their messages. Pass `{ allow }` through
-to `assertMutationHasReactOn` for fire-and-forget mutations.
+Runs the aggregate checks above and joins their messages. Pass `{ allow }`
+through to `assertMutationHasReactOn` for fire-and-forget mutations.
 
 ```typescript
 it('keeps the app declarative', () => {

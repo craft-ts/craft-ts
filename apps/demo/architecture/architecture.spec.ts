@@ -12,6 +12,7 @@ import {
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
   assertQueryMutationHasServerState,
+  assertResourceParamsPreferQueryParams,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
   noExclusiveLink,
@@ -113,6 +114,19 @@ describe('demo architecture', () => {
         'auth',
         'saveProfile',
         'profileQuery',
+      ],
+    });
+  });
+
+  it('keeps resource params URL-backed unless intentionally local', () => {
+    assertResourceParamsPreferQueryParams(graph.graph, {
+      // The debounced search input is intentionally ephemeral: asyncProcess
+      // owns the debounce before the query receives its server params.
+      allow: [
+        {
+          name: 'searchInput',
+          file: 'apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts',
+        },
       ],
     });
   });

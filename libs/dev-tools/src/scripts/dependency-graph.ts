@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import {
   CallExpression,
+  FunctionDeclaration,
   Node,
   ObjectLiteralExpression,
   Project,
@@ -202,6 +203,7 @@ const PRIMITIVES = new Set([
   'queryEffect',
   'computedEffect',
   'mutationEffect',
+  'asyncProcessEffect',
   'asyncProcess',
   'queryParams',
   'insertSelect',
@@ -219,6 +221,7 @@ const HOST_PRIMITIVES = new Set([
   'queryEffect',
   'computedEffect',
   'mutationEffect',
+  'asyncProcessEffect',
   'asyncProcess',
   'queryParams',
   'insertSelect',
@@ -2783,23 +2786,163 @@ function analyzeReactiveDependencies(
   component?: ComponentInfo,
 ): void {
   for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (isResourcePrimitive(call)) {
+      const host = addOwnedPrimitive(builder, call, aggregateOwnerId);
+      const params = resourceParamsInitializer(call);
+      if (host && params) {
+        addReactiveDependencyEdges(
+          builder,
+          host,
+          collectResourceParamExpressions(params),
+          bindings,
+          component,
+          aggregateOwnerId,
+          'params',
+        );
+      }
+    }
     if (!isTrackedReactiveHost(call)) continue;
     const host = addOwnedPrimitive(builder, call, aggregateOwnerId);
     if (!host) continue;
     const body = reactiveHostBody(call);
     if (!body) continue;
-    for (const expression of collectReactiveExpressions(body)) {
-      const target = resolveReactiveTarget(
-        builder,
-        expression,
-        bindings,
-        component,
-        aggregateOwnerId,
-      );
-      if (!target || target.id === host.id) continue;
-      addEdge(builder, host.id, target.id, target.kind, 'ast', target.details);
+    addReactiveDependencyEdges(
+      builder,
+      host,
+      collectReactiveExpressions(body),
+      bindings,
+      component,
+      aggregateOwnerId,
+    );
+  }
+}
+
+function addReactiveDependencyEdges(
+  builder: GraphBuilder,
+  host: DependencyGraphNode,
+  expressions: readonly Node[],
+  bindings: Map<string, ReactiveBinding>,
+  component: ComponentInfo | undefined,
+  aggregateOwnerId: string,
+  resourceRole?: 'params',
+): void {
+  for (const expression of expressions) {
+    const target = resolveReactiveTarget(
+      builder,
+      expression,
+      bindings,
+      component,
+      aggregateOwnerId,
+    );
+    if (!target || target.id === host.id) continue;
+    addEdge(builder, host.id, target.id, target.kind, 'ast', {
+      ...(resourceRole ? { resourceRole } : {}),
+      ...target.details,
+      ...(target.kind === 'calls'
+        ? {
+            callSite: {
+              filePath: expression.getSourceFile().getFilePath(),
+              line: expression.getStartLineNumber(),
+              offset: expression.getStart(),
+            },
+          }
+        : {}),
+    });
+  }
+}
+
+function isResourcePrimitive(call: CallExpression): boolean {
+  const primitive = primitiveFactoryName(call);
+  return (
+    primitive === 'query' ||
+    primitive === 'queryEffect' ||
+    primitive === 'asyncProcess' ||
+    primitive === 'asyncProcessEffect'
+  );
+}
+
+function resourceParamsInitializer(
+  call: CallExpression,
+): Node | undefined {
+  for (const argument of call.getArguments()) {
+    const object = argument.asKind(SyntaxKind.ObjectLiteralExpression);
+    const property = object?.getProperty('params');
+    const initializer = property?.isKind(SyntaxKind.PropertyAssignment)
+      ? property.getInitializer()
+      : property?.isKind(SyntaxKind.ShorthandPropertyAssignment)
+        ? property.getNameNode()
+        : undefined;
+    if (initializer) return initializer;
+  }
+  return undefined;
+}
+
+function collectResourceParamExpressions(initializer: Node): Node[] {
+  const expressions = collectReactiveExpressions(initializer);
+  const root = unwrapExpression(initializer);
+  if (
+    root &&
+    (Node.isIdentifier(root) ||
+      Node.isPropertyAccessExpression(root) ||
+      Node.isCallExpression(root))
+  ) {
+    expressions.unshift(root);
+  }
+
+  const pending = [...expressions];
+  const visited = new Set<Node>();
+  while (pending.length > 0) {
+    const expression = pending.shift();
+    if (!expression) continue;
+    const declaration = localFunctionDeclaration(expression);
+    if (!declaration || visited.has(declaration)) continue;
+    visited.add(declaration);
+    const body = functionDeclarationBody(declaration);
+    for (const nested of collectReactiveExpressions(body)) {
+      if (expressions.includes(nested)) continue;
+      expressions.push(nested);
+      pending.push(nested);
     }
   }
+  return expressions;
+}
+
+function localFunctionDeclaration(
+  expression: Node,
+): VariableDeclaration | FunctionDeclaration | undefined {
+  const root = unwrapExpression(expression);
+  const identifier = Node.isIdentifier(root)
+    ? root
+    : Node.isCallExpression(root) && Node.isIdentifier(root.getExpression())
+      ? root.getExpression()
+      : undefined;
+  if (!identifier) return undefined;
+
+  const symbol = identifier.getSymbol();
+  for (const declaration of symbol?.getDeclarations() ?? []) {
+    if (Node.isFunctionDeclaration(declaration)) return declaration;
+    if (!Node.isVariableDeclaration(declaration)) continue;
+    const initializer = declaration.getInitializer();
+    if (
+      initializer &&
+      (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))
+    ) {
+      return declaration;
+    }
+  }
+  return undefined;
+}
+
+function functionDeclarationBody(
+  declaration: VariableDeclaration | FunctionDeclaration,
+): Node {
+  if (Node.isFunctionDeclaration(declaration)) {
+    return declaration.getBody() ?? declaration;
+  }
+  const initializer = declaration.getInitializer();
+  return Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer)
+    ? initializer.getBody()
+    : declaration;
 }
 
 function analyzeTemplateDependencies(
@@ -3054,8 +3197,39 @@ function resolveReactiveChain(
       );
       return { id: propertyNode.id, kind: method ? 'calls' : 'depends-on' };
     }
+    const outputPrimitive = findPrimitiveByName(
+      builder,
+      service.node.id,
+      rest[0],
+    );
+    if (outputPrimitive) {
+      if (rest.length === 1) {
+        return {
+          id: outputPrimitive.id,
+          kind: method ? 'calls' : 'depends-on',
+          details: { path: rest.join('.') },
+        };
+      }
+      const nestedOutputProperty = addPrimitiveMemberProperty(
+        builder,
+        outputPrimitive.id,
+        rest.slice(1).join('.'),
+        node,
+      );
+      return {
+        id: nestedOutputProperty.id,
+        kind: method ? 'calls' : 'depends-on',
+        details: { path: rest.join('.') },
+      };
+    }
     const rootPrimitive = findPrimitiveByName(builder, service.node.id, root);
     if (rootPrimitive) {
+      const primitiveMethod = isLikelyMethod(
+        rest,
+        node,
+        builder,
+        rootPrimitive.id,
+      );
       const memberPrimitive = findMemberPrimitive(
         builder,
         rootPrimitive.id,
@@ -3065,7 +3239,7 @@ function resolveReactiveChain(
         if (rest.length === 1) {
           return {
             id: memberPrimitive.id,
-            kind: method ? 'calls' : 'depends-on',
+            kind: primitiveMethod ? 'calls' : 'depends-on',
             details: { path: rest.join('.') },
           };
         }
@@ -3077,7 +3251,7 @@ function resolveReactiveChain(
         );
         return {
           id: nestedProperty.id,
-          kind: method ? 'calls' : 'depends-on',
+          kind: primitiveMethod ? 'calls' : 'depends-on',
           details: { path: rest.join('.') },
         };
       }
