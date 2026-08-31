@@ -1265,6 +1265,199 @@ export function assertCraftComputedPure(graph: DependencyGraph): void {
   );
 }
 
+export type PrimitiveMethodUsageSite = {
+  ownerId: string;
+  filePath: string;
+  line: number;
+  offset?: number;
+};
+
+export type PrimitiveMethodUsageViolation = {
+  primitiveId: string;
+  primitiveLabel: string;
+  method: string;
+  callSites: readonly PrimitiveMethodUsageSite[];
+};
+
+export function primitiveMethodUsageViolations(
+  graph: DependencyGraph,
+): PrimitiveMethodUsageViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const methodProperties = new Map<
+    string,
+    { primitive: DependencyGraphNode; method: string }
+  >();
+
+  for (const property of graph.nodes) {
+    if (property.kind !== 'property' || property.details?.['exposedMethod'] !== true) {
+      continue;
+    }
+    const ownerEdge = graph.edges.find(
+      (edge) => edge.kind === 'contains' && edge.to === property.id,
+    );
+    const primitive = ownerEdge ? nodesById.get(ownerEdge.from) : undefined;
+    if (!primitive || primitive.kind !== 'primitive') continue;
+    const method = property.details?.['member'];
+    if (typeof method !== 'string' || method.includes('.')) continue;
+    methodProperties.set(property.id, { primitive, method });
+  }
+
+  return [...methodProperties.entries()].flatMap(
+    ([propertyId, { primitive, method }]) => {
+      const callSites = graph.edges
+        .filter((edge) => edge.kind === 'calls' && edge.to === propertyId)
+        .flatMap((edge) => {
+          const detailedSites = readPrimitiveMethodCallSites(
+            edge.details?.['callSites'],
+          );
+          if (detailedSites.length > 0) {
+            return detailedSites.map((site) => ({
+              ...site,
+              filePath:
+                relativeGraphPath(graph, site.filePath) ?? site.filePath,
+              ownerId: site.ownerId ?? edge.from,
+            }));
+          }
+          const owner = nodesById.get(edge.from);
+          return owner?.filePath && owner.line !== undefined
+            ? [
+                {
+                  ownerId: edge.from,
+                  filePath:
+                    relativeGraphPath(graph, owner.filePath) ?? owner.filePath,
+                  line: owner.line,
+                },
+              ]
+            : [];
+        });
+      const uniqueSites = uniquePrimitiveMethodCallSites(callSites);
+      return uniqueSites.length > 1
+        ? [{
+            primitiveId: primitive.id,
+            primitiveLabel: primitive.label,
+            method,
+            callSites: uniqueSites,
+          }]
+        : [];
+    },
+  );
+}
+
+export function assertPrimitiveMethodsUsedOnce(graph: DependencyGraph): void {
+  const violations = primitiveMethodUsageViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const sites = violation.callSites
+          .map((site) => `${site.filePath}:${site.line}`)
+          .join(', ');
+        return `Primitive method ${violation.primitiveLabel}.${violation.method} is used at multiple call sites (${sites}). Create one method per call site.`;
+      })
+      .join('\n'),
+  );
+}
+
+export type UnusedPrimitiveMethodViolation = {
+  primitiveId: string;
+  primitiveLabel: string;
+  method: string;
+  filePath: string;
+  line: number;
+};
+
+export function unusedPrimitiveMethodViolations(
+  graph: DependencyGraph,
+): UnusedPrimitiveMethodViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return graph.nodes.flatMap((property) => {
+    if (
+      property.kind !== 'property' ||
+      property.details?.['exposedMethod'] !== true
+    ) {
+      return [];
+    }
+    const ownerEdge = graph.edges.find(
+      (edge) => edge.kind === 'contains' && edge.to === property.id,
+    );
+    const primitive = ownerEdge ? nodesById.get(ownerEdge.from) : undefined;
+    const method = property.details?.['member'];
+    if (
+      !primitive ||
+      primitive.kind !== 'primitive' ||
+      typeof method !== 'string' ||
+      method.includes('.') ||
+      graph.edges.some(
+        (edge) => edge.to === property.id && edge.kind !== 'contains',
+      )
+    ) {
+      return [];
+    }
+    return [
+      {
+        primitiveId: primitive.id,
+        primitiveLabel: primitive.label,
+        method,
+        filePath:
+          relativeGraphPath(graph, property.filePath ?? primitive.filePath) ??
+          property.filePath ??
+          primitive.filePath ??
+          '',
+        line: property.line ?? primitive.line ?? 0,
+      },
+    ];
+  });
+}
+
+export function assertNoUnusedPrimitiveMethods(graph: DependencyGraph): void {
+  const violations = unusedPrimitiveMethodViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `Primitive method ${violation.primitiveLabel}.${violation.method} is never used in this project (${violation.filePath}:${violation.line}). Remove it.`,
+      )
+      .join('\n'),
+  );
+}
+
+function readPrimitiveMethodCallSites(
+  value: unknown,
+): PrimitiveMethodUsageSite[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const site = entry as Record<string, unknown>;
+    return typeof site['filePath'] === 'string' &&
+      typeof site['line'] === 'number'
+      ? [
+          {
+            ownerId:
+              typeof site['ownerId'] === 'string' ? site['ownerId'] : '',
+            filePath: site['filePath'],
+            line: site['line'],
+            ...(typeof site['offset'] === 'number'
+              ? { offset: site['offset'] }
+              : {}),
+          },
+        ]
+      : [];
+  });
+}
+
+function uniquePrimitiveMethodCallSites(
+  sites: readonly PrimitiveMethodUsageSite[],
+): PrimitiveMethodUsageSite[] {
+  const seen = new Set<string>();
+  return sites.filter((site) => {
+    const key = `${site.filePath}:${site.offset ?? site.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export type DependencyCycle = {
   ids: readonly string[];
   labels: readonly string[];
@@ -3006,6 +3199,8 @@ export function assertDeclarativeArchitecture(
     assertCraftUnique,
     assertHttpEndpointUnique,
     assertCraftComputedPure,
+    assertPrimitiveMethodsUsedOnce,
+    assertNoUnusedPrimitiveMethods,
     assertNoDependencyCycles,
     assertServerFunctionArchitecture,
   ]) {

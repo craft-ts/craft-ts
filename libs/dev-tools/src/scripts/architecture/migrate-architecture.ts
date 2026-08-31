@@ -58,6 +58,20 @@ const RULES = [
     call: 'assertCraftComputedPure(graph.graph)',
   },
   {
+    file: 'primitive-method-usage.spec.ts',
+    helper: 'assertPrimitiveMethodsUsedOnce',
+    describe: 'assertPrimitiveMethodsUsedOnce',
+    it: 'requires each exposed primitive method to have one call site',
+    call: 'assertPrimitiveMethodsUsedOnce(graph.graph)',
+  },
+  {
+    file: 'no-unused-primitive-method.spec.ts',
+    helper: 'assertNoUnusedPrimitiveMethods',
+    describe: 'assertNoUnusedPrimitiveMethods',
+    it: 'requires every exposed primitive method to be used',
+    call: 'assertNoUnusedPrimitiveMethods(graph.graph)',
+  },
+  {
     file: 'no-dependency-cycles.spec.ts',
     helper: 'assertNoDependencyCycles',
     describe: 'assertNoDependencyCycles',

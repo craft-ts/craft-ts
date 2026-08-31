@@ -65,6 +65,7 @@ export default [
       'craft-ts/prefer-craft-http-transport': 'error',
       'craft-ts/no-injection-token': 'error',
       'craft-ts/require-primitive-derived-property': 'error',
+      'craft-ts/no-reused-primitive-method': 'error',
       'craft-ts/no-async-await': 'error',
       'craft-ts/no-throw': 'error',
       'craft-ts/no-imperative-craft-resource-trigger': 'error',
@@ -113,6 +114,7 @@ What each rule does:
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
+- `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file; create a context-specific method for each distinct use
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ts/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).

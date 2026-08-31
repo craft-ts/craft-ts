@@ -87,6 +87,7 @@ const serverFunctionClientMatch = require('./server-function-client-match.cjs');
 const noServerFunctionOutsideResource = require('./no-server-function-outside-resource.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
+const noReusedPrimitiveMethod = require('./no-reused-primitive-method.cjs');
 const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
 const noExplicitEffectType = require('./no-explicit-effect-type.cjs');
 const preferInlineEffectInsertion = require('./prefer-inline-effect-insertion.cjs');
@@ -202,6 +203,7 @@ const plugin = {
     'no-server-function-outside-resource': noServerFunctionOutsideResource,
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
+    'no-reused-primitive-method': noReusedPrimitiveMethod,
     'no-effect-outside-loaders': noEffectOutsideLoaders,
     'no-explicit-effect-type': noExplicitEffectType,
     'prefer-inline-effect-insertion': preferInlineEffectInsertion,

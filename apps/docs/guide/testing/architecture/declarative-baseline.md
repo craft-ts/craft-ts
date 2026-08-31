@@ -2,12 +2,12 @@
 
 `assertDeclarativeArchitecture` is the first architecture test to add to a
 Craft app. It is not a style check and it does not test the DOM. It reads the
-static Craft graph and verifies five relationships that are easy to lose during
+static Craft graph and verifies seven relationships that are easy to lose during
 a refactor:
 
 <<< @/tests/snippets/guide/testing/architecture/declarative-baseline.spec.ts#example
 
-The same test protects five different failure modes:
+The same test protects seven different failure modes:
 
 | Rule | If it is missing, this can happen |
 | --- | --- |
@@ -16,6 +16,8 @@ The same test protects five different failure modes:
 | `assertCraftComputedPure` | reading a derived value writes state or starts work |
 | `assertNoDependencyCycles` | service construction loops through `A → B → A` |
 | `assertMutationHasReactOn` | a successful write leaves the visible list stale |
+| `assertPrimitiveMethodsUsedOnce` | one exposed method silently serves several call sites and loses their context |
+| `assertNoUnusedPrimitiveMethods` | an exposed method is never called and adds noise to the primitive interface |
 
 The following examples show the actual code shape that each rule rejects.
 

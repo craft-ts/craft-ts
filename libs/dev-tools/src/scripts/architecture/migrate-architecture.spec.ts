@@ -73,6 +73,16 @@ describe('architecture migration', () => {
       existsSync(join(root, 'architecture/rules/craft-computed-pure.spec.ts')),
     ).toBe(true);
     expect(
+      existsSync(
+        join(root, 'architecture/rules/primitive-method-usage.spec.ts'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(root, 'architecture/rules/no-unused-primitive-method.spec.ts'),
+      ),
+    ).toBe(true);
+    expect(
       existsSync(join(root, 'architecture/rules/no-dependency-cycles.spec.ts')),
     ).toBe(true);
     expect(

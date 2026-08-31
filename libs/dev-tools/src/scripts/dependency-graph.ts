@@ -231,6 +231,21 @@ const STORAGE_PERSISTER_INSERTIONS = new Set([
   'insertStoragePersister',
   'insertLocalStoragePersister',
 ]);
+const INSERTION_PIPES = new Set([
+  'insertAsyncProcessPipe',
+  'insertMutationPipe',
+  'insertQueryParamsPipe',
+  'insertQueryPipe',
+  'insertStatePipe',
+]);
+const INSERTION_CONTEXT_KEYS = new Set([
+  'insertions',
+  'patch',
+  'resource',
+  'set',
+  'state',
+  'update',
+]);
 
 const SOURCE_CREATORS = new Set(['source$', 'signalSource']);
 const CRAFT_HTTP_CLIENT_METHODS = new Set([
@@ -2115,6 +2130,47 @@ function analyzeInsertions(builder: GraphBuilder): void {
   }
   for (const { node, ownerId } of scopes) {
     for (const call of node.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      if (isPrimitiveFactory(call)) {
+        const primitive = primitiveFactoryName(call);
+        const methods = primitive
+          ? exposedPrimitiveMethods(call)
+          : new Set<string>();
+        if (primitive && methods.size > 0) {
+          const primitiveNode = addPrimitiveNode(
+            builder,
+            call,
+            primitive,
+            ownerId,
+          );
+          primitiveNode.details = {
+            ...(primitiveNode.details ?? {}),
+            exposedMethods: [
+              ...new Set([
+                ...readStringArray(primitiveNode.details?.['exposedMethods']),
+                ...methods,
+              ]),
+            ],
+          };
+          for (const method of methods) {
+            const property = addPrimitiveMemberProperty(
+              builder,
+              primitiveNode.id,
+              method,
+              call,
+            );
+            property.details = {
+              ...(property.details ?? {}),
+              exposedMethod: true,
+            };
+          }
+          addExposedPrimitiveMethodUsageEdges(
+            builder,
+            primitiveNode,
+            call,
+            methods,
+          );
+        }
+      }
       const name = call.getExpression().getText();
       if (name === 'insertReactOnMutation') {
         addReactOnMutation(builder, call, ownerId);
@@ -2124,6 +2180,206 @@ function analyzeInsertions(builder: GraphBuilder): void {
       }
     }
   }
+}
+
+function addExposedPrimitiveMethodUsageEdges(
+  builder: GraphBuilder,
+  primitive: DependencyGraphNode,
+  declaration: CallExpression,
+  methods: ReadonlySet<string>,
+): void {
+  const variableDeclaration = primitiveVariableDeclaration(declaration);
+  const bindingNodes = variableDeclaration
+    ? bindingIdentifierNodes(variableDeclaration.getNameNode())
+    : [];
+  const bindingKeys = new Set(
+    bindingNodes.map((node) => symbolKey(node.getSymbol())).filter(Boolean),
+  );
+  const bindingNames = new Set(
+    bindingNodes.map((node) => node.getText()).concat(
+      typeof primitive.details?.['name'] === 'string'
+        ? [primitive.details['name']]
+        : [],
+    ),
+  );
+  const primitiveName =
+    typeof primitive.details?.['name'] === 'string'
+      ? primitive.details['name']
+      : undefined;
+  const namedPrimitiveCount = primitiveName
+    ? [...builder.nodes.values()].filter(
+        (node) =>
+          node.kind === 'primitive' &&
+          node.details?.['name'] === primitiveName,
+      ).length
+    : 0;
+  const ownerId =
+    typeof primitive.details?.['ownerId'] === 'string'
+      ? primitive.details['ownerId']
+      : primitive.id;
+
+  for (const sourceFile of builder.project.getSourceFiles()) {
+    for (const access of sourceFile.getDescendantsOfKind(
+      SyntaxKind.PropertyAccessExpression,
+    )) {
+      const chain = propertyAccessChain(access);
+      const root = rootIdentifier(access);
+      const method = chain?.at(-1) ?? access.getName();
+      const nestedMethod = chain?.at(-1);
+      const isNamedNestedMethod =
+        Boolean(primitiveName) &&
+        (!root ||
+          chain?.length !== 2 ||
+          namedPrimitiveCount === 1) &&
+        methods.has(method) &&
+        access.getText().endsWith(`${primitiveName}.${method}`);
+      if (
+        (!root && !isNamedNestedMethod) ||
+        (!isNamedNestedMethod && chain?.length !== 2) ||
+        !method ||
+        (!methods.has(method) && !isNamedNestedMethod) ||
+        (!isNamedNestedMethod && !bindingNames.has(chain?.[0] ?? ''))
+      ) {
+        continue;
+      }
+      const key = root ? symbolKey(root.getSymbol()) : undefined;
+      if (
+        !isNamedNestedMethod &&
+        variableDeclaration &&
+        bindingKeys.size > 0 &&
+        (!key || !bindingKeys.has(key))
+      ) {
+        continue;
+      }
+      if (
+        !variableDeclaration &&
+        access.getSourceFile().getFilePath() !== primitive.filePath
+      ) {
+        continue;
+      }
+      addEdge(
+        builder,
+        ownerId,
+        `property:${primitive.id}:${method}`,
+        'uses-property',
+        'ast',
+        {
+          path: nestedMethod ?? method,
+          callSite: {
+            filePath: access.getSourceFile().getFilePath(),
+            line: access.getStartLineNumber(),
+            offset: access.getStart(),
+          },
+        },
+      );
+    }
+  }
+}
+
+function primitiveVariableDeclaration(
+  call: CallExpression,
+): import('ts-morph').VariableDeclaration | undefined {
+  let current: Node | undefined = call.getParent();
+  while (current) {
+    if (Node.isVariableDeclaration(current)) return current;
+    if (
+      Node.isArrowFunction(current) ||
+      Node.isFunctionExpression(current) ||
+      Node.isMethodDeclaration(current)
+    ) {
+      return undefined;
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+function bindingIdentifierNodes(node: Node): import('ts-morph').Identifier[] {
+  if (Node.isIdentifier(node)) return [node];
+  if (Node.isObjectBindingPattern(node) || Node.isArrayBindingPattern(node)) {
+    return node.getElements().flatMap((element) =>
+      Node.isBindingElement(element)
+        ? bindingIdentifierNodes(element.getNameNode())
+        : [],
+    );
+  }
+  return [];
+}
+
+function exposedPrimitiveMethods(call: CallExpression): Set<string> {
+  const methods = new Set<string>();
+  for (const argument of call.getArguments().slice(2)) {
+    collectInsertionMethods(argument, methods);
+  }
+  return methods;
+}
+
+function collectInsertionMethods(node: Node, methods: Set<string>): void {
+  const current = unwrapExpression(node);
+  if (!current) return;
+
+  if (
+    (Node.isArrowFunction(current) || Node.isFunctionExpression(current)) &&
+    isInsertionCallback(current)
+  ) {
+    const returned = returnedObject(current);
+    for (const property of returned?.getProperties() ?? []) {
+      if (Node.isPropertyAssignment(property)) {
+        const value = property.getInitializer();
+        if (
+          value &&
+          (Node.isArrowFunction(value) || Node.isFunctionExpression(value))
+        ) {
+          methods.add(property.getName());
+        }
+      } else if (Node.isMethodDeclaration(property)) {
+        methods.add(property.getName());
+      }
+    }
+    return;
+  }
+
+  if (
+    Node.isCallExpression(current) &&
+    Node.isIdentifier(current.getExpression()) &&
+    INSERTION_PIPES.has(current.getExpression().getText())
+  ) {
+    for (const argument of current.getArguments()) {
+      collectInsertionMethods(argument, methods);
+    }
+  }
+}
+
+function isInsertionCallback(
+  node: import('ts-morph').ArrowFunction | import('ts-morph').FunctionExpression,
+): boolean {
+  const parameter = node.getParameters()[0]?.getNameNode();
+  if (!parameter || !Node.isObjectBindingPattern(parameter)) return false;
+  return parameter.getElements().some((element) =>
+    INSERTION_CONTEXT_KEYS.has(
+      element.getPropertyNameNode()?.getText() ?? element.getNameNode().getText(),
+    ),
+  );
+}
+
+function returnedObject(
+  node: import('ts-morph').ArrowFunction | import('ts-morph').FunctionExpression,
+): import('ts-morph').ObjectLiteralExpression | undefined {
+  let body = node.getBody();
+  if (Node.isParenthesizedExpression(body)) body = body.getExpression();
+  if (Node.isObjectLiteralExpression(body)) return body;
+  if (!Node.isBlock(body)) return undefined;
+  const returned = body.getStatements().find(Node.isReturnStatement);
+  const expression = returned?.getExpression();
+  return expression && Node.isObjectLiteralExpression(expression)
+    ? expression
+    : undefined;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
 }
 
 function addReactOnMutation(
@@ -2972,6 +3228,15 @@ function analyzeTemplateDependencies(
     addEdge(builder, component.node.id, target.id, kind, 'ast', {
       ...target.details,
       usage: 'template',
+      ...(kind === 'calls'
+        ? {
+            callSite: {
+              filePath: expression.getSourceFile().getFilePath(),
+              line: expression.getStartLineNumber(),
+              offset: expression.getStart(),
+            },
+          }
+        : {}),
     });
   }
 }
@@ -3263,7 +3528,7 @@ function resolveReactiveChain(
       );
       return {
         id: propertyNode.id,
-        kind: method ? 'calls' : 'depends-on',
+        kind: primitiveMethod ? 'calls' : 'depends-on',
         details: { path: rest.join('.') },
       };
     }
@@ -3290,13 +3555,20 @@ function addPrimitiveMemberProperty(
   node: Node,
 ): DependencyGraphNode {
   const primitive = builder.nodes.get(primitiveId);
+  const member = memberPath.split('.')[0] ?? memberPath;
+  const exposedMethods = readStringArray(
+    primitive?.details?.['exposedMethods'],
+  );
   const propertyNode = addNode(builder, {
     id: `property:${primitiveId}:${memberPath}`,
     kind: 'property',
     label: `${primitive?.label ?? primitiveId}.${memberPath}`,
     filePath: node.getSourceFile().getFilePath(),
     line: node.getStartLineNumber(),
-    details: { member: memberPath },
+    details: {
+      member: memberPath,
+      ...(exposedMethods.includes(member) ? { exposedMethod: true } : {}),
+    },
   });
   addEdge(builder, primitiveId, propertyNode.id, 'contains', 'ast', {
     property: memberPath.split('.')[0],
@@ -3389,6 +3661,12 @@ function isLikelyMethod(
   if (leaf && REACTIVE_METHOD_NAMES.has(leaf)) return true;
   if (leaf && REACTIVE_READER_NAMES.has(leaf)) return false;
   if (primitiveId) {
+    if (
+      leaf &&
+      readStringArray(builder.nodes.get(primitiveId)?.details?.['exposedMethods']).includes(leaf)
+    ) {
+      return true;
+    }
     const member = leaf
       ? findMemberPrimitive(builder, primitiveId, leaf)
       : undefined;
@@ -5966,11 +6244,80 @@ function addEdge(
           details['usage'],
         );
       }
+      if (kind === 'calls' && details['callSite']) {
+        const callSites = [
+          ...readCallSites(existing.details?.['callSites']),
+          { ...readCallSite(details['callSite']), ownerId: from },
+        ].filter(isCallSite);
+        existing.details['callSites'] = uniqueCallSites(callSites);
+      }
     }
     if (proof && !existing.proof) existing.proof = proof;
     return;
   }
-  builder.edges.set(key, { from, to, kind, evidence, details, proof });
+  const initialDetails =
+    kind === 'calls' && details?.['callSite']
+      ? {
+          ...details,
+          callSites: [
+            { ...readCallSite(details['callSite']), ownerId: from },
+          ].filter(isCallSite),
+        }
+      : details;
+  builder.edges.set(key, {
+    from,
+    to,
+    kind,
+    evidence,
+    details: initialDetails,
+    proof,
+  });
+}
+
+type GraphCallSite = {
+  ownerId?: string;
+  filePath?: string;
+  line?: number;
+  offset?: number;
+};
+
+function readCallSite(value: unknown): GraphCallSite {
+  if (!value || typeof value !== 'object') return {};
+  const site = value as Record<string, unknown>;
+  return {
+    ...(typeof site['ownerId'] === 'string'
+      ? { ownerId: site['ownerId'] }
+      : {}),
+    ...(typeof site['filePath'] === 'string'
+      ? { filePath: site['filePath'] }
+      : {}),
+    ...(typeof site['line'] === 'number' ? { line: site['line'] } : {}),
+    ...(typeof site['offset'] === 'number'
+      ? { offset: site['offset'] }
+      : {}),
+  };
+}
+
+function readCallSites(value: unknown): GraphCallSite[] {
+  return Array.isArray(value) ? value.map(readCallSite).filter(isCallSite) : [];
+}
+
+function isCallSite(value: GraphCallSite): boolean {
+  return (
+    typeof value.filePath === 'string' &&
+    typeof value.line === 'number' &&
+    typeof value.offset === 'number'
+  );
+}
+
+function uniqueCallSites(sites: readonly GraphCallSite[]): GraphCallSite[] {
+  const seen = new Set<string>();
+  return sites.filter((site) => {
+    const key = `${site.ownerId ?? ''}:${site.filePath}:${site.offset}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function mergeUsageDetail(

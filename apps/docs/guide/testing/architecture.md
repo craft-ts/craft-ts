@@ -322,6 +322,8 @@ rules that express your application's boundaries.
 | [`assertCraftUnique`](/guide/testing/architecture/unique-identities) | the same `craftUnique` identity appears twice, or the argument is not a static literal |
 | [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership) | the same HTTP verb+URL is called from more than one site |
 | [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity) | a `craftComputed` `calls` a method or `writes` a `source$` |
+| [`assertPrimitiveMethodsUsedOnce`](/guide/testing/architecture/primitive-method-usage) | an exposed primitive insertion method is used from more than one call site |
+| [`assertNoUnusedPrimitiveMethods`](/guide/testing/architecture/unused-primitive-method) | an exposed primitive insertion method has no call site anywhere in the project |
 | [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles) | a directed cycle exists on `depends-on` (services, components, computeds) |
 | [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions) | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
 | [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the baseline checks fail |

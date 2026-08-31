@@ -54,6 +54,7 @@ module.exports = {
   'craft-ts/require-primitive-derived-property': 'error',
   'craft-ts/no-invalid-insertion-pipe': 'error',
   'craft-ts/no-redundant-primitive-insertion': 'error',
+  'craft-ts/no-reused-primitive-method': 'error',
   'craft-ts/prefer-query-method-over-state-trigger': 'error',
   'craft-ts/no-injection-token': 'error',
   'craft-ts/no-manual-route-provider-list': 'error',
