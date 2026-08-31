@@ -78,9 +78,13 @@ const TextEditorStateMachine = craftComponent(
       },
 
       function* ({ text, cancel$, commit$, edit$ }) {
+        const { committedValue, value } = text;
         return {
           reading: {
-            text,
+            text: {
+              committedValue,
+              value,
+            },
             edit$,
           },
           editing: { text, commit$, cancel$ },
