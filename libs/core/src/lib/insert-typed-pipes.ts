@@ -7,7 +7,10 @@ import type {
   ResourceExceptionConstraints,
 } from './query.core';
 import type { CraftMachineInsertionContext } from './craft-state-machine';
-import { DEEP_YIELDABLE_INSERTION } from './reactive-read';
+import {
+  DEEP_YIELDABLE_INSERTION,
+  DEEP_YIELDABLE_VALUE_INSERTION,
+} from './reactive-read';
 import type { YieldableInsertionMethods } from './yieldable';
 
 type QueryPipeFactory<
@@ -44,6 +47,17 @@ function createTypedInsertionPipe(...members: AnyInsertionFactory[]) {
     )
   ) {
     Object.defineProperty(pipe, DEEP_YIELDABLE_INSERTION, { value: true });
+  }
+  if (
+    members.some(
+      (member) =>
+        typeof member === 'function' &&
+        DEEP_YIELDABLE_VALUE_INSERTION in member,
+    )
+  ) {
+    Object.defineProperty(pipe, DEEP_YIELDABLE_VALUE_INSERTION, {
+      value: true,
+    });
   }
   return pipe;
 }

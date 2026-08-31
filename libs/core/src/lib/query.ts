@@ -96,9 +96,12 @@ import type {
   YieldableInsertionMethods,
 } from './yieldable';
 import {
+  DEEP_YIELDABLE_VALUE_INSERTION,
+  createDeepYieldableReactiveValue,
   createYieldableReactiveFacade,
   deepYieldable,
   hasDeepYieldableInsertion,
+  hasDeepYieldableValueInsertion,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
   type YieldableReactiveValue,
@@ -649,7 +652,57 @@ export type QueryRef<
       HasSchema,
       MethodYielded,
       Name
-    >;
+  >;
+
+type HasDeepYieldableValueInsertion<Insertions> = Insertions extends {
+  readonly [DEEP_YIELDABLE_VALUE_INSERTION]: true;
+}
+  ? true
+  : false;
+
+type DeepYieldableSelectedResource<
+  Selected,
+  State,
+> = Selected extends undefined
+  ? undefined
+  : Selected extends object
+    ? Omit<YieldableReactiveProperties<Selected>, 'value'> & {
+        readonly value: DeepYieldableReactiveValue<State | undefined, 'value'>;
+      }
+    : Selected;
+
+type DeepYieldableSelectionMethod<Method, State> = Method extends (
+  ...args: infer Args
+) => infer Result
+  ? (...args: Args) => DeepYieldableSelectedResource<Result, State>
+  : Method;
+
+type QueryOutputWithDeepYieldableValue<
+  BaseRef,
+  State,
+  GroupIdentifier,
+  Insertions,
+> = HasDeepYieldableValueInsertion<Insertions> extends true
+  ? [unknown] extends [GroupIdentifier]
+    ? Omit<YieldableReactiveProperties<BaseRef>, 'value'> & {
+        readonly value: DeepYieldableReactiveValue<State | undefined, 'value'>;
+      }
+    : BaseRef extends {
+          select: infer Select;
+          selectOrCreate: infer SelectOrCreate;
+        }
+      ? Omit<
+          YieldableReactiveProperties<BaseRef>,
+          'select' | 'selectOrCreate'
+        > & {
+          readonly select: DeepYieldableSelectionMethod<Select, State>;
+          readonly selectOrCreate: DeepYieldableSelectionMethod<
+            SelectOrCreate,
+            State
+          >;
+        }
+      : YieldableReactiveProperties<BaseRef>
+  : YieldableReactiveProperties<BaseRef>;
 
 export type QueryOutput<
   State,
@@ -663,7 +716,7 @@ export type QueryOutput<
   HasSchema extends boolean = false,
   MethodYielded = never,
   Name extends string = string,
-> = YieldableReactiveProperties<
+> = QueryOutputWithDeepYieldableValue<
   QueryRef<
     State,
     Params,
@@ -677,7 +730,10 @@ export type QueryOutput<
     HasSchema,
     MethodYielded,
     Name
-  >
+  >,
+  State,
+  GroupIdentifier,
+  Insertions
 >;
 
 type SchemaQueryConfig<
@@ -2379,6 +2435,70 @@ function createQueryRef<
       enumerable: false,
       configurable: true,
     });
+  }
+  if (hasDeepYieldableValueInsertion(insertions)) {
+    if (!isUsingIdentifier) {
+      Object.defineProperty(queryOutput, 'value', {
+        value: createDeepYieldableReactiveValue(
+          (resourceTarget as CraftResourceRef<
+            QueryState,
+            QueryParams
+          >).value as Signal<QueryState | undefined>,
+          'value',
+          {
+            primitive: 'query',
+            insertion: 'value',
+            path: `${name}.value`,
+          },
+        ),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    } else {
+      const wrapSelected = (selected: unknown, id: unknown): unknown => {
+        if (!selected || typeof selected !== 'object') return selected;
+        const selectedResource = selected as {
+          value: Signal<QueryState | undefined>;
+        };
+        return Object.defineProperty(
+          { ...(selected as Record<string, unknown>) },
+          'value',
+          {
+            value: createDeepYieldableReactiveValue(
+              selectedResource.value,
+              'value',
+              {
+                primitive: 'query',
+                insertion: 'value',
+                path: `${name}.select.${String(id)}.value`,
+              },
+            ),
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          },
+        );
+      };
+      const select = queryOutput.select as (id: unknown) => unknown;
+      const selectOrCreate = queryOutput.selectOrCreate as (
+        id: unknown,
+      ) => unknown;
+      Object.defineProperties(queryOutput, {
+        select: {
+          value: (id: unknown) => wrapSelected(select(id), id),
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        },
+        selectOrCreate: {
+          value: (id: unknown) => wrapSelected(selectOrCreate(id), id),
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        },
+      });
+    }
   }
   const publicQuery = createYieldableReactiveFacade(queryOutput, {
     name,

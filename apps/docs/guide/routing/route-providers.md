@@ -14,10 +14,11 @@ Build route-level providers from a route's **own auto-provisioned tokens** — p
 ## The problem
 
 A `craftRoutes` route auto-provisions route-scoped services. For a route `query/:userId` in the
-`demo` collection, `craftRoutes` generates helpers such as `injectDemoUserIdParams` and the
+`demo` collection, `craftRoutes` generates helpers such as `DemoUserIdParams` and the
 yieldable `DemoQueryUserIdGuardedData`.
 
-The params helper is useful **inside a component**. Guarded data is consumed from a generator with
+The params helper is useful **inside a component** and is consumed with `yield*`, exactly like a
+Craft service. Guarded data is consumed from a generator with
 `yield* DemoQueryUserIdGuardedData()`. Route `data` is intentionally not exported as a collection-level
 `inject…Data` helper; inside `withProviders`, consume it through the local `Data` generator. This
 also lets you take the value resolved by `canActivate` and feed it into a provider that the routed
@@ -106,6 +107,18 @@ Each helper is a generator you consume with `yield*`, exactly like a service's `
   }),
 ])
 ```
+
+At collection level, a path parameter uses the same service-shaped name. For example, a
+`craftRoutes('demo', [{ path: 'users/:userId', ... }])` collection exposes `DemoUserIdParams`:
+
+```ts
+import { DemoUserIdParams } from './demo.routes';
+
+const userId = yield* DemoUserIdParams(); // Signal<string>
+```
+
+The older synchronous `injectDemoUserIdParams()` helper remains only as a migration alias. New code
+must use `DemoUserIdParams()` so URL parameters participate in Craft's normal yieldable DI graph.
 
 ## Pairing with an abstract service
 

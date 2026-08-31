@@ -16,6 +16,8 @@ module.exports = {
   'craft-ts/no-hardcoded-design-values': 'warn',
   'craft-ts/no-important-in-component-styles': 'error',
   'craft-ts/no-craft-computed-side-effects': 'error',
+  'craft-ts/no-craft-component-return-type': 'error',
+  'craft-ts/no-raw-craft-router-url': 'error',
   'craft-ts/provide-host-name-match-component': 'warn',
   'craft-ts/prefer-craft-http-transport': 'error',
   'craft-ts/no-server-function-outside-resource': 'error',

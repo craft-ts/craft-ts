@@ -199,6 +199,7 @@ export * from './lib/yieldable';
 export {
   DEEP_YIELDABLE,
   DEEP_YIELDABLE_INSERTION,
+  DEEP_YIELDABLE_VALUE_INSERTION,
   REACTIVE_DEPENDENCIES,
   REACTIVE_READ_OBSERVERS,
   REACTIVE_READ_REQUEST,
@@ -211,7 +212,9 @@ export {
   createYieldableReactiveValue,
   deepYieldable,
   hasDeepYieldableInsertion,
+  hasDeepYieldableValueInsertion,
   insertDeepYieldable,
+  insertDeepYieldableValue,
   isReactiveReadRequest,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
@@ -223,6 +226,7 @@ export {
 } from './lib/reactive-read';
 export type {
   DeepYieldableInsertion,
+  DeepYieldableValueInsertion,
   DeepYieldableMarker,
   DeepYieldableReactiveValue,
   DeepYieldableReaderOf,

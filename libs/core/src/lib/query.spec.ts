@@ -24,7 +24,11 @@ import { craftUse } from './craft-use';
 import { craftGen } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { craftUntilSettled } from './craft-until-settled';
-import type { YieldableReactiveProperties } from './reactive-read';
+import { insertQueryPipe } from './insert-typed-pipes';
+import {
+  insertDeepYieldableValue,
+  type YieldableReactiveProperties,
+} from './reactive-read';
 import { craftSignal } from './host/craft-signal';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 
@@ -415,6 +419,66 @@ describe('query', () => {
 });
 
 describe('query with identifier>', () => {
+  it('deepens the resolved value for a regular query', async () => {
+    await runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query(
+          'deepValueQuery',
+          {
+            params: () => 'user-1',
+            loader: async () => ({
+              id: 'user-1',
+              profile: { displayName: 'Ada Lovelace' },
+            }),
+          },
+          insertQueryPipe(
+            insertDeepYieldableValue(),
+            () => ({ marker: true }),
+          ),
+        ),
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(queryRef.value.id())).toBe('user-1');
+      expect(craftUse(queryRef.value.profile.displayName())).toBe(
+        'Ada Lovelace',
+      );
+      expectTypeOf(queryRef.value.profile.displayName).toBeFunction();
+    });
+  });
+
+  it('deepens the value returned by select for an identified query', async () => {
+    await runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query(
+          'deepIdentifiedValueQuery',
+          {
+            params: () => 'user-1',
+            identifier: (id: string) => id,
+            loader: async ({ params }) => ({
+              id: params,
+              profile: { displayName: 'Ada Lovelace' },
+            }),
+          },
+          insertDeepYieldableValue(),
+        ),
+      );
+
+      await vi.runAllTimersAsync();
+
+      const selected = queryRef.select('user-1');
+      expect(selected).toBeDefined();
+      expect(craftUse(selected!.value.profile.displayName())).toBe(
+        'Ada Lovelace',
+      );
+      expectTypeOf(selected!.value.profile.displayName).toBeFunction();
+
+      const created = queryRef.selectOrCreate('user-2');
+      expect(craftUse(created.value.profile.displayName())).toBeUndefined();
+    });
+  });
+
   it('selectOrCreate returns an idle resource without changing select', async () => {
     runInInjectionContext(() => {
       const queryRef = craftUse(

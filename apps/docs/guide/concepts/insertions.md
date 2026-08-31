@@ -58,6 +58,45 @@ const users = yield* query(
 The typed helper supplies the query context to each member and keeps the
 primitive call free of context plumbing.
 
+## Deep projections of query values
+
+When a query returns an object, use `insertDeepYieldableValue()` when its
+properties are consumed by the template. The insertion targets `value` only,
+so the primitive keeps its normal API while the resolved object exposes lazy,
+yieldable property readers:
+
+```typescript
+import {
+  insertDeepYieldableValue,
+  query,
+} from '@craft-ts/core';
+
+const productQuery = yield* query(
+  'productDetails',
+  {
+    method: (id: string) => id,
+    loader: ({ params }) => api.getProduct(params),
+  },
+  insertDeepYieldableValue(),
+);
+
+// In a template: productQuery.value.name
+// In a generator: yield* productQuery.value.name()
+```
+
+For an identified query, the same insertion is applied to the selected
+resource values:
+
+```typescript
+const product = productQuery.select(productId);
+if (product) {
+  yield* product.value.name();
+}
+```
+
+This is deliberately different from `insertDeepYieldable()`, which adapts the
+primitive's root value and is still useful for object-valued `state`.
+
 ::: tip A single insertion needs no pipe
 Pass it directly:
 

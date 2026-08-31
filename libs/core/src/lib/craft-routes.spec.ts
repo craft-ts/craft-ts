@@ -498,7 +498,7 @@ describe('craftRoutes', () => {
     });
   });
 
-  it('should expose typed inject helpers for params but not route data', () => {
+  it('should expose a yieldable service helper for params', () => {
     const routes = craftRoutes('player', [
       {
         path: 'mutation/:userId',
@@ -516,11 +516,39 @@ describe('craftRoutes', () => {
     expectTypeOf(routes.injectPlayerUserIdParams).toEqualTypeOf<
       CraftRouteInjectHelper<'PlayerUserIdParams', Signal<string>>
     >();
+    expectTypeOf(routes.PlayerUserIdParams).toEqualTypeOf<
+      CraftRouteYieldHelper<'PlayerUserIdParams', Signal<string>>
+    >();
 
     // Route data is consumed through route inputs or the route-local `Data`
     // generator in `withProviders`, never through a collection-level helper.
     // @ts-expect-error route data inject helpers are intentionally not public
     routes.injectPlayerMutationData;
+  });
+
+  it('should yield route params through the service-shaped helper', () => {
+    const { playerRoutes, PlayerUserIdParams } = craftRoutes('player', [
+      {
+        path: 'mutation/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+    const routeConfig = playerRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub({
+      params: { userId: '12' },
+    });
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+      undefined,
+      routeConfig.path,
+    );
+
+    const userId = resolveRouteYield(PlayerUserIdParams(), injector);
+
+    expectTypeOf(userId).toEqualTypeOf<Signal<string>>();
+    expect(userId()).toBe('12');
   });
 
   it('should expose typed inject helpers for route queryParams', () => {

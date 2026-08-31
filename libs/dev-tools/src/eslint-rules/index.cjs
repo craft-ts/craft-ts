@@ -23,6 +23,8 @@ const requireYieldableInsertionWrite = require('./require-yieldable-insertion-wr
 const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noCraftUse = require('./no-craft-use.cjs');
+const noCraftComponentReturnType = require('./no-craft-component-return-type.cjs');
+const noRawCraftRouterUrl = require('./no-raw-craft-router-url.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
@@ -133,6 +135,8 @@ const plugin = {
     'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
     'no-craft-use-in-template': noCraftUseInTemplate,
     'no-craft-use': noCraftUse,
+    'no-craft-component-return-type': noCraftComponentReturnType,
+    'no-raw-craft-router-url': noRawCraftRouterUrl,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':

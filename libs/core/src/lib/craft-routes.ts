@@ -1738,6 +1738,30 @@ type ParamInjectHelpers<
   >
 >;
 
+/**
+ * Yieldable collection-level helpers for path parameters.
+ *
+ * The `inject...` form remains in the result for source compatibility, but
+ * new Craft components should use the service-shaped `...Params()` helper so
+ * route parameters follow the same DI contract as every other Craft service.
+ */
+type ParamYieldHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    PathParamNames<Routes[number]['path']> extends infer ParamName extends
+      string
+      ? {
+          [Key in RouteParamServiceName<Name, ParamName>]: CraftRouteYieldHelper<
+            RouteParamServiceName<Name, ParamName>,
+            ParamOutputForRoutes<Routes, ParamName>
+          >;
+        }
+      : never
+  >
+>;
+
 type QueryParamsInjectHelpers<
   Name extends string,
   Routes extends readonly AnyCraftRouteHelperDefinition[],
@@ -2143,6 +2167,7 @@ type CraftRoutesSuccessResult<
   {
     [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name, ParentMount>;
   } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    ParamYieldHelpers<Name, RoutesHelperShape<Routes>> &
     QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
     ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
     GuardedDataYieldHelpers<Name, RoutesHelperShape<Routes>> &
@@ -2708,6 +2733,13 @@ export function craftRoutes<
       );
       registerRouteValueService(
         serviceName,
+        serviceName,
+        'yield',
+      );
+      // Keep the old synchronous helper available while applications migrate
+      // to the service-shaped `AppProductIdParams()` API.
+      registerRouteValueService(
+        serviceName,
         toParamInjectHelperName(routeCollectionName, paramName),
       );
     }
@@ -2812,14 +2844,15 @@ export function craftRoutes<
     helperName?: string,
     helperKind: 'inject' | 'yield' = 'inject',
   ): void {
-    if (routeValueServices.has(serviceName)) {
-      return;
-    }
-
-    const serviceApi = createRouteValueService(serviceName);
+    const serviceApi =
+      routeValueServices.get(serviceName) ??
+      createRouteValueService(serviceName);
     routeValueServices.set(serviceName, serviceApi);
 
     if (helperName) {
+      if (helpers[helperName]) {
+        return;
+      }
       helpers[helperName] =
         helperKind === 'yield'
           ? (serviceApi as Record<string, unknown>)[serviceName]

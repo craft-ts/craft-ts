@@ -41,6 +41,11 @@ export const DEEP_YIELDABLE_INSERTION = Symbol(
   'craft-deep-yieldable-insertion',
 );
 
+/** Marker for the query/resource insertion that deepens only `value`. */
+export const DEEP_YIELDABLE_VALUE_INSERTION = Symbol(
+  'craft-deep-yieldable-value-insertion',
+);
+
 export type ReactiveDependencyMap = Readonly<{
   readonly source: unknown;
   readonly path: string;
@@ -170,9 +175,36 @@ export type DeepYieldableInsertion = {
   readonly [DEEP_YIELDABLE_INSERTION]: true;
 });
 
+/**
+ * Insertion marker for resources whose resolved `value` should expose lazy
+ * deep projections. The owning primitive applies the marker to its resource
+ * shape, including each selected resource of an identified query.
+ */
+export type DeepYieldableValueInsertion = {
+  readonly [DEEP_YIELDABLE_VALUE_INSERTION]: true;
+};
+
 export function insertDeepYieldable(): DeepYieldableInsertion {
   const insertion = (() => ({})) as unknown as DeepYieldableInsertion;
   Object.defineProperty(insertion, DEEP_YIELDABLE_INSERTION, {
+    value: true,
+    enumerable: false,
+  });
+  return insertion;
+}
+
+export function insertDeepYieldableValue():
+  & ((context: unknown) => DeepYieldableValueInsertion)
+  & DeepYieldableValueInsertion {
+  const output = {} as DeepYieldableValueInsertion;
+  Object.defineProperty(output, DEEP_YIELDABLE_VALUE_INSERTION, {
+    value: true,
+    enumerable: false,
+  });
+  const insertion = (() => output) as unknown as ((
+    context: unknown,
+  ) => DeepYieldableValueInsertion) & DeepYieldableValueInsertion;
+  Object.defineProperty(insertion, DEEP_YIELDABLE_VALUE_INSERTION, {
     value: true,
     enumerable: false,
   });
@@ -185,6 +217,16 @@ export function hasDeepYieldableInsertion(
   return insertions.some(
     (insertion) =>
       typeof insertion === 'function' && DEEP_YIELDABLE_INSERTION in insertion,
+  );
+}
+
+export function hasDeepYieldableValueInsertion(
+  insertions: readonly unknown[],
+): boolean {
+  return insertions.some(
+    (insertion) =>
+      typeof insertion === 'function' &&
+      DEEP_YIELDABLE_VALUE_INSERTION in insertion,
   );
 }
 
