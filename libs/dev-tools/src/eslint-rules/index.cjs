@@ -24,6 +24,7 @@ const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callbac
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noCraftUse = require('./no-craft-use.cjs');
 const noCraftComponentReturnType = require('./no-craft-component-return-type.cjs');
+const requireCraftComponentForExportedNodeFactory = require('./require-craft-component-for-exported-node-factory.cjs');
 const noRawCraftRouterUrl = require('./no-raw-craft-router-url.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
@@ -137,6 +138,8 @@ const plugin = {
     'no-craft-use-in-template': noCraftUseInTemplate,
     'no-craft-use': noCraftUse,
     'no-craft-component-return-type': noCraftComponentReturnType,
+    'require-craft-component-for-exported-node-factory':
+      requireCraftComponentForExportedNodeFactory,
     'no-raw-craft-router-url': noRawCraftRouterUrl,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,

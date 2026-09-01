@@ -50,6 +50,7 @@ export default [
       'craft-ts/require-reactive-template-bindings': 'error',
       'craft-ts/no-craft-use': 'error',
       'craft-ts/no-craft-component-return-type': 'error',
+      'craft-ts/require-craft-component-for-exported-node-factory': 'error',
       'craft-ts/no-raw-craft-router-url': 'error',
       'craft-ts/no-type-assertions-in-template': 'error',
       'craft-ts/no-ephemeral-template-form-state': 'error',
@@ -96,6 +97,37 @@ What each rule does:
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
+- `craft-ts/require-craft-component-for-exported-node-factory`: requires an exported function that directly returns a Craft node, such as `button(...)`, to be declared with `craftComponent(...)` so Craft directives and composition remain available
+
+Small node factories are valid when they stay private to the file:
+
+```ts
+function filterButton(filter: TodoFilter, label: string) {
+  return button('todoFilterButton', { type: 'button' }, label);
+}
+```
+
+Once the function is exported, use a Craft component so directives and
+composition can be applied at the module boundary:
+
+```ts
+// ❌ craft-ts/require-craft-component-for-exported-node-factory
+export function filterButton(filter: TodoFilter, label: string) {
+  return button('todoFilterButton', { type: 'button' }, label);
+}
+
+// ✅
+export const FilterButton = craftComponent(
+  'FilterButton',
+  {},
+  (filter: Input<TodoFilter>, label: Input<string>) => ({ filter, label }),
+  ({ label }) => button('todoFilterButton', { type: 'button' }, label),
+);
+```
+
+The rule also follows named exports such as `export { filterButton }` and
+checks exported arrow functions.
+
 - `craft-ts/no-type-assertions-in-template`: forbids `as ...` and angle-bracket type assertions in Craft templates; fix the type in the logic factory or expose a correctly typed derived value
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`

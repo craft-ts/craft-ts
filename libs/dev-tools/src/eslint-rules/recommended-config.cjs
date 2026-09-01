@@ -17,6 +17,7 @@ module.exports = {
   'craft-ts/no-important-in-component-styles': 'error',
   'craft-ts/no-craft-computed-side-effects': 'error',
   'craft-ts/no-craft-component-return-type': 'error',
+  'craft-ts/require-craft-component-for-exported-node-factory': 'error',
   'craft-ts/no-raw-craft-router-url': 'error',
   'craft-ts/provide-host-name-match-component': 'warn',
   'craft-ts/prefer-craft-http-transport': 'error',
