@@ -32,6 +32,7 @@ export const architectureCatalog = {
     "HostName",
     "LocalStoragePersister",
     "LocalStorageService",
+    "MiddlewareExecutionScope",
     "ServerFunctionTransport",
     "SessionStoragePersister",
     "SessionStorageService",
@@ -130,6 +131,10 @@ export const architectureCatalog = {
       "CurrentUser": [
         "apps/demo-with-server-function/src/shared/authenticated-user.ts",
         "apps/demo-with-server-function/src/shared/authenticated-user.ts"
+      ],
+      "MiddlewareExecutionScope": [
+        "libs/core/src/lib/server-function-middleware.ts",
+        "libs/core/src/lib/server-function-middleware.ts"
       ],
       "UserRepository": [
         "apps/demo-with-server-function/src/server/database.ts",
