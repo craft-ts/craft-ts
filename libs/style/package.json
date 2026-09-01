@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/style",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Typed design tokens, CSS custom properties and build-time style emission for CraftTS",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "url": "https://github.com/craft-ts/craft-ts.git"
   },
   "peerDependencies": {
-    "@craft-ts/core": "^0.8.0",
+    "@craft-ts/core": "^0.8.1",
     "tslib": "^2.3.0"
   },
   "engines": {

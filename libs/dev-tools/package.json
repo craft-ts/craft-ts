@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/dev-tools",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Development tools for craft-ts: ESLint configs, ESLint rules, and codemods",
   "author": "Romain Geffrault",
   "license": "MIT",

@@ -1,3 +1,21 @@
+## 0.8.1 (2026-09-01)
+
+### 🚀 Features
+
+- **dev-tools:** detect state-backed resource params ([1783c1f42](https://github.com/craft-ts/craft-ts/commit/1783c1f42))
+- **dev-tools:** enforce primitive method usage architecture ([14163b211](https://github.com/craft-ts/craft-ts/commit/14163b211))
+- **eslint:** require components for exported node factories ([48f9ef009](https://github.com/craft-ts/craft-ts/commit/48f9ef009))
+
+### 🩹 Fixes
+
+- **demo-effect:** use distinct title input methods ([52372e283](https://github.com/craft-ts/craft-ts/commit/52372e283))
+- **release:** keep workspace lockfile installable ([fb9299755](https://github.com/craft-ts/craft-ts/commit/fb9299755))
+- **server-function:** expose public user error status ([34846032b](https://github.com/craft-ts/craft-ts/commit/34846032b))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.8.0 (2026-08-30)
 
 ### 🚀 Features
