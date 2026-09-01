@@ -100,6 +100,13 @@ const RULES = [
     call: 'assertMutationHasReactOn(graph.graph)',
   },
   {
+    file: 'resource-params-query-state.spec.ts',
+    helper: 'assertResourceParamsPreferQueryParams',
+    describe: 'assertResourceParamsPreferQueryParams',
+    it: 'keeps resource params URL-backed',
+    call: 'assertResourceParamsPreferQueryParams(graph.graph)',
+  },
+  {
     file: 'persisted-primitive-unique.spec.ts',
     helper: 'assertPersistedPrimitiveHasUnique',
     describe: 'assertPersistedPrimitiveHasUnique',

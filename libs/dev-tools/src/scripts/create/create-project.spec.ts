@@ -431,6 +431,15 @@ describe('createCraftProject', () => {
     ).toContain('loadArchitectureGraph');
     expect(
       await readFile(
+        join(
+          result.directory,
+          'architecture/rules/resource-params-query-state.spec.ts',
+        ),
+        'utf8',
+      ),
+    ).toContain('assertResourceParamsPreferQueryParams');
+    expect(
+      await readFile(
         join(result.directory, '.cursor/skills/craft-ts-project/SKILL.md'),
         'utf8',
       ),

@@ -93,6 +93,11 @@ describe('architecture migration', () => {
     ).toBe(true);
     expect(
       existsSync(
+        join(root, 'architecture/rules/resource-params-query-state.spec.ts'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
         join(root, 'architecture/rules/persisted-primitive-unique.spec.ts'),
       ),
     ).toBe(true);
