@@ -3,6 +3,7 @@ import { Data, Effect, Schema } from 'effect';
 import { UserRepository, UserSchema } from '../server/database';
 
 export class UsersNotFound extends Data.TaggedError('UsersNotFound')<{
+  readonly status: 404;
   readonly message: string;
   readonly filter: string;
 }> {}
@@ -30,6 +31,7 @@ export const listUsers = serverFunction(
       const result = yield* users.list(input.filter);
       if (result.length === 0) {
         return yield* new UsersNotFound({
+          status: 404,
           message: `No users matched the filter "${input.filter}".`,
           filter: input.filter,
         });
@@ -42,6 +44,7 @@ export const listUsers = serverFunction(
       code: 'USERS_NOT_FOUND',
       status: 404,
       payload: {
+        status: errorPayload.status,
         message: errorPayload.message,
         filter: errorPayload.filter,
       },
