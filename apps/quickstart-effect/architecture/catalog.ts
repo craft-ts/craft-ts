@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "18bd5675e38f4057",
+  "graphHash": "636dbfd4ec90a801",
   "routes": [],
   "services": [
     "BrowserCryptoService",
