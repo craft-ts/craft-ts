@@ -136,12 +136,13 @@ const EffectPlaygroundComponent = craftComponent(
     );
     const titleInput = yield* state('titleInput', '', ({ set }) => ({
       setTitle: (value: string) => set(value),
+      clearTitle: () => set(''),
     }));
     const add = craftMethod('add', function* () {
       const title = (yield* titleInput()).trim();
       if (!title) return;
       yield* addTodo.mutate(title);
-      yield* titleInput.setTitle('');
+      yield* titleInput.clearTitle();
     });
 
     return {
