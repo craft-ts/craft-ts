@@ -128,11 +128,11 @@ function activateCraftRoutes(
   );
 }
 
-function _injectDemoUserIdParams(): Signal<string> {
+function _demoUserIdParams(): Signal<string> {
   throw new Error('Type-only helper');
 }
 
-function _injectDemoTeamIdParams(): Signal<string> {
+function _demoTeamIdParams(): Signal<string> {
   throw new Error('Type-only helper');
 }
 
@@ -513,12 +513,12 @@ describe('craftRoutes', () => {
     expect(routes.playerRoutes.name).toBe('player');
     expectTypeOf(routes.playerRoutes.name).toEqualTypeOf<'player'>();
 
-    expectTypeOf(routes.injectPlayerUserIdParams).toEqualTypeOf<
-      CraftRouteInjectHelper<'PlayerUserIdParams', Signal<string>>
-    >();
     expectTypeOf(routes.PlayerUserIdParams).toEqualTypeOf<
       CraftRouteYieldHelper<'PlayerUserIdParams', Signal<string>>
     >();
+    // @ts-expect-error path params no longer expose synchronous inject helpers
+    routes.injectPlayerUserIdParams;
+    expect('injectPlayerUserIdParams' in routes).toBe(false);
 
     // Route data is consumed through route inputs or the route-local `Data`
     // generator in `withProviders`, never through a collection-level helper.
@@ -790,7 +790,7 @@ describe('craftRoutes', () => {
   });
 
   it('should allow paramsProvider to transform the injected param type', () => {
-    const { testRoutes: appRoutes, injectTestUserIdParams: injectUserId } =
+    const { testRoutes: appRoutes, TestUserIdParams } =
       craftRoutes('test', [
         {
           path: 'query/:userId',
@@ -817,7 +817,7 @@ describe('craftRoutes', () => {
       undefined,
       routeConfig.path,
     );
-    const userId = runInInjectionContext(injector, () => injectUserId());
+    const userId = resolveRouteYield(TestUserIdParams(), injector);
 
     expectTypeOf(userId).toEqualTypeOf<Signal<number>>();
     expect(userId()).toBe(12);
@@ -865,7 +865,7 @@ describe('craftRoutes', () => {
         componentDeps: {},
       },
     ]);
-    const { parentRoutes: appRoutes, injectParentUserIdParams: injectUserId } =
+    const { parentRoutes: appRoutes, ParentUserIdParams } =
       craftRoutes('parent', [
         {
           path: 'users/:userId',
@@ -880,7 +880,9 @@ describe('craftRoutes', () => {
 
     const routeConfig = appRoutes.toRoutes()[0];
 
-    expectTypeOf(injectUserId).toBeFunction();
+    expectTypeOf(ParentUserIdParams).toEqualTypeOf<
+      CraftRouteYieldHelper<'ParentUserIdParams', Signal<string>>
+    >();
     expect(routeConfig.loadComponent).toBeTypeOf('function');
     expect(routeConfig.loadChildren).toBeTypeOf('function');
     expect(loaded).toBe(false);
@@ -1081,7 +1083,7 @@ describe('craftRoutes', () => {
         componentDeps: {},
       },
     ]);
-    const { testRoutes: appRoutes, injectTestUserIdParams: injectUserId } =
+    const { testRoutes: appRoutes, TestUserIdParams } =
       routes;
     const routeConfig = appRoutes.toRoutes()[0];
     const activatedRoute = createNestedActivatedRouteStub({
@@ -1101,7 +1103,7 @@ describe('craftRoutes', () => {
       routeConfig.path,
     );
 
-    const userId = runInInjectionContext(injector, () => injectUserId());
+    const userId = resolveRouteYield(TestUserIdParams(), injector);
 
     expect(userId()).toBe('42');
     expect('injectTestUsersUserIdData' in routes).toBe(false);
@@ -1171,10 +1173,10 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    expect(childRoutes.injectChildTeamIdParams).toBeTypeOf('function');
+    expect(childRoutes.ChildTeamIdParams).toBeTypeOf('function');
     type LazyHelperShouldStayLocal =
       // @ts-expect-error lazy child helpers should stay scoped to the lazy routes module
-      typeof parentRoutes.injectParentTeamIdParams;
+      typeof parentRoutes.ParentTeamIdParams;
   });
 
   it('should keep parent route helper scoping inside lazy child metadata', () => {
@@ -1198,12 +1200,12 @@ describe('craftRoutes', () => {
       propertiesDeps: {
         parentTeamId: {
           ParentTeamIdParams: ReturnType<
-            typeof parentRoutes.injectParentTeamIdParams
+            typeof _demoTeamIdParams
           >;
         };
         invalidUserId: {
           ParentUserIdParams: ReturnType<
-            typeof parentRoutes.injectParentUserIdParams
+            typeof _demoUserIdParams
           >;
         };
       };
@@ -1258,12 +1260,12 @@ describe('craftRoutes', () => {
       propertiesDeps: {
         parentTeamId: {
           ParentTeamIdParams: ReturnType<
-            typeof parentRoutes.injectParentTeamIdParams
+            typeof _demoTeamIdParams
           >;
         };
         invalidUserId: {
           ParentUserIdParams: ReturnType<
-            typeof parentRoutes.injectParentUserIdParams
+            typeof _demoUserIdParams
           >;
         };
       };
@@ -1318,12 +1320,12 @@ describe('craftRoutes', () => {
       propertiesDeps: {
         parentTeamId: {
           ParentTeamIdParams: ReturnType<
-            typeof parentRoutes.injectParentTeamIdParams
+            typeof _demoTeamIdParams
           >;
         };
         invalidUserId: {
           ParentUserIdParams: ReturnType<
-            typeof parentRoutes.injectParentUserIdParams
+            typeof _demoUserIdParams
           >;
         };
       };
@@ -1363,7 +1365,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+        DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
       };
     }>;
 
@@ -1395,7 +1397,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+        DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
       };
     }>();
   });
@@ -1632,8 +1634,8 @@ describe('craftRoutes', () => {
         DemoCraftLazyLayoutTeamIdData: ReturnType<
           typeof _injectDemoCraftLazyLayoutTeamIdData
         >;
-        DemoTeamIdParams: ReturnType<typeof _injectDemoTeamIdParams>;
-        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+        DemoTeamIdParams: ReturnType<typeof _demoTeamIdParams>;
+        DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
       };
     }>;
 
@@ -1677,8 +1679,8 @@ describe('craftRoutes', () => {
         DemoCraftLazyLayoutTeamIdData: ReturnType<
           typeof _injectDemoCraftLazyLayoutTeamIdData
         >;
-        DemoTeamIdParams: ReturnType<typeof _injectDemoTeamIdParams>;
-        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+        DemoTeamIdParams: ReturnType<typeof _demoTeamIdParams>;
+        DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
       };
     }>();
 
@@ -1688,7 +1690,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+        DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
       };
     }>();
   });
@@ -1942,7 +1944,7 @@ describe('craftRoutes', () => {
   });
 
   it('should auto provide route params and keep them reactive', () => {
-    const { testRoutes: appRoutes, injectTestUserIdParams: injectUserId } =
+    const { testRoutes: appRoutes, TestUserIdParams } =
       craftRoutes('test', [
         {
           path: 'query/:userId',
@@ -1978,7 +1980,7 @@ describe('craftRoutes', () => {
       routeConfig.path,
     );
 
-    const userId = runInInjectionContext(injector, () => injectUserId());
+    const userId = resolveRouteYield(TestUserIdParams(), injector);
     expect(userId()).toBe('12');
 
     activatedRoute.setParams({

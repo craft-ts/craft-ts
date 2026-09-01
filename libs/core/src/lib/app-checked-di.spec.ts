@@ -4,7 +4,7 @@ import type { AppCheckedDI, CanRun } from './app-checked-di';
 import { craftAppConfig } from './craft-app-config';
 import { requiredAppStart } from './craft-app-config.app-start.fixture';
 
-function _injectDemoUserIdParams(): string {
+function _demoUserIdParams(): string {
   throw new Error('Type-only helper');
 }
 
@@ -331,7 +331,7 @@ describe('AppCheckedDI', () => {
         provided: {};
         publicProperties: {};
         missingProvider: {
-          DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+          DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
         };
       },
     ];

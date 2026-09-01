@@ -117,8 +117,8 @@ import { DemoUserIdParams } from './demo.routes';
 const userId = yield* DemoUserIdParams(); // Signal<string>
 ```
 
-The older synchronous `injectDemoUserIdParams()` helper remains only as a migration alias. New code
-must use `DemoUserIdParams()` so URL parameters participate in Craft's normal yieldable DI graph.
+Path parameters are exposed only through the service-shaped `DemoUserIdParams()` helper, so URL
+parameters participate in Craft's normal yieldable DI graph.
 
 ## Pairing with an abstract service
 

@@ -205,12 +205,14 @@ a({}, 'Photo').pipe(
 );
 ```
 
-The skeleton (and/or the target) reads it through the **route-generated typed helper** and wears the
-matching `view-transition-name`:
+The skeleton receives `photoId` as a route-bound input and reads the payload through the
+**route-generated typed helper**:
 
 ```ts
+import { input } from '@angular/core';
+
 export default class PhotoSkeleton {
-  protected readonly photoId = injectPhotosPhotoIdParams();
+  protected readonly photoId = input.required<string>();
   // Signal<{ name: string; image: string | null } | null> — typed by the route.
   private readonly viewTransition = injectPhotosPhotoIdViewTransition();
   protected readonly image = computed(

@@ -261,10 +261,6 @@ type RouteCollectionExportName<Name extends string> = Uncapitalize<
 >;
 type RoutesExportKey<Name extends string> =
   `${RouteCollectionExportName<Name>}Routes`;
-type RouteParamInjectHelperName<
-  Name extends string,
-  ParamName extends string,
-> = InjectHelperName<RouteParamServiceName<Name, ParamName>>;
 type RouteQueryParamsInjectHelperName<
   Name extends string,
   Path extends string,
@@ -1718,32 +1714,8 @@ type CraftRouteValueServiceApi<Name extends string, Output> = {
   [Key in ProvideHelperName<Name>]: CraftRouteProvideHelper<Name, Output>;
 };
 
-type ParamInjectHelpers<
-  Name extends string,
-  Routes extends readonly AnyCraftRouteHelperDefinition[],
-> = Simplify<
-  MergeObjectUnion<
-    PathParamNames<Routes[number]['path']> extends infer ParamName extends
-      string
-      ? {
-          [Key in RouteParamInjectHelperName<
-            Name,
-            ParamName
-          >]: CraftRouteValueServiceApi<
-            RouteParamServiceName<Name, ParamName>,
-            ParamOutputForRoutes<Routes, ParamName>
-          >[RouteParamInjectHelperName<Name, ParamName>];
-        }
-      : never
-  >
->;
-
 /**
  * Yieldable collection-level helpers for path parameters.
- *
- * The `inject...` form remains in the result for source compatibility, but
- * new Craft components should use the service-shaped `...Params()` helper so
- * route parameters follow the same DI contract as every other Craft service.
  */
 type ParamYieldHelpers<
   Name extends string,
@@ -2166,8 +2138,7 @@ type CraftRoutesSuccessResult<
 > = Simplify<
   {
     [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name, ParentMount>;
-  } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
-    ParamYieldHelpers<Name, RoutesHelperShape<Routes>> &
+  } & ParamYieldHelpers<Name, RoutesHelperShape<Routes>> &
     QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
     ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
     GuardedDataYieldHelpers<Name, RoutesHelperShape<Routes>> &
@@ -2297,13 +2268,6 @@ function toViewTransitionInjectHelperName(
 
 function toRouteCollectionExportName(name: string): string {
   return `${uncapitalize(toRouteCollectionServiceName(name))}Routes`;
-}
-
-function toParamInjectHelperName(
-  routeCollectionName: string,
-  paramName: string,
-): string {
-  return `inject${toRouteParamServiceName(routeCollectionName, paramName)}`;
 }
 
 function toQueryParamsInjectHelperName(
@@ -2735,12 +2699,6 @@ export function craftRoutes<
         serviceName,
         serviceName,
         'yield',
-      );
-      // Keep the old synchronous helper available while applications migrate
-      // to the service-shaped `AppProductIdParams()` API.
-      registerRouteValueService(
-        serviceName,
-        toParamInjectHelperName(routeCollectionName, paramName),
       );
     }
 

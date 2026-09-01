@@ -1135,8 +1135,8 @@ function deriveMovedHelperRenames(
       if (!segment.startsWith(':')) continue;
       const param = segment.slice(1).replace(/\?$/, '');
       candidates.set(
-        `inject${parentName}${toPascalCase(param)}Params`,
-        `inject${childName}${toPascalCase(param)}Params`,
+        `${parentName}${toPascalCase(param)}Params`,
+        `${childName}${toPascalCase(param)}Params`,
       );
     }
     const definition = getRouteDefinition(node);

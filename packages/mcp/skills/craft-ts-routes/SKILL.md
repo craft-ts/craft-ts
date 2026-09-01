@@ -66,7 +66,7 @@ import {
 } from '@craft-ts/core';
 import type { Router } from '@angular/router';
 
-export const { featureRoutes, injectFeatureUserIdParams } = craftRoutes('feature', [
+export const { featureRoutes, FeatureUserIdParams } = craftRoutes('feature', [
   route(':userId', {
     componentDeps: {} as import('./user-detail').GenDeps_UserDetailComponent,
     loadComponent: () => import('./user-detail'),

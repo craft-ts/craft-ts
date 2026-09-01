@@ -377,13 +377,13 @@ exit 0
     const root = await fixture({
       'src/app/page.ts': component('PageComponent'),
       'src/app/user-consumer.ts': `
-        import { injectAppIdParams } from './app.routes';
-        export const readUser = () => injectAppIdParams();
+        import { AppIdParams } from './app.routes';
+        export const readUser = () => AppIdParams();
       `,
       'src/app/app.routes.ts': `
         import { assertExhaustiveRouteExceptions, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ts/core';
         import type { Router } from '@angular/router';
-        export const { appRoutes, injectAppIdParams } = craftRoutes('app', [
+        export const { appRoutes, AppIdParams } = craftRoutes('app', [
           craftRoute('home', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
           craftRoute('users', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
           craftRoute('users/:id', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
@@ -423,10 +423,10 @@ exit 0
     expect(child).toContain("craftRoute(':id'");
     expect(child).toContain("import('../page')");
     expect(child).toContain("import('../page').GenDeps_PageComponent");
-    expect(child).toContain('injectUsersIdParams');
-    expect(parent).not.toContain('injectAppIdParams');
+    expect(child).toContain('UsersIdParams');
+    expect(parent).not.toContain('AppIdParams');
     expect(consumer).toContain(
-      "import { injectUsersIdParams as injectAppIdParams } from './users/users.routes';",
+      "import { UsersIdParams as AppIdParams } from './users/users.routes';",
     );
   });
 
