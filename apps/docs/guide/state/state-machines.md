@@ -211,6 +211,71 @@ declarative as well: the transition is still described by its event and its
 accepted predicate, rather than by an imperative event handler that manually
 coordinates state.
 
+### Effect services in a guard
+
+In an Effect-enabled frontend, use `transitionGuardEffect` when the decision is
+declared synchronous and needs an Effect service. It is the Effect-aware form
+of `transitionGuard`:
+
+```typescript
+import { Context, Effect, Layer } from 'effect';
+import { SyncOp, transitionGuardEffect } from '@craft-ts/effect';
+
+type CheckoutPolicyShape = {
+  readonly canSubmit: (total: number) => Effect.Effect<boolean, never, SyncOp>;
+};
+
+class CheckoutPolicy extends Context.Service<
+  CheckoutPolicy,
+  CheckoutPolicyShape
+>()('app/CheckoutPolicy') {}
+
+const CheckoutPolicyLive = Layer.succeed(CheckoutPolicy, {
+  canSubmit: (total) =>
+    Effect.gen(function* () {
+      yield* SyncOp;
+      return total > 0;
+    }),
+});
+
+editing: transitionStep(function* () {
+  yield* on$(context.submit$, () =>
+    transit().pipe(
+      transitionGuardEffect(() =>
+        Effect.gen(function* () {
+          yield* SyncOp;
+          const policy = yield* CheckoutPolicy;
+          return yield* policy.canSubmit(context.total());
+        }),
+      ),
+    ),
+  );
+});
+```
+
+`transitionGuardEffect` runs through `syncEffect`, so `SyncOp` is required at
+compile time and an Effect that suspends is rejected. The Effect service used by
+the guard is also carried into the machine's dependency graph. Provide its
+implementation with `provideLayer(...)` at the application, component or
+route scope:
+
+```typescript
+const routes = craftRoutes('checkout', [
+  {
+    path: '',
+    ...loadCraftComponent(
+      () => import('./checkout').then(({ default: component }) => component),
+      [provideLayer(CheckoutPolicyLive)] as const,
+    ),
+  },
+]);
+```
+
+For an asynchronous policy check, do not put the Effect in a guard. Use
+`asyncProcessEffect`, `queryEffect` or `mutationEffect`, then model the
+`pending`, success and failure outcomes as explicit machine steps. A transition
+guard must answer synchronously; an asynchronous decision is a workflow state.
+
 ## Composition and extensions
 
 The final machine insertion has the same role as an insertion on `state`,
@@ -268,6 +333,7 @@ primitives in its context when the workflow needs them.
 | `transit()`              | Creates an attempt to enter the surrounding step       |
 | `initStateMachine`       | Declares the attempt that establishes the initial step |
 | `transitionGuard`        | Accepts or rejects a transition attempt                |
+| `transitionGuardEffect`  | Effect-aware guard for declared-synchronous Effects     |
 | `currentStep`            | Reactive union of step names                           |
 | `currentStepWithContext` | Reactive discriminated union of step contexts          |
 | `insertStateMachinePipe` | Composes machine insertions                            |

@@ -12,6 +12,7 @@ import {
   deepYieldable,
   createDeepYieldableReactiveValue,
   insertDeepYieldable,
+  isDeepYieldable,
   provideReactiveReadObserver,
   type ReactiveReadEdge,
 } from './reactive-read';
@@ -141,6 +142,40 @@ describe('yieldable reactive reads', () => {
     source.set({ id: 2, profile: { name: 'Grace' } });
     expect(craftUse(id())).toBe(2);
     expect(craftUse(user.profile.name())).toBe('Grace');
+  });
+
+  it('can expose one deep-yieldable state property without deepifying the root', () => {
+    const catalog = TestBed.runInInjectionContext(() =>
+      craftUse(
+        state(
+          'catalog',
+          { products: [{ id: 1, name: 'Apple' }] },
+          insertDeepYieldable('products'),
+        ),
+      ),
+    );
+
+    expect(isDeepYieldable(catalog)).toBe(false);
+    expect(isDeepYieldable(catalog.products)).toBe(false);
+    expect(isDeepYieldable(catalog.deepYieldableProducts)).toBe(true);
+    expect(craftUse(catalog.deepYieldableProducts())).toEqual([
+      { id: 1, name: 'Apple' },
+    ]);
+  });
+
+  it('preserves the named deep-yieldable property through insertStatePipe', () => {
+    const catalog = TestBed.runInInjectionContext(() =>
+      craftUse(
+        state(
+          'pipedCatalog',
+          { products: [{ id: 1 }] },
+          insertStatePipe(insertDeepYieldable('products')),
+        ),
+      ),
+    );
+
+    expect(isDeepYieldable(catalog.deepYieldableProducts)).toBe(true);
+    expect(craftUse(catalog.deepYieldableProducts())).toEqual([{ id: 1 }]);
   });
 
   it('adapts a plain yieldable input without reading it during construction', () => {

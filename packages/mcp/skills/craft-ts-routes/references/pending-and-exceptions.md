@@ -15,17 +15,12 @@ route('user/:userId', {
 }),
 ```
 
-### Verifying the skeleton's DI (the cascade can't see it)
+### Verifying the skeleton's DI
 
-`ValidateCascadeRoutesFile` only checks the **target** component — it never descends into
-`pendingComponent`. A skeleton is a real component that injects things (route params, a payload,
-monitoring), so verify it **directly** with the per-component `RouteCheckedDI` (not a second aggregated
-pass — that would add to the budget the cascade already spends):
+The skeleton is a real component that injects things (route params, a payload, monitoring), so verify it
+independently with the per-component `RouteCheckedDI`:
 
 ```ts
-type _CheckTargetDI = ValidateCascadeRoutesFile<AppNames, AppValues, typeof userRoutes>;
-type _CanRunTarget = CanRun<_CheckTargetDI>;
-
 // The skeleton injects the route-auto-provided :userId param — list its service name as available.
 type _CheckPendingDI = RouteCheckedDI<
   import('./user-skeleton').GenDeps_UserSkeletonComponent,
@@ -38,8 +33,7 @@ type _CanRunPending = CanRun<_CheckPendingDI>;
 
 The ESLint rule `require-pending-component-di-check` **generates and refreshes this whole block** on
 `--fix` — deriving the skeleton's `GenDeps_*`, the auto-provided service names from the route's path params
-(+ view-transition payload), and the parent context from the collection's own `ValidateCascadeRoutesFile`.
-Don't hand-maintain it.
+(+ view-transition payload), and the parent context. Don't hand-maintain it.
 
 ## View transitions (shared-element morph across a slow chain)
 

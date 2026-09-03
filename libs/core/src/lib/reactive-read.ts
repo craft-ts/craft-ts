@@ -41,6 +41,11 @@ export const DEEP_YIELDABLE_INSERTION = Symbol(
   'craft-deep-yieldable-insertion',
 );
 
+/** Marker carrying the state property that should receive a deep reader. */
+export const DEEP_YIELDABLE_PROPERTY_INSERTION = Symbol(
+  'craft-deep-yieldable-property-insertion',
+);
+
 /** Marker for the query/resource insertion that deepens only `value`. */
 export const DEEP_YIELDABLE_VALUE_INSERTION = Symbol(
   'craft-deep-yieldable-value-insertion',
@@ -111,6 +116,7 @@ export type DeepYieldableValue<
   Value,
   unknown
 >) &
+  DeepYieldableMarker &
   YieldableDependency<Source, Path> &
   (Value extends object ? DeepYieldableObject<Value, Source, Path, Depth> : {});
 
@@ -175,6 +181,14 @@ export type DeepYieldableInsertion = {
   readonly [DEEP_YIELDABLE_INSERTION]: true;
 });
 
+export type DeepYieldablePropertyInsertion<Property extends string = string> = {
+  readonly [DEEP_YIELDABLE_INSERTION]: true;
+  readonly [DEEP_YIELDABLE_PROPERTY_INSERTION]: Property;
+} & ((context: unknown) => {
+  readonly [DEEP_YIELDABLE_INSERTION]: true;
+  readonly [DEEP_YIELDABLE_PROPERTY_INSERTION]: Property;
+});
+
 /**
  * Insertion marker for resources whose resolved `value` should expose lazy
  * deep projections. The owning primitive applies the marker to its resource
@@ -184,12 +198,45 @@ export type DeepYieldableValueInsertion = {
   readonly [DEEP_YIELDABLE_VALUE_INSERTION]: true;
 };
 
-export function insertDeepYieldable(): DeepYieldableInsertion {
-  const insertion = (() => ({})) as unknown as DeepYieldableInsertion;
+/**
+ * Adapts a primitive's root reader, or exposes one named state property as a
+ * separate deep-yieldable reader (`products` becomes `deepYieldableProducts`).
+ */
+export function insertDeepYieldable(): DeepYieldableInsertion;
+export function insertDeepYieldable<const Property extends string>(
+  property: Property,
+): DeepYieldablePropertyInsertion<Property>;
+export function insertDeepYieldable(
+  property?: string,
+): DeepYieldableInsertion | DeepYieldablePropertyInsertion<string> {
+  const output = {} as {
+    readonly [DEEP_YIELDABLE_INSERTION]: true;
+    readonly [DEEP_YIELDABLE_PROPERTY_INSERTION]?: string;
+  };
+  Object.defineProperty(output, DEEP_YIELDABLE_INSERTION, {
+    value: true,
+    enumerable: false,
+  });
+  if (property !== undefined) {
+    Object.defineProperty(output, DEEP_YIELDABLE_PROPERTY_INSERTION, {
+      value: property,
+      enumerable: false,
+    });
+  }
+
+  const insertion = (() => output) as unknown as
+    | DeepYieldableInsertion
+    | DeepYieldablePropertyInsertion<string>;
   Object.defineProperty(insertion, DEEP_YIELDABLE_INSERTION, {
     value: true,
     enumerable: false,
   });
+  if (property !== undefined) {
+    Object.defineProperty(insertion, DEEP_YIELDABLE_PROPERTY_INSERTION, {
+      value: property,
+      enumerable: false,
+    });
+  }
   return insertion;
 }
 
@@ -217,6 +264,32 @@ export function hasDeepYieldableInsertion(
   return insertions.some(
     (insertion) =>
       typeof insertion === 'function' && DEEP_YIELDABLE_INSERTION in insertion,
+  );
+}
+
+export function getDeepYieldablePropertyInsertions(
+  insertions: readonly unknown[],
+): readonly string[] {
+  return insertions.flatMap((insertion) => {
+    if (
+      typeof insertion !== 'function' ||
+      !(DEEP_YIELDABLE_PROPERTY_INSERTION in insertion)
+    ) {
+      return [];
+    }
+    const property = Reflect.get(insertion, DEEP_YIELDABLE_PROPERTY_INSERTION);
+    return typeof property === 'string' ? [property] : [];
+  });
+}
+
+export function hasDeepYieldableRootInsertion(
+  insertions: readonly unknown[],
+): boolean {
+  return insertions.some(
+    (insertion) =>
+      typeof insertion === 'function' &&
+      DEEP_YIELDABLE_INSERTION in insertion &&
+      !(DEEP_YIELDABLE_PROPERTY_INSERTION in insertion),
   );
 }
 
@@ -856,9 +929,19 @@ function createFacade(
   return facade;
 }
 
-function isDeepYieldable(value: unknown): value is DeepYieldableMarker {
+export function isDeepYieldable(value: unknown): value is DeepYieldableMarker {
+  if (
+    !(
+      (typeof value === 'object' && value !== null) ||
+      typeof value === 'function'
+    )
+  ) {
+    return false;
+  }
+
+  const object = value as object;
   return (
-    (typeof value === 'object' && value !== null) ||
-    typeof value === 'function'
-  ) && '__craftDeepYieldable' in (value as object);
+    '__craftDeepYieldable' in object ||
+    Reflect.get(object, '__craftDeepYieldable') === true
+  );
 }

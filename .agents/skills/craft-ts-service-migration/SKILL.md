@@ -44,7 +44,7 @@ Use this skill when a task touches dependency injection, service architecture, o
 
 6. Refresh generated artifacts:
    - Run ESLint `--fix` for `brand-angular-gen-deps-required` and `brand-angular-deps-match`.
-   - Check route files still have `componentDeps` and `ValidateCascadeRoutesFile` or `RouteCheckedDI`.
+   - Check route files still have `componentDeps` and per-route `RouteCheckedDI` checks.
    - If direct Angular tokens disappeared, remove them from `ProvidedValues`; prefer `never`.
 
 ## Route DI Rule
@@ -52,10 +52,11 @@ Use this skill when a task touches dependency injection, service architecture, o
 For migrated features, prefer:
 
 ```ts
-type _CheckFeatureDI = ValidateCascadeRoutesFile<
+type _CheckFeatureDI = RouteCheckedDI<
+  ComponentDeps,
   AppProvidedNames,
-  never,
-  typeof featureRoutes
+  AppProvidedValues,
+  'feature'
 >;
 type _CanRunFeature = CanRun<_CheckFeatureDI>;
 ```

@@ -21,6 +21,7 @@ import {
   craftService,
   craftUse,
   HOST_TAG_LIST,
+  insertDeepYieldable,
   mutation,
   markYieldableValue,
   provideCraftDomEventHook,
@@ -1538,6 +1539,39 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
+  it('passes reactive Input shells to object-shaped factories', async () => {
+    let factoryRuns = 0;
+    const categoryPage = craftComponent(
+      'objectInputCategoryPage',
+      {},
+      function* ({ categorySlug }: { categorySlug: Input<string> }) {
+        factoryRuns += 1;
+        return { categorySlug };
+      },
+      ({ categorySlug }) =>
+        p(function* () {
+          return yield* categorySlug();
+        }),
+    );
+    const {
+      nativeElement: element,
+      mounted,
+      flush,
+      destroy,
+    } = await renderCraftComponent(categoryPage, {
+      // Route props are raw at the router boundary; the renderer must wrap them.
+      props: { categorySlug: 'books' } as never,
+    });
+
+    expect(element.textContent).toBe('books');
+    mounted.updateProps({ categorySlug: 'games' } as never);
+    await flush();
+
+    expect(element.textContent).toBe('games');
+    expect(factoryRuns).toBe(1);
+    destroy();
+  });
+
   it('merges host classes supplied at a component call site', async () => {
     const editableStatusComponent = craftComponent(
       'editableStatusComponent',
@@ -2112,6 +2146,39 @@ describe('functional component interpreter', () => {
       '4',
     ]);
     expect(element.querySelector('[data-value="1"]')).toBe(first);
+    destroy();
+  });
+
+  it('deepifies forNode items when the collection uses insertDeepYieldable', async () => {
+    const component = craftComponent(
+      'deepYieldableForItems',
+      {},
+      function* () {
+        const catalog = yield* state(
+          'catalog',
+          {
+            products: [
+              { id: 1, category: 'fruit', name: 'Apple' },
+              { id: 2, category: 'grain', name: 'Oat' },
+            ],
+          },
+          insertDeepYieldable('products'),
+        );
+        return { catalog };
+      },
+      ({ catalog }) =>
+        ul(
+          forNode(
+            catalog.deepYieldableProducts,
+            { track: (product) => product.id },
+            (product) => li([span(product.category), span(product.name)]),
+          ),
+        ),
+    );
+    const { nativeElement: element, destroy } =
+      await renderCraftComponent(component);
+
+    expect(element.textContent).toBe('fruitApplegrainOat');
     destroy();
   });
 

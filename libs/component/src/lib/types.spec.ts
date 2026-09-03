@@ -1,4 +1,5 @@
 import { ɵcomputed as computed } from '@craft-ts/core';
+import { Context, Effect, Layer } from 'effect';
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import {
@@ -6,14 +7,26 @@ import {
   craftMethod,
   craftRoutes,
   craftService,
+  craftStateMachine,
+  initStateMachine,
   insertSelect,
   provideHostName,
   state,
+  transitionGuard,
+  transitionStep,
   type ComponentDepsOf,
   type ComponentDepsCarrier,
+  type CanRun,
+  type GetServiceDependencies,
   type RouteCheckedDI,
   craftUse,
 } from '@craft-ts/core';
+import {
+  ProvidedEffectServicesOfRoute,
+  SyncOp,
+  provideLayer,
+  transitionGuardEffect,
+} from '@craft-ts/effect';
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
@@ -149,6 +162,51 @@ it('infers component input and output props from the branded context', () => {
 
   // @ts-expect-error Input props remain accessors at the call-site.
   userCard({ user: { id: 1, name: 'Ada' }, onPick: () => undefined });
+});
+
+it('requires object-shaped component inputs to use reactive Input readers', () => {
+  const objectInput = craftComponent(
+    'objectInput',
+    {},
+    function* ({ value }: { value: Input<string> }) {
+      return { value };
+    },
+    ({ value }) =>
+      p(function* () {
+        return yield* value();
+      }),
+  );
+
+  type _ObjectInputProps = Expect<
+    Equal<
+      PropsOf<typeof objectInput>,
+      { value: () => Generator<unknown, string, unknown> }
+    >
+  >;
+
+  objectInput({
+    value: function* () {
+      return 'value';
+    },
+  });
+
+  craftComponent(
+    'invalidObjectInput',
+    {},
+    // @ts-expect-error A plain scalar is not a reactive component input.
+    function* ({ value }: { value: string }) {
+      return { value };
+    },
+    ({ value }) => p(value),
+  );
+
+  craftComponent(
+    'invalidPositionalInput',
+    {},
+    // @ts-expect-error A plain scalar is not a reactive component input.
+    (categorySlug: string) => ({ categorySlug }),
+    ({ categorySlug }) => p(categorySlug),
+  );
 });
 
 it('does not expose ordinary context callbacks as component outputs', () => {
@@ -469,6 +527,216 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
   >().toEqualTypeOf<FirstDeps | {}>();
 });
 
+it('propagates a service used by state-machine transitions into the component DI check', () => {
+  const { TransitionPolicy } = craftService(
+    { name: 'TransitionPolicy', providedIn: 'toProvide' },
+    () => ({ canEnter: () => true }),
+  );
+
+  const component = craftComponent(
+    'stateMachineTransitionDependency',
+    {},
+    function* () {
+      const machine = yield* craftStateMachine(
+        function* () {
+          return {};
+        },
+        function* (_, transit) {
+          const policy = yield* TransitionPolicy();
+
+          return {
+            idle: transitionStep(function* () {
+              yield* initStateMachine(() =>
+                transit().pipe(
+                  transitionGuard(() => policy.canEnter()),
+                ),
+              );
+            }),
+          };
+        },
+        function* () {
+          return { idle: {} };
+        },
+      );
+
+      return { machine };
+    },
+    () => p('machine'),
+  );
+
+  type ComponentDependencies = ComponentDepsOf<typeof component>;
+
+  type _DependencyWasInferred = Expect<
+    Equal<keyof ComponentDependencies['deps'], 'TransitionPolicy'>
+  >;
+  type _NoProvidersWereInferred = Expect<
+    Equal<keyof ComponentDependencies['provided'], never>
+  >;
+  type _MissingProviderKeyWasDetected = Expect<
+    Equal<keyof ComponentDependencies['missingProvider'], 'TransitionPolicy'>
+  >;
+  type _MissingProviderTypeWasPreserved = Expect<
+    Equal<
+      ComponentDependencies['missingProvider']['TransitionPolicy'],
+      GetServiceDependencies<typeof TransitionPolicy>
+    >
+  >;
+  type _ComponentDepsHasRequiredMissingProvider = Expect<
+    ComponentDependencies extends { missingProvider: object } ? true : false
+  >;
+  type BoundaryDependencies = {
+    deps: ComponentDependencies['deps'];
+    provided: ComponentDependencies['provided'];
+    publicProperties: {};
+    missingProvider: ComponentDependencies['missingProvider'];
+  };
+  type _MissingProviderWasDetected = Expect<
+    Equal<
+      RouteCheckedDI<
+        BoundaryDependencies,
+        never,
+        never,
+        'StateMachineTransitionDependency'
+      >,
+      [
+        'The TransitionPolicy service is not provided in StateMachineTransitionDependency',
+      ]
+    >
+  >;
+  type MissingRouteCheck = RouteCheckedDI<
+    BoundaryDependencies,
+    never,
+    never,
+    'StateMachineTransitionDependency'
+  >;
+  // @ts-expect-error CanRun rejects the route contract while the provider is absent.
+  type _MissingCanRun = CanRun<MissingRouteCheck>;
+
+  type _ProvidedCheck = RouteCheckedDI<
+    ComponentDependencies,
+    'TransitionPolicy',
+    never,
+    'StateMachineTransitionDependency'
+  >;
+  expectTypeOf<_ProvidedCheck>().toEqualTypeOf<true>();
+  expectTypeOf<CanRun<_ProvidedCheck>>().toEqualTypeOf<true>();
+});
+
+it('propagates an Effect service used by transitionGuardEffect into the route DI check', () => {
+  type EffectTransitionPolicyShape = {
+    readonly canEnter: () => Effect.Effect<boolean, never, SyncOp>;
+  };
+  class EffectTransitionPolicy extends Context.Service<
+    EffectTransitionPolicy,
+    EffectTransitionPolicyShape
+  >()('types-spec/EffectTransitionPolicy') {}
+
+  const policyLayer = Layer.succeed(EffectTransitionPolicy, {
+    canEnter: () =>
+      Effect.gen(function* () {
+        yield* SyncOp;
+        return true;
+      }),
+  });
+
+  const component = craftComponent(
+    'effectStateMachineTransitionDependency',
+    {},
+    function* () {
+      const machine = yield* craftStateMachine(
+        function* () {
+          return {};
+        },
+        function* (_, transit) {
+          return {
+            idle: transitionStep(function* () {
+              yield* initStateMachine(() =>
+                transit().pipe(
+                  transitionGuardEffect(() =>
+                    Effect.gen(function* () {
+                      yield* SyncOp;
+                      const policy = yield* EffectTransitionPolicy;
+                      return yield* policy.canEnter();
+                    }),
+                  ),
+                ),
+              );
+            }),
+          };
+        },
+        function* () {
+          return { idle: {} };
+        },
+      );
+
+      return { machine };
+    },
+    () => p('machine'),
+  );
+
+  type ComponentDependencies = ComponentDepsOf<typeof component>;
+  type _EffectDependencyWasInferred = Expect<
+    Equal<
+      keyof ComponentDependencies['deps'],
+      'types-spec/EffectTransitionPolicy'
+    >
+  >;
+  type _EffectMissingProviderWasDetected = Expect<
+    Equal<
+      keyof ComponentDependencies['missingProvider'],
+      'types-spec/EffectTransitionPolicy'
+    >
+  >;
+
+  const missingRoutes = craftRoutes('effectGuardMissing', [
+    {
+      path: 'checkout',
+      ...loadCraftComponent(async () => component),
+    },
+  ]);
+  type MissingEffectServices = ProvidedEffectServicesOfRoute<
+    typeof missingRoutes.effectGuardMissingRoutes._routes,
+    'checkout'
+  >;
+  type MissingRouteCheck = RouteCheckedDI<
+    ComponentDependencies,
+    never,
+    MissingEffectServices,
+    'path: "checkout"'
+  >;
+  type _MissingRouteMessage = Expect<
+    Equal<
+      MissingRouteCheck,
+      [
+        'The types-spec/EffectTransitionPolicy service is not provided in path: "checkout"',
+      ]
+    >
+  >;
+  // @ts-expect-error CanRun rejects the route when the Effect Layer is absent.
+  type _MissingCanRun = CanRun<MissingRouteCheck>;
+
+  const providedRoutes = craftRoutes('effectGuardProvided', [
+    {
+      path: 'checkout',
+      ...loadCraftComponent(
+        async () => component,
+        [provideLayer(policyLayer)] as const,
+      ),
+    },
+  ]);
+  type ProvidedEffectServices = ProvidedEffectServicesOfRoute<
+    typeof providedRoutes.effectGuardProvidedRoutes._routes,
+    'checkout'
+  >;
+  type ProvidedRouteCheck = RouteCheckedDI<
+    ComponentDependencies,
+    never,
+    ProvidedEffectServices,
+    'path: "checkout"'
+  >;
+  expectTypeOf<CanRun<ProvidedRouteCheck>>().toEqualTypeOf<true>();
+});
+
 it('does not treat unbranded Angular providers as Craft service providers', () => {
   const { MissingProvider } = craftService(
     { name: 'MissingProvider', providedIn: 'toProvide' },
@@ -636,9 +904,10 @@ it('propagates component-carried dependencies from a reader used as text', () =>
         readonly dependencies: Record<never, never>;
       };
     }>;
-  const reader = (() => function* () {
-    return 'translated';
-  }) as unknown as TranslationReader;
+  const reader = (() =>
+    function* () {
+      return 'translated';
+    }) as unknown as TranslationReader;
   const component = craftComponent(
     'translationReaderDependency',
     {},

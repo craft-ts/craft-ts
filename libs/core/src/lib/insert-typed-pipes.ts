@@ -9,6 +9,7 @@ import type {
 import type { CraftMachineInsertionContext } from './craft-state-machine';
 import {
   DEEP_YIELDABLE_INSERTION,
+  DEEP_YIELDABLE_PROPERTY_INSERTION,
   DEEP_YIELDABLE_VALUE_INSERTION,
 } from './reactive-read';
 import type { YieldableInsertionMethods } from './yieldable';
@@ -47,6 +48,16 @@ function createTypedInsertionPipe(...members: AnyInsertionFactory[]) {
     )
   ) {
     Object.defineProperty(pipe, DEEP_YIELDABLE_INSERTION, { value: true });
+  }
+  const deepProperty = members.find(
+    (member) =>
+      typeof member === 'function' &&
+      DEEP_YIELDABLE_PROPERTY_INSERTION in member,
+  );
+  if (deepProperty) {
+    Object.defineProperty(pipe, DEEP_YIELDABLE_PROPERTY_INSERTION, {
+      value: Reflect.get(deepProperty, DEEP_YIELDABLE_PROPERTY_INSERTION),
+    });
   }
   if (
     members.some(

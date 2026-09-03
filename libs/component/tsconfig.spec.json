@@ -15,6 +15,7 @@
     "customConditions": ["@craft-ts/source"],
     "paths": {
       "@craft-ts/core": ["../../libs/core/src/index.ts"],
+      "@craft-ts/effect": ["../../libs/effect/src/index.ts"],
       "test-type": ["../../libs/test-type/src/index.ts"]
     }
   },

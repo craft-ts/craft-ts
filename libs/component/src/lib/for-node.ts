@@ -5,7 +5,11 @@ import type {
 } from './render/vnode';
 import { pipeCraftNode } from './render/vnode';
 import type { InputValue } from './types';
-import { YIELDABLE_VALUE } from '@craft-ts/core';
+import {
+  YIELDABLE_VALUE,
+  type DeepYieldableMarker,
+  type DeepYieldableValue,
+} from '@craft-ts/core';
 
 export interface ForOptions<Item, Key> {
   readonly track: (item: Item, index: number) => Key;
@@ -52,7 +56,13 @@ type ForItem<Source> = [NonNullable<Source>] extends [never]
   ? unknown
   : ForItemFromValue<Source>;
 
-type ForItemInput<Source> = InputValue<ForItem<Source>>;
+type DeepForItemPath<Source> = SourceName<Source> extends string
+  ? `${SourceName<Source>}.item`
+  : 'forNode.item';
+
+type ForItemInput<Source> = [Source] extends [DeepYieldableMarker]
+  ? DeepYieldableValue<ForItem<Source>, Source, DeepForItemPath<Source>>
+  : InputValue<ForItem<Source>>;
 
 export function forNode<
   Name extends string,

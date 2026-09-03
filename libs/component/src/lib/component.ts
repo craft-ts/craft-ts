@@ -23,6 +23,7 @@ import {
   type TemplateHeadingNeed,
   type TemplatePendingSources,
   type TemplateSettledExceptions,
+  type ValidComponentFactoryInputs,
 } from './types';
 import type { CssVarsContractOfMeta } from './css-vars.type';
 import { forwardedCssVarStyles } from './css-vars';
@@ -50,13 +51,22 @@ function mergeStyles(
 }
 
 type ContentSlotNamesForFactory<Factory extends ComponentFactory> = {
-  [Key in keyof PropsFromFactory<Factory>]: NonNullable<
-    PropsFromFactory<Factory>[Key]
+  [Key in keyof ObjectFactoryInput<Factory>]: NonNullable<
+    ObjectFactoryInput<Factory>[Key]
   > extends (...args: any[]) => any
     ? Key
     : never;
-}[keyof PropsFromFactory<Factory>] &
+}[keyof ObjectFactoryInput<Factory>] &
   string;
+
+type ObjectFactoryInput<Factory extends ComponentFactory> =
+  Parameters<Factory> extends [infer Input]
+    ? Input extends (...args: any[]) => any
+      ? never
+      : Input extends object
+        ? Input
+        : never
+    : never;
 
 type ValidContentStyles<
   Meta extends ComponentMeta,
@@ -165,7 +175,7 @@ export function craftComponent<
 >(
   name: Name,
   meta: Meta & ValidContentStyles<Meta, Factory>,
-  factory: Factory,
+  factory: Factory & ValidComponentFactoryInputs<Factory>,
   template: Template &
     ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &

@@ -79,7 +79,7 @@ Exemples de routes dans la doc : même forme que `apps/demo/src/app/app.routes.t
 
 ## Invariants
 
-- `ValidateCascadeRoutesFile`, `RouteCheckedDI`, `CanRun`, `assertExhaustiveRouteExceptions` restent. On enlève l’alias figé, pas le filet de types.
+- `RouteCheckedDI`, `CanRun`, `assertExhaustiveRouteExceptions` restent. On enlève l’alias figé, pas le filet de types.
 - `loadCraftComponent` continue de propager `ComponentDepsOf<Component>` sur le fragment. Ne casse pas ce carrier.
 - Ne réintroduis pas un alias `GenDeps_*` « pour Angular ».
 - Ne touche pas au graphe d’architecture (`architecture-graph`, `assertCraftUnique`, etc.) sauf si un commentaire / fixture mentionne `GenDeps_*`.

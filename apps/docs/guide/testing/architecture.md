@@ -83,7 +83,7 @@ import {
 
 `analyzeDependencyGraph` reads the application sources with the TypeScript
 program — routes, services, components, HTTP calls, `craftUnique` identities,
-route DI proofs (`CanRun`, `ValidateCascadeRoutesFile`, `RouteCheckedDI`) —
+route DI proofs (`CanRun`, `RouteCheckedDI`) —
 and builds a graph of nodes and edges.
 
 `createArchitectureGraph` wraps that graph with typed lookups. Names come from
@@ -475,8 +475,7 @@ it('keeps the app declarative', () => {
 
 ### `assertRouteDiProofs`
 
-The routing DI contract is type-level by design. `CanRun`,
-`ValidateCascadeRoutesFile`, `RouteCheckedDI` and
+The routing DI contract is type-level by design. `CanRun`, `RouteCheckedDI` and
 `RouteExceptionComponentCheckedDI` are unused aliases unless they stay in the
 file: comment one out and TypeScript still compiles. That is the one fragile
 step in an otherwise compile-time guarantee.

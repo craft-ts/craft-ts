@@ -225,6 +225,50 @@ describe('craftStateMachine', () => {
 });
 
 describe('craftStateMachine typing', () => {
+  it('carries dependencies yielded by the transitions second argument to the machine graph', () => {
+    const { TransitionPolicy } = craftService(
+      { name: 'TransitionPolicy', providedIn: 'toProvide' },
+      () => ({ canEnter: () => true }),
+    );
+
+    const transitionsWithDependency = transitionsSetup(function* (
+      _: MachineContext,
+      transit,
+    ) {
+      const policy = yield* TransitionPolicy();
+
+      return {
+        reading: transitionStep(function* () {
+          yield* initStateMachine(() =>
+            transit().pipe(
+              transitionGuard(() => policy.canEnter()),
+            ),
+          );
+        }),
+      };
+    });
+
+    const { StateMachineHost: _StateMachineHost } = craftService(
+      { name: 'StateMachineHost', providedIn: 'function' },
+      function* () {
+        const machine = yield* craftStateMachine(
+          contextFactory,
+          transitionsWithDependency,
+          function* () {
+            return { reading: {} };
+          },
+        );
+
+        return { machine };
+      },
+    );
+
+    type HostServiceDeps = GetServiceDependencies<typeof _StateMachineHost>;
+    type _TransitionPolicyWasTracked = Expect<
+      HasDependency<HostServiceDeps, 'TransitionPolicy'>
+    >;
+  });
+
   it('folds every guard, source and primitive dependency into the machine graph', () => {
     const { EditorMachine } = craftService(
       { name: 'EditorMachine', providedIn: 'function' },

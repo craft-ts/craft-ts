@@ -21,6 +21,7 @@ const requireCraftMethodForYieldableCallback = require('./require-craft-method-f
 const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.cjs');
 const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
 const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
+const preferDeepYieldableForItem = require('./prefer-deep-yieldable-for-item.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noCraftUse = require('./no-craft-use.cjs');
 const noCraftComponentReturnType = require('./no-craft-component-return-type.cjs');
@@ -135,6 +136,7 @@ const plugin = {
     'require-yieldable-reactive-read': requireYieldableReactiveRead,
     'require-yieldable-insertion-write': requireYieldableInsertionWrite,
     'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
+    'prefer-deep-yieldable-for-item': preferDeepYieldableForItem,
     'no-craft-use-in-template': noCraftUseInTemplate,
     'no-craft-use': noCraftUse,
     'no-craft-component-return-type': noCraftComponentReturnType,

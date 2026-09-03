@@ -1,6 +1,7 @@
 import {
   craftUse,
   createCraftInjector,
+  executeGeneratorCompatibleFactory,
   executeGeneratorCompatibleFactoryAsync,
   isCraftGenShortCircuit,
   state,
@@ -16,6 +17,7 @@ import {
   mutationEffect,
   queryEffect,
 } from './effect-adapter';
+import { transitionGuardEffect } from './effect-state-machine';
 import { CraftEffectInterrupted, installCraftEffectBridge } from './run-effect';
 import { provideLayer } from './effect-level';
 import { SyncOp } from './sync-op';
@@ -31,6 +33,22 @@ class ComputedConfig extends Context.Service<
 
 const ComputedConfigLive = Layer.succeed(ComputedConfig, {
   label: 'from-layer',
+});
+
+type GuardPolicyShape = {
+  readonly canEnter: () => Effect.Effect<boolean, never, SyncOp>;
+};
+
+class GuardPolicy extends Context.Service<GuardPolicy, GuardPolicyShape>()(
+  'GuardPolicy',
+) {}
+
+const GuardPolicyLive = Layer.succeed(GuardPolicy, {
+  canEnter: () =>
+    Effect.gen(function* () {
+      yield* SyncOp;
+      return true;
+    }),
 });
 
 describe('Effect-aware Craft adapters', () => {
@@ -145,6 +163,64 @@ describe('Effect-aware Craft adapters', () => {
         });
       await expect.poll(() => craftUse(refresh.value())).toEqual({ id: 'u-3' });
     });
+  });
+
+  it('adapts a declared-synchronous Effect to a state-machine guard', () => {
+    const guard = transitionGuardEffect(() =>
+      Effect.gen(function* () {
+        yield* SyncOp;
+        return true;
+      }),
+    );
+
+    const result = executeGeneratorCompatibleFactory({
+      factory: () =>
+        guard({
+          from: undefined,
+          to: 'allowed',
+          context: {},
+          event: undefined,
+        }),
+      thisArg: undefined,
+      getInjector: () => createCraftInjector([]),
+      args: [],
+      invalidYieldErrorMessage: 'invalid yield',
+      multipleAppStartErrorMessage: 'multiple app start',
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it('resolves Effect services used directly by a state-machine guard', () => {
+    const guard = transitionGuardEffect(() =>
+      Effect.gen(function* () {
+        yield* SyncOp;
+        const policy = yield* GuardPolicy;
+        return yield* policy.canEnter();
+      }),
+    );
+
+    const result = executeGeneratorCompatibleFactory({
+      factory: () =>
+        guard({
+          from: undefined,
+          to: 'allowed',
+          context: {},
+          event: undefined,
+        }),
+      thisArg: undefined,
+      getInjector: () => createCraftInjector([provideLayer(GuardPolicyLive)]),
+      args: [],
+      invalidYieldErrorMessage: 'invalid yield',
+      multipleAppStartErrorMessage: 'multiple app start',
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it('requires SyncOp when an Effect is used as a state-machine guard', () => {
+    // @ts-expect-error transitionGuardEffect only accepts declared-synchronous Effects.
+    transitionGuardEffect(() => Effect.succeed(true));
   });
 
   it('keeps params and methods synchronous', async () => {

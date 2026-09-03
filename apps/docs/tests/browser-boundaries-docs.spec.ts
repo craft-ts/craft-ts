@@ -202,7 +202,7 @@ describe('Type-safe DI/Routes setup doc page', () => {
       'This guide assumes an app that consumes `@craft-ts/core`.',
     );
     expect(content).toContain(
-      'type _CheckAppDI = ValidateCascadeRoutesFile<',
+      'type _CheckAppDI = RouteCheckedDI<',
     );
     expect(content).toContain('type _CanRunApp = CanRun<_CheckAppDI>;');
     expect(content).toContain(
@@ -231,7 +231,7 @@ describe('ESLint rules doc page', () => {
   it('documents the plugin entry point and the enforced rules', () => {
     expect(content).toContain('@craft-ts/dev-tools/eslint-rules');
     expect(content).toContain(
-      "'craft-ts/require-cascade-route-di-check': 'error'",
+      "'craft-ts/require-pending-component-di-check': 'error'",
     );
     expect(content).toContain('Three rules do more than complain');
   });

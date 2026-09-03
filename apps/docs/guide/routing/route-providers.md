@@ -146,10 +146,10 @@ const { User, provideUser } = craftService(
 const user = yield* User(); // User
 ```
 
-## Dependency tracking & cascade DI
+## Dependency tracking & route DI
 
 Everything yielded inside a `withProviders` factory is tracked at the type level and folded into the
-route's dependency graph used by [`ValidateCascadeRoutesFile`](/guide/routing/setup):
+route's dependency graph used by [`RouteCheckedDI`](/guide/routing/setup):
 
 - The route's **auto-provisioned** tokens (guarded data, params, query params, data) are recognized
   as provided by the route itself — yielding them is always valid.
@@ -187,5 +187,5 @@ the route's `providers` array.
 
 ## See Also
 
-- [Setup](/guide/routing/setup) — the app-wide cascade DI check
+- [Setup](/guide/routing/setup) — per-route DI checks
 - [craftService](/guide/app/craft-service) — `abstract` scope, `provideX`, requirements

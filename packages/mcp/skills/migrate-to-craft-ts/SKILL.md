@@ -113,8 +113,7 @@ cannot be inferred safely. Preserve unrelated user changes.
 
 - Complete unresolved guards, redirects, lazy collections, inherited
   providers, and dynamic route diagnostics manually.
-- Keep `componentDeps` and file-level `ValidateCascadeRoutesFile` or
-  `RouteCheckedDI` checks.
+- Keep `componentDeps` and per-route `RouteCheckedDI` checks.
 - Prefer provider names and `ProvidedValues = never` after direct Angular DI is
   removed.
 - Run ESLint fixes to regenerate `GenDeps_*` aliases after dependency changes.

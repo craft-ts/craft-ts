@@ -78,11 +78,15 @@ import type { AnyCraftException } from './craft-exception';
 import {
   createYieldableReactiveFacade,
   createYieldableReactiveValue,
+  createDeepYieldableReactiveValue,
   deepYieldable,
-  hasDeepYieldableInsertion,
+  getDeepYieldablePropertyInsertions,
+  hasDeepYieldableRootInsertion,
   DEEP_YIELDABLE_INSERTION,
+  DEEP_YIELDABLE_PROPERTY_INSERTION,
   isYieldableReactiveValue,
   nameInsertedReactiveValue,
+  type DeepYieldableReactiveValue,
   type DeepYieldableReaderOf,
   type YieldableReactiveValue,
 } from './reactive-read';
@@ -137,10 +141,39 @@ type StateReader<
 > = Deep extends true
   ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
   : Insertions extends {
-        readonly [DEEP_YIELDABLE_INSERTION]: true;
+        readonly [DEEP_YIELDABLE_PROPERTY_INSERTION]: string;
       }
-    ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
-    : YieldableReactiveValue<StateType, Name>;
+    ? YieldableReactiveValue<StateType, Name>
+    : Insertions extends {
+          readonly [DEEP_YIELDABLE_INSERTION]: true;
+        }
+      ? DeepYieldableReaderOf<YieldableReactiveValue<StateType, Name>>
+      : YieldableReactiveValue<StateType, Name>;
+
+type StateDeepYieldablePropertyOutput<StateType, Insertions> =
+  DeepYieldablePropertyOf<Insertions> extends infer Property extends string
+    ? StateType extends Record<Property, infer Value>
+      ? {
+          readonly [Name in `deepYieldable${Capitalize<Property>}`]: DeepYieldableReactiveValue<
+            Value,
+            Name
+          >;
+        }
+      : {}
+    : {};
+
+type DeepYieldablePropertyOf<Insertions> = Insertions extends {
+  readonly [DEEP_YIELDABLE_PROPERTY_INSERTION]: infer Property extends string;
+}
+  ? Property
+  : Insertions extends (...args: any[]) => infer Result
+    ? Result extends {
+        readonly [DEEP_YIELDABLE_PROPERTY_INSERTION]: infer Property extends
+          string;
+      }
+      ? Property
+      : never
+    : never;
 
 export type StateOutput<
   StateType,
@@ -154,28 +187,34 @@ export type StateOutput<
       StateReader<StateType, Insertions, Deep, Name>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
-        {
-          readonly hasSchema: YieldableReactiveValue<true, 'hasSchema'>;
-          readonly hasException: YieldableReactiveValue<
-            boolean,
-            'hasException'
-          >;
-          readonly exceptions: YieldableReactiveValue<
-            {
-              list: AnyCraftException[];
-              parse: { state?: AnyCraftException };
-            },
-            'exceptions'
-          >;
-          readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
-        }
+        MergeObject<
+          StateDeepYieldablePropertyOutput<StateType, Insertions>,
+          {
+            readonly hasSchema: YieldableReactiveValue<true, 'hasSchema'>;
+            readonly hasException: YieldableReactiveValue<
+              boolean,
+              'hasException'
+            >;
+            readonly exceptions: YieldableReactiveValue<
+              {
+                list: AnyCraftException[];
+                parse: { state?: AnyCraftException };
+              },
+              'exceptions'
+            >;
+            readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+          }
+        >
       >
     >
   : MergeObject<
       StateReader<StateType, Insertions, Deep, Name>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
-        { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
+        MergeObject<
+          StateDeepYieldablePropertyOutput<StateType, Insertions>,
+          { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
+        >
       >
     >;
 
@@ -811,6 +850,26 @@ function createStateRef<StateType>(
     },
   ) as unknown as StateOutput<StateType, {}>;
 
+  for (const property of getDeepYieldablePropertyInsertions(insertions)) {
+    const exposedName = `deepYieldable${property.charAt(0).toUpperCase()}${property.slice(1)}`;
+    const propertySignal = (() => {
+      const currentState = readonlyStateSignal();
+      return currentState == null
+        ? undefined
+        : Reflect.get(Object(currentState), property);
+    }) as Signal<unknown>;
+    Object.defineProperty(stateOutput, exposedName, {
+      value: createDeepYieldableReactiveValue(propertySignal, exposedName, {
+        primitive: 'state',
+        insertion: exposedName,
+        path: `${name}.${exposedName}`,
+      }),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+
   const snapshotRegistry = injector
     ? injector.get(APP_SNAPSHOT_REGISTRY, null)
     : (() => {
@@ -884,7 +943,7 @@ function createStateRef<StateType>(
   // The ref the application holds is what a feature names when it has to
   // capture a primitive declared outside its own host.
   registration.link(publicState);
-  return hasDeepYieldableInsertion(insertions)
+  return hasDeepYieldableRootInsertion(insertions)
     ? deepYieldable(publicState)
     : publicState;
 }

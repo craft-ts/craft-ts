@@ -49,6 +49,11 @@ export {
   type EffectLoaderParams,
 } from './lib/effect-adapter';
 export {
+  transitionGuardEffect,
+  type EffectServiceDependencyMap,
+  type TransitionGuardEffectYielded,
+} from './lib/effect-state-machine';
+export {
   composeEffect,
   effectServerMiddleware,
   executeEffect,

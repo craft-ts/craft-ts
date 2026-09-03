@@ -214,7 +214,8 @@ Here `payload` is inferred from `craftException({ _tag: 'RATE_LIMITED' }, { retr
 ```
 
 The descriptor is checked independently with the O(1)
-`RouteExceptionComponentCheckedDI`; it is not added to `ValidateCascadeRoutesFile`.
+`RouteExceptionComponentCheckedDI`; it is not part of the routed component's
+`RouteCheckedDI` proof.
 [Architecture tests](/guide/testing/architecture#assertroutediproofs) fail if
 that proof is missing or not armed with `CanRun`.
 
@@ -235,7 +236,7 @@ guards and resolvers.
 ## Exhaustiveness
 
 The union is only resolvable once the whole collection is inferred, so exhaustiveness is asserted
-**after** `craftRoutes` (mirroring the cascade DI check) rather than inline on each route:
+**after** `craftRoutes` rather than inline on each route:
 
 ```ts
 export const { demoRoutes } = craftRoutes('demo', [

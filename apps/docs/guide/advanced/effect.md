@@ -30,6 +30,7 @@ boundary.
 | Derive a reactive value from a synchronous Effect  | `computedEffect`                 | runs a `SyncOp` Effect in place — a value, not a resource        |
 | Expose a synchronous Effect as a callable method   | `methodEffect`                   | the Effect counterpart of `craftMethod`                          |
 | Run a synchronous Effect in a lower-level position | `syncEffect`                     | `params`, a `craftMethod`, a `state` updater                     |
+| Guard a state-machine transition with an Effect    | `transitionGuardEffect`          | a declared-synchronous Effect service decision                   |
 | Write data with an Effect loader                   | `mutationEffect`                 | explicit writes and mutation reactions                           |
 | Run an explicit command                            | `asyncProcessEffect`             | export, refresh, share action or other non-resource process      |
 | Provide Effect services                            | `provideLayer`                   | app and route injectors own Layer scope                          |

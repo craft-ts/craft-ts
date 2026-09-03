@@ -16,6 +16,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
+      '@craft-ts/effect': path.join(workspaceRoot, 'libs/effect/src/index.ts'),
       '@craft-ts/component': path.join(
         workspaceRoot,
         'libs/component/src/index.ts',

@@ -58,6 +58,52 @@ const users = yield* query(
 The typed helper supplies the query context to each member and keeps the
 primitive call free of context plumbing.
 
+## Deep-yieldable collection items
+
+When a component reads several properties from the same `forNode` item, expose
+an explicit deep-yieldable view of the collection. The original collection
+keeps its existing contract, while the named view gives the item callback lazy
+readers for the item's properties:
+
+Before:
+
+```typescript
+forNode(catalog.products, { track: (product) => product.id }, (product) =>
+  article([
+    span(function* () {
+      return (yield* product()).category;
+    }),
+    span(function* () {
+      return (yield* product()).name;
+    }),
+  ]),
+);
+```
+
+After:
+
+```typescript
+import { insertDeepYieldable, state } from '@craft-ts/core';
+
+const catalog = yield* state(
+  'catalog',
+  { products },
+  insertDeepYieldable('products'),
+);
+
+forNode(
+  catalog.deepYieldableProducts,
+  { track: (product) => product.id },
+  (product) => article([span(product.category), span(product.name)]),
+);
+```
+
+`insertDeepYieldable('products')` leaves `catalog.products` unchanged and adds
+`catalog.deepYieldableProducts`. `forNode` applies the item projection only to
+the named deep reader; ordinary lists keep their existing `yield* item()`
+contract. The `craft-ts/prefer-deep-yieldable-for-item` ESLint rule warns when
+the before pattern is repeated in a component template.
+
 ## Deep projections of query values
 
 When a query returns an object, use `insertDeepYieldableValue()` when its

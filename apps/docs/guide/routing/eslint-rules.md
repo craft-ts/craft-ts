@@ -58,6 +58,7 @@ export default [
       'craft-ts/no-craft-computed-side-effects': 'error',
       'craft-ts/require-craft-method-for-yieldable-callback': 'error',
       'craft-ts/prefer-direct-yieldable-callback': 'error',
+      'craft-ts/prefer-deep-yieldable-for-item': 'warn',
       'craft-ts/require-yieldable-reactive-read': 'error',
       'craft-ts/require-yieldable-template-method': 'error',
       'craft-ts/require-yieldable-insertion-write': 'error',
@@ -84,7 +85,6 @@ export default [
       'craft-ts/require-pending-component-di-check': 'error',
       'craft-ts/require-child-route-mount-check': 'error',
       'craft-ts/require-lazy-load-with-retry': 'error',
-      'craft-ts/require-cascade-route-di-check': 'error',
       'craft-ts/global-exception-registry-match': 'error',
     },
   },
@@ -160,6 +160,7 @@ checks exported arrow functions.
 - `craft-ts/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ts/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
 - `craft-ts/prefer-direct-yieldable-callback`: replaces a template generator or generator method that only delegates `yield* callback()` with the callback reference itself (`callback` or `object.method`)
+- `craft-ts/prefer-deep-yieldable-for-item`: warns when a `forNode` item is read repeatedly through `yield* item()` property accesses; expose a named `insertDeepYieldable('property')` collection and use direct item property readers
 - `craft-ts/require-yieldable-reactive-read`: requires Craft reactive readers to be delegated with `yield*` inside generator functions; a function that reads a Craft reader must itself be a generator
 - `craft-ts/require-yieldable-template-method`: requires yieldable Craft method calls in a `craftComponent` template to be delegated with `yield*`, or passed as a reference (`click: counter.increment`)
 - `craft-ts/require-yieldable-insertion-write`: requires `set(...)`, `patch(...)`, and `update(...)` to be delegated with `yield*` when they are used inside a generator method
@@ -172,11 +173,10 @@ checks exported arrow functions.
 - `craft-ts/no-free-has`: forbids a hand-written `:has()` in styles. It reaches across the component boundary, so what a component looks like depends on markup it does not own — a state the matrix cannot enumerate. Use the `descendant` axis, which is a closed set and carries its own test driver
 - `craft-ts/style-file-boundary`: restricts a `*.style.ts` to style-vocabulary imports. The [build plugin](/guide/style/setup) imports the file in Node to read what it registered, so an application import would run application code at build time
 - `craft-ts/craft-css-token-registry`: reports a custom property registered with `@property` by two different components. A custom property may have only one owner; two silently fight over its syntax and initial value
-- `craft-ts/require-effect-adapters`: requires the Effect-aware adapters — `queryEffect`, `mutationEffect`, `asyncProcessEffect` — instead of the plain primitives in an Effect application. See [Choose the right adapter](/guide/advanced/effect#choose-the-right-adapter)
+- `craft-ts/require-effect-adapters`: requires the Effect-aware adapters — `queryEffect`, `mutationEffect`, `asyncProcessEffect`, and `transitionGuardEffect` — instead of the plain primitives and `transitionGuard` in an Effect application. See [Choose the right adapter](/guide/advanced/effect#choose-the-right-adapter)
 - `craft-ts/craft-signal-source-name-match`: requires `signalSource(name, ...)` to take a string literal matching the variable, class property or object property it is assigned to, so the name in a trace is the name in the source. A computed name defeats the [architecture graph](/guide/testing/architecture), which reads these names statically
 - `craft-ts/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
 - `craft-ts/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
-- `craft-ts/require-cascade-route-di-check`: rejects any `craftRoutes(...)` collection without a same-file `ValidateCascadeRoutesFile + CanRun` proof; its autofix adds the conservative `<never, Router>` context, which should be adjusted when the mount inherits providers
 - `craft-ts/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
 - `craft-ts/prefer-craft-router-link`: requires `CraftRouterLink` for internal `a(..., { href: ... })` navigation; external URLs, fragment links, downloads, `_blank`, and links marked with `data-navigation: 'external'` remain native
 - `craft-ts/no-raw-craft-router-url`: rejects reading `CraftRouter.url`; use the typed route parameter helper generated by `craftRoutes(...)` instead of parsing the URL
@@ -375,6 +375,46 @@ The rule leaves callbacks with parameters, extra statements, or additional
 computation unchanged. In those cases the generator contains behavior that
 cannot be represented by passing the callback reference alone.
 
+### Prefer deep-yieldable `forNode` items
+
+`prefer-deep-yieldable-for-item` detects when a component reads several
+properties from the same `forNode` item through repeated `yield* item()` calls.
+Keep the original collection available, and expose a named deep-yieldable
+view for the component:
+
+```ts
+import { insertDeepYieldable, state } from '@craft-ts/core';
+
+// Before: every property read yields the whole item again.
+forNode(catalog.products, { track: (product) => product.id }, (product) =>
+  article([
+    span(function* () {
+      return (yield* product()).category;
+    }),
+    span(function* () {
+      return (yield* product()).name;
+    }),
+  ]),
+);
+
+// After: the named view keeps each property read lazy and reactive.
+const catalog = yield* state(
+  'catalog',
+  { products },
+  insertDeepYieldable('products'),
+);
+
+forNode(
+  catalog.deepYieldableProducts,
+  { track: (product) => product.id },
+  (product) => article([span(product.category), span(product.name)]),
+);
+```
+
+The rule is diagnostic-only because choosing the insertion belongs to the
+primitive that owns the collection. `insertDeepYieldable('products')` leaves
+`catalog.products` unchanged and adds `catalog.deepYieldableProducts`.
+
 ### Yield insertion writes from generator methods
 
 `require-yieldable-insertion-write` requires `set(...)`, `patch(...)`, and
@@ -398,7 +438,6 @@ maintain by hand:
 
 | Rule                                         | Generates                                                     |
 | -------------------------------------------- | ------------------------------------------------------------- |
-| `require-cascade-route-di-check`             | the same-file DI proof for a `craftRoutes(...)` collection    |
 | `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                    |
 | `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import         |
 | `require-lazy-load-with-retry`               | the `withRetry(...)` wrapper on lazy route imports            |

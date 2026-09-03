@@ -166,7 +166,7 @@ never re-runs `resolve` (no new pending). Opt out per route with `reactiveGuards
 `craftGen(factory)` returns a factory you invoke and delegate to with `yield*`:
 
 - The guard's **dependency yields** (`CraftAuth`, `CraftRouter`, …) flow up to the
-  route exactly as in a plain generator guard, so [cascade DI tracking](/guide/routing/setup)
+  route exactly as in a plain generator guard, so [route DI tracking](/guide/routing/setup)
   still sees them.
 - As soon as a composed guard produces a `craftException`, the enclosing generator
   **short-circuits**: `yield* roleGuard(...)` interrupts the whole `function*`, and the exception is
@@ -205,7 +205,7 @@ and typed per code.
 A handler may be a **generator** that `yield*`s craft services before building the redirect — for
 example to read the login URL from a config service. Those yields are tracked exactly like the
 guards' own dependencies, so a service used only at redirect-time still flows into the route's
-[cascade DI](/guide/routing/setup) (yield an unprovided service and it surfaces as a
+[route DI](/guide/routing/setup) (yield an unprovided service and it surfaces as a
 missing-provider error on the route):
 
 ```ts
@@ -443,5 +443,5 @@ for. Guards stop at the first failure and hand off to a handler.
 ## See Also
 
 - [Route Providers](/guide/routing/route-providers) — consume guarded data in route providers
-- [Setup](/guide/routing/setup) — the app-wide cascade DI check
+- [Setup](/guide/routing/setup) — per-route DI checks
 - [craftService](/guide/app/craft-service) — services yielded inside guards

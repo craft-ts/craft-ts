@@ -7,22 +7,24 @@ const require = createRequire(import.meta.url);
 const rule = require('./require-effect-adapters.cjs');
 
 describe('require-effect-adapters', () => {
-  it('reports direct imports and calls for every async primitive', async () => {
+  it('reports direct imports and calls for every Effect-aware primitive', async () => {
     const messages = await lint(
       'apps/demo-effect/src/app/example.ts',
       `
-        import { query as q, mutation, asyncProcess, state } from '@craft-ts/core';
+        import { query as q, mutation, asyncProcess, transitionGuard, state } from '@craft-ts/core';
         q('users', {});
         mutation('save', {});
         asyncProcess('load', {});
+        transitionGuard(() => true);
         state('request', 0);
       `,
     );
 
-    expect(messages).toHaveLength(6);
+    expect(messages).toHaveLength(8);
     expect(messages.filter((message) => message.includes('queryEffect'))).toHaveLength(2);
     expect(messages.filter((message) => message.includes('mutationEffect'))).toHaveLength(2);
     expect(messages.filter((message) => message.includes('asyncProcessEffect'))).toHaveLength(2);
+    expect(messages.filter((message) => message.includes('transitionGuardEffect'))).toHaveLength(2);
     expect(messages.every((message) => message.includes('Effect-aware CraftTS adapters'))).toBe(true);
   });
 
@@ -30,7 +32,7 @@ describe('require-effect-adapters', () => {
     expect(
       await lint(
         'apps/demo-effect/src/app/example.ts',
-        `import { state } from '@craft-ts/core'; import { queryEffect } from '@craft-ts/effect'; state('request', 0); queryEffect('users', {});`,
+        `import { state } from '@craft-ts/core'; import { queryEffect, transitionGuardEffect } from '@craft-ts/effect'; state('request', 0); queryEffect('users', {}); transitionGuardEffect(() => true);`,
       ),
     ).toEqual([]);
     expect(

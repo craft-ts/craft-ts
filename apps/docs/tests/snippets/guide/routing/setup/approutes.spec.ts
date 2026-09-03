@@ -9,17 +9,18 @@ useSnippetHarness();
 import {
   craftRoutes,
   type CanRun,
-  type ValidateCascadeRoutesFile,
+  type RouteCheckedDI,
 } from '@craft-ts/core';
 
 export const { appRoutes } = craftRoutes('app', [
   /* routes */
 ]);
 
-type _CheckAppDI = ValidateCascadeRoutesFile<
+type _CheckAppDI = RouteCheckedDI<
+  { deps: {}; provided: {}; publicProperties: {} },
   never,
   CraftRouter,
-  typeof appRoutes
+  'app route'
 >;
 type _CanRunApp = CanRun<_CheckAppDI>;
 // #endregion approutes

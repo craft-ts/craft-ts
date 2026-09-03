@@ -300,7 +300,9 @@ type ProjectTemplateValueWithoutComponentDeps<
 type ProjectTemplateDeepYieldableValue<
   Value,
   ContextMethod extends string,
-> = Value extends { readonly [REACTIVE_VALUE_TYPE]: infer ReactiveState }
+> = { readonly __craftDeepYieldable: true } & (Value extends {
+  readonly [REACTIVE_VALUE_TYPE]: infer ReactiveState;
+}
   ? YieldableTemplateCallback<
       [],
       ReactiveState,
@@ -319,7 +321,7 @@ type ProjectTemplateDeepYieldableValue<
         unknown
       >) &
         ProjectTemplateObject<Value & object, ContextMethod>
-    : ProjectTemplateObject<Value & object, ContextMethod>;
+    : ProjectTemplateObject<Value & object, ContextMethod>);
 
 type DirectTemplateContextMethod<Context> =
   Context extends NamedYieldableValue<infer Name extends string, any>
@@ -1068,10 +1070,82 @@ type IsLogicInputObject<Value> = Value extends (...args: any[]) => any
     ? true
     : false;
 
+type IsAnyComponentFactoryInput<Value> = 0 extends 1 & Value ? true : false;
+
+type IsComponentFactoryInput<Value> =
+  IsAnyComponentFactoryInput<Value> extends true
+    ? false
+    : [Value] extends [Yieldable<[], any>]
+      ? true
+      : [Value] extends [Output<(...args: any[]) => unknown>]
+        ? true
+        : [Value] extends [RenderableContent | undefined]
+          ? true
+          : [Value] extends [readonly ProjectionUnit<any, any>[]]
+            ? true
+            : false;
+
+type InvalidComponentFactoryInputKeys<Value extends object> = {
+  [Key in keyof Value]-?: IsComponentFactoryInput<Value[Key]> extends true
+    ? never
+    : Key;
+}[keyof Value];
+
+type HasProjectedComponentFactoryInput<Value extends object> = {
+  [Key in keyof Value]-?: [Value[Key]] extends [
+    RenderableContent | undefined | readonly ProjectionUnit<any, any>[],
+  ]
+    ? Key
+    : never;
+}[keyof Value];
+
+type InvalidComponentFactoryInput<
+  Value,
+  Path extends string,
+  IsProjectionFactory extends boolean,
+> =
+  IsComponentFactoryInput<Value> extends true
+    ? never
+    : Value extends object
+      ? [InvalidComponentFactoryInputKeys<Value>] extends [never]
+        ? never
+        : IsProjectionFactory extends true
+          ? never
+          : [HasProjectedComponentFactoryInput<Value>] extends [never]
+            ? {
+                readonly ERROR_component_factory_inputs_must_be_Input_or_Output: `${Path}.${Extract<InvalidComponentFactoryInputKeys<Value>, string>}`;
+              }
+            : never
+      : {
+          readonly ERROR_component_factory_inputs_must_be_Input_or_Output: Path;
+        };
+
+type InvalidComponentFactoryInputs<Factory extends ComponentFactory> =
+  Parameters<Factory> extends infer Parameters extends readonly unknown[]
+    ? {
+        [Index in keyof Parameters]: InvalidComponentFactoryInput<
+          Parameters[Index],
+          `factory parameter ${Extract<Index, string>}`,
+          FactoryContext<Factory> extends {
+            readonly contract: unknown;
+            readonly key: PropertyKey;
+          }
+            ? true
+            : false
+        >;
+      }[Extract<keyof Parameters, `${number}`>]
+    : never;
+
+export type ValidComponentFactoryInputs<Factory extends ComponentFactory> = [
+  InvalidComponentFactoryInputs<Factory>,
+] extends [never]
+  ? unknown
+  : InvalidComponentFactoryInputs<Factory>;
+
 type LogicInputProps<Factory extends ComponentFactory> =
   Parameters<Factory> extends [infer Input]
     ? IsLogicInputObject<Input> extends true
-      ? Simplify<Input & object>
+      ? PropsFromContext<Input & object>
       : never
     : never;
 

@@ -2,6 +2,7 @@ const ADAPTERS = {
   query: 'queryEffect',
   mutation: 'mutationEffect',
   asyncProcess: 'asyncProcessEffect',
+  transitionGuard: 'transitionGuardEffect',
 };
 
 function isExemptFile(filename) {

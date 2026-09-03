@@ -28,10 +28,8 @@ import {
 // visit is slow (pending UI) and a revisit is instant (warm cache) — use the
 // 🗑️ Clear Cache button to replay the pending state.
 //
-// This lives in its own lazy child collection on purpose: the main `app.routes`
-// cascade DI check (`ValidateCascadeRoutesFile`) is already at TypeScript's
-// instantiation-depth ceiling, and `loadChildren` collections are not folded
-// into the parent's budget.
+// This lives in its own lazy child collection on purpose: it owns the slow
+// navigation example and keeps its route-specific DI checks local.
 const { SlowAccess } = craftService(
   { name: 'SlowAccess', providedIn: 'global' },
   function* () {

@@ -82,7 +82,7 @@ Decision page: `/guide/concepts/choose-primitive`.
 5. **Forms** derive from `state` + `insertForm`. Validators are `cRequired`, `cEmail`, `cMinLength`, … Submit through `insertFormSubmit` + a `mutation`. Failures are `craftException` values. Search terms `form`, `formulaire`, `validation`, `submit`, `field`, and `FormData` map to these APIs; native `FormData` is an interoperability boundary, not the form state model.
 6. **Services:** `craftService({ name, scope }, function* () { ... })`. Consume
    the generated `X()` helper, typically `yield* X(...)`.
-7. **Routes:** `craftRoutes(name, [...])`, every component route has `componentDeps: {} as import('./x').GenDeps_X`, and **every file** has its own `ValidateCascadeRoutesFile` / `CanRun` check. Parent checks do not cover `loadChildren`. On `TS2589`, split with `loadChildren` — never delete the check.
+7. **Routes:** `craftRoutes(name, [...])`, every component route has `componentDeps: {} as import('./x').GenDeps_X`, and every routed component has its own `RouteCheckedDI` / `CanRun` check. Checks do not cross a `loadChildren` boundary.
 8. **Templates:** `ifNode` / `matchNode` / `forNode` / `deferNode`, not `@if` / `@for`. Interactive helpers take a unique literal local name: `button('save', { type: 'button', ... }, 'Save')`. The name is `data-craft-name` and must be unique in the app (`assertInteractiveElementNamed`).
 9. **Let ESLint keep generated aliases.** After DI or route edits, run `eslint --fix`. Do not hand-edit `GenDeps_*` or `_Check*` / `_CanRun*` blocks.
 

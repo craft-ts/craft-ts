@@ -23,13 +23,14 @@ import {
   type CraftSettledReadObserver,
   isGeneratorFunction,
   isCraftField,
+  isDeepYieldable,
   isGenerator,
+  deepYieldable,
   markYieldableValue,
   markYieldableMethod,
   isYieldableValue,
   isYieldableMethod,
   isYieldableReactiveValue,
-  DEEP_YIELDABLE,
   provideHostName,
   rawReactiveFacade,
   rawReactiveValue,
@@ -276,6 +277,16 @@ function preserveContentDeclarationContext(
     writable: false,
   });
   return wrapped;
+}
+
+function shouldUseInputShell(value: unknown): boolean {
+  return (
+    (typeof value === 'function' &&
+      (isGeneratorFunction(value) || isYieldableValue(value))) ||
+    (value !== null &&
+      typeof value !== 'function' &&
+      typeof value !== 'object')
+  );
 }
 
 function renderChildrenCallback(
@@ -735,7 +746,7 @@ function projectYieldableTemplateContext(
 
     if (
       typeof value === 'function' &&
-      (Object.keys(value).length > 0 || DEEP_YIELDABLE in value)
+      (Object.keys(value).length > 0 || isDeepYieldable(value))
     ) {
       return new Proxy(namedProjected, {
         get(_target, property) {
@@ -2641,6 +2652,18 @@ class ForRenderedNode implements RenderedNode {
     key: unknown,
   ): CraftNodeChildren {
     traceState.renderCount += 1;
+    const itemReader = function* () {
+      return item;
+    };
+    const itemInput = isDeepYieldable(this.node.source)
+      ? deepYieldable(
+          markYieldableValue(
+            itemReader,
+            `${this.node.sourceName ?? 'forNode'}.item`,
+          ),
+        )
+      : itemReader;
+
     return renderBlockChildren(
       childContext(this.context, {
         traceState,
@@ -2652,9 +2675,7 @@ class ForRenderedNode implements RenderedNode {
       'for',
       this.node.itemTemplate,
       [
-        function* () {
-          return item;
-        },
+        itemInput,
         index,
       ],
     );
@@ -4095,10 +4116,13 @@ class ComponentRenderedNode implements RenderedNode {
                 get: (target, property, receiver) => {
                   const index = this.propKeys.indexOf(String(property));
                   if (index !== -1) {
-                    return preserveContentDeclarationContext(
-                      this.propSources[index](),
-                      declarationContext ?? context,
-                    );
+                    const value = this.propSources[index]();
+                    return shouldUseInputShell(value)
+                      ? inputShells[index]
+                      : preserveContentDeclarationContext(
+                          value,
+                          declarationContext ?? context,
+                        );
                   }
                   return Reflect.get(target, property, receiver);
                 },
@@ -4115,10 +4139,12 @@ class ComponentRenderedNode implements RenderedNode {
                     : {
                         configurable: true,
                         enumerable: true,
-                        value: preserveContentDeclarationContext(
-                          this.propSources[index](),
-                          declarationContext ?? context,
-                        ),
+                        value: shouldUseInputShell(this.propSources[index]())
+                          ? inputShells[index]
+                          : preserveContentDeclarationContext(
+                              this.propSources[index](),
+                              declarationContext ?? context,
+                            ),
                       };
                 },
               },

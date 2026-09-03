@@ -576,7 +576,7 @@ Toutes les variantes doivent contenir :
 
 - une app CraftTS framework-independent ;
 - trois routes lazy-loadées : `/`, `/services`, `/about` ;
-- la preuve DI des routes (`ValidateCascadeRoutesFile`, `CanRun`) ;
+- la preuve DI des routes (`RouteCheckedDI`, `CanRun`) ;
 - un service ou utilitaire démontré par les pages ;
 - une page de succès et d’erreur compréhensibles ;
 - tests unitaires, architecture, typecheck et Playwright ;
