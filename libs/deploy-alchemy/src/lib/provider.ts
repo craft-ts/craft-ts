@@ -82,6 +82,7 @@ export function createAlchemyDeploymentProvider(
         // The read phase is what makes a preview safe: Alchemy resolves the
         // recorded state and creates nothing.
         phase: 'read',
+        rootDir: request.rootDir,
       });
       try {
         const { plan, diagnostics } = planAlchemyDeployment({
@@ -100,6 +101,7 @@ export function createAlchemyDeploymentProvider(
         app: request.manifest.name,
         stage: request.stage,
         phase: 'up',
+        rootDir: request.rootDir,
       });
       try {
         return await applyPlan(request, scope);
@@ -129,20 +131,27 @@ async function applyPlan(
     );
   }
 
-  const outputs: Record<string, string> = {};
-  let url: string | undefined;
+  const applied: import('./runtime.js').AlchemyResourceState[] = [];
 
   for (const resource of resources) {
     const state = await scope.apply(resource);
-    for (const [key, value] of Object.entries(state.outputs)) {
-      outputs[`${state.name}.${key}`] = value;
-      if (key === 'url' && url === undefined) url = value;
-    }
+    applied.push(state);
   }
 
   // Finalizing is what deletes the resources the manifest no longer declares,
   // so it happens once every declared resource exists.
   await scope.finalize();
+  const finalized = await scope.read();
+  const states = finalized.length > 0 ? finalized : applied;
+  const outputs = Object.fromEntries(
+    states.flatMap((state) =>
+      Object.entries(state.outputs).map(([key, value]) => [
+        `${state.name}.${key}`,
+        value,
+      ]),
+    ),
+  );
+  const url = states.find((state) => state.outputs['url'])?.outputs['url'];
 
   return {
     provider: 'alchemy',

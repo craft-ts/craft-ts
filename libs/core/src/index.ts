@@ -269,6 +269,7 @@ export * from './lib/craft-node-directive';
 export * from './lib/fn-wrapper';
 export {
   executeGeneratorCompatibleFactory,
+  type GeneratorOnlyFactory,
   type ResolveGeneratorResult,
 } from './lib/craft-generator-runtime';
 export {

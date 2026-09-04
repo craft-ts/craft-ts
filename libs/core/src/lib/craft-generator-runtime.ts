@@ -153,6 +153,20 @@ export type GeneratorCompatibleFactory<
     ) => Result | Generator<Yielded, Result | Awaited<Result>, unknown>
   : never;
 
+/**
+ * A factory whose asynchronous work must be expressed as a Craft generator.
+ *
+ * Unlike `GeneratorCompatibleFactory`, this type deliberately does not keep a
+ * plain or Promise-returning branch. Resource loaders use it so every remote
+ * dependency can be yielded and tracked by the Craft runtime.
+ */
+export type GeneratorOnlyFactory<
+  Factory,
+  Yielded = never,
+> = Factory extends (...args: infer Args) => infer Result
+  ? (...args: Args) => Generator<Yielded, Result, unknown>
+  : never;
+
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   name: string;

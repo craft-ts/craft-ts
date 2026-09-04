@@ -32,6 +32,44 @@ const { userQuery } =
   });
 ```
 
+## Uploading a raw binary body
+
+`CraftHttpClient` is the JSON transport: it serializes `payload` as JSON. For
+an upload whose body is already a `Blob`, `ArrayBuffer`, `FormData`, or another
+`BodyInit`, use `CraftBinaryHttpClient.put(...)` instead:
+
+```typescript
+import {
+  CraftBinaryHttpClient,
+  mutation,
+  response,
+} from '@craft-ts/core';
+
+type UploadResult = { id: string };
+
+const { uploadFile } =
+  yield *
+  mutation('uploadFile', {
+    method: (file: Blob) => file,
+    loader: function* ({ params: file }) {
+      return yield* CraftBinaryHttpClient.put(({ response }) => ({
+        url: '/api/files',
+        payload: file,
+        success: response<UploadResult>(),
+      }));
+    },
+  });
+```
+
+The request remains owned by the mutation: loading state, cancellation,
+response decoding, typed exceptions, tracing, and dependency tracking work the
+same way as with `CraftHttpClient`. `CraftBinaryHttpClient` currently exposes
+`PUT` for raw bodies; use `CraftHttpClient.post(...)`, `.put(...)`, or
+`.patch(...)` when the server expects a JSON payload.
+
+Do not replace this with `fetch(...)` in the loader. Direct transport loses the
+Craft request lifecycle and is rejected by `prefer-craft-http-transport`.
+
 `params` is reactive: when what it returns changes, the loader runs again. The
 result carries the full async state:
 

@@ -23,6 +23,7 @@ import {
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
+  GeneratorOnlyFactory,
   isGeneratorFunction,
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
@@ -195,10 +196,10 @@ type QueryConfig<
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
         params: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
-          ) => Promise<ResourceState> | ResourceState,
+          ) => ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -225,7 +226,7 @@ type QueryConfig<
               MethodYielded
             >
           | ReadonlySource<SourceParams>;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -234,7 +235,7 @@ type QueryConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState> | ResourceState,
+          ) => ResourceState,
           LoaderYielded
         >;
         params?: never;
@@ -294,10 +295,10 @@ type QueryConfig<
           ) => Params,
           ParamsYielded
         >;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: NoInfer<ResourceLoaderParams<Params>>,
-          ) => Promise<ResourceState> | ResourceState,
+          ) => ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -747,7 +748,7 @@ type SchemaQueryConfig<
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
   loader: (
     param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
   [key: string]: unknown;
 };
 
@@ -794,7 +795,9 @@ export function query<
   queryConfig: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
+    loader: (
+      param: ResourceLoaderParams<Params>,
+    ) => Generator<unknown, State, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -957,7 +960,7 @@ export function query<
     params: (...args: never[]) => unknown;
     loader: (
       param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-    ) => Promise<ParamsState> | ParamsState;
+    ) => Generator<unknown, ParamsState, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -988,7 +991,7 @@ export function query<
     params: () => LoaderParams;
     loader: (
       param: ResourceLoaderParams<LoaderParams>,
-    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1020,7 +1023,7 @@ export function query<
     method: (args: LoaderArgs) => LoaderParams;
     loader: (
       param: ResourceLoaderParams<LoaderParams>,
-    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1221,7 +1224,7 @@ export function query<
  * @param config - Configuration object containing:
  *   - `params`: Function that returns params for automatic execution, or undefined for method-based queries
  *   - `method`: Function that takes args and returns params for manual execution, or a `ReadonlySource` for reactive execution
- *   - `loader`: Async function that performs the query and returns a Promise of the result
+ *   - `loader`: Generator function that performs the query and returns the result
  *   - `stream` (optional): Async function that returns a signal for streaming results
  *   - `identifier` (optional): Function to derive a unique ID from params for grouping queries
  *   - `fromResourceById` (optional): Bind to another ResourceByIdRef for derived queries
@@ -1764,7 +1767,7 @@ function createQueryRef<
 
           try {
             const step = await executeGeneratorCompatibleFactoryAsync({
-              factory: queryConfig.loader as (
+              factory: queryConfig.loader as unknown as (
                 param: ResourceLoaderParams<QueryParams>,
               ) => Promise<QueryState>,
               thisArg: undefined,
@@ -1839,7 +1842,7 @@ function createQueryRef<
           } finally {
             if (operationId) correlationSvc?.endOperation(operationId);
           }
-        }) as typeof queryConfig.loader)
+        }) as unknown as typeof queryConfig.loader)
       : undefined;
 
   const wrappedStream =

@@ -4,6 +4,8 @@ export type CraftHttpRequest = {
   headers?: Readonly<Record<string, string>>;
   params?: Readonly<Record<string, string | number | boolean | undefined>>;
   body?: unknown;
+  /** JSON is the default; raw preserves BodyInit values such as File/Blob. */
+  bodyMode?: 'json' | 'raw';
   signal?: AbortSignal;
   timeout?: number;
 };
@@ -39,7 +41,11 @@ export async function craftFetchTransport<T = unknown>(
       ? undefined
       : setTimeout(() => controller?.abort(), request.timeout);
   const headers = new Headers(request.headers);
-  if (request.body !== undefined && !headers.has('content-type')) {
+  if (
+    request.body !== undefined &&
+    request.bodyMode !== 'raw' &&
+    !headers.has('content-type')
+  ) {
     headers.set('content-type', 'application/json');
   }
 
@@ -50,7 +56,11 @@ export async function craftFetchTransport<T = unknown>(
         method: request.method,
         headers,
         body:
-          request.body === undefined ? undefined : JSON.stringify(request.body),
+          request.body === undefined
+            ? undefined
+            : request.bodyMode === 'raw'
+              ? (request.body as BodyInit)
+              : JSON.stringify(request.body),
         signal: controller?.signal,
       },
     );

@@ -10,7 +10,7 @@ teams evaluating CraftTS, not a promise that beta APIs will remain unchanged.
 | Craft runtime | `@craft-ts/core` `0.7.0-beta.11` | Beta |
 | Craft components | `@craft-ts/component` on the same Craft version | Beta |
 | Effect bridge | `@craft-ts/effect` `0.7.0-beta.11` | Beta / experimental integration |
-| Effect runtime | `effect` `^4.0.0-rc.110` | Effect 4 release candidate |
+| Effect runtime | `effect` `^4.0.0-rc.112` | Effect 4 release candidate required by current Alchemy |
 | Effect 3 projects | No compatibility contract | Migrate or isolate before adopting |
 | Node.js | 20.19+ or 22.12+ | Required by the current docs |
 | TypeScript | Use the version supported by the selected Craft beta; verify with the project lockfile | Toolchain-sensitive |

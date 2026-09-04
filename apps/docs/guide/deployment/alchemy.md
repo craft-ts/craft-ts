@@ -1,15 +1,14 @@
 # Alchemy provider
 
-::: warning Experimental — never run against a live account
+::: warning Experimental — validate in a non-production account first
 This provider is the least validated part of the deployment tooling. The
 presets, the plan, the credential checks and the refusal paths are covered by
 tests through a runtime port, so what CraftTS _decides_ is verified.
 
-What is **not** verified is the last hop: the adapter that calls Alchemy itself
-has never run against a real Cloudflare or AWS account from this repository.
-Treat your first deployment as the validation of that adapter — run
-`deploy preview` first, read the plan, and expect to adjust
-`ALCHEMY_RESOURCE_EXPORTS` if the installed Alchemy renamed a resource.
+What is **not** verified is the last hop: the adapter that invokes Alchemy's
+current CLI has never run against a real Cloudflare or AWS account from this
+repository. Treat your first deployment as the validation of that adapter —
+run `deploy preview` first and read the plan.
 :::
 
 `@craft-ts/deploy-alchemy` deploys a CraftTS manifest to Cloudflare or AWS
@@ -36,15 +35,13 @@ with `--provider-module`.
 Credentials are read from the environment. The tooling checks that they are
 set, never reads their value beyond that, and never writes one to disk.
 
-| Platform     | Variables                                                                                      |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| `cloudflare` | `CLOUDFLARE_API_TOKEN` (or `CLOUDFLARE_API_KEY`), `CLOUDFLARE_ACCOUNT_ID`                      |
-| `aws`        | `AWS_ACCESS_KEY_ID` (or `AWS_PROFILE`, `AWS_ROLE_ARN`), `AWS_REGION` (or `AWS_DEFAULT_REGION`) |
-| both         | `ALCHEMY_PASSWORD`                                                                             |
+| Platform     | Variables                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| `cloudflare` | `CLOUDFLARE_API_TOKEN` (or `CLOUDFLARE_API_KEY`), `CLOUDFLARE_ACCOUNT_ID` (or `ALCHEMY_PROFILE`)        |
+| `aws`        | `AWS_ACCESS_KEY_ID` (or `AWS_PROFILE`, `AWS_ROLE_ARN`), `AWS_REGION` (or `AWS_DEFAULT_REGION`)          |
 
-`ALCHEMY_PASSWORD` encrypts the secrets Alchemy records in its state. Deploying
-without it would write a state nobody can read back, so the provider refuses.
-Keep the same value across every deployment of a given stage.
+Alchemy 2 uses its provider state store and profile configuration. The adapter
+does not require the legacy `ALCHEMY_PASSWORD` variable.
 
 ## State and stages
 
@@ -69,12 +66,12 @@ npx craft-ts deploy preview --provider alchemy --stage staging
 
 ```text
 plan: alchemy → stage staging (2 resource(s))
-  create    cloudflare:KVNamespace demo-staging-sessions
+  create    cloudflare:KV.Namespace demo-staging-sessions
     binding: SESSIONS
   update    cloudflare:Worker demo-staging-worker
     entrypoint: dist/apps/demo/worker.js
     assets: dist/apps/demo
-  note: Alchemy 0.70.0, stage `staging`.
+  note: Alchemy 2.0.0-beta.76, stage `staging`.
 Preview only: nothing was created, updated or deleted.
 ```
 
@@ -106,13 +103,13 @@ Use `--json` to get `{ applied, plan, result, diagnostics }` for a CI step.
 
 ## What each manifest becomes
 
-| Manifest                 | Resources                                                      |
-| ------------------------ | -------------------------------------------------------------- |
-| `static` on `cloudflare` | `StaticSite`, with the SPA fallback or the pre-rendered routes |
-| `worker` on `cloudflare` | the resources the bindings name, then the `Worker`             |
-| `static` on `aws`        | a private `Bucket` behind a `CloudFrontDistribution`           |
-| `lambda` on `aws`        | a `Function` and its `FunctionUrl`                             |
-| `node` on `aws`          | a Fargate `Cluster` and `Service`                              |
+| Manifest                 | Resources                                             |
+| ------------------------ | ----------------------------------------------------- |
+| `static` on `cloudflare` | `Website.StaticSite`                                  |
+| `worker` on `cloudflare` | binding resources, then `Worker`                     |
+| `static` on `aws`        | `Website.StaticSite`                                 |
+| `lambda` on `aws`        | `Lambda.Function` with its built-in Function URL     |
+| `node` on `aws`          | refused; use the Docker provider or an image preset  |
 
 Bindings map to the resource their `type` names — `kv`, `r2`, `d1`, `queue`,
 `durable_object`. A binding typed `secret` is never created: its value must
@@ -149,10 +146,9 @@ does not pass `craft-ts check`.
 Alchemy owns the resources, the state, the credentials handling and the
 reconciliation. It decides _how_ what CraftTS declared comes to exist.
 
-Everything version-specific lives in one table, `ALCHEMY_RESOURCE_EXPORTS`,
-which maps a planned resource type to the Alchemy module and export that
-creates it. An Alchemy release that renames a resource is a change to that
-table, not to the presets or the manifest.
+The adapter generates a temporary Alchemy 2 stack and invokes the installed
+Alchemy CLI. `ALCHEMY_RESOURCE_EXPORTS` maps each planned resource type to the
+current module and nested export used in that generated stack.
 
 ## Limits
 

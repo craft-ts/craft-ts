@@ -76,7 +76,7 @@ describe('provider module contract', () => {
     );
 
     expect(provider.name).toBe('alchemy');
-    expect(plan.resources[0]?.type).toBe('cloudflare:StaticSite');
+    expect(plan.resources[0]?.type).toBe('cloudflare:Website.StaticSite');
     expect(runtime.applied).toEqual([]);
   });
 
@@ -85,8 +85,10 @@ describe('provider module contract', () => {
 
     expect(mapped.length).toBeGreaterThan(0);
     for (const [type, target] of mapped) {
-      expect(target.module).toBe(`alchemy/${type.split(':')[0]}`);
-      expect(target.export.length).toBeGreaterThan(0);
+      expect(target.module).toMatch(
+        new RegExp(`^alchemy/${type.split(':')[0]}$`, 'i'),
+      );
+      expect(target.path.length).toBeGreaterThan(0);
     }
   });
 

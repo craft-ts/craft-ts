@@ -14,12 +14,12 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require server-function client calls to be owned by an asynchronous Craft resource loader.',
+        'Require server-function calls to be owned by a query, mutation, or asyncProcess loader so loading, cancellation, exceptions, and dependency tracking remain visible.',
     },
     schema: [],
     messages: {
       outsideResource:
-        'Server-function calls must be returned by a query, mutation, or asyncProcess loader. The client facade is yieldable and must not be fired from an event handler or another synchronous callback.',
+        'Server-function calls must be returned by a query, mutation, or asyncProcess loader because the yieldable client facade needs resource ownership for loading, cancellation, exceptions, and dependency tracking. Do not fire it from an event handler or another synchronous callback.',
     },
   },
 

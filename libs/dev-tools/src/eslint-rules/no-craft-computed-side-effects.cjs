@@ -165,7 +165,9 @@ module.exports = {
 
       return (
         node.callee.object.name === 'CraftHttpClient' ||
-        importedNames.get(node.callee.object.name) === 'CraftHttpClient'
+        node.callee.object.name === 'CraftBinaryHttpClient' ||
+        importedNames.get(node.callee.object.name) === 'CraftHttpClient' ||
+        importedNames.get(node.callee.object.name) === 'CraftBinaryHttpClient'
       );
     }
 

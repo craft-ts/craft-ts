@@ -8,7 +8,7 @@ export const CREATE_AGENT_OPTIONS: readonly {
 }[] = [
   { value: 'codex', label: 'Codex' },
   { value: 'cursor', label: 'Cursor' },
-  { value: 'cloud-code', label: 'Cloud Code' },
+  { value: 'claude-code', label: 'Claude Code' },
 ];
 
 export type InteractiveOption<Value extends string> = {

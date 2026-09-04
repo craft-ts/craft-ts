@@ -19,7 +19,7 @@ describe('no-type-assertions-in-resource-loader', () => {
     `);
 
     expect(messages).toEqual([
-      'Do not use a type assertion inside a resource loader. Fix the request or adapter typing and let the query/mutation infer its result.',
+      'Do not use a type assertion inside a resource loader: an assertion only silences TypeScript and does not convert the runtime value, so it can hide a Promise, response, or transport mismatch. Fix the request or adapter typing and let the resource infer its result.',
     ]);
   });
 

@@ -10,12 +10,12 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Keep query, mutation, and asyncProcess loaders inferred instead of hiding their contract behind type assertions.',
+        'Prevent assertions that only silence TypeScript and can hide Promise, response, or transport mismatches in query, mutation, and asyncProcess loaders.',
     },
     schema: [],
     messages: {
       forbidden:
-        'Do not use a type assertion inside a resource loader. Fix the request or adapter typing and let the query/mutation infer its result.',
+        'Do not use a type assertion inside a resource loader: an assertion only silences TypeScript and does not convert the runtime value, so it can hide a Promise, response, or transport mismatch. Fix the request or adapter typing and let the resource infer its result.',
     },
   },
 

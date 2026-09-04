@@ -70,7 +70,7 @@ describe('planAlchemyDeployment', () => {
   it('shows the deletion of a resource the manifest no longer declares', () => {
     const resources = plan([
       {
-        type: 'cloudflare:KVNamespace',
+        type: 'cloudflare:KV.Namespace',
         name: 'demo-production-sessions',
         outputs: { id: 'kv-1' },
       },
@@ -78,7 +78,7 @@ describe('planAlchemyDeployment', () => {
 
     expect(resources).toContainEqual(
       expect.objectContaining({
-        type: 'cloudflare:KVNamespace',
+        type: 'cloudflare:KV.Namespace',
         action: 'delete',
       }),
     );

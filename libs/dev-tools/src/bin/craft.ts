@@ -798,7 +798,7 @@ Options:
   --frontend-runtime <plain|effect>
   --backend-runtime <none|promise|effect>
   --effect-scope <none|frontend|backend|both>
-  --agents <list>              codex,cursor,cloud-code (or none)
+  --agents <list>              codex,cursor,claude-code (or none)
   --locales <list>             Comma-separated locales (default: en-US,fr-FR)
   --default-locale <locale>    Initial locale (must be in --locales)
   --i18n <strict|loose|none>   Plural/catalogue validation mode

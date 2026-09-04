@@ -175,7 +175,7 @@ describe('createCraftProject', () => {
       dependencies: Record<string, string>;
     };
 
-    expect(packageJson.dependencies['effect']).toBe('^4.0.0-rc.110');
+    expect(packageJson.dependencies['effect']).toBe('^4.0.0-rc.112');
     expect(packageJson.dependencies['@craft-ts/effect']).toBe('^0.7.0-beta.15');
     expect(
       Object.values(packageJson.dependencies).every(
@@ -525,6 +525,23 @@ describe('createCraftProject', () => {
     ).toContain('no-raw-class');
   });
 
+  it('generates Claude Code instructions and skills', async () => {
+    const result = await createFixture('plain', ['claude-code']);
+    const instructions = await readFile(
+      join(result.directory, 'CLAUDE.md'),
+      'utf8',
+    );
+    const skill = await readFile(
+      join(result.directory, '.claude/skills/craft-ts-project/SKILL.md'),
+      'utf8',
+    );
+
+    expect(instructions).toContain(
+      'Read `.claude/skills/craft-ts-project/SKILL.md`',
+    );
+    expect(skill).toContain('name: craft-ts-project');
+  });
+
   it('creates an Effect v4 starter with a separate Effect skill and Layer boundary', async () => {
     const result = await createFixture('effect', ['codex']);
     const packageJson = JSON.parse(
@@ -534,7 +551,7 @@ describe('createCraftProject', () => {
       devDependencies: Record<string, string>;
     };
 
-    expect(packageJson.dependencies['effect']).toBe('^4.0.0-rc.110');
+    expect(packageJson.dependencies['effect']).toBe('^4.0.0-rc.112');
     expect(packageJson.dependencies['@craft-ts/effect']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n']).toBeDefined();
     expect(packageJson.dependencies['@craft-ts/i18n-effect']).toBeDefined();

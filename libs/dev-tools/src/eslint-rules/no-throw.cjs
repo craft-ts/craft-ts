@@ -8,12 +8,12 @@ module.exports = {
     fixable: 'code',
     docs: {
       description:
-        'Disallow throw statements in Craft code; return a craftException result instead.',
+        'Require Craft’s typed exception channel instead of throw statements that bypass resource exception state; keep technical throws inside explicit adapter boundaries.',
     },
     schema: [],
     messages: {
       throw:
-        "throw is forbidden in Craft code. Return craftException({ code: '{{code}}' }, ...) instead.",
+        "throw is forbidden in Craft code because it bypasses Craft's typed exception channel and resource exception state. Return craftException({ code: '{{code}}' }, ...) for expected or domain failures; keep technical throws inside an explicit adapter boundary.",
     },
   },
 

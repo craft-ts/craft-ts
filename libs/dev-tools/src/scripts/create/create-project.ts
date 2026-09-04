@@ -5,7 +5,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { runArchitectureMigration } from '../architecture/migrate-architecture.js';
 
 export const CRAFT_TS_STARTER_VERSION = '^0.7.0-beta.15';
-export const EFFECT_V4_VERSION = '^4.0.0-rc.110';
+export const EFFECT_V4_VERSION = '^4.0.0-rc.112';
 
 export type CreateAgent = 'codex' | 'cursor' | 'claude-code' | 'cloud-code';
 export type CreateMode = 'effect' | 'plain';
@@ -113,9 +113,14 @@ bootstrapCraft.
 1. Read the existing component, route and API boundary before editing.
 2. Use query for server reads, mutation for writes, and CraftHttpClient
    for transport. Yield every Craft reader.
-   Put CraftHttpClient calls directly in the owning query or mutation loader;
+   Put CraftHttpClient calls directly in the owning query, mutation, or
+   asyncProcess loader;
    never hide remote work in craftMethod and never silence loader typing with
    an \`as PromiseLike<...>\` assertion.
+   Resource loaders are generator functions (\`function*\`) and must return
+   their final value from the generator. Never make a query, mutation, or
+   asyncProcess loader \`async\` and never return a native Promise from it:
+   use \`yield*\` for each Craft request or other yieldable operation.
 3. Put route-visible filters, search, sort and pagination in route-level
    queryParams. Do not keep them in component-local state.
 4. In template event handlers, emit one source$ event and let query, mutation
@@ -222,7 +227,11 @@ package \`file:\` aliases to these references.
 `;
 }
 
-function agentsMd(mode: CreateMode, config?: StarterConfig): string {
+function agentsMd(
+  mode: CreateMode,
+  config?: StarterConfig,
+  projectSkillPath = '.agents/skills/craft-ts-project/SKILL.md',
+): string {
   const frontend =
     config?.frontendRuntime ?? (mode === 'effect' ? 'effect' : 'plain');
   const backend = config?.backendRuntime ?? 'none';
@@ -287,7 +296,7 @@ guide for coding agents: it records the selected runtime and feature surfaces.
 
 ${config?.demoPages === false ? 'The starter is already domain-first.' : 'Before starting product development, run `npm run reset:starter` to remove the explanatory demo pages and keep only the first domain feature.'}
 
-Read \`.agents/skills/craft-ts-project/SKILL.md\` before changing application
+Read \`${projectSkillPath}\` before changing application
 code. ${i18n ? 'Translation keys live in `src/i18n/`; run `npm run i18n:check` and `npm run i18n:test` after changes.' : 'This starter has no i18n surface; do not add translation files unless the project configuration changes.'}
 ${effectGuidance}
 
@@ -1615,7 +1624,6 @@ import { appRoutes } from './app.routes';
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_PATHS,
   providers: [
     ...developmentProviders,
     provideCraftRootComponent(App),
@@ -2656,7 +2664,6 @@ const effectProviders = provideLayer(${i18n ? 'Layer.mergeAll(WelcomeRepositoryL
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_PATHS,
   providers: [
     ...developmentProviders,
     provideCraftRootComponent(App),
@@ -3012,7 +3019,11 @@ function agentFiles(
   }
   if (agent === 'claude-code') {
     return {
-      'CLAUDE.md': AGENTS_MD(mode, config),
+      'CLAUDE.md': AGENTS_MD(
+        mode,
+        config,
+        '.claude/skills/craft-ts-project/SKILL.md',
+      ),
       '.claude/skills/craft-ts-project/SKILL.md': skill,
       ...(effectEnabled
         ? { '.claude/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
@@ -3020,7 +3031,11 @@ function agentFiles(
     };
   }
   return {
-    'GEMINI.md': AGENTS_MD(mode, config),
+    'GEMINI.md': AGENTS_MD(
+      mode,
+      config,
+      '.gemini/skills/craft-ts-project/SKILL.md',
+    ),
     '.gemini/skills/craft-ts-project/SKILL.md': skill,
     ...(effectEnabled
       ? { '.gemini/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }

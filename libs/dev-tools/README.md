@@ -21,7 +21,7 @@ choices are normalized into one effective configuration:
 
 ```bash
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app
-npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=v4 --agents=codex,cursor,gemini
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=v4 --agents=codex,cursor,claude-code
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --agents=none
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --i18n=none --design-system=none --no-typed-css
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=effect --backend-runtime=effect --i18n=strict
@@ -71,8 +71,9 @@ The starter includes a routed page, a typed API call, flat-config ESLint, unit
 tests, a graph-wide `architecture/` suite, Playwright E2E tests, development
 logs forwarded to a local JSONL server, `.mcp.json` for Craft/log/page MCP
 servers, a browser type-check indicator, and a GitHub Actions workflow with an
-explicit `npm run typecheck` gate. `codex`, `cursor`, and `cloud-code` install the
-corresponding Gemini project instructions.
+explicit `npm run typecheck` gate. `codex`, `cursor`, and `claude-code` install
+the corresponding project instructions and skills. The legacy `cloud-code` and
+`gemini` values remain accepted as aliases for Gemini CLI output.
 
 ## Project configuration
 

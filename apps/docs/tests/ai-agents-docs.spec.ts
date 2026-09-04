@@ -1,9 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readDoc } from './read-doc';
 
 describe('coding agents docs', () => {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
   const page = readDoc('../resources/ai-agents.md');
   const home = readDoc('../index.md');
+  const homePrompt = readFileSync(
+    join(repoRoot, 'apps/docs/.vitepress/theme/CraftAgentPrompt.vue'),
+    'utf8',
+  );
   const learnNext = readDoc('../learn/next.md');
   const guide = readDoc('../guide/index.md');
   const reference = readDoc('../reference/index.md');
@@ -28,5 +36,12 @@ describe('coding agents docs', () => {
     expect(learnNext).toContain('/resources/ai-agents');
     expect(guide).toContain('/resources/ai-agents');
     expect(reference).toContain('/resources/ai-agents');
+  });
+
+  it('offers Claude Code and its generated skills in the home prompt', () => {
+    expect(homePrompt).toContain('Claude Code');
+    expect(homePrompt).toContain('claude-code');
+    expect(homePrompt).toContain('CraftTS skills');
+    expect(homePrompt).not.toContain('Cloud Code');
   });
 });

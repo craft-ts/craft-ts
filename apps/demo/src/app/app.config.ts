@@ -58,9 +58,6 @@ export const appConfig = craftAppConfig({
   appStart: {
     AppStartLog,
   },
-  // Component DI is checked from each SFC contract; the app config only needs
-  // the slim path registry and avoids re-expanding every component graph.
-  routingDeps: demoRoutes.META_PATHS,
   providers: [
     ...developmentProviders,
     provideGlobalPersisterHandlerService(),

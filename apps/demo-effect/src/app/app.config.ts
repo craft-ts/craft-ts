@@ -15,7 +15,6 @@ import { AccessPolicyLive, SessionLive } from './shared/access-domain';
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
-  routingDeps: demoEffectRoutes.META_PATHS,
   providers: [
     ...developmentProviders,
     provideCraftRootComponent(App),

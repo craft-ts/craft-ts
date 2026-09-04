@@ -26,7 +26,7 @@
     "llms.txt"
   ],
   "peerDependencies": {
-    "effect": "^4.0.0-rc.110",
+    "effect": ">=4.0.0-rc.112 || >=4.0.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0"
   },

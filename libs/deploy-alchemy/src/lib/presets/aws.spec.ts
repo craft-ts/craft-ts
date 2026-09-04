@@ -16,12 +16,10 @@ describe('aws preset', () => {
       const result = awsPreset(lambda);
 
       expect(result.resources.map((resource) => resource.type)).toEqual([
-        'aws:LambdaFunction',
-        'aws:LambdaFunctionUrl',
+        'aws:Lambda.Function',
       ]);
-      expect(result.resources[1]?.properties).toMatchObject({
-        function: 'demo-production-function',
-        authType: 'NONE',
+      expect(result.resources[0]?.properties).toMatchObject({
+        functionUrl: true,
       });
     });
 
@@ -58,13 +56,11 @@ describe('aws preset', () => {
       );
 
       expect(result.resources.map((resource) => resource.type)).toEqual([
-        'aws:Bucket',
-        'aws:CloudFrontDistribution',
+        'aws:Website.StaticSite',
       ]);
-      expect(result.resources[0]?.properties).toMatchObject({ public: false });
-      expect(result.resources[1]?.properties).toMatchObject({
-        origin: 'demo-production-assets',
-        notFoundResponse: 'index.html',
+      expect(result.resources[0]?.properties).toMatchObject({
+        path: 'dist',
+        spa: true,
       });
     });
   });
@@ -83,22 +79,11 @@ describe('aws preset', () => {
         },
       });
 
-    it('falls back to a Fargate service', () => {
+    it('refuses a generic Node artefact', () => {
       const result = awsPreset(node('node dist/server.js'));
 
-      expect(result.resources.map((resource) => resource.type)).toEqual([
-        'aws:EcsCluster',
-        'aws:EcsService',
-      ]);
-      expect(result.resources[1]?.properties).toMatchObject({
-        readyPath: '/ready',
-      });
-    });
-
-    it('says the image build stays outside CraftTS', () => {
-      expect(awsPreset(node('node dist/server.js')).notes.join(' ')).toContain(
-        'image build stays outside CraftTS',
-      );
+      expect(result.resources).toEqual([]);
+      expect(result.diagnostics[0]?.message).toContain('Alchemy ECS');
     });
 
     it('refuses a service with no start command', () => {

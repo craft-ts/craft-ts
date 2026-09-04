@@ -125,8 +125,8 @@ type RouteErrorMessages<RouteDefinition> = [
   ...InjectedErrorMessages<RouteDefinition, RouteContext<RouteDefinition>>,
 ];
 
-// Uses index-based access (works with mapped types like APP_CONFIG_META_DATA) and
-// processes 4 routes per step to keep recursion depth ~N/4 for large route tables.
+// Uses index-based access and processes 4 routes per step to keep recursion
+// depth ~N/4 for large route tables.
 type RoutesErrorMessagesByIndex<
   Routes extends readonly unknown[],
   Traversed extends readonly unknown[] = readonly [],

@@ -159,8 +159,9 @@ debouncedById.select('2')?.value(); // data2
 :::
 
 ::: details Advanced — yielding dependencies
-`method` and `loader` can be generators, and `providers` scopes dependencies to
-this process alone:
+`method` and `loader` are generators, and `providers` scopes dependencies to
+this process alone. A loader must not be `async` or return a native `Promise`:
+use `yield*` for asynchronous Craft operations:
 
 ```typescript
 const { loadProfile } =

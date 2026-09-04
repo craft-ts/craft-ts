@@ -13,14 +13,14 @@ import {
 
 /** Binding kinds Alchemy provisions, by the `type` the manifest declares. */
 const BINDING_RESOURCES: Readonly<Record<string, string>> = {
-  kv: 'cloudflare:KVNamespace',
-  kv_namespace: 'cloudflare:KVNamespace',
-  r2: 'cloudflare:R2Bucket',
-  r2_bucket: 'cloudflare:R2Bucket',
-  d1: 'cloudflare:D1Database',
-  d1_database: 'cloudflare:D1Database',
-  queue: 'cloudflare:Queue',
-  durable_object: 'cloudflare:DurableObjectNamespace',
+  kv: 'cloudflare:KV.Namespace',
+  kv_namespace: 'cloudflare:KV.Namespace',
+  r2: 'cloudflare:R2.Bucket',
+  r2_bucket: 'cloudflare:R2.Bucket',
+  d1: 'cloudflare:D1.Database',
+  d1_database: 'cloudflare:D1.Database',
+  queue: 'cloudflare:Queues.Queue',
+  durable_object: 'cloudflare:Workers.DurableObject',
 };
 
 /**
@@ -56,14 +56,14 @@ export function cloudflarePreset(
     return {
       resources: [
         {
-          type: 'cloudflare:StaticSite',
+          type: 'cloudflare:Website.StaticSite',
           name: name('site'),
           properties: {
-            directory: publicDir,
-            spa,
-            ...(spa
-              ? { notFoundPage: manifest.static.fallback }
-              : { prerenderedRoutes: manifest.static.routes.length }),
+            command: manifest.client.build,
+            outdir: publicDir,
+            assets: {
+              notFoundHandling: spa ? 'single-page-application' : '404-page',
+            },
           },
         },
       ],

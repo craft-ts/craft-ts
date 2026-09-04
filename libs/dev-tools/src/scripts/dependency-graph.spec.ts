@@ -381,12 +381,15 @@ describe('analyzeDependencyGraph architecture facts', () => {
     expect(edgeLabels(graph, 'Checkout', 'provides')).toContain('provides->Cart');
   });
 
-  it('promotes CraftHttpClient usages to http-endpoint nodes', async () => {
+  it('promotes Craft HTTP client usages to http-endpoint nodes', async () => {
     const root = await fixture({
       'api.ts': `
         ${CRAFT_STUBS}
         declare const CraftHttpClient: {
           get(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
+        };
+        declare const CraftBinaryHttpClient: {
+          put(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
         };
 
         const { UsersApi } = craftService(
@@ -396,7 +399,11 @@ describe('analyzeDependencyGraph architecture facts', () => {
               url: 'users',
               success: response(),
             }));
-            return { users };
+            const upload = yield* CraftBinaryHttpClient.put(({ response }) => ({
+              url: 'uploads',
+              success: response(),
+            }));
+            return { users, upload };
           },
         );
       `,
@@ -420,6 +427,10 @@ describe('analyzeDependencyGraph architecture facts', () => {
     );
     expect(edgeLabels(graph, 'UsersApi', 'calls')).toEqual(
       expect.arrayContaining(['calls->GET users']),
+    );
+    expect(graph.nodes.map((node) => node.label)).toContain('PUT uploads');
+    expect(edgeLabels(graph, 'UsersApi', 'calls')).toContain(
+      'calls->PUT uploads',
     );
   });
 

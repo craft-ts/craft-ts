@@ -222,9 +222,7 @@ export function migrateApplicationConfigSourceFile(
   routerCall.getExpression().replaceWithText('provideCraftRouter');
   routesArgument.replaceWithText(`${routesName}.toRoutes()`);
   const configText = initializer.getText();
-  declaration.setInitializer(
-    `craftAppConfig({ routingDeps: ${routesName}.META_DATA, ${configText.slice(1, -1)} })`,
-  );
+  declaration.setInitializer(`craftAppConfig(${configText})`);
   declaration.removeType();
   ensureValueImport(sourceFile, 'craftAppConfig');
   ensureValueImport(sourceFile, 'provideCraftRouter');

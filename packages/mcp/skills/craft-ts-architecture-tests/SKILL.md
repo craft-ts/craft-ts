@@ -28,7 +28,7 @@ generates the application, API/page example, routes, ESLint, unit tests,
 architecture suite and Playwright commands together:
 
 ```shell
-npx craft create my-app --effect=none --agents=codex,cursor,cloud-code
+npx craft create my-app --effect=none --agents=codex,cursor,claude-code
 ```
 
 For an Effect v4 starter:

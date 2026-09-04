@@ -61,7 +61,7 @@ describe('createAlchemyDeploymentProvider', () => {
       const plan = await provider.preview(workerRequest());
 
       expect(runtime.opened).toEqual([
-        { app: 'demo', stage: 'production', phase: 'read' },
+        { app: 'demo', stage: 'production', phase: 'read', rootDir: root },
       ]);
       expect(runtime.applied).toEqual([]);
       expect(runtime.finalized).toBe(0);
@@ -78,7 +78,7 @@ describe('createAlchemyDeploymentProvider', () => {
 
       const plan = await provider.preview(workerRequest());
 
-      expect(plan.notes[0]).toContain('0.70.0-test');
+      expect(plan.notes[0]).toContain('2.0.0-beta.76-test');
       expect(plan.notes[0]).toContain('production');
     });
 
@@ -138,7 +138,7 @@ describe('createAlchemyDeploymentProvider', () => {
 
       expect(runtime.opened[0]?.phase).toBe('up');
       expect(runtime.applied.map((resource) => resource.type)).toEqual([
-        'cloudflare:KVNamespace',
+        'cloudflare:KV.Namespace',
         'cloudflare:Worker',
       ]);
       expect(runtime.finalized).toBe(1);
@@ -213,7 +213,6 @@ describe('createAlchemyDeploymentProvider', () => {
       expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual(
         expect.arrayContaining([
           'CRAFT_DEPLOY_PROVIDER_CREDENTIALS_MISSING',
-          'CRAFT_DEPLOY_PROVIDER_STATE_UNAVAILABLE',
         ]),
       );
     });

@@ -42,7 +42,8 @@
     "@craft-ts/deploy": "^0.8.1"
   },
   "peerDependencies": {
-    "alchemy": ">=0.70.0"
+    "alchemy": ">=2.0.0-beta.76",
+    "effect": ">=4.0.0-rc.112 || >=4.0.0"
   },
   "peerDependenciesMeta": {
     "alchemy": {

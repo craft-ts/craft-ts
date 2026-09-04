@@ -63,6 +63,7 @@ module.exports = {
   'craft-ts/no-widened-route-provider-context': 'error',
   'craft-ts/prefer-inline-route-providers': 'error',
   'craft-ts/no-async-await': 'error',
+  'craft-ts/require-generator-resource-loader': 'error',
   'craft-ts/no-throw': 'error',
   'craft-ts/require-assert-exhaustive-route-exceptions': 'warn',
   'craft-ts/require-pending-component-di-check': 'warn',

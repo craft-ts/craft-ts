@@ -7,9 +7,9 @@ const require = createRequire(import.meta.url);
 const rule = require('./prefer-craft-http-transport.cjs');
 
 const FETCH_MESSAGE =
-  'Do not call fetch() directly in authored Craft code. Use query() for reads or mutation() for writes, backed by CraftHttpClient.';
+  'Do not call fetch() directly in authored Craft code: direct transport bypasses typed responses, Craft exceptions, tracing, cancellation, and the architecture graph. Use query() or mutation() backed by CraftHttpClient, or CraftBinaryHttpClient for raw binary bodies.';
 const XHR_MESSAGE =
-  'Do not use XMLHttpRequest directly in authored Craft code. Use query() for reads or mutation() for writes, backed by CraftHttpClient.';
+  'Do not use XMLHttpRequest directly in authored Craft code: direct transport bypasses typed responses, Craft exceptions, tracing, cancellation, and the architecture graph. Use query() or mutation() backed by CraftHttpClient, or CraftBinaryHttpClient for raw binary bodies.';
 
 describe('prefer-craft-http-transport', () => {
   it('reports fetch and XMLHttpRequest transports', async () => {

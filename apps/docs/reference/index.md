@@ -149,6 +149,7 @@ already receive those methods as arguments — see
 | Symbol                                                                 | What it does                                              | Page                                                    |
 | ---------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
 | `CraftHttpClient`                                                      | Tracked HTTP client with typed exceptions                 | [query](/guide/state/server-state)                      |
+| `CraftBinaryHttpClient`                                                | Tracked raw-body HTTP PUT for binary uploads             | [query](/guide/state/server-state)                      |
 | `browserBoundary`                                                      | Marks a service as a browser boundary                     | [Browser boundaries](/guide/testing/browser-boundaries) |
 | `BrowserDocument`, `BrowserDocument.setLang`, `BrowserDocument.setDir` | Reads and updates document title, language, and direction | [Browser boundaries](/guide/testing/browser-boundaries) |
 | `Console`                                                              | Yieldable console, overridable for tracing                | [Observability](/guide/advanced/observability)          |

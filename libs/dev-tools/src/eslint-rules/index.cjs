@@ -52,6 +52,7 @@ const requireCraftResourceTriggerYield = require('./require-craft-resource-trigg
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
 const noAsyncAwait = require('./no-async-await.cjs');
+const requireGeneratorResourceLoader = require('./require-generator-resource-loader.cjs');
 const requirePrimitiveContext = require('./require-primitive-context.cjs');
 const noThrow = require('./no-throw.cjs');
 const noRenderWrites = require('./no-render-writes.cjs');
@@ -170,6 +171,7 @@ const plugin = {
     'no-direct-temporal-globals': noDirectTemporalGlobals,
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,
     'no-async-await': noAsyncAwait,
+    'require-generator-resource-loader': requireGeneratorResourceLoader,
     'require-primitive-context': requirePrimitiveContext,
     'no-throw': noThrow,
     'no-render-writes': noRenderWrites,

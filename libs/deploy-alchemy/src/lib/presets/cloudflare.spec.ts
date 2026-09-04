@@ -30,12 +30,12 @@ describe('cloudflare preset', () => {
 
       expect(result.resources).toEqual([
         expect.objectContaining({
-          type: 'cloudflare:StaticSite',
+          type: 'cloudflare:Website.StaticSite',
           name: 'demo-production-site',
           properties: {
-            directory: 'dist',
-            spa: true,
-            notFoundPage: 'index.html',
+            command: 'vite build',
+            outdir: 'dist',
+            assets: { notFoundHandling: 'single-page-application' },
           },
         }),
       ]);
@@ -45,8 +45,7 @@ describe('cloudflare preset', () => {
       const result = cloudflarePreset(staticSite('ssg', ['/', '/about']));
 
       expect(result.resources[0]?.properties).toMatchObject({
-        spa: false,
-        prerenderedRoutes: 2,
+        assets: { notFoundHandling: '404-page' },
       });
       expect(result.notes.join(' ')).toContain('2 pre-rendered route(s)');
     });
@@ -80,8 +79,8 @@ describe('cloudflare preset', () => {
       );
 
       expect(result.resources.map((resource) => resource.type)).toEqual([
-        'cloudflare:KVNamespace',
-        'cloudflare:R2Bucket',
+        'cloudflare:KV.Namespace',
+        'cloudflare:R2.Bucket',
         'cloudflare:Worker',
       ]);
     });

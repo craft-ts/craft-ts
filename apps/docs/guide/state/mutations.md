@@ -162,7 +162,8 @@ deleteUser.select('5')?.value();
 
 ::: details Advanced — yielding dependencies
 `method`, `loader` and the insertion can all be generators, and `providers`
-scopes dependencies to this mutation alone:
+scopes dependencies to this mutation alone. A loader must not be `async` or
+return a native `Promise`; use `yield*` for asynchronous Craft operations:
 
 ```typescript
 const { saveUser } =

@@ -13,7 +13,6 @@ import { ssrRoutes } from './app.routes';
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 const commonAppConfigDefinition = {
-  routingDeps: ssrRoutes.META_PATHS,
   providers: [
     ...developmentProviders,
     provideCraftRootComponent(App),

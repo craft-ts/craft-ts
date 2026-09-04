@@ -4,9 +4,9 @@ import { ref } from 'vue';
 const prompt = `You are setting up a new framework-independent CraftTS project.
 
 1. Ask me first whether to use EffectTS v4 (not v3). Use --effect=v4 or --effect=none.
-2. Ask which agent integrations to install: Codex, Cursor, and Cloud Code. Pass them with --agents.
+2. Ask which agent integrations to install: Codex, Cursor, or Claude Code. Pass them with --agents (use claude-code for Claude Code).
 3. Create the project with: npx craft create <project-directory> --effect=<v4|none> --agents=<list>
-4. Read the generated README and agent instructions before writing application code.
+4. Read the generated README, agent instructions, and CraftTS skills before writing application code. Use the skills generated for the selected agent integration.
 5. Run npm install, then verify npm run lint, npm run typecheck, npm run test, npm run architecture, and npm run e2e.
 6. Start the app with npm run dev and verify the routed page and its API request in the browser.
 7. Keep the project framework-independent: use CraftTS primitives, CraftHttpClient, craftRoutes, and the generated architecture checks. Do not introduce Angular, raw fetch, async/await, or ad hoc reactive state.

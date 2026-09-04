@@ -143,16 +143,17 @@ checks exported arrow functions.
 - `craft-ts/max-craft-declarations-per-file`: reports the third and subsequent `craftComponent(...)`, `craftService(...)`, or `craftDirective(...)` declaration of the same kind in a file; keep Craft entities split across focused files
 - `craft-ts/no-injection-token`: forbids authored `InjectionToken` contracts; declare them with `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
 - `craft-ts/prefer-craft-http-client`: forbids direct transport usage in favor of `CraftHttpClient`
-- `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
+- `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest` because they bypass typed responses and exceptions, tracing, cancellation, and the architecture graph; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`, or `CraftBinaryHttpClient` for raw binary bodies
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file; create a context-specific method for each distinct use
-- `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
-- `craft-ts/no-throw`: forbids `throw` in Craft code and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
+- `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of` because native Promise suspension hides Craft dependencies and can lose cancellation or exception tracking; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
+- `craft-ts/require-generator-resource-loader`: requires `query`, `mutation`, and `asyncProcess` loaders to be generator functions because a plain or async return hides remote dependencies from the resource lifecycle; use `yield*` to keep each suspension tracked
+- `craft-ts/no-throw`: forbids `throw` in Craft code because it bypasses the typed resource exception channel, and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ts/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).
 - `craft-ts/no-imperative-craft-method-actions`: forbids composing multiple imperative actions in a `craftMethod`; emit a `source$` event and let the affected query react with `insertReactOnMutation(...)` instead. A handler such as `event.preventDefault()` followed by one `mutation.mutate(...)` remains valid.
-- `craft-ts/no-remote-work-in-craft-method`: forbids `CraftHttpClient.*(...)` inside `craftMethod`; define the request directly in the `query` or `mutation` loader so the resource owns its remote lifecycle.
-- `craft-ts/no-type-assertions-in-resource-loader`: forbids `as ...` and angle-bracket assertions inside `query`, `mutation`, and `asyncProcess` loaders; repair the request or adapter typing instead of forcing a `PromiseLike<...>` contract.
+- `craft-ts/no-remote-work-in-craft-method`: forbids `CraftHttpClient.*(...)` inside `craftMethod` because that action boundary does not own request loading, cancellation, exceptions, or graph dependencies; define the request directly in the `query` or `mutation` loader.
+- `craft-ts/no-type-assertions-in-resource-loader`: forbids `as ...` and angle-bracket assertions inside `query`, `mutation`, and `asyncProcess` loaders because assertions only silence TypeScript and can hide Promise, response, or transport mismatches; repair the request or adapter typing instead.
 - `craft-ts/no-imperative-template-action-chain`: forbids chaining multiple Craft actions in one template event callback; emit one `source$` event and let the query, mutation, and state react through `on$`.
 - `craft-ts/prefer-route-query-params-for-filter-state`: warns when a local `state()` is used directly or through a local derivation as `params` for `query`, `queryEffect`, `asyncProcess`, or `asyncProcessEffect`; use `queryParams()` for values that should survive reloads and be represented in the URL. The graph-wide counterpart, which also sees cross-file dependencies, is [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state).
 - `craft-ts/no-imperative-storage-in-craft-method`: forbids direct storage access and imperative location changes in a `craftMethod`; use `insertReactOnMutation(...)` with `optimisticUpdate: () => undefined` to clear the affected query and let its persistence follow the query state.
@@ -181,6 +182,61 @@ checks exported arrow functions.
 - `craft-ts/prefer-craft-router-link`: requires `CraftRouterLink` for internal `a(..., { href: ... })` navigation; external URLs, fragment links, downloads, `_blank`, and links marked with `data-navigation: 'external'` remain native
 - `craft-ts/no-raw-craft-router-url`: rejects reading `CraftRouter.url`; use the typed route parameter helper generated by `craftRoutes(...)` instead of parsing the URL
 - `craft-ts/no-craft-component-return-type`: rejects explicit annotations on `craftComponent(...)` results so dependency and template inference remains intact
+
+## Promise and transport boundaries
+
+These rules protect the same boundary: asynchronous work must remain visible to
+the Craft resource that owns it. A native `Promise` may eventually resolve, but
+it does not describe which Craft dependencies were read, where suspension
+occurred, or which resource should be cancelled and receive the exception.
+
+### Keep resource loaders generator-based
+
+```ts
+// Incorrect: the native Promise hides the request from the Craft lifecycle.
+query('usersQuery', {
+  loader: async () => (await fetch('/api/users')).json(),
+});
+
+// Correct: the resource owns a tracked, yieldable request.
+query('usersQuery', {
+  loader: function* () {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: '/api/users',
+      success: response<User[]>(),
+    }));
+  },
+});
+```
+
+`no-async-await` rejects `async`, `await`, and `for await...of` in Craft code.
+`require-generator-resource-loader` additionally checks that `query`,
+`mutation`, and `asyncProcess` loaders are generators. Use `yield*` for Craft
+operations so every suspension stays tracked.
+
+### Keep transport and types honest
+
+```ts
+// Incorrect: direct fetch bypasses Craft response/error tracking.
+const result = await fetch('/api/users');
+
+// Correct: use the Craft client in the owning resource loader.
+return yield* CraftHttpClient.get(({ response }) => ({
+  url: '/api/users',
+  success: response<User>(),
+}));
+```
+
+For a raw binary body, use `CraftBinaryHttpClient.put(...)`; do not use a type
+assertion to force `CraftHttpClient` to accept a `Blob`. An assertion only
+silences TypeScript — it does not change the runtime value or transport.
+That is why `prefer-craft-http-transport` and
+`no-type-assertions-in-resource-loader` report these patterns.
+
+Expected failures should use `craftException(...)` so they remain typed and
+available through the resource's exception state. `no-throw` keeps technical
+throws limited to explicit adapter boundaries, where they can be translated
+into the Craft exception channel.
 
 ### Accessibility (`craft-ts/a11y`)
 

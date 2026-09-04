@@ -20,11 +20,15 @@ const RULES: Partial<
 > = {
   cloudflare: [
     {
-      anyOf: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_API_KEY'],
+      anyOf: [
+        'CLOUDFLARE_API_TOKEN',
+        'CLOUDFLARE_API_KEY',
+        'ALCHEMY_PROFILE',
+      ],
       purpose: 'authenticate against the Cloudflare API',
     },
     {
-      anyOf: ['CLOUDFLARE_ACCOUNT_ID'],
+      anyOf: ['CLOUDFLARE_ACCOUNT_ID', 'ALCHEMY_PROFILE'],
       purpose: 'select the Cloudflare account the resources belong to',
     },
   ],
@@ -39,12 +43,6 @@ const RULES: Partial<
     },
   ],
 };
-
-/**
- * Alchemy encrypts the secrets it records in its state with this passphrase.
- * Deploying without it would write a state nobody can read back.
- */
-const STATE_SECRET = 'ALCHEMY_PASSWORD';
 
 export function checkAlchemyCredentials(
   platform: CraftDeploymentPlatform,
@@ -62,21 +60,6 @@ export function checkAlchemyCredentials(
       platform,
       message: `None of ${rule.anyOf.join(', ')} is set, and Alchemy needs one to ${rule.purpose}.`,
       fix: `Export ${rule.anyOf[0]} in the shell or the CI secret store; never write it in the manifest.`,
-    });
-  }
-
-  if (
-    (RULES[platform] ?? []).length > 0 &&
-    !isSet(STATE_SECRET) &&
-    !isSet('ALCHEMY_STATE_TOKEN')
-  ) {
-    diagnostics.push({
-      code: 'CRAFT_DEPLOY_PROVIDER_STATE_UNAVAILABLE',
-      severity: 'error',
-      provider: 'alchemy',
-      platform,
-      message: `${STATE_SECRET} is not set, so Alchemy cannot encrypt or read back the secrets it records in its state.`,
-      fix: `Export ${STATE_SECRET} for the stage you deploy, and keep the same value across deployments of that stage.`,
     });
   }
 
@@ -100,5 +83,5 @@ export function alchemyCredentialNames(
 ): readonly string[] {
   const rules = RULES[platform] ?? [];
   if (rules.length === 0) return [];
-  return [...rules.flatMap((rule) => rule.anyOf), STATE_SECRET];
+  return [...new Set(rules.flatMap((rule) => rule.anyOf))];
 }

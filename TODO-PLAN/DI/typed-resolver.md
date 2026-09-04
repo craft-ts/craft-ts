@@ -7,7 +7,7 @@
 Étendre `craftRoutes` pour supporter `resolve` au format craft, avec trois capacités en une seule passe :
 
 - chaque resolver de route accepte une fonction ou une génératrice
-- les dépendances des resolvers générateurs remontent dans `META_DATA` / `APP_CONFIG_META_DATA`
+- les dépendances des resolvers générateurs remontent dans `META_DATA`
 - une route expose `injectMyRouteResolverData()` et les clés résolues satisfont aussi les inputs du composant
 
 Pour les `query()` craft-ts, le choix retenu est strict :
@@ -165,7 +165,7 @@ Dans [`/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/li
 
 Dans [`/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-app-config.spec.ts`](/Users/romaingeffrault/Documents/projects/prive/craft-ts/libs/core/src/lib/craft-app-config.spec.ts) :
 
-- un resolver générateur enrichit `APP_CONFIG_META_DATA.missingProvider`
+- un resolver générateur enrichit `META_DATA.missingProvider`
 - idem quand le resolver retourne `resolveQuery(query(...), ...)`
 
 ## Hypothèses retenues

@@ -9,7 +9,6 @@ useSnippetHarness();
 import { craftAppConfig, provideCraftRouter, withTransitionTimings } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
   providers: [
     provideCraftRouter(
       appRoutes.toRoutes(),

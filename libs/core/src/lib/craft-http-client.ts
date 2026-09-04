@@ -330,6 +330,10 @@ type CraftHttpClientBodyConfig = CraftHttpClientBaseConfig & {
   payload: unknown | null;
 };
 
+type CraftBinaryHttpClientBodyConfig = CraftHttpClientBaseConfig & {
+  payload: BodyInit | null;
+};
+
 type CraftHttpClientRequestConfig = CraftHttpClientBaseConfig & {
   method: string;
   payload?: unknown | null;
@@ -442,12 +446,15 @@ type AnyCraftHttpRequest = CraftHttpRequest<
   AnyCraftException
 >;
 
-type CraftHttpTrackedRequest<Request extends AnyCraftHttpRequest> =
+type CraftHttpTrackedRequest<
+  Request extends AnyCraftHttpRequest,
+  ClientName extends string = 'CraftHttpClient',
+> =
   ServiceYieldRequest<
     'global',
     Request,
     ServiceTrackingMetadata<
-      'CraftHttpClient',
+      ClientName,
       'global',
       Request,
       never,
@@ -609,6 +616,40 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   },
 };
 
+/**
+ * Typed raw-body transport for uploads and other non-JSON requests.
+ *
+ * `CraftHttpClient` serializes `payload` as JSON. This client keeps the same
+ * Craft tracking, response decoding, exception rules, and cancellation, but
+ * passes `payload` directly to `fetch` as a `BodyInit`.
+ */
+type CraftBinaryHttpClientDsl = {
+  put: <const Config extends CraftBinaryHttpClientBodyConfig>(
+    build: (helpers: CraftHttpClientBuilderHelpers) => Config,
+  ) => Generator<
+    CraftHttpTrackedRequest<
+      CraftHttpRequestFromConfig<'PUT', Config>,
+      'CraftBinaryHttpClient'
+    >,
+    CraftHttpRequestFromConfig<'PUT', Config>,
+    unknown
+  >;
+};
+
+export const CraftBinaryHttpClient: CraftBinaryHttpClientDsl = {
+  put: function* <const Config extends CraftBinaryHttpClientBodyConfig>(
+    build: (helpers: CraftHttpClientBuilderHelpers) => Config,
+  ) {
+    const config = build(craftHttpClientBuilderHelpers);
+
+    return (yield createCraftHttpClientYieldRequest(
+      (injector) =>
+        createCraftHttpRequest(injector, 'PUT', config, 'raw'),
+      'CraftBinaryHttpClient',
+    )) as CraftHttpRequestFromConfig<'PUT', Config>;
+  },
+};
+
 export function response<Success>(): CraftHttpClientSuccessToken<Success>;
 export function response<Success>(
   decoder: CraftDecoder<Success>,
@@ -635,17 +676,21 @@ export function getCraftHttpRequestExceptionDependencies(
   return metadata.value;
 }
 
-function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
+function createCraftHttpClientYieldRequest<
+  Request extends AnyCraftHttpRequest,
+  ClientName extends string = 'CraftHttpClient',
+>(
   factory: (injector: Injector) => Request,
-): CraftHttpTrackedRequest<Request> {
+  clientName: ClientName = 'CraftHttpClient' as ClientName,
+): CraftHttpTrackedRequest<Request, ClientName> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
-    name: 'CraftHttpClient',
+    name: clientName,
     providedIn: 'global',
     resolve: (injector) => {
       const override = injector
         .get(SERVICE_RUNTIME_OVERRIDES)
-        .get('CraftHttpClient');
+        .get(clientName);
 
       if (override?.kind === 'useValue') {
         return override.value as Request;
@@ -661,7 +706,7 @@ function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
 
       return factory(injector);
     },
-  } as CraftHttpTrackedRequest<Request>;
+  } as CraftHttpTrackedRequest<Request, ClientName>;
 }
 
 function createCraftHttpRequest<
@@ -671,6 +716,7 @@ function createCraftHttpRequest<
   injector: Injector,
   method: Method,
   config: Config,
+  bodyMode: 'json' | 'raw' = 'json',
 ): CraftHttpRequestFromConfig<Uppercase<Method>, Config> {
   const normalizedMethod = normalizeMethod(method) as Uppercase<Method>;
   const exceptionDependencies =
@@ -691,7 +737,7 @@ function createCraftHttpRequest<
       async () => {
         try {
           const response = await craftFetchTransport(
-            toCraftFetchRequest(normalizedMethod, config),
+            toCraftFetchRequest(normalizedMethod, config, bodyMode),
           );
           const responseBody = response.body;
 
@@ -797,6 +843,7 @@ function createCraftHttpRequest<
 function toCraftFetchRequest(
   method: string,
   config: CraftHttpClientBaseConfig,
+  bodyMode: 'json' | 'raw' = 'json',
 ) {
   const urlSearchParams =
     config.params instanceof URLSearchParams ? config.params : undefined;
@@ -813,6 +860,7 @@ function toCraftFetchRequest(
         ? normalizeCraftHttpClientParams(config.params)
         : undefined,
     body: getConfigPayload(config),
+    bodyMode,
     signal: config.signal,
     timeout: config.timeout,
   };

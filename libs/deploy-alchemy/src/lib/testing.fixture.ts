@@ -68,7 +68,7 @@ export function recordingRuntime(
   };
 
   return {
-    version: '0.70.0-test',
+  version: '2.0.0-beta.76-test',
     opened,
     applied,
     get finalized() {
@@ -87,11 +87,9 @@ export function recordingRuntime(
 export const CLOUDFLARE_CREDENTIALS = Object.freeze({
   CLOUDFLARE_API_TOKEN: 'token',
   CLOUDFLARE_ACCOUNT_ID: 'account',
-  ALCHEMY_PASSWORD: 'passphrase',
 });
 
 export const AWS_CREDENTIALS = Object.freeze({
   AWS_ACCESS_KEY_ID: 'key',
   AWS_REGION: 'eu-west-3',
-  ALCHEMY_PASSWORD: 'passphrase',
 });

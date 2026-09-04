@@ -21,7 +21,6 @@ import {
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
-  routingDeps: [],
   providers: [
     ...developmentProviders,
     provideCraftRootComponent(QuickstartTaskPage),

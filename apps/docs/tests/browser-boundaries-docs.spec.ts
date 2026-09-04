@@ -208,7 +208,6 @@ describe('Type-safe DI/Routes setup doc page', () => {
     expect(content).toContain(
       "componentDeps: {} as import('./test').GenDeps_TestComponent,",
     );
-    expect(content).toContain('routingDeps: appRoutes.META_DATA');
     expect(content).toContain('provideCraftRouter(appRoutes.toRoutes()');
   });
 

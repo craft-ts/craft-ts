@@ -407,7 +407,6 @@ import { stressRoutes } from './generated/app.routes';
 import { provideStressAppService } from './generated/services/StressAppService';
 
 export const appConfig = craftAppConfig({
-  routingDeps: stressRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideCraftRouter(stressRoutes.toRoutes(), withComponentInputBinding()),
@@ -434,7 +433,7 @@ function genMainTs(diMode: DiMode = 'central'): string {
 
   const centralBlock = emitCentral
     ? `
-type CheckAppDI = AppCheckedDI<GenDeps_AppComponent, typeof appConfig.APP_CONFIG_META_DATA>;
+type CheckAppDI = AppCheckedDI<GenDeps_AppComponent, typeof stressRoutes.META_DATA>;
 type _CanRun = CanRun<CheckAppDI>;
 `
     : '';
@@ -446,6 +445,7 @@ type _CanRun = CanRun<CheckAppDI>;
   return `import { bootstrapApplication } from '@angular/platform-browser';
 ${imports}
 import { appConfig } from './app.config';
+import { stressRoutes } from './generated/app.routes';
 ${appComponentImport}
 
 bootstrapApplication(AppComponent, toApplicationConfig(appConfig)).catch(console.error);

@@ -11,10 +11,10 @@ import {
  * AWS preset.
  *
  * `lambda` is the first-class shape: one function per deployment unit, exposed
- * through a Function URL so a server-function keeps the same protocol it has
- * locally. `static` becomes a bucket behind a distribution, and `node` falls
- * back to a Fargate service because nothing else on AWS runs a long-lived Node
- * server without more infrastructure than a manifest describes.
+ * through Alchemy's built-in Function URL support. `static` uses Alchemy's
+ * current `AWS.Website.StaticSite`. A generic CraftTS `node` artefact is
+ * intentionally refused because Alchemy ECS needs an image, Docker context,
+ * or an Effect server entrypoint that cannot be inferred from a start command.
  */
 export function awsPreset(
   request: CraftDeploymentRequest,
@@ -27,18 +27,14 @@ export function awsPreset(
     const functionName = name('function');
     const resources: AlchemyResourceRequest[] = [
       {
-        type: 'aws:LambdaFunction',
+        type: 'aws:Lambda.Function',
         name: functionName,
         properties: {
           entry: manifest.lambda.entry,
           environment: environmentNames(request),
           permissions: manifest.lambda.permissions.join(', '),
+          functionUrl: true,
         },
-      },
-      {
-        type: 'aws:LambdaFunctionUrl',
-        name: name('function-url'),
-        properties: { function: functionName, authType: 'NONE' },
       },
     ];
     const notes = [
@@ -72,24 +68,15 @@ export function awsPreset(
         ],
       };
     }
-    const bucketName = name('assets');
     const spa = manifest.static.mode === 'spa';
     return {
       resources: [
         {
-          type: 'aws:Bucket',
-          name: bucketName,
-          properties: { directory: publicDir, public: false },
-        },
-        {
-          type: 'aws:CloudFrontDistribution',
-          name: name('cdn'),
+          type: 'aws:Website.StaticSite',
+          name: name('site'),
           properties: {
-            origin: bucketName,
-            defaultRootObject: 'index.html',
-            ...(spa
-              ? { notFoundResponse: manifest.static.fallback }
-              : { prerenderedRoutes: manifest.static.routes.length }),
+            path: publicDir,
+            ...(spa ? { spa: true } : { errorPage: '404.html' }),
           },
         },
       ],
@@ -103,44 +90,16 @@ export function awsPreset(
   }
 
   if (manifest.runtime === 'node') {
-    if (!manifest.artifact.start) {
-      return {
-        resources: [],
-        notes: [],
-        diagnostics: [
-          unsupported(
-            'A Fargate service needs a start command and the manifest declares none.',
-            'Declare `server.start`, or `artifact.start`.',
-            request,
-          ),
-        ],
-      };
-    }
-    const clusterName = name('cluster');
     return {
-      resources: [
-        {
-          type: 'aws:EcsCluster',
-          name: clusterName,
-          properties: {},
-        },
-        {
-          type: 'aws:EcsService',
-          name: name('service'),
-          properties: {
-            cluster: clusterName,
-            start: manifest.artifact.start,
-            healthPath: manifest.server.healthPath,
-            readyPath: manifest.server.readyPath,
-            environment: environmentNames(request),
-          },
-        },
+      resources: [],
+      notes: ['A generic Node artefact is not converted to an ECS service automatically.'],
+      diagnostics: [
+        unsupported(
+          'Alchemy ECS needs an image, Docker context or an Effect server entrypoint; a generic CraftTS Node start command is not enough.',
+          'Deploy this Node artefact with the Docker provider, or add an AWS-specific container/image preset.',
+          request,
+        ),
       ],
-      notes: [
-        'The Fargate fallback runs the artefact as a container: the image build stays outside CraftTS.',
-        `Readiness is taken from \`${manifest.server.readyPath}\`, so a rollout waits for the application, not for the container.`,
-      ],
-      diagnostics: [],
     };
   }
 

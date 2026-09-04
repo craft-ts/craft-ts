@@ -1,12 +1,6 @@
 import { craftService, GetServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
-import { craftAppConfig } from './craft-app-config';
-import { requiredAppStart } from './craft-app-config.app-start.fixture';
-
-function _demoUserIdParams(): string {
-  throw new Error('Type-only helper');
-}
 
 describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
@@ -240,118 +234,6 @@ describe('AppCheckedDI', () => {
     >();
   });
 
-  it('should treat app root providers from APP_CONFIG_META_DATA as provided in AppComponent', () => {
-    const { Counter, provideCounter } = craftService(
-      { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
-    );
-
-    type GenDeps_AppComponent = GetDeps<{
-      deps: {
-        Counter: GetServiceDependencies<typeof Counter>;
-      };
-      provided: {};
-      publicProperties: {};
-    }>;
-
-    const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
-      routingDeps: [] as const,
-      providers: [provideCounter()] as const,
-    });
-
-    type APP_CHECKED_DI = AppCheckedDI<
-      GenDeps_AppComponent,
-      typeof appConfig.APP_CONFIG_META_DATA
-    >;
-
-    expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<true>();
-  });
-
-  it('should report route missing providers from APP_CONFIG_META_DATA branded tuples', () => {
-    type GenDeps_AppComponent = GetDeps<{
-      deps: {};
-      provided: {};
-      missingProvider: {};
-      publicProperties: {};
-    }>;
-
-    const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
-    );
-
-    type APP_ROUTES = readonly [
-      {
-        path: 'lazy-parent';
-      },
-      {
-        path: 'lazy-parent/child';
-        deps: {};
-        provided: {};
-        missingProvider: {
-          Counter: GetServiceDependencies<typeof Counter>;
-        };
-        publicProperties: {};
-      },
-    ];
-
-    const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
-      routingDeps: [] as unknown as APP_ROUTES,
-    });
-
-    type APP_CHECKED_DI = AppCheckedDI<
-      GenDeps_AppComponent,
-      typeof appConfig.APP_CONFIG_META_DATA
-    >;
-
-    expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
-      [
-        'The Counter service is not provided in path: "lazy-parent/child"',
-      ]
-    >();
-  });
-
-  it('should report demo lazy child route provider errors through AppCheckedDI', () => {
-    type GenDeps_AppComponent = GetDeps<{
-      deps: {};
-      provided: {};
-      missingProvider: {};
-      publicProperties: {};
-    }>;
-
-    type DemoRoutingDeps = readonly [
-      {
-        path: 'craft/lazy-layout/:teamId';
-      },
-      {
-        path: 'craft/lazy-layout/:teamId/users/:userId';
-        deps: {};
-        provided: {};
-        publicProperties: {};
-        missingProvider: {
-          DemoUserIdParams: ReturnType<typeof _demoUserIdParams>;
-        };
-      },
-    ];
-
-    const _appConfig = craftAppConfig({
-      appStart: requiredAppStart,
-      routingDeps: [] as unknown as DemoRoutingDeps,
-    });
-
-    type DEMO_APP_CHECKED_DI = AppCheckedDI<
-      GenDeps_AppComponent,
-      typeof _appConfig.APP_CONFIG_META_DATA
-    >;
-
-    expectTypeOf<DEMO_APP_CHECKED_DI>().toEqualTypeOf<
-      [
-        'The DemoUserIdParams service is not provided in path: "craft/lazy-layout/:teamId/users/:userId"',
-      ]
-    >();
-  });
 });
 
 describe('CanRun', () => {

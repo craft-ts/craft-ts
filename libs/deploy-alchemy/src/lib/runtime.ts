@@ -10,7 +10,7 @@
 export type AlchemyPhase = 'read' | 'up';
 
 export type AlchemyResourceRequest = Readonly<{
-  /** Namespaced resource type, e.g. `cloudflare:Worker`. */
+  /** CraftTS resource type, e.g. `cloudflare:Worker`. */
   type: string;
   name: string;
   /** Declared properties. Never contains a secret value. */
@@ -45,6 +45,8 @@ export type AlchemyOpenOptions = Readonly<{
   app: string;
   stage: string;
   phase: AlchemyPhase;
+  /** Workspace root used by Alchemy's generated stack and build commands. */
+  rootDir?: string;
 }>;
 
 export type AlchemyRuntime = Readonly<{

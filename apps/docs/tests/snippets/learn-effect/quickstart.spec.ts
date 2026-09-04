@@ -63,7 +63,6 @@ import { provideCraftRootComponent, bootstrapCraft } from '@craft-ts/component';
 import { craftAppConfig, provideAppInitializer } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
-  routingDeps: [],
   providers: [
     provideCraftRootComponent(Profile),
     provideLayer(UserRepositoryLive),

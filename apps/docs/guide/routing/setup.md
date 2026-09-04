@@ -116,7 +116,6 @@ import { craftAppConfig, provideCraftRouter } from '@craft-ts/core';
 import { appRoutes } from './app.routes';
 
 export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
   providers: [provideCraftRouter(appRoutes.toRoutes())],
 });
 ```
@@ -124,7 +123,6 @@ export const appConfig = craftAppConfig({
 Notes:
 
 - `appRoutes.toRoutes()` gives the router the real runtime routes.
-- `appRoutes.META_DATA` gives `craftAppConfig(...)` the compile-time route dependency graph.
 - Route params are bound to component inputs by name; there is nothing to opt into.
 - `provideCraftRouter(...)` also takes the craft loading features
   (`withErrorComponent`, `withRouteLoadError`, `withTransitionTimings`, …) in

@@ -1,16 +1,16 @@
 const GLOBAL_OBJECTS = new Set(['globalThis', 'window']);
 
 const FETCH_MESSAGE =
-  'Do not call fetch() directly in authored Craft code. Use query() for reads or mutation() for writes, backed by CraftHttpClient.';
+  'Do not call fetch() directly in authored Craft code: direct transport bypasses typed responses, Craft exceptions, tracing, cancellation, and the architecture graph. Use query() or mutation() backed by CraftHttpClient, or CraftBinaryHttpClient for raw binary bodies.';
 const XHR_MESSAGE =
-  'Do not use XMLHttpRequest directly in authored Craft code. Use query() for reads or mutation() for writes, backed by CraftHttpClient.';
+  'Do not use XMLHttpRequest directly in authored Craft code: direct transport bypasses typed responses, Craft exceptions, tracing, cancellation, and the architecture graph. Use query() or mutation() backed by CraftHttpClient, or CraftBinaryHttpClient for raw binary bodies.';
 
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'Prefer Craft query/mutation primitives backed by CraftHttpClient over fetch and XMLHttpRequest.',
+        'Require Craft-owned HTTP transport so typed responses and exceptions, tracing, cancellation, and architecture-graph visibility are preserved; use CraftBinaryHttpClient for raw binary bodies.',
     },
     schema: [],
     messages: {

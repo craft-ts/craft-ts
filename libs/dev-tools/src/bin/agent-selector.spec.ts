@@ -57,7 +57,7 @@ describe('selectAgentsInteractively', () => {
     await expect(resultPromise).resolves.toEqual([
       'codex',
       'cursor',
-      'cloud-code',
+      'claude-code',
     ]);
     expect(input.isRaw).toBe(false);
     expect(output.chunks.join('')).toContain('Space toggle');
@@ -119,12 +119,12 @@ describe('selectAgentsInteractively', () => {
     expect(CREATE_AGENT_OPTIONS.map((option) => option.value)).toEqual([
       'codex',
       'cursor',
-      'cloud-code',
+      'claude-code',
     ]);
     expect(CREATE_AGENT_OPTIONS.map((option) => option.label)).toEqual([
       'Codex',
       'Cursor',
-      'Cloud Code',
+      'Claude Code',
     ]);
   });
 });

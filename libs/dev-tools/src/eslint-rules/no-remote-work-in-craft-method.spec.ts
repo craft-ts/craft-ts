@@ -17,7 +17,7 @@ describe('no-remote-work-in-craft-method', () => {
     `);
 
     expect(messages).toEqual([
-      'Remote work via CraftHttpClient.patch(...) is forbidden inside craftMethod. Put the request directly in a query or mutation loader.',
+      'Remote work via a Craft HTTP client (patch(...)) is forbidden inside craftMethod because craftMethod is an action boundary and does not own request loading, cancellation, exceptions, or the architecture graph. Put the request directly in a query or mutation loader.',
     ]);
   });
 

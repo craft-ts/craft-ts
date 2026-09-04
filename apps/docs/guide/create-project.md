@@ -43,7 +43,7 @@ The generator presents menus in this order:
 - the design system;
 - typed CSS;
 - a standalone or Nx workspace;
-- integrations for Codex, Cursor, or Cloud Code.
+- integrations for Codex, Cursor, or Claude Code.
 
 The frontend and backend choices are independent. To create a plain browser
 application whose server functions use Effect v4, choose `plain` for the
@@ -63,7 +63,8 @@ select or deselect an integration, and `Enter` to confirm. Codex starts
 selected, preserving the default used by scripted creation. Every starter
 receives an `AGENTS.md` project guide describing its selected runtimes and
 features; selected integrations additionally receive their editor-specific
-project instructions and skills.
+project instructions and skills. Claude Code receives `CLAUDE.md` and skills
+under `.claude/skills/`.
 
 ## Agent-assisted creation
 
@@ -231,6 +232,9 @@ enforce the same architecture as the generated project guide:
 
 - remote reads and writes stay directly in query or mutation loaders; they
   must not be hidden in `craftMethod`;
+- `query`, `mutation` and `asyncProcess` loaders are generator functions;
+  express asynchronous work with `yield*`, never with `async` or a native
+  `Promise` return;
 - resource loaders infer their result instead of using casts such as
   `as PromiseLike<...>`;
 - route-visible filters, search, sort and pagination use route-level

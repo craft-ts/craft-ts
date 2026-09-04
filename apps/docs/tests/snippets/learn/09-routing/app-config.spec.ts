@@ -10,7 +10,6 @@ useSnippetHarness();
 import { craftAppConfig } from '@craft-ts/core';
 
 export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_DATA,
   providers: [provideRouter(appRoutes.toRoutes(), )],
 });
 // #endregion app-config

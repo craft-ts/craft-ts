@@ -133,7 +133,8 @@ describe('createArchitectureGraph', () => {
       'app.config.ts': `
         import { appRoutes } from './app.routes';
         declare function craftAppConfig(value: unknown): unknown;
-        export const appConfig = craftAppConfig({ routingDeps: appRoutes });
+        declare function provideCraftRouter(value: unknown): unknown;
+        export const appConfig = craftAppConfig({ providers: [provideCraftRouter(appRoutes.toRoutes())] });
       `,
       'app.routes.ts': `
         import type { appConfig } from './app.config';

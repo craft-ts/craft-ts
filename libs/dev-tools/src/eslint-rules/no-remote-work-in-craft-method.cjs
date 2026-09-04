@@ -5,18 +5,21 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Keep remote reads and writes in query or mutation loaders instead of craftMethod.',
+        'Keep remote work in query or mutation loaders, where loading, cancellation, exceptions, and architecture-graph ownership are explicit, instead of craftMethod.',
     },
     schema: [],
     messages: {
       forbidden:
-        'Remote work via CraftHttpClient.{{method}}(...) is forbidden inside craftMethod. Put the request directly in a query or mutation loader.',
+        'Remote work via a Craft HTTP client ({{method}}(...)) is forbidden inside craftMethod because craftMethod is an action boundary and does not own request loading, cancellation, exceptions, or the architecture graph. Put the request directly in a query or mutation loader.',
     },
   },
 
   create(context) {
     const craftMethodNames = new Set(['craftMethod']);
-    const httpClientNames = new Set(['CraftHttpClient']);
+    const httpClientNames = new Set([
+      'CraftHttpClient',
+      'CraftBinaryHttpClient',
+    ]);
     const craftMethodCallbacks = [];
 
     return {
@@ -30,7 +33,10 @@ module.exports = {
           if (imported === 'craftMethod') {
             craftMethodNames.add(specifier.local.name);
           }
-          if (imported === 'CraftHttpClient') {
+          if (
+            imported === 'CraftHttpClient' ||
+            imported === 'CraftBinaryHttpClient'
+          ) {
             httpClientNames.add(specifier.local.name);
           }
         }

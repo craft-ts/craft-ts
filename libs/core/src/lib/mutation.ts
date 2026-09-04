@@ -25,6 +25,7 @@ import {
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
+  GeneratorOnlyFactory,
   isGenerator,
   isGeneratorFunction,
   runCraftGenerator,
@@ -211,7 +212,7 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -220,7 +221,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState> | ResourceState,
+          ) => ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -339,7 +340,7 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -348,7 +349,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState> | ResourceState,
+          ) => ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -408,7 +409,7 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -417,7 +418,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState> | ResourceState,
+          ) => ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -786,7 +787,7 @@ type SchemaMutationConfig<
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
   loader: (
     param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
   [key: string]: unknown;
 };
 
@@ -831,7 +832,7 @@ export function mutation<
     params: () => SchemaInput<ParamsSchema>;
     loader: (
       param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-    ) => Promise<ParamsState> | ParamsState;
+    ) => Generator<unknown, ParamsState, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -863,7 +864,7 @@ export function mutation<
     params: () => LoaderParams;
     loader: (
       param: ResourceLoaderParams<LoaderParams>,
-    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -894,7 +895,9 @@ export function mutation<
   mutationConfig: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
+    loader: (
+      param: ResourceLoaderParams<Params>,
+    ) => Generator<unknown, State, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1091,8 +1094,8 @@ export function mutation<
  *   locatable in snapshots and logs.
  * @param config - Configuration object containing:
  *   - `method`: Function that takes args and returns params, or a `ReadonlySource` for automatic execution
- *   - `loader`: Async function that performs the mutation and returns a Promise of the result
- *   - `stream` (optional): Async function that returns a signal for streaming results
+ *   - `loader`: Generator function that performs the mutation and returns the result
+ *   - `stream` (optional): Streaming function that returns a signal for streaming results
  *   - `identifier` (optional): Function to derive a unique ID from params for grouping mutations
  *   - `fromResourceById` (optional): Bind to another ResourceByIdRef for synced operations
  *   - `params` (optional): Function to derive params from a resource entity
@@ -1615,7 +1618,7 @@ function createMutationRef<
 
           try {
             const step = await executeGeneratorCompatibleFactoryAsync({
-              factory: mutationConfig.loader as (
+              factory: mutationConfig.loader as unknown as (
                 param: ResourceLoaderParams<any>,
               ) => Promise<any>,
               thisArg: undefined,
@@ -1688,7 +1691,7 @@ function createMutationRef<
           } finally {
             if (operationId) correlationSvc?.endOperation(operationId);
           }
-        }) as typeof mutationConfig.loader)
+        }) as unknown as typeof mutationConfig.loader)
       : undefined;
 
   const wrappedStream =

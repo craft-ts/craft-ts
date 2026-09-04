@@ -20,6 +20,7 @@ import { InsertionsResourcesFactory } from './query.core';
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
+  GeneratorOnlyFactory,
   isGenerator,
   isGeneratorFunction,
   runCraftGenerator,
@@ -316,7 +317,7 @@ type AsyncProcessConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -325,7 +326,7 @@ type AsyncProcessConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState>,
+          ) => ResourceState,
           LoaderYielded
         >;
         params?: never;
@@ -376,12 +377,12 @@ type AsyncProcessConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorCompatibleFactory<
+        loader: GeneratorOnlyFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<NoInfer<StripCraftException<Params>>>
             >,
-          ) => Promise<ResourceState>,
+          ) => ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -540,7 +541,7 @@ type SchemaAsyncProcessConfig<
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
   loader: (
     param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
   [key: string]: unknown;
 };
 
@@ -579,7 +580,9 @@ export function asyncProcess<
   config: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
+    loader: (
+      param: ResourceLoaderParams<Params>,
+    ) => Generator<unknown, State, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -610,7 +613,7 @@ export function asyncProcess<
     params: () => SchemaInput<ParamsSchema>;
     loader: (
       param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-    ) => Promise<ParamsState> | ParamsState;
+    ) => Generator<unknown, ParamsState, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -641,7 +644,7 @@ export function asyncProcess<
     params: () => LoaderParams;
     loader: (
       param: ResourceLoaderParams<LoaderParams>,
-    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -710,7 +713,7 @@ export function asyncProcess<
  *   locatable in snapshots and logs.
  * @param AsyncProcessConfig - Configuration object:
  *   - `method`: Function returning params OR source for automatic triggering
- *   - `loader`: Async function that performs the operation (mutually exclusive with `stream`)
+ *   - `loader`: Generator function that performs the operation (mutually exclusive with `stream`)
  *   - `stream`: Streaming loader for progressive updates (mutually exclusive with `loader`)
  *   - `identifier`: Optional function to derive unique ID for parallel execution
  *   - `preservePreviousValue`: Optional function returning whether to keep the previous value while loading (default: false)
@@ -1306,7 +1309,7 @@ function createAsyncProcessRef<
 
           try {
             const step = await executeGeneratorCompatibleFactoryAsync({
-              factory: AsyncProcessConfig.loader as (
+              factory: AsyncProcessConfig.loader as unknown as (
                 param: ResourceLoaderParams<any>,
               ) => Promise<any>,
               thisArg: undefined,
@@ -1377,7 +1380,7 @@ function createAsyncProcessRef<
           } finally {
             if (operationId) correlationSvc?.endOperation(operationId);
           }
-        }) as typeof AsyncProcessConfig.loader)
+        }) as unknown as typeof AsyncProcessConfig.loader)
       : undefined;
 
   const wrappedStream =

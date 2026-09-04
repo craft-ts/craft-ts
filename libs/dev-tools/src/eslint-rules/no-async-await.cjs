@@ -3,16 +3,16 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Disallow async functions and await expressions in Craft code; use generators and yield-based Craft utilities instead.',
+        'Disallow async/await where native Promise suspension would hide Craft dependencies, cancellation, or exception tracking; use generators and yield-based Craft utilities instead.',
     },
     schema: [],
     messages: {
       async:
-        'Async functions are forbidden in Craft code. Use a generator function and yield* Craft utilities such as craftSleep, query, mutation, asyncProcess, or CraftHttpClient.',
+        'Async functions are forbidden in Craft code because their native Promise is opaque to Craft: dependencies and suspension cannot be recorded or tied to resource cancellation. Use function* and yield* Craft utilities such as craftSleep, query, mutation, asyncProcess, or CraftHttpClient.',
       await:
-        'await is forbidden in Craft code. Use yield* with a Craft generator or primitive instead.',
+        'await is forbidden in Craft code because it hides the suspension from the Craft driver and can lose dependency, cancellation, and exception tracking. Use yield* with a Craft generator or primitive instead.',
       forAwait:
-        'for await...of is forbidden in Craft code. Use a yield-based Craft flow instead.',
+        'for await...of is forbidden in Craft code because it hides asynchronous iteration from the Craft driver. Use a yield-based Craft flow so each suspension remains tracked.',
     },
   },
 

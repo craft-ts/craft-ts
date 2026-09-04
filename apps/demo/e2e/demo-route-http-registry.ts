@@ -1,7 +1,7 @@
 import { RouteHttpDepsByPath } from '@craft-ts/core';
 
 type DemoAppMetaData =
-  typeof import('../src/app/app.config').appConfig.APP_CONFIG_META_DATA;
+  typeof import('../src/app/app.routes.runtime').demoRoutes.META_DATA;
 
 type DemoRouteHttpDeps = RouteHttpDepsByPath<DemoAppMetaData>;
 

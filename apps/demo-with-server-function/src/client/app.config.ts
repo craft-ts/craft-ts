@@ -15,7 +15,6 @@ import { clientAuthenticatedUser, ClientCurrentUserLive } from './authenticated-
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
-  routingDeps: appRoutes.META_PATHS,
   providers: [
     ...developmentProviders,
     provideCraftRootComponent(AppShell),

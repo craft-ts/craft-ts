@@ -248,6 +248,11 @@ const INSERTION_CONTEXT_KEYS = new Set([
 ]);
 
 const SOURCE_CREATORS = new Set(['source$', 'signalSource']);
+const CRAFT_HTTP_CLIENT_ROOTS = new Set([
+  'CraftHttpClient',
+  'CraftBinaryHttpClient',
+  'craftHttpClient',
+]);
 const CRAFT_HTTP_CLIENT_METHODS = new Set([
   'get',
   'delete',
@@ -4205,8 +4210,7 @@ function findCraftHttpClientUsage(
   const expression = call.getExpression();
   if (!Node.isPropertyAccessExpression(expression)) return undefined;
   const root = rootIdentifier(expression)?.getText();
-  if (root !== 'CraftHttpClient' && root !== 'craftHttpClient')
-    return undefined;
+  if (!CRAFT_HTTP_CLIENT_ROOTS.has(root ?? '')) return undefined;
 
   const methodName = expression.getName();
   if (!CRAFT_HTTP_CLIENT_METHODS.has(methodName)) return undefined;

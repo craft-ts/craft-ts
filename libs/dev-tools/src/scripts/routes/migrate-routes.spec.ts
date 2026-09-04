@@ -254,7 +254,6 @@ describe('routes migration', () => {
     const main = await readFile(join(rootDir, 'main.ts'), 'utf8');
     const eslint = await readFile(join(rootDir, 'eslint.config.js'), 'utf8');
     expect(config).toContain('craftAppConfig({');
-    expect(config).toContain('routingDeps: routes.META_DATA');
     expect(config).toContain('provideCraftRouter(routes.toRoutes())');
     expect(main).toContain('toApplicationConfig(appConfig)');
     expect(eslint).toContain(

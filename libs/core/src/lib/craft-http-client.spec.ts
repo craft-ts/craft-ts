@@ -2,6 +2,7 @@ import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { vi } from 'vitest';
 import {
+  CraftBinaryHttpClient,
   CraftHttpClient,
   response,
   type CraftHttpClientBodyExceptionDependency,
@@ -1187,6 +1188,51 @@ describe('CraftHttpClient', () => {
           ],
         },
       ]);
+    });
+  });
+});
+
+describe('CraftBinaryHttpClient', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
+    vi.restoreAllMocks();
+    fetchTesting = new FetchTestingController();
+    vi.stubGlobal('fetch', fetchTesting.fetch);
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('passes a raw Blob body through without JSON serialization', async () => {
+    const { UploadApi } = craftService(
+      { name: 'UploadApi', providedIn: 'global' },
+      function* () {
+        const upload = yield* CraftBinaryHttpClient.put(({ response }) => ({
+          url: '/api/uploads/1',
+          headers: { 'content-type': 'application/octet-stream' },
+          payload: new Blob(['binary-content'], {
+            type: 'application/octet-stream',
+          }),
+          success: response<null>(),
+        }));
+
+        return { upload };
+      },
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const api = craftUse(UploadApi());
+      const resultPromise = api.upload();
+      const pending = fetchTesting.expectOne('/api/uploads/1');
+
+      expect(pending.request.method).toBe('PUT');
+      expect(pending.request.body).toBeInstanceOf(Blob);
+      expect(pending.request.body).not.toBe(
+        JSON.stringify({ type: 'application/octet-stream' }),
+      );
+
+      pending.flush(null);
+      await expect(resultPromise).resolves.toBeNull();
     });
   });
 });
