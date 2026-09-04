@@ -1352,7 +1352,7 @@ export function assertPrimitiveMethodsUsedOnce(graph: DependencyGraph): void {
         const sites = violation.callSites
           .map((site) => `${site.filePath}:${site.line}`)
           .join(', ');
-        return `Primitive method ${violation.primitiveLabel}.${violation.method} is used at multiple call sites (${sites}). Create one method per call site.`;
+        return `Primitive method ${violation.primitiveLabel}.${violation.method} is reused at multiple call sites (directly or through an alias/template context) (${sites}). Create one context-specific insertion method per call site.`;
       })
       .join('\n'),
   );

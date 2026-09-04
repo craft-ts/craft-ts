@@ -74,6 +74,7 @@ export default [
       'craft-ts/no-imperative-craft-method-actions': 'error',
       'craft-ts/no-remote-work-in-craft-method': 'error',
       'craft-ts/no-type-assertions-in-resource-loader': 'error',
+      'craft-ts/no-explicit-resource-loader-type': 'error',
       'craft-ts/no-imperative-template-action-chain': 'error',
       'craft-ts/prefer-route-query-params-for-filter-state': 'warn',
       'craft-ts/no-imperative-storage-in-craft-method': 'error',
@@ -146,7 +147,7 @@ checks exported arrow functions.
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest` because they bypass typed responses and exceptions, tracing, cancellation, and the architecture graph; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`, or `CraftBinaryHttpClient` for raw binary bodies
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
-- `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file; create a context-specific method for each distinct use
+- `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file, including unchanged aliases forwarded through a component template context; create a context-specific insertion method for each distinct use
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of` because native Promise suspension hides Craft dependencies and can lose cancellation or exception tracking; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ts/require-generator-resource-loader`: requires `query`, `mutation`, and `asyncProcess` loaders to be generator functions because a plain or async return hides remote dependencies from the resource lifecycle; use `yield*` to keep each suspension tracked
 - `craft-ts/no-throw`: forbids `throw` in Craft code because it bypasses the typed resource exception channel, and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
@@ -154,6 +155,7 @@ checks exported arrow functions.
 - `craft-ts/no-imperative-craft-method-actions`: forbids composing multiple imperative actions in a `craftMethod`; emit a `source$` event and let the affected query react with `insertReactOnMutation(...)` instead. A handler such as `event.preventDefault()` followed by one `mutation.mutate(...)` remains valid.
 - `craft-ts/no-remote-work-in-craft-method`: forbids `CraftHttpClient.*(...)` inside `craftMethod` because that action boundary does not own request loading, cancellation, exceptions, or graph dependencies; define the request directly in the `query` or `mutation` loader.
 - `craft-ts/no-type-assertions-in-resource-loader`: forbids `as ...` and angle-bracket assertions inside `query`, `mutation`, and `asyncProcess` loaders because assertions only silence TypeScript and can hide Promise, response, or transport mismatches; repair the request or adapter typing instead.
+- `craft-ts/no-explicit-resource-loader-type`: forbids explicit parameter and return annotations on `query`, `mutation`, and `asyncProcess` loaders; let the resource infer its contract from `params`, `method`, and the yielded operations instead of writing `Generator<...>` or `{ params: string }`
 - `craft-ts/no-imperative-template-action-chain`: forbids chaining multiple Craft actions in one template event callback; emit one `source$` event and let the query, mutation, and state react through `on$`.
 - `craft-ts/prefer-route-query-params-for-filter-state`: warns when a local `state()` is used directly or through a local derivation as `params` for `query`, `queryEffect`, `asyncProcess`, or `asyncProcessEffect`; use `queryParams()` for values that should survive reloads and be represented in the URL. The graph-wide counterpart, which also sees cross-file dependencies, is [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state).
 - `craft-ts/no-imperative-storage-in-craft-method`: forbids direct storage access and imperative location changes in a `craftMethod`; use `insertReactOnMutation(...)` with `optimisticUpdate: () => undefined` to clear the affected query and let its persistence follow the query state.
@@ -213,6 +215,24 @@ query('usersQuery', {
 `require-generator-resource-loader` additionally checks that `query`,
 `mutation`, and `asyncProcess` loaders are generators. Use `yield*` for Craft
 operations so every suspension stays tracked.
+
+The loader signature should also stay inferred:
+
+```ts
+// Incorrect: these annotations can mask a mismatch in the resource contract.
+loader: function* ({ params }: { params: string }): Generator<Yielded, Result, unknown> {
+  return yield* client({ token: params });
+}
+
+// Correct: infer params and the generator result from the resource and body.
+loader: function* ({ params }) {
+  return yield* client({ token: params });
+}
+```
+
+`no-explicit-resource-loader-type` reports only annotations on the loader
+signature. Type annotations for local variables and function contracts outside
+the loader remain allowed.
 
 ### Keep transport and types honest
 

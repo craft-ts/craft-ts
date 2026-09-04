@@ -54,7 +54,7 @@ describe('no-reused-primitive-method', () => {
     `);
 
     expect(messages).toEqual([
-      "Primitive method 'pagination.nextPage' is used at multiple call sites in this file. Create one method per call site.",
+      "Primitive method 'pagination.nextPage' is reused at multiple call sites in this file, including possible aliases or template context bindings. Create one context-specific insertion method per call site.",
     ]);
   });
 
@@ -78,8 +78,56 @@ describe('no-reused-primitive-method', () => {
     `);
 
     expect(messages).toEqual([
-      "Primitive method 'counter.increment' is used at multiple call sites in this file. Create one method per call site.",
+      "Primitive method 'counter.increment' is reused at multiple call sites in this file, including possible aliases or template context bindings. Create one context-specific insertion method per call site.",
     ]);
+  });
+
+  it('follows a method reference through a component template context', async () => {
+    const { messages } = await lint(`
+      import { state } from '@craft-ts/core';
+
+      const counter = state(
+        'counter',
+        0,
+        ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }),
+      );
+      const myPrimitiveMethod = counter.increment;
+
+      craftComponent(
+        'Counter',
+        {},
+        () => ({ myPrimitiveMethod }),
+        ({ myPrimitiveMethod }) => div([
+          button({ click: myPrimitiveMethod }),
+          button({ click: myPrimitiveMethod }),
+        ]),
+      );
+    `);
+
+    expect(messages).toEqual([
+      "Primitive method 'counter.increment' is reused at multiple call sites in this file, including possible aliases or template context bindings. Create one context-specific insertion method per call site.",
+    ]);
+  });
+
+  it('accepts an unchanged method alias used once', async () => {
+    const { messages } = await lint(`
+      import { state } from '@craft-ts/core';
+
+      const counter = state(
+        'counter',
+        0,
+        ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }),
+      );
+      const increment = counter.increment;
+
+      button({ click: increment });
+    `);
+
+    expect(messages).toEqual([]);
   });
 
   it('does not report methods bound internally with on$', async () => {
@@ -121,7 +169,9 @@ describe('no-reused-primitive-method', () => {
   });
 });
 
-async function lint(source: string): Promise<{ messages: string[]; output: string }> {
+async function lint(
+  source: string,
+): Promise<{ messages: string[]; output: string }> {
   const directory = await mkdtemp(
     join(tmpdir(), 'no-reused-primitive-method-rule-'),
   );

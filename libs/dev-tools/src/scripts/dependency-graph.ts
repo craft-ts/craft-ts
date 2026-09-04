@@ -443,6 +443,9 @@ export function analyzeDependencyGraph(
   collectServerFunctionMiddlewares(builder, sourceFiles);
   collectClientFunctionMiddlewares(builder, sourceFiles);
   collectHandshakes(builder, sourceFiles);
+  // Exposed-method metadata must exist before component analysis so aliases
+  // forwarded through a component template can resolve to the right property.
+  analyzePrimitiveInsertionMetadata(builder);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
   collectInteractiveTemplateElements(builder);
@@ -2123,7 +2126,7 @@ function hasInteractiveHandler(
   );
 }
 
-function analyzeInsertions(builder: GraphBuilder): void {
+function analyzePrimitiveInsertionMetadata(builder: GraphBuilder): void {
   const scopes: { node: Node; ownerId: string }[] = [];
   for (const service of builder.services) {
     const factory = service.call.getArguments()[1];
@@ -2176,6 +2179,22 @@ function analyzeInsertions(builder: GraphBuilder): void {
           );
         }
       }
+    }
+  }
+}
+
+function analyzeInsertions(builder: GraphBuilder): void {
+  const scopes: { node: Node; ownerId: string }[] = [];
+  for (const service of builder.services) {
+    const factory = service.call.getArguments()[1];
+    if (factory) scopes.push({ node: factory, ownerId: service.node.id });
+  }
+  for (const component of builder.components) {
+    const setup = component.call.getArguments()[2];
+    if (setup) scopes.push({ node: setup, ownerId: component.node.id });
+  }
+  for (const { node, ownerId } of scopes) {
+    for (const call of node.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const name = call.getExpression().getText();
       if (name === 'insertReactOnMutation') {
         addReactOnMutation(builder, call, ownerId);
@@ -2212,7 +2231,7 @@ function addExposedPrimitiveMethodUsageEdges(
       ? primitive.details['name']
       : undefined;
   const namedPrimitiveCount = primitiveName
-    ? [...builder.nodes.values()].filter(
+      ? [...builder.nodes.values()].filter(
         (node) =>
           node.kind === 'primitive' &&
           node.details?.['name'] === primitiveName,
@@ -3212,6 +3231,12 @@ function analyzeTemplateDependencies(
   template: Node,
   bindings: Map<string, ReactiveBinding>,
 ): void {
+  const methodAliases = collectPrimitiveMethodAliases(
+    builder,
+    component,
+    template,
+    bindings,
+  );
   const parameterNames = templateParameterNames(template);
   for (const expression of collectReactiveExpressions(template)) {
     if (
@@ -3220,6 +3245,21 @@ function analyzeTemplateDependencies(
       isBindingName(expression)
     ) {
       continue;
+    }
+    if (Node.isIdentifier(expression)) {
+      const alias = methodAliases.get(symbolKey(expression.getSymbol()));
+      if (alias) {
+        addEdge(builder, component.node.id, alias.propertyId, 'calls', 'ast', {
+          path: alias.method,
+          usage: 'template',
+          callSite: {
+            filePath: expression.getSourceFile().getFilePath(),
+            line: expression.getStartLineNumber(),
+            offset: expression.getStart(),
+          },
+        });
+        continue;
+      }
     }
     const target = resolveReactiveTarget(
       builder,
@@ -3244,6 +3284,143 @@ function analyzeTemplateDependencies(
         : {}),
     });
   }
+}
+
+type PrimitiveMethodAlias = {
+  propertyId: string;
+  method: string;
+};
+
+/**
+ * Follows unchanged exposed-method references from component setup into the
+ * template. A wrapper such as `() => counter.increment()` is intentionally not
+ * equivalent: it is a new call site with its own behavior.
+ */
+function collectPrimitiveMethodAliases(
+  builder: GraphBuilder,
+  component: ComponentInfo,
+  template: Node,
+  bindings: Map<string, ReactiveBinding>,
+): Map<string | undefined, PrimitiveMethodAlias> {
+  const aliases = new Map<string | undefined, PrimitiveMethodAlias>();
+  const aliasesByName = new Map<string, PrimitiveMethodAlias>();
+  const contextProperties = new Map<string, PrimitiveMethodAlias>();
+  const setup = component.call.getArguments()[2];
+  if (!setup || !isFunctionNode(setup) || !isFunctionNode(template)) {
+    return aliases;
+  }
+
+  const targetOf = (
+    node: Node | undefined,
+  ): PrimitiveMethodAlias | undefined => {
+    const unwrapped = unwrapExpression(node);
+    if (!unwrapped) return undefined;
+    if (Node.isIdentifier(unwrapped)) {
+      return (
+        aliases.get(symbolKey(unwrapped.getSymbol())) ??
+        aliasesByName.get(unwrapped.getText())
+      );
+    }
+    if (!Node.isPropertyAccessExpression(unwrapped)) return undefined;
+    const target = resolveReactiveTarget(
+      builder,
+      unwrapped,
+      bindings,
+      component,
+      component.node.id,
+    );
+    if (target?.kind !== 'calls') return undefined;
+    const property = builder.nodes.get(target.id);
+    const method = property?.details?.['member'];
+    return property?.kind === 'property' &&
+      property.details?.['exposedMethod'] === true &&
+      typeof method === 'string'
+      ? { propertyId: target.id, method }
+      : undefined;
+  };
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    for (const scope of [setup, template]) {
+      for (const declaration of scope.getDescendantsOfKind(
+        SyntaxKind.VariableDeclaration,
+      )) {
+        const name = declaration.getNameNode();
+        if (!Node.isIdentifier(name)) continue;
+        const target = targetOf(declaration.getInitializer());
+        const key = symbolKey(name.getSymbol());
+        if (
+          target &&
+          key &&
+          !samePrimitiveMethodAlias(aliases.get(key), target)
+        ) {
+          aliases.set(key, target);
+          aliasesByName.set(name.getText(), target);
+          changed = true;
+        }
+      }
+    }
+
+    const returned = returnedObject(setup);
+    for (const property of returned?.getProperties() ?? []) {
+      const name = Node.isPropertyAssignment(property)
+        ? property.getNameNode().getText()
+        : Node.isShorthandPropertyAssignment(property)
+          ? property.getName()
+          : undefined;
+      const target = Node.isPropertyAssignment(property)
+        ? targetOf(property.getInitializer())
+        : Node.isShorthandPropertyAssignment(property)
+          ? targetOf(property.getNameNode())
+          : undefined;
+      if (
+        !target ||
+        !name ||
+        samePrimitiveMethodAlias(contextProperties.get(name), target)
+      ) {
+        continue;
+      }
+      contextProperties.set(name, target);
+      changed = true;
+    }
+
+    const parameter = template.getParameters()[0]?.getNameNode();
+    if (!parameter || !Node.isObjectBindingPattern(parameter)) continue;
+    for (const property of parameter.getElements()) {
+      if (!Node.isBindingElement(property)) continue;
+      const propertyName =
+        property.getPropertyNameNode()?.getText() ??
+        property.getNameNode().getText();
+      const target = contextProperties.get(propertyName);
+      const name = property.getNameNode();
+      if (!target || !Node.isIdentifier(name)) continue;
+      const key = symbolKey(name.getSymbol());
+      if (key && !samePrimitiveMethodAlias(aliases.get(key), target)) {
+        aliases.set(key, target);
+        aliasesByName.set(name.getText(), target);
+        changed = true;
+      }
+    }
+  }
+
+  return aliases;
+}
+
+function samePrimitiveMethodAlias(
+  left: PrimitiveMethodAlias | undefined,
+  right: PrimitiveMethodAlias,
+): boolean {
+  return left?.propertyId === right.propertyId && left.method === right.method;
+}
+
+function isFunctionNode(
+  node: Node,
+): node is
+  | import('ts-morph').ArrowFunction
+  | import('ts-morph').FunctionExpression {
+  return Node.isArrowFunction(node) || Node.isFunctionExpression(node);
 }
 
 function collectReactiveExpressions(scope: Node): Node[] {

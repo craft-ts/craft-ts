@@ -32,6 +32,7 @@ module.exports = {
   'craft-ts/no-imperative-craft-method-actions': 'error',
   'craft-ts/no-remote-work-in-craft-method': 'error',
   'craft-ts/no-type-assertions-in-resource-loader': 'error',
+  'craft-ts/no-explicit-resource-loader-type': 'error',
   'craft-ts/no-imperative-template-action-chain': 'error',
   'craft-ts/prefer-route-query-params-for-filter-state': 'warn',
   'craft-ts/no-imperative-storage-in-craft-method': 'error',

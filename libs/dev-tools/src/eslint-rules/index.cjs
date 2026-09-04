@@ -44,6 +44,7 @@ const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource
 const noImperativeCraftMethodActions = require('./no-imperative-craft-method-actions.cjs');
 const noRemoteWorkInCraftMethod = require('./no-remote-work-in-craft-method.cjs');
 const noTypeAssertionsInResourceLoader = require('./no-type-assertions-in-resource-loader.cjs');
+const noExplicitResourceLoaderType = require('./no-explicit-resource-loader-type.cjs');
 const noImperativeTemplateActionChain = require('./no-imperative-template-action-chain.cjs');
 const preferRouteQueryParamsForFilterState = require('./prefer-route-query-params-for-filter-state.cjs');
 const noImperativeStorageInCraftMethod = require('./no-imperative-storage-in-craft-method.cjs');
@@ -162,6 +163,7 @@ const plugin = {
     'no-imperative-craft-method-actions': noImperativeCraftMethodActions,
     'no-remote-work-in-craft-method': noRemoteWorkInCraftMethod,
     'no-type-assertions-in-resource-loader': noTypeAssertionsInResourceLoader,
+    'no-explicit-resource-loader-type': noExplicitResourceLoaderType,
     'no-imperative-template-action-chain': noImperativeTemplateActionChain,
     'prefer-route-query-params-for-filter-state':
       preferRouteQueryParamsForFilterState,

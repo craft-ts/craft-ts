@@ -30,8 +30,9 @@ single call inside a loop is also one call site: the rule concerns the source
 shape, not how many times the application executes it.
 
 The architecture assertion keeps the invariant across service, component and
-feature-file boundaries. Its error lists every known file and line so the
-method can be split into context-specific methods.
+feature-file boundaries, including unchanged method references forwarded
+through a component template context. Its error lists every known file and
+line so the method can be split into context-specific insertion methods.
 
 ## See also
 

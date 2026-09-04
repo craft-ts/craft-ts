@@ -117,6 +117,9 @@ bootstrapCraft.
    asyncProcess loader;
    never hide remote work in craftMethod and never silence loader typing with
    an \`as PromiseLike<...>\` assertion.
+   Do not add explicit parameter or return annotations to loaders (for example
+   \`{ params: string }\` or \`Generator<...>\`): let the resource infer its
+   contract from \`params\`, \`method\`, and the yielded operation.
    Resource loaders are generator functions (\`function*\`) and must return
    their final value from the generator. Never make a query, mutation, or
    asyncProcess loader \`async\` and never return a native Promise from it:

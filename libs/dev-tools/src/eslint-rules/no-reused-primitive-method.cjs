@@ -1,5 +1,8 @@
 const CORE_PACKAGE = '@craft-ts/core';
 const EFFECT_PACKAGE = '@craft-ts/effect';
+const {
+  collectPrimitiveMethodUsages,
+} = require('./primitive-method-equivalence.cjs');
 
 const PRIMITIVES = new Set([
   'asyncProcess',
@@ -39,7 +42,7 @@ module.exports = {
     schema: [],
     messages: {
       reused:
-        "Primitive method '{{method}}' is used at multiple call sites in this file. Create one method per call site.",
+        "Primitive method '{{method}}' is reused at multiple call sites in this file, including possible aliases or template context bindings. Create one context-specific insertion method per call site.",
     },
   },
 
@@ -111,26 +114,11 @@ module.exports = {
 
       'Program:exit'(program) {
         resolvePrimitiveAliases(program, primitiveBindings);
-
-        const usages = new Map();
-        walk(program, (node) => {
-          if (node.type !== 'MemberExpression' || node.computed && node.property.type !== 'Literal') {
-            return;
-          }
-
-          const object = node.object;
-          if (object.type !== 'Identifier') return;
-          const binding = primitiveBindings.get(object.name);
-          if (!binding) return;
-
-          const method = getPropertyName(node.property);
-          if (!method || !binding.methods.has(method)) return;
-
-          const key = `${binding.id}:${method}`;
-          const sites = usages.get(key) ?? [];
-          sites.push({ node, binding, method });
-          usages.set(key, sites);
-        });
+        const usages = collectPrimitiveMethodUsages(
+          program,
+          primitiveBindings,
+          context.sourceCode,
+        );
 
         for (const [, sites] of usages) {
           if (sites.length <= 1) continue;
@@ -153,7 +141,10 @@ module.exports = {
 function getPrimitiveCall(node, primitiveNames) {
   let current = unwrap(node);
   if (current?.type === 'YieldExpression') current = unwrap(current.argument);
-  if (current?.type !== 'CallExpression' || current.callee.type !== 'Identifier') {
+  if (
+    current?.type !== 'CallExpression' ||
+    current.callee.type !== 'Identifier'
+  ) {
     return undefined;
   }
   const primitive = primitiveNames.get(current.callee.name);
@@ -213,7 +204,9 @@ function getReturnedObject(node) {
   const returned = body.body.find(
     (statement) => statement.type === 'ReturnStatement',
   );
-  return returned?.argument ? getObjectExpression(returned.argument) : undefined;
+  return returned?.argument
+    ? getObjectExpression(returned.argument)
+    : undefined;
 }
 
 function getObjectExpression(node) {
@@ -244,7 +237,8 @@ function resolvePrimitiveAliases(program, primitiveBindings) {
 
 function isFunction(node) {
   return (
-    node?.type === 'FunctionExpression' || node?.type === 'ArrowFunctionExpression'
+    node?.type === 'FunctionExpression' ||
+    node?.type === 'ArrowFunctionExpression'
   );
 }
 

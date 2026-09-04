@@ -14,7 +14,7 @@ describe('assertPrimitiveMethodsUsedOnce', () => {
   it('rejects an exposed primitive method used from multiple files', () => {
     const graph = loadArchitectureFixture('duplicate-primitive-method');
     expect(() => assertPrimitiveMethodsUsedOnce(graph.graph)).toThrow(
-      /Primitive method state:counter\.increment is used at multiple call sites/,
+      /Primitive method state:counter\.increment is reused at multiple call sites/,
     );
   });
 
@@ -27,5 +27,18 @@ describe('assertPrimitiveMethodsUsedOnce', () => {
     expect(violation?.callSites.map((site) => site.filePath)).toEqual(
       expect.arrayContaining(['first-page.ts', 'second-page.ts']),
     );
+  });
+
+  it('follows a method reference through a component template context', () => {
+    const graph = loadArchitectureFixture('duplicate-primitive-method-alias');
+    const [violation] = primitiveMethodUsageViolations(graph.graph);
+
+    expect(() => assertPrimitiveMethodsUsedOnce(graph.graph)).toThrow(
+      /state:counter\.increment is reused at multiple call sites/,
+    );
+    expect(violation?.callSites).toHaveLength(2);
+    expect(
+      violation?.callSites.every((site) => site.filePath === 'page.ts'),
+    ).toBe(true);
   });
 });
