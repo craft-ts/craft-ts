@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/i18n-effect",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Effect v4 adapter for @craft-ts/i18n",
   "license": "MIT",
   "type": "module",
@@ -14,7 +14,7 @@
     "./package.json": "./package.json"
   },
   "peerDependencies": {
-    "@craft-ts/i18n": "^0.8.2",
+    "@craft-ts/i18n": "^0.8.3",
     "effect": ">=4.0.0-rc.112 || >=4.0.0"
   },
   "engines": {

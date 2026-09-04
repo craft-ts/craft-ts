@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/deploy",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Provider-neutral deployment contract for CraftTS: manifest, validation and capability matrix",
   "author": "Romain Geffrault",
   "license": "MIT",

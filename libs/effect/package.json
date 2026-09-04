@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/effect",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Speak Effect natively from CraftTS — Layers as providers, typed errors as exceptions",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -22,7 +22,7 @@
     "typescript"
   ],
   "peerDependencies": {
-    "@craft-ts/core": "^0.8.2",
+    "@craft-ts/core": "^0.8.3",
     "effect": ">=4.0.0-rc.112 || >=4.0.0"
   },
   "engines": {
