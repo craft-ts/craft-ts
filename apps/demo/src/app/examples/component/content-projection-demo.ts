@@ -50,13 +50,17 @@ export const contentProjectionDemo = craftComponent(
     }));
     const dialogOpen = yield* state('dialogOpen', false, ({ set }) => ({
       open: () => set(true),
-      close: () => set(false),
+      closeFromToolbar: () => set(false),
+      closeFromConfirmation: () => set(false),
     }));
     const lastAction = yield* state(
       'lastAction',
       'No action triggered yet.',
       ({ state, set }) => ({
-        record: (label: string) => set(label),
+        recordSave: () => set('Save'),
+        recordCancel: () => set('Cancel'),
+        recordDirect: () => set('Direct action'),
+        recordConfirm: () => set('Confirm'),
         lastActionLabel: craftComputed('lastActionLabel', function* () {
           return `Last action: ${yield* state()}`;
         }),
@@ -76,8 +80,12 @@ export const contentProjectionDemo = craftComponent(
       lastActionLabel: lastAction.lastActionLabel,
       toggleToolbar: showToolbar.toggle,
       openDialog: dialogOpen.open,
-      closeDialog: dialogOpen.close,
-      recordAction: lastAction.record,
+      closeDialogFromToolbar: dialogOpen.closeFromToolbar,
+      closeDialogFromConfirmation: dialogOpen.closeFromConfirmation,
+      recordSave: lastAction.recordSave,
+      recordCancel: lastAction.recordCancel,
+      recordDirect: lastAction.recordDirect,
+      recordConfirm: lastAction.recordConfirm,
     };
   },
   ({
@@ -87,8 +95,12 @@ export const contentProjectionDemo = craftComponent(
     lastActionLabel,
     toggleToolbar,
     openDialog,
-    closeDialog,
-    recordAction,
+    closeDialogFromToolbar,
+    closeDialogFromConfirmation,
+    recordSave,
+    recordCancel,
+    recordDirect,
+    recordConfirm,
   }) =>
     section({ class: 'component-demo projection-demo' }, [
       heading('Content projection and logical contracts'),
@@ -151,16 +163,12 @@ export const contentProjectionDemo = craftComponent(
                   toolbarAction({
                     key: 'save',
                     content: () => 'Save',
-                    trigger: function* () {
-                      yield* recordAction('Save');
-                    },
+                    trigger: recordSave,
                   }),
                   toolbarAction({
                     key: 'cancel',
                     content: () => 'Cancel',
-                    trigger: function* () {
-                      yield* recordAction('Cancel');
-                    },
+                    trigger: recordCancel,
                   }),
                 ],
               }),
@@ -170,9 +178,7 @@ export const contentProjectionDemo = craftComponent(
           toolbarAction({
             key: 'direct',
             content: () => 'Direct action',
-            trigger: function* () {
-              yield* recordAction('Direct action');
-            },
+            trigger: recordDirect,
           }),
           button(
             'openDialog',
@@ -200,14 +206,14 @@ export const contentProjectionDemo = craftComponent(
                 toolbarAction({
                   key: 'close',
                   content: () => 'Close',
-                  trigger: closeDialog,
+                  trigger: closeDialogFromToolbar,
                 }),
                 toolbarAction({
                   key: 'confirm',
                   content: () => 'Confirm',
                   trigger: function* () {
-                    yield* recordAction('Confirm');
-                    yield* closeDialog();
+                    yield* recordConfirm();
+                    yield* closeDialogFromConfirmation();
                   },
                 }),
               ],
