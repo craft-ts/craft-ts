@@ -45,7 +45,9 @@ const LoginFormComponent = craftComponent(
   function* () {
     const submitted = yield* mutation('submitted', {
       method: (value: NonNullable<ValidatedFormValue<LoginData>>) => value,
-      loader: ({ params }) => params,
+      loader: function* ({ params }) {
+        return params;
+      },
     });
     const loginForm = yield* state(
       'loginForm',

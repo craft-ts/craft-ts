@@ -96,7 +96,9 @@ const EffectServerMiddlewareDemo = craftComponent(
           readonly filter: string;
           readonly simulateError: 'none' | 'middleware' | 'handler';
         }) => request,
-        loader: ({ params }) => getEffectMiddlewareUsers(params),
+        loader: function* ({ params }) {
+          return yield* getEffectMiddlewareUsers(params);
+        },
       },
       ({ exceptions }) => ({
         serverError: craftComputed('effectMiddlewareServerError', function* () {

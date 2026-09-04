@@ -124,9 +124,9 @@ const ServerFunctionDemo = craftComponent(
     }));
     const currentUserQuery = yield* query('currentUserQuery', {
       params: () => true,
-      loader: () => function* () {
+      loader: function* () {
         return yield* CurrentUser;
-      }(),
+      },
     });
     const currentUser = craftComputed('currentUser', function* () {
       return yield* currentUserQuery.value();
@@ -139,7 +139,7 @@ const ServerFunctionDemo = craftComponent(
       'usersQuery',
       {
         method: (term: string) => term,
-        loader: ({ params }) => function* () {
+        loader: function* ({ params }) {
           // Contrôle d'UX uniquement : il évite un aller-retour réseau, il
           // n'autorise rien.
           yield* requireAdmin;
@@ -147,7 +147,7 @@ const ServerFunctionDemo = craftComponent(
           // elle voyage dans le canal `context`, alimenté par la chaîne
           // client déclarée sur la façade.
           return yield* getAuthenticatedUsers({ filter: params });
-        }(),
+        },
       },
       ({ resource, exceptions }) => {
         const hasUsers = craftComputed('hasUsers', () => resource.hasValue());

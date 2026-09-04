@@ -21,7 +21,9 @@ export const OverviewPage = craftComponent(
   function* () {
     const products = yield* query('serverFunctionProducts', {
       params: () => true,
-      loader: () => getPublicProducts({}),
+      loader: function* () {
+        return yield* getPublicProducts({});
+      },
     });
     const resolvedProducts = craftComputed(
       'resolvedServerFunctionProducts',

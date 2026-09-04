@@ -9,7 +9,7 @@ import {
   strong,
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
-import { craftComputed, query, settled } from '@craft-ts/core';
+import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 
 type SsrData = Readonly<{
@@ -18,27 +18,20 @@ type SsrData = Readonly<{
   generatedAt: string;
 }>;
 
-function loadSsrData(): Promise<SsrData> {
-  return new Promise((resolve) => {
-    setTimeout(
-      () =>
-        resolve({
-          visitors: 1284,
-          region: 'Europe / Paris',
-          generatedAt: new Date().toLocaleTimeString('fr-FR'),
-        }),
-      160,
-    );
-  });
-}
-
 export const DataPage = craftComponent(
   'SsrDataPage',
   {},
   function* () {
     const data = yield* query('ssrData', {
       params: () => true,
-      loader: loadSsrData,
+      loader: function* () {
+        yield* craftSleep(160);
+        return {
+          visitors: 1284,
+          region: 'Europe / Paris',
+          generatedAt: new Date().toLocaleTimeString('fr-FR'),
+        } satisfies SsrData;
+      },
     });
     const resolved = craftComputed('resolvedSsrData', function* () {
       return yield* settled(data);

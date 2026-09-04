@@ -19,6 +19,7 @@ module.exports = {
 
     const resourceBindings = new Set();
     const resourceNamespaces = new Set();
+    const craftGenBindings = new Set();
 
     return {
       ImportDeclaration(node) {
@@ -30,6 +31,9 @@ module.exports = {
             const imported = getIdentifierName(specifier.imported);
             if (imported && RESOURCE_PRIMITIVES.has(imported)) {
               resourceBindings.add(specifier.local.name);
+            }
+            if (imported === 'craftGen') {
+              craftGenBindings.add(specifier.local.name);
             }
           } else if (specifier.type === 'ImportNamespaceSpecifier') {
             resourceNamespaces.add(specifier.local.name);
@@ -52,7 +56,7 @@ module.exports = {
               continue;
             }
 
-            if (!isGeneratorFunction(property.value)) {
+            if (!isGeneratorFunction(property.value, craftGenBindings)) {
               context.report({ node: property.value, messageId: 'generator' });
             }
           }
@@ -77,10 +81,20 @@ module.exports = {
   },
 };
 
-function isGeneratorFunction(node) {
-  return (
+function isGeneratorFunction(node, craftGenBindings) {
+  if (
     (node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration') &&
     node.generator === true
+  ) {
+    return true;
+  }
+
+  return (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    craftGenBindings.has(node.callee.name) &&
+    node.arguments.length === 1 &&
+    isGeneratorFunction(node.arguments[0], craftGenBindings)
   );
 }
 

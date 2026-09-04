@@ -8,16 +8,14 @@ import {
   span,
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
-import { craftComputed, query, settled } from '@craft-ts/core';
+import {
+  CraftHttpClient,
+  craftComputed,
+  query,
+  settled,
+  type CraftHttpClientResult,
+} from '@craft-ts/core';
 import { page } from './page-layout';
-
-function deferredClientData(): Promise<string> {
-  return fetch('/api/deferred').then(async (response) => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = (await response.json()) as { message: string };
-    return payload.message;
-  });
-}
 
 export const FallbackPage = craftComponent(
   'SsrFallbackPage',
@@ -25,7 +23,12 @@ export const FallbackPage = craftComponent(
   function* () {
     const data = yield* query('deferredData', {
       params: () => true,
-      loader: deferredClientData,
+      loader: function* () {
+        return (yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/deferred',
+          success: response<{ message: string }>(),
+        }))) as unknown as CraftHttpClientResult<{ message: string }>;
+      },
     });
     const resolved = craftComputed('resolvedDeferredData', function* () {
       return yield* settled(data);
@@ -43,7 +46,8 @@ export const FallbackPage = craftComponent(
           h2('Le shell est immédiat'),
           p('Le titre et cette carte sont dans la réponse initiale.'),
           span({ class: 'pending-box' }, function* () {
-            return String(yield* resolved());
+            const value = yield* resolved();
+            return (value as unknown as { message: string } | undefined)?.message ?? '';
           }),
         ]),
         article({ class: 'card' }, [

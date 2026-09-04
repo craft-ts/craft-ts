@@ -104,7 +104,9 @@ const PublicProductsDemo = craftComponent(
       'publicProductsQuery',
       {
         params: () => true,
-        loader: () => getPublicProducts({}),
+        loader: function* () {
+          return yield* getPublicProducts({});
+        },
       },
       ({ resource }) => ({
         hasProducts: craftComputed('hasProducts', () => resource.hasValue()),

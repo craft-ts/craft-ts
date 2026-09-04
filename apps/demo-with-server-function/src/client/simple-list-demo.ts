@@ -152,7 +152,9 @@ const SimpleListDemo = craftComponent(
       'usersQuery',
       {
         params: () => usersFilter.filter(),
-        loader: ({ params }) => getUsers({ filter: params }),
+        loader: function* ({ params }) {
+          return yield* getUsers({ filter: params });
+        },
       },
       ({ resource, exceptions }) => {
         const notFound = craftComputed('notFound', function* () {

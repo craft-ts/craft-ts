@@ -25,7 +25,6 @@ import {
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
-  GeneratorOnlyFactory,
   isGenerator,
   isGeneratorFunction,
   runCraftGenerator,
@@ -212,7 +211,7 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -221,7 +220,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => ResourceState,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -340,7 +339,7 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -349,7 +348,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => ResourceState,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -409,7 +408,7 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -418,7 +417,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => ResourceState,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -785,9 +784,8 @@ type SchemaMutationConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (
-    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-  ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
+  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
+    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -830,9 +828,8 @@ export function mutation<
   mutationConfig: {
     paramsSchema: ParamsSchema;
     params: () => SchemaInput<ParamsSchema>;
-    loader: (
-      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-    ) => Generator<unknown, ParamsState, unknown>;
+    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
+      Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -862,9 +859,8 @@ export function mutation<
   mutationConfig: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (
-      param: ResourceLoaderParams<LoaderParams>,
-    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
+    loader: (param: ResourceLoaderParams<LoaderParams>) =>
+      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -895,9 +891,7 @@ export function mutation<
   mutationConfig: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (
-      param: ResourceLoaderParams<Params>,
-    ) => Generator<unknown, State, unknown>;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<

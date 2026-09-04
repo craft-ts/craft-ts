@@ -36,7 +36,9 @@ const { UsersApiOnError } = craftService(
     }));
     const _query = yield* query('query', {
       params: () => true,
-      loader: () => users(),
+      loader: function* () {
+        return users();
+      },
     });
     return {
       users,

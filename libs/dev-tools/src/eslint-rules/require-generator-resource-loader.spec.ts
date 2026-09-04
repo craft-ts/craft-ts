@@ -9,7 +9,7 @@ const rule = require('./require-generator-resource-loader.cjs');
 describe('require-generator-resource-loader', () => {
   it('reports non-generator loaders for core async resources', async () => {
     const messages = await lint(`
-      import { asyncProcess, mutation, query } from '@craft-ts/core';
+      import { asyncProcess, craftGen, mutation, query } from '@craft-ts/core';
 
       query('todos', {
         params: () => 'all',
@@ -25,6 +25,11 @@ describe('require-generator-resource-loader', () => {
         method: () => undefined,
         loader: function () { return undefined; },
       });
+
+      query('wrapped', {
+        params: () => 'all',
+        loader: craftGen(function* () { return undefined; }),
+      });
     `);
 
     expect(messages).toEqual([
@@ -36,7 +41,7 @@ describe('require-generator-resource-loader', () => {
 
   it('allows generator loaders and does not affect effect resources', async () => {
     const messages = await lint(`
-      import { mutation, query } from '@craft-ts/core';
+      import { craftGen, mutation, query } from '@craft-ts/core';
       import { queryEffect } from '@craft-ts/effect';
 
       query('todos', {
@@ -47,6 +52,11 @@ describe('require-generator-resource-loader', () => {
       mutation('save', {
         method: (value: string) => value,
         loader: function* ({ params }) { return params; },
+      });
+
+      query('wrapped', {
+        params: () => 'all',
+        loader: craftGen(function* () { return 'all'; }),
       });
 
       queryEffect('effectTodos', {

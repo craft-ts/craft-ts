@@ -20,7 +20,6 @@ import { InsertionsResourcesFactory } from './query.core';
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
-  GeneratorOnlyFactory,
   isGenerator,
   isGeneratorFunction,
   runCraftGenerator,
@@ -317,7 +316,7 @@ type AsyncProcessConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -326,7 +325,7 @@ type AsyncProcessConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => ResourceState,
+          ) => Promise<ResourceState>,
           LoaderYielded
         >;
         params?: never;
@@ -377,12 +376,12 @@ type AsyncProcessConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<NoInfer<StripCraftException<Params>>>
             >,
-          ) => ResourceState,
+            ) => Promise<ResourceState>,
           LoaderYielded
         >;
         method?: never;
@@ -539,9 +538,8 @@ type SchemaAsyncProcessConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (
-    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-  ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
+  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
+    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -580,9 +578,7 @@ export function asyncProcess<
   config: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (
-      param: ResourceLoaderParams<Params>,
-    ) => Generator<unknown, State, unknown>;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -611,9 +607,8 @@ export function asyncProcess<
   config: {
     paramsSchema: ParamsSchema;
     params: () => SchemaInput<ParamsSchema>;
-    loader: (
-      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-    ) => Generator<unknown, ParamsState, unknown>;
+    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
+      Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -642,9 +637,8 @@ export function asyncProcess<
   config: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (
-      param: ResourceLoaderParams<LoaderParams>,
-    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
+    loader: (param: ResourceLoaderParams<LoaderParams>) =>
+      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<

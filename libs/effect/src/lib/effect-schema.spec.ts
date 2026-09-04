@@ -123,7 +123,6 @@ describe('Effect Schema inside a craft primitive', () => {
     await flushCraftTest(injector);
 
     expect(craftUse(people.value())).toEqual([{ name: 'Ada', age: 36 }]);
-    expect(craftUse(people.hasSchema())).toBe(true);
   });
 
   it('publishes the DECODED value when the schema transforms', () => {

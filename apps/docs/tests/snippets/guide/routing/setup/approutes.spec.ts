@@ -17,7 +17,11 @@ export const { appRoutes } = craftRoutes('app', [
 ]);
 
 type _CheckAppDI = RouteCheckedDI<
-  { deps: {}; provided: {}; publicProperties: {} },
+  {
+    deps: Record<never, never>;
+    provided: Record<never, never>;
+    publicProperties: Record<never, never>;
+  },
   never,
   CraftRouter,
   'app route'

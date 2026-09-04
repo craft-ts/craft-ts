@@ -23,7 +23,6 @@ import {
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
-  GeneratorOnlyFactory,
   isGeneratorFunction,
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
@@ -196,10 +195,10 @@ type QueryConfig<
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
         params: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
-          ) => ResourceState,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -226,7 +225,7 @@ type QueryConfig<
               MethodYielded
             >
           | ReadonlySource<SourceParams>;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: ResourceLoaderParams<
               NonNullable<
@@ -235,7 +234,7 @@ type QueryConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => ResourceState,
+            ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         params?: never;
@@ -295,10 +294,10 @@ type QueryConfig<
           ) => Params,
           ParamsYielded
         >;
-        loader: GeneratorOnlyFactory<
+        loader: GeneratorCompatibleFactory<
           (
             param: NoInfer<ResourceLoaderParams<Params>>,
-          ) => ResourceState,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         method?: never;
@@ -746,9 +745,8 @@ type SchemaQueryConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (
-    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-  ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
+  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
+    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -795,9 +793,7 @@ export function query<
   queryConfig: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (
-      param: ResourceLoaderParams<Params>,
-    ) => Generator<unknown, State, unknown>;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -958,9 +954,8 @@ export function query<
   queryConfig: {
     paramsSchema: ParamsSchema;
     params: (...args: never[]) => unknown;
-    loader: (
-      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
-    ) => Generator<unknown, ParamsState, unknown>;
+    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
+      Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -989,9 +984,8 @@ export function query<
   queryConfig: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (
-      param: ResourceLoaderParams<LoaderParams>,
-    ) => Generator<unknown, SchemaInput<LoaderSchema>, unknown>;
+    loader: (param: ResourceLoaderParams<LoaderParams>) =>
+      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<

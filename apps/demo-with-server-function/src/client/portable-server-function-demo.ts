@@ -124,7 +124,9 @@ const PortableServerFunctionDemo = craftComponent(
     }));
     const usersQuery = yield* query('portableUsersQuery', {
       method: (term: string) => term,
-      loader: ({ params }) => getPortableUsers({ filter: params }),
+      loader: function* ({ params }) {
+        return yield* getPortableUsers({ filter: params });
+      },
     });
     yield* usersQuery.call('');
     // Le payload remonté par la chaîne : chaque clé a été produite par une

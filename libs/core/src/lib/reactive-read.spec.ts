@@ -156,7 +156,7 @@ describe('yieldable reactive reads', () => {
     );
 
     expect(isDeepYieldable(catalog)).toBe(false);
-    expect(isDeepYieldable(catalog.products)).toBe(false);
+    expect('products' in catalog).toBe(false);
     expect(isDeepYieldable(catalog.deepYieldableProducts)).toBe(true);
     expect(craftUse(catalog.deepYieldableProducts())).toEqual([
       { id: 1, name: 'Apple' },
@@ -169,7 +169,10 @@ describe('yieldable reactive reads', () => {
         state(
           'pipedCatalog',
           { products: [{ id: 1 }] },
-          insertStatePipe(insertDeepYieldable('products')),
+          insertStatePipe(
+            insertDeepYieldable('products'),
+            () => ({}),
+          ),
         ),
       ),
     );
