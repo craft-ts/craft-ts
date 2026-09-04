@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/cli",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "CraftTS deployment CLI: check a deployment manifest and resolve it to its artefact form",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -39,7 +39,7 @@
     "craft-ts": "./src/bin/craft-ts.js"
   },
   "dependencies": {
-    "@craft-ts/deploy": "^0.8.2"
+    "@craft-ts/deploy": "^0.8.3"
   },
   "peerDependencies": {
     "typescript": ">=5.4.0"

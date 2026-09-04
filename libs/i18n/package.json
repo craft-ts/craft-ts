@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/i18n",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Type-safe internationalisation integrated with CraftTS",
   "license": "MIT",
   "type": "module",
@@ -24,7 +24,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@craft-ts/core": "^0.8.2"
+    "@craft-ts/core": "^0.8.3"
   },
   "sideEffects": false
 }

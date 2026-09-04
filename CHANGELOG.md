@@ -1,3 +1,13 @@
+## 0.8.3 (2026-09-04)
+
+### 🚀 Features
+
+- strengthen primitive method architecture checks ([dea0f04aa](https://github.com/craft-ts/craft-ts/commit/dea0f04aa))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.8.2 (2026-09-04)
 
 ### 🚀 Features
