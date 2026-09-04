@@ -30,6 +30,11 @@ import {
   state,
   insertStatePipe,
 } from '@craft-ts/core';
+import type {
+  CraftExceptionResult,
+  CraftHttpClientError,
+  HttpResponseDecodeError,
+} from '@craft-ts/core';
 import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
 
@@ -60,6 +65,16 @@ type SearchResults = {
   total: number;
   books: BookResult[];
 };
+
+type SearchHttpException = CraftExceptionResult<
+  { _tag: 'SearchHttpError'; scope: 'OpenLibrarySearch' },
+  { status: number }
+>;
+
+type TransientHttpException = CraftExceptionResult<
+  { _tag: 'TransientHttpError'; scope: 'OpenLibrarySearch' },
+  { status: number }
+>;
 
 const EMPTY_RESULTS: SearchResults = { total: 0, books: [] };
 
@@ -97,7 +112,7 @@ function decodeOpenLibraryResponse(input: unknown): SearchResults {
 const searchBooks = craftGen(function* (term: string) {
   if (term.length < 2) return EMPTY_RESULTS;
 
-  return yield* CraftHttpClient.get(({ response }) => ({
+  return (yield* CraftHttpClient.get(({ response }) => ({
     url: `https://openlibrary.org/search.json?q=${encodeURIComponent(term)}&limit=8&fields=key,title,author_name,first_publish_year,cover_i`,
     success: response({ decode: decodeOpenLibraryResponse }),
     exceptions: [
@@ -122,7 +137,12 @@ const searchBooks = craftGen(function* (term: string) {
         );
       },
     ],
-  }));
+  }))) as unknown as
+    | SearchResults
+    | CraftHttpClientError
+    | HttpResponseDecodeError
+    | SearchHttpException
+    | TransientHttpException;
 });
 
 const DebouncedWebSearch = craftComponent(
