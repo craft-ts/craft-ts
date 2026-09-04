@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/log-mcp",
-  "version": "0.8.3",
+  "version": "0.8.2",
   "description": "MCP reader for CraftTS local JSONL logs",
   "type": "module",
   "files": [
