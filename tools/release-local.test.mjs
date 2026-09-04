@@ -357,7 +357,7 @@ test('mirrors the frontend Effect demo and pins CraftTS, i18n, and Effect depend
       manifest.dependencies['@craft-ts/i18n-effect'],
       '0.7.0-beta.11',
     );
-    assert.equal(manifest.dependencies.effect, '^4.0.0-rc.110');
+    assert.equal(manifest.dependencies.effect, '^4.0.0-rc.112');
     assert.equal(
       manifest.devDependencies['@craft-ts/dev-tools'],
       '0.7.0-beta.11',
