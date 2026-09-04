@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/mcp",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "MCP server, Agent Skills, and LLM files for coding agents using @craft-ts/core",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -35,7 +35,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@craft-ts/dev-tools": "^0.8.1",
+    "@craft-ts/dev-tools": "^0.8.2",
     "@modelcontextprotocol/sdk": "1.26.0",
     "zod": "4.3.6"
   },

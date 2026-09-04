@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/function-registry-mcp",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "MCP bridge for CraftTS browser pages and runtime registry",
   "type": "module",
   "files": [

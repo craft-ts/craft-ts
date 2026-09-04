@@ -1,3 +1,18 @@
+## 0.8.2 (2026-09-04)
+
+### 🚀 Features
+
+- update runtime and tooling compatibility ([1564697ae](https://github.com/craft-ts/craft-ts/commit/1564697ae))
+
+### 🩹 Fixes
+
+- enforce URL-backed resource params in starters ([cbc3f623e](https://github.com/craft-ts/craft-ts/commit/cbc3f623e))
+- unblock 0.8.2 release checks ([0845774b6](https://github.com/craft-ts/craft-ts/commit/0845774b6))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.8.1 (2026-09-01)
 
 ### 🚀 Features
