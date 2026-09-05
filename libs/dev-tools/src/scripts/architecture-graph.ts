@@ -2148,7 +2148,18 @@ export function resourceParamsStateViolations(
     const key = `${violation.resource}:${violation.state}`;
     if (!unique.has(key)) unique.set(key, violation);
   }
-  return [...unique.values()];
+  // Reported in source order rather than in graph order. Graph order is the
+  // order the ids happen to sort in, which is not a fact about the code: a
+  // report that reshuffles itself when an identifier scheme changes reads as a
+  // regression every time.
+  return [...unique.values()].sort(
+    (left, right) =>
+      (left.filePath ?? '').localeCompare(right.filePath ?? '') ||
+      (left.line ?? 0) - (right.line ?? 0) ||
+      (left.stateFilePath ?? '').localeCompare(right.stateFilePath ?? '') ||
+      (left.stateLine ?? 0) - (right.stateLine ?? 0) ||
+      left.state.localeCompare(right.state),
+  );
 }
 
 export function assertResourceParamsPreferQueryParams(

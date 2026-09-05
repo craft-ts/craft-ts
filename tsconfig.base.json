@@ -41,6 +41,7 @@
         "./libs/dev-tools/src/template-migration.ts"
       ],
       "@craft-ts/effect": ["./libs/effect/src/index.ts"],
+      "@craft-ts/attest": ["./libs/attest/src/index.ts"],
       "@craft-ts/deploy": ["./libs/deploy/src/index.ts"],
       "@craft-ts/cli": ["./libs/cli/src/index.ts"],
       "@craft-ts/deploy-alchemy": ["./libs/deploy-alchemy/src/index.ts"]

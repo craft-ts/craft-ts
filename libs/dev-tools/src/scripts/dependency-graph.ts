@@ -66,6 +66,8 @@ export type DependencyGraphNodeFor<
   label: string;
   filePath?: string;
   line?: number;
+  endLine?: number;
+  sourceHash?: string;
   details?: DependencyGraphNodeRegistry[K];
 };
 
@@ -128,6 +130,17 @@ export type DependencyGraphNode = {
   label: string;
   filePath?: string;
   line?: number;
+  /** Last line of the declaration this node stands for. Metadata, never hashed. */
+  endLine?: number;
+  /**
+   * Hash of the node's own source range.
+   *
+   * Its own range, not the file's: a slice that does not contain a node must
+   * not see its fingerprint move when that node is edited. That is the whole
+   * property `code-slice.ts` sells, and it cannot be recovered downstream from
+   * a line number alone.
+   */
+  sourceHash?: string;
   details?: Record<string, unknown>;
 };
 
@@ -1193,20 +1206,24 @@ function collectServices(
         getStringProperty(config, 'name') ??
         inferNameFromServiceDeclaration(call);
       if (!name) continue;
-      const node = addNode(builder, {
-        id: `service:${sourceFile.getFilePath()}:${name}`,
-        kind: 'service',
-        label: name,
-        filePath: sourceFile.getFilePath(),
-        line: call.getStartLineNumber(),
-        details: {
-          scope: getStringProperty(config, 'scope'),
-          appStart: getBooleanProperty(config, 'appStart') === true,
-          browserBoundary:
-            getBooleanProperty(config, 'browserBoundary') === true,
-          outputProperties: [],
+      const node = addNode(
+        builder,
+        {
+          id: `service:${sourceFile.getFilePath()}:${name}`,
+          kind: 'service',
+          label: name,
+          filePath: sourceFile.getFilePath(),
+          line: call.getStartLineNumber(),
+          details: {
+            scope: getStringProperty(config, 'scope'),
+            appStart: getBooleanProperty(config, 'appStart') === true,
+            browserBoundary:
+              getBooleanProperty(config, 'browserBoundary') === true,
+            outputProperties: [],
+          },
         },
-      });
+        call,
+      );
       const service: ServiceInfo = {
         node,
         helpers: new Set(),
@@ -1265,14 +1282,18 @@ function collectSources(
       );
       if (declaration)
         addBindingNames(declaration.getNameNode(), variableNames);
-      const node = addNode(builder, {
-        id: `source:${sourceFile.getFilePath()}:${name}:${call.getStartLineNumber()}`,
-        kind: 'source',
-        label: `${name} (${creator})`,
-        filePath: sourceFile.getFilePath(),
-        line: call.getStartLineNumber(),
-        details: { creator },
-      });
+      const node = addNode(
+        builder,
+        {
+          id: stableNodeId('source', 'source', call),
+          kind: 'source',
+          label: `${name} (${creator})`,
+          filePath: sourceFile.getFilePath(),
+          line: call.getStartLineNumber(),
+          details: { creator },
+        },
+        call,
+      );
       builder.sources.push({ node, variableNames, call });
     }
   }
@@ -1302,17 +1323,25 @@ function collectComponents(
     )) {
       if (call.getExpression().getText() !== 'craftComponent') continue;
       const explicitLabel = getStringArgument(call, 0);
+      // An anonymous component used to be named after its line, which renamed
+      // it on every edit above it. The owner path plus an ordinal names the
+      // same component for as long as its declaration keeps its name.
       const label =
-        explicitLabel ?? `AnonymousComponent@${call.getStartLineNumber()}`;
+        explicitLabel ??
+        `AnonymousComponent@${anonymousComponentSuffix(call)}`;
       const component: ComponentInfo = {
-        node: addNode(builder, {
-          id: `component:${sourceFile.getFilePath()}:${label}`,
-          kind: 'component',
-          label,
-          filePath: sourceFile.getFilePath(),
-          line: call.getStartLineNumber(),
-          ...(explicitLabel ? {} : { details: { anonymous: true } }),
-        }),
+        node: addNode(
+          builder,
+          {
+            id: `component:${sourceFile.getFilePath()}:${label}`,
+            kind: 'component',
+            label,
+            filePath: sourceFile.getFilePath(),
+            line: call.getStartLineNumber(),
+            ...(explicitLabel ? {} : { details: { anonymous: true } }),
+          },
+          call,
+        ),
         call,
         bindings: new Map(),
       };
@@ -1369,23 +1398,29 @@ function collectRoutes(
           '<dynamic>';
         const label = `${collectionName}:${path}`;
         const route: RouteInfo = {
-          node: addNode(builder, {
-            id: `route:${sourceFile.getFilePath()}:${label}`,
-            kind: 'route',
-            label,
-            filePath: sourceFile.getFilePath(),
-            line: object.getStartLineNumber(),
-            details: {
-              collection: collectionName,
-              path,
-              routesName,
-              hasComponent: routeHasTargetComponent(object),
-              hasPendingComponent: Boolean(
-                object.getProperty('pendingComponent'),
-              ),
-              hasErrorComponent: Boolean(object.getProperty('errorComponent')),
+          node: addNode(
+            builder,
+            {
+              id: `route:${sourceFile.getFilePath()}:${label}`,
+              kind: 'route',
+              label,
+              filePath: sourceFile.getFilePath(),
+              line: object.getStartLineNumber(),
+              details: {
+                collection: collectionName,
+                path,
+                routesName,
+                hasComponent: routeHasTargetComponent(object),
+                hasPendingComponent: Boolean(
+                  object.getProperty('pendingComponent'),
+                ),
+                hasErrorComponent: Boolean(
+                  object.getProperty('errorComponent'),
+                ),
+              },
             },
-          }),
+            object,
+          ),
           sourceFile,
           object,
           routesName,
@@ -1640,12 +1675,17 @@ function collectRouteChecks(builder: GraphBuilder): void {
         continue;
       }
       const targetName = call.getArguments()[0]?.getText();
+      const key = stableFamilyKey('route-check', call);
       const assertNode = addRouteCheckNode(
         builder,
         sourceFile,
-        `assertExhaustiveRouteExceptions:${targetName ?? call.getStartLineNumber()}`,
+        `assertExhaustiveRouteExceptions:${
+          targetName ??
+          `${key}/${key === undefined ? 0 : stableOrdinal('route-check', call, key)}`
+        }`,
         'assertExhaustiveRouteExceptions',
         call.getStartLineNumber(),
+        call,
       );
       for (const route of routes) {
         if (!targetName || route.routesName === targetName) {
@@ -1664,15 +1704,20 @@ function addRouteCheckNode(
   name: string,
   mechanism: RouteCheckMechanism,
   line: number,
+  source?: Node,
 ): DependencyGraphNode {
-  return addNode(builder, {
-    id: `route-check:${sourceFile.getFilePath()}:${name}`,
-    kind: 'route-check',
-    label: `${mechanism} ${name}`,
-    filePath: sourceFile.getFilePath(),
-    line,
-    details: { mechanism, name },
-  });
+  return addNode(
+    builder,
+    {
+      id: `route-check:${sourceFile.getFilePath()}:${name}`,
+      kind: 'route-check',
+      label: `${mechanism} ${name}`,
+      filePath: sourceFile.getFilePath(),
+      line,
+      details: { mechanism, name },
+    },
+    source,
+  );
 }
 
 function resolveRouteCheck(
@@ -2034,20 +2079,24 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
       const parsed = parseCraftHyperscript(node);
       if (!parsed || !isInteractiveElement(parsed)) return undefined;
       const filePath = node.getSourceFile().getFilePath();
-      const element = addNode(builder, {
-        id: `template-element:${filePath}:${node.getStartLineNumber()}:${node.getStart()}`,
-        kind: 'template-element',
-        label: parsed.name ?? '(unnamed)',
-        filePath,
-        line: node.getStartLineNumber(),
-        details: {
-          tag: parsed.tag,
-          localName: parsed.name,
-          static: parsed.nameKind !== 'non-static',
-          missing: parsed.nameKind === 'missing',
-          component: component.node.label,
+      const element = addNode(
+        builder,
+        {
+          id: stableNodeId('template-element', 'template-element', node),
+          kind: 'template-element',
+          label: parsed.name ?? '(unnamed)',
+          filePath,
+          line: node.getStartLineNumber(),
+          details: {
+            tag: parsed.tag,
+            localName: parsed.name,
+            static: parsed.nameKind !== 'non-static',
+            missing: parsed.nameKind === 'missing',
+            component: component.node.label,
+          },
         },
-      });
+        node,
+      );
       addEdge(builder, component.node.id, element.id, 'contains', 'ast');
       return undefined;
     });
@@ -2771,7 +2820,7 @@ function addSourceInteractions(
           addEdge(
             builder,
             source.node.id,
-            primitive ? primitiveNodeId(builder, primitive) : ownerId,
+            primitive ? primitiveNodeId(primitive) : ownerId,
             primitive ? 'triggers' : 'subscribes',
             'ast',
           );
@@ -2813,12 +2862,8 @@ function isExposedMachineSourceAccess(
   return sourceIndex > 0 && chain[sourceIndex + 1] === 'emit';
 }
 
-function primitiveNodeId(builder: GraphBuilder, call: CallExpression): string {
-  const owner = nearestPrimitiveFactory(call) ?? call;
-  const primitive =
-    primitiveFactoryName(owner) ?? primitiveName(owner) ?? 'primitive';
-  const sourceFile = call.getSourceFile();
-  return `primitive:${sourceFile.getFilePath()}:${primitive}:${owner.getStartLineNumber()}`;
+function primitiveNodeId(call: CallExpression): string {
+  return stablePrimitiveId(nearestPrimitiveFactory(call) ?? call);
 }
 
 function ownerNodeForCall(
@@ -3946,19 +3991,23 @@ function addPrimitiveNode(
 ): DependencyGraphNode {
   const name = getStringArgument(call, 0) ?? primitive;
   const usage = primitiveUsageName(call);
-  return addNode(builder, {
-    id: `primitive:${call.getSourceFile().getFilePath()}:${primitive}:${call.getStartLineNumber()}`,
-    kind: 'primitive',
-    label: `${primitive}:${name}`,
-    filePath: call.getSourceFile().getFilePath(),
-    line: call.getStartLineNumber(),
-    details: {
-      primitive,
-      name,
-      ownerId,
-      ...(usage ? { usage } : {}),
+  return addNode(
+    builder,
+    {
+      id: stablePrimitiveId(call, primitive),
+      kind: 'primitive',
+      label: `${primitive}:${name}`,
+      filePath: call.getSourceFile().getFilePath(),
+      line: call.getStartLineNumber(),
+      details: {
+        primitive,
+        name,
+        ownerId,
+        ...(usage ? { usage } : {}),
+      },
     },
-  });
+    call,
+  );
 }
 
 function addHttpClientUsage(
@@ -4099,7 +4148,7 @@ function addCraftUniqueUsage(
   const canonicalized = canonicalizeStaticValue(call.getArguments()[0]);
   const id = canonicalized.static
     ? `unique:${createHash('sha256').update(canonicalized.canonical).digest('hex').slice(0, 16)}`
-    : `unique:non-static:${sourceFile.getFilePath()}:${line}`;
+    : stableNodeId('unique:non-static', 'unique', call);
   const label = canonicalized.static
     ? canonicalized.canonical
     : 'craftUnique(non-static)';
@@ -4149,7 +4198,7 @@ function findCraftUniqueOwnerId(
   const enclosing = nearestPrimitiveFactory(call);
   const primitive = enclosing && primitiveFactoryName(enclosing);
   if (enclosing && primitive) {
-    const id = `primitive:${enclosing.getSourceFile().getFilePath()}:${primitive}:${enclosing.getStartLineNumber()}`;
+    const id = stablePrimitiveId(enclosing, primitive);
     if (builder.nodes.has(id)) return id;
   }
   let current: Node | undefined = call.getParent();
@@ -4799,10 +4848,219 @@ function resolveImportedSource(
     .find((candidate): candidate is SourceFile => candidate !== undefined);
 }
 
+
+/* -------------------------------------------------------------------------
+ * Stable identity
+ *
+ * A node id used to end in the line its call sits on, so moving a block three
+ * lines down renamed every node under it. Anything that keys off an id — an
+ * attestation ledger above all — is worthless under that rule: every commit
+ * would invalidate the whole register.
+ *
+ * The replacement is `file#owner/name/ordinal`. The owner is the chain of
+ * declaration names the call is nested in, the name is what the call is
+ * called, and the ordinal only ever separates two siblings that agree on both.
+ * The line survives on the node as metadata, and is never hashed.
+ * ------------------------------------------------------------------------- */
+
+type StableFamily =
+  | 'primitive'
+  | 'source'
+  | 'component'
+  | 'template-element'
+  | 'unique'
+  | 'route-check';
+
+/**
+ * Per file, per family, the sorted start offsets of every call sharing a key.
+ *
+ * Built in one pass over the file the first time a family is asked for, so an
+ * ordinal never depends on the order the graph happened to visit nodes in.
+ */
+const STABLE_INDEX = new WeakMap<
+  SourceFile,
+  Map<StableFamily, Map<string, number[]>>
+>();
+
+/** The chain of declaration names a node is nested in, outermost first. */
+function stableOwnerPath(node: Node): string {
+  const parts: string[] = [];
+  let current: Node | undefined = node.getParent();
+  while (current) {
+    const segment = stableOwnerSegment(current);
+    if (segment) parts.push(segment);
+    current = current.getParent();
+  }
+  return parts.reverse().join('/');
+}
+
+function stableOwnerSegment(node: Node): string | undefined {
+  if (Node.isVariableDeclaration(node)) {
+    const name = node.getNameNode();
+    return Node.isIdentifier(name) ? name.getText() : undefined;
+  }
+  if (Node.isFunctionDeclaration(node) || Node.isClassDeclaration(node)) {
+    return node.getName();
+  }
+  if (
+    Node.isMethodDeclaration(node) ||
+    Node.isPropertyDeclaration(node) ||
+    Node.isPropertyAssignment(node)
+  ) {
+    return node.getName();
+  }
+  if (Node.isCallExpression(node)) {
+    const callee = node.getExpression();
+    if (!Node.isIdentifier(callee)) return undefined;
+    const label = getStringArgument(node, 0);
+    return label ? `${callee.getText()}(${label})` : `${callee.getText()}()`;
+  }
+  return undefined;
+}
+
+/**
+ * The key two nodes must share before an ordinal is needed to tell them apart.
+ *
+ * Deliberately computed from the AST alone: the index pass and the lookup have
+ * to agree, and the index pass knows nothing of what the caller intends to
+ * label the node.
+ */
+function stableFamilyKey(
+  family: StableFamily,
+  call: CallExpression,
+): string | undefined {
+  const owner = stableOwnerPath(call);
+  const callee = call.getExpression().getText();
+  switch (family) {
+    case 'primitive': {
+      const primitive = primitiveFactoryName(call) ?? primitiveName(call);
+      if (!primitive) return `${owner}/call:${callee}`;
+      const name =
+        getStringArgument(call, 0) ?? primitiveUsageName(call) ?? primitive;
+      return `${owner}/${primitive}:${name}`;
+    }
+    case 'source': {
+      if (!SOURCE_CREATORS.has(callee)) return undefined;
+      return `${owner}/${callee}:${getStringArgument(call, 0) ?? callee}`;
+    }
+    case 'component':
+      return callee === 'craftComponent' ? `${owner}/craftComponent` : undefined;
+    case 'template-element': {
+      const parsed = parseCraftHyperscript(call);
+      if (!parsed || !isInteractiveElement(parsed)) return undefined;
+      return `${owner}/${parsed.tag}:${parsed.name ?? '(unnamed)'}`;
+    }
+    case 'unique':
+      return callee === 'craftUnique' ? `${owner}/craftUnique` : undefined;
+    case 'route-check':
+      return callee === 'assertExhaustiveRouteExceptions'
+        ? `${owner}/assertExhaustiveRouteExceptions`
+        : undefined;
+  }
+}
+
+function stableOrdinal(
+  family: StableFamily,
+  call: CallExpression,
+  key: string,
+): number {
+  const sourceFile = call.getSourceFile();
+  let families = STABLE_INDEX.get(sourceFile);
+  if (!families) {
+    families = new Map();
+    STABLE_INDEX.set(sourceFile, families);
+  }
+  let buckets = families.get(family);
+  if (!buckets) {
+    buckets = new Map<string, number[]>();
+    for (const candidate of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
+      const candidateKey = stableFamilyKey(family, candidate);
+      if (candidateKey === undefined) continue;
+      const bucket = buckets.get(candidateKey);
+      if (bucket) bucket.push(candidate.getStart());
+      else buckets.set(candidateKey, [candidate.getStart()]);
+    }
+    for (const bucket of buckets.values()) {
+      bucket.sort((left, right) => left - right);
+    }
+    families.set(family, buckets);
+  }
+  const index = buckets.get(key)?.indexOf(call.getStart()) ?? -1;
+  return index < 0 ? 0 : index;
+}
+
+/** `file#owner/name/ordinal`, with the kind kept in front for readability. */
+function stableNodeId(
+  kind: string,
+  family: StableFamily,
+  call: CallExpression,
+  suffix?: string,
+): string {
+  const key = stableFamilyKey(family, call);
+  const filePath = call.getSourceFile().getFilePath();
+  const tail = suffix === undefined ? '' : `!${suffix}`;
+  if (key === undefined) {
+    // Nothing in the family recognises this call: fall back to the owner path,
+    // which is still line-free.
+    const callee = call.getExpression().getText();
+    return `${kind}:${filePath}#${stableOwnerPath(call)}/${callee}/0${tail}`;
+  }
+  return `${kind}:${filePath}#${key}/${stableOrdinal(family, call, key)}${tail}`;
+}
+
+/**
+ * The id of the primitive node a call stands for.
+ *
+ * `primitive` is threaded through because a few collectors label a call with a
+ * primitive name the AST does not derive; the override lands in the id's tail
+ * rather than in its key, so the ordinal is always read from an index entry
+ * that exists.
+ */
+function stablePrimitiveId(call: CallExpression, primitive?: string): string {
+  const derived = primitiveFactoryName(call) ?? primitiveName(call);
+  const suffix =
+    primitive !== undefined && primitive !== derived ? primitive : undefined;
+  return stableNodeId('primitive', 'primitive', call, suffix);
+}
+
+/**
+ * What names an anonymous `craftComponent` once its line is gone.
+ *
+ * The declaration it is assigned to when there is one — which is the name a
+ * reader would use anyway — and the ordinal otherwise.
+ */
+function anonymousComponentSuffix(call: CallExpression): string {
+  const owner = stableOwnerPath(call);
+  if (owner) return owner;
+  const key = stableFamilyKey('component', call);
+  return `#${key === undefined ? 0 : stableOrdinal('component', call, key)}`;
+}
+
+/** Hash of a declaration's own text, leading trivia excluded. */
+function hashSourceRange(node: Node): string {
+  return createHash('sha256').update(node.getText()).digest('hex').slice(0, 16);
+}
+
+/**
+ * Registers a node, optionally recording the source range it stands for.
+ *
+ * The range is attached here rather than at each collector so a node
+ * discovered twice — once with its declaration in hand, once without — still
+ * ends up carrying a hash.
+ */
 function addNode(
   builder: GraphBuilder,
   node: DependencyGraphNode,
+  source?: Node,
 ): DependencyGraphNode {
+  const span: Partial<DependencyGraphNode> = source
+    ? {
+        endLine: source.getEndLineNumber(),
+        sourceHash: hashSourceRange(source),
+      }
+    : {};
   const existing = builder.nodes.get(node.id);
   if (existing) {
     if (existing.kind !== node.kind || existing.label !== node.label) {
@@ -4810,10 +5068,14 @@ function addNode(
         `Dependency graph node identity collision for "${node.id}": ${existing.kind}/${existing.label} versus ${node.kind}/${node.label}.`,
       );
     }
+    if (existing.sourceHash === undefined && span.sourceHash !== undefined) {
+      Object.assign(existing, span);
+    }
     return existing;
   }
-  builder.nodes.set(node.id, node);
-  return node;
+  const created = { ...node, ...span };
+  builder.nodes.set(created.id, created);
+  return created;
 }
 
 function mergeCollectorContribution(

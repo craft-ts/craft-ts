@@ -1270,11 +1270,13 @@ describe('declarative architecture rules', () => {
       `,
     });
 
+    // Source order: the report is sorted by where the resource is declared,
+    // not by the order the graph happened to build its nodes in.
     expect(resourceParamsStateViolations(graph.graph).map((v) => [v.resource, v.state])).toEqual([
-      ['asyncProcess:refresh', 'state:search'],
       ['query:users', 'state:search'],
       ['query:users', 'state:page'],
       ['query:utilityUsers', 'state:search'],
+      ['asyncProcess:refresh', 'state:search'],
     ]);
     expect(() => assertResourceParamsPreferQueryParams(graph.graph)).toThrow(
       /Resource query:users params depend on state state:search/,
