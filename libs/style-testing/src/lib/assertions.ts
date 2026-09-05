@@ -137,7 +137,6 @@ export function findViolations(
 ): readonly LayoutViolation[] {
   const violations: LayoutViolation[] = [];
   const minimumContrast = options.contrast ?? AA_CONTRAST;
-  const minimumTarget = options.touchTarget ?? MIN_TOUCH_TARGET;
 
   for (const node of digest.nodes) {
     if (node.overflow.inline && !isIgnored(options, 'overflow-inline', node.path)) {

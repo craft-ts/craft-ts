@@ -197,13 +197,21 @@ export function describeChange(before: string, after: string): string {
     right: [string, number][],
     noun: string,
   ) => {
+    // A node that gains or loses its count is treated as having gone through
+    // zero rather than skipped. An entry appearing *is* a layout fact — a cell
+    // that starts holding text is exactly the kind of threshold this is for —
+    // and skipping it left the caller with "the layout changed", which is the
+    // report this function exists to avoid.
     const before = new Map(left);
-    for (const [path, count] of right) {
-      const previous = before.get(path);
-      if (previous !== undefined && previous !== count) {
-        reasons.push(`${path}: ${previous} → ${count} ${noun}`);
+    const after = new Map(right);
+    for (const path of new Set([...before.keys(), ...after.keys()])) {
+      const previous = before.get(path) ?? 0;
+      const current = after.get(path) ?? 0;
+      if (previous !== current) {
+        reasons.push(`${path}: ${previous} → ${current} ${noun}`);
       }
     }
+    reasons.sort();
   };
   compareCounts(beforeLines, afterLines, 'lines');
   compareCounts(beforeColumns, afterColumns, 'columns');

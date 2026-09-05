@@ -489,10 +489,15 @@ export function measureInPage(options: {
             text: {
               content: ownText,
               lines: linesOf(element),
-              // What the box refuses to show. A truncated title reads as a
-              // deliberate ellipsis and as a bug in exactly the same pixels;
-              // the number is the only thing that tells them apart.
-              clipped: Math.max(0, element.scrollWidth - element.clientWidth),
+              // What the box actually *hides*. Only counted when the overflow
+              // is not visible: text spilling out of a visible box is a
+              // different defect (`overflow.inline` catches it), and folding
+              // the two together made every unbreakable word read as a
+              // truncation.
+              clipped:
+                computed.overflowX === 'visible'
+                  ? 0
+                  : Math.max(0, element.scrollWidth - element.clientWidth),
             },
           }
         : {}),

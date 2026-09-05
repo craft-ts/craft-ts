@@ -20,7 +20,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    include: ['libs/style-testing/**/*.spec.ts'],
+    include: ['libs/style-testing/src/**/*.spec.ts'],
+    // The browser suite is Playwright's, not vitest's: jsdom returns zeroes for
+    // every box, so running those files here would pass while proving nothing.
+    exclude: ['libs/style-testing/e2e/**'],
     reporters: ['default'],
   },
 });

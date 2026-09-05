@@ -64,8 +64,10 @@ describe('buildReviewQueue', () => {
 describe('expandDecision', () => {
   it('writes the cluster into every attestation the decision covers', () => {
     const queue = buildReviewQueue([item('a', 'card', '8px'), item('b', 'card', '8px')]);
+    const [card] = queue.cards;
+    if (!card) throw new Error('the queue should hold one card');
     const expanded = expandDecision({
-      card: queue.cards[0]!,
+      card,
       verdict: 'ok',
       note: 'radius token bump',
     });
@@ -79,7 +81,9 @@ describe('expandDecision', () => {
 
   it('leaves a lone decision without a cluster', () => {
     const queue = buildReviewQueue([item('a', 'card', '8px')]);
-    expect(expandDecision({ card: queue.cards[0]!, verdict: 'ok' })[0]?.cluster).toBeUndefined();
+    const [card] = queue.cards;
+    if (!card) throw new Error('the queue should hold one card');
+    expect(expandDecision({ card, verdict: 'ok' })[0]?.cluster).toBeUndefined();
   });
 });
 

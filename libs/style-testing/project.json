@@ -8,7 +8,9 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/libs/style-testing",
         "main": "libs/style-testing/src/index.ts",
@@ -43,6 +45,13 @@
       "executor": "@nx/eslint:lint",
       "options": {
         "maxWarnings": -1
+      }
+    },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx playwright test --config libs/style-testing/playwright.config.ts",
+        "forwardAllArgs": true
       }
     }
   }

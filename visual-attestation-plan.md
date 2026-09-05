@@ -236,6 +236,36 @@ tranche observée au rendu (`provideTemplateTrace`, cf. `template-trace-plan.md`
 resserre la fermeture aux nœuds réellement touchés. Cette dépendance est le seul lien
 entre les deux plans, et elle est facultative.
 
+#### Mesure — 2026-09-05, 20 derniers commits, `apps/demo/tsconfig.graph.json`
+
+```
+npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
+  --tsconfig apps/demo/tsconfig.graph.json --commits 20
+```
+
+| chiffre | mesuré | seuil |
+| --- | --- | --- |
+| taux d'invalidation médian | **0,0 %** | ≤ 25 % |
+| taux maximal | 45,5 % (un commit de 88 fichiers) | — |
+| faux négatifs | **0** | 0, bloquant |
+| tranches épargnées par le hash au nœud | 64 | — |
+
+224 tranches (composants, routes, services). **Le point de décision est franchi**
+et la vague 2 est ouverte.
+
+Écart assumé sur la définition de « faux négatif ». Le plan la pose au niveau
+*fichier* — « une tranche dont l'empreinte n'a pas bougé alors qu'un fichier de sa
+fermeture a été modifié » — mais c'est exactement la précision que la tâche 2 exige :
+un nœud voisin modifié dans le même fichier ne **doit pas** invalider. Les deux
+chiffres sont donc rapportés séparément :
+
+- `falseNegatives`, au niveau **nœud** (empreinte immobile alors qu'un nœud *de la
+  fermeture* a changé de source) : le seul mode de défaillance dangereux, attendu et
+  mesuré à zéro ;
+- `fileScopedNonInvalidations` : les 64 tranches que le hash au nœud a épargnées.
+  C'est la fonctionnalité, pas un défaut, et la nommer autrement aurait fait passer un
+  succès pour une alerte.
+
 ---
 
 # Vague 1 — Le registre, prouvé sans navigateur
@@ -301,6 +331,11 @@ Test décisif : cent rendus consécutifs du même scénario produisent **cent di
 identiques**. Tant que ce test n'est pas vert, la vague n'avance pas — le report
 automatique et la dichotomie en dépendent tous les deux.
 
+**Vert** — `libs/style-testing/e2e/digest.spec.ts`, Chromium :
+`measureDeterminism(…, 100)` → `distinct: 1`. Le test tourne dans un vrai moteur et
+pas sous jsdom, qui renvoie zéro pour toutes les boîtes et ferait passer n'importe
+quoi.
+
 ### Tâche 10 — Digest de layout v1
 
 Les types ci-dessus, `digestVersion: 1`, arrondi au demi-pixel, liste de styles fermée.
@@ -359,6 +394,30 @@ Point de décision : mesurer ici le coût réel de la dichotomie (nombre de rend
 mur) sur trois composants de la demo. **La vague 3 ne s'ouvre que si ce coût est
 supportable**, parce qu'elle multiplie ce balayage par le nombre de points d'arrêt du
 viewport et par le nombre de voisinages. Consigner les chiffres dans ce fichier.
+
+#### Mesure — 2026-09-05, Chromium, `libs/style-testing/e2e/transitions.spec.ts`
+
+| axe | plage | rendus | temps mur |
+| --- | --- | --- | --- |
+| `userCard/title` (caractères) | 1 → 68 | 15 | 41 ms |
+| `row` (largeur du conteneur, px) | 80 → 400 | 14 | 50 ms |
+| `cart/total` (grille de magnitude) | 0 → 10 000 000 | 25 | 63 ms |
+
+**≈ 3 ms par rendu, 14 à 25 rendus par axe.** Le coût est supportable : même
+multiplié par cinq points d'arrêt de viewport et cinq voisinages, un axe reste sous
+les deux secondes.
+
+Écart assumé : les trois sujets sont des pages-fixtures (`page.setContent`) et non des
+routes de la demo. Ce qui est mesuré ici est le coût de la dichotomie et la lecture du
+moteur de layout ; brancher une application rendrait un échec ambigu entre le
+collecteur et l'app, et obligerait à faire tourner un serveur de dev pour une mesure
+qui n'en a pas besoin. Le branchement sur des routes réelles est la première tâche
+d'un usage en production.
+
+**Le coût n'ouvre pas la vague 3 à lui seul.** Le second critère — « les vagues 0-2 en
+usage réel ont montré que l'étage composant isolé rate des bugs de composition » — ne
+peut pas être satisfait avant que le dispositif ait servi. La vague 3 reste donc
+fermée, comme prévu.
 
 ---
 
@@ -569,3 +628,84 @@ vérifier que la suite **échoue en nommant la géométrie qui a bougé** — pa
   enregistrées à l'import.
 - Toute réduction qui n'est pas exactement vraie est inscrite dans l'attestation, et un
   changement d'hypothèse fait échouer l'exhaustivité.
+
+
+---
+
+# État de la mise en œuvre — 2026-09-05
+
+Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâche 15).
+
+| tâche | état | où |
+| --- | --- | --- |
+| 1 · identifiants stables | fait | `dependency-graph.ts`, `code-slice.spec.ts` |
+| 2 · hash par nœud, fermeture, merkle | fait | `code-slice.ts` |
+| 3 · mesure de précision | fait — **0 % médian, 0 faux négatif** | `slice-precision.ts` |
+| 4 · modèle et registre | fait | `libs/attest/src/lib/{attestation,ledger}.ts` |
+| 5 · état et report automatique | fait | `state.ts` |
+| 6 · sujet `test` | fait | `subjects/test.ts`, `test-slice.ts` |
+| 7 · CLI | fait | `libs/cli/src/lib/commands/attest.ts` |
+| 8 · rapport inverse | fait | `attest unwatched` |
+| 9 · harnais déterministe | fait — **100 rendus, 1 digest** | `determinism.ts` |
+| 10 · digest v1 + migration | fait | `digest.ts` |
+| 11 · assertions automatiques | fait — témoin allemand vert | `assertions.ts` |
+| 12 · sujet `visual` sur la matrice | fait | `subjects/visual.ts`, `lib/attest.ts` |
+| 13 · surface de revue | fait | `lib/review/` |
+| 14 · bascules par dichotomie | fait | `transitions.ts` |
+| 15 · marge avant rupture | fait — **≈ 3 ms/rendu** | `margin.ts` |
+| 16 – 23 · la page | **non ouvert** (conditionnel) | — |
+| 24 · locale la plus longue | fait | `i18n/src/lib/visual-testing.ts` |
+| 25 · pseudo-locale | fait | idem |
+| 26 · pluriels et bornes de tokens | fait | idem |
+
+## Écarts assumés
+
+- **`carriedFrom` pointe sur l'origine, pas sur l'empreinte précédente.** Le registre
+  ne garde qu'une ligne par sujet ; un pointeur vers l'empreinte immédiatement
+  précédente casserait la chaîne au deuxième report et l'origine deviendrait
+  irrécupérable. Chaque report recopie le pointeur au lieu de le redéplacer, ce qui
+  rend « qui a jugé ça, et quand » lisible sur une seule ligne. `by`, `at` et `verdict`
+  ne sont jamais rafraîchis par un report.
+- **Faux négatifs mesurés au nœud, pas au fichier** (tâche 3, détaillé ci-dessus).
+- **Un fichier de plus que la carte** : `libs/dev-tools/src/scripts/test-slice.ts`
+  (tranche d'un test) et `libs/style-testing/src/lib/attest.ts` (branchement de la
+  matrice sur le registre). Les mettre ailleurs aurait fait entrer ts-morph dans
+  `@craft-ts/cli` et `@craft-ts/attest` dans `@craft-ts/style-testing`, c'est-à-dire
+  cassé les deux frontières que le plan pose comme contraintes.
+- **`text.clipped` ne compte que ce qui est réellement masqué.** Un mot insécable qui
+  déborde d'une boîte en `overflow: visible` est un défaut différent, remonté par
+  `overflow.inline`. Les confondre faisait lire toute URL comme une troncature.
+- **Le manifeste de tranche est adressé par sujet + empreinte**, pas par l'empreinte
+  seule. Deux sujets qui partagent une empreinte la partagent parce que leurs tranches
+  sont identiques — mais le stockage ne doit pas dépendre de ce que chaque appelant
+  respecte cette règle, et l'échec sinon est un `why` qui décrit silencieusement le
+  mauvais sujet.
+
+## Vérification
+
+```sh
+npx tsc -b tsconfig.json --pretty false
+node tools/run-lib-vitest.mjs libs/attest/vitest.config.ts          # 33
+node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts  # 73
+node tools/run-lib-vitest.mjs libs/dev-tools/vitest.config.mts      # 747
+node tools/run-lib-vitest.mjs libs/i18n/vitest.config.ts            # 26
+node tools/run-lib-vitest.mjs libs/cli/vitest.config.ts             # 53
+npx playwright test --config libs/style-testing/playwright.config.ts  # 9, Chromium
+npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
+  --tsconfig apps/demo/tsconfig.graph.json --commits 20
+```
+
+Deux échecs préexistants dans `libs/cli/src/lib/demo-manifests.spec.ts` : ils
+demandent un `dist/apps/demo` construit, absent d'un worktree neuf. Sans rapport avec
+ce plan.
+
+## Vérification humaine restant à faire
+
+- **Fin de vague 2.** Attester une poignée de scénarios, faire un refactor purement
+  cosmétique (renommer une variable locale, déplacer une fonction), relancer
+  `craft-ts attest status`. Attendu : rien en file d'attente, attestations `renewed`.
+  Le mécanisme est couvert par `state.spec.ts` et `attest.spec.ts`, et la stabilité des
+  identifiants par `code-slice.spec.ts` — mais la boucle complète sur du vrai code n'a
+  pas encore été faite à la main.
+- **Brancher le sujet `visual` sur des routes réelles** de la demo, plutôt que sur les
+  pages-fixtures de `libs/style-testing/e2e/`.
