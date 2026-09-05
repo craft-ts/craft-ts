@@ -8,6 +8,15 @@ import {
 } from '@craft-ts/component';
 import { craftComputed, CraftGlobalError } from '@craft-ts/core';
 
+function isDisabledError(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    '_tag' in value &&
+    value._tag === 'USER_DISABLED'
+  );
+}
+
 export const MyGlobalErrorScreen = craftComponent(
   'MyGlobalErrorScreen',
   {
@@ -18,7 +27,9 @@ export const MyGlobalErrorScreen = craftComponent(
     const error = yield* CraftGlobalError();
     const disabled = craftComputed(
       'disabled',
-      () => (error() as { _tag?: string } | null)?._tag === 'USER_DISABLED',
+      () => {
+        return isDisabledError(error());
+      },
     );
     return { error, disabled };
   },

@@ -122,7 +122,7 @@ export const TONE_OF_STATUS = {
   resolved: 'green',
   local: 'blue',
   exception: 'red',
-} as const;
+} satisfies Record<string, string>;
 
 export type StatusTone = (typeof TONE_OF_STATUS)[keyof typeof TONE_OF_STATUS];
 

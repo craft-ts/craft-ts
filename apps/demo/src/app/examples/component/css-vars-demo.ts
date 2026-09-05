@@ -8,7 +8,7 @@ import {
   p,
   section,
 } from '@craft-ts/component';
-import { CraftRouterLink } from '@craft-ts/core';
+import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 const CASES = [
@@ -32,7 +32,11 @@ const CASES = [
     title: '@property',
     description: 'Register a numeric token owned by the component.',
   },
-] as const;
+] satisfies readonly {
+  path: NonNullable<CraftRouterLinkInput['to']>;
+  title: string;
+  description: string;
+}[];
 
 export const CssVarsDemo = craftComponent(
   'CssVarsDemo',

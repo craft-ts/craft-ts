@@ -18,6 +18,7 @@ import {
   state,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
+import { eventValue } from '../../../event-value';
 
 type Todo = { readonly id: number; readonly title: string };
 
@@ -96,7 +97,7 @@ const FullDemo = craftComponent(
           placeholder: 'New todo',
           value: titleInput,
           *input(event: Event) {
-            yield* setTitle((event.target as HTMLInputElement).value);
+            yield* setTitle(eventValue(event));
           },
         }),
         button(

@@ -12,7 +12,6 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import type { CraftNodeChildren } from '@craft-ts/component';
 import {
   craftComputed,
   craftException,
@@ -21,6 +20,9 @@ import {
   mutation,
   settled,
 } from '@craft-ts/core';
+
+const pendingStatusMessage = (className: string, message: string) =>
+  p({ class: className }, message);
 
 /**
  * The failing side of `settledValue`: a source can settle on an **exception**
@@ -148,12 +150,15 @@ export const pendingNodeExceptionDemo = craftComponent(
         .pipe(
           pendingNode({
             fallback: () =>
-              p(
-                { class: 'pending-exception__skeleton' },
+              pendingStatusMessage(
+                'pending-exception__skeleton',
                 'Waiting for an invoice…',
-              ) as CraftNodeChildren,
+              ),
             reloading: () =>
-              p({ class: 'pending-exception__reloading' }, 'Re-issuing…') as CraftNodeChildren,
+              pendingStatusMessage(
+                'pending-exception__reloading',
+                'Re-issuing…',
+              ),
           }),
         )
         .pipe(

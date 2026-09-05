@@ -976,9 +976,9 @@ function starterPluralCategories(
 
 /**
  * The visible copy of the starter pages. It lives in the catalogue because
- * `craft-ts/require-i18n-text` is part of the generated lint configuration as
- * soon as i18n is enabled: a starter that kept its own labels inline would fail
- * the rule it ships with.
+ * the i18n rules are part of the generated lint configuration as soon as i18n
+ * is enabled: a starter that kept its own labels inline or composed translated
+ * fragments in the template would fail the rules it ships with.
  */
 function starterUiCopy(context: TemplateContext, french: boolean) {
   const domain = context.config.domain;

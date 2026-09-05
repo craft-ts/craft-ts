@@ -25,13 +25,14 @@ import {
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { eventValue } from '../../../event-value';
 
 const MutationDemoComponent = craftComponent(
   'MutationDemoComponent',
   {
     stylesUrl: styles,
   },
-  function* (userId: Input<string | undefined>) {
+  function* (userId: Input<string>) {
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
@@ -49,7 +50,7 @@ const MutationDemoComponent = craftComponent(
       {
         params: userId,
         loader: function* ({ params }) {
-          return yield* ApiService.getItemById(params as string);
+          return yield* ApiService.getItemById(params);
         },
         preservePreviousValue: () => true,
       },
@@ -93,7 +94,7 @@ const MutationDemoComponent = craftComponent(
       if (user) {
         yield* updateUserName.mutate({
           userName: name,
-          user: user as User,
+          user,
         });
       }
     });
@@ -123,7 +124,7 @@ const MutationDemoComponent = craftComponent(
         placeholder: 'New name',
         value: nameInput,
         *input(event) {
-          yield* setName((event.target as HTMLInputElement).value);
+          yield* setName(eventValue(event));
         },
       }),
       button(

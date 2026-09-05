@@ -32,6 +32,7 @@ import {
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { eventValue } from '../../../event-value';
 
 const GranularMutation = craftComponent(
   'GranularMutation',
@@ -78,7 +79,7 @@ const GranularMutation = craftComponent(
           storeName: 'demo-app',
           key: 'granular',
         })),
-        insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        insertPaginationPlaceholderData({ initialValue: Array<User>() }),
         insertReactOnMutation(updateUserName, {
           filter: ({ mutationIdentifier, queryResource }) =>
             queryResource
@@ -106,7 +107,7 @@ const GranularMutation = craftComponent(
       isUpdatePending,
       updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
         yield* pagination.updatePageSize(
-          Number((event.target as HTMLSelectElement).value),
+          Number(eventValue(event)),
         );
       }),
     };

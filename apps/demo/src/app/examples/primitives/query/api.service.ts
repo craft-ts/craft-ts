@@ -27,7 +27,7 @@ export const { ApiService } = craftService(
         { id: '8', name: 'Lulu' },
         { id: '9', name: 'Timou' },
         { id: '10', name: 'Lupette' },
-      ] as User[],
+      ] satisfies User[],
       ({ state, update }) => ({
         addItem: (newItem: User) => update((items) => [newItem, ...items]),
         deleteItem: function* (itemId: User['id']) {

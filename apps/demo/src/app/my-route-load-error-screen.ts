@@ -1,11 +1,5 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import {
-  button,
-  craftComponent,
-  div,
-  p,
-  heading,
-} from '@craft-ts/component';
+import { button, craftComponent, div, p, heading } from '@craft-ts/component';
 import {
   craftComputed,
   CraftRouteLoadError,
@@ -27,7 +21,7 @@ export const MyRouteLoadErrorScreen = craftComponent(
       return current
         ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`
         : 'The requested route chunk could not be loaded.';
-    }) as unknown as () => string;
+    });
     return {
       error,
       message,
@@ -37,10 +31,18 @@ export const MyRouteLoadErrorScreen = craftComponent(
   ({ message, recovery }) => {
     return div([
       heading('⚠️ Route chunk failed'),
-      p(() => message()),
+      p(message),
       div({ class: 'actions' }, [
-        button('retry', { type: 'button', click: () => void recovery.retry() }, 'Retry route load'),
-        button('reload', { type: 'button', click: recovery.reload }, 'Reload app'),
+        button(
+          'retry',
+          { type: 'button', click: () => void recovery.retry() },
+          'Retry route load',
+        ),
+        button(
+          'reload',
+          { type: 'button', click: recovery.reload },
+          'Reload app',
+        ),
       ]),
     ]);
   },

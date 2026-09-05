@@ -328,6 +328,10 @@ export function afterRecomputation<State, SourceType>(
   _source: ReadonlySource<SourceType>,
   callback: (source: SourceType) => State,
 ): ReadonlySource<State>;
+export function afterRecomputation<State, SourceType>(
+  _source: Signal<SourceType>,
+  callback: (source: SourceType) => State,
+): ReadonlySource<State>;
 /**
  * Inside a `transitionStep(...)`, `afterRecomputation` is a machine
  * registration: every time the watched value recomputes, the callback runs

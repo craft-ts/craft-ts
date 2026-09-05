@@ -46,6 +46,23 @@ export default [
     },
   },
   {
+    // The demo registry, actor, trace and log files are protocol adapters:
+    // their assertions narrow untyped browser/WebSocket payloads at the
+    // boundary, rather than asserting Craft primitive values.
+    files: [
+      '**/src/app/function-registry.ts',
+      '**/src/app/function-registry-entry.ts',
+      '**/src/app/function-registry-bridge.ts',
+      '**/src/app/log-forwarder.ts',
+      '**/src/app/page-actor.ts',
+      '**/src/app/template-trace-demo.ts',
+      '**/src/demo-typecheck-indicator.ts',
+    ],
+    rules: {
+      'craft-ts/no-type-assertions-in-craft-code': 'off',
+    },
+  },
+  {
     // These teaching examples deliberately show the adapter boundary where
     // route/input values are narrowed before calling the demo API.
     files: [

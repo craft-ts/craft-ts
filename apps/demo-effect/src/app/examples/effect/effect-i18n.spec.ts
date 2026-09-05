@@ -10,7 +10,7 @@ const ORDER = {
   totalCents: 128_450,
   lineCount: 3,
   placedAt: Date.UTC(2026, 7, 25, 14, 30),
-} as const;
+};
 
 describe('demo: translating inside an Effect program', () => {
   let disposeBridge: () => void;

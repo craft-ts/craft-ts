@@ -20,7 +20,7 @@ const ORDER = {
   totalCents: 128_450,
   lineCount: 3,
   placedAt: Date.UTC(2026, 7, 25, 14, 30),
-} as const;
+};
 
 /**
  * `@craft-ts/i18n-effect` from the inside.
@@ -56,7 +56,7 @@ const EffectI18nComponent = craftComponent(
   function* () {
     const locale = yield* state(
       'locale',
-      'en-US' as ReceiptLocale,
+      'en-US',
       ({ set, state: read }) => {
         // One active locale for the process: the Effect side reads the same
         // runtime, so nothing here has to tell it twice.

@@ -17,6 +17,13 @@ import {
   provideClientUnits,
 } from './i18n.service';
 import { I18n } from './i18n-runtime.service';
+import { eventValue } from '../../event-value';
+
+type DemoClientId = 'acme' | 'globex';
+
+function eventClientId(event: Event): DemoClientId {
+  return eventValue(event) === 'globex' ? 'globex' : 'acme';
+}
 
 const ORDER_DATE = new Date('2026-08-25T14:30:00Z');
 const LAST_SYNC_DAYS = -2;
@@ -75,9 +82,7 @@ export const TypeSafeI18nDemo = craftComponent(
             value: clientCurrency.client,
             'aria-label': 'Client',
             *change(event: Event) {
-              yield* clientCurrency.changeClient(
-                (event.target as HTMLSelectElement).value as 'acme' | 'globex',
-              );
+              yield* clientCurrency.changeClient(eventClientId(event));
             },
           },
           [

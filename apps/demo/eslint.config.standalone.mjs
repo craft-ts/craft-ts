@@ -42,6 +42,22 @@ export default defineConfig([
     },
   },
   {
+    // Protocol adapters narrow untyped browser/WebSocket payloads at their
+    // boundary; the no-assertion rule remains strict for authored Craft code.
+    files: [
+      '**/src/app/function-registry.ts',
+      '**/src/app/function-registry-entry.ts',
+      '**/src/app/function-registry-bridge.ts',
+      '**/src/app/log-forwarder.ts',
+      '**/src/app/page-actor.ts',
+      '**/src/app/template-trace-demo.ts',
+      '**/src/demo-typecheck-indicator.ts',
+    ],
+    rules: {
+      'craft-ts/no-type-assertions-in-craft-code': 'off',
+    },
+  },
+  {
     files: ['**/src/app/function-registry.ts'],
     rules: {
       'craft-ts/no-throw': 'off',

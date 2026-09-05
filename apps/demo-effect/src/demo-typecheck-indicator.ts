@@ -36,16 +36,18 @@ export function startDemoEffectTypecheckIndicator(): void {
       const response = await fetch('/__demo-effect/typecheck', {
         cache: 'no-store',
       });
-      const payload = (await response.json()) as {
-        status?: 'running' | 'passed' | 'failed';
-      };
+      const payload = await response.json();
+      const status =
+        payload && typeof payload === 'object' && 'status' in payload
+          ? payload.status
+          : undefined;
 
       if (dismissed) return;
-      if (payload.status === 'passed') {
+      if (status === 'passed') {
         indicator.remove();
         return;
       }
-      if (payload.status === 'failed') {
+      if (status === 'failed') {
         indicator.dataset['status'] = 'failed';
         message.textContent = 'Type checking failed — app is still running';
         dismiss.hidden = false;

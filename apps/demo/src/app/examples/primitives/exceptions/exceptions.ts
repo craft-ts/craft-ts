@@ -20,13 +20,6 @@ import {
 } from '@craft-ts/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
-type UserExceptionLoader = {
-  readonly _tag:
-    | 'UserNotFoundException'
-    | 'UserConsentMissingException'
-    | 'UserAccessForbiddenException';
-};
-
 const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
   {
@@ -93,19 +86,19 @@ const ExceptionsComponent = craftComponent(
           if (params === 'not-found') {
             return craftException(
               { _tag: 'UserNotFoundException' },
-              { message: 'User does not exist' as const },
+              { message: 'User does not exist' },
             );
           }
           if (params === 'consent-missing') {
             return craftException(
               { _tag: 'UserConsentMissingException' },
-              { message: 'User consent is required' as const },
+              { message: 'User consent is required' },
             );
           }
           if (params === 'forbidden') {
             return craftException(
               { _tag: 'UserAccessForbiddenException' },
-              { message: 'Access forbidden' as const },
+              { message: 'Access forbidden' },
             );
           }
           return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
@@ -127,18 +120,18 @@ const ExceptionsComponent = craftComponent(
           return yield* resource.status();
         }),
         userId: craftComputed('userId', function* () {
-          return ((yield* resource.value()) as { id: string }).id;
+          return (yield* resource.value())?.id ?? '';
         }),
         userName: craftComputed('userName', function* () {
-          return ((yield* resource.value()) as { name: string }).name;
+          return (yield* resource.value())?.name ?? '';
         }),
         userEmail: craftComputed('userEmail', function* () {
-          return ((yield* resource.value()) as { email: string }).email;
+          return (yield* resource.value())?.email ?? '';
         }),
         typedUserExceptionLoader: craftComputed(
           'typedUserExceptionLoader',
           function* () {
-            return (yield* exceptions()).loader as UserExceptionLoader;
+            return (yield* exceptions()).loader;
           },
         ),
       }),

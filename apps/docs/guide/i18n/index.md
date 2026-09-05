@@ -84,3 +84,58 @@ technical messages and assertions can remain literal. The rule stays separate
 from the recommended preset, because it only makes sense once the catalogue is
 the application's source of truth — which is exactly the condition `craft
 create` checks when it decides to enable it.
+
+## Translation parameters
+
+The complete visible sentence belongs to the catalogue. Do not translate one
+piece and append another piece in the template: word order, punctuation and
+grammar can change between locales. `craft-ts/no-i18n-composition` reports this
+pattern in visible text and attributes, including generator children.
+
+### Before: a translated fragment followed by a value
+
+```ts
+span(function* () {
+  return `${i18n.t('ui.space.expires')} ${formatDate(yield* item.expiresAt())}`;
+});
+```
+
+This forces every locale to keep the same sentence shape and makes the date a
+second, untranslated fragment. With the i18n preset, ESLint reports:
+
+> Do not compose translated text with other text or values. Put the complete
+> message in the i18n catalogue and pass dynamic values as translation
+> parameters.
+
+### After: one message with a typed parameter
+
+Declare the value as a semantic token in the catalogue:
+
+```ts
+import { dateLong, defineCatalog, msg } from '@craft-ts/i18n';
+
+const expiresAt = dateLong('expiresAt');
+
+export const catalog = defineCatalog({
+  ui: {
+    space: {
+      expires: msg`Space expires ${expiresAt}`,
+    },
+  },
+});
+```
+
+Then pass the value to the translation in the template:
+
+```ts
+span(function* () {
+  return i18n.t('ui.space.expires', {
+    expiresAt: yield* item.expiresAt(),
+  });
+});
+```
+
+Each locale can now choose its own word order, punctuation and date placement,
+while the parameter remains typed and formatted through `Intl`. For a custom
+format, define a project token rather than rebuilding a translated sentence in
+the template; see [Tokens](./tokens.md).

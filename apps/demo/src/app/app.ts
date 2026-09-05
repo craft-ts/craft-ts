@@ -105,7 +105,7 @@ const NAV_GROUPS = [
       ['Guard demo', { to: 'guard-demo' }],
     ],
   },
-] as const satisfies readonly {
+] satisfies readonly {
   readonly label: string;
   readonly links: readonly (readonly [string, CraftRouterLinkInput])[];
 }[];

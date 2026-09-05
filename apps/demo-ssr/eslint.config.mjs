@@ -25,6 +25,22 @@ export default [
     rules: {
       'craft-ts/no-explicit-effect-type': 'error',
       'craft-ts/prefer-inline-effect-insertion': 'error',
+      'craft-ts/no-explicit-craft-insertion-type': 'error',
+      'craft-ts/no-explicit-craft-template-return-type': 'error',
+      'craft-ts/no-craft-primitive-type-assertion': 'error',
+      'craft-ts/prefer-insert-deep-yieldable': 'error',
+      'craft-ts/no-type-assertions-in-craft-code': 'error',
+    },
+  },
+  {
+    // SSR transport, asset and typecheck files adapt untyped Node/browser
+    // boundaries; keep the assertion ban strict for the Craft application.
+    files: [
+      '**/src/production-server.ts',
+      '**/src/demo-typecheck-indicator.ts',
+    ],
+    rules: {
+      'craft-ts/no-type-assertions-in-craft-code': 'off',
     },
   },
   {

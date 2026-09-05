@@ -8,7 +8,7 @@ const CSS_VARS_LINKS = [
   ['Inheritance', { to: 'css-vars/inheritance' }],
   ['Forwarding', { to: 'css-vars/forwarding' }],
   ['@property', { to: 'css-vars/property' }],
-] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
+] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
 export const CssVarsPageNav = craftComponent(
   'CssVarsPageNav',

@@ -68,20 +68,20 @@ const ExceptionQueryParamsComponent = craftComponent(
       {
         state: {
           mode: {
-            fallbackValue: 'fallbackValue' as const,
+            fallbackValue: 'fallbackValue',
             codec: {
               // The runtime accepts a CraftException as a decode result and
               // records it in `exceptions().parse`; the cast keeps the public
               // decoded state limited to the successful domain value.
-              decode: ((value: string) => {
+              decode: (value: string) => {
                 if (value !== 'success') {
                   return craftException(
                     { _tag: 'UNEXPECTED_ERROR' },
                     { error: new Error(`Invalid mode: ${value}`) },
                   );
                 }
-                return 'success' as const;
-              }) as (value: string) => 'success' | 'fallbackValue',
+                return 'success';
+              },
               encode: String,
             },
           },
@@ -97,12 +97,8 @@ const ExceptionQueryParamsComponent = craftComponent(
         parseExceptionMessage: craftComputed(
           'parseExceptionMessage',
           function* () {
-            return formatParseException(
-              (yield* exceptions()).parse.mode as {
-                _tag: string;
-                payload: { error: unknown };
-              },
-            );
+            const exception = (yield* exceptions()).parse.mode;
+            return exception ? formatParseException(exception) : '';
           },
         ),
       }),

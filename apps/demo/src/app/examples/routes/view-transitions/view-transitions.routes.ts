@@ -45,7 +45,7 @@ const { ViewTransitionAccess } = craftService(
       params: () => true,
       loader: function* () {
         yield* craftSleep(3000);
-        return { allowed: true } as const;
+        return { allowed: true };
       },
     });
     return viewTransitionAccess;

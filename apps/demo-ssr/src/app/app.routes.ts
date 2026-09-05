@@ -17,7 +17,6 @@ type StaticPage = typeof import('./pages/static-page').StaticPage;
 export const { ssrRoutes } = craftRoutes('ssr', [
   {
     path: '',
-    componentDeps: {} as ComponentDepsOf<OverviewPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/overview-page')).then(
         ({ OverviewPage }) => OverviewPage,
@@ -26,7 +25,6 @@ export const { ssrRoutes } = craftRoutes('ssr', [
   },
   {
     path: 'static',
-    componentDeps: {} as ComponentDepsOf<StaticPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/static-page')).then(
         ({ StaticPage }) => StaticPage,
@@ -35,7 +33,6 @@ export const { ssrRoutes } = craftRoutes('ssr', [
   },
   {
     path: 'request',
-    componentDeps: {} as ComponentDepsOf<RequestPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/request-page')).then(
         ({ RequestPage }) => RequestPage,
@@ -44,14 +41,12 @@ export const { ssrRoutes } = craftRoutes('ssr', [
   },
   {
     path: 'data',
-    componentDeps: {} as ComponentDepsOf<DataPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/data-page')).then(({ DataPage }) => DataPage),
     ssr: { mode: 'block' },
   },
   {
     path: 'fallback',
-    componentDeps: {} as ComponentDepsOf<FallbackPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/fallback-page')).then(
         ({ FallbackPage }) => FallbackPage,
@@ -60,7 +55,6 @@ export const { ssrRoutes } = craftRoutes('ssr', [
   },
   {
     path: 'client-only',
-    componentDeps: {} as ComponentDepsOf<ClientOnlyPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/client-only-page')).then(
         ({ ClientOnlyPage }) => ClientOnlyPage,
@@ -69,7 +63,6 @@ export const { ssrRoutes } = craftRoutes('ssr', [
   },
   {
     path: '**',
-    componentDeps: {} as ComponentDepsOf<NotFoundPage>,
     loadComponent: ({ withRetry }) =>
       withRetry(import('./pages/not-found-page')).then(
         ({ NotFoundPage }) => NotFoundPage,
@@ -87,15 +80,9 @@ type SsrRouteCheckedDI<Component, Context extends string> = RouteCheckedDI<
   Context
 >;
 
-type _CanRunOverview = CanRun<
-  SsrRouteCheckedDI<OverviewPage, 'path: ""'>
->;
-type _CanRunStatic = CanRun<
-  SsrRouteCheckedDI<StaticPage, 'path: "static"'>
->;
-type _CanRunRequest = CanRun<
-  SsrRouteCheckedDI<RequestPage, 'path: "request"'>
->;
+type _CanRunOverview = CanRun<SsrRouteCheckedDI<OverviewPage, 'path: ""'>>;
+type _CanRunStatic = CanRun<SsrRouteCheckedDI<StaticPage, 'path: "static"'>>;
+type _CanRunRequest = CanRun<SsrRouteCheckedDI<RequestPage, 'path: "request"'>>;
 type _CanRunData = CanRun<SsrRouteCheckedDI<DataPage, 'path: "data"'>>;
 type _CanRunFallback = CanRun<
   SsrRouteCheckedDI<FallbackPage, 'path: "fallback"'>
@@ -103,6 +90,4 @@ type _CanRunFallback = CanRun<
 type _CanRunClientOnly = CanRun<
   SsrRouteCheckedDI<ClientOnlyPage, 'path: "client-only"'>
 >;
-type _CanRunNotFound = CanRun<
-  SsrRouteCheckedDI<NotFoundPage, 'path: "**"'>
->;
+type _CanRunNotFound = CanRun<SsrRouteCheckedDI<NotFoundPage, 'path: "**"'>>;

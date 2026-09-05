@@ -28,6 +28,8 @@ const noCraftComponentReturnType = require('./no-craft-component-return-type.cjs
 const requireCraftComponentForExportedNodeFactory = require('./require-craft-component-for-exported-node-factory.cjs');
 const noRawCraftRouterUrl = require('./no-raw-craft-router-url.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
+const noExplicitCraftTemplateReturnType = require('./no-explicit-craft-template-return-type.cjs');
+const noTypeAssertionsInCraftCode = require('./no-type-assertions-in-craft-code.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
@@ -94,6 +96,9 @@ const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertio
 const noReusedPrimitiveMethod = require('./no-reused-primitive-method.cjs');
 const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
 const noExplicitEffectType = require('./no-explicit-effect-type.cjs');
+const noExplicitCraftInsertionType = require('./no-explicit-craft-insertion-type.cjs');
+const noCraftPrimitiveTypeAssertion = require('./no-craft-primitive-type-assertion.cjs');
+const preferInsertDeepYieldable = require('./prefer-insert-deep-yieldable.cjs');
 const preferInlineEffectInsertion = require('./prefer-inline-effect-insertion.cjs');
 const preferInlineRouteProviders = require('./prefer-inline-route-providers.cjs');
 const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
@@ -109,6 +114,7 @@ const noUnsafeHtml = require('./no-unsafe-html.cjs');
 const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
 const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
 const requireI18nText = require('./require-i18n-text.cjs');
+const noI18nComposition = require('./no-i18n-composition.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
 
@@ -146,6 +152,8 @@ const plugin = {
       requireCraftComponentForExportedNodeFactory,
     'no-raw-craft-router-url': noRawCraftRouterUrl,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
+    'no-explicit-craft-template-return-type': noExplicitCraftTemplateReturnType,
+    'no-type-assertions-in-craft-code': noTypeAssertionsInCraftCode,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,
@@ -215,6 +223,9 @@ const plugin = {
     'no-reused-primitive-method': noReusedPrimitiveMethod,
     'no-effect-outside-loaders': noEffectOutsideLoaders,
     'no-explicit-effect-type': noExplicitEffectType,
+    'no-explicit-craft-insertion-type': noExplicitCraftInsertionType,
+    'no-craft-primitive-type-assertion': noCraftPrimitiveTypeAssertion,
+    'prefer-insert-deep-yieldable': preferInsertDeepYieldable,
     'prefer-inline-effect-insertion': preferInlineEffectInsertion,
     'prefer-inline-route-providers': preferInlineRouteProviders,
     // Backwards-compatible alias; use no-effect-outside-loaders in new configs.
@@ -232,6 +243,7 @@ const plugin = {
     'no-trust-forwarded-headers': noTrustForwardedHeaders,
     'no-effect-import-in-frontend': noEffectImportInFrontend,
     'require-i18n-text': requireI18nText,
+    'no-i18n-composition': noI18nComposition,
   },
 };
 
@@ -289,6 +301,7 @@ plugin.configs = {
     plugins: { 'craft-ts': plugin },
     rules: {
       'craft-ts/require-i18n-text': 'error',
+      'craft-ts/no-i18n-composition': 'error',
     },
   },
 };

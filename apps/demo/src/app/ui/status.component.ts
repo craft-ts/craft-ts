@@ -10,7 +10,7 @@ const STATUS_VIEW = {
   resolved: ['✅', 'Loaded'],
   local: ['📦', 'Local'],
   exception: ['⚠️', 'Exception'],
-} as const;
+} satisfies Record<string, readonly [string, string]>;
 
 /**
  * The witness component for level 1.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { TestBed } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { Cause, Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,7 +34,7 @@ describe('demo: Effect playground', () => {
     const mounted = mountCraftComponent(
       EffectPlaygroundComponent,
       element,
-      injector as unknown as Injector,
+      injector,
     );
     TestBed.tick();
 

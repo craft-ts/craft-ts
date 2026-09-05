@@ -41,8 +41,13 @@ import {
   type Tone,
 } from './ds-components';
 
-const TONES = ['neutral', 'info', 'success', 'warning', 'danger'] as const;
-const SIZES = ['sm', 'md', 'lg'] as const;
+const TONES = ['neutral', 'info', 'success', 'warning', 'danger'] satisfies Tone[];
+const SIZES = ['sm', 'md', 'lg'] satisfies Size[];
+const initialShowcase = (): { tone: Tone; size: Size; progress: number } => ({
+  tone: 'info',
+  size: 'md',
+  progress: 40,
+});
 
 /**
  * A constant, as an input.
@@ -62,7 +67,7 @@ export const designSystemDemo = craftComponent(
   () =>
     state(
       'showcase',
-      { tone: 'info' as Tone, size: 'md' as Size, progress: 40 },
+      initialShowcase(),
       ({ state: showcase, update }) => ({
         tone: craftComputed('tone', function* () {
           return (yield* showcase()).tone;

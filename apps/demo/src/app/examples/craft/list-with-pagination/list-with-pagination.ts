@@ -33,6 +33,7 @@ import {
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { eventValue } from '../../../event-value';
 
 export const { provideUserList, UserList } = craftService(
   { name: 'UserList', providedIn: 'toProvide' },
@@ -69,7 +70,7 @@ export const { provideUserList, UserList } = craftService(
           key: 'list-with-pagination',
         })),
         insertPaginationPlaceholderData(
-          { initialValue: [] as User[] },
+          { initialValue: Array<User>() },
           ({ state }) => ({
             total: craftComputed('total', function* () {
               return (yield* state()).length;
@@ -99,7 +100,7 @@ const ListWithPaginationCraft = craftComponent(
       'updatePageSize',
       function* (event: Event) {
         (yield* UserList()).pagination.updatePageSize(
-          Number((event.target as HTMLSelectElement).value),
+          Number(eventValue(event)),
         );
       },
     );

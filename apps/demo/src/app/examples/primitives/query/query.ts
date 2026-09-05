@@ -34,14 +34,14 @@ const GlobalQuery = craftComponent(
       '--query-accent-dark': '#1d4ed8',
     },
   },
-  function* (userId: Input<string | undefined>) {
+  function* (userId: Input<string>) {
     const userQuery = yield* query(
       'userQuery',
       {
         params: userId,
         preservePreviousValue: () => true,
         loader: function* ({ params }) {
-          return yield* ApiService.getItemById(params as string);
+          return yield* ApiService.getItemById(params);
         },
       },
       insertQueryPipe(

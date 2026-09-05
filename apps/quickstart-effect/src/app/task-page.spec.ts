@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { TestBed } from '@craft-ts/core';
 import {
   installCraftEffectBridge,
   provideLayer,
@@ -32,7 +32,7 @@ describe('quickstart Effect boundary', () => {
     const mounted = mountCraftComponent(
       QuickstartTaskPage,
       element,
-      injector as unknown as Injector,
+      injector,
     );
     TestBed.tick();
 

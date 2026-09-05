@@ -1,5 +1,6 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './profile-editor.css' with { loader: 'text' };
+import { eventValue } from '../../../event-value';
 import {
   button,
   craftComponent,
@@ -32,7 +33,6 @@ import {
   transitionStep,
   withBackNavigation,
   withStateMachineHistory,
-  type SignalSource,
 } from '@craft-ts/core';
 
 type Profile = {
@@ -77,7 +77,10 @@ const ProfileEditorStateMachine = craftComponent(
         const restore$ = yield* source$<Profile>('restore$');
 
         const saveProfile = yield* mutation('saveProfile', {
-          method: saveRequest$.value as unknown as SignalSource<Profile>,
+          method: afterRecomputation(
+            saveRequest$.value,
+            (profile) => profile ?? INITIAL_PROFILE,
+          ),
           loader: function* ({ params }) {
             yield* craftSleep(600, { owner: 'profile-editor-save' });
             return params;
@@ -150,14 +153,11 @@ const ProfileEditorStateMachine = craftComponent(
             yield* initStateMachine(() => transit());
 
             // Leaving `saving` is not an event — it is the mutation settling.
-            yield* afterRecomputation(
-              context.saveProfile.status,
-              function* (status) {
-                if (status === 'resolved') {
-                  yield* transit();
-                }
-              },
-            );
+            afterRecomputation(context.saveProfile.status, function* (status) {
+              if (status === 'resolved') {
+                yield* transit();
+              }
+            });
 
             yield* on$(context.cancel$, function* () {
               yield* transit();
@@ -169,7 +169,7 @@ const ProfileEditorStateMachine = craftComponent(
           }),
 
           saving: transitionStep(function* () {
-            yield* afterRecomputation(
+            afterRecomputation(
               context.saveProfile.isLoading,
               function* (isLoading) {
                 if (isLoading) {
@@ -353,9 +353,7 @@ const ProfileEditorStateMachine = craftComponent(
                     type: 'text',
                     value: machine.draftName,
                     *input(event) {
-                      yield* machine.setName(
-                        (event.target as HTMLInputElement).value,
-                      );
+                      yield* machine.setName(eventValue(event));
                     },
                   }),
                 ]),
@@ -370,9 +368,7 @@ const ProfileEditorStateMachine = craftComponent(
                     type: 'email',
                     value: machine.draftEmail,
                     *input(event) {
-                      yield* machine.setEmail(
-                        (event.target as HTMLInputElement).value,
-                      );
+                      yield* machine.setEmail(eventValue(event));
                     },
                   }),
                 ]),

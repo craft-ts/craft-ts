@@ -37,7 +37,7 @@ const { SlowAccess } = craftService(
       params: () => true,
       loader: function* () {
         yield* craftSleep(1500);
-        return { allowed: true } as const;
+        return { allowed: true };
       },
     });
     return slowAccess;

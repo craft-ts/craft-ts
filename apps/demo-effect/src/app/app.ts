@@ -20,7 +20,7 @@ const EXAMPLE_LINKS = [
   ['Run an Effect function', { to: 'effect-function' }],
   ['Sync vs async members', { to: 'sync-members' }],
   ['Translate in an Effect', { to: 'i18n' }],
-] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
+] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
 export const App = craftComponent(
   'App',

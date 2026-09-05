@@ -1,5 +1,4 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import { Signal } from '@craft-ts/core';
 import {
   article,
   craftComponent,
@@ -18,6 +17,17 @@ type TransitionPayload = {
   readonly image: string | null;
 };
 
+function isTransitionPayload(value: unknown): value is TransitionPayload {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'name' in value &&
+    typeof value.name === 'string' &&
+    'image' in value &&
+    (value.image === null || typeof value.image === 'string')
+  );
+}
+
 const photoGradient = (photo: Photo | undefined) =>
   photo?.gradient ?? '#e2e8f0';
 
@@ -31,17 +41,23 @@ const ViewTransitionsSkeletonComponent = craftComponent(
     `,
   },
   (photoId: Input<string>) => {
-    const viewTransition =
-      injectCraftViewTransition() as unknown as Signal<TransitionPayload | null>;
+    const rawViewTransition = injectCraftViewTransition();
+    const viewTransition = craftComputed('viewTransition', function* () {
+      // The generic inject helper is an untyped transport boundary.
+    const value = rawViewTransition();
+      return isTransitionPayload(value) ? value : null;
+    });
     const hasImage = craftComputed(
       'hasImage',
-      () =>
-        viewTransition()?.image !== null &&
-        viewTransition()?.image !== undefined,
+      function* () {
+        return (yield* viewTransition())?.image !== null;
+      },
     );
     const imageSrc = craftComputed(
       'imageSrc',
-      () => viewTransition()?.image ?? '',
+      function* () {
+        return (yield* viewTransition())?.image ?? '';
+      },
     );
     return { photoId, viewTransition, hasImage, imageSrc };
   },

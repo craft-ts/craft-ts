@@ -11,15 +11,12 @@ import {
   span,
 } from '@craft-ts/component';
 import {
+  craftPipe,
   craftMethod,
-  insertQueryPipe,
   insertReactOnMutation,
   state,
 } from '@craft-ts/core';
-import {
-  mutationEffect,
-  queryEffect,
-} from '@craft-ts/effect';
+import { mutationEffect, queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import {
   type TodoNotFound,
@@ -101,38 +98,34 @@ const EffectPlaygroundComponent = craftComponent(
           return yield* remove(params);
         }),
     });
-    // The Effect adapter's insertion overload cannot infer the query value
-    // through a composed core insertion, so keep the runtime-safe pipe at the
-    // boundary while retaining the typed query result below.
-    const reloadAfterMutation = insertQueryPipe(
-      insertReactOnMutation(addTodo, {
-        reload: { onMutationResolved: true },
-      }) as never,
-      insertReactOnMutation(toggleTodoMutation, {
-        reload: { onMutationResolved: true },
-      }) as never,
-      insertReactOnMutation(removeTodoMutation, {
-        reload: { onMutationResolved: true },
-      }) as never,
-    ) as unknown as (context: unknown) => unknown;
-    const todosQuery = yield* queryEffect<
-      'todos',
-      'all',
-      readonly EffectTodo[],
-      never,
-      TodoStore,
-      typeof reloadAfterMutation
-    >(
+    const todosQuery = yield* queryEffect(
       'todos',
       {
-        params: () => 'all' as const,
+        params: () => 'all',
         loader: () =>
           Effect.gen(function* () {
             const { list } = yield* TodoStore;
             return yield* list;
           }),
       },
-      reloadAfterMutation,
+      (context) =>
+        craftPipe(
+          context,
+          (nextContext) =>
+            craftPipe(
+              nextContext,
+              insertReactOnMutation(addTodo, {
+                reload: { onMutationResolved: true },
+              }),
+              insertReactOnMutation(toggleTodoMutation, {
+                reload: { onMutationResolved: true },
+              }),
+            ),
+          (nextContext) =>
+            insertReactOnMutation(removeTodoMutation, {
+              reload: { onMutationResolved: true },
+            })(nextContext),
+        ),
     );
     const titleInput = yield* state('titleInput', '', ({ set }) => ({
       setTitle: (value: string) => set(value),
@@ -189,7 +182,11 @@ const EffectPlaygroundComponent = craftComponent(
             disabled: addTodo.isLoading,
             click: add,
           },
-          ifNode(addTodo.isLoading, () => 'Adding…', () => 'Add'),
+          ifNode(
+            addTodo.isLoading,
+            () => 'Adding…',
+            () => 'Add',
+          ),
         ),
       ]),
       ifNode(

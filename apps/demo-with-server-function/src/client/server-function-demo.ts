@@ -161,8 +161,12 @@ const ServerFunctionDemo = craftComponent(
         const notFoundMessage = craftComputed('notFoundMessage', function* () {
           const error = (yield* exceptions()).loader;
           if (!isCraftException(error)) return '';
-          const payload = error.payload as { readonly message?: unknown };
-          return `404 · ${String(payload.message ?? 'No matching users.')}`;
+          const payload = error.payload;
+          const message =
+            payload && typeof payload === 'object' && 'message' in payload
+              ? payload.message
+              : undefined;
+          return `404 · ${String(message ?? 'No matching users.')}`;
         });
         return {
           accessDenied: craftComputed(function* () {

@@ -29,6 +29,7 @@ import {
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { eventValue } from '../../../event-value';
 
 const ListWithPagination = craftComponent(
   'ListWithPagination',
@@ -68,7 +69,7 @@ const ListWithPagination = craftComponent(
           key: 'list-with-pagination',
         })),
         insertPaginationPlaceholderData(
-          { initialValue: [] as User[] },
+          { initialValue: Array<User>() },
           ({ currentPageStatus }) => ({
             isCurrentPageResolved: craftComputed(
               'isCurrentPageResolved',
@@ -85,7 +86,7 @@ const ListWithPagination = craftComponent(
       'updatePageSize',
       function* (event: Event) {
         yield* pagination.updatePageSize(
-          Number((event.target as HTMLSelectElement).value),
+          Number(eventValue(event)),
         );
       },
     );

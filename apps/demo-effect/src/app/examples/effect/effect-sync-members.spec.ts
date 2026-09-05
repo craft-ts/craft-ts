@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { TestBed } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectSyncMembersComponent from './effect-sync-members';
@@ -29,7 +29,7 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
     const mounted = mountCraftComponent(
       EffectSyncMembersComponent,
       element,
-      injector as unknown as Injector,
+      injector,
     );
     TestBed.tick();
     return { element, injector, mounted };

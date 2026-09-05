@@ -14,6 +14,7 @@ import {
   ul,
   type Input,
 } from '@craft-ts/component';
+import { eventValue } from '../../../event-value';
 import {
   craftComputed,
   craftStateMachine,
@@ -158,7 +159,7 @@ const TaskRow = craftComponent(
         placeholder: 'Note recorded with each move…',
         value: machine.note,
         *input(event) {
-          yield* machine.setNote((event.target as HTMLInputElement).value);
+          yield* machine.setNote(eventValue(event));
         },
       }),
 

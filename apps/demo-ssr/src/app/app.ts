@@ -20,7 +20,7 @@ const SCENARIOS = [
   ['03 · query bloquante', { to: 'data' }],
   ['04 · fallback SSR', { to: 'fallback' }],
   ['05 · client-only', { to: 'client-only' }],
-] as const;
+] satisfies readonly (readonly [string, { readonly to: string }])[];
 
 export const App = craftComponent(
   'SsrLabApp',

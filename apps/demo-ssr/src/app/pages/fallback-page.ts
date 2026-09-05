@@ -8,13 +8,7 @@ import {
   span,
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
-import {
-  CraftHttpClient,
-  craftComputed,
-  query,
-  settled,
-  type CraftHttpClientResult,
-} from '@craft-ts/core';
+import { CraftHttpClient, craftComputed, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 
 export const FallbackPage = craftComponent(
@@ -24,10 +18,10 @@ export const FallbackPage = craftComponent(
     const data = yield* query('deferredData', {
       params: () => true,
       loader: function* () {
-        return (yield* CraftHttpClient.get(({ response }) => ({
+        return yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/deferred',
           success: response<{ message: string }>(),
-        }))) as unknown as CraftHttpClientResult<{ message: string }>;
+        }));
       },
     });
     const resolved = craftComputed('resolvedDeferredData', function* () {
@@ -47,7 +41,7 @@ export const FallbackPage = craftComponent(
           p('Le titre et cette carte sont dans la réponse initiale.'),
           span({ class: 'pending-box' }, function* () {
             const value = yield* resolved();
-            return (value as unknown as { message: string } | undefined)?.message ?? '';
+            return hasMessage(value) ? value.message : '';
           }),
         ]),
         article({ class: 'card' }, [
@@ -68,3 +62,12 @@ export const FallbackPage = craftComponent(
       ),
     ),
 );
+
+function hasMessage(value: unknown): value is { message: string } {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'message' in value &&
+    typeof value.message === 'string'
+  );
+}

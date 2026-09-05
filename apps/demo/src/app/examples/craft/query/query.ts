@@ -26,14 +26,14 @@ import { ApiService } from './api.service';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
-  function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
+  function* (inputs: { userId: CraftServiceInput<string> }) {
     return yield* query(
       'userQuery',
       {
         params: inputs.userId,
         loader: function* ({ params }) {
           yield* Console.log('Loading user with id:', params);
-          return yield* ApiService.getItemById(params as string);
+          return yield* ApiService.getItemById(params);
         },
       },
       insertStoragePersister(
@@ -58,7 +58,7 @@ const CraftGlobalQuery = craftComponent(
       '--query-accent-dark': '#1d4ed8',
     },
   },
-  function* (userId: Input<string | undefined>) {
+  function* (userId: Input<string>) {
     const user = yield* UserQuery({
       userId,
     });

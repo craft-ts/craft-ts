@@ -116,11 +116,9 @@ const EffectServerMiddlewareDemo = craftComponent(
       function* () {
         const error = yield* usersQuery.serverError();
         if (!error || typeof error !== 'object') return '';
-        const record = error as {
-          readonly _tag?: unknown;
-          readonly payload?: unknown;
-        };
-        return `${String(record._tag)} · ${JSON.stringify(record.payload)}`;
+        const tag = '_tag' in error ? error._tag : undefined;
+        const payload = 'payload' in error ? error.payload : undefined;
+        return `${String(tag)} · ${JSON.stringify(payload)}`;
       },
     );
     const hasServerError = craftComputed('effectMiddlewareHasServerError', () =>

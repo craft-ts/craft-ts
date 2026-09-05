@@ -55,7 +55,10 @@ const frenchLocale = defineLocaleLike(englishLocale, 'fr-FR', {
   },
 });
 
-export const locales = [englishLocale, frenchLocale] as const;
+export const locales = [englishLocale, frenchLocale] satisfies readonly [
+  typeof englishLocale,
+  typeof frenchLocale,
+];
 export type ReceiptLocale = (typeof locales)[number]['id'];
 
 export const i18nRuntime = createI18nRuntime({

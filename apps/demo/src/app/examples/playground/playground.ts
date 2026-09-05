@@ -140,7 +140,7 @@ const { Playground } = craftService(
     const todos = yield* query(
       'todos',
       {
-        params: () => 'all' as const,
+        params: () => 'all',
         loader: function* () {
           return yield* api.getTodos();
         },

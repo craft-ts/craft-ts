@@ -9,7 +9,7 @@ import {
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
-import { loadTask, type TaskNotFound } from './task-domain';
+import { loadTask } from './task-domain';
 
 const QuickstartTaskPage = craftComponent(
   'QuickstartTaskPage',
@@ -30,7 +30,7 @@ const QuickstartTaskPage = craftComponent(
           return (yield* resource.value())?.title ?? 'Loading…';
         }),
         exception: craftComputed('exception', function* () {
-          return (yield* exceptions()).loader as TaskNotFound | undefined;
+          return (yield* exceptions()).loader;
         }),
         exceptionTag: craftComputed('exceptionTag', function* () {
           return (yield* exceptions()).loader?._tag ?? 'Unknown';
@@ -63,7 +63,12 @@ const QuickstartTaskPage = craftComponent(
       ),
       button(
         'reloadTask',
-        { type: 'button', *click() { yield* taskQuery.call('task-1'); } },
+        {
+          type: 'button',
+          *click() {
+            yield* taskQuery.call('task-1');
+          },
+        },
         'Reload task',
       ),
     ]),

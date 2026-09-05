@@ -65,7 +65,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(
           import('./examples/effect/effect-team-overview-layer-scope'),
         ).then(({ default: component }) => component),
-      [provideLayer(SupportTeamLive)] as const,
+      [provideLayer(SupportTeamLive)],
     ),
   },
   {
@@ -75,7 +75,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(import('./examples/effect/effect-playground')).then(
           ({ default: component }) => component,
         ),
-      [provideLayer(TodoStoreLive)] as const,
+      [provideLayer(TodoStoreLive)],
     ),
     handleExceptions: {
       TodoNotFound: craftExceptionHandler(function* ({ globalError }) {
@@ -90,7 +90,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(import('./examples/effect/effect-sync-members')).then(
           ({ default: component }) => component,
         ),
-      [provideLayer(CartPricingLive)] as const,
+      [provideLayer(CartPricingLive)],
     ),
   },
   {
@@ -100,7 +100,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(import('./examples/effect/effect-i18n')).then(
           ({ default: component }) => component,
         ),
-      [provideLayer(I18nLive)] as const,
+      [provideLayer(I18nLive)],
     ),
   },
   {
@@ -110,7 +110,7 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         withRetry(import('./examples/effect/effect-function')).then(
           ({ default: component }) => component,
         ),
-      [provideLayer(InMemoryDatabaseLive)] as const,
+      [provideLayer(InMemoryDatabaseLive)],
     ),
     handleExceptions: {
       DatabaseConnectionError: craftExceptionHandler(function* ({

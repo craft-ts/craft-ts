@@ -16,6 +16,15 @@ can miss a real DI error. Run `eslint --fix` in CI.
 
 The plugin is exposed from `@craft-ts/dev-tools/eslint-rules`.
 
+The recommended preset bans every TypeScript assertion in authored Craft code,
+including `as const`:
+
+```ts
+import craftRules from '@craft-ts/dev-tools/eslint-rules';
+
+export default [{ files: ['**/*.ts'], ...craftRules.configs.recommended }];
+```
+
 For a project using `@craft-ts/effect`, the published preset enables the Craft
 rules and the Effect adapter rule in one entry:
 
@@ -53,6 +62,7 @@ export default [
       'craft-ts/require-craft-component-for-exported-node-factory': 'error',
       'craft-ts/no-raw-craft-router-url': 'error',
       'craft-ts/no-type-assertions-in-template': 'error',
+      'craft-ts/no-explicit-craft-template-return-type': 'error',
       'craft-ts/no-ephemeral-template-form-state': 'error',
       'craft-ts/template-element-name-unique': 'error',
       'craft-ts/no-craft-computed-side-effects': 'error',
@@ -75,6 +85,9 @@ export default [
       'craft-ts/no-remote-work-in-craft-method': 'error',
       'craft-ts/no-type-assertions-in-resource-loader': 'error',
       'craft-ts/no-explicit-resource-loader-type': 'error',
+      'craft-ts/no-explicit-craft-insertion-type': 'error',
+      'craft-ts/no-craft-primitive-type-assertion': 'error',
+      'craft-ts/prefer-insert-deep-yieldable': 'error',
       'craft-ts/no-imperative-template-action-chain': 'error',
       'craft-ts/prefer-route-query-params-for-filter-state': 'warn',
       'craft-ts/no-imperative-storage-in-craft-method': 'error',
@@ -130,6 +143,27 @@ The rule also follows named exports such as `export { filterButton }` and
 checks exported arrow functions.
 
 - `craft-ts/no-type-assertions-in-template`: forbids `as ...` and angle-bracket type assertions in Craft templates; fix the type in the logic factory or expose a correctly typed derived value
+- `craft-ts/no-explicit-craft-template-return-type`: forbids explicit return annotations on render callbacks inside `craftComponent(...)`. A broad annotation such as `(): CraftNodeChildren` widens the concrete node type, breaks dependency and type-safe DI inference, and can surface as a runtime error. Let the callback return type be inferred:
+
+  ```ts
+  const pendingStatusMessage = (message: string) => p(message);
+
+  // ❌ The annotation erases the concrete node/dependency information.
+  pendingNode({
+    fallback: (): CraftNodeChildren => pendingStatusMessage('Loading…'),
+    reloading: (): CraftNodeChildren => pendingStatusMessage('Reloading…'),
+  });
+
+  // ✅ The concrete `p(...)` node stays visible to Craft's inference.
+  pendingNode({
+    fallback: () => pendingStatusMessage('Loading…'),
+    reloading: () => pendingStatusMessage('Reloading…'),
+  });
+  ```
+
+  The rule is autofixable with `eslint --fix`. Return annotations on DOM event
+  and output callbacks remain allowed because those callbacks do not produce
+  rendered children.
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
@@ -155,7 +189,11 @@ checks exported arrow functions.
 - `craft-ts/no-imperative-craft-method-actions`: forbids composing multiple imperative actions in a `craftMethod`; emit a `source$` event and let the affected query react with `insertReactOnMutation(...)` instead. A handler such as `event.preventDefault()` followed by one `mutation.mutate(...)` remains valid.
 - `craft-ts/no-remote-work-in-craft-method`: forbids `CraftHttpClient.*(...)` inside `craftMethod` because that action boundary does not own request loading, cancellation, exceptions, or graph dependencies; define the request directly in the `query` or `mutation` loader.
 - `craft-ts/no-type-assertions-in-resource-loader`: forbids `as ...` and angle-bracket assertions inside `query`, `mutation`, and `asyncProcess` loaders because assertions only silence TypeScript and can hide Promise, response, or transport mismatches; repair the request or adapter typing instead.
+- `craft-ts/no-type-assertions-in-craft-code`: forbids TypeScript type assertions in authored Craft code, including `as const` and angle-bracket assertions; the narrow `undefined as T | undefined` seed is allowed for intentionally optional state values. Use correct API typing or `satisfies` for shape validation. Low-level technical adapters may disable this rule locally when an explicit runtime boundary cast is unavoidable.
 - `craft-ts/no-explicit-resource-loader-type`: forbids explicit parameter and return annotations on `query`, `mutation`, and `asyncProcess` loaders; let the resource infer its contract from `params`, `method`, and the yielded operations instead of writing `Generator<...>` or `{ params: string }`
+- `craft-ts/no-explicit-craft-insertion-type`: forbids explicit parameter and return annotations on callbacks passed to `insert*Pipe`; let the primitive infer the insertion context and derived output
+- `craft-ts/no-craft-primitive-type-assertion`: forbids chained assertions such as `as unknown as Generator<...>` around Craft primitive generators, which can hide the inferred output and dependency contract
+- `craft-ts/prefer-insert-deep-yieldable`: rejects adapting a property of a primitive result with `deepYieldable(...)`; add `insertDeepYieldable()` to the primitive and read the property directly
 - `craft-ts/no-imperative-template-action-chain`: forbids chaining multiple Craft actions in one template event callback; emit one `source$` event and let the query, mutation, and state react through `on$`.
 - `craft-ts/prefer-route-query-params-for-filter-state`: warns when a local `state()` is used directly or through a local derivation as `params` for `query`, `queryEffect`, `asyncProcess`, or `asyncProcessEffect`; use `queryParams()` for values that should survive reloads and be represented in the URL. The graph-wide counterpart, which also sees cross-file dependencies, is [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state).
 - `craft-ts/no-imperative-storage-in-craft-method`: forbids direct storage access and imperative location changes in a `craftMethod`; use `insertReactOnMutation(...)` with `optimisticUpdate: () => undefined` to clear the affected query and let its persistence follow the query state.
@@ -241,10 +279,13 @@ the loader remain allowed.
 const result = await fetch('/api/users');
 
 // Correct: use the Craft client in the owning resource loader.
-return yield* CraftHttpClient.get(({ response }) => ({
-  url: '/api/users',
-  success: response<User>(),
-}));
+return (
+  yield *
+  CraftHttpClient.get(({ response }) => ({
+    url: '/api/users',
+    success: response<User>(),
+  }))
+);
 ```
 
 For a raw binary body, use `CraftBinaryHttpClient.put(...)`; do not use a type
@@ -252,6 +293,56 @@ assertion to force `CraftHttpClient` to accept a `Blob`. An assertion only
 silences TypeScript — it does not change the runtime value or transport.
 That is why `prefer-craft-http-transport` and
 `no-type-assertions-in-resource-loader` report these patterns.
+
+### Preserve primitive inference
+
+The insertion callback already receives a contextual type, and the primitive
+already knows the complete type of its generator. Do not repeat either type at
+the boundary:
+
+```ts
+// ❌ craft-ts/no-explicit-craft-insertion-type
+insertQueryPipe(
+  ({ resource }): SpaceQueryView => ({
+    items: craftComputed(() => resource.value()),
+  }),
+);
+
+// ❌ craft-ts/no-craft-primitive-type-assertion
+const generator = query('spaceItems', config) as unknown as Generator<
+  unknown,
+  SpaceQueryRef,
+  unknown
+>;
+
+// ✅
+const generator = query(
+  'spaceItems',
+  config,
+  insertQueryPipe(({ resource }) => ({
+    items: craftComputed(() => resource.value()),
+  })),
+);
+```
+
+The assertion is especially harmful around a composed insertion pipe: it
+replaces the type that carries the derived properties and their dependencies.
+
+### Prefer primitive deep-yieldable insertions
+
+When a property is read from the result of a primitive, expose the deep view at
+the primitive boundary. This keeps the property reader connected to the
+primitive and avoids an extra adapter:
+
+```ts
+// ❌ craft-ts/prefer-insert-deep-yieldable
+const spaceQuery = yield * spaceQueryGenerator;
+const deepItems = deepYieldable(spaceQuery.items);
+
+// ✅ add insertDeepYieldable() to the query call, then:
+const spaceQuery = yield * spaceQueryGenerator;
+const items = spaceQuery.items;
+```
 
 Expected failures should use `craftException(...)` so they remain typed and
 available through the resource's exception state. `no-throw` keeps technical
@@ -474,11 +565,8 @@ forNode(catalog.products, { track: (product) => product.id }, (product) =>
 );
 
 // After: the named view keeps each property read lazy and reactive.
-const catalog = yield* state(
-  'catalog',
-  { products },
-  insertDeepYieldable('products'),
-);
+const catalog =
+  yield * state('catalog', { products }, insertDeepYieldable('products'));
 
 forNode(
   catalog.deepYieldableProducts,

@@ -26,6 +26,7 @@ import {
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { eventValue } from '../../../event-value';
 import styles from './list-with-pagination.css' with { loader: 'text' };
 
 const QpListWithPagination = craftComponent(
@@ -66,14 +67,14 @@ const QpListWithPagination = craftComponent(
           storeName: 'demo-app',
           key: 'route-list-with-pagination',
         })),
-        insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        insertPaginationPlaceholderData({ initialValue: Array<User>() }),
       ),
     );
     const updatePageSize = craftMethod(
       'updatePageSize',
       function* (event: Event) {
         yield* pagination.updatePageSize(
-          Number((event.target as HTMLSelectElement).value),
+          Number(eventValue(event)),
         );
       },
     );

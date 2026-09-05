@@ -94,7 +94,7 @@ export const size = defineStateAxis('size', ['sm', 'md', 'lg']);
  * instead. Which looks exactly like dark mode not working, with no error
  * anywhere. Compare with `dsButton-bg` next door, which stays non-inheriting.
  */
-const themed = { inherits: true } as const;
+const themed = { inherits: true } satisfies { inherits: true };
 
 export const theme = cssVars('ds', {
   surface: kind.color(ui.surface.page, themed),

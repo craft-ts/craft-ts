@@ -7,6 +7,8 @@
  * chemin change — c'est voulu : un nouvel état ne devient pas transférable
  * par accident.
  */
+import type { CraftSecurityPolicyInput } from '@craft-ts/core';
+
 export const DEMO_SECURITY_POLICY = {
   transfer: {
     mode: 'allowlist',
@@ -19,4 +21,4 @@ export const DEMO_SECURITY_POLICY = {
     maxBytes: 256_000,
     maxDepth: 12,
   },
-} as const;
+} satisfies CraftSecurityPolicyInput;

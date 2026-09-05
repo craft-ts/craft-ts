@@ -26,6 +26,8 @@ type DemoClientId = 'acme' | 'globex';
 
 type UnitSystem = 'metric' | 'imperial';
 
+const initialClient = (): DemoClientId => 'acme';
+
 const DEMO_CLIENTS: Record<
   DemoClientId,
   {
@@ -49,7 +51,7 @@ export const { ClientCurrency, provideClientCurrency } = craftService(
     // — the token's dependency map would come back empty.
     const client = yield* state(
       'client',
-      'acme' as DemoClientId,
+      initialClient(),
       ({ state: selected, set }) => ({
         changeClient: (next: DemoClientId) => set(next),
         currency: craftComputed(function* () {
@@ -107,7 +109,7 @@ const isoDateSchema = {
         : { value: parsed };
     },
   },
-} as unknown as TokenSchema<Date, string>;
+} satisfies TokenSchema<Date, string>;
 
 /** Rejects the value rather than formatting a negative weight. */
 const positiveNumberSchema = {
@@ -121,7 +123,7 @@ const positiveNumberSchema = {
         : { issues: [{ message: 'A weight must be a positive number.' }] };
     },
   },
-} as unknown as TokenSchema<number, number>;
+} satisfies TokenSchema<number, number>;
 
 const weightFormatter =
   (unit: 'kilogram' | 'pound') => (value: number, context: FormatterContext) =>
@@ -234,5 +236,8 @@ const frenchCatalog = defineLocaleLike(englishLocale, 'fr-FR', {
   },
 });
 
-export const locales = [englishLocale, frenchCatalog] as const;
+export const locales = [englishLocale, frenchCatalog] satisfies readonly [
+  typeof englishLocale,
+  typeof frenchCatalog,
+];
 export type DemoLocale = LocaleId<(typeof locales)[number]>;

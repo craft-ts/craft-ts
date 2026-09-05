@@ -18,7 +18,7 @@ const commonAppConfigDefinition = {
     provideCraftRootComponent(App),
     provideCraftRouter(ssrRoutes.toRoutes()),
   ],
-} as const;
+};
 
 /**
  * Creates an isolated SSR configuration for one request.

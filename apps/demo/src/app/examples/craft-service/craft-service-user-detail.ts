@@ -19,6 +19,7 @@ import {
   type CraftServiceInput,
   craftException,
 } from '@craft-ts/core';
+import { eventValue } from '../../event-value';
 
 type User = { id: string; name: string; email: string };
 const USERS: User[] = [
@@ -112,7 +113,7 @@ const CraftServiceUserDetailComponent = craftComponent(
             value: userId,
             *change(event: Event) {
               yield* userId.selectUser(
-                (event.target as HTMLSelectElement).value,
+                eventValue(event),
               );
             },
           },

@@ -2,7 +2,6 @@
 import {
   article,
   button,
-  catchNode,
   craftComponent,
   div,
   forNode,
@@ -21,14 +20,12 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import type { CraftDirective } from '@craft-ts/component';
 import {
   craftComputed,
   craftMethod,
   isCraftException,
   query,
   queryParams,
-  settled,
   state,
 } from '@craft-ts/core';
 import { getUsers } from '../users/list.fn-client';
@@ -189,7 +186,8 @@ const SimpleListDemo = craftComponent(
       },
     );
     const users = craftComputed('users', function* () {
-      return yield* settled(usersQuery);
+      const value = yield* usersQuery.value();
+      return Array.isArray(value) ? value : [];
     });
     const searchInput = yield* state(
       'searchInput',
@@ -306,40 +304,12 @@ const SimpleListDemo = craftComponent(
                 ]),
               ),
             ),
-          ])
-            .pipe(
-              pendingNode({
-                fallback: () =>
-                  p({ class: 'loading' }, '⏳ The Effect backend is working…'),
-              }),
-            )
-            .pipe(
-              // Server-function transport exceptions are handled at runtime;
-              // this client query currently exposes them through exceptions().
-              (catchNode.exhaustive({
-              UsersNotFound: {
-                showSource: false,
-                render: (exception) =>
-                  div({ class: 'empty' }, [
-                    strong('404 · No users found'),
-                    span(
-                      exceptionMessage(
-                        exception,
-                        'No matching users were found.',
-                      ),
-                    ),
-                  ]),
-              },
-              HttpError: {
-                showSource: false,
-                render: () =>
-                  div({ class: 'empty' }, [
-                    strong('Server function unavailable'),
-                    span('The request could not be completed.'),
-                  ]),
-              },
-              }) as unknown as CraftDirective),
-            ),
+          ]).pipe(
+            pendingNode({
+              fallback: () =>
+                p({ class: 'loading' }, '⏳ The Effect backend is working…'),
+            }),
+          ),
         ]),
       ]),
       footer({ class: 'demo-footer' }, [
